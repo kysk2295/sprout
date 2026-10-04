@@ -17,6 +17,7 @@
     "@azure/core-asynciterator-polyfill": "^1.0.2",
     "@op-engineering/op-sqlite": "18.2.5",
     "@powersync/react-native": "2.3.1",
+    "@react-native-google-signin/google-signin": "16.1.5",
     "@sprout/schema": "*",
     "expo": "~57.0.26",
     "expo-background-task": "~57.0.21",

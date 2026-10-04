@@ -1,5 +1,5 @@
 // 계정·동기화 (20 §4.3, 08) — 데스크톱 apps/desktop/src/main/sync.ts와 같은 흐름
-// - 이메일 로그인 → JWT. 세션(리프레시 토큰 포함)은 expo-secure-store(iOS 키체인·Android Keystore)에 둔다.
+// - 이메일·구글(20 §4.3.1) 로그인 → JWT. 세션(리프레시 토큰 포함)은 expo-secure-store(iOS 키체인·Android Keystore)에 둔다.
 // - 리프레시 토큰은 쓸 때마다 바뀐다 → 새로 고침은 한 번에 하나만(single-flight), 본 앱만 한다(공유 확장은 액세스 토큰만 읽기, 24).
 // - 첫 로그인: 서버에 내 데이터가 있으면 로컬을 비우고 내려받는다. 없으면(새 계정) 기본함만 만들어 올린다
 //   (휴대폰에는 로그인 전 데이터가 없다 — 20 §4.3).
@@ -10,6 +10,7 @@ import { UpdateType, type AbstractPowerSyncDatabase, type PowerSyncBackendConnec
 import { seedStatements } from '@sprout/schema/seed'
 import { API_URL, SYNC_URL } from '../config'
 import { CONNECT_OPTIONS, db, run } from './db'
+import { GoogleSignInError, googleIdToken } from './google'
 
 const KEY = 'sprout.session.v1'
 
@@ -132,16 +133,93 @@ async function adopt(s: Session) {
   }
 }
 
-async function signIn(path: '/auth/login' | '/auth/signup', email: string, password: string) {
-  const s = toSession(await api<TokenResponse>(path, { body: { email: email.trim(), password } }))
+/** 서버 토큰 응답 → 첫 로그인 규칙 → 저장 → 동기화(이메일·구글 공용) */
+async function signInWithTokens(r: TokenResponse) {
+  const s = toSession(r)
   await adopt(s)
   await save(s)
   status = 'signedIn'
   emit()
   void db.connect(connector, CONNECT_OPTIONS)
 }
+async function signIn(path: '/auth/login' | '/auth/signup', email: string, password: string) {
+  await signInWithTokens(await api<TokenResponse>(path, { body: { email: email.trim(), password } }))
+}
 export const login = (email: string, password: string) => signIn('/auth/login', email, password)
 export const signup = (email: string, password: string) => signIn('/auth/signup', email, password)
+
+// ── 20 §4.3.1 Google로 계속하기 · 로그인 방법 · 계정 삭제 전 다시 로그인 ──
+/** 기기 구글 로그인 → POST /auth/google(nonce 없음 — 서버가 azp≠aud·10분·한 번만으로 확인) → 이메일 로그인과 같은 길 */
+export async function loginWithGoogle() {
+  const idToken = await googleIdToken()
+  await signInWithTokens(await api<TokenResponse>('/auth/google', { body: { id_token: idToken } }))
+}
+
+/**
+ * 08 §7.1 소셜 전용 계정 삭제 전 다시 로그인: 같은 계정이면 토큰만 바꾼다(로컬 데이터·동기화 그대로, 새 접근 토큰에 auth_time).
+ * 다른 계정이면 그 세션을 서버에서 버리고 'reauth: different account'.
+ */
+export async function reauthWithGoogle() {
+  if (!session) throw new ApiError('unauthorized', 401)
+  const me = session.user.id
+  const idToken = await googleIdToken()
+  const r = await api<TokenResponse>('/auth/google', { body: { id_token: idToken } })
+  if (r.user.id !== me || !session || session.user.id !== me) {
+    void api('/auth/logout', { body: { refresh_token: r.refresh_token } }).catch(() => {})
+    throw new Error('reauth: different account')
+  }
+  await save(toSession(r))
+}
+
+export type Provider = 'google' | 'apple'
+export type LinkedIdentity = { provider: Provider; email: string | null } // email은 서버가 가린 것
+export type LoginMethods = { hasPassword: boolean; identities: LinkedIdentity[] }
+const toIdentities = (json: unknown): LinkedIdentity[] => {
+  const list = (json as { identities?: unknown })?.identities
+  return (Array.isArray(list) ? list : [])
+    .filter((x) => x && (x.provider === 'google' || x.provider === 'apple'))
+    .map((x) => ({ provider: x.provider as Provider, email: typeof x.email === 'string' ? x.email : null }))
+}
+async function bearer() {
+  const token = await freshToken()
+  if (!token) throw new ApiError('unauthorized', 401)
+  return token
+}
+/** 설정 › 계정 › 로그인 방법: GET /auth/me의 has_password·identities */
+export async function loginMethods(): Promise<LoginMethods> {
+  const me = await api<{ has_password?: boolean; identities?: unknown }>('/auth/me', { token: await bearer() })
+  return { hasPassword: me.has_password !== false, identities: toIdentities(me) }
+}
+/** 지금 계정에 구글을 붙인다(로그인하지 않음). 서버 409 문구는 ApiError.message 그대로 */
+export async function linkGoogle(): Promise<LinkedIdentity[]> {
+  await bearer() // 로그인 안 했으면 구글 창을 열지 않는다
+  const idToken = await googleIdToken()
+  return toIdentities(await api('/auth/link/google', { body: { id_token: idToken }, token: await bearer() }))
+}
+export async function unlinkProvider(provider: Provider): Promise<LinkedIdentity[]> {
+  return toIdentities(await api(`/auth/link/${provider}`, { method: 'DELETE', token: await bearer() }))
+}
+
+/** 소셜 로그인·연결 오류 → 화면 문구. 취소는 null(아무것도 안 띄움). 데스크톱 auth-social.ts MSG와 같은 뜻 */
+export function socialErrorText(e: unknown): string | null {
+  if (e instanceof GoogleSignInError) {
+    if (e.code === 'cancelled' || e.code === 'busy') return null
+    if (e.code === 'not_configured') return '구글 로그인 설정이 아직 없어요'
+    if (e.code === 'play_services') return 'Google Play 서비스가 필요해요. 업데이트한 뒤 다시 시도하세요'
+    return '로그인을 확인하지 못했어요. 다시 시도하세요.'
+  }
+  if (e instanceof ApiError) {
+    if (e.status === 0) return '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요'
+    if (e.status === 503 || /not configured/.test(e.message)) return '구글 로그인 설정이 아직 없어요'
+    if (e.status === 429) return /분 뒤/.test(e.message) ? e.message : '잠시 뒤 다시 시도하세요'
+    if (e.status === 409) return e.message // 연결: 서버 한국어 문구
+    if (/not verified/.test(e.message)) return '이메일이 확인되지 않은 계정이에요. 이메일을 확인한 뒤 다시 시도하세요.'
+    if (e.status === 401 && /^unauthorized$/.test(e.message)) return '로그인이 만료됐어요. 다시 로그인한 뒤 시도하세요'
+    if (e.status >= 500) return '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요'
+  }
+  if (e instanceof Error && /different account/.test(e.message)) return '로그인을 확인하지 못했어요. 다시 시도하세요. 삭제할 계정과 같은 계정으로 로그인하세요.'
+  return '로그인을 확인하지 못했어요. 다시 시도하세요.'
+}
 
 async function signOutLocal() {
   await db.disconnectAndClear()
