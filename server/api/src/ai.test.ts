@@ -141,7 +141,15 @@ assert.deepEqual(localModelNames({ models: [{ name: 'a' }, { name: 'b' }] }, ['b
   assert.equal(sent.think, false)
   assert.equal(sent.stream, true, '백엔드에는 늘 스트림으로 보내고 서버가 모은다')
   assert.deepEqual(sent.format, schema)
-  assert.deepEqual(sent.messages[0], { role: 'system', content: 's' }, '다른 칸(images)은 버린다')
+  assert.deepEqual(Object.keys(sent.messages[0]).sort(), ['content', 'role'], '다른 칸(images)은 버린다')
+  assert.ok(sent.messages[0].content.startsWith('s\n\nReply with ONE JSON value only'), 'format이 있으면 기존 지시문 뒤에 JSON 모양을 붙인다')
+  assert.ok(sent.messages[0].content.includes(JSON.stringify(schema)), '스키마를 지시문에 그대로 적는다')
+  // 지시문이 없으면 맨 앞에 새로 넣고, format이 없으면 메시지를 건드리지 않는다
+  r = await call(base, '/ai/classify', { messages: msg('j'), format: 'json' }, 'user-hint')
+  assert.equal(bodies.at(-1).messages[0].role, 'system')
+  assert.equal(bodies.at(-1).messages.length, 2)
+  r = await call(base, '/ai/classify', { messages: msg('plain') }, 'user-hint')
+  assert.equal(bodies.at(-1).messages.length, 1)
   r = await call(base, '/ai/map', { messages: msg('m'), model: 'llama3:8b' })
   assert.equal((await r.json()).model, 'llama3:8b')
 

@@ -227,6 +227,17 @@ export class AiQueue {
 
 // ── 요청 검사 ──
 type Msg = { role: 'system' | 'user' | 'assistant'; content: string }
+
+/** qwen3.5 + think:false(Ollama 0.31 실측, 2026-10-05)는 format 스키마를 강제하지 않고 그냥 문장으로 답한다.
+ *  생각을 켜면 형식은 지키지만 700토큰을 생각에 다 써서 빈 답이 된다 → 생각은 끈 채로 지시문에 모양을 직접 적는다(format도 그대로 넘긴다) */
+export function withFormatHint(messages: Msg[], format: AiInput['format']): Msg[] {
+  if (format === undefined) return messages
+  const hint = format === 'json'
+    ? 'Reply with ONE JSON value only. No prose, no markdown code fences, no explanation.'
+    : `Reply with ONE JSON value only. No prose, no markdown code fences, no explanation. It must match this JSON Schema exactly (all required keys, allowed enum values only):\n${JSON.stringify(format)}`
+  const [first, ...rest] = messages
+  return first?.role === 'system' ? [{ ...first, content: `${first.content}\n\n${hint}` }, ...rest] : [{ role: 'system', content: hint }, ...messages]
+}
 export type AiInput = { messages: Msg[]; format?: 'json' | Record<string, unknown>; model?: string; stream: boolean; temperature: number }
 const ROLES = new Set(['system', 'user', 'assistant'])
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
@@ -415,7 +426,7 @@ export function createAi(deps: AiDeps) {
       // 백엔드에는 늘 stream:true로 보낸다(워커 방식도 같은 모양, 끊으면 바로 멈춤). stream:false 요청은 여기서 모아서 준다
       const upstream = await deps.backend.chat({
         model,
-        messages: input.messages,
+        messages: withFormatHint(input.messages, input.format),
         ...(input.format !== undefined ? { format: input.format } : {}),
         stream: true,
         think: false,
