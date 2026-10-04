@@ -68,11 +68,11 @@ export function AssistantHeaderActions({ assistant: a }: { assistant: AssistantC
   return (
     <div className="pane-header__actions">
       <AssistantStatus assistant={a} />
-      <button className="icon-btn" aria-label="새 대화" title="새 대화" disabled={a.busy || !a.messages.length} onClick={a.clear}><Plus /></button>
+      <button className="icon-btn" aria-label="새 대화" title="새 대화 (⌘N)" disabled={a.busy || !a.messages.length} onClick={a.clear}><Plus /></button>
       <button ref={more} className="icon-btn" aria-label="AI 비서 메뉴" onClick={() => setMenu(!menu)}><MoreHorizontal /></button>
       {menu && (
         <Popover anchor={more.current} align="end" width={210} onClose={() => setMenu(false)} className="menu">
-          <MenuItem icon={<Plus />} label="새 대화" disabled={a.busy || !a.messages.length} onClick={() => { setMenu(false); a.clear() }} />
+          <MenuItem icon={<Plus />} label="새 대화" trail={<span className="menu__key">⌘N</span>} disabled={a.busy || !a.messages.length} onClick={() => { setMenu(false); a.clear() }} />
           <SubMenu icon={<Cpu />} label="모델" trail={a.model || '없음'} disabled={a.busy || !a.models.length} width={200}>
             {a.models.map((m) => <MenuItem key={m} label={m} active={m === a.model} trail={m === a.model ? <Check className="menu__check" /> : undefined} onClick={() => { a.setModel(m); setMenu(false) }} />)}
           </SubMenu>
@@ -102,6 +102,21 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
   useEffect(() => { if (!a.busy) return; const tick = () => setElapsed(Math.floor((Date.now() - a.started) / 1000)); tick(); const timer = setInterval(tick, 1000); return () => clearInterval(timer) }, [a.busy, a.started])
   useEffect(() => { const box = scroll.current; if (box && follow.current) box.scrollTop = box.scrollHeight }, [a.messages, a.busy, a.progress, a.error])
   useEffect(() => { const el = input.current; if (!el) return; el.style.height = '20px'; if (draft) el.style.height = `${Math.min(el.scrollHeight, 6 * 20)}px` }, [draft])
+  // 13 §4: 전용 화면에서 ⌘N/Ctrl+N = 새 대화(새 대화 버튼과 같음). 캡처 단계에서 받아 앱 전체 ⌘N(할 일 빠른 추가)보다 먼저 막는다.
+  // 빠른 창(FAB)은 다른 화면 위에 뜨므로 ⌘N은 그대로 할 일 빠른 추가. 한글 조합 중·대화상자/팝오버가 열려 있으면 건드리지 않는다.
+  const clearRef = useRef(a.clear)
+  clearRef.current = () => { if (a.busy || !a.messages.length) return; a.clear(); latest(); input.current?.focus() }
+  useEffect(() => {
+    if (variant !== 'full') return
+    const key = (e: KeyboardEvent) => {
+      if (e.isComposing || e.keyCode === 229 || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || (e.key.toLowerCase() !== 'n' && e.code !== 'KeyN')) return  // 한글 자판(ㅜ)도 KeyN으로 받는다
+      if (document.querySelector('[role=dialog], .popover')) return
+      e.preventDefault(); e.stopPropagation()
+      clearRef.current()
+    }
+    window.addEventListener('keydown', key, true)
+    return () => window.removeEventListener('keydown', key, true)
+  }, [variant])
   const latest = () => { follow.current = true; setShowLatest(false); const box = scroll.current; if (box) box.scrollTop = box.scrollHeight }
   const submit = async (text = draft) => { if (a.busy || !a.model || !text.trim()) return; if (text === draft) onDraft(''); latest(); await a.send(text) }
   const phaseIndex = STEPS.findIndex((s) => s.key.includes(a.progress.phase))

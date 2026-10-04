@@ -78,6 +78,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('usage:login:status',(_event,id)=>{const state=usageLogin.status(id);if(state.status==='connected')usage.invalidate(state.provider);return state})
   ipcMain.handle('usage:login:code',(_event,id,code)=>usageLogin.submitCode(id,code))
   ipcMain.handle('usage:login:cancel',(_event,id)=>usageLogin.cancel(id))
+  ipcMain.handle('usage:disconnect',async(_event,id)=>{const r=await usageLogin.disconnect(id);usage.invalidate(r.provider);return r})
   ipcMain.on('desktop:settings', openSettings)
   createWindow()
   startReminders(getWindow)

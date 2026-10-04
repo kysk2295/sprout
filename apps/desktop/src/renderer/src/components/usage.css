@@ -82,3 +82,10 @@
 .usage-connect__actions a svg { width: 12px; height: 12px; }
 .usage-connect__done { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; font: var(--text-menu); }
 .usage-connect__done p { margin: 0; }
+
+/* 10 §5 연결 해제 확인: 카드 안에서 묻는다(시스템 확인창 없음) */
+.usage-view .usage-confirm { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--color-bg-input); font: 400 12.5px/18px var(--font-family); }
+.usage-view .usage-confirm p { margin: 0; }
+.usage-view .usage-confirm__error { color: var(--color-text-danger); }
+.usage-view .usage-confirm__actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 2px; }
+.usage-btn.is-danger { background: var(--color-danger); color: #fff; }

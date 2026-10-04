@@ -51,7 +51,7 @@ const miniApi = {
   onShown: (cb: () => void) => on('mini:shown', cb)
 }
 
-const usageApi={read:(provider:UsageProvider,force=false)=>ipcRenderer.invoke('usage:read',provider,force) as Promise<UsageSnapshot>,login:(provider:UsageProvider)=>ipcRenderer.invoke('usage:login:start',provider) as Promise<UsageLogin>,loginStatus:(id:string)=>ipcRenderer.invoke('usage:login:status',id) as Promise<UsageLogin>,submitLoginCode:(id:string,code:string)=>ipcRenderer.invoke('usage:login:code',id,code) as Promise<UsageLogin>,cancelLogin:(id:string)=>ipcRenderer.invoke('usage:login:cancel',id) as Promise<UsageLogin>}
+const usageApi={read:(provider:UsageProvider,force=false)=>ipcRenderer.invoke('usage:read',provider,force) as Promise<UsageSnapshot>,login:(provider:UsageProvider)=>ipcRenderer.invoke('usage:login:start',provider) as Promise<UsageLogin>,loginStatus:(id:string)=>ipcRenderer.invoke('usage:login:status',id) as Promise<UsageLogin>,submitLoginCode:(id:string,code:string)=>ipcRenderer.invoke('usage:login:code',id,code) as Promise<UsageLogin>,cancelLogin:(id:string)=>ipcRenderer.invoke('usage:login:cancel',id) as Promise<UsageLogin>,disconnect:(accountId:string)=>ipcRenderer.invoke('usage:disconnect',accountId) as Promise<{provider:UsageProvider}>}
 export type SproutUsageApi=typeof usageApi
 const assistantApi = { onDelta:(cb:(data:{id:string;text:string})=>void)=>on('assistant:delta',cb), models:()=>ipcRenderer.invoke('assistant:models') as Promise<string[]>, chat:(id:string,input:ChatInput)=>ipcRenderer.invoke('assistant:chat',id,input) as Promise<string>, cancel:(id:string)=>ipcRenderer.send('assistant:cancel',id) }
 export type SproutAssistantApi = typeof assistantApi

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertTriangle, ArrowUpRight, ChevronDown, ChevronRight, Eye, EyeOff, Gauge, MoreHorizontal, Pencil, Plus, RefreshCw, X } from 'lucide-react'
-import { usageProviders, usageInfo, quotaIsStale, type UsageProvider, type UsageSnapshot, type QuotaAccount, type UsageLogin } from '../../../shared/usage'
-import { readUsage, startUsageLogin, usageLoginStatus, cancelUsageLogin, submitUsageLoginCode, usageAvailable } from '../data/usage'
+import { AlertTriangle, ArrowUpRight, ChevronDown, ChevronRight, Eye, EyeOff, Gauge, MoreHorizontal, Pencil, Plus, RefreshCw, Unlink, X } from 'lucide-react'
+import { usageProviders, usageInfo, quotaIsStale, isAppConnectedAccount, type UsageProvider, type UsageSnapshot, type QuotaAccount, type UsageLogin } from '../../../shared/usage'
+import { readUsage, startUsageLogin, usageLoginStatus, cancelUsageLogin, submitUsageLoginCode, disconnectUsageAccount, usageAvailable } from '../data/usage'
+import { useToast } from './Toast'
 import { useLocalState } from '../data/preferences'
 import { MenuItem, Popover } from './Popover'
 import './usage.css'
@@ -46,13 +47,15 @@ export function UsageView() {
   const queued = useRef(new Set<UsageProvider>())
   const active = useRef(new Set<UsageProvider>())
   const mounted = useRef(false)
+  const gone = useRef(new Set<string>()) // 연결 해제한 계정: 늦게 도착한 조회 결과에 다시 섞이지 않게 거른다
+  const toast = useToast()
   const refresh = useCallback(async (provider: UsageProvider, force = false) => {
     if (active.current.has(provider)) { if (force) queued.current.add(provider); return }
     active.current.add(provider)
     setBusy((old) => ({ ...old, [provider]: true }))
     try {
       const data = await readUsage(provider, force)
-      if (mounted.current) { setSnapshots((old) => ({ ...old, [provider]: data })); setErrors((old) => ({ ...old, [provider]: false })) }
+      if (mounted.current) { setSnapshots((old) => ({ ...old, [provider]: { ...data, accounts: data.accounts.filter((a) => !gone.current.has(a.id)) } })); setErrors((old) => ({ ...old, [provider]: false })) }
     } catch (e) {
       console.warn('[usage]', provider, e) // 원문 오류는 개발 로그로만(10 §4)
       if (mounted.current) setErrors((old) => ({ ...old, [provider]: true }))
@@ -84,6 +87,16 @@ export function UsageView() {
   const anyBusy = Object.values(busy).some(Boolean)
   const lastChecked = Object.values(snapshots).map((s) => s?.checkedAt).filter(Boolean).sort().pop()
   const patch = (id: string, value: { alias?: string; hidden?: boolean }) => setPreferences({ ...preferences, [id]: { ...preferences[id], ...value } })
+  // 10 §5 연결 해제: 메인 프로세스가 격리 프로필을 지운 뒤에만 카드·별칭/숨김 기록을 지운다. 되돌리기 없음(다시 연결해야 함)
+  const disconnect = async (account: QuotaAccount) => {
+    try { await disconnectUsageAccount(account.id) } catch (e) { console.warn('[usage] disconnect', e); return false }
+    gone.current.add(account.id)
+    setSnapshots((old) => { const s = old[account.provider]; return s ? { ...old, [account.provider]: { ...s, accounts: s.accounts.filter((a) => a.id !== account.id) } } : old })
+    setPreferences((old) => { const { [account.id]: _removed, ...rest } = old; return rest })
+    toast.show(`${usageInfo[account.provider].name} 계정 연결을 해제했어요 · 되돌릴 수 없어요`)
+    void refresh(account.provider, true)
+    return true
+  }
   const toggle = (p: UsageProvider) => setCollapsed(collapsed.includes(p) ? collapsed.filter((x) => x !== p) : [...collapsed, p])
   const installed = Object.values(snapshots).every((s) => s?.installed !== false)
   const total = Object.values(snapshots).flatMap((s) => s?.accounts ?? []).length
@@ -143,7 +156,7 @@ export function UsageView() {
                               : provider !== 'gemini' && <button className="usage-link" onClick={() => setPop('connect')}><Plus />{usageInfo[provider].name} 계정 연결</button>}
                           </article>
                         ) : visible.map((account) => (
-                          <AccountCard key={account.id} account={account} preference={preferences[account.id]} onPatch={(v) => patch(account.id, v)} now={now} failed={!!errors[provider]} busy={!!busy[provider]} onRefresh={() => void refresh(provider, true)} onReconnect={() => setPop('connect')} />
+                          <AccountCard key={account.id} account={account} preference={preferences[account.id]} onPatch={(v) => patch(account.id, v)} now={now} failed={!!errors[provider]} busy={!!busy[provider]} onRefresh={() => void refresh(provider, true)} onReconnect={() => setPop('connect')} onDisconnect={isAppConnectedAccount(account.id) ? () => disconnect(account) : undefined} />
                         ))}
                     </div>
                   </>
@@ -242,8 +255,9 @@ function ConnectPopover({ anchor, onClose, onConnected }: { anchor: HTMLElement 
   )
 }
 
-function AccountCard({ account: a, preference, onPatch, now, failed, busy, onRefresh, onReconnect }: { account: QuotaAccount; preference?: Preferences[string]; onPatch: (p: Preferences[string]) => void; now: number; failed: boolean; busy: boolean; onRefresh: () => void; onReconnect: () => void }) {
+function AccountCard({ account: a, preference, onPatch, now, failed, busy, onRefresh, onReconnect, onDisconnect }: { account: QuotaAccount; preference?: Preferences[string]; onPatch: (p: Preferences[string]) => void; now: number; failed: boolean; busy: boolean; onRefresh: () => void; onReconnect: () => void; onDisconnect?: () => Promise<boolean> }) {
   const [editing, setEditing] = useState(false)
+  const [confirm, setConfirm] = useState<'ask' | 'working' | 'failed'>()
   const [menu, setMenu] = useState(false)
   const moreRef = useRef<HTMLButtonElement>(null)
   const stale = failed || quotaIsStale(a, now)
@@ -283,15 +297,27 @@ function AccountCard({ account: a, preference, onPatch, now, failed, busy, onRef
       {!a.windows.length && a.reason && <p className="usage-card__muted">{a.reason}</p>}
       <div className="usage-card__foot">
         <span className="usage-card__muted">{status === 'auth_required' ? '로그인이 만료됐어요' : a.observedAt ? `${dateTimeKo(a.observedAt, now)} 확인` : '성공한 조회 없음'}</span>
-        {status === 'auth_required' && a.provider !== 'gemini' ? <button className="usage-btn is-primary" onClick={onReconnect}>다시 로그인</button>
-          : <button ref={moreRef} className="icon-btn" aria-label={`${title} 메뉴`} onClick={() => setMenu(!menu)}><MoreHorizontal /></button>}
+        {status === 'auth_required' && a.provider !== 'gemini' && <button className="usage-btn is-primary" onClick={onReconnect}>다시 로그인</button>}
+        {(status !== 'auth_required' || a.provider === 'gemini' || onDisconnect) && <button ref={moreRef} className="icon-btn" aria-label={`${title} 메뉴`} onClick={() => setMenu(!menu)}><MoreHorizontal /></button>}
       </div>
+      {confirm && (
+        <div className="usage-confirm" role="group" aria-label="연결 해제 확인" onKeyDown={(e) => { if (e.key === 'Escape' && confirm !== 'working') { e.stopPropagation(); setConfirm(undefined) } }}>
+          <strong>이 계정 연결을 해제할까요?</strong>
+          <p className="usage-card__muted">이 앱에 보관한 로그인 정보만 지워요. 기존 CLI·CodexBar 로그인은 그대로예요. 되돌릴 수 없고, 다시 보려면 계정을 다시 연결해야 해요.</p>
+          {confirm === 'failed' && <p className="usage-confirm__error" role="alert">연결을 해제하지 못했어요. 다시 시도해 주세요.</p>}
+          <div className="usage-confirm__actions">
+            <button className="usage-btn" autoFocus disabled={confirm === 'working'} onClick={() => setConfirm(undefined)}>취소</button>
+            <button className="usage-btn is-danger" disabled={confirm === 'working'} onClick={async () => { setConfirm('working'); const ok = await onDisconnect!(); if (!ok) setConfirm('failed') }}>{confirm === 'working' ? '해제하는 중…' : '연결 해제'}</button>
+          </div>
+        </div>
+      )}
       {menu && (
         <Popover anchor={moreRef.current} align="end" width={180} onClose={() => setMenu(false)} className="menu">
           {hasIdentity && <MenuItem icon={<Pencil />} label="별칭 바꾸기" onClick={() => { setMenu(false); setEditing(true) }} />}
           <MenuItem icon={<RefreshCw />} label="이 서비스 갱신" disabled={busy} onClick={() => { setMenu(false); onRefresh() }} />
           {hasIdentity && <MenuItem icon={preference?.hidden ? <Eye /> : <EyeOff />} label={preference?.hidden ? '다시 표시' : '숨기기'} onClick={() => { setMenu(false); onPatch({ hidden: !preference?.hidden }) }} />}
           <MenuItem icon={<ArrowUpRight />} label="원본 페이지 열기" onClick={() => { setMenu(false); window.open(usageInfo[a.provider].url, '_blank') }} />
+          {onDisconnect && <><div className="menu__divider" /><MenuItem icon={<Unlink />} label="연결 해제" danger onClick={() => { setMenu(false); setConfirm('ask') }} /></>}
         </Popover>
       )}
     </article>

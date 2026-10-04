@@ -1,9 +1,9 @@
 import { spawn, execFile, type ChildProcess } from 'node:child_process'
-import { access, mkdir, readdir, readFile, writeFile, chmod, unlink } from 'node:fs/promises'
+import { access, mkdir, readdir, readFile, writeFile, chmod, unlink, rm } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, createHash } from 'node:crypto'
 import { isUsageProvider, normalizeUsage, type UsageProvider, type UsageLogin, type QuotaAccount } from '../shared/usage'
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f-]{27}$/
@@ -31,8 +31,14 @@ async function executable(provider: UsageProvider) {
   throw new Error(`${name} CLI가 설치되어 있지 않아요.`)
 }
 const argsFor=(p:UsageProvider,directory:string)=>p==='codex'?['login','-c','cli_auth_credentials_store="file"']:p==='claude'?['auth','login','--claudeai']:['login','--oauth','--leader-socket',join(directory,'leader.sock')]
+const logoutArgs=(p:UsageProvider)=>p==='codex'?['logout','-c','cli_auth_credentials_store="file"']:p==='claude'?['auth','logout']:['logout']
+/** Claude Code는 CLAUDE_CONFIG_DIR마다 키체인 항목 이름 뒤에 경로 해시 8자리를 붙인다 — 이 프로필 전용 항목만 가리킨다 */
+export const claudeKeychainService=(directory:string)=>`Claude Code-credentials-${createHash('sha256').update(directory).digest('hex').slice(0,8)}`
+/** 실패해도 멈추지 않는 정리 명령(로그아웃·키체인). 15초 넘게 걸리면 버린다 */
+const runQuietly=(file:string,args:string[],env:NodeJS.ProcessEnv,cwd:string)=>new Promise<void>((resolve)=>{try{execFile(file,args,{cwd,env,timeout:15000},()=>resolve())}catch{resolve()}})
 export function createUsageLogin(options: {
   root?:string; executable?:typeof executable; launch?:(path:string,args:string[],env:NodeJS.ProcessEnv,cwd:string)=>ChildProcess
+  cleanup?:(path:string,args:string[],env:NodeJS.ProcessEnv,cwd:string)=>Promise<void>; platform?:NodeJS.Platform
 }={}) {
   const root=options.root??usageProfileRoot
   let current:UsageLogin|undefined,child:ChildProcess|undefined,timer:ReturnType<typeof setTimeout>|undefined,starting=false
@@ -80,7 +86,22 @@ export function createUsageLogin(options: {
       child.stdin.write(code+'\n');current.requiresCode=false;current.message='인증 코드를 확인하고 있어요.';return {...current}
     },
     cancel(id:unknown){status(id);if(current?.status==='waiting'){current.status='cancelled';current.message='로그인을 취소했어요.';delete current.url;stop()}return {...current!}},
-    close(){if(current?.status==='waiting'){current.status='cancelled';delete current.url}stop()}
+    close(){if(current?.status==='waiting'){current.status='cancelled';delete current.url}stop()},
+    /** 10 §5 연결 해제: 이 앱이 만든 격리 프로필 하나만 지운다(`sprout:<id>` 계정만). 기존 CLI·CodexBar 로그인은 건드리지 않는다.
+     *  순서: 연결 표시(connected.json)를 먼저 지워 더는 조회되지 않게 → CLI 로그아웃(격리 환경) → Claude 전용 키체인 항목 → 프로필 폴더 삭제 */
+    async disconnect(accountId:unknown):Promise<{provider:UsageProvider}> {
+      const id=typeof accountId==='string'&&accountId.startsWith('sprout:')?accountId.slice(7):''
+      if(!uuid.test(id)||(current?.id===id&&current.status==='waiting'))throw new Error('연결 해제할 계정을 찾지 못했어요.')
+      const directory=join(root,id)
+      let provider:UsageProvider
+      try { const meta=JSON.parse(await readFile(join(directory,'connected.json'),'utf8'));if(meta.id!==id||!isUsageProvider(meta.provider))throw new Error('mismatch');provider=meta.provider } catch { throw new Error('연결 해제할 계정을 찾지 못했어요.') }
+      await unlink(join(directory,'connected.json'))
+      const env=profileEnvironment(provider,directory),clean=options.cleanup??runQuietly
+      try { await clean(await (options.executable??executable)(provider),logoutArgs(provider),env,directory) } catch {}
+      if(provider==='claude'&&(options.platform??process.platform)==='darwin')try{await clean('/usr/bin/security',['delete-generic-password','-s',claudeKeychainService(directory)],env,directory)}catch{}
+      await rm(directory,{recursive:true,force:true})
+      return {provider}
+    }
   }
 }
 export async function readUsageProfiles(provider:UsageProvider,root=usageProfileRoot):Promise<QuotaAccount[]> {

@@ -50,3 +50,5 @@ export function quotaIsStale(account:QuotaAccount,now=Date.now()){
 }
 
 export interface UsageLogin {id:string;provider:UsageProvider;status:"waiting"|"connected"|"cancelled"|"error";message:string;url?:string;requiresCode?:boolean}
+/** 이 앱에서 연결한(격리 프로필) 계정만 `연결 해제`할 수 있다. CodexBar·CLI 기본 계정은 앱 밖 로그인이라 건드리지 않는다 — 10 §5 */
+export const isAppConnectedAccount=(id:string)=>/^sprout:[0-9a-f]{8}-[0-9a-f-]{27}$/.test(id)

@@ -14,6 +14,11 @@ export const usageLoginStatus=(id:string)=>window.sprout?.usage?window.sprout.us
 export const cancelUsageLogin=(id:string)=>window.sprout?.usage?window.sprout.usage.cancelLogin(id):loginRequest('/cancel',{id})
 
 export const submitUsageLoginCode=(id:string,code:string)=>window.sprout?.usage?window.sprout.usage.submitLoginCode(id,code):loginRequest('/code',{id,code})
+/** 10 §5 연결 해제: 이 앱에서 연결한 계정(`sprout:<id>`)의 격리 프로필·로그인 정보를 메인 프로세스가 지운다 */
+export async function disconnectUsageAccount(accountId:string):Promise<void>{
+ if(window.sprout?.usage)await window.sprout.usage.disconnect(accountId)
+ else await loginRequest('/disconnect',{id:accountId})
+}
 
 /** 10 v2 §4: 데스크톱 API가 있거나(일렉트론) 웹 미리보기 서버(/api/usage 중계)일 때만 조회한다 */
 export const usageAvailable=()=>!!window.sprout?.usage||!window.sprout
