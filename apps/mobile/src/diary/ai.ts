@@ -1,5 +1,5 @@
 // 일기 대화 AI 호출 — 서버 프록시 POST {API}/ai/diary(Bearer 접근 토큰, stream) → NDJSON 줄(데스크톱 shared/assistant readChatStream과 같은 모양).
-// RN 기본 fetch는 응답을 흘려 받지 못해 expo/fetch(ReadableStream)를 쓴다. 위기 검사는 이 함수를 부르기 **전에** data.ts가 한다.
+// RN 기본 fetch는 응답을 흘려 받지 못해 expo/fetch(ReadableStream)를 쓴다.
 import { fetch as streamFetch } from 'expo/fetch'
 import { serverAccess } from '../data/auth'
 import type { ChatMessage } from './logic'

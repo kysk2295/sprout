@@ -1,5 +1,5 @@
 // 28 §2.1 오늘 쓰기(E1) + 15 §9 v1 모양: 주 띠(월~일, 기분 점) → 종이 페이지(하늘 띠·날짜·책갈피 🔒) → 기분 얼굴 → 질문 쪽지 → 줄 노트 글
-// → 오늘 한 일 타임라인 → 곁에 앉은 캐릭터 칸(첫 답 미리보기·위기 카드·상태별 안내) → 바닥 줄(새싹 잎 연속 · 저장 시각).
+// → 오늘 한 일 타임라인 → 곁에 앉은 캐릭터 칸(첫 답 미리보기·상태별 안내) → 바닥 줄(새싹 잎 연속 · 저장 시각).
 import { useRouter } from 'expo-router'
 import { ChevronRight, Lock, LockOpen, MoreHorizontal, RefreshCw } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -13,7 +13,6 @@ import { usePalette } from '../theme/ThemeProvider'
 import { PopMenu, useAnchor } from '../ui/Menu'
 import { useToast } from '../ui/Toast'
 import { LeafIcon, MoodFace, SkyIcon, diaryColors } from './art'
-import { CrisisCard } from './CrisisCard'
 import { buddyReply, deleteEntry, saveEntry, setPrivate, summarizeEntry, useDone, useMessages } from './data'
 import {
   buddyLine, FIRST_REPLY_MS, isWritten, josa, mayCallAi, moodFaceOf, moodOf, MOODS, parseBuddyReply, promptFor, skyOf, streakOf, wantsFirstReply, WEEK_MON, weekOf,
@@ -140,9 +139,8 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
   const savedLabel = savedAt ? `${new Date(savedAt).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })} · 저장됨` : ''
 
   // ── 캐릭터 칸 ──
-  const firstReply = messages.find((m) => m.role === 'buddy')
-  const crisisLast = [...messages].reverse().find((m) => m.role === 'buddy')?.safety
-  const buddyMood = isPrivate ? 'sleepy' : crisisLast ? 'default' : mood ? moodFaceOf(mood.value) : 'default'
+  const firstReply = messages.find((m) => m.role === 'buddy' && !m.safety) // safety=1: 예전 위기 카드 행(기능 제외) — 건너뛴다
+  const buddyMood = isPrivate ? 'sleepy' : mood ? moodFaceOf(mood.value) : 'default'
   const companion = () => {
     const name = buddy.name
     if (prefs.consent === false) {
@@ -163,7 +161,6 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
         </View>
       )
     }
-    if (crisisLast) return <CrisisCard buddy={buddy} stage={stage} />
     if (solo) {
       return (
         <View style={{ gap: 8 }}>
@@ -317,10 +314,10 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
       {/* 곁에 앉은 캐릭터 */}
       <View style={[st.companion, { backgroundColor: p.cardBg }]}>
         <View style={st.cHead}>
-          <BuddyArt buddy={buddy} stage={stage} size={56} mood={buddyMood} still={reduced || !!crisisLast} bounce={cue?.n} />
+          <BuddyArt buddy={buddy} stage={stage} size={56} mood={buddyMood} still={reduced} bounce={cue?.n} />
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={[st.cName, { color: p.textTertiary }]}>{buddy.name}{prefs.consent && !isPrivate ? ' · 같이 읽는 중' : ''}</Text>
-            {cue && !crisisLast ? <Bubble text={cue.line} /> : null}
+            {cue ? <Bubble text={cue.line} /> : null}
           </View>
         </View>
         {companion()}

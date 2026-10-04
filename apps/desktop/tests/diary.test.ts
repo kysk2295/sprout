@@ -1,11 +1,11 @@
-// 15 일기: 날짜별 저장 · 나만 보기 제외 · 위기 검사 · AI 입력
+// 15 일기: 날짜별 저장 · 나만 보기 제외 · AI 입력
 import assert from 'node:assert/strict'
 import initSqlJs from 'sql.js'
 import { TABLES } from '@sprout/schema'
 import {
-  buildBuddyMessages, buddyReply, detectCrisis, entryId, insightOf, josa, parseBuddyReply, recentMemory, saveEntry, sendMessage,
+  buildBuddyMessages, buddyReply, entryId, insightOf, josa, parseBuddyReply, recentMemory, saveEntry, sendMessage,
   setConsent, setMemory, setPrivate, streakOf, deleteEntry, taskFromChip,
-  averageMood, buddyLine, CRISIS_CARD, DONE_SQL, highlightsOf, longestStreak, monthGrid, moodFaceOf, moodTrend, skyOf, WEEK_MON, weekdayMon, weekOf
+  averageMood, buddyLine, DONE_SQL, highlightsOf, longestStreak, monthGrid, moodFaceOf, moodTrend, skyOf, WEEK_MON, weekdayMon, weekOf
 } from '../src/renderer/src/data/diary'
 import { insert, run } from '../src/renderer/src/data/mutations'
 const SQL = await initSqlJs()
@@ -38,26 +38,13 @@ assert.equal(rows[0].mood, 4)
 assert.equal(rows[0].content, '기획서를 반쯤 썼다. 내일 면담이 걱정된다.')
 assert.equal(rows[0].private, 0)
 
-// ── 위기 검사(단어) ──
-for (const t of ['요즘 그냥 죽고 싶다는 생각이 들어', '자해를 했어', '사라지고 싶어', '살기 싫어', '극단적 선택을 생각했어', '아빠가 나를 때렸어', 'I want to die', '손목을 긋고 싶었어', '모든 게 다 놓아 버리고 싶다', '요즘은 사는 게 무의미해', '그냥 이대로 잠들어서 안 깨어났으면 좋겠다'])
-  assert.equal(detectCrisis(t), true, t)
-for (const t of ['배고파 죽겠다', '웃겨 죽는 줄 알았어', '과제 다 끝내고 싶어', '이 게임 죽이는데', '정답 맞았어!', '오늘 기획서 반쯤 씀', '때때로 산책을 했다', '알람 못 듣고 늦잠 자서 안 깼다'])
-  assert.equal(detectCrisis(t), false, t)
-
 // ── 동의 전에는 아무것도 보내지 않는다 ──
 assert.equal(await buddyReply('2026-10-04', opts), 'blocked')
 assert.equal(calls.length, 0)
 setConsent(true)
 
-// ── 위기 문장은 AI를 부르기 전에 안내 카드 ──
-await saveEntry('2026-10-03', { content: '다 그만두고 죽고 싶다' })
-assert.equal(await buddyReply('2026-10-03', opts), 'crisis')
-assert.equal(calls.length, 0)
-assert.equal(msgs('2026-10-03')[0].safety, 1)
-// 대화 중 내 말도 먼저 검사
-answer = '그랬구나. 어떤 점이 제일 힘들었어?'
-assert.equal(await sendMessage('2026-10-04', '자살하고 싶어', opts), 'crisis')
-assert.equal(calls.length, 0)
+// ── 지우면 그날 대화도 함께 ──
+await run(insert('diary_messages', { id: 'm-del', entry_id: entryId('2026-10-04'), role: 'me', content: '지울 말', safety: 0, created_at: '2026-10-04T10:00:00.000Z' }))
 await deleteEntry('2026-10-04')
 assert.equal(all('SELECT * FROM diary_messages WHERE entry_id = ?', [entryId('2026-10-04')]).length, 0)
 
@@ -94,16 +81,20 @@ assert.deepEqual(calls[1].messages.map((m) => m.role), ['system', 'user', 'assis
 const last = parseBuddyReply(String(msgs('2026-10-05').at(-1)!.content))
 assert.equal(last.task, '면담용 차별점 한 장 정리')
 assert.equal(last.text, '면담 전에 정리해 두면 마음이 편할 것 같아.')
-// 모델이 위기 표시를 내면 안내 카드
-answer = '[[SAFETY]]'
-assert.equal(await sendMessage('2026-10-05', '요즘 너무 지쳐', opts), 'crisis')
-assert.equal(msgs('2026-10-05').at(-1)!.safety, 1)
+// 위기 카드는 제외(2026-10-05): [[SAFETY]] 지시는 없고, 자해 방법·의료 조언 금지 한 줄만 남는다. 새 말은 safety=0
+assert.ok(!JSON.stringify(calls).includes('SAFETY'))
+assert.ok(calls[0].messages[0].content.includes('자해 방법이나 진단·치료·약 같은 의료 조언은 절대 하지 마'))
+assert.ok(msgs('2026-10-05').every((m) => m.safety === 0))
+// 예전 위기 카드 행(safety=1)은 AI 입력에서 건너뛴다
+const old = buildBuddyMessages({ buddy, entry: { date: '2026-10-05', mood: null, content: '일기', private: 0 }, messages: [{ role: 'me', content: '안녕', safety: 0 }, { role: 'buddy', content: '옛 카드', safety: 1 }] })!
+assert.ok(!JSON.stringify(old).includes('옛 카드'))
+assert.equal(old.length, 2)
+assert.ok(old.at(-1)!.content.endsWith('\n\n안녕'))
 
 // ── 받는 중 표시 줄 숨기기 ──
-assert.equal(parseBuddyReply('[[SAF').text, '')
 assert.equal(parseBuddyReply('좋았겠다!\n할').text, '좋았겠다!')
 // 작은 모델이 같은 줄 끝에 붙인 할 일도 칩으로
-assert.deepEqual(parseBuddyReply('하나만 골라 보자. 😊 할 일: 면담용 차별점 정리.'), { text: '하나만 골라 보자. 😊', task: '면담용 차별점 정리', safety: false })
+assert.deepEqual(parseBuddyReply('하나만 골라 보자. 😊 할 일: 면담용 차별점 정리.'), { text: '하나만 골라 보자. 😊', task: '면담용 차별점 정리' })
 assert.equal(parseBuddyReply('오늘 할 일을 다 끝냈구나!').task, undefined)
 
 // ── 할 일로 → 기본함 ──
@@ -169,10 +160,6 @@ assert.equal(moodFaceOf(2), 'default')
 assert.equal(moodFaceOf(4), 'happy')
 assert.equal(buddyLine({ kind: 'private' }), '안 볼게. 너만의 페이지야')
 assert.equal(buddyLine({ kind: 'open', hour: 23 }), '늦게까지 고생했어')
-// 위기 카드: 109가 맨 위, 희망의 말이 함께
-assert.equal(CRISIS_CARD.lines[0].number, '109')
-assert.deepEqual(CRISIS_CARD.lines.map((l) => l.number), ['109', '112 / 119'])
-assert.ok(CRISIS_CARD.hope.length > 0)
 // 오늘 한 일 타임라인은 완료 시각도 읽는다
 assert.ok(DONE_SQL.includes('completed_at FROM tasks'))
 

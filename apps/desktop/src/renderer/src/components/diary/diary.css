@@ -5,10 +5,6 @@
   --diary-desk: color-mix(in srgb, var(--color-bg-card) 70%, var(--color-accent-subtle));
   --diary-note: #fff6c9;
   --diary-note-ink: #5c4a12;
-  --diary-calm: #f3f0fb;
-  --diary-calm-edge: #b9acd9;
-  --diary-calm-strong: #e7e1f7;
-  --diary-calm-ink: #6b5fa6;
   --diary-line: color-mix(in srgb, var(--color-text-primary) 7%, transparent);
   --diary-bubble: #fff;
   --diary-bubble-ink: #333;
@@ -19,10 +15,6 @@
   --diary-desk: var(--color-bg-app);
   --diary-note: #3a3523;
   --diary-note-ink: #efe2b5;
-  --diary-calm: #26233a;
-  --diary-calm-edge: #5b5385;
-  --diary-calm-strong: #302c4a;
-  --diary-calm-ink: #b7aef0;
   --diary-bubble: #2b2b2b;
   --diary-bubble-ink: #eee;
   --diary-link: #b9beff;
@@ -31,9 +23,6 @@
   --diary-paper: #0d0d0d;
   --diary-desk: #000;
   --diary-note: #26231a;
-  --diary-calm: #1a1828;
-  --diary-calm-edge: #4a4370;
-  --diary-calm-strong: #221f35;
   --diary-bubble: #1c1c1c;
 }
 
@@ -283,23 +272,6 @@
 .diary-talk__send:disabled { background: var(--color-bg-selected); color: var(--color-text-quaternary); }
 .diary-talk__send svg { width: 15px; height: 15px; }
 .diary-talk__notice { margin: 0; padding: 2px 16px 12px; font: 400 10.5px/14px var(--font-family); color: var(--color-text-tertiary); text-align: center; }
-
-/* 위기 안내 카드 — 차분하게, 움직임 없음(§9.4) */
-.diary-crisis { border-radius: 12px; background: var(--diary-calm); border: 1px solid var(--diary-calm-edge); border-left-width: 3px; padding: 12px; display: flex; flex-direction: column; gap: 8px; animation: none !important; }
-.diary-crisis__title { display: flex; gap: 8px; align-items: center; font: 700 14px/20px var(--font-family); }
-.diary-crisis__title svg { flex-shrink: 0; }
-.diary-crisis ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.diary-crisis li { display: grid; grid-template-columns: 28px 1fr auto; gap: 8px; align-items: center; min-height: 48px; padding: 6px 8px; border-radius: 10px; background: color-mix(in srgb, var(--color-bg-popover) 70%, transparent); }
-.diary-crisis li.is-first { background: var(--diary-calm-strong); box-shadow: inset 0 0 0 1px var(--diary-calm-edge); }
-.diary-crisis__ph { width: 28px; height: 28px; border-radius: 50%; background: var(--color-bg-popover); display: grid; place-items: center; color: var(--diary-calm-ink); }
-.diary-crisis__ph svg { width: 14px; height: 14px; }
-.diary-crisis__name { display: flex; flex-direction: column; font: 600 12.5px/16px var(--font-family); }
-.diary-crisis__name small { font: 400 10.5px/14px var(--font-family); color: var(--color-text-tertiary); }
-.diary-crisis__num { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-.diary-crisis__num b { font: 800 18px/20px var(--font-family); user-select: all; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.diary-crisis__num button { font: 500 10.5px/13px var(--font-family); color: var(--color-text-secondary); text-decoration: underline; }
-.diary-crisis p { margin: 0; font: 400 11.5px/17px var(--font-family); color: var(--color-text-secondary); }
-.diary-crisis p.diary-crisis__hope { color: var(--color-text-primary); font-weight: 500; }
 
 .diary__foot { height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 76px 0 20px; /* 오른쪽 아래 떠 있는 AI 비서 버튼에 글이 가리지 않게 */ border-top: 1px solid var(--color-border-divider); font: 400 11px/15px var(--font-family); color: var(--color-text-tertiary); flex-shrink: 0; white-space: nowrap; overflow: hidden; }
 .diary__foot-say { overflow: hidden; text-overflow: ellipsis; }

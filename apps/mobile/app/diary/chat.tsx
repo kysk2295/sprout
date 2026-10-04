@@ -1,6 +1,6 @@
 // 28 §2.2 캐릭터와 이야기(E2·E3): ‹ 일기 · 가운데 캐릭터 + "도토리와 이야기" · ⋯(기억하기 · 오늘은 혼자 · 이 날 대화 지우기)
-// 접힌 일기 줄 → 말풍선(받는 중 글자가 늘어남) → 할 일로 칩 → 위기 카드 → 한계 안내(처음 5번) → 입력창.
-// 보내기: 내 말 저장 → 단어 검사(AI 전) → 걸리면 위기 카드, 아니면 /ai/diary 스트림. 위기 뒤에도 입력은 받는다(M-D5).
+// 접힌 일기 줄 → 말풍선(받는 중 글자가 늘어남) → 할 일로 칩 → 한계 안내(처음 5번) → 입력창.
+// 보내기: 내 말 저장 → /ai/diary 스트림.
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ArrowUp, Check, ChevronDown, ChevronLeft, ChevronUp, MoreHorizontal, Plus } from 'lucide-react-native'
 import { useEffect, useRef, useState } from 'react'
@@ -8,7 +8,6 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MoodFace } from '../../src/diary/art'
-import { CrisisCard } from '../../src/diary/CrisisCard'
 import { buddyReply, clearMessages, sendMessage, taskFromChip, useBuddy, useEntry, useExistingTitles, useMessages } from '../../src/diary/data'
 import { josa, mayCallAi, parseBuddyReply } from '../../src/diary/logic'
 import { BuddyArt } from '../../src/diary/parts'
@@ -47,7 +46,6 @@ export default function DiaryChat() {
   const allowed = mayCallAi({ consent: prefs.consent, private: entry?.private, solo })
   const chips = messages.filter((m) => m.role === 'buddy' && !m.safety).map((m) => parseBuddyReply(m.content).task).filter((t): t is string => !!t)
   const made = useExistingTitles(chips)
-  const lastSafety = [...messages].reverse().find((m) => m.role === 'buddy')?.safety
   useEffect(() => () => abort.current?.abort(), [])
   useEffect(() => { const t = setTimeout(() => scroll.current?.scrollToEnd({ animated: !reduced }), 60); return () => clearTimeout(t) }, [messages.length, streaming?.text, reduced])
 
@@ -97,7 +95,7 @@ export default function DiaryChat() {
             if (m.role === 'me') {
               return <Animated.View key={m.id} entering={reduced ? FadeIn.duration(150) : FadeInDown.duration(200)} style={[s.me, { backgroundColor: p.accentSubtle }]}><Text style={[s.msg, { color: p.textPrimary }]}>{m.content}</Text></Animated.View>
             }
-            if (m.safety) return <CrisisCard key={m.id} buddy={buddy} stage={buddy.stage} />
+            if (m.safety) return null // 예전 위기 카드 행(기능 제외, 2026-10-05)
             const r = parseBuddyReply(m.content)
             return (
               <Animated.View key={m.id} entering={reduced ? FadeIn.duration(150) : FadeInDown.duration(200)} style={s.buddyRow}>
@@ -143,7 +141,7 @@ export default function DiaryChat() {
             <TextInput
               value={draft}
               onChangeText={setDraft}
-              placeholder={lastSafety ? '천천히 이야기해도 괜찮아…' : `${name}에게 이야기하기…`}
+              placeholder={`${name}에게 이야기하기…`}
               placeholderTextColor={p.textTertiary}
               multiline
               accessibilityLabel="보낼 말"

@@ -1,5 +1,5 @@
 // 일기 그림(15 §9.2·§9.9) — 데스크톱 components/diary/MoodFace.tsx를 react-native-svg로 옮김. 캐릭터 화풍 기분 얼굴 · 종이 · 새싹 잎 · 해/달.
-// 색: 일기 전용 색(종이·쪽지·차분한 위기 카드)은 테마와 무관한 고유색 + 테마 바탕 섞기(데스크톱 diary.css 변수와 같은 계산).
+// 색: 일기 전용 색(종이·쪽지)은 테마와 무관한 고유색 + 테마 바탕 섞기(데스크톱 diary.css 변수와 같은 계산).
 import Svg, { Circle, Ellipse, Path, Rect } from 'react-native-svg'
 import { mix, type Palette } from '../theme/palette'
 import { moodOf, type DaySky } from './logic'
@@ -65,15 +65,13 @@ export function SkyIcon({ sky, behind }: { sky: DaySky; behind: string }) {
 }
 
 /** 일기 전용 색(15 §9.9). 라이트 계열의 밤은 옅은 밤색(날짜 숫자가 읽히게) */
-export type DiaryColors = { paper: string; note: string; calm: string; calmEdge: string; line: string; sky: Record<DaySky, [string, string]> }
+export type DiaryColors = { paper: string; note: string; line: string; sky: Record<DaySky, [string, string]> }
 export function diaryColors(p: Palette): DiaryColors {
   const black = p.id === 'black'
   const paper = black ? '#0d0d0d' : p.dark ? mix(p.bgCard, '#3a3226', 0.94) : mix(p.bgApp, '#f3e6cf', 0.92)
   return {
     paper,
     note: black ? '#26231a' : p.dark ? '#3a3523' : '#fff6c9',
-    calm: black ? '#1a1828' : p.dark ? '#26233a' : '#f3f0fb',
-    calmEdge: black ? '#4a4370' : p.dark ? '#5b5385' : '#b9acd9',
     line: p.borderRow,
     sky: p.dark
       ? { morning: ['#5a4636', '#6e5a48'], day: ['#2f4a66', '#41607c'], evening: ['#5c3a33', '#6e4a3e'], night: ['#11152e', '#1e2246'] }

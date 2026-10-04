@@ -1,5 +1,4 @@
 // 28 모바일 일기 — DB 읽기·쓰기와 캐릭터 대화(데스크톱 data/diary.ts와 같은 순서·같은 규칙).
-// 위기 검사 순서: 앱 단어 검사(AI 부르기 전) → 걸리면 AI 없이 위기 카드(safety=1) / 모델이 [[SAFETY]] → 받던 것 멈추고 위기 카드.
 // 동의 전·나만 보기·오늘은 혼자에서는 /ai/diary를 부르지 않는다. 일기로 XP 없음(15 §4).
 import { useQuery } from '@powersync/react-native'
 import { addDays } from '@sprout/schema/time'
@@ -12,7 +11,7 @@ import type { CharacterRow } from '../growth/logic'
 import { levelOfTotal } from '../growth/logic'
 import { diaryChat } from './ai'
 import {
-  buddyOf, buildBuddyMessages, buildSummaryMessages, chipTitle, cleanSummary, CRISIS_CARD, crisisTarget, dayRange, detectCrisis, DONE_SQL, entryId,
+  buddyOf, buildBuddyMessages, buildSummaryMessages, chipTitle, cleanSummary, dayRange, DONE_SQL, entryId,
   MEMORY_SQL, mayCallAi, parseBuddyReply, XP_SQL, type Buddy, type DiaryEntry, type DiaryMessage
 } from './logic'
 import { getConsent, getMemory, isSolo } from './prefs'
@@ -90,43 +89,31 @@ export async function clearMessages(date: string) {
   await run(msgs.map((m) => ({ sql: 'DELETE FROM diary_messages WHERE id = ?', params: [m.id] })))
 }
 let lastAt = 0
-async function addMessage(date: string, role: 'me' | 'buddy', content: string, safety = 0) {
+async function addMessage(date: string, role: 'me' | 'buddy', content: string) {
   const entryRef = await saveEntry(date, {})
   const at = new Date(Math.max(Date.now(), lastAt + 1))
   lastAt = at.getTime()
-  await run([insert('diary_messages', { id: uuid(), entry_id: entryRef, role, content, safety, created_at: at.toISOString(), modified_at: new Date().toISOString() })])
+  await run([insert('diary_messages', { id: uuid(), entry_id: entryRef, role, content, safety: 0, created_at: at.toISOString(), modified_at: new Date().toISOString() })])
 }
 
 // ── 대화 ──
-export type ReplyResult = 'reply' | 'crisis' | 'blocked'
+export type ReplyResult = 'reply' | 'blocked'
 export type ReplyOpts = { buddy: Buddy; signal: AbortSignal; onDelta?: (visible: string) => void; onQueue?: (position: number) => void }
 
-/** 캐릭터가 한 번 답한다. 검사 대상(마지막 내 말, 없으면 일기 글)을 먼저 단어 검사하고 걸리면 AI를 부르지 않는다 */
+/** 캐릭터가 한 번 답한다 */
 export async function buddyReply(date: string, opts: ReplyOpts): Promise<ReplyResult> {
   const entry = await findEntry(date)
   if (!entry || !mayCallAi({ consent: getConsent(), private: entry.private, solo: isSolo(date) })) return 'blocked'
   const messages = await db.getAll<DiaryMessage>('SELECT * FROM diary_messages WHERE entry_id = ? ORDER BY created_at, id', [entry.id])
-  if (detectCrisis(crisisTarget(entry, messages))) { await addMessage(date, 'buddy', CRISIS_CARD.title, 1); return 'crisis' }
   const memory = getMemory() ? await db.getAll<{ date: string; summary: string }>(MEMORY_SQL, [addDays(date, -7), date]) : []
   const chat = buildBuddyMessages({ buddy: opts.buddy, entry, messages, memory })
   if (!chat) return 'blocked'
-  const inner = new AbortController()
-  const stop = () => inner.abort()
-  opts.signal.addEventListener('abort', stop, { once: true })
   let raw = ''
-  let flagged = false
-  try {
-    raw = await diaryChat(chat, inner.signal, (d) => {
-      raw += d
-      const p = parseBuddyReply(raw)
-      if (p.safety) { flagged = true; inner.abort(); return }
-      opts.onDelta?.(p.text)
-    }, opts.onQueue)
-  } catch (e) {
-    if (!flagged) throw e
-  } finally { opts.signal.removeEventListener('abort', stop) }
+  raw = await diaryChat(chat, opts.signal, (d) => {
+    raw += d
+    opts.onDelta?.(parseBuddyReply(raw).text)
+  }, opts.onQueue)
   const parsed = parseBuddyReply(raw)
-  if (flagged || parsed.safety) { await addMessage(date, 'buddy', CRISIS_CARD.title, 1); return 'crisis' }
   if (!parsed.text) throw new Error('답이 비어 있어요')
   // 그 사이 나만 보기로 바뀌었으면 남기지 않는다
   const again = await findEntry(date)
@@ -134,7 +121,7 @@ export async function buddyReply(date: string, opts: ReplyOpts): Promise<ReplyRe
   await addMessage(date, 'buddy', parsed.task ? `${parsed.text}\n할 일: ${parsed.task}` : parsed.text)
   return 'reply'
 }
-/** 내 말을 남기고 캐릭터 답을 받는다(내 말도 먼저 검사 — buddyReply 안에서) */
+/** 내 말을 남기고 캐릭터 답을 받는다 */
 export async function sendMessage(date: string, text: string, opts: ReplyOpts): Promise<ReplyResult> {
   const t = text.trim()
   if (!t) return 'blocked'

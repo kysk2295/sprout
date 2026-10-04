@@ -1,27 +1,10 @@
-// 28 모바일 일기 계산 시험 — 위기 단어 검사는 데스크톱 tests/diary.test.ts와 같은 문장으로 같은 결과여야 한다
+// 28 모바일 일기 계산 시험 — 데스크톱 tests/diary.test.ts와 같은 규칙
 import assert from 'node:assert/strict'
 import {
-  averageMood, buddyLine, buddyOf, buildBuddyMessages, buildSummaryMessages, CRISIS_CARD, crisisTarget, dayTitle, detectCrisis, entryId, highlightsOf,
+  averageMood, buddyLine, buddyOf, buildBuddyMessages, buildSummaryMessages, dayTitle, entryId, highlightsOf,
   insightOf, josa, longestStreak, mayCallAi, memoryOf, monthGrid, moodFaceOf, moodShare, moodTrend, parseBuddyReply, previewOf, promptFor, searchEntries,
   skyOf, streakOf, WEEK_MON, weekdayMon, weekOf, wantsFirstReply, yearMosaic
 } from './logic.ts'
-
-// ── 위기 검사: 데스크톱과 같은 사례 ──
-for (const t of ['요즘 그냥 죽고 싶다는 생각이 들어', '자해를 했어', '사라지고 싶어', '살기 싫어', '극단적 선택을 생각했어', '아빠가 나를 때렸어', 'I want to die', '손목을 긋고 싶었어', '모든 게 다 놓아 버리고 싶다', '요즘은 사는 게 무의미해', '그냥 이대로 잠들어서 안 깨어났으면 좋겠다', '다 그만두고 죽고 싶다', '자살하고 싶어', '요즘 다 그만두고 사라지고 싶어'])
-  assert.equal(detectCrisis(t), true, t)
-for (const t of ['배고파 죽겠다', '웃겨 죽는 줄 알았어', '과제 다 끝내고 싶어', '이 게임 죽이는데', '정답 맞았어!', '오늘 기획서 반쯤 씀', '때때로 산책을 했다', '알람 못 듣고 늦잠 자서 안 깼다'])
-  assert.equal(detectCrisis(t), false, t)
-// 줄바꿈이 섞여도 잡는다
-assert.equal(detectCrisis('그냥\n죽고\n싶다'), true)
-
-// 위기 카드: 109 맨 위, 전화 번호는 숫자만
-assert.deepEqual(CRISIS_CARD.lines.map((l) => l.number), ['109', '112 · 119'])
-for (const l of CRISIS_CARD.lines) for (const n of l.tel) assert.match(n, /^\d+$/)
-assert.ok(CRISIS_CARD.hope.length > 0)
-
-// 검사 대상: 첫 답이면 일기 글, 대화 중이면 마지막 내 말
-assert.equal(crisisTarget({ content: '일기' }, []), '일기')
-assert.equal(crisisTarget({ content: '일기' }, [{ role: 'me', content: 'a' }, { role: 'buddy', content: 'b' }, { role: 'me', content: 'c' }, { role: 'buddy', content: 'd' }]), 'c')
 
 // ── 나만 보기·동의 ──
 const buddy = { name: '도토리', species: 'squirrel' as const }
@@ -48,7 +31,13 @@ assert.match(chat[0].content, /도토리/)
 assert.match(chat[1].content, /<diary>\n기획서를 반쯤 썼다\n<\/diary>/)
 assert.match(chat[1].content, /<memory>\n2026-10-03: 면접 걱정/)
 assert.doesNotMatch(chat[1].content, /비밀/)
-assert.equal(chat.at(-1)!.content, '(위기 안내 카드를 보여 줬어)')
+// 예전 위기 카드 행(safety=1)은 건너뛴다(기능 제외, 2026-10-05)
+assert.equal(chat.length, 2)
+assert.ok(chat.at(-1)!.content.endsWith('\n\n안녕'))
+assert.ok(!JSON.stringify(chat).includes('"x"'))
+// 시스템 지시: [[SAFETY]] 없음, 자해 방법·의료 조언 금지 한 줄
+assert.doesNotMatch(chat[0].content, /SAFETY/)
+assert.match(chat[0].content, /자해 방법이나 진단·치료·약 같은 의료 조언은 절대 하지 마/)
 // 같은 쪽 말은 합친다
 assert.equal(chat.filter((m) => m.role === 'user').length, 1)
 // 하이라이트·미리보기도 나만 보기를 숨김
@@ -58,10 +47,8 @@ assert.equal(previewOf({ content: '비밀\n두 줄', private: 1 }, { search: tru
 assert.equal(previewOf({ content: '\n첫 줄', private: 0 }), '첫 줄')
 
 // ── 답 해석 ──
-assert.deepEqual(parseBuddyReply('[[SAFETY]]'), { text: '', safety: true })
-assert.deepEqual(parseBuddyReply('[[SAF'), { text: '', safety: false })
-assert.deepEqual(parseBuddyReply('같이 해 보자.\n할 일: 운동화 꺼내 두기.'), { text: '같이 해 보자.', task: '운동화 꺼내 두기', safety: false })
-assert.deepEqual(parseBuddyReply('같이 해 보자.\n할'), { text: '같이 해 보자.', task: undefined, safety: false })
+assert.deepEqual(parseBuddyReply('같이 해 보자.\n할 일: 운동화 꺼내 두기.'), { text: '같이 해 보자.', task: '운동화 꺼내 두기' })
+assert.deepEqual(parseBuddyReply('같이 해 보자.\n할'), { text: '같이 해 보자.', task: undefined })
 
 // ── 첫 답 조건 ──
 assert.equal(wantsFirstReply('짧다', 0), false)

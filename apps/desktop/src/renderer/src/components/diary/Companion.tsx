@@ -1,17 +1,17 @@
-import { ArrowUp, Check, Lock, Phone, X } from 'lucide-react'
+import { ArrowUp, Check, Lock, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { STAGES } from '@sprout/schema/growth'
 import { useQuery } from '../../data/useQuery'
 import { isUnavailable } from '../../data/ai'
 import {
-  buddyLine, buddyReply, CRISIS_CARD, josa, MESSAGES_BY_DATE_SQL, parseBuddyReply, sendMessage, skyOf, taskFromChip, takeNotice,
+  buddyLine, buddyReply, josa, MESSAGES_BY_DATE_SQL, parseBuddyReply, sendMessage, skyOf, taskFromChip, takeNotice,
   type Buddy, type DiaryMessage
 } from '../../data/diary'
 import { CharacterArt, type CharacterMood } from '../growth/CharacterArt'
 import { useToast } from '../Toast'
 import { SkyIcon } from './MoodFace'
 
-// 15 §9.4 곁자리 — 작은 무대(캐릭터가 페이지 옆에 앉아 있다) + 캐릭터와 이야기 + 위기 카드
+// 15 §9.4 곁자리 — 작은 무대(캐릭터가 페이지 옆에 앉아 있다) + 캐릭터와 이야기
 
 /** Editor가 보내는 캐릭터 반응 하나(기분 고름·나만 보기 등). id가 바뀔 때마다 한 번 재생 */
 export type Cue = { id: number; line: string; face?: CharacterMood; hop?: boolean; heart?: boolean }
@@ -28,10 +28,9 @@ type Props = {
 export function Companion({ date, content, buddy, stage, memory, mode, inline, reduced, typing, cue, doneLine, onActivity, onConsent, onPrivateOff, onSoloOff }: Props) {
   const name = buddy.name
   const status = mode === 'talk' ? '같이 읽는 중' : mode === 'consent' ? '나만 봐요' : mode === 'private' ? '나만 보기' : '혼자 쓰는 중'
-  const [crisis, setCrisis] = useState(false)
   return (
     <section className={`diary-comp${inline ? ' is-inline' : ''}`} aria-label={`${josa(name, '와', '과')} 이야기`}>
-      <MiniStage buddy={buddy} stage={stage} inline={inline} reduced={reduced} typing={typing} cue={cue} asleep={mode === 'private'} still={crisis} />
+      <MiniStage buddy={buddy} stage={stage} inline={inline} reduced={reduced} typing={typing} cue={cue} asleep={mode === 'private'} />
       <div className="diary-comp__talk">
         <div className="diary-comp__head">
           {josa(name, '와', '과')} 이야기
@@ -65,14 +64,14 @@ export function Companion({ date, content, buddy, stage, memory, mode, inline, r
             <button className="diary-btn is-ghost" onClick={onSoloOff}>{josa(name, '와', '과')} 이야기하기</button>
           </div>
         )}
-        {mode === 'talk' && <Talk date={date} content={content} buddy={buddy} stage={stage} memory={memory} inline={inline} onActivity={onActivity} onCrisis={setCrisis} />}
+        {mode === 'talk' && <Talk date={date} content={content} buddy={buddy} stage={stage} memory={memory} inline={inline} onActivity={onActivity} />}
       </div>
     </section>
   )
 }
 
 // ── 작은 무대(168) — 성장 무대(10 §3.2.2)를 작게: 시간대 하늘 + 땅, 장식·HUD 없음 ──
-function MiniStage({ buddy, stage, inline, reduced, typing, cue, asleep, still }: { buddy: Buddy; stage: number; inline: boolean; reduced: boolean; typing: boolean; cue?: Cue; asleep: boolean; still: boolean }) {
+function MiniStage({ buddy, stage, inline, reduced, typing, cue, asleep }: { buddy: Buddy; stage: number; inline: boolean; reduced: boolean; typing: boolean; cue?: Cue; asleep: boolean }) {
   const [hour, setHour] = useState(hourNow)
   useEffect(() => { const t = window.setInterval(() => setHour(hourNow()), 60_000); return () => window.clearInterval(t) }, [])
   const sky = skyOf(hour)
@@ -127,7 +126,7 @@ function MiniStage({ buddy, stage, inline, reduced, typing, cue, asleep, still }
       {hearts.map((id) => <svg key={id} className="diary-mstage__heart" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21s-8-5-8-11a4.5 4.5 0 0 1 8-3 4.5 4.5 0 0 1 8 3c0 6-8 11-8 11z" /></svg>)}
       <button
         ref={charRef}
-        className={`diary-char${act ? ` ${act.split(' ')[0]}` : ''}${still || reduced ? ' is-still' : ''}`}
+        className={`diary-char${act ? ` ${act.split(' ')[0]}` : ''}${reduced ? ' is-still' : ''}`}
         aria-label={`${name}, ${stageName}. 눌러서 말 걸기`}
         onClick={() => { play('is-hop'); say(asleep ? buddyLine({ kind: 'private' }) : buddyLine({ kind: 'open', hour: hourNow() })) }}
       >
@@ -141,7 +140,7 @@ function MiniStage({ buddy, stage, inline, reduced, typing, cue, asleep, still }
 // ── 캐릭터와 이야기(§3.1 동작 그대로, 모양만 §9.4) ──
 const chipsMade = new Set<string>()
 let noticeShown: boolean | undefined
-function Talk({ date, content, buddy, stage, memory, inline, onActivity, onCrisis }: { date: string; content: string; buddy: Buddy; stage: number; memory: boolean; inline: boolean; onActivity: () => void; onCrisis: (on: boolean) => void }) {
+function Talk({ date, content, buddy, stage, memory, inline, onActivity }: { date: string; content: string; buddy: Buddy; stage: number; memory: boolean; inline: boolean; onActivity: () => void }) {
   const toast = useToast()
   const messages = useQuery<DiaryMessage>(MESSAGES_BY_DATE_SQL, [date])
   const [pending, setPending] = useState<string | null>(null)
@@ -154,11 +153,9 @@ function Talk({ date, content, buddy, stage, memory, inline, onActivity, onCrisi
   const busy = pending !== null
   const name = buddy.name
   // 이미 만든 칩은 다시 열어도(앱을 껐다 켜도) "할 일에 넣었어요" — 같은 할 일을 두 번 만들지 않게
-  const chipTitles = useMemo(() => (messages ?? []).filter((m) => m.role === 'buddy').map((m) => parseBuddyReply(m.content).task).filter((t): t is string => !!t), [messages])
+  const chipTitles = useMemo(() => (messages ?? []).filter((m) => m.role === 'buddy' && !m.safety).map((m) => parseBuddyReply(m.content).task).filter((t): t is string => !!t), [messages])
   const madeTitles = useQuery<{ title: string }>(`SELECT title FROM tasks WHERE deleted_at IS NULL AND title IN (${chipTitles.map(() => '?').join(',') || "''"})`, chipTitles)
   const made = (title: string) => (madeTitles ?? []).some((t) => t.title === title.trim().slice(0, 200))
-  const hasCrisis = !!messages?.some((m) => m.safety)
-  useEffect(() => { onCrisis(hasCrisis) }, [hasCrisis]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const ask = async (fn: (signal: AbortSignal) => Promise<unknown>) => {
     ctrl.current?.abort()
@@ -180,13 +177,11 @@ function Talk({ date, content, buddy, stage, memory, inline, onActivity, onCrisi
     return () => window.clearTimeout(t)
   }, [content, messages?.length, busy, error]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 새 말이 오면 아래로(위기 카드는 화면 안으로)
+  // 새 말이 오면 아래로
   useEffect(() => {
     const el = listRef.current
     if (!el) return
-    const card = el.querySelector('.diary-crisis:last-of-type')
-    if (card) card.scrollIntoView({ block: 'nearest' })
-    else if (!inline) el.scrollTop = el.scrollHeight
+    if (!inline) el.scrollTop = el.scrollHeight
   }, [messages?.length, pending, inline])
 
   const send = () => {
@@ -209,7 +204,7 @@ function Talk({ date, content, buddy, stage, memory, inline, onActivity, onCrisi
         )}
         {messages.map((m) => {
           if (m.role === 'me') return <div key={m.id} className="diary-msg is-me"><div className="diary-msg__bb">{m.content}</div></div>
-          if (m.safety) return <CrisisCard key={m.id} buddy={buddy} stage={stage} alert />
+          if (m.safety) return null // 예전 위기 카드 행(기능 제외, 2026-10-05)
           const p = parseBuddyReply(m.content)
           return (
             <div key={m.id} className="diary-msg">
@@ -256,26 +251,4 @@ function Talk({ date, content, buddy, stage, memory, inline, onActivity, onCrisi
 
 function SproutMark() {
   return <svg className="diary-chip__leaf" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><path d="M12 14c-5-1-6-6-4-7 3 0 4 3 4 7Zm0-2c1-5 5-6 7-5 0 3-3 5-7 5Z" fill="currentColor" /></svg>
-}
-
-/** 위기 안내 카드(§3.1·§9.4): 차분한 색, 109가 맨 위, 번호 크게 + 복사. 움직임 없음 */
-export function CrisisCard({ buddy, stage, alert }: { buddy: Buddy; stage: number; alert?: boolean }) {
-  const [copied, setCopied] = useState<string>()
-  const copy = (n: string) => { void navigator.clipboard?.writeText(n.replace(/\s/g, '')).catch(() => {}); setCopied(n) }
-  return (
-    <div className="diary-crisis" role={alert ? 'alert' : undefined}>
-      <div className="diary-crisis__title"><CharacterArt species={buddy.species} stage={stage} size={30} />{CRISIS_CARD.title}</div>
-      <ul>
-        {CRISIS_CARD.lines.map((l, i) => (
-          <li key={l.number} className={i === 0 ? 'is-first' : ''}>
-            <span className="diary-crisis__ph"><Phone /></span>
-            <span className="diary-crisis__name">{l.label}<small>{l.note}</small></span>
-            <span className="diary-crisis__num"><b>{l.number}</b><button onClick={() => copy(l.number)}>{copied === l.number ? '복사했어요' : '번호 복사'}</button></span>
-          </li>
-        ))}
-      </ul>
-      <p className="diary-crisis__hope">{CRISIS_CARD.hope}</p>
-      <p>{CRISIS_CARD.footer}</p>
-    </div>
-  )
 }
