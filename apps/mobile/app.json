@@ -12,8 +12,7 @@
       "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
     },
     "android": {
-      "package": "app.sprout.mobile",
-      "edgeToEdgeEnabled": true
+      "package": "app.sprout.mobile"
     },
     "plugins": ["expo-router", "expo-secure-store", "expo-background-task", "expo-notifications", ["./plugins/share-extension", { "teamId": "BU697KN34B", "appGroup": "group.app.sprout.mobile" }]],
     "experiments": { "typedRoutes": false },

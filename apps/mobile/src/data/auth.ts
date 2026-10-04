@@ -9,7 +9,7 @@ import { useSyncExternalStore } from 'react'
 import { UpdateType, type AbstractPowerSyncDatabase, type PowerSyncBackendConnector } from '@powersync/react-native'
 import { seedStatements } from '@sprout/schema/seed'
 import { API_URL, SYNC_URL } from '../config'
-import { db, run } from './db'
+import { CONNECT_OPTIONS, db, run } from './db'
 
 const KEY = 'sprout.session.v1'
 
@@ -138,7 +138,7 @@ async function signIn(path: '/auth/login' | '/auth/signup', email: string, passw
   await save(s)
   status = 'signedIn'
   emit()
-  void db.connect(connector)
+  void db.connect(connector, CONNECT_OPTIONS)
 }
 export const login = (email: string, password: string) => signIn('/auth/login', email, password)
 export const signup = (email: string, password: string) => signIn('/auth/signup', email, password)
@@ -164,7 +164,7 @@ export function startAuth() {
     session = await load()
     status = session ? 'signedIn' : 'signedOut'
     emit()
-    if (session) void db.connect(connector)
+    if (session) void db.connect(connector, CONNECT_OPTIONS)
   })()
   return started
 }
@@ -172,7 +172,7 @@ export function startAuth() {
 /** 당겨서 새로 고침·설정의 "지금 동기화": 끊겨 있으면 다시 붙이고, 내려받기가 끝날 때까지(최대 8초) 기다린다 */
 export async function syncNow() {
   if (!session) return
-  if (!db.currentStatus.connected) await db.connect(connector)
+  if (!db.currentStatus.connected) await db.connect(connector, CONNECT_OPTIONS)
   const started = Date.now()
   await new Promise<void>((resolve) => {
     const tick = setInterval(() => {

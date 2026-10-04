@@ -1,5 +1,6 @@
 // 로컬 SQLite(PowerSync) — 스키마는 @sprout/schema TABLES 하나에서 만든다(데스크톱 main/db.ts와 같은 변환).
-import { column, PowerSyncDatabase, Schema, Table } from '@powersync/react-native'
+import { column, PowerSyncDatabase, Schema, SyncStreamConnectionMethod, Table } from '@powersync/react-native'
+import { Platform } from 'react-native'
 import { TABLES } from '@sprout/schema'
 import type { CoreDb, Stmt } from '@sprout/schema/taskCore'
 
@@ -33,3 +34,7 @@ export async function run(stmts: Stmt[]): Promise<void> {
   })
 }
 export type { Stmt }
+
+/** 연결 방식(2026-10-05 Android 확인): Android에서는 HTTP 스트리밍(expo/fetch)이 `connecting`에서 멈춰 내려받기가 시작되지 않는다
+ *  → Android만 WebSocket으로 연결한다(같은 PowerSync 서비스, Tailscale Funnel에서 동작 확인). iOS는 기본(HTTP 스트리밍) 그대로 */
+export const CONNECT_OPTIONS = Platform.OS === 'android' ? { connectionMethod: SyncStreamConnectionMethod.WEB_SOCKET } : undefined

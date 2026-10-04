@@ -12,7 +12,7 @@ npx expo prebuild --platform ios   # ios/ 생성(커밋 안 함). 네이티브 �
 npx expo run:ios               # 빌드 + 설치 + Metro. 기기 지정: --device "iPhone 17 Pro"
 ```
 - 이미 설치돼 있으면 `npm run mobile`(뿌리) = `expo start --dev-client`만 띄우고 앱을 연다.
-- Android: `npx expo run:android`(에뮬레이터 필요). 2026-10-05 기초 작업에서는 **iOS만 확인**했다.
+- Android: `ANDROID_HOME=~/Library/Android/sdk JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home npx expo prebuild --platform android` → `npx expo run:android --device <AVD 이름> --port <내 Metro 포트>`. SDK 패키지: platform 36 · build-tools 36 · NDK 27.1.12297006 · CMake 3.22.1. 2026-10-05 에뮬레이터(API 35)에서 가입·동기화·5칸 탭 확인, iOS와 다른 점은 [20 §11](../../docs/screens/20-mobile-overview.md).
 - 서버 주소 기본값은 Mac mini 공개 주소(app.json `extra`). 바꾸려면 `EXPO_PUBLIC_API_URL=… EXPO_PUBLIC_SYNC_URL=… npx expo start --dev-client`.
 
 ## 검사

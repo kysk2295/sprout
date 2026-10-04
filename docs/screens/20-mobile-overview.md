@@ -197,3 +197,16 @@
 - 탭: `app/(tabs)/_layout.tsx`(5칸 + 숨은 `settings`, 뒤로 = 지난 탭), `src/ui/TabBar.tsx`(캘린더 날짜 숫자 아이콘, 설정이면 더보기 켜짐). 수집함 탭 `app/(tabs)/collect/`는 수집함 작업 몫(자리 표시만 만들어 둠). 더보기 `app/(tabs)/more/`, 캘린더 `app/(tabs)/calendar/` → `src/screens/CalendarScreen.tsx`, 검색 `app/search/`, 리스트 관리 `app/lists/manage.tsx`, 계정 `app/(tabs)/settings/account.tsx`, 딥 링크 `app/today.tsx`.
 - 데이터(순수, 시험 있음): `src/data/views.ts`(보기 범위·묶기·정렬), `filters.ts`(07 규칙 — 데스크톱과 같은 SQL), `calendar.ts`(월 칸·블록·끌기), `search.ts`. 쓰기: `organization.ts`(리스트·폴더·태그·필터·섹션·보기 설정·스마트 목록 표시·최근 검색). 편집 시트 `src/ui/OrgSheets.tsx`.
 - 할 일 탭 보기 상태는 `src/state/tasksView.tsx` 모듈 저장소(검색·딥 링크에서 바꿈).
+
+## 11. Android 확인 (2026-10-05, 에뮬레이터 Pixel 7 · Android 15 / API 35)
+- **빌드**: `npx expo prebuild --platform android` → `npx expo run:android` 그대로 된다(Gradle 9.3.1, compileSdk 36, NDK 27.1.12297006, JDK 21). iOS 공유 확장 플러그인(`plugins/share-extension`)은 Android 프리빌드를 깨지 않는다. app.json의 `android.edgeToEdgeEnabled`는 Expo 57에서 없어진 설정이라 뺐다(Android 16부터 전체 화면 그리기가 기본).
+- **확인함**: 새 계정 가입 → 오늘 → 빠른 입력(키보드 위 카드·도구 막대·✦ AI에게) → 체크(완료 토스트·되돌리기, 성장 XP +1) → 5칸 탭(할 일·캘린더·수집함·성장·더보기) → 설정 › 동기화 `방금 전` → 로그아웃·다시 로그인하면 서버에서 완료 기록이 돌아옴 → 계정 삭제.
+- **iOS와 다른 점 (고친 것)**
+  - 동기화: Android에서는 PowerSync 기본 연결(HTTP 스트리밍, `expo/fetch`)이 `연결 중`에서 멈춰 `오프라인`으로 남았다 → **Android만 WebSocket 연결**(`src/data/db.ts` `CONNECT_OPTIONS`). 같은 PowerSync 서비스·Funnel 주소에서 동작한다.
+  - 아래 시트(`BottomSheet`): Android가 알려 주는 키보드 높이에 제스처 막대가 빠져 있어 입력창이 키보드에 반쯤 가렸다 → Android는 아래 안전 여백을 더한다.
+  - 반 시트 안 입력창 자동 초점(`autoFocus`)이 Android Modal에서는 키보드를 못 띄웠다 → Android는 350ms 뒤 직접 초점.
+- **iOS와 다른 점 (그대로 둠)**
+  - 확인 창(로그아웃 등 `Alert`)은 Android 기본 모양(머티리얼 대화 상자, 버튼 글자색 = 시스템 강조색).
+  - 뒤로 버튼: 키보드 닫기 → 시트 닫기 → 탭 첫 화면이면 앱 나가기(§2와 같음).
+  - 머리 줄은 아직 iOS와 같은 둥근 유리 버튼(§2의 Android 한 줄 머리 "☰ 제목 ⋮"는 틱틱 Android 실측 뒤 [다음]).
+- **[다음]**: Android 공유 받기(24 [다음] 그대로 — `SEND text/plain` → 본 앱 화면), 알림 권한(Android 13+ 알림, 12+ 정확한 알람) 실기기 확인, 실제 휴대폰에서 다시 확인.
