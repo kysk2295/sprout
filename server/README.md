@@ -22,10 +22,14 @@ curl localhost:6060/health
 ```bash
 npm run server:schema          # db/init/02-schema.sql, powersync/sync-config.yaml 다시 생성
 ```
-`db/init`은 **DB를 처음 만들 때만** 실행된다. 이미 데이터가 있는 DB에는 마이그레이션 SQL을 따로 적용한다(아직 도구 없음 — 첫 스키마 변경 때 정한다).
+`db/init`은 **DB를 처음 만들 때만** 실행된다. 이미 데이터가 있는 DB에는 `db/migrations/*.sql`을 이름 순서대로 적용한다(모두 `IF NOT EXISTS`로 다시 돌려도 안전하게 쓴다):
+```bash
+for f in db/migrations/*.sql; do docker compose exec -T db psql -U sprout -d sprout -v ON_ERROR_STOP=1 < "$f"; done
+docker compose up -d --build api && docker compose restart powersync   # 새 테이블 허용 + 동기화 규칙 다시 읽기
+```
 
 ## 규칙 (api/src/upload.ts)
-- 기기가 올린 변경은 표에 정의된 테이블·칸만 받는다(그 밖은 400, SQL 주입 차단).
+- 기기가 올린 변경은 표에 정의된 테이블·칸만 받는다(SQL 주입 차단). 모르는 테이블·칸은 **409** — 앱은 그 묶음을 지우지 않고 서버가 새 스키마로 올라올 때까지 다시 보낸다. 형식이 깨진 연산만 400(버림).
 - `owner_id`는 기기가 보낸 값을 무시하고 로그인한 사용자로 넣는다. 남의 행은 고치거나 지우지 못한다.
 - 동기화 규칙은 `owner_id = auth.user_id()` — 자기 데이터만 내려받는다.
 - 테스트: `npm run test:api`

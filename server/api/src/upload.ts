@@ -17,11 +17,12 @@ const isTable = (t: string): t is TableName => Object.hasOwn(TABLES, t)
 
 /** 한 연산을 SQL로 바꾼다. 허용하지 않는 테이블·칸이면 UploadError */
 export function toStatement(op: CrudOp, userId: string): Stmt {
-  if (!isTable(op.table)) throw new UploadError(`unknown table: ${op.table}`)
+  // 모르는 테이블·칸 = 서버가 앱보다 오래됨 → 409. 앱은 이 묶음을 버리지 않고 서버가 올라올 때까지 다시 보낸다
+  if (!isTable(op.table)) throw new UploadError(`unknown table: ${op.table}`, 409)
   if (typeof op.id !== 'string' || !op.id || op.id.length > 64) throw new UploadError('bad id')
   const allowed = TABLES[op.table].columns as Record<string, string>
   const data = Object.entries(op.data ?? {}).filter(([col]) => col !== 'owner_id' && col !== 'id')
-  for (const [col] of data) if (!Object.hasOwn(allowed, col)) throw new UploadError(`unknown column: ${op.table}.${col}`)
+  for (const [col] of data) if (!Object.hasOwn(allowed, col)) throw new UploadError(`unknown column: ${op.table}.${col}`, 409)
   const t = op.table
 
   if (op.op === 'DELETE') return { sql: `DELETE FROM ${t} WHERE id = $1 AND owner_id = $2`, params: [op.id, userId] }

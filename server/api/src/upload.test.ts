@@ -19,8 +19,9 @@ const me = '00000000-0000-0000-0000-000000000001'
   assert.deepEqual(d.params, ['l1', me])
 }
 // 모르는 테이블·칸·연산은 거절(SQL 주입 차단)
-assert.throws(() => toStatement({ op: 'PUT', table: 'users', id: 'u', data: {} }, me), UploadError)
-assert.throws(() => toStatement({ op: 'PUT', table: 'tasks', id: 'x', data: { 'title; DROP TABLE tasks': 1 } }, me), UploadError)
+assert.throws(() => toStatement({ op: 'PUT', table: 'users', id: 'u', data: {} }, me), (e: UploadError) => e.status === 409)
+assert.throws(() => toStatement({ op: 'PUT', table: 'tasks', id: 'x', data: { 'title; DROP TABLE tasks': 1 } }, me), (e: UploadError) => e.status === 409)
+assert.throws(() => toStatement({ op: 'PUT', table: 'tasks', id: '', data: {} }, me), (e: UploadError) => e.status === 400)
 assert.throws(() => toStatement({ op: 'NOPE' as never, table: 'tasks', id: 'x' }, me), UploadError)
 assert.throws(() => toStatements('nope', me), UploadError)
 assert.equal(toStatement({ op: 'PATCH', table: 'tasks', id: 'x', data: {} }, me).sql, 'SELECT 1')
