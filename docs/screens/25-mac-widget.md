@@ -371,9 +371,9 @@ apps/desktop/src/shared/taskCore.ts       # 완료·XP 정상 경로(렌더러�
 - `overdueAt`은 늘 null — 앱 규칙(02·09)이 날짜로만 만료를 본다(§13-2 답).
 - `prefs.clock24h`는 false 고정 — 앱에 12/24시간 설정이 아직 없다("오전 8:00").
 - 반영 대기 행 다시 누르기 = 위젯이 대기 파일을 지운다(앱에 갈 필요 없음). 앱은 `uncomplete` 항목도 받는다(반복이면 가장 최근 완료 기록을 되돌림, 같은 날 XP 회수).
-- **`sprout://today`·`sprout://growth` 이동은 임시 방식**: 렌더러에 "보기 이동" IPC가 없어(소유 범위 밖) 메인이 `localStorage`의 `sprout.view`·`sprout.selected`를 바꾸고, 값이 달라졌을 때만 창을 다시 불러온다(한 번 깜빡임). 렌더러에 `desktop:navigate` 수신을 넣으면 바꾼다 [다음].
-- 메인이 반영한 XP의 "+1" 표시(`growth:xp` IPC)는 아직 없음 — 렌더러 수신이 없어서. 데이터는 PowerSync 감시로 화면에 바로 반영된다 [다음].
-- 로그인 항목: 패키지 앱(기본 프로필) 첫 실행 때 한 번 `openAtLogin: true`(표시 파일 `userData/login-item-default`). 사용자가 시스템 설정에서 끄면 다시 켜지 않는다. 설정 화면 토글은 [다음](설정 › 일반에 "로그인할 때 sprout 열기" 요청).
+- **`sprout://today`·`sprout://growth` 이동 = `desktop:navigate` IPC**(2026-10-05): 메인 `showView()`가 `{view, selected?}`를 보내고 렌더러 `App.tsx`가 `setView`·`setSelected`만 바꾼다(다시 불러오지 않아 깜빡임 없음). 예전 `localStorage` + 다시 불러오기 방식은 지웠다. 개발 실행에서 두 번째 실행(`sprout://growth`·`sprout://today`)으로 화면이 다시 불리지 않고 바뀌는 것 확인.
+- **위젯 체크 XP의 "+1"**(2026-10-05): `widget.ts`가 반영한 완료에서 XP가 나오면(`planCompleteWithXp().granted`) 모든 창에 `growth:xp`(양)를 보내고, 렌더러가 앱 안 완료와 같은 `sprout:xp` 이벤트로 바꿔 사이드바 캐릭터 카드 "+1"·성장 무대가 같은 길로 반응한다.
+- 로그인 항목: 패키지 앱(기본 프로필) 첫 실행 때 한 번 `openAtLogin: true`(표시 파일 `userData/login-item-default`). 사용자가 시스템 설정에서 끄면 다시 켜지 않는다. **설정 › 일반 `로그인할 때 sprout 열기` 스위치**(2026-10-05, IPC `desktop:login-item`·`desktop:set-login-item` → `app.setLoginItemSettings`): 패키지 앱 + 기본 프로필에서만 바꿀 수 있고, 개발·프로필 실행은 꺼진 채 비활성 + `설치한 앱에서만 바꿀 수 있어요(개발 실행에서는 꺼져 있어요)`. 스위치로 바꾸면 표시 파일도 남겨 기본값을 다시 넣지 않는다.
 - 대기열 주인 확인: 이 기기 DB에 있고 지워지지 않은 할 일만 받는다(로그아웃하면 DB를 비우므로 = 로그인한 내 계정). 로그아웃 상태·7일 넘은 항목·이미 반영한 id는 버린다. id·taskId는 `[A-Za-z0-9_-]`만 허용.
 
 ### 14.3 확인한 것 (2026-10-04, 패키지 앱 `SPROUT_PROFILE=e2e-widget SPROUT_WIDGET=1`, 로컬 서버, 시험 계정 `e2e-widget-<시각>@sprout.test`)

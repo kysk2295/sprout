@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ListSuggestSettings } from './listSuggest/ListSuggest'
-import { CircleUser, Keyboard, ListChecks, ListFilter, Palette, Plug, X } from 'lucide-react'
+import { CircleUser, Keyboard, ListChecks, ListFilter, Palette, Plug, Settings2, X } from 'lucide-react'
 import { OverdueSettings } from './overdue/OverdueBits'
 import { authApi, deleteErrorText, deleteMode, deleteReady, DELETE_WORD, providerLabel, useAuth, type DeleteMode } from '../data/auth'
 import { LINK_NAME, linkErrorText, loginMethodRows, linkToast, unlinkToast, type LinkedIdentity, type LinkProvider } from '../data/auth'
@@ -30,7 +30,7 @@ export function DesktopSettings({ onClose, initial = authApi() ? 'account' : 'sm
   return <Dialog label="설정" className="settings-dialog" onClose={onClose}>
     <nav className="settings-nav" aria-label="설정 항목">
       <button className="icon-btn" aria-label="설정 닫기" onClick={onClose}><X /></button><h2>설정</h2>
-      {([...(authApi() ? [['account','계정',CircleUser]] as const : []),['smart','스마트 목록',ListFilter],['tasks','할 일',ListChecks],['appearance','외관',Palette],['integrations','연동',Plug],['shortcuts','단축키',Keyboard]] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><Icon />{label}</button>)}
+      {([...(authApi() ? [['account','계정',CircleUser]] as const : []),['smart','스마트 목록',ListFilter],['tasks','할 일',ListChecks],['appearance','외관',Palette],['integrations','연동',Plug],['general','일반',Settings2],['shortcuts','단축키',Keyboard]] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><Icon />{label}</button>)}
     </nav>
     <section className="settings-content">
       {error && <p role="alert" className="form-error">{error}</p>}
@@ -39,9 +39,35 @@ export function DesktopSettings({ onClose, initial = authApi() ? 'account' : 'sm
       {tab === 'tasks' && <><OverdueSettings /><ListSuggestSettings /></>}
       {tab === 'appearance' && <><h2>테마</h2><ThemePicker save={save} /></>}
       {tab === 'integrations' && <IntegrationsPane />}
+      {tab === 'general' && <GeneralPane />}
       {tab === 'shortcuts' && <><h2>단축키</h2><div className="settings-card">{SHORTCUTS.map(([label,key]) => <div className="settings-row" key={label}><span>{label}</span><kbd>{window.sprout?.platform === 'win32' ? key.replaceAll('⌘','Ctrl+') : key}</kbd></div>)}</div></>}
     </section>
   </Dialog>
+}
+
+/** 설정 › 일반(25 D4·§14): 로그인할 때 sprout 열기 — 패키지 앱에서만 바꿀 수 있다 */
+function GeneralPane() {
+  const api = window.sprout?.desktop
+  const [item, setItem] = useState<{ available: boolean; openAtLogin: boolean } | null>(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { void api?.loginItem?.().then(setItem).catch(() => setItem({ available: false, openAtLogin: false })) }, [api])
+  const on = !!item?.openAtLogin
+  const disabled = !item?.available || busy
+  const hint = !api?.loginItem ? '데스크톱 앱에서만 바꿀 수 있어요'
+    : item && !item.available ? '설치한 앱에서만 바꿀 수 있어요(개발 실행에서는 꺼져 있어요)'
+    : '켜 두면 위젯 체크가 바로 반영돼요'
+  const toggle = async () => {
+    if (!api?.setLoginItem || disabled) return
+    setBusy(true)
+    try { setItem(await api.setLoginItem(!on)) } finally { setBusy(false) }
+  }
+  return <>
+    <h2>일반</h2>
+    <div className="settings-card">
+      <div className="settings-row"><span>로그인할 때 sprout 열기<small className="od-set__hint">{hint}</small></span>
+        <button className={`dp__switch${on ? ' is-on' : ''}`} role="switch" aria-checked={on} aria-label="로그인할 때 sprout 열기" disabled={disabled} onClick={() => void toggle()}><span /></button></div>
+    </div>
+  </>
 }
 
 /** 08 §7 계정: 이메일 · 동기화 상태 · 로그아웃(확인 후 이 기기 데이터 삭제) */

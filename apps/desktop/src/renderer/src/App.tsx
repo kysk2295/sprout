@@ -197,6 +197,15 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
     return ()=>window.removeEventListener('keydown',key)
   })
   useEffect(() => window.sprout?.desktop?.onQuickAdd(() => setOverlay('quick')), [])
+  // 25 §14: 위젯 딥 링크(sprout://today·growth) — 다시 불러오지 않고 보기만 바꾼다
+  useEffect(() => window.sprout?.desktop?.onNavigate?.((to) => {
+    const views: RailView[] = ['tasks', 'calendar', 'growth', 'notes', 'watch', 'wiki', 'diary', 'assistant', 'map']
+    if (!views.includes(to.view as RailView)) return
+    setView(to.view as RailView)
+    if (to.selected) { setSelected(to.selected); setSelection([]) }
+  }), [setView, setSelected])
+  // 25 §14: 위젯 체크로 메인 프로세스가 준 XP도 앱 안 완료처럼 "+1"(data/growth.ts announce와 같은 이벤트)
+  useEffect(() => window.sprout?.desktop?.onXp?.((amount) => { if (amount > 0) window.dispatchEvent(new CustomEvent('sprout:xp', { detail: amount })) }), [])
   const commands:Command[] = [
     {id:'new',label:'할 일 추가',key:'⌘N',group:'공통 작업',run:()=>setOverlay('quick')},
     {id:'ticktick-import',label:'틱틱에서 가져오기',group:'공통 작업',run:openTickTickImport},

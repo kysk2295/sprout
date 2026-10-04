@@ -12,7 +12,7 @@ import { startReminders } from './reminders'
 import { isSignedIn, startSync } from './sync'
 import { handleAuthLink, registerSocialAuth } from './auth-social'
 import { hasTray, startMini } from './mini'
-import { ensureLoginItemDefault, startWidget } from './widget'
+import { ensureLoginItemDefault, registerLoginItemIpc, startWidget } from './widget'
 
 // 01-app-shell §2 창: 최소 800×560, Mac은 제목 표시줄을 숨기고 신호등이 레일 위에 놓인다.
 let mainWindow: BrowserWindow | undefined
@@ -73,13 +73,12 @@ async function openLink(url: string) {
   const task = /^sprout:\/\/task\/([\w-]{1,100})\/?$/.exec(url)
   if (task) win.webContents.send('reminder:open', task[1]) // 알림·미니 창과 같은 "할 일 열기" 통로
   else if (/^sprout:\/\/quick-add\/?$/.test(url)) win.webContents.send('desktop:quick-add') // 25 위젯 `+` = ⌃⇧A와 같은 빠른 추가
-  else if (/^sprout:\/\/growth\/?$/.test(url)) await showView(win, 'growth') // 25 캐릭터 위젯
-  else if (/^sprout:\/\/today\/?$/.test(url)) await showView(win, 'tasks', 'smart:today') // 25 오늘 할 일 위젯 머리·"+N개 더"
+  else if (/^sprout:\/\/growth\/?$/.test(url)) showView(win, 'growth') // 25 캐릭터 위젯
+  else if (/^sprout:\/\/today\/?$/.test(url)) showView(win, 'tasks', 'smart:today') // 25 오늘 할 일 위젯 머리·"+N개 더"
 }
-/** 레일 보기 전환: 렌더러에 이동 IPC가 아직 없어 화면이 기억하는 값(localStorage)을 바꾸고, 바뀌었으면 다시 불러온다 */
-async function showView(win: BrowserWindow, view: string, selected?: string) {
-  const js = `(()=>{let c=false;const set=(k,v)=>{if(localStorage.getItem(k)!==v){localStorage.setItem(k,v);c=true}};set('sprout.view',${JSON.stringify(JSON.stringify(view))});${selected ? `set('sprout.selected',${JSON.stringify(JSON.stringify(selected))});` : ''}return c})()`
-  if (await win.webContents.executeJavaScript(js).catch(() => false)) win.webContents.reload()
+/** 레일 보기 전환(25 §14): 렌더러가 `desktop:navigate`를 받아 보기·목록만 바꾼다(다시 불러오지 않아 깜빡이지 않음) */
+function showView(win: BrowserWindow, view: string, selected?: string) {
+  win.webContents.send('desktop:navigate', selected ? { view, selected } : { view })
 }
 app.on('open-url', (e, url) => { e.preventDefault(); void openLink(url) }) // 첫 실행 링크도 받게 whenReady 전에 등록
 app.on('second-instance', (_e, argv) => { void openLink(argv.find((a) => a.startsWith('sprout://')) ?? 'sprout://') })
@@ -116,6 +115,7 @@ app.whenReady().then(async () => {
   for (const url of pendingLinks.splice(0)) void openLink(url)
   startWidget({ isSignedIn }) // 25 맥 위젯: 저장 파일·체크 대기열·새로 고침
   ensureLoginItemDefault() // 25 D4: 로그인할 때 sprout 열기(기본 켬)
+  registerLoginItemIpc() // 설정 › 일반 토글
   globalShortcut.register(process.platform === 'darwin' ? 'Shift+Command+E' : 'Alt+Shift+E', () => {
     const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined
     if (win?.isVisible() && win.isFocused()) win.hide()

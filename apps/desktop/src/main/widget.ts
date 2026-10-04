@@ -3,7 +3,7 @@
 //
 // 켜지는 조건: macOS + 패키지 앱 + 기본 프로필. 개발 실행·SPROUT_PROFILE 실행은 끈다(저장 칸은 기기에 하나라 시험 계정이
 // 실제 위젯을 덮어쓰지 않게). SPROUT_WIDGET=1이면 강제로 켜고, SPROUT_WIDGET=0이면 끈다.
-import { app, powerMonitor } from 'electron'
+import { app, BrowserWindow, ipcMain, powerMonitor } from 'electron'
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -132,11 +132,17 @@ async function applyAction(a: WidgetAction): Promise<void> {
   const exists = await db.getOptional<{ id: string; owner_id: string | null }>('SELECT id, owner_id FROM tasks WHERE id = ? AND deleted_at IS NULL', [a.taskId])
   if (!exists) return
   const env = { today: localDay() } // XP는 반영하는 날 기준(10 §6 로컬 날짜)
-  const stmts = a.kind === 'complete'
-    ? (await planCompleteWithXp(coreDb, [a.taskId], env)).stmts
-    : await planReopenWithXp(coreDb, await uncompleteTarget(a.taskId), env)
+  const plan = a.kind === 'complete'
+    ? await planCompleteWithXp(coreDb, [a.taskId], env)
+    : { stmts: await planReopenWithXp(coreDb, await uncompleteTarget(a.taskId), env), granted: 0 }
+  const { stmts, granted } = plan
   if (!stmts.length) return // 이미 완료됨 등 — 파일만 지운다
   await db.writeTransaction(async (tx) => { for (const s of stmts) await tx.execute(s.sql, s.params ?? []) })
+  if (granted > 0) announceXp(granted)
+}
+/** 앱 안 완료와 같은 "+1"(사이드바 캐릭터 카드·성장 화면) — 렌더러가 `growth:xp`를 `sprout:xp` 이벤트로 바꾼다 */
+function announceXp(amount: number) {
+  for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('growth:xp', amount)
 }
 async function processActions() {
   const dir = actionsDir()
@@ -229,10 +235,30 @@ export function startWidget(opts: { isSignedIn: () => boolean }) {
   scheduleWidgetWrite(true) // 앱 시작
 }
 
+/** 로그인 항목을 바꿀 수 있는 실행인가: 패키지 앱 + 기본 프로필(개발·시험 프로필 실행은 남의 로그인 항목을 건드리지 않게) */
+const loginItemAvailable = () => (process.platform === 'darwin' || process.platform === 'win32') && app.isPackaged && !process.env.SPROUT_PROFILE
+const loginItemMarker = () => join(app.getPath('userData'), 'login-item-default')
+const loginItemState = () => ({ available: loginItemAvailable(), openAtLogin: loginItemAvailable() ? app.getLoginItemSettings().openAtLogin : false })
+
+/** 설정 › 일반 "로그인할 때 sprout 열기"(25 D4·§14) */
+export function registerLoginItemIpc() {
+  ipcMain.handle('desktop:login-item', () => loginItemState())
+  ipcMain.handle('desktop:set-login-item', (_e, open: unknown) => {
+    if (!loginItemAvailable()) return loginItemState()
+    try {
+      app.setLoginItemSettings({ openAtLogin: open === true })
+      if (!existsSync(loginItemMarker())) writeFileSync(loginItemMarker(), new Date().toISOString()) // 사용자가 정했으니 기본값을 다시 넣지 않는다
+    } catch (e) {
+      console.warn('[widget] 로그인 항목 변경 실패:', e)
+    }
+    return loginItemState()
+  })
+}
+
 /** 25 D4: 패키지 앱 첫 실행 때 "로그인할 때 sprout 열기"를 한 번 켠다(사용자가 끄면 다시 켜지 않는다) */
 export function ensureLoginItemDefault() {
   if (process.platform !== 'darwin' || !app.isPackaged || process.env.SPROUT_PROFILE) return
-  const marker = join(app.getPath('userData'), 'login-item-default')
+  const marker = loginItemMarker()
   if (existsSync(marker)) return
   try {
     app.setLoginItemSettings({ openAtLogin: true })

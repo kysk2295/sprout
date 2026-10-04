@@ -1,5 +1,5 @@
 /* 10 §3.2 성장 화면 v3 — 캐릭터 중심. 화면 색·글자는 00 토큰 변수만 쓴다(장면 그림 고유색은 예외 — 테마와 무관한 그림).
-   app.css의 옛 성장 규칙(.room* 등)보다 뒤에 오도록 이 파일에서 다시 정한다. */
+   app.css의 옛 성장 규칙(.room·.roadmap·.growth-hero 등)은 2026-10-05에 지웠다(공통 .growth·.xpbar·.goal·.survey·.levelup만 남음). */
 
 /* ── CharacterArt 공통: 눈 뜬 얼굴은 감은 눈을 숨겨 두고, 부모 .is-blink일 때만 바꾼다 ── */
 .character__eyes-closed { display: none; }

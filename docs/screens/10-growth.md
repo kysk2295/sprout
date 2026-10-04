@@ -275,6 +275,7 @@
 - 파일: `components/growth/Stage.tsx`(무대·상태 머신·방울·연출·꾸미기·진화 길) · `StageScene.tsx`(장면·장식 SVG) · `growth-stage.css`(새 스타일, `gs-` 접두) · `GrowthView.tsx`(배치·퀘스트·기록) · `WeeklyReports.tsx`(`diary` 모드) · `GrowthBits.tsx`(무대가 열려 있으면 레벨업 창 대신 `sprout:growth-reveal`). 계산은 `data/growth.ts`(`stageLines`·`catchUpOf`·`DECOR` 등, 순수 함수).
 - 얼굴 종류 추가: `smile`(오늘 완료가 있으면 — 눈은 뜨고 입만 웃음, 시선이 따라가게) · `content`(배부름) · `eat`(냠). 깜빡임은 다시 그리지 않고 `.is-blink` 클래스로.
 - 진화 연출 중에는 HUD·장면이 이미 새 단계로 바뀐다(캐릭터만 실루엣으로 깜빡임).
+- **app.css 옛 성장 규칙 정리(2026-10-05):** v1·v2 화면이 쓰던 `.room*`(캐릭터 방·시간대)·`.roadmap*`(진화 로드맵)·`.growth-hero*`·`.growth__main`·`.growth__side`·`.xpbar--big`·`.goal__xp`·`.goal__float`와 그것만 쓰던 키프레임(`breathe`·`hop`·`heart-up`·`zzz`·`bubble-in`·`orb`·`shimmer`·`now-glow`·`bubble-in-plain`·`orb-up`)을 지웠다(`apps/desktop/src` 전체에서 쓰는 곳 없음을 하나씩 확인). 남긴 것: `.growth`·`.growth__header`·`.growth__body`(v3 `gs-body`와 같이 씀)·`.growth-card*`·`.xpbar`·`.xpbar--thin`·`.seg`·`.goal*`(점·축하)·`.xp-day`·`.xp-row*`·`.side-character*`·`.xp-pop`·`.survey*`·`.levelup*`·`.chips`/`.chip`(리포트)·`.confetti`·`.weekchart*`(`Interactive.tsx`가 아직 씀).
 
 ### 상태
 | 상태 | 표시 |
