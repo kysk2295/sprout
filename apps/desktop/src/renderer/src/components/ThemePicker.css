@@ -1,0 +1,35 @@
+/* 01 §9.1 테마 고르기 — 견본 색은 모두 그 테마의 변수(--color-*)에서 온다. 여기엔 색 값을 쓰지 않는다 */
+.theme-picker { margin: 0 16px; }
+.theme-picker__section { margin-bottom: 20px; }
+.theme-picker__section .settings-caption { margin: 0 0 10px; font: var(--text-caption); }
+.theme-picker__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 14px 10px; }
+.theme-picker__follow { margin-top: 8px; }
+.theme-picker__dark { margin: 4px 0 16px; }
+.theme-picker__dark .settings-caption { margin: 0 0 10px; font: var(--text-caption); }
+
+.theme-option { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--color-text-secondary); font: var(--text-meta); cursor: pointer; border-radius: var(--radius-md); }
+.theme-option:disabled { cursor: default; opacity: .6; }
+.theme-option[aria-checked="true"] .theme-option__name { color: var(--color-text-primary); }
+.theme-option:hover .theme-preview { box-shadow: 0 0 0 1px var(--color-text-tertiary); }
+.theme-option[aria-checked="true"] .theme-preview { box-shadow: 0 0 0 2px var(--color-accent); }
+.theme-picker .theme-option:focus-visible { outline: none; }
+.theme-option:focus-visible .theme-preview { box-shadow: 0 0 0 2px var(--color-bg-popover), 0 0 0 4px var(--color-accent); }
+.theme-option__name { white-space: nowrap; }
+.theme-option__check { position: absolute; top: 36px; right: calc(50% - 38px); width: 16px; height: 16px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--color-accent); color: var(--color-bg-popover); box-shadow: 0 0 0 2px var(--color-bg-popover); }
+.theme-option__check svg { width: 11px; height: 11px; stroke-width: 3; }
+
+/* 미니 창: 레일 · 사이드바 · 목록 */
+.theme-preview { display: block; width: 64px; height: 46px; border-radius: var(--radius-md); overflow: hidden; transition: box-shadow var(--motion-fast); }
+.theme-preview__win { display: flex; width: 100%; height: 100%; background: var(--color-bg-app); border: 1px solid var(--color-border-divider); border-radius: inherit; box-sizing: border-box; overflow: hidden; }
+.theme-preview__rail { width: 12px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 6px; background: var(--color-bg-rail); }
+.theme-preview__rail i { width: 5px; height: 5px; border-radius: 1.5px; background: var(--color-rail-icon); }
+.theme-preview__rail i.is-on { background: var(--color-accent); box-shadow: 0 0 0 1.5px var(--color-rail-icon-selected-bg); }
+.theme-preview__side { width: 18px; flex: none; display: flex; flex-direction: column; gap: 4px; padding: 6px 2px; background: var(--color-bg-sidebar); border-right: 1px solid var(--color-border-divider); }
+.theme-preview__side i { height: 4px; border-radius: 1px; background: var(--color-text-quaternary); opacity: .55; }
+.theme-preview__side i.is-sel { height: 6px; background: var(--color-bg-selected); opacity: 1; }
+.theme-preview__main { flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 6px 5px; }
+.theme-preview__main b { width: 60%; height: 4px; border-radius: 1px; background: var(--color-text-primary); }
+.theme-preview__main i { height: 3px; border-radius: 1px; background: var(--color-text-tertiary); opacity: .7; }
+.theme-preview__main i:first-of-type { width: 45%; height: 4px; background: var(--color-accent); opacity: 1; }
+
+.theme-picker__group.is-small .theme-picker__grid { grid-template-columns: repeat(auto-fill, minmax(68px, 68px)); }

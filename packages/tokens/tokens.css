@@ -1,6 +1,8 @@
 /* sprout 디자인 토큰 — 정본: docs/screens/00-design-tokens.md (v1.1)
-   화면 코드에서는 이 변수만 쓴다. 테마는 [data-theme]에서 변수만 덮어쓴다. */
-:root {
+   화면 코드에서는 이 변수만 쓴다. 테마는 [data-theme]에서 변수만 덮어쓴다.
+   테마 목록·대비 규칙: 00 §5. 다크 계열은 모두 data-theme="dark"이고, 변형은 data-theme-variant로 덮는다(00 §5.3).
+   [data-theme="default"]는 설정의 테마 견본처럼 문서 안 일부를 기본 테마로 되돌릴 때 쓴다. */
+:root, [data-theme="default"] {
   /* 면 */
   --color-bg-app: #ffffff;
   --color-bg-rail: #f8f8f8;
@@ -47,6 +49,8 @@
   --color-rail-icon: #a3a4a7;
   --color-rail-icon-selected: var(--color-accent);
   --color-rail-icon-selected-bg: transparent;
+  --color-rail-hover: var(--color-bg-hover);          /* 레일 버튼 호버 면 — 색 레일 테마는 레일색 위에서 보이게 덮는다 */
+  --color-rail-icon-hover: var(--color-rail-icon);
 
   /* 글꼴 */
   --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
@@ -110,6 +114,174 @@
   --color-bg-selected: #e3eafe;
   --color-bg-hover: #eef2fe;
   --color-bg-input: #eff3f6;
+  --color-rail-hover: rgba(255, 255, 255, 0.14);
+  --color-rail-icon-hover: #ffffff;
+}
+
+/* 00 §5.1 색상 시리즈 — 틱틱 견본색을 레일에, 같은 색을 옅게 섞어 면에 쓴다.
+   강조색은 견본색을 어둡게 해 흰 바탕·선택 면에서 4.5:1 이상. 밝은 레일은 흰 아이콘이 3:1이 안 돼서 진한 같은 계열 아이콘을 쓴다 [sprout].
+   값은 대비를 계산해 정했다 — apps/desktop/tests/theme.test.ts가 지킨다. */
+[data-theme="turquoise"] {
+  --color-bg-rail: #5cd9af;
+  --color-rail-icon: #107352;
+  --color-rail-icon-selected: #117b58;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #107352;
+  --color-bg-sidebar: #f7fdfb;
+  --color-bg-settings-nav: #f7fdfb;
+  --color-bg-app: #fcfefd;
+  --color-bg-card: #f9fefc;
+  --color-bg-selected: #e5f9f2;
+  --color-bg-hover: #f0fcf8;
+  --color-bg-input: #f4fcf9;
+  --color-seg-track: #effbf7;
+  --color-accent: #117b58;
+  --color-accent-subtle: #e2efeb;
+}
+[data-theme="teal"] {
+  --color-bg-rail: #77c8c2;
+  --color-rail-icon: #1d6a64;
+  --color-rail-icon-selected: #237973;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #1d6a64;
+  --color-bg-sidebar: #f8fcfc;
+  --color-bg-settings-nav: #f8fcfc;
+  --color-bg-app: #fcfefe;
+  --color-bg-card: #fafdfd;
+  --color-bg-selected: #e9f6f5;
+  --color-bg-hover: #f3fafa;
+  --color-bg-input: #f5fbfb;
+  --color-seg-track: #f1faf9;
+  --color-accent: #237973;
+  --color-accent-subtle: #e5efee;
+}
+[data-theme="matcha"] {
+  --color-bg-rail: #acbf9f;
+  --color-rail-icon: #476631;
+  --color-rail-icon-selected: #55793d;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #476631;
+  --color-bg-sidebar: #fbfcfa;
+  --color-bg-settings-nav: #fbfcfa;
+  --color-bg-app: #fdfefd;
+  --color-bg-card: #fcfdfc;
+  --color-bg-selected: #f2f5f0;
+  --color-bg-hover: #f8f9f6;
+  --color-bg-input: #f9fbf8;
+  --color-seg-track: #f7f9f5;
+  --color-accent: #55793d;
+  --color-accent-subtle: #ebefe8;
+}
+[data-theme="sunshine"] {
+  --color-bg-rail: #f6bb77;
+  --color-rail-icon: #9c5300;
+  --color-rail-icon-selected: #ab5c00;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #9c5300;
+  --color-bg-sidebar: #fffcf8;
+  --color-bg-settings-nav: #fffcf8;
+  --color-bg-app: #fffefc;
+  --color-bg-card: #fffdfa;
+  --color-bg-selected: #fef4e9;
+  --color-bg-hover: #fef9f3;
+  --color-bg-input: #fefaf5;
+  --color-seg-track: #fef8f1;
+  --color-accent: #ab5c00;
+  --color-accent-subtle: #f5ebe0;
+}
+[data-theme="peach"] {
+  --color-bg-rail: #f589a3;
+  --color-rail-icon: #9c1c52;
+  --color-rail-icon-selected: #c4286a;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #9c1c52;
+  --color-bg-sidebar: #fff9fa;
+  --color-bg-settings-nav: #fff9fa;
+  --color-bg-app: #fffdfd;
+  --color-bg-card: #fffbfc;
+  --color-bg-selected: #fdecf0;
+  --color-bg-hover: #fef4f7;
+  --color-bg-input: #fef7f9;
+  --color-seg-track: #fef3f6;
+  --color-accent: #c4286a;
+  --color-accent-subtle: #fae6ed;
+}
+[data-theme="lilac"] {
+  --color-bg-rail: #b0a3d3;
+  --color-rail-icon: #5d40ad;
+  --color-rail-icon-selected: #775dbe;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #5d40ad;
+  --color-bg-sidebar: #fbfafd;
+  --color-bg-settings-nav: #fbfafd;
+  --color-bg-app: #fdfdfe;
+  --color-bg-card: #fcfcfd;
+  --color-bg-selected: #f2f0f8;
+  --color-bg-hover: #f8f7fb;
+  --color-bg-input: #f9f9fc;
+  --color-seg-track: #f7f6fb;
+  --color-accent: #775dbe;
+  --color-accent-subtle: #efecf7;
+}
+[data-theme="ebony"] {
+  --color-bg-rail: #a98a75;
+  --color-rail-icon: #ffffff;
+  --color-rail-icon-selected: #87634a;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(0, 0, 0, 0.12);
+  --color-rail-icon-hover: #ffffff;
+  --color-bg-sidebar: #fbf9f8;
+  --color-bg-settings-nav: #fbf9f8;
+  --color-bg-app: #fdfdfc;
+  --color-bg-card: #fcfbfa;
+  --color-bg-selected: #f1ece9;
+  --color-bg-hover: #f7f4f3;
+  --color-bg-input: #f9f7f5;
+  --color-seg-track: #f6f3f1;
+  --color-accent: #87634a;
+  --color-accent-subtle: #f1ece9;
+}
+[data-theme="navy"] {
+  --color-bg-rail: #2b3455;
+  --color-rail-icon: #d9dae0;
+  --color-rail-icon-selected: #2b3455;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.12);
+  --color-rail-icon-hover: #ffffff;
+  --color-bg-sidebar: #f9f9fa;
+  --color-bg-settings-nav: #f9f9fa;
+  --color-bg-app: #fdfdfd;
+  --color-bg-card: #fbfbfc;
+  --color-bg-selected: #ecedf0;
+  --color-bg-hover: #f5f5f7;
+  --color-bg-input: #f7f7f8;
+  --color-seg-track: #f3f4f6;
+  --color-accent: #2b3455;
+  --color-accent-subtle: #e6e7eb;
+}
+[data-theme="gray"] {
+  --color-bg-rail: #363b41;
+  --color-rail-icon: #dbdcdd;
+  --color-rail-icon-selected: #363b41;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.12);
+  --color-rail-icon-hover: #ffffff;
+  --color-bg-sidebar: #f9fafa;
+  --color-bg-settings-nav: #f9fafa;
+  --color-bg-app: #fdfdfd;
+  --color-bg-card: #fbfbfb;
+  --color-bg-selected: #edeeee;
+  --color-bg-hover: #f5f5f6;
+  --color-bg-input: #f7f7f8;
+  --color-seg-track: #f4f4f5;
+  --color-accent: #363b41;
+  --color-accent-subtle: #e7e7e8;
 }
 
 [data-theme="dark"] {
@@ -150,4 +322,28 @@
   --cal-fill: 62%;
   --cal-fill-past: 20%;
   --cal-text: #ffffff;
+}
+
+/* 00 §5.2 트루 블랙 [sprout] — 다크 계열 변형. data-theme="dark"의 화면별 다크 규칙을 그대로 받고 면만 더 검게 덮는다 */
+[data-theme="dark"][data-theme-variant="black"] {
+  --color-bg-app: #000000;
+  --color-bg-sidebar: #000000;
+  --color-bg-rail: #0a0a0a;
+  --color-bg-popover: #161616;
+  --color-bg-selected: #222222;
+  --color-bg-hover: #141414;
+  --color-bg-input: #141414;
+  --color-bg-card: #111111;
+  --color-bg-settings-nav: #0d0d0d;
+  --color-border-divider: #1c1c1c;
+  --color-border-row: #141414;
+  --color-border-popover: #262626;
+  --color-seg-track: #0d0d0d;
+  --color-seg-on: #222222;
+  --color-login-bg: #000000;
+  --color-login-card: #141414;
+  /* 순검정 위에서 4.5:1을 넘기려고 다크 강조색(#545DFA)을 한 단계 밝혔다 — 흰 글자 대비도 4.5:1 유지 */
+  --color-accent: #5a62fa;
+  --color-border-input-focus: #5a62fa;
+  --color-accent-subtle: #1e2147;
 }

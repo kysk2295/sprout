@@ -3,6 +3,7 @@ import { CircleUser, Keyboard, ListFilter, Palette, X } from 'lucide-react'
 import { authApi, useAuth } from '../data/auth'
 import { savePreferences, usePreferences, type Visibility } from '../data/preferences'
 import { Dialog } from './Dialog'
+import { ThemePicker } from './ThemePicker'
 export const SHORTCUTS = [
   ['명령 메뉴', '⌘K'], ['검색', '⌘F'], ['할 일 추가', '⌘N'], ['설정', '⌘, · G → S'],
   ['전체', 'G → A'], ['오늘', 'G → T'], ['내일', 'G → R'], ['다음 7일', 'G → N'], ['기본함', 'G → I'],
@@ -26,7 +27,7 @@ export function DesktopSettings({ onClose, initial = authApi() ? 'account' : 'sm
       {error && <p role="alert" className="form-error">{error}</p>}
       {tab === 'account' && <AccountPane />}
       {tab === 'smart' && <><h2>스마트 목록</h2><div className="settings-card">{SMART.map(([id,label]) => <label className="settings-row" key={id}><span>{label}</span><select aria-label={`${label} 표시`} disabled={id === 'inbox' || !prefs.ready} value={id === 'inbox' ? 'show' : prefs.visibility[id] ?? 'show'} onChange={(e) => void save({smart_list_visibility: JSON.stringify({...prefs.visibility,[id]:e.target.value as Visibility})})}><option value="show">보이기</option><option value="hide">숨기기</option><option value="auto">비어있지 않으면 표시</option></select></label>)}</div></>}
-      {tab === 'appearance' && <><h2>테마</h2><p className="settings-caption">색상 시리즈</p><div className="theme-grid">{[['default','기본값'],['sky','Sky'],['dark','Dark']].map(([id,label]) => <button key={id} aria-pressed={prefs.theme === id} onClick={() => void save({theme:id})}><span className={`theme-swatch theme-swatch--${id}`}>{prefs.theme === id && '✓'}</span>{label}</button>)}</div><label className="settings-row settings-card"><span>시스템 외관에 따라 다크 테마 자동 전환</span><input type="checkbox" checked={prefs.followDark} onChange={(e) => void save({follow_system_dark:e.target.checked ? 1 : 0})} /></label></>}
+      {tab === 'appearance' && <><h2>테마</h2><ThemePicker save={save} /></>}
       {tab === 'shortcuts' && <><h2>단축키</h2><div className="settings-card">{SHORTCUTS.map(([label,key]) => <div className="settings-row" key={label}><span>{label}</span><kbd>{window.sprout?.platform === 'win32' ? key.replaceAll('⌘','Ctrl+') : key}</kbd></div>)}</div></>}
     </section>
   </Dialog>
@@ -40,6 +41,9 @@ function AccountPane() {
   const sync = state?.sync
   const status = !sync ? '' : !sync.connected ? '오프라인 — 연결되면 자동으로 올라가요' : sync.error ? '동기화에 실패했어요 — 다시 시도하는 중'
     : sync.lastSyncedAt ? `마지막 동기화 ${new Date(sync.lastSyncedAt).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : '동기화 중'
+  // 로그아웃한 뒤(설정 창이 열려 있을 때)에는 "?"·오프라인 문구·로그아웃 버튼 대신 안내만
+  if (state && !state.user) return <div className="account"><span className="account__sync">로그인되어 있지 않아요. 앱 창에서 로그인하면 계정 정보가 여기에 보여요.</span></div>
+  if (!state) return <div className="account" />
   return <>
     <div className="account">
       <span className="account__avatar">{(state?.user?.email?.[0] ?? '?').toUpperCase()}</span>
