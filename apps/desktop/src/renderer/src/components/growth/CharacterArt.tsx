@@ -9,7 +9,10 @@ const COLORS: Record<Species, { body: string; accent: string }> = {
   otter: { body: '#B89A7E', accent: '#7E6249' }
 }
 
-export function CharacterArt({ species, stage = 1, size = 120, mood = 'default' }: { species: Species | null; stage?: number; size?: number; mood?: 'default' | 'happy' | 'sleepy' }) {
+export function CharacterArt({ species, stage = 1, size = 120, mood = 'default', look, blink }: { species: Species | null; stage?: number; size?: number; mood?: 'default' | 'happy' | 'sleepy'; look?: { x: number; y: number }; blink?: boolean }) {
+  // look: 눈동자가 바라보는 방향(−1~1), blink: 눈 감기(깜빡임 한 프레임)
+  const lx = (look?.x ?? 0) * 2.6
+  const ly = (look?.y ?? 0) * 2
   if (!species) return <Egg size={size} />
   const c = COLORS[species]
   const scale = 0.72 + stage * 0.07 // 자랄수록 조금씩 커진다
@@ -26,12 +29,12 @@ export function CharacterArt({ species, stage = 1, size = 120, mood = 'default' 
         {(species === 'squirrel' || species === 'otter') && (<><circle cx="36" cy="40" r="7" fill={c.body} /><circle cx="84" cy="40" r="7" fill={c.body} /></>)}
         {species === 'turtle' && (<><circle cx="30" cy="90" r="6" fill={c.body} /><circle cx="90" cy="90" r="6" fill={c.body} /></>)}
         {/* 얼굴 */}
-        {mood === 'sleepy' ? (
+        {mood === 'sleepy' || blink ? (
           <><path d="M44 62 q5 4 10 0" stroke="#3A3A3A" strokeWidth="2.4" fill="none" strokeLinecap="round" /><path d="M66 62 q5 4 10 0" stroke="#3A3A3A" strokeWidth="2.4" fill="none" strokeLinecap="round" /></>
         ) : mood === 'happy' ? (
           <><path d="M44 63 q5 -6 10 0" stroke="#3A3A3A" strokeWidth="2.6" fill="none" strokeLinecap="round" /><path d="M66 63 q5 -6 10 0" stroke="#3A3A3A" strokeWidth="2.6" fill="none" strokeLinecap="round" /></>
         ) : (
-          <><circle cx="49" cy="62" r="4.5" fill="#3A3A3A" /><circle cx="71" cy="62" r="4.5" fill="#3A3A3A" /><circle cx="50.5" cy="60.5" r="1.4" fill="#fff" /><circle cx="72.5" cy="60.5" r="1.4" fill="#fff" /></>
+          <g transform={`translate(${lx} ${ly})`}><circle cx="49" cy="62" r="4.5" fill="#3A3A3A" /><circle cx="71" cy="62" r="4.5" fill="#3A3A3A" /><circle cx="50.5" cy="60.5" r="1.4" fill="#fff" /><circle cx="72.5" cy="60.5" r="1.4" fill="#fff" /></g>
         )}
         <circle cx="41" cy="72" r="5" fill="#FF9FA8" opacity="0.55" />
         <circle cx="79" cy="72" r="5" fill="#FF9FA8" opacity="0.55" />

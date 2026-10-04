@@ -128,8 +128,9 @@ export const carryOver = (goal: GoalRow) => run(update('kpis', goal.id, { week_s
 
 // ── 화면에서 쓰는 상태 ──
 export function useGrowth() {
-  const events = useQuery<XpRow>('SELECT id, kind, amount, ref_id, day, created_at FROM xp_events ORDER BY created_at') ?? []
+  const raw = useQuery<XpRow>('SELECT id, kind, amount, ref_id, day, created_at FROM xp_events ORDER BY created_at')
+  const events = useMemo(() => raw ?? [], [raw])
   const character = useQuery<CharacterRow>(CHARACTER_SQL)?.[0]
   const progress = useMemo(() => progressFromEvents(events), [events])
-  return { events, character, progress, loaded: true }
+  return { events, character, progress, loaded: raw !== undefined }
 }
