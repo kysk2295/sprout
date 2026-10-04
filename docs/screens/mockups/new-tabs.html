@@ -188,6 +188,24 @@ svg.sm{width:14px;height:14px}
 .minimap{position:absolute;right:16px;bottom:16px;width:160px;height:100px;background:var(--color-bg-popover);border:1px solid var(--color-border-popover);border-radius:8px;box-shadow:var(--shadow-popover)}
 .minimap i{position:absolute;background:var(--color-text-quaternary);border-radius:2px;height:5px}
 .minimap b{position:absolute;left:10px;top:12px;width:120px;height:70px;border:1.5px solid var(--color-accent);border-radius:3px}
+
+.edges path.seq{stroke:var(--color-text-secondary);stroke-width:1.6}
+.edges path.goal{stroke:#e8a23a;stroke-width:1.6}
+.edges path.sugg{stroke-dasharray:4 4;opacity:.85}
+.node.goalnode{border-radius:999px;background:rgba(232,162,58,.12);border-color:rgba(232,162,58,.45);font-size:12px;color:var(--color-text-primary)}
+.ring{width:16px;height:16px;flex-shrink:0}
+.ring circle{fill:none;stroke-width:2.5}
+.ring .bg{stroke:var(--color-bg-selected)}.ring .fg{stroke:var(--color-accent);stroke-linecap:round}
+.node .prog{font:500 10.5px/14px var(--font);color:var(--color-text-tertiary)}
+.gcard .wait{font:500 10px/14px var(--font);color:var(--color-text-secondary);background:var(--color-bg-selected);border-radius:3px;padding:0 4px;margin-left:4px}
+.sugg-act{position:absolute;display:flex;gap:2px;background:var(--color-bg-popover);border:1px solid var(--color-border-popover);border-radius:6px;box-shadow:var(--shadow-popover);padding:2px;z-index:3}
+.sugg-act span{width:20px;height:20px;display:grid;place-items:center;font:600 11px/1 var(--font);border-radius:4px}
+.sugg-act span:first-child{color:#3fb950}.sugg-act span:last-child{color:var(--color-text-tertiary)}
+.gtoast{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:var(--color-bg-popover);border:1px solid var(--color-border-popover);box-shadow:var(--shadow-popover);border-radius:8px;padding:8px 12px;font:400 12.5px/18px var(--font);display:flex;gap:10px;align-items:center;white-space:nowrap}
+.gtoast b{color:var(--color-accent);font-weight:500}
+.lane-label{position:absolute;font:600 11px/14px var(--font);color:var(--color-text-tertiary)}
+.kchip{font:500 10px/14px var(--font);color:var(--color-text-secondary);background:var(--color-bg-selected);border-radius:3px;padding:0 4px;margin-left:6px}
+.kbadge{font:500 10px/14px var(--font);color:#c27c0e;background:rgba(239,171,62,.16);border-radius:999px;padding:0 6px;margin-left:6px}
 /* ── 4. AI 사용량 ── */
 .usage{flex:1;overflow:hidden;padding:0 0 0}
 .ugrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:4px 21px 6px}
@@ -218,7 +236,7 @@ html:not([data-theme=dark]) .legend b{color:#a06a00}
 </head>
 <body>
 <div class="page-head">
-  <h1>sprout 새 탭 시안 v1.1</h1>
+  <h1>sprout 새 탭 시안 v1.2</h1>
   <p>AI 비서 · 메모함(+주제 위키) · 작업 지도 · AI 사용량 — 틱틱 디자인 언어(57px 머리, 추가 바, 40px 행, 336px 상세, 258px 칸반 열)로 다시 그림. 데이터는 예시.</p>
   <button onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'">라이트/다크 전환</button>
 </div>
@@ -358,7 +376,7 @@ html:not([data-theme=dark]) .legend b{color:#a06a00}
   <nav class="rail" data-on="map"></nav>
   <section class="main">
     <div class="head">
-      <h2>작업 지도</h2>
+      <h2>작업 지도 <span class="seg"><span>그래프</span><span class="on">보드</span></span></h2>
       <span class="ib" data-i="sparkle" title="AI로 다시 정리"></span>
       <span class="ib" data-i="filter"></span>
       <span class="ib hover" data-i="more"></span>
@@ -371,7 +389,7 @@ html:not([data-theme=dark]) .legend b{color:#a06a00}
         <div class="card"><span class="cb"></span><div><div class="tt">과제 3 제출</div><div class="meta acc">오늘 23:59</div></div></div>
         <div class="card"><span class="cb"></span><div><div class="tt">중간고사 범위 복습<span class="ai-dot" title="AI가 분류"></span></div><div class="meta acc">10월 14일</div></div></div>
         <div class="sub-h"><span class="chev" data-i="down"></span>졸업 프로젝트 <span class="n">4</span></div>
-        <div class="card"><span class="cb"></span><div><div class="tt">기획서 초안</div><div class="meta acc">10월 8일</div></div></div>
+        <div class="card"><span class="cb"></span><div><div class="tt">기획서 초안</div><div class="meta acc">10월 8일<span class="kchip">🎯 목표</span></div></div></div>
         <div class="card ghost"></div>
         <div class="sub-h"><span class="chev" data-i="right"></span>알고리즘 <span class="n">2</span></div>
       </div>
@@ -379,7 +397,7 @@ html:not([data-theme=dark]) .legend b{color:#a06a00}
         <div class="ch">인턴 · 회사<span class="n">5</span><span class="ib" data-i="plus"></span><span class="ib" data-i="more"></span></div>
         <div class="sub-h"><span class="chev" data-i="down"></span>결제 리뉴얼 <span class="n">3</span></div>
         <div class="card"><span class="cb"></span><div><div class="tt">API 명세 리뷰</div><div class="meta acc">내일</div></div></div>
-        <div class="card drag"><span class="cb"></span><div><div class="tt">QA 시나리오 정리 <span class="pin" data-i="pin" style="display:inline-block;vertical-align:-3px" title="직접 옮김"></span></div><div class="meta acc">10월 7일</div></div></div>
+        <div class="card drag"><span class="cb"></span><div><div class="tt">QA 시나리오 정리 <span class="pin" data-i="pin" style="display:inline-block;vertical-align:-3px" title="직접 옮김"></span></div><div class="meta acc">10월 7일<span class="kchip">⛓ 먼저 1</span></div></div></div>
         <div class="sub-h"><span class="chev" data-i="down"></span>주간 회의 <span class="n">2</span></div>
         <div class="card"><span class="cb"></span><div><div class="tt">팀 회의 자료 정리</div><div class="meta acc">오후 2:00</div></div></div>
       </div>
@@ -393,7 +411,7 @@ html:not([data-theme=dark]) .legend b{color:#a06a00}
       </div>
       <div class="colm" style="width:200px">
         <div class="ch" style="color:var(--color-text-secondary)">미분류<span class="n">2</span></div>
-        <div class="card"><span class="cb"></span><div><div class="tt">택배 반품</div><div class="meta">날짜 없음</div></div></div>
+        <div class="card"><span class="cb"></span><div><div class="tt">택배 반품<span class="kbadge">확인 필요</span></div><div class="meta">날짜 없음</div></div></div>
         <div class="newcol" style="margin-top:6px"><span data-i="plus" class="sm"></span>새로운 영역</div>
       </div>
     </div>
@@ -403,25 +421,27 @@ html:not([data-theme=dark]) .legend b{color:#a06a00}
 </div>
 
 
-<div class="label">③-b 작업 지도 · 그래프 보기 (기본) <small>14-work-map §0 · 위→아래: 나의 할 일 → 영역 → 세부 주제 → 할 일(시안 ③의 카드 그대로) · '졸업 프로젝트' 선택 시 길 강조</small></div>
+<div class="label">③-b 작업 지도 · 그래프 보기 (기본) <small>14-work-map v1.2 · 선 3종: 포함(회색) · 순서(화살표, 점선 = AI 제안 ✓✕) · 목표 연결(주황, 성장 탭 주간 목표) · 주제 진행도 고리 · 새 할 일 자동 분류 알림</small></div>
 <div class="frame">
   <nav class="rail" data-on="map"></nav>
   <section class="main">
     <div class="head">
       <h2>작업 지도 <span class="seg"><span class="on">그래프</span><span>보드</span></span></h2>
+      <span class="seg" style="margin-right:6px"><span class="on">이번 주</span><span>전체</span></span>
       <span class="ib" data-i="sparkle" title="AI로 다시 정리"></span>
       <span class="ib" data-i="filter"></span>
       <span class="ib" data-i="more"></span>
     </div>
   </section>
   <div class="canvas">
-    <svg class="edges"><path class="hl" d="M532 42 C532 63.0 192 63.0 192 84"/><path class="" d="M532 42 C532 63.0 555 63.0 555 84"/><path class="" d="M532 42 C532 63.0 870 63.0 870 84"/><path class="" d="M192 124 C192 147.0 100 147.0 100 170"/><path class="hl" d="M192 124 C192 147.0 285 147.0 285 170"/><path class="" d="M555 124 C555 147.0 470 147.0 470 170"/><path class="" d="M555 124 C555 147.0 640 147.0 640 170"/><path class="" d="M870 124 C870 147.0 790 147.0 790 170"/><path class="" d="M870 124 C870 147.0 950 147.0 950 170"/><path class="" d="M32 204 L32 254 Q32 262 40 262 L42 262"/><path class="" d="M32 204 L32 316 Q32 324 40 324 L42 324"/><path class="hl" d="M217 204 L217 254 Q217 262 225 262 L227 262"/><path class="hl" d="M217 204 L217 316 Q217 324 225 324 L227 324"/><path class="" d="M402 204 L402 254 Q402 262 410 262 L412 262"/><path class="" d="M402 204 L402 316 Q402 324 410 324 L412 324"/><path class="" d="M882 204 L882 254 Q882 262 890 262 L892 262"/><path class="" d="M882 204 L882 316 Q882 324 890 324 L892 324"/><path class="hl dash" d="M300 374 C300 340 300 330 300 288"/></svg>
-    <div class="node root" style="left:472px;top:14px;width:120px;height:28px">나의 할 일</div><div class="node " style="left:107px;top:84px;width:170px;height:40px"><span class="dot" style="background:#4e75f2"></span>학교<span class="n">9</span><span class="fold">−</span></div><div class="node  dim" style="left:470px;top:84px;width:170px;height:40px"><span class="dot" style="background:#efab3e"></span>인턴 · 회사<span class="n">5</span><span class="fold">−</span></div><div class="node  dim" style="left:785px;top:84px;width:170px;height:40px"><span class="dot" style="background:#3fb950"></span>개인<span class="n">6</span><span class="fold">−</span></div><div class="node topic dim" style="left:30px;top:170px;width:140px;height:34px">운영체제<span class="n">3</span><span class="fold">−</span></div><div class="node topic sel" style="left:215px;top:170px;width:140px;height:34px">졸업 프로젝트<span class="n">4</span><span class="fold">−</span></div><div class="node topic dim" style="left:400px;top:170px;width:140px;height:34px">결제 리뉴얼<span class="n">3</span><span class="fold">−</span></div><div class="node topic dim" style="left:570px;top:170px;width:140px;height:34px">주간 회의<span class="n">2</span><span class="fold">+2</span></div><div class="node topic dim" style="left:720px;top:170px;width:140px;height:34px">건강<span class="n">2</span><span class="fold">+2</span></div><div class="node topic dim" style="left:880px;top:170px;width:140px;height:34px">취업 준비<span class="n">4</span><span class="fold">−</span></div>
-    <div class="gcard  dim" style="left:42px;top:236px"><span class="cb"></span><div><div class="tt">과제 3 제출</div><div class="meta acc">오늘 23:59</div></div></div><div class="gcard  dim" style="left:42px;top:298px"><span class="cb"></span><div><div class="tt">중간고사 범위 복습</div><div class="meta acc">10월 14일</div></div></div><div class="gcard " style="left:227px;top:236px"><span class="cb"></span><div><div class="tt">교수님 면담 준비</div><div class="meta acc">10월 10일</div></div></div><div class="gcard " style="left:227px;top:298px"><span class="cb"></span><div><div class="tt">기획서 초안</div><div class="meta acc">10월 8일</div></div></div><div class="gcard  dim" style="left:412px;top:236px"><span class="cb"></span><div><div class="tt">API 명세 리뷰</div><div class="meta acc">내일</div></div></div><div class="gcard  dim" style="left:412px;top:298px"><span class="cb"></span><div><div class="tt">QA 시나리오 정리 📌</div><div class="meta acc">10월 7일</div></div></div><div class="gcard  dim" style="left:892px;top:236px"><span class="cb"></span><div><div class="tt">자기소개서 1번 문항</div><div class="meta ">날짜 없음</div></div></div><div class="gcard  dim" style="left:892px;top:298px"><span class="cb"></span><div><div class="tt">코딩테스트 2문제</div><div class="meta acc">매일</div></div></div><div class="gcard memo" style="left:227px;top:374px"><span class="ico" data-i="note"></span><div><div class="tt">졸업 프로젝트 아이디어</div><div class="meta ">메모 · 10월 4일</div></div></div>
+    <svg class="edges"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" style="fill:var(--color-text-secondary);stroke:none"/></marker><marker id="arrowg" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" style="fill:#e8a23a;stroke:none"/></marker></defs><path class="hl" d="M532 42 C532 63.0 192 63.0 192 84"/><path class="" d="M532 42 C532 63.0 555 63.0 555 84"/><path class="" d="M532 42 C532 63.0 870 63.0 870 84"/><path class="" d="M192 124 C192 147.0 100 147.0 100 170"/><path class="hl" d="M192 124 C192 147.0 285 147.0 285 170"/><path class="" d="M555 124 C555 147.0 470 147.0 470 170"/><path class="" d="M555 124 C555 147.0 640 147.0 640 170"/><path class="" d="M870 124 C870 147.0 790 147.0 790 170"/><path class="" d="M870 124 C870 147.0 950 147.0 950 170"/><path class="" d="M32 204 L32 254 Q32 262 40 262 L42 262"/><path class="" d="M32 204 L32 316 Q32 324 40 324 L42 324"/><path class="hl" d="M217 204 L217 254 Q217 262 225 262 L227 262"/><path class="hl" d="M217 204 L217 316 Q217 324 225 324 L227 324"/><path class="" d="M402 204 L402 254 Q402 262 410 262 L412 262"/><path class="" d="M402 204 L402 316 Q402 324 410 324 L412 324"/><path class="" d="M882 204 L882 254 Q882 262 890 262 L892 262"/><path class="" d="M882 204 L882 316 Q882 324 890 324 L892 324"/><path class="seq" marker-end="url(#arrow)" d="M377 324 C398 324 398 262 381 262"/><path class="seq sugg" marker-end="url(#arrow)" d="M562 262 C584 262 584 324 566 324"/><path class="goal" marker-end="url(#arrowg)" d="M302 440 C302 400 302 380 302 352"/><path class="goal sugg" marker-end="url(#arrowg)" d="M967 440 C967 400 967 380 967 352"/></svg>
+    <div class="node root" style="left:472px;top:14px;width:120px;height:28px">나의 할 일</div><div class="node " style="left:107px;top:84px;width:170px;height:40px"><span class="dot" style="background:#4e75f2"></span>학교<span class="n">9</span><span class="fold">−</span></div><div class="node  dim" style="left:470px;top:84px;width:170px;height:40px"><span class="dot" style="background:#efab3e"></span>인턴 · 회사<span class="n">5</span><span class="fold">−</span></div><div class="node  dim" style="left:785px;top:84px;width:170px;height:40px"><span class="dot" style="background:#3fb950"></span>개인<span class="n">6</span><span class="fold">−</span></div><div class="node topic dim" style="left:30px;top:170px;width:140px;height:34px"><svg class="ring" viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg" cx="8" cy="8" r="6" stroke-dasharray="12.6 37.7" transform="rotate(-90 8 8)"/></svg>운영체제<span class="n"></span><span class="prog">1/3</span></div><div class="node topic sel" style="left:215px;top:170px;width:140px;height:34px"><svg class="ring" viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg" cx="8" cy="8" r="6" stroke-dasharray="9.4 37.7" transform="rotate(-90 8 8)"/></svg>졸업 프로젝트<span class="n"></span><span class="prog">1/4</span></div><div class="node topic dim" style="left:400px;top:170px;width:140px;height:34px"><svg class="ring" viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg" cx="8" cy="8" r="6" stroke-dasharray="0.0 37.7" transform="rotate(-90 8 8)"/></svg>결제 리뉴얼<span class="n"></span><span class="prog">0/3</span></div><div class="node topic dim" style="left:570px;top:170px;width:140px;height:34px"><svg class="ring" viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg" cx="8" cy="8" r="6" stroke-dasharray="18.8 37.7" transform="rotate(-90 8 8)"/></svg>주간 회의<span class="n"></span><span class="prog">1/2</span><span class="fold">+2</span></div><div class="node topic dim" style="left:720px;top:170px;width:140px;height:34px"><svg class="ring" viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg" cx="8" cy="8" r="6" stroke-dasharray="37.7 37.7" transform="rotate(-90 8 8)"/></svg>건강<span class="n"></span><span class="prog">2/2</span><span class="fold">+2</span></div><div class="node topic dim" style="left:880px;top:170px;width:140px;height:34px"><svg class="ring" viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg" cx="8" cy="8" r="6" stroke-dasharray="9.4 37.7" transform="rotate(-90 8 8)"/></svg>취업 준비<span class="n"></span><span class="prog">1/4</span></div><div class="node goalnode" style="left:212px;top:440px;width:180px;height:30px">🎯 졸업 기획서 마무리</div><div class="node goalnode dim" style="left:872px;top:440px;width:170px;height:30px">🎯 코테 매일 풀기</div>
+    <div class="gcard dim" style="left:42px;top:236px"><span class="cb"></span><div><div class="tt">과제 3 제출</div><div class="meta acc">오늘 23:59</div></div></div><div class="gcard dim" style="left:42px;top:298px"><span class="cb"></span><div><div class="tt">중간고사 범위 복습</div><div class="meta acc">10월 14일</div></div></div><div class="gcard" style="left:227px;top:236px"><span class="cb"></span><div><div class="tt">교수님 면담 준비</div><div class="meta acc">10월 10일<span class="wait">먼저 1</span></div></div></div><div class="gcard" style="left:227px;top:298px"><span class="cb"></span><div><div class="tt">기획서 초안</div><div class="meta acc">10월 8일</div></div></div><div class="gcard dim" style="left:412px;top:236px"><span class="cb"></span><div><div class="tt">API 명세 리뷰</div><div class="meta acc">내일</div></div></div><div class="gcard dim" style="left:412px;top:298px"><span class="cb"></span><div><div class="tt">QA 시나리오 정리 📌</div><div class="meta acc">10월 7일</div></div></div><div class="gcard dim" style="left:892px;top:236px"><span class="cb"></span><div><div class="tt">자기소개서 1번 문항</div><div class="meta ">날짜 없음</div></div></div><div class="gcard dim" style="left:892px;top:298px"><span class="cb"></span><div><div class="tt">코딩테스트 2문제</div><div class="meta acc">매일</div></div></div>
+    <div class="sugg-act" style="left:588px;top:281px"><span title="연결 받아들이기">✓</span><span title="무시">✕</span></div><div class="lane-label" style="left:24px;top:418px">🎯 이번 주 하고 싶은 일 (성장 탭)</div><div class="sugg-act" style="left:978px;top:384px"><span>✓</span><span>✕</span></div><div class="gtoast"><span data-i="sparkle" class="sm acc"></span>AI가 새 할 일 '운영체제 퀴즈 준비'를 <b>학교 › 운영체제</b>에 넣었어요<span class="btn ghost">바꾸기</span></div>
     <div class="zoomctl"><span data-i="plus"></span><span data-i="minus"></span><span data-i="expand"></span></div>
     <div class="minimap"><i style="left:70px;top:14px;width:20px"></i><i style="left:22px;top:30px;width:30px"></i><i style="left:66px;top:30px;width:30px"></i><i style="left:110px;top:30px;width:30px"></i><i style="left:14px;top:48px;width:132px"></i><i style="left:14px;top:62px;width:132px"></i><i style="left:14px;top:76px;width:132px"></i><b></b></div>
   </div>
-  <div class="note-callout" style="left:640px;top:400px;max-width:300px">실선 = 포함(영역→주제→할 일), 점선 = 관련(메모→전환된 할 일). 빈 곳 끌기 = 이동, 핀치 = 확대, 노드 끌어 놓기 = 옮기기(📌), +N = 접힌 노드</div>
+  <div class="note-callout" style="left:640px;top:470px;max-width:300px">노드 아래 점을 끌어 다른 할 일에 놓으면 "먼저 해야 함" 선. 선을 누르고 Delete = 끊기. 영역을 두 번 누르면 그 영역만 크게</div>
 </div>
 
 <!-- ───────── 4. AI 사용량 ───────── -->
