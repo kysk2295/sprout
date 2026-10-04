@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "dist:mac": "electron-vite build && node build/dist-mac-local.mjs",
     "dist:mac:release": "electron-vite build && node build/dist-mac-release.mjs",
-    "widget:build": "sh native/widget/build.sh"
+    "widget:build": "sh native/widget/build.sh",
+    "calendar:build": "sh native/calendar/build.sh"
   },
   "dependencies": {
     "@powersync/node": "^1.1.1",

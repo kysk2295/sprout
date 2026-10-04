@@ -1,18 +1,20 @@
-# 16 · 구글 캘린더 읽기 연동 (구독 캘린더)
+# 16 · 캘린더 연동 — 구글·Apple 읽기 (구독 캘린더)
 
-- 상태: **초안 v0.1** (2026-10-04) — 사용자 확인 전. 확인 전에는 코드를 쓰지 않는다.
+- 상태: **확정 v1.0** (2026-10-04) — 사용자가 §0 제안을 모두 승인("제안대로"). 같은 날 범위 추가: **Apple 캘린더(맥 캘린더 앱) 읽기**도 이 명세에서 다룬다(§11). 화면·캐시·새로 고침 규칙은 공급자(구글 | Apple)와 상관없이 같은 코드로 그린다.
 - PRD: §5 제약("구글 캘린더를 이미 쓰고 있다"), §7.2 B("할 일과 구글 일정을 한 화면에, 색으로 구분"), **§7.2 C**(데스크톱 OAuth+PKCE, 토큰은 OS 키체인, 읽기 전용, 캘린더별 표시 켜고 끄기), §7.3("기기에만 저장: 구글 일정 캐시, OAuth 토큰").
-- 앞선 명세: [00 토큰](00-design-tokens.md), [01 앱 셸](01-app-shell.md) §4 사이드바(Calendar Subscription 구역)·데이터 표 `calendar_accounts`, [06 캘린더](06-calendar.md) §3 `...` 메뉴·§4.2 막대·§6 왼쪽 패널·§7.3 팝오버. (06 머리말의 "별도 명세 `07-calendar-subscription.md`"가 이 문서다.)
+- 앞선 명세: [00 토큰](00-design-tokens.md), [01 앱 셸](01-app-shell.md) §4 사이드바(Calendar Subscription 구역)·데이터 표 `calendar_accounts`, [06 캘린더](06-calendar.md) §3 `...` 메뉴·§4.2 막대·§6 왼쪽 패널·§7.3 팝오버. (06 머리말의 구글 명세 링크는 이 문서(16)를 가리킨다 — v1.2.1에서 07 → 16으로 고침.)
 - 표기: **[틱틱]** 확인된 틱틱 동작 · **[sprout]** 틱틱과 다르게(읽기 전용 등) 새로 정함 · **[임시]** 확인하지 못해 임시로 정함 · **[다음]** v1 이후
-- 구현 단계: **G1** 연결·설정·캘린더 겹쳐 보기(필수) / **G2** 사이드바 "구독 캘린더" 목록 보기(결정 ②에 따라).
+- 구현 단계: **G1** 연결·설정·캘린더 겹쳐 보기(필수) / **G2** 사이드바 "구독 캘린더" 목록 보기(결정 ②) / **A1** Apple 캘린더(§11).
 
-## 0. 사용자에게 먼저 물어볼 것
-1. **구글 클라우드 프로젝트와 앱 검증을 언제 할까요?** 구글 일정 읽기 권한은 구글이 "민감한 권한"으로 분류해서, 아무나 쓰는 공개 앱이 되려면 구글 심사(검증)를 받아야 해요. 심사에는 **제품 이름, 내 도메인의 홈페이지, 개인정보 처리방침, 연결 과정을 찍은 시연 영상**이 필요하고 며칠~몇 주 걸려요. 심사 전에는 (가) "테스트" 상태: 이메일로 등록한 최대 100명만 쓸 수 있고 **7일마다 다시 연결**해야 해요, (나) "게시" 상태: 연결할 때 "확인되지 않은 앱" 경고가 뜨고 새 사용자 100명까지만. → 제안: 오너 혼자 쓰는 동안은 (가)로 시작하고, 제품명·도메인·처리방침이 정해지면 심사를 넣는다.
-2. **사이드바 "구독 캘린더" 목록 화면(G2)도 v1에 넣을까요?** 틱틱은 사이드바에서 계정을 누르면 구글 일정을 오늘/다음 7일/나중에로 나눠 목록으로 보여 줘요. PRD는 "캘린더에 겹쳐 보기"만 적혀 있어요. → 제안: G1(캘린더 겹쳐 보기)만 먼저, G2는 G1 뒤에 바로.
-3. **구글 계정을 여러 개 연결할 수 있게 할까요?** (회사·개인 계정 둘 다) → 제안: 허용(구조는 같고, 계정마다 행 하나).
-4. **구글 일정을 AI 비서·주간 리포트에 쓸까요?** 쓰면 일정 제목이 운영자 Mac mini(서버)로 가요. 구글 정책상 처리방침에 적어야 하고 심사에서도 설명해야 해요. → 제안: v1은 **쓰지 않는다**(일정은 이 기기 밖으로 나가지 않음). 
-5. **sprout에서 로그아웃하면 구글 연결도 끊을까요?** → 제안: 끊고(토큰·캐시 삭제) 다음 로그인 때 다시 연결. 같은 컴퓨터를 다른 sprout 계정이 써도 남의 일정이 보이지 않게.
-6. **얼마나 과거까지 보여 줄까요?** → 제안: **6개월 전 ~ 미래 전부**를 이 기기에 저장. 그보다 이전 달로 가면 구글 일정은 비어 보인다(그 아래 작은 안내).
+## 0. 결정 (2026-10-04 확정 — 사용자 "제안대로")
+| # | 질문 | 확정 |
+|---|---|---|
+| ① | 구글 클라우드 프로젝트·앱 검증 시기 | **"테스트" 상태로 시작**(등록한 테스트 사용자만, 7일마다 다시 연결이 정상). 제품명·도메인·처리방침이 정해지면 검증(심사)을 넣는다(부록 A) |
+| ② | 사이드바 "구독 캘린더" 목록(G2) | **G1(연결·설정·겹쳐 보기) 다음 바로 G2**. 둘 다 v1 |
+| ③ | 구글 계정 여러 개 | **허용** — 계정마다 행 하나 |
+| ④ | 구글 일정을 AI 비서·주간 리포트에 | **v1은 쓰지 않는다** — 일정은 이 기기 밖으로 나가지 않는다(Apple 일정도 같음) |
+| ⑤ | sprout 로그아웃 때 | **구글 연결을 끊고 토큰·캐시를 지운다**(Apple은 권한은 OS 것이라 그대로 두고 캐시만 지운다) |
+| ⑥ | 과거 범위 | **6개월 전 ~ 미래 전부**(구글). Apple은 EventKit 한계로 6개월 전 ~ 2년 뒤(§11.3) |
 
 ## 1. 틱틱 기준 자료
 | 주제 | 자료 |
@@ -38,7 +40,7 @@
 구글 일정은 읽기 전용이에요. sprout에서 구글 일정을 바꾸지 않고, 일정은 이 기기에만 저장돼요.   ← 캡션 11, 3차 글자색
 ```
 - 카드·행은 기존 `settings-card`·`settings-row`(00 `color.bg.card`) 그대로. 행 높이 44, 계정 이메일 13 본문색, 상태 글자 12 `color.text.tertiary`.
-- "+ 캘린더 추가" → 작은 메뉴 하나: **구글 캘린더**(다른 서비스는 [다음], 메뉴에 넣지 않음). 틱틱의 "구독 / 통합" 고르기 모달은 거치지 않고 바로 연결(§4.1) [cal-subscription NOTES 결정].
+- "+ 캘린더 추가" → 작은 메뉴: **구글 캘린더** · **Apple 캘린더**(맥에서만, §11)(다른 서비스는 [다음], 메뉴에 넣지 않음). 틱틱의 "구독 / 통합" 고르기 모달은 거치지 않고 바로 연결(§4.1) [cal-subscription NOTES 결정].
 - 틱틱의 "방해 금지(구독 일정 알림 끄기)" 토글은 두지 않는다 — sprout v1은 구글 일정 알림을 보내지 않는다 [sprout].
 
 ### 2.2 계정 편집 모달 [틱틱 로컬 캘린더 모달 모양 — 구글은 [임시]]
@@ -179,34 +181,40 @@
 ### 5.1 저장 위치 (모두 이 기기, 메인 프로세스만 접근)
 | 무엇 | 어디 | 비고 |
 |---|---|---|
-| OAuth 토큰(리프레시·접근·만료·허용 범위) | `userData/google/<계정키>.bin` — **Electron `safeStorage`로 암호화**(맥: 암호화 키가 키체인에, Windows: DPAPI) | §7.5 |
-| 계정·캘린더·일정 캐시 | `userData/google/<sprout 사용자 id>.db` — 별도 SQLite 파일(`better-sqlite3`, 이미 의존성에 있음) | PowerSync DB(`sprout.db`)와 **다른 파일**. 동기화 대상이 아님을 파일로 분리해 보장 |
-| 왼쪽 패널 구독 체크(보기 필터) | 같은 캐시 DB `gcal_calendars.panel_on` | 기기에만 |
+| 구글 OAuth 토큰(리프레시·접근·만료·허용 범위) | `userData/calendars/google-<계정키>.bin` — **Electron `safeStorage`로 암호화**(맥: 암호화 키가 키체인에, Windows: DPAPI), 권한 0600 | §7.5 |
+| 계정·캘린더·일정 캐시(구글·Apple 공용) | `userData/calendars/cache.db` — 별도 SQLite 파일(`better-sqlite3`) | PowerSync DB(`sprout.db`)와 **다른 파일**. 로그아웃하면 파일째 지운다(결정 ⑤)라 사용자별 파일로 나누지 않는다 [v1.0에서 바꿈] |
+| 왼쪽 패널 구독 체크(보기 필터) | 같은 캐시 DB `ext_calendars.panel_on` | 기기에만 |
+| Apple 권한 | macOS(TCC)가 보관 — sprout는 저장하지 않는다 | §11 |
 - 렌더러는 토큰을 절대 받지 않는다. IPC로 상태와 보이는 범위의 일정만 받는다.
 
-### 5.2 캐시 테이블 (기기 전용 SQLite)
+### 5.2 캐시 테이블 (기기 전용 SQLite, 공급자 공용)
 | 테이블 | 칸 |
 |---|---|
-| `gcal_accounts` | `id`(구글 기본 캘린더 id = 이메일의 해시, 파일 이름 키로도 씀), `email`, `status`(`ok`/`syncing`/`reauth`/`scope_missing`/`offline`), `connected_at`, `last_sync_at`, `last_error` |
-| `gcal_calendars` | `account_id`, `calendar_id`, `name`(summaryOverride ?? summary), `color_bg`, `color_fg`, `access_role`, `is_primary`, `visibility`(`show`/`hide`), `panel_on`(0/1), `sync_token`, `full_synced_at` |
-| `gcal_events` | `account_id`, `calendar_id`, `event_id`, `recurring_event_id`, `status`, `title`, `description`(글자만, 최대 8KB), `location`, `start`(로컬 floating "YYYY-MM-DDTHH:mm" 또는 날짜), `end`(종일은 구글의 다음 날 끝을 하루 빼서 저장), `all_day`, `time_zone`, `html_link`, `self_response`, `event_type`, `updated` — 색인 `(start)`, `(end)` |
-- 시각은 받을 때 **기기 시간대의 floating 시각**으로 바꿔 저장해 06의 `CalItem`(floating)과 같은 계산을 쓴다. 기기 시간대가 바뀌면 캐시 전체를 다시 받는다 [임시].
-- 렌더러에는 `CalItem`과 비슷한 읽기 전용 모양(`kind: 'gcal'`)으로 넘기고, 06의 배치·겹침 계산에 함께 넣는다.
+| `ext_accounts` | `id`(구글 = `g_` + 이메일 해시 16자, Apple = `apple`), `provider`(`google`/`apple`), `label`(구글 이메일, Apple "이 Mac의 캘린더"), `status`(`ok`/`syncing`/`reauth`/`scope_missing`/`offline`/`retrying`/`denied`/`restricted`/`helper_missing`), `connected_at`, `last_sync_at`, `last_error`, `error_since`, `fail_count`, `next_retry_at` |
+| `ext_calendars` | `account_id`, `calendar_id`, `name`(구글 summaryOverride ?? summary, Apple title), `color_bg`, `color_fg`, `access_role`(구글 accessRole, Apple `owner`/`reader`), `group_label`(Apple 출처 이름 — iCloud·Exchange 등), `is_primary`, `visibility`(`show`/`hide`), `panel_on`(0/1), `sync_token`, `full_synced_at`, `sort` |
+| `ext_events` | `account_id`, `calendar_id`, `event_id`, `recurring`(0/1), `status`, `title`, `description`(글자만, 최대 8KB), `location`, `start`(로컬 floating "YYYY-MM-DDTHH:mm" 또는 날짜), `end`(종일은 마지막 날, 구글의 "다음 날 끝"에서 하루 뺌), `all_day`, `time_zone`, `link`(구글 `htmlLink`, Apple `eventIdentifier`), `declined`, `updated` — 색인 `(start)`, `(end)` |
+| `ext_meta` | `time_zone`(캐시를 만든 기기 시간대) |
+- 시각은 받을 때 **기기 시간대의 floating 시각**으로 바꿔 저장해 06의 `CalItem`(floating)과 같은 계산을 쓴다. 기기 시간대가 바뀌면 캐시 일정 전체를 지우고 다시 받는다.
+- 0시에 끝나는 시각 일정(예: 22:00–24:00)은 끝을 전날 23:59로 저장해 하루짜리 블록으로 그린다(여러 날 막대로 번지지 않게) [sprout].
+- 렌더러에는 `CalItem`에 `ext`(일정 정보)를 붙인 읽기 전용 모양으로 넘기고, 06의 배치·겹침 계산에 함께 넣는다.
 
 ### 5.3 저장 범위·양
 - 범위: **오늘 − 6개월 ~ 미래 전부**(결정 ⑥). 반복 일정은 구글이 회차로 펼친 것(`singleEvents=true`)을 받는다.
 - 캘린더당 일정 상한 5,000개(넘으면 가장 먼 미래부터 버림) [임시]. 끝없는 반복이 많아 상한에 걸리면 `singleEvents=false` + 로컬 펼치기로 바꾼다(§9 위험).
 - 하루에 한 번, 범위 밖(6개월보다 오래된) 일정을 지운다.
 
-## 6. 화면 밖 동작 요약 (메인 프로세스 모듈 `main/googleCalendar.ts` — 이름 임시)
+## 6. 화면 밖 동작 요약 (메인 프로세스)
+- 모듈: `main/calendars.ts`(Electron 연결: IPC·주기·safeStorage·로그아웃 정리) · `main/calendarStore.ts`(캐시 SQLite) · `main/googleSync.ts`(OAuth PKCE·구글 API, Electron 없음) · `main/appleSync.ts`(도우미 실행·Apple 동기화) · `shared/calendars.ts`(형태·변환 순수 함수). 시험은 Electron 없이 가짜 구글 서버·가짜 도우미로 한다.
 | IPC(렌더러 → 메인) | 하는 일 |
 |---|---|
-| `gcal:connect` / `gcal:cancel` | §7.1 흐름 시작·취소, 진행 상태 반환 |
-| `gcal:accounts` | 계정·캘린더·상태 목록(토큰 없음) |
-| `gcal:events(from, to)` | 캐시에서 범위 일정(보이기 + 패널 체크만) |
-| `gcal:setVisibility(changes)` / `gcal:setPanel(id, on)` | 표시 설정 저장 |
-| `gcal:refresh(accountId?)` / `gcal:disconnect(accountId)` | 새로 고침 / 끊기 |
-| 메인 → 렌더러 `gcal:changed` | 캐시가 바뀌면 알림 → 보이는 범위 다시 읽기 |
+| `calendars:status` | 공급자 준비 상태(구글 클라이언트 ID 있음·Apple 지원·암호화 가능) + 계정·캘린더·상태 목록(토큰 없음) |
+| `calendars:connect(provider)` / `calendars:cancel` / `calendars:reopen` | §7.1(구글)·§11.2(Apple) 연결 시작·취소·브라우저 링크 다시 열기. 결과 `{ ok, account, message }` 또는 `{ ok:false, error }` |
+| `calendars:events(from, to, { panel })` | 캐시에서 범위 일정(보이기 + `panel`이면 패널 체크까지, 거절한 일정 제외) |
+| `calendars:setVisibility(accountId, changes)` / `calendars:setPanel(accountId, calendarId?, on)` | 표시 설정 저장(숨기면 그 캘린더 캐시 삭제, 보이게 하면 전체 받기) |
+| `calendars:refresh(accountId?, force?)` / `calendars:disconnect(accountId)` | 새로 고침(1분 안 중복은 건너뜀, `force`면 즉시) / 끊기 |
+| `calendars:open(accountId, calendarId, eventId)` | 구글 = `htmlLink`를 기본 브라우저로, Apple = 캘린더 앱 |
+| `calendars:openPrivacy` | (Apple) 시스템 설정 › 개인정보 보호 › 캘린더 |
+| 메인 → 렌더러 `calendars:changed` | 캐시·상태가 바뀌면 알림 → 보이는 범위 다시 읽기. `calendars:progress`는 연결 진행 |
 
 ## 7. 기술
 ### 7.1 OAuth: 설치형 앱 흐름 + PKCE + 루프백 (메인 프로세스)
@@ -280,11 +288,80 @@
 ## 9. 위험·열린 질문
 1. 구글 구독 "편집" 모달의 실제 항목, 새로 고침 주기, 철회 시 문구는 틱틱에서 확인하지 못했다(research 19 §6) → [임시]로 진행, 사용자 허락 시 시험 계정으로 확인.
 2. `singleEvents=true`에서 끝없는 반복 일정이 많으면 캐시가 커진다 → 상한(§5.3) 넘으면 반복 원본만 받아 로컬에서 펼치는 방식으로 바꾼다(구글 RRULE·예외 회차 처리가 필요해 일이 커짐).
-3. 06 머리말이 이 문서를 `07-calendar-subscription.md`로 가리킨다 → 사용자 확인 뒤 06 링크를 이 문서(16)로 고친다.
+3. ~~06 머리말이 이 문서를 07로 가리킨다~~ → 06 v1.2.1에서 16으로 고침(해결).
 4. 모바일(React Native)에서도 구글 일정을 볼지는 PRD에 없다 → [다음]. 데스크톱 캐시를 동기화하지 않으므로 모바일은 따로 연결해야 한다.
+
+## 11. Apple 캘린더 (맥 캘린더 앱에 등록된 캘린더 읽기) [sprout — 틱틱 "Local Calendars"에 해당]
+틱틱의 "Local Calendars"(research 19 §3)가 맥 캘린더 앱의 캘린더를 보여 주는 것과 같은 자리다. 맥 캘린더 앱에 이미 등록된 iCloud·Exchange·CalDAV·구독(ICS)·"이 Mac" 캘린더를 **읽기 전용**으로 겹쳐 본다. macOS에서만 보인다(Windows·웹 미리보기에는 메뉴 항목이 없다).
+
+### 11.1 화면 (구글과 같은 컴포넌트, 다른 점만)
+| 곳 | Apple |
+|---|---|
+| 설정 › 연동 `+ 캘린더 추가` 메뉴 | `구글 캘린더` · `Apple 캘린더`(맥) |
+| 계정 행 | 캘린더 아이콘 + **"이 Mac의 캘린더"** · 상태 · `편집` (계정은 하나뿐 — 이미 있으면 메뉴 항목 비활성) |
+| 편집 모달 | 제목 "이 Mac의 캘린더", 묶음 = **출처 이름**(iCloud · Exchange · 구독 · 이 Mac 등, EventKit `source.title`). 행 모양·보이기/숨기기·취소/확인은 §2.2와 같음. `⋯` = 지금 새로 고침 · 연결 끊기 |
+| 왼쪽 패널·사이드바 | 계정 줄 이름 = "이 Mac의 캘린더". 계정이 없으면 `구글 캘린더 연결` 아래 `Apple 캘린더 연결` |
+| 팝오버 맨 아래 | `캘린더 앱에서 열기 ↗`(`ical://ekevent/<id>?method=show&options=more`, 실패하면 캘린더 앱만 연다) [임시] |
+| 연결 끊기 확인 본문 | `이 기기에 저장한 Apple 캘린더 일정이 지워져요. 캘린더 앱의 일정은 그대로예요. 접근 권한은 시스템 설정에서 끌 수 있어요.` |
+
+### 11.2 권한 흐름
+| 상태(EventKit) | 화면 |
+|---|---|
+| 처음(notDetermined) | 연결을 누르면 macOS 권한 창("sprout이(가) 캘린더에 접근하려고 합니다")이 뜬다. 연결 진행 모달 본문 `macOS 권한 창에서 "허용"을 눌러 주세요.` |
+| 허용(fullAccess) | 계정 행 생성 + 첫 동기화. **처음 보이는 캘린더 = 전부**(생일 캘린더만 숨기기) [임시] |
+| 거부(denied) / 쓰기만 허용(writeOnly) | 행 빨강 `캘린더 접근이 꺼져 있어요` + 버튼 `시스템 설정 열기`(개인정보 보호 및 보안 › 캘린더). 모달 실패 문구 `캘린더 접근을 허용해야 볼 수 있어요. 시스템 설정 › 개인정보 보호 및 보안 › 캘린더에서 sprout를 켜 주세요.` |
+| 제한(restricted, 관리 정책) | 빨강 `이 Mac에서는 캘린더 접근이 제한돼 있어요` (버튼 없음) |
+| 도우미 없음(개발 빌드에서 빌드 안 함) | 빨강 `캘린더 도우미가 없어요. 앱을 다시 설치해 주세요.` (개발: `npm run calendar:build`) |
+- 권한은 macOS가 보관한다. sprout는 토큰을 저장하지 않는다. 로그아웃(결정 ⑤)은 Apple 계정 행과 캐시만 지우고 OS 권한은 그대로 둔다(다시 연결할 때 권한 창 없이 바로 됨).
+
+### 11.3 데이터·새로 고침
+- 범위: **오늘 − 6개월 ~ 오늘 + 2년**(EventKit 기간 검색은 한 번에 4년까지라 1년씩 나눠 묻는다). 반복 일정은 EventKit이 회차로 펼쳐 준다.
+- 동기화 토큰이 없으므로 새로 고침마다 보이는 캘린더의 범위 일정을 통째로 받아 캘린더 단위로 갈아 끼운다(트랜잭션). 주기·창 앞/뒤·깸·1분 중복 건너뜀 규칙은 §4.2와 같다.
+- 캘린더 색 = EventKit 캘린더 색(16진수). 시간대는 EventKit이 준 절대 시각을 기기 시간대 floating으로 바꾼다(§5.2와 같은 함수).
+- 거절한 초대(참석자 중 나 = declined)는 그리지 않는다.
+
+### 11.4 네이티브 도우미 `sprout-calendar` (apps/desktop/native/calendar/)
+- 작은 Swift 명령줄 도구. 메인 프로세스가 `child_process.execFile`로 부르고 표준 출력 JSON을 읽는다(시간 제한 20초, 권한 창은 60초).
+  | 명령 | 출력 |
+  |---|---|
+  | `status` | `{"status":"notDetermined|fullAccess|writeOnly|denied|restricted"}` |
+  | `request` | 권한 요청(`requestFullAccessToEvents`, macOS 13 이하는 `requestAccess(to:.event)`) 뒤 같은 모양 |
+  | `calendars` | `{"calendars":[{"id","title","color","source","sourceType","type","allowsModify"}]}` |
+  | `events --from <ISO> --to <ISO> [--calendars id,id]` | `{"events":[{"id","calendarId","title","notes","location","url","start","end","allDay","timeZone","recurring","status","declined"}]}` (시각은 ISO 8601 UTC) |
+- 빌드: `npm run calendar:build`(apps/desktop) → `native/calendar/out/sprout-calendar`. Info.plist(`NSCalendarsFullAccessUsageDescription`)를 바이너리에 넣는다(`-sectcreate __TEXT __info_plist`).
+- 패키지 앱: electron-builder `extraResources`로 `Contents/Resources/sprout-calendar`. **앱 Info.plist에도 `NSCalendarsFullAccessUsageDescription`·`NSCalendarsUsageDescription`**(권한 창은 "책임 프로세스"인 sprout 앱 이름·문구로 뜬다) + 하드닝 런타임 entitlement `com.apple.security.personal-information.calendars`.
+  - 문구: `sprout가 맥 캘린더 앱의 일정을 할 일과 함께 캘린더에 보여 주려고 읽어요. 일정은 이 Mac에만 저장되고 바꾸지 않아요.`
+- **개발 실행 주의:** `electron-vite dev`에서는 권한을 묻는 주체가 **Electron.app**이다. Electron 기본 Info.plist에는 캘린더 사용 문구가 없어서 macOS가 권한 창 없이 바로 거부할 수 있다 → 개발 중 확인은 (가) 패키지 앱(`npm run dist:mac`)으로 하거나, (나) 시스템 설정 › 개인정보 보호 및 보안 › 캘린더에 Electron이 보이면 직접 켠다. 거부되면 화면은 §11.2 "접근이 꺼져 있어요"가 된다.
+- 도우미 경로: 패키지 = `process.resourcesPath/sprout-calendar`, 개발 = `native/calendar/out/sprout-calendar`, 시험·확인용 덮어쓰기 = 환경 변수 `SPROUT_CALENDAR_HELPER`(가짜 도우미 스크립트).
+
+### 11.5 온보딩 연결
+- 렌더러 `data/calendars.ts`가 `connectCalendar('google' | 'apple')`(연결 진행 모달까지 띄우는 함수)과 `calendarProviders()`(이 기기에서 쓸 수 있는 공급자·준비 상태)를 내보낸다. 첫 실행 안내 화면(다른 명세)은 이 두 함수만 부른다.
+
+## 부록 A. 사용자가 할 일 (구글 클라우드 — 코드로 대신할 수 없음)
+1. https://console.cloud.google.com 에 본인 구글 계정으로 로그인 → 위쪽 프로젝트 선택 › **새 프로젝트**(이름 예: `sprout`) 만들기.
+2. **API 및 서비스 › 라이브러리**에서 "Google Calendar API" 검색 → **사용 설정**.
+3. **Google Auth Platform(OAuth 동의 화면) › 시작하기**: 앱 이름 `sprout`(가칭), 사용자 지원 이메일 = 본인 이메일, 대상 **외부(External)**, 개발자 연락처 = 본인 이메일 → 만들기.
+4. **대상(Audience)**: 게시 상태가 **테스트**인지 확인 → **테스트 사용자 › 사용자 추가**에 구글 캘린더를 연결할 본인 구글 계정(들)을 넣는다(최대 100명).
+5. **데이터 액세스 › 범위 추가**: `.../auth/calendar.calendarlist.readonly`, `.../auth/calendar.events.readonly` 두 개만 체크 → 저장(민감한 범위로 표시되는 것이 정상).
+6. **클라이언트 › 클라이언트 만들기**: 애플리케이션 유형 **데스크톱 앱**, 이름 `sprout desktop` → 만들기. 나오는 **클라이언트 ID**와 **클라이언트 보안 비밀번호**를 복사한다. (구글은 데스크톱 클라이언트의 토큰 교환에도 이 비밀값을 요구한다. 설치형 앱에서는 비밀로 취급되지 않으며 보안은 PKCE가 맡는다. 그래도 저장소에는 커밋하지 않는다.)
+7. 앱 실행 때 넣기(지금): 
+   ```bash
+   cd apps/desktop && . ../../scripts/node22.sh && GOOGLE_CLIENT_ID=<클라이언트 ID> GOOGLE_CLIENT_SECRET=<비밀값> npx electron-vite dev
+   ```
+   이후 패키지 앱에서는 빌드할 때 같은 두 값을 넣어 앱 설정 파일로 묶는다 [다음 — 패키징 단계에서]. 값이 없으면 설정 › 연동에 `구글 연결 준비가 아직 안 됐어요…` 안내가 뜨고 연결 버튼이 비활성이다.
+8. 테스트 상태에서는 **7일마다 "다시 연결이 필요해요"**가 뜨는 것이 정상이다(구글 정책).
+9. **공개 출시 전 검증(심사)**: Google Auth Platform › 인증 센터에서 제출. 필요: 제품명 확정, 내 도메인의 **홈페이지**와 **개인정보 처리방침** 주소(구글 일정은 이 기기에만 저장하고 서버·AI로 보내지 않는다는 문장 — "제한적 사용" 조건), 서치 콘솔로 도메인 소유 확인, 연결 과정과 일정이 보이는 화면을 찍은 **시연 영상**(유튜브 링크), 범위마다 쓰는 이유. 보통 며칠~몇 주. 제한(restricted) 범위가 아니라 외부 보안 평가(CASA)는 필요 없다.
+
+## 부록 B. 사용자가 할 일 (Apple 캘린더)
+1. 맥 **캘린더 앱**에 보고 싶은 계정(iCloud·구글·Exchange 등)이 이미 등록돼 있으면 따로 할 일은 없다.
+2. sprout 설정 › 연동 › `+ 캘린더 추가` › Apple 캘린더 → macOS 권한 창에서 **허용**.
+3. 개발 실행에서 권한 창이 뜨지 않고 바로 "접근이 꺼져 있어요"가 되면 §11.4 개발 실행 주의대로 패키지 앱으로 확인하거나 시스템 설정에서 Electron을 켠다.
+4. 배포 빌드는 하드닝 런타임 entitlement와 Info.plist 문구가 들어가 있어야 권한 창이 뜬다(electron-builder.yml·entitlements에 반영함).
 
 ## 10. 변경 기록
 - v0.1 (2026-10-04) 초안. PRD C·06·01·research 15/17/19와 구글 OAuth·Calendar API 문서를 바탕으로 작성. 사용자 확인 전.
+- v1.0.1 (2026-10-04) 구현(G1·G2·A1). 가짜 구글 서버·가짜 도우미로 확인: 연결(PKCE)·첫 동기화·증분·410·한도·권한 부족·철회(⚠·다시 연결)·편집 모달·패널 체크·주/월 보기 겹쳐 보기·읽기 전용 팝오버·우클릭 메뉴·끌기 무시·사이드바 목록·로그아웃 삭제, 라이트·다크. 실제 구글 로그인·실제 EventKit 권한 창은 사용자 확인 남음(부록 A·B). 연결 모달에 테스트 사용자 안내 한 줄(구글은 등록 안 된 계정이면 앱으로 돌아오지 않고 자기 화면에 "액세스 차단됨"을 띄운다).
+- v1.0 (2026-10-04) §0 결정 6개 확정(사용자 "제안대로"). Apple 캘린더 읽기 추가(§11, 부록 B). 캐시를 공급자 공용 `ext_*` 테이블·`userData/calendars/cache.db` 한 파일로(§5), 모듈·IPC 이름 확정(§6), 0시 끝 일정 처리, 사용자 할 일 부록 A.
 
 ### 참고한 구글 문서 (2026-10-04 확인)
 - [OAuth 2.0 for iOS & Desktop Apps](https://developers.google.com/identity/protocols/oauth2/native-app) — 루프백 `http://127.0.0.1:port`, PKCE `code_verifier` 43~128자

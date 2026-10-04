@@ -13,6 +13,7 @@ import { dayKey } from '../lib/dates'
 import { MenuItem, Popover } from './Popover'
 import { Dialog } from './Dialog'
 import { OrganizationEditor } from './OrganizationEditor'
+import { ExtSidebarSection } from './calendars/ExtSidebar'
 const OPEN='t.status=0 AND t.deleted_at IS NULL AND t.parent_id IS NULL'
 type Menu={kind:OrganizationKind;item:OrganizationItem;point:{x:number;y:number}}
 export function Sidebar({selected,onSelect,lists,tags,onGrowth}:{selected:string;onSelect:(id:string)=>void;lists:ListRow[];tags:TagRow[];onGrowth?:()=>void}){
@@ -65,6 +66,7 @@ export function Sidebar({selected,onSelect,lists,tags,onGrowth}:{selected:string
   </>}
   {visible('filters',filters.length)&&<>{section('filters','필터',()=>setFilterEditor({}))}{!collapsed.includes('filters')&&filters.map(f=><div className="filter-sidebar-row" key={f.id} onContextMenu={e=>{e.preventDefault();setFilterMenu({item:f,point:{x:e.clientX,y:e.clientY}})}}>{item(`filter:${f.id}`,f.name,f.emoji||<ListFilter/>)}<button className="filter-row-menu" aria-label={`${f.name} 필터 메뉴`} onClick={e=>setFilterMenu({item:f,point:{x:e.clientX,y:e.clientY}})}><MoreHorizontal size={14}/></button></div>)}</>}
   {visible('tags',allTags.length)&&<>{section('tags','태그',()=>setEditor({kind:'tag'}))}{!collapsed.includes('tags')&&allTags.filter(t=>!t.parent_id||!allTags.some(p=>p.id===t.parent_id)).map(t=><div key={t.id}>{item(`tag:${t.id}`,t.name,<Tag/>,tagCounts.find(c=>c.tag_id===t.id)?.c,t.color,{kind:'tag',item:t})}<div className="sidebar-folder-children">{allTags.filter(c=>c.parent_id===t.id).map(c=>item(`tag:${c.id}`,c.name,<Tag/>,tagCounts.find(n=>n.tag_id===c.id)?.c,c.color,{kind:'tag',item:c}))}</div></div>)}{!allTags.length&&<p className="sidebar-hint">#을 입력하여 태그를 선택할 수 있어요.</p>}</>}
+  <ExtSidebarSection item={(key,label,icon,count)=>item(key,label,icon,count)} collapsed={collapsed} toggle={toggle}/>{/* 16 G2 구독 캘린더 */}
   <div className="sidebar__divider"/>{visible('completed',archives?.completed??0)&&item('smart:completed','완료',<CheckSquare/>,archives?.completed)}{visible('wontdo',archives?.wontdo??0)&&item('smart:wontdo','계획 취소',<XSquare/>,archives?.wontdo)}{visible('trash',archives?.trash??0)&&item('smart:trash','휴지통',<Trash2/>,archives?.trash)}
   {error&&<p role="alert" className="form-error">{error}</p>}
  </div>

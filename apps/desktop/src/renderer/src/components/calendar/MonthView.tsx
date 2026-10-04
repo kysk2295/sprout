@@ -8,7 +8,7 @@ import type { CalHandlers, Rect } from './types'
 const LANE = 19 // 막대 16 + 간격 3
 const BAR = 16
 const HEAD = 30 // 칸 위쪽 날짜 줄
-const WEEK = ['일', '월', '화', '수', '목', '금', '토']
+const WEEK = ['월', '화', '수', '목', '금', '토', '일'] // 주 시작 = 월요일(2026-10-05 사용자 결정)
 
 type Props = CalHandlers & {
   days: string[] // 5주 또는 6주

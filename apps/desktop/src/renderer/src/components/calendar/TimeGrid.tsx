@@ -1,8 +1,9 @@
-import { Check, Repeat } from 'lucide-react'
+import { CalendarDays, Check, Repeat } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import { addDays, datePart, daysBetween } from '@sprout/schema/time'
 import { hourLabel, isBarItem, layoutDay, minutesOfDay, packBars, shortRange, type CalItem, type ItemStyle } from '../../lib/calendar'
 import { timeSelection } from '../../lib/calendarSelection'
+import { extOf } from '../../lib/calendarExt'
 import type { CalHandlers } from './types'
 
 // 06 §4 주 보기 · 일 보기 (실측 research 17): 요일 줄 · 날짜 숫자 줄 · 종일 영역 · 시간 눈금 · 블록 · 현재 시각
@@ -318,25 +319,33 @@ export function TimeGrid(p: Props) {
   )
 }
 
-/** 막대·블록 한 개(06 §4.2). 스타일 "간결한"은 체크박스 아이콘 없음, "상세한"은 있음 */
+/** 막대·블록 한 개(06 §4.2). 스타일 "간결한"은 체크박스 아이콘 없음, "상세한"은 있음.
+ * 외부 일정(16 §3.1): 체크박스·가장자리 없음, 제목 앞 작은 캘린더 아이콘, 끌기·빈 칸 만들기 없이 누르면 읽기 전용 팝오버 */
 export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandlers & { item: CalItem; kind: 'block' | 'bar'; contLeft?: boolean; contRight?: boolean; onDown: (e: RPointerEvent) => void; itemStyle?: ItemStyle }) {
   const t = item.task
+  const ext = extOf(item)
   const done = t.status !== 0
   const now = new Date()
   const nowF = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
   const past = (item.end.includes('T') ? item.end : `${item.end}T23:59`) < nowF
   const hasRange = item.start !== item.end
   const timeText = item.start.includes('T') ? shortRange(item.start, item.end, hasRange && datePart(item.start) === datePart(item.end)) : ''
-  const detailed = p.itemStyle === 'detailed'
-  const cls = ['cal-item', `is-${kind}`, done && 'is-done', (past || item.virtual) && 'is-past', item.virtual && 'is-virtual', p.selection.includes(t.id) && 'is-selected', contLeft && 'cont-left', contRight && 'cont-right']
+  const detailed = p.itemStyle === 'detailed' && !ext
+  const editable = !item.virtual && !ext
+  const cls = ['cal-item', `is-${kind}`, done && 'is-done', (past || item.virtual || ext?.stale) && 'is-past', item.virtual && 'is-virtual', ext && 'is-ext', p.selection.includes(t.id) && 'is-selected', contLeft && 'cont-left', contRight && 'cont-right']
+  const extDown = (e: RPointerEvent) => { e.stopPropagation(); if (e.button !== 0) return; e.preventDefault() }
   return (
     <div
       className={cls.filter(Boolean).join(' ')}
       style={{ ['--item-color' as string]: p.colorOf(item) }}
-      onPointerDown={onDown}
-      onContextMenu={(e) => { e.preventDefault(); p.onContext(item, e) }}
+      onPointerDown={ext ? extDown : onDown}
+      onClick={ext ? (e) => { e.stopPropagation(); p.onOpen(item, e.currentTarget.getBoundingClientRect()) } : undefined}
+      onDoubleClick={ext ? (e) => e.stopPropagation() : undefined}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); p.onContext(item, e) }}
+      role={ext ? 'button' : undefined}
+      aria-label={ext ? `${ext.provider === 'google' ? '구글' : 'Apple'} 일정: ${ext.title}, ${ext.allDay ? ext.start : timeText || ext.start}, 읽기 전용` : undefined}
     >
-      {kind === 'block' && !item.virtual && <span className="cal-item__edge is-top" data-edge="top" />}
+      {kind === 'block' && editable && <span className="cal-item__edge is-top" data-edge="top" />}
       <span className="cal-item__row">
         {detailed && (
           <button
@@ -348,12 +357,12 @@ export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandl
             {done && <Check strokeWidth={3} />}
           </button>
         )}
-        {t.repeat_rule && <Repeat className="cal-item__icon" />}
+        {ext ? <CalendarDays className="cal-item__icon" /> : t.repeat_rule && <Repeat className="cal-item__icon" />}
         <span className="cal-item__title">{t.title || '제목 없음'}</span>
         {kind === 'bar' && timeText && <span className="cal-item__time">{timeText.replace(/-.*/, '')}</span>}
       </span>
       {kind === 'block' && hasRange && timeText && <span className="cal-item__sub">{timeText}</span>}
-      {kind === 'block' && !item.virtual && <span className="cal-item__edge is-bottom" data-edge="bottom" />}
+      {kind === 'block' && editable && <span className="cal-item__edge is-bottom" data-edge="bottom" />}
     </div>
   )
 }

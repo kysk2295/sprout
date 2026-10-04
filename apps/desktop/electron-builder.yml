@@ -40,6 +40,11 @@ extraResources:
     to: trayTemplate.png
   - from: resources/trayTemplate@2x.png
     to: trayTemplate@2x.png
+  # 16 §11.4 Apple 캘린더 도우미(EventKit). 먼저 npm run calendar:build — 없으면 건너뛰고 앱은 "도우미가 없어요"로 표시
+  - from: native/calendar/out
+    to: .
+    filter:
+      - sprout-calendar
 
 protocols:
   - name: sprout
@@ -70,6 +75,9 @@ mac:
   extendInfo:
     NSHumanReadableCopyright: Copyright © 2026 sprout
     LSApplicationCategoryType: public.app-category.productivity
+    # 16 §11.4 Apple 캘린더 읽기 권한 창 문구(권한은 책임 프로세스인 앱 이름으로 묻는다)
+    NSCalendarsFullAccessUsageDescription: sprout가 맥 캘린더 앱의 일정을 할 일과 함께 캘린더에 보여 주려고 읽어요. 일정은 이 Mac에만 저장되고 바꾸지 않아요.
+    NSCalendarsUsageDescription: sprout가 맥 캘린더 앱의 일정을 할 일과 함께 캘린더에 보여 주려고 읽어요. 일정은 이 Mac에만 저장되고 바꾸지 않아요.
 
 # 예: sprout-0.0.1-arm64.dmg, sprout-0.0.1-arm64.zip (zip은 자동 업데이트용으로 남겨 둠)
 artifactName: ${productName}-${version}-${arch}.${ext}

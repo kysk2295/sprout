@@ -5,7 +5,7 @@ PRD 7.3·E. Mac mini에서 Docker Compose로 띄우고 Cloudflare Tunnel로 공�
 | 서비스 | 하는 일 | 이 컴퓨터 포트 |
 |---|---|---|
 | `db` | Postgres 18, `wal_level=logical`. 데이터 DB `sprout` + PowerSync 저장 DB `powersync_storage` | 127.0.0.1:55432 |
-| `api` | 이메일 가입·로그인, JWT(RS256) 발급, JWKS, 업로드, AI 프록시(→ Mac mini Ollama, 직접 또는 워커) | 127.0.0.1:6060 |
+| `api` | 이메일·구글·애플 가입·로그인, JWT(RS256) 발급, JWKS, 업로드, AI 프록시(→ Mac mini Ollama, 직접 또는 워커) | 127.0.0.1:6060 |
 | `powersync` | 사용자별 변경분 스트리밍 (Open Edition) | 127.0.0.1:8089 |
 | `backup` | 매일 `pg_dump -Fc` → `./backups`, 14일 보관 | — |
 
@@ -93,11 +93,48 @@ docker compose up -d --build api
 curl -s localhost:6060/ai/status -H "authorization: Bearer <접근 토큰>"   # available: true 확인
 ```
 
+## 소셜 로그인 — 구글·애플 (api/src/social.ts · 명세 08 §3.1)
+- `POST /auth/google {id_token, nonce}`: 데스크톱이 시스템 브라우저 + PKCE + 루프백으로 받은 구글 ID 토큰을 구글 공개키(JWKS)로 검증(iss·aud=우리 클라이언트 id·만료·`email_verified`·nonce).
+- 애플(웹 흐름, `response_mode=form_post`): 애플 → `POST /auth/apple/callback`(이 API의 https 주소) → 토큰은 **서버 메모리에 state별로 5분, 한 번만** 맡기고 브라우저는 `sprout://auth/apple?state=…`로 앱을 깨운다(토큰은 URL에 싣지 않는다). 앱은 `POST /auth/apple {state, nonce}`로 찾아간다(아직이면 202, 2초마다). 애플에는 nonce의 SHA-256만 보내므로 원래 nonce를 가진 그 앱만 교환할 수 있다. `.p8` 키가 있으면 인가 코드를 애플에 한 번 더 확인한다.
+  - 맡김 칸이 메모리라 **API는 한 대만** 돌린다(지금 구성 그대로). 여러 대가 되면 Postgres/Redis로 옮긴다.
+- 계정 규칙: (공급자, sub)가 있으면 그 계정 → 없으면 **확인된 같은 이메일** 계정에 연결 → 없으면 새 계정(`password_hash` NULL). 애플 가림 주소(`…@privaterelay.appleid.com`)는 따로 계정이 된다. 비밀번호 없는 계정에 이메일 로그인을 하면 401 `social account: google,apple`.
+- `GET /auth/providers` → `{google: bool, apple: {services_id, redirect_uri} | null}` (앱이 버튼 설정 여부를 안다).
+- 응답은 `/auth/login`과 같고 `created`(새 계정이면 true — 앱이 첫 실행 안내 18을 띄운다)가 붙는다.
+
+| 환경 변수(server/.env) | 예 | 설명 |
+|---|---|---|
+| `GOOGLE_CLIENT_IDS` | `123-abc.apps.googleusercontent.com` | 받아 줄 구글 클라이언트 id(쉼표로 여러 개 — 데스크톱·모바일). `GOOGLE_CLIENT_ID` 하나만 써도 된다. 비우면 `/auth/google` 503 |
+| `APPLE_SERVICES_ID` | `com.example.sprout.signin` | 애플 Services ID(= 애플 토큰의 aud). 비우면 애플 로그인 끔 |
+| `APPLE_TEAM_ID` | `Z32F3Z65RD` | 기본값 그대로 |
+| `APPLE_KEY_ID` · `APPLE_PRIVATE_KEY` | `ABC123DEFG` · `/run/secrets/apple.p8` | Sign in with Apple 키(.p8)와 그 id. 없어도 로그인은 되지만(ID 토큰 검증만), 있으면 코드 교환으로 한 번 더 확인하고 나중에 계정 삭제 때 애플 토큰 폐기에 쓴다 |
+| `API_PUBLIC_URL` | `https://macmini.tail425c97.ts.net` | 애플 돌아오는 주소 = `<이 값>/auth/apple/callback`(`APPLE_REDIRECT_URI`로 직접 정해도 됨) |
+
+`docker-compose.yaml`의 `api.environment`에 아래를 더하고, `.p8`은 읽기 전용으로 붙인다(**리드 승인 뒤 적용**):
+```yaml
+      GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
+      APPLE_SERVICES_ID: ${APPLE_SERVICES_ID:-}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-Z32F3Z65RD}
+      APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+      APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:+/run/secrets/apple.p8}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-https://macmini.tail425c97.ts.net}
+    # volumes: 에 추가 (파일이 있을 때만)
+      - ${APPLE_PRIVATE_KEY:-/dev/null}:/run/secrets/apple.p8:ro
+```
+배포(적용 전 백업 → 마이그레이션 → API 다시 빌드):
+```bash
+docker compose exec -T db pg_dump -U sprout -Fc sprout > backups/manual/before-identities-$(date +%Y%m%d).dump
+docker compose exec -T db psql -U sprout -d sprout -v ON_ERROR_STOP=1 < db/migrations/20261006-identities.sql
+docker compose up -d --build api
+curl -s localhost:6060/auth/providers     # {"google":true,"apple":{...}} 확인
+```
+- 남은 위험: 이메일 인증이 아직 없어서, 남이 **내 이메일로 먼저 비밀번호 가입**해 두면 내가 구글로 들어올 때 그 계정에 연결된다(선점 공격). 공개 출시 전 이메일 인증을 넣고, 인증 안 된 비밀번호 계정에 소셜을 연결할 때는 비밀번호를 지우거나 확인 메일을 받는다(08 §3.1).
+
 ## 배포 전에 남은 일
 - [ ] Mac mini로 옮기기 + Cloudflare Tunnel(`api`, `powersync`만 공개, `db`는 공개하지 않는다)
 - [ ] 백업을 외부 저장소로(예: Cloudflare R2 + rclone). PRD 필수
 - [ ] Postgres 복제 전용 역할(지금은 슈퍼유저로 붙는다)
-- [ ] 비밀번호 재설정·이메일 인증(메일 발송 수단 필요), 구글·애플 로그인
+- [ ] 비밀번호 재설정·이메일 인증(메일 발송 수단 필요)
+- [x] 구글·애플 로그인(`/auth/google`·`/auth/apple`, 코드·시험 완료 — 마이그레이션 적용·환경 변수는 승인 뒤)
 - [ ] 배포 주소를 앱 기본값으로(`SPROUT_API_URL`, `SPROUT_SYNC_URL`)
 - [x] AI 프록시(`/ai/*`) + 대기열·상한 (코드·시험 완료, 배포·마이그레이션 적용은 승인 뒤)
 - [ ] 앱 AI(비서·수집함·지도·일기·성장)를 SSH 포워딩 대신 프록시로(배포판)

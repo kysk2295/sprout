@@ -1,0 +1,98 @@
+/* 16 캘린더 연동(구글·Apple) — 설정 › 연동 · 편집 모달 · 연결 모달 · 팝오버 · 왼쪽 패널 · 사이드바 목록 */
+@keyframes cal-spin { to { transform: rotate(360deg); } }
+.cal-spin { width: 13px; height: 13px; animation: cal-spin 0.9s linear infinite; color: var(--color-text-tertiary); flex-shrink: 0; }
+
+/* 설정 › 연동 */
+.integrations__title { font: var(--text-caption); color: var(--color-text-tertiary); margin: 0 16px 8px; font-weight: 500; }
+.integrations__head { min-height: 44px; }
+.integrations__add { display: inline-flex; align-items: center; gap: 2px; border: 0; background: none; color: var(--color-accent); font: var(--text-meta); padding: 4px 0; }
+.integrations__add svg { width: 15px; height: 15px; }
+.integrations__account { min-height: 44px; border-top: 1px solid var(--color-border-divider); justify-content: flex-start; gap: 10px; }
+.integrations__icon { width: 18px; height: 18px; color: var(--color-text-tertiary); flex-shrink: 0; }
+.integrations__label { font: var(--text-meta); color: var(--color-text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.integrations__status { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.integrations__status.is-danger { color: var(--color-text-danger); }
+.integrations__status svg:not(.cal-spin) { width: 13px; height: 13px; flex-shrink: 0; }
+.integrations__btn { border: 0; background: none; color: var(--color-accent); font: var(--text-meta); padding: 4px 2px; white-space: nowrap; }
+.integrations__caption { margin: 0 16px; font-size: 11px; color: var(--color-text-tertiary); }
+.integrations__warn { margin: -8px 16px 14px; font: var(--text-meta); color: var(--color-text-danger); }
+.integrations__notice { margin: -8px 16px 14px; font: var(--text-meta); color: var(--color-accent); }
+.integrations__danger { color: var(--color-text-danger) !important; }
+
+/* 계정 편집 모달(06 옵션 보기 틀, 폭 440) */
+.cal-account { width: 440px; max-height: 80vh; display: flex; flex-direction: column; padding: 20px 20px 16px; box-sizing: border-box; }
+.cal-account header { display: flex; align-items: center; gap: 8px; }
+.cal-account h2 { flex: 1; margin: 0; font: var(--text-body-strong); text-align: center; padding-left: 30px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-account__status { margin: 4px 0 8px; text-align: center; font-size: 12px; color: var(--color-text-tertiary); }
+.cal-account__status.is-danger { color: var(--color-text-danger); }
+.cal-account__body { flex: 1; min-height: 0; overflow-y: auto; }
+.cal-account__body h3 { margin: 12px 4px 6px; font: var(--text-caption); color: var(--color-text-tertiary); font-weight: 500; }
+.cal-account__body .settings-card { margin-bottom: 4px; }
+.cal-account__row { gap: 10px; justify-content: flex-start; }
+.cal-account__row + .cal-account__row { border-top: 1px solid var(--color-border-divider); }
+.cal-account__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cal-account__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--text-meta); }
+.cal-account__row select { border: 0; background: transparent; color: var(--color-text-secondary); }
+.cal-account__empty { text-align: center; color: var(--color-text-tertiary); font: var(--text-meta); padding: 24px 0; }
+.cal-account footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.cal-account footer button { min-width: 80px; padding: 8px 12px; border: 1px solid var(--color-border-divider); background: transparent; color: inherit; border-radius: 4px; }
+.cal-account footer .entry-primary { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+
+/* 연결 진행 모달(360) */
+.cal-connect { width: 360px; padding: 22px 22px 16px; box-sizing: border-box; text-align: center; }
+.cal-connect h2 { margin: 0 0 10px; font: var(--text-body-strong); }
+.cal-connect p { margin: 0; font: var(--text-meta); color: var(--color-text-secondary); }
+.cal-connect__spin { width: 22px; height: 22px; margin: 16px auto 4px; display: block; }
+.cal-connect__hint { margin-top: 10px !important; font-size: 11px !important; color: var(--color-text-tertiary) !important; }
+.cal-connect__error { color: var(--color-text-danger) !important; padding: 8px 0 4px; }
+.cal-connect footer { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
+.cal-connect__gap { flex: 1; }
+.cal-connect footer button { padding: 6px 12px; border: 1px solid var(--color-border-divider); background: transparent; color: inherit; border-radius: 4px; }
+.cal-connect footer .cal-connect__link { border: 0; padding: 6px 0; color: var(--color-accent); }
+
+/* 읽기 전용 팝오버·상세 */
+.ext-card { padding: 16px 18px 12px; display: flex; flex-direction: column; gap: 10px; user-select: text; }
+.ext-card__title { margin: 0; font: 600 16px/22px var(--font-family); color: var(--color-text-primary); word-break: break-word; }
+.ext-card__line { display: flex; align-items: flex-start; gap: 8px; font: var(--text-meta); color: var(--color-text-secondary); }
+.ext-card__line > svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 2px; color: var(--color-text-tertiary); }
+.ext-card__line.is-desc p { margin: 0; white-space: pre-wrap; max-height: calc(8 * 1.5em); overflow-y: auto; line-height: 1.5; word-break: break-word; }
+.ext-card__line a { color: var(--color-text-link, var(--color-accent)); }
+.ext-card__repeat { width: 13px; height: 13px; margin-top: 3px; color: var(--color-text-tertiary); }
+.ext-card__foot { display: flex; align-items: center; gap: 6px; padding-top: 10px; border-top: 1px solid var(--color-border-divider); font-size: 12px; color: var(--color-text-secondary); min-width: 0; }
+.ext-card__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ext-card__cal { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
+.ext-card__acct { color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+.ext-card__open { display: inline-flex; align-items: center; gap: 3px; border: 0; background: none; color: var(--color-accent); font-size: 12px; white-space: nowrap; padding: 2px 0; }
+.ext-card__open svg { width: 12px; height: 12px; }
+.ext-card__open:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 2px; }
+
+/* 캘린더 막대·블록: 외부 일정(체크박스·끌기·길이 바꾸기 없음) */
+.cal-item.is-ext { cursor: pointer; }
+.cal-item.is-ext .cal-item__icon { opacity: 0.85; }
+
+/* 왼쪽 패널 */
+.ext-panel__account { display: flex; flex-direction: column; gap: 1px; }
+.ext-panel__label { display: flex; align-items: center; gap: 4px; padding: 6px 10px 2px 28px; font: var(--text-small); color: var(--color-text-tertiary); min-width: 0; }
+.ext-panel__label > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ext-panel__warn { width: 13px; height: 13px; color: var(--color-text-danger); flex-shrink: 0; }
+.ext-panel__box { color: #fff; }
+.ext-panel__link { border: 0; background: none; padding: 0; color: var(--color-accent); font: inherit; }
+.cal-side__row.is-strong { color: var(--color-accent); }
+
+/* 사이드바 목록(G2) */
+.ext-sidebar__item .sidebar__icon svg { width: 18px; height: 18px; }
+.ext-agenda__warn { display: flex; align-items: center; gap: 6px; margin: 0 var(--space-list-gutter, 20px) 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--color-text-danger) 10%, transparent); color: var(--color-text-danger); font: var(--text-meta); }
+.ext-agenda__warn svg { width: 14px; height: 14px; }
+.ext-agenda__warn button { margin-left: auto; border: 0; background: none; color: var(--color-accent); font: inherit; }
+.ext-row { position: relative; display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px 0 12px; border-radius: var(--radius-sm); font: var(--text-body); cursor: default; }
+.ext-row::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; border-radius: 1px; background: var(--ext-color); }
+.ext-row:hover { background: var(--color-bg-hover); }
+.ext-row.is-selected { background: var(--color-bg-selected); }
+.ext-row.is-stale { opacity: 0.55; }
+.ext-row:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+.ext-row__icon { width: 15px; height: 15px; color: var(--color-text-tertiary); flex-shrink: 0; }
+.ext-row__title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-text-primary); }
+.ext-row__date { font: var(--text-meta); color: var(--color-text-tertiary); white-space: nowrap; }
+.ext-row__date.is-today { color: var(--color-accent); }
+.ext-agenda__detail { overflow-y: auto; }
+.ext-agenda__empty { flex: 1; display: grid; place-items: center; }

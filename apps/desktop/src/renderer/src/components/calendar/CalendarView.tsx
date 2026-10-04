@@ -23,6 +23,10 @@ import type { CalHandlers, Change, Draft, Rect } from './types'
 import { ArrangePanel } from './ArrangePanel'
 import { ViewOptions } from './ViewOptions'
 import './calendar.css'
+import { calendarsApi, openCalendarSettings, useExtEvents, type ExtEvent } from '../../data/calendars'
+import { extItems, extOf, isPastExt } from '../../lib/calendarExt'
+import { ExtEventMenu, ExtEventPopover } from '../calendars/ExtEventCard'
+import { CalendarConnectHost } from '../calendars/ConnectHost'
 
 // 06-calendar: 머리글 · 일/주/월 보기 · 왼쪽 패널 · 팝오버 · 단축키
 type Props = { lists: ListRow[]; tags: TagRow[]; inboxId?: string; actions: TaskActions }
@@ -33,6 +37,8 @@ type Pop =
   | { kind: 'menu'; ids: string[]; point: { x: number; y: number } }
   | { kind: 'picker'; ids: string[]; initial: Schedule; point: { x: number; y: number } }
   | { kind: 'months'; rect: Rect }
+  | { kind: 'ext'; ev: ExtEvent; rect: Rect }
+  | { kind: 'extmenu'; ev: ExtEvent; point: { x: number; y: number } }
 const VIEW_LABEL: Record<CalView, string> = { day: '일', week: '주', month: '월' }
 const VIEW_KEYS: [CalView, string][] = [['day', 'D/1'], ['week', 'W/2'], ['month', 'M/3']]
 // 실측 메뉴의 나머지 항목(일정·멀티데이·다중 주)은 [후보] — 보이되 비활성
@@ -109,27 +115,32 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
     [miniFrom, addDays(miniFrom, 41)]
   ) ?? []
   const busyDays = useMemo(() => new Set(busy.map((b) => b.d)), [busy])
-  const items = useMemo(() => itemsOf(tasks, range.from, range.to, !!opts.repeats), [tasks, range.from, range.to, opts.repeats])
+  // 16: 구글·Apple 일정(보이기 + 왼쪽 패널 체크). "완료된 할일 보기"를 끄면 지난 외부 일정도 숨김
+  const extEvents = useExtEvents(range.from, range.to, { panel: true })
+  useEffect(() => { void calendarsApi()?.refresh() }, []) // 화면에 들어오면 새로 고침(1분 안 중복은 메인이 건너뜀)
+  const items = useMemo(() => [...itemsOf(tasks, range.from, range.to, !!opts.repeats), ...extItems(opts.completed ? extEvents : extEvents.filter((e) => !isPastExt(e)))], [tasks, range.from, range.to, opts.repeats, extEvents, opts.completed])
   const tagColor = useCallback((id: string) => tags.find((t) => t.id === id)?.color, [tags])
   const filtered = opts.lists.length > 0 || opts.tags.length > 0
 
   // ── 동작 ──
   const go = useCallback((n: number) => setCursor((c) => shiftCursor(view, c, n)), [view])
   const setView = (v: CalView) => { setOpts({ view: v }); setMenu(undefined) }
-  const openTask = (it: CalItem, rect: Rect) => { setSelection([it.task.id]); setPop({ kind: 'task', id: it.task.id, rect }) }
+  const openTask = (it: CalItem, rect: Rect) => { const ext = extOf(it); if (ext) { setSelection([]); setPop({ kind: 'ext', ev: ext, rect }); return } setSelection([it.task.id]); setPop({ kind: 'task', id: it.task.id, rect }) }
   const handlers: CalHandlers = {
     selection,
     pending: pop?.kind === 'create' ? pop.draft : undefined,
-    colorOf: (it) => colorOf(it.task, opts.color, tagColor),
-    itemsById: (ids) => items.filter((i) => !i.virtual && ids.includes(i.task.id)),
-    onSelect: (id, toggle) => setSelection((s) => (toggle ? (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]) : [id])),
+    colorOf: (it) => extOf(it)?.color ?? colorOf(it.task, opts.color, tagColor),
+    itemsById: (ids) => items.filter((i) => !i.virtual && !extOf(i) && ids.includes(i.task.id)),
+    onSelect: (id, toggle) => id.startsWith('ext:') ? undefined : setSelection((s) => (toggle ? (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]) : [id])),
     onOpen: openTask,
     onContext: (it, e) => {
+      const ext = extOf(it)
+      if (ext) { setPop({ kind: 'extmenu', ev: ext, point: { x: e.clientX, y: e.clientY } }); return }
       const ids = selection.includes(it.task.id) ? selection : [it.task.id]
       if (!selection.includes(it.task.id)) setSelection([it.task.id])
       setPop({ kind: 'menu', ids, point: { x: e.clientX, y: e.clientY } })
     },
-    onToggle: (it) => void (it.task.status === 0 ? actions.complete([it.task.id]) : actions.reopen([it.task.id])),
+    onToggle: (it) => extOf(it) ? undefined : void (it.task.status === 0 ? actions.complete([it.task.id]) : actions.reopen([it.task.id])),
     onCreate: (draft, rect) => { setSelection([]); setPop({ kind: 'create', draft, rect }) },
     onMove: (changes: Change[], dup) => void actions.reschedule(changes, { duplicate: dup }),
     onMoveToList: (ids,listId) => { const l=lists.find(x=>x.id===listId);if(l)void actions.move(ids,l) },
@@ -207,6 +218,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
             filterTags={opts.tags}
             onPick={(d) => { setCursor(d); if (narrow) setPanelOpen(false) }}
             onFilter={(l, t) => setOpts({ lists: l, tags: t })}
+            calendarCursor={cursor}
           />
         </div>
       )}
@@ -250,7 +262,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
             <MenuItem icon={<Settings2 />} label="옵션 보기" onClick={() => { setMenu(undefined); setOptionsOpen(true) }} />
             <MenuItem icon={<ListChecks />} label="할일 정렬" onClick={() => {setMenu(undefined);setArrange(!arrange)}} />
             
-            <MenuItem icon={<Rss />} label="캘린더 구독" disabled onClick={() => {}} />
+            <MenuItem icon={<Rss />} label="캘린더 구독" onClick={() => { setMenu(undefined); openCalendarSettings() }} />
           </Popover>
         )}
         <div className="cal__body" ref={bodyRef}>
@@ -308,8 +320,11 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
       {pop?.kind === 'months' && (
         <MonthPicker rect={pop.rect} cursor={cursor} today={today} onPick={(m) => { setCursor(`${m}-01`); setPop(undefined) }} onClose={() => setPop(undefined)} />
       )}
+      {pop?.kind === 'ext' && <ExtEventPopover ev={pop.ev} rect={pop.rect} onClose={() => setPop(undefined)} />}
+      {pop?.kind === 'extmenu' && <ExtEventMenu ev={pop.ev} point={pop.point} onClose={() => setPop(undefined)} />}
+      <CalendarConnectHost />
       {optionsOpen && <ViewOptions opts={opts} onChange={setOpts} onClose={() => setOptionsOpen(false)} />}
-      {tasks.length === 0 && view === 'month' && !filtered && <div className="cal__empty">이번 달 일정이 없어요</div>}
+      {tasks.length === 0 && extEvents.length === 0 && view === 'month' && !filtered && <div className="cal__empty">이번 달 일정이 없어요</div>}
     </div>
   )
 }

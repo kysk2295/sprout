@@ -4,6 +4,8 @@ import { NotesView } from './components/NotesView'
 import { WorkMapView } from './components/map/WorkMapView'
 import { DiaryView } from './components/diary/DiaryView'
 import { TickTickImportHost, openTickTickImport } from './components/TickTickImport'
+import { OnboardingHost } from './components/onboarding/OnboardingHost'
+import { openOnboarding } from './data/onboarding'
 import { useCollector } from './data/collector'
 import { useMapClassifier } from './data/mapClassifier'
 import { GrowthView } from './components/growth/GrowthView'
@@ -32,6 +34,8 @@ import { useAuth, type AuthState } from './data/auth'
 import { LoginScreen } from './components/LoginScreen'
 import { MiniWindow } from './components/MiniWindow'
 import { DesktopSettings } from './components/DesktopSettings'
+import { ExtAgenda } from './components/calendars/ExtSidebar'
+import { CalendarConnectHost } from './components/calendars/ConnectHost'
 
 const SIDEBAR = { def: 261, min: 200, max: 400 } // 실측 261
 const DETAIL = { def: 298, min: 260, max: 560 } // 02 §0 실측 298
@@ -201,6 +205,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
     {id:'search',label:'검색창 열기',key:'⌘F',group:'내비게이션',run:()=>{setSearchQuery('');setOverlay('search')}},
     {id:'settings',label:'설정',key:'⌘,',group:'내비게이션',run:settings},
     ...Object.entries({all:'전체',today:'오늘',tomorrow:'내일',next7:'다음 7일',inbox:'기본함',completed:'완료',wontdo:'계획 취소',trash:'휴지통'}).map(([id,label])=>({id,label:`${label}${['기본함','휴지통'].includes(label)?'으로':'로'} 이동`,group:'내비게이션',run:()=>{setView('tasks');selectView(`smart:${id}`)}})),
+    {id:'onboarding',label:'시작 안내',group:'지원',run:openOnboarding},
     {id:'shortcuts',label:'단축키',key:'?',group:'지원',run:()=>setOverlay('shortcuts')}
   ]
   const toggleSidebar = () => (narrow ? setSidebarPeek((o) => !o) : setSidebarOpen((o) => !o))
@@ -209,7 +214,9 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   return (
       <div className="app">
         {survey && <SurveyDialog onClose={() => { setSurvey(false); try { localStorage.setItem(surveyKey, '1') } catch { /* */ } }} />}
+        <OnboardingHost onOpenCalendar={() => setView('calendar')} />
         <LevelUpWatcher />
+        <CalendarConnectHost />
         <TickTickImportHost onOpenMap={() => setView('map')} onOpenCalendar={() => setView('calendar')} />
         <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}} offset={view === 'tasks' && (!drawer || selection.length > 0) ? detailW : undefined}/>
         <ReminderCards onOpen={(id) => setSelection([id])} onComplete={(id) => void actions.complete([id])} />
@@ -228,6 +235,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
             <Resizer side="right" width={sidebarW} min={SIDEBAR.min} max={SIDEBAR.max} defaultWidth={SIDEBAR.def} onChange={setSidebarW} />
           </div>
         )}
+        {selected.startsWith('ext:') ? <ExtAgenda accountId={selected.slice(4)} onToggleSidebar={toggleSidebar} detailWidth={detailW} /> : <>
         <TaskListView
           view={selected}
           title={selected.startsWith('folder:') ? folder?.name ?? '' : selectedFilter?.name ?? selectedList?.name ?? viewTitle(selected, lists, tags)}
@@ -249,6 +257,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
           )}
         </div>
         )}
+        </>}
           </>
         )}
       </div>

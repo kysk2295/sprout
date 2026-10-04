@@ -10,6 +10,8 @@ import { LOCAL_OWNER, TABLES } from '@sprout/schema'
 import { db } from './db'
 import { ensureSeed } from './seed'
 import { forgetTickTick } from './ticktick'
+import { forgetCalendars } from './calendars'
+import { clearWidget } from './widget'
 
 // 기본 = Mac mini 서버(Tailscale Funnel 공개 주소, 2026-10-05). 이 Mac의 개발 서버는 SPROUT_API_URL=http://127.0.0.1:6060 SPROUT_SYNC_URL=http://127.0.0.1:8089
 const API_URL = process.env.SPROUT_API_URL ?? 'https://macmini.tail425c97.ts.net'
@@ -19,7 +21,9 @@ const AUTH_FILE = () => join(app.getPath('userData'), 'auth.bin')
 type Session = { user: { id: string; email: string }; access_token: string; refresh_token: string; expires_at: number }
 let session: Session | undefined
 
-export type AuthState = { user: { id: string; email: string } | null; sync: { connected: boolean; uploading: boolean; downloading: boolean; lastSyncedAt: string | null; error: string | null } }
+// newAccount: 이 기기에서 방금 새 계정을 만들었다(가입·구글·애플 첫 로그인) → 화면이 첫 실행 안내(18)를 띄운다. 이번 실행 동안만
+let newAccount = false
+export type AuthState = { user: { id: string; email: string } | null; newAccount?: boolean; sync: { connected: boolean; uploading: boolean; downloading: boolean; lastSyncedAt: string | null; error: string | null } }
 
 // ── 저장 ──
 function save(s: Session | undefined) {
@@ -103,6 +107,7 @@ function state(): AuthState {
   const s = db.currentStatus
   return {
     user: session?.user ?? null,
+    newAccount: !!session && newAccount,
     sync: {
       connected: !!s?.connected,
       uploading: !!s?.dataFlowStatus?.uploading,
@@ -138,7 +143,14 @@ async function adopt(s: Session) {
 }
 
 async function signIn(path: '/auth/login' | '/auth/signup', email: string, password: string): Promise<AuthState> {
-  const s = toSession(await api<TokenResponse>(path, { body: { email, password } }))
+  return signInWithTokens(await api<TokenResponse>(path, { body: { email, password } }), path === '/auth/signup')
+}
+
+/** 08 §3.1 구글·애플: 서버가 준 토큰 응답(/auth/google·/auth/apple)으로 이메일 로그인과 같은 길(adopt → 저장 → 동기화)을 탄다 */
+export const apiBase = () => API_URL
+export async function signInWithTokens(r: TokenResponse & { created?: boolean }, created = !!r.created): Promise<AuthState> {
+  const s = toSession(r)
+  newAccount = created
   await adopt(s)
   save(s)
   await db.connect(connector)
@@ -168,7 +180,10 @@ export async function startSync() {
     // 로그아웃하면 이 기기의 내 데이터를 지우고 처음 상태로 돌아간다(다음 사람에게 보이지 않게)
     await db.disconnectAndClear()
     save(undefined)
+    newAccount = false
     await forgetTickTick() // 17: 로그아웃하면 틱틱 연결도 끊는다
+    await forgetCalendars().catch((e) => console.warn('[calendars] 로그아웃 정리 실패:', e)) // 16 결정 ⑤: 구글 연결 끊기·캐시 삭제
+    await clearWidget().catch((e) => console.warn('[widget] 로그아웃 정리 실패:', e)) // 25 §8.8: 위젯에 할 일 제목이 남지 않게
     // 설정 창이 열려 있으면 닫는다(로그아웃한 계정 정보가 남아 보이지 않게)
     for (const w of BrowserWindow.getAllWindows()) if (w.webContents.getURL().includes('window=settings')) w.close()
     await ensureSeed(process.env.SPROUT_SEED !== '0' && (!app.isPackaged || process.env.SPROUT_SEED === '1'))

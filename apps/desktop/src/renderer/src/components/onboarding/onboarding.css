@@ -1,0 +1,54 @@
+/* 18 첫 실행 안내 — 틱틱 모달 틀(가운데 카드, 모서리 16, 강조색 주 버튼 40)과 성향 조사 카드(10 §2.2)와 같은 말씨.
+   z-index 85: 앱(서랍 30·AI 빠른 창 80) 위, 다른 창(.dialog-scrim 90 — 틱틱 가져오기, .modal-scrim 500 — 성향 조사)보다 아래라 그 창들이 위에 열린다 */
+.onb-scrim { position: fixed; inset: 0; z-index: 85; background: var(--color-overlay-scrim); display: grid; place-items: center; padding: 24px; box-sizing: border-box; overflow-y: auto; -webkit-app-region: no-drag; animation: onb-fade var(--motion-base, 160ms) ease-out; }
+.onb { position: relative; width: 480px; max-width: 100%; box-sizing: border-box; padding: 16px 32px 28px; border-radius: 16px; background: var(--color-bg-popover); box-shadow: var(--shadow-modal); color: var(--color-text-primary); }
+.onb__top { display: grid; grid-template-columns: 28px 1fr 28px; align-items: center; height: 32px; margin: 0 -16px 8px; }
+.onb__back { width: 28px; height: 28px; display: grid; place-items: center; color: var(--color-text-secondary); }
+.onb__close { width: 28px; height: 28px; display: grid; place-items: center; color: var(--color-text-tertiary); }
+.onb__dots { display: flex; justify-content: center; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.onb__dots li { width: 6px; height: 6px; border-radius: 3px; background: var(--color-text-quaternary); transition: width var(--motion-base, 160ms) ease, background var(--motion-base, 160ms) ease; }
+.onb__dots li.is-past { background: var(--color-accent); opacity: 0.45; }
+.onb__dots li.is-on { width: 18px; background: var(--color-accent); }
+
+.onb__body { display: flex; flex-direction: column; animation: onb-in var(--motion-base, 160ms) ease-out; }
+.onb__body--center { align-items: center; text-align: center; }
+.onb__mark { margin: 8px 0 4px; }
+.onb__lineup { display: flex; gap: 8px; justify-content: center; margin: 4px 0 2px; }
+.onb__title { margin: 12px 0 8px; font: 700 20px/28px var(--font-family); color: var(--color-text-primary); }
+.onb__lead { margin: 0; font: 400 14px/21px var(--font-family); color: var(--color-text-secondary); }
+.onb__list { margin: 20px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; text-align: left; font: var(--text-body); color: var(--color-text-primary); }
+.onb__list li { display: flex; align-items: center; gap: 10px; }
+.onb__list svg { color: var(--color-accent); flex-shrink: 0; }
+
+.onb__rows { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+.onb__row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; background: var(--color-bg-input); }
+.onb__row-icon { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: var(--color-bg-popover); color: var(--color-accent); flex-shrink: 0; }
+.onb__row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.onb__row-text b { font: 500 14px/20px var(--font-family); }
+.onb__row-text small { font: var(--text-meta); color: var(--color-text-tertiary); }
+.onb__ok { display: inline-flex; align-items: center; gap: 4px; font: 500 13px/18px var(--font-family); color: var(--color-accent); }
+.onb__ghost { height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--color-border-divider); background: var(--color-bg-popover); font: 500 13px/18px var(--font-family); color: var(--color-text-primary); flex-shrink: 0; }
+.onb__ghost:hover:not(:disabled) { border-color: var(--color-accent); color: var(--color-accent); }
+.onb__ghost:disabled { opacity: 0.45; }
+
+.onb__input { margin-top: 18px; height: 40px; box-sizing: border-box; padding: 0 12px; border-radius: 10px; border: 1px solid var(--color-border-divider); background: transparent; font: var(--text-body); color: var(--color-text-primary); outline: none; user-select: text; }
+.onb__input:focus { border: 1.5px solid var(--color-border-input-focus); padding: 0 11.5px; }
+.onb__input::placeholder { color: var(--color-text-quaternary); }
+.onb__made { margin: 10px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font: var(--text-body); }
+.onb__made li { display: flex; align-items: center; gap: 6px; }
+.onb__made svg { color: var(--color-accent); }
+.onb__tips { margin: 18px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font: var(--text-meta); color: var(--color-text-tertiary); }
+.onb__tips kbd { display: inline-block; min-width: 34px; margin-right: 6px; padding: 1px 5px; border-radius: 4px; background: var(--color-bg-input); font: 500 11px/16px var(--font-family); color: var(--color-text-secondary); text-align: center; }
+
+.onb__error { margin: 10px 0 0; font: var(--text-meta); color: var(--color-text-danger); }
+.onb__note { margin: 14px 0 0; font: var(--text-meta); color: var(--color-text-tertiary); }
+.onb__foot { display: flex; flex-direction: column; align-items: stretch; width: 100%; margin-top: 24px; }
+.onb__primary { height: 40px; border-radius: 10px; background: var(--color-accent); color: #fff; font: 500 14px var(--font-family); }
+.onb__primary:disabled { opacity: 0.5; }
+.onb__primary:focus-visible { outline: 2px solid var(--color-border-input-focus); outline-offset: 2px; }
+.onb__link { margin-top: 12px; font: var(--text-meta); color: var(--color-text-tertiary); align-self: center; }
+.onb__link:hover { color: var(--color-text-secondary); }
+
+@keyframes onb-fade { from { opacity: 0; } }
+@keyframes onb-in { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .onb-scrim, .onb__body { animation: none; } .onb__dots li { transition: none; } }

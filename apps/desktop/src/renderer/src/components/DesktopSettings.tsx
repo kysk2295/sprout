@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
-import { CircleUser, Keyboard, ListFilter, Palette, X } from 'lucide-react'
+import { CircleUser, Keyboard, ListFilter, Palette, Plug, X } from 'lucide-react'
 import { authApi, useAuth } from '../data/auth'
 import { savePreferences, usePreferences, type Visibility } from '../data/preferences'
 import { Dialog } from './Dialog'
 import { ThemePicker } from './ThemePicker'
+import { IntegrationsPane } from './calendars/IntegrationsPane'
+import { SETTINGS_TAB_KEY } from '../data/calendars'
+/** 16: 다른 창(캘린더 `...` › 캘린더 구독)이 고른 탭 — 한 번 읽고 지운다 */
+const takeTab = () => { try { const t = localStorage.getItem(SETTINGS_TAB_KEY); if (t) localStorage.removeItem(SETTINGS_TAB_KEY); return t } catch { return null } }
 export const SHORTCUTS = [
   ['명령 메뉴', '⌘K'], ['검색', '⌘F'], ['할 일 추가', '⌘N'], ['설정', '⌘, · G → S'],
   ['전체', 'G → A'], ['오늘', 'G → T'], ['내일', 'G → R'], ['다음 7일', 'G → N'], ['기본함', 'G → I'],
@@ -13,7 +17,8 @@ export const SHORTCUTS = [
 const SMART = [['all','전체'],['today','오늘'],['tomorrow','내일'],['next7','다음 7일'],['inbox','기본함'],['filters','필터'],['tags','태그'],['completed','완료'],['wontdo','계획 취소'],['trash','휴지통']]
 export function DesktopSettings({ onClose, initial = authApi() ? 'account' : 'smart' }: { onClose: () => void; initial?: string }) {
   useEffect(()=>{if(new URLSearchParams(location.search).get('window')==='settings'){document.documentElement.dataset.settingsWindow='true';document.title='설정'}},[])
-  const [tab, setTab] = useState(initial)
+  const [tab, setTab] = useState(() => takeTab() ?? initial)
+  useEffect(() => { const on = (e: StorageEvent) => { if (e.key === SETTINGS_TAB_KEY && e.newValue) { const t = takeTab(); if (t) setTab(t) } }; window.addEventListener('storage', on); return () => window.removeEventListener('storage', on) }, [])
   const prefs = usePreferences()
   useEffect(() => { const media = matchMedia('(prefers-color-scheme: dark)'); const apply = () => { document.documentElement.dataset.theme = prefs.followDark && media.matches ? 'dark' : prefs.theme }; apply(); media.addEventListener('change', apply); return () => media.removeEventListener('change', apply) }, [prefs.theme, prefs.followDark])
   const [error, setError] = useState('')
@@ -21,13 +26,14 @@ export function DesktopSettings({ onClose, initial = authApi() ? 'account' : 'sm
   return <Dialog label="설정" className="settings-dialog" onClose={onClose}>
     <nav className="settings-nav" aria-label="설정 항목">
       <button className="icon-btn" aria-label="설정 닫기" onClick={onClose}><X /></button><h2>설정</h2>
-      {([...(authApi() ? [['account','계정',CircleUser]] as const : []),['smart','스마트 목록',ListFilter],['appearance','외관',Palette],['shortcuts','단축키',Keyboard]] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><Icon />{label}</button>)}
+      {([...(authApi() ? [['account','계정',CircleUser]] as const : []),['smart','스마트 목록',ListFilter],['appearance','외관',Palette],['integrations','연동',Plug],['shortcuts','단축키',Keyboard]] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><Icon />{label}</button>)}
     </nav>
     <section className="settings-content">
       {error && <p role="alert" className="form-error">{error}</p>}
       {tab === 'account' && <AccountPane />}
       {tab === 'smart' && <><h2>스마트 목록</h2><div className="settings-card">{SMART.map(([id,label]) => <label className="settings-row" key={id}><span>{label}</span><select aria-label={`${label} 표시`} disabled={id === 'inbox' || !prefs.ready} value={id === 'inbox' ? 'show' : prefs.visibility[id] ?? 'show'} onChange={(e) => void save({smart_list_visibility: JSON.stringify({...prefs.visibility,[id]:e.target.value as Visibility})})}><option value="show">보이기</option><option value="hide">숨기기</option><option value="auto">비어있지 않으면 표시</option></select></label>)}</div></>}
       {tab === 'appearance' && <><h2>테마</h2><ThemePicker save={save} /></>}
+      {tab === 'integrations' && <IntegrationsPane />}
       {tab === 'shortcuts' && <><h2>단축키</h2><div className="settings-card">{SHORTCUTS.map(([label,key]) => <div className="settings-row" key={label}><span>{label}</span><kbd>{window.sprout?.platform === 'win32' ? key.replaceAll('⌘','Ctrl+') : key}</kbd></div>)}</div></>}
     </section>
   </Dialog>

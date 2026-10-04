@@ -33,7 +33,7 @@
 2. 켜진 뒤: 바깥에서 주소 확인 → 데스크톱 기본 `SPROUT_API_URL`·`SPROUT_SYNC_URL`을 Funnel 주소로, 이 Mac 데이터 → Mac mini 옮길지 결정.
 3. 앱 AI를 서버 프록시로: `data/ai.ts`·AI 비서·`growth-ai.ts`가 `POST {API}/ai/<용도>`(Bearer)로, 모델은 `GET /ai/status`. 응답 503/429 처리(0c3c90f 보고 내용은 server/README "AI 프록시").
 4. 실제 앱(Electron)으로 새 탭 전부 육안 확인: 수집함(실제 AI 분류·위키 반영), 작업 지도(목표 선), 성장 리포트, 일기, 라이트·다크.
-5. 사용자 확인 대기 명세: [16 구글 캘린더](docs/screens/16-google-calendar.md)(§0 결정 6개 + Google Cloud OAuth 클라이언트 필요), [20~24 모바일](docs/screens/20-mobile-overview.md)(§0 결정 10개).
+5. **캘린더 연동(16 확정 v1.0, 구글·Apple 읽기) 구현됨** — 실제 구글 연결은 사용자가 OAuth 클라이언트를 만들어야 함(16 부록 A), Apple은 `npm run calendar:build` 후 패키지 앱에서 권한 확인(부록 B). 사용자 확인 대기 명세: [20~24 모바일](docs/screens/20-mobile-overview.md)(§0 결정 10개).
 6. 작은 남은 것: 작업 지도 요청(TaskMenu `prepend`, 토스트 이름 있는 버튼), 06 명세가 구글 명세를 07로 가리킴 → 16으로, AI 상한 숫자 [임시] 실측.
 7. 이후: 외부 백업(R2), 비밀번호 재설정(메일 발송 수단), 패키징·서명, 카톡 채널 챗봇, 캐릭터 정식 그림, 일기 종단 간 암호화 검토.
 

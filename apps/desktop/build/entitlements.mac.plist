@@ -11,6 +11,9 @@
 <dict>
   <key>com.apple.security.cs.allow-jit</key>
   <true/>
+  <!-- 16 §11.4 Apple 캘린더 읽기(하드닝 런타임에서 EventKit 접근) -->
+  <key>com.apple.security.personal-information.calendars</key>
+  <true/>
 
   <!--
     macOS 위젯(WidgetKit, docs/screens/25-mac-widget.md §8.2)과 데이터를 나누는 App Group.

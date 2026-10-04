@@ -5,5 +5,8 @@
 <dict>
   <key>com.apple.security.cs.allow-jit</key>
   <true/>
+  <!-- 16 §11.4 Apple 캘린더 읽기(하드닝 런타임에서 EventKit 접근) -->
+  <key>com.apple.security.personal-information.calendars</key>
+  <true/>
 </dict>
 </plist>

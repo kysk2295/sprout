@@ -1,0 +1,15 @@
+/* 08 §3.1 구글·애플로 계속하기 — 틱틱 웹 실측 288×38 테두리 버튼(카드 입력칸 폭 290에 맞춰 같은 폭) */
+.login__divider { height: 1px; background: var(--color-login-input-border); margin: 6px 0 2px; }
+.login__social {
+  height: 38px; border-radius: 10px; border: 1px solid var(--color-login-input-border); background: var(--color-login-card);
+  color: var(--color-text-primary); font: 500 14px/14px var(--font-family);
+  display: flex; align-items: center; justify-content: center; gap: 10px; cursor: default;
+}
+.login__social:hover:not(:disabled) { background: var(--color-bg-hover, rgba(25, 25, 25, 0.04)); }
+.login__social:focus-visible { outline: none; border: 1.5px solid var(--color-border-input-focus); }
+.login__social:disabled { opacity: 0.5; }
+.login__social[aria-busy='true'] { opacity: 1; }
+.login__social--apple svg { margin-top: -2px; } /* 애플 로고는 글자 기준선에 맞춘다 */
+.login__spinner--dark { border-color: var(--color-login-input-border); border-top-color: var(--color-text-secondary); }
+.login__waiting { margin: -4px 0 0; font: 400 12px/16px var(--font-family); color: var(--color-text-tertiary); text-align: center; }
+.login__waiting button { color: var(--color-accent); font: inherit; }

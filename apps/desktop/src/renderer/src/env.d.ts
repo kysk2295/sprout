@@ -11,6 +11,7 @@ declare global {
     assistant?: import('../../preload').SproutAssistantApi
     collect?: import('../../preload').SproutCollectApi
     ticktick?: import('../../preload').SproutTickTickApi
+    calendars?: import('../../preload').SproutCalendarsApi
       platform: NodeJS.Platform
       db: DbApi
       desktop?: import('../../preload').SproutDesktopApi

@@ -1,6 +1,7 @@
 import type { UsageProvider, UsageSnapshot, UsageLogin } from '../shared/usage'
 import type { ChatInput } from '../shared/assistant'
 import type { TTBundle, TTConnectInput, TTProgress, TTResult, TTStatus } from '../shared/ticktick'
+import type { CalendarsStatus, ConnectProgress, ConnectResult, ExtEvent, Provider } from '../shared/calendars'
 import { contextBridge, ipcRenderer } from 'electron'
 
 type Row = Record<string, unknown>
@@ -32,7 +33,7 @@ const remindersApi = {
   snooze: (fired: Fired, minutes: number) => ipcRenderer.send('reminder:snooze', { fired, minutes })
 }
 
-type AuthState = { user: { id: string; email: string } | null; sync: { connected: boolean; uploading: boolean; downloading: boolean; lastSyncedAt: string | null; error: string | null } }
+type AuthState = { user: { id: string; email: string } | null; newAccount?: boolean; sync: { connected: boolean; uploading: boolean; downloading: boolean; lastSyncedAt: string | null; error: string | null } }
 type AuthResult = { ok: true; state: AuthState } | { ok: false; error: string }
 const authApi = {
   state: () => ipcRenderer.invoke('auth:state') as Promise<AuthState>,
@@ -40,6 +41,10 @@ const authApi = {
   signup: (email: string, password: string) => ipcRenderer.invoke('auth:signup', email, password) as Promise<AuthResult>,
   logout: () => ipcRenderer.invoke('auth:logout') as Promise<AuthState>,
   syncNow: () => ipcRenderer.invoke('auth:sync-now') as Promise<void>,
+  // 08 §3.1 구글·애플로 계속하기 (토큰은 메인 프로세스에만)
+  social: (provider: 'google' | 'apple') => ipcRenderer.invoke('auth:social', provider) as Promise<AuthResult | { ok: false; error: string; code: string }>,
+  socialCancel: () => ipcRenderer.invoke('auth:social-cancel') as Promise<void>,
+  socialStatus: () => ipcRenderer.invoke('auth:social-status') as Promise<{ google: boolean; apple: boolean | null; waiting: 'google' | 'apple' | null }>,
   onState: (cb: (s: AuthState) => void) => on('auth:state', cb)
 }
 
@@ -66,10 +71,28 @@ const ticktickApi = {
   onProgress: (cb: (p: TTProgress) => void) => on('ticktick:progress', cb)
 }
 export type SproutTickTickApi = typeof ticktickApi
+// 16 캘린더 연동(구글·Apple 읽기): 토큰은 메인 프로세스에만, 화면은 상태와 범위 일정만 받는다
+const calendarsApi = {
+  status: () => ipcRenderer.invoke('calendars:status') as Promise<CalendarsStatus>,
+  connect: (provider: Provider) => ipcRenderer.invoke('calendars:connect', provider) as Promise<ConnectResult>,
+  cancel: () => ipcRenderer.invoke('calendars:cancel') as Promise<void>,
+  reopen: () => ipcRenderer.invoke('calendars:reopen') as Promise<void>,
+  events: (from: string, to: string, opts?: { panel?: boolean; accountId?: string }) => ipcRenderer.invoke('calendars:events', from, to, opts) as Promise<ExtEvent[]>,
+  counts: () => ipcRenderer.invoke('calendars:counts') as Promise<Record<string, number>>,
+  setVisibility: (accountId: string, changes: { calendarId: string; visibility: 'show' | 'hide' }[]) => ipcRenderer.invoke('calendars:setVisibility', accountId, changes) as Promise<void>,
+  setPanel: (accountId: string | null, calendarId: string | null, on: boolean) => ipcRenderer.invoke('calendars:setPanel', accountId, calendarId, on) as Promise<void>,
+  refresh: (accountId?: string, force?: boolean) => ipcRenderer.invoke('calendars:refresh', accountId, force) as Promise<void>,
+  disconnect: (accountId: string) => ipcRenderer.invoke('calendars:disconnect', accountId) as Promise<void>,
+  open: (accountId: string, calendarId: string, eventId: string) => ipcRenderer.invoke('calendars:open', accountId, calendarId, eventId) as Promise<void>,
+  openPrivacy: () => ipcRenderer.invoke('calendars:openPrivacy') as Promise<void>,
+  onChanged: (cb: () => void) => on('calendars:changed', cb),
+  onProgress: (cb: (p: ConnectProgress) => void) => on('calendars:progress', cb)
+}
+export type SproutCalendarsApi = typeof calendarsApi
 const collectApi = { linkTitle: (url: string) => ipcRenderer.invoke('collect:link-title', url) as Promise<string> }
 export type SproutCollectApi = typeof collectApi
 const desktopApi = { openSettings: () => ipcRenderer.send('desktop:settings'), onQuickAdd: (cb: () => void) => on('desktop:quick-add', cb) }
-contextBridge.exposeInMainWorld('sprout', { platform: process.platform, assistant: assistantApi, collect: collectApi, ticktick: ticktickApi, usage: usageApi, db: dbApi, reminders: remindersApi, desktop: desktopApi, auth: authApi, mini: miniApi })
+contextBridge.exposeInMainWorld('sprout', { platform: process.platform, calendars: calendarsApi, assistant: assistantApi, collect: collectApi, ticktick: ticktickApi, usage: usageApi, db: dbApi, reminders: remindersApi, desktop: desktopApi, auth: authApi, mini: miniApi })
 export type SproutMiniApi = typeof miniApi
 export type SproutAuthApi = typeof authApi
 export type SproutDesktopApi = typeof desktopApi
