@@ -1,0 +1,75 @@
+# sprout 데스크톱 패키징 설정 (electron-builder). 설명: docs/release/packaging.md
+# 번들 ID는 여기 한 곳에서만 정한다. 위젯 확장(WidgetKit)은 app.sprout.desktop.widget 처럼 이 ID를 접두로 쓴다.
+appId: app.sprout.desktop
+productName: sprout # 가칭 — 정식 제품명이 정해지면 바꾼다
+copyright: Copyright © 2026 sprout
+
+# 패키지 앱의 package.json에만 productName을 넣는다 → app.getName()='sprout',
+# 데이터 폴더 ~/Library/Application Support/sprout (개발 실행은 package.json name 그대로라 @sprout/desktop — 서로 안 섞임)
+extraMetadata:
+  productName: sprout
+
+directories:
+  output: release
+  buildResources: build
+
+# electron-vite 결과물(out/)만 넣는다. 렌더러 라이브러리는 번들에 들어가 있어 node_modules에는
+# 실행 시 필요한 것(@powersync/node + 의존성, better-sqlite3)만 들어간다(package.json dependencies).
+files:
+  - out/**
+  - package.json
+  # 다른 플랫폼용 네이티브 바이너리는 뺀다
+  - "!**/node_modules/@powersync/node/lib/*.linux.so"
+  - "!**/node_modules/@powersync/node/lib/*.dll"
+  - "!**/node_modules/@powersync/node/src/**"
+  - "!**/node_modules/@powersync/node/lib/**/*.map"
+  - "!**/node_modules/better-sqlite3/prebuilds/{linux,linuxmusl,win32}-*.node"
+  - "!**/node_modules/better-sqlite3/{src,deps}/**"
+
+# asar를 끈다: @powersync/node의 기본 워커가 import.meta.url 기준으로 확장(.dylib)을 sqlite loadExtension(dlopen)으로
+# 여는데, asar 안 경로는 실제 파일이 아니라 로드에 실패한다(asarUnpack만으로는 경로가 app.asar를 가리킨 채 남음).
+# 스파이크(A1)처럼 커스텀 워커로 경로를 app.asar.unpacked로 바꾸면 asar를 다시 켤 수 있다 — packaging.md "알려진 문제" 참고.
+asar: false
+
+# better-sqlite3 13은 Node-API 프리빌드(prebuilds/darwin-*.node)를 써서 Electron용 재빌드가 필요 없다.
+npmRebuild: false
+
+# 트레이 아이콘(src/main/mini.ts가 process.resourcesPath에서 읽음)
+extraResources:
+  - from: resources/trayTemplate.png
+    to: trayTemplate.png
+  - from: resources/trayTemplate@2x.png
+    to: trayTemplate@2x.png
+
+protocols:
+  - name: sprout
+    schemes:
+      - sprout
+
+afterPack: build/after-pack.cjs
+
+mac:
+  category: public.app-category.productivity
+  icon: build/icon.icns
+  target:
+    - target: dmg
+      arch: [arm64]
+    - target: zip
+      arch: [arm64]
+  minimumSystemVersion: "12.0"
+  # Electron UI 문자열 언어(.lproj) — 쓰는 것만 남겨 크기를 줄인다
+  electronLanguages: [ko, en]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.inherit.plist
+  # 위젯 확장은 afterPack에서 자기 entitlements로 먼저 서명한다 — Electron 쪽 서명으로 덮지 않게 건너뜀
+  signIgnore:
+    - "Contents/PlugIns/.*\\.appex"
+  # 공증은 환경 변수(APPLE_API_KEY…/APPLE_ID…/APPLE_KEYCHAIN_PROFILE)가 있을 때만 electron-builder가 자동 수행
+  extendInfo:
+    NSHumanReadableCopyright: Copyright © 2026 sprout
+    LSApplicationCategoryType: public.app-category.productivity
+
+# 예: sprout-0.0.1-arm64.dmg, sprout-0.0.1-arm64.zip (zip은 자동 업데이트용으로 남겨 둠)
+artifactName: ${productName}-${version}-${arch}.${ext}

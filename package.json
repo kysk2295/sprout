@@ -18,6 +18,8 @@
     "test": "npm test -w @sprout/schema",
     "test:desktop": "node scripts/test-desktop-data.mjs",
     "server:schema": "node --experimental-strip-types --no-warnings server/scripts/gen-sql.ts",
-    "test:api": "npm test -w @sprout/api"
+    "test:api": "npm test -w @sprout/api",
+    "dist:mac": "npm run dist:mac -w @sprout/desktop",
+    "dist:mac:release": "npm run dist:mac:release -w @sprout/desktop"
   }
 }

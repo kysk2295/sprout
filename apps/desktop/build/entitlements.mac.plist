@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  sprout 메인 앱 entitlements (Developer ID 배포 + 하드닝 런타임용). 앱 샌드박스는 쓰지 않는다(Developer ID는 필수 아님).
+  - allow-jit: Electron(V8)이 JIT를 쓰므로 하드닝 런타임에서 필수.
+  - disable-library-validation은 넣지 않았다: 네이티브 모듈(better-sqlite3 .node, PowerSync 확장 .dylib)은
+    electron-builder가 같은 팀 ID로 다시 서명하므로 라이브러리 검증을 통과한다. 공증 빌드에서 로드 실패가 나면 그때 추가한다.
+  자세한 설명: docs/release/packaging.md
+-->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+
+  <!--
+    [예정] macOS 위젯(WidgetKit, docs/screens/25-mac-widget.md)과 데이터 공유용 App Group.
+    위젯 확장을 넣을 때 주석을 풀고 TEAMID를 실제 팀 ID(10자리)로 바꾼다. 팀 ID 접두 형식이면
+    Developer ID 배포에서 프로비저닝 프로파일 없이 쓸 수 있다. 위젯 .appex 쪽 entitlements에도 같은 값을 넣는다.
+  <key>com.apple.security.application-groups</key>
+  <array>
+    <string>TEAMID.app.sprout.desktop</string>
+  </array>
+  -->
+</dict>
+</plist>
