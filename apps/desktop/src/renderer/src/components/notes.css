@@ -1,18 +1,81 @@
-.notes {flex:1;min-width:0;display:flex;flex-direction:column;background:var(--color-bg-app);color:var(--color-text-primary);height:100%;}
-.notes header {display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px 32px;border-bottom:1px solid var(--color-border-divider);}
-.notes h1 {font-size:22px;margin:0;}.notes h2 {font-size:18px;}
-.notes input,.notes textarea,.notes select {font:inherit;color:inherit;background:transparent;border:1px solid var(--color-border-divider);border-radius:8px;padding:10px;min-width:0;}
-.notes button {font:inherit;color:var(--color-accent);background:transparent;border:1px solid var(--color-border-divider);border-radius:6px;padding:7px 12px;cursor:pointer;}
-.notes button:hover {background:var(--color-bg-hover);}.notes button:disabled {opacity:.45;cursor:default;}.notes :focus-visible {outline:2px solid var(--color-accent);outline-offset:2px;}
-.notes__cards {overflow:auto;flex:1;padding:24px 32px;}.notes__cards article {max-width:880px;margin:0 auto 16px;padding:18px;border:1px solid var(--color-border-divider);border-radius:10px;}
-.notes time,.notes small,.notes__empty {color:var(--color-text-tertiary);font-size:12px;}.notes__content {white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;user-select:text;}
-.notes footer {display:flex;gap:8px;flex-wrap:wrap;}.notes textarea {width:100%;box-sizing:border-box;resize:vertical;min-height:90px;}.notes__composer {padding:16px 32px 24px;border-top:1px solid var(--color-border-divider);}.notes__composer>div {display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
-.notes__backdrop {position:fixed;inset:0;background:#0005;z-index:500;display:grid;place-items:center;}.notes__dialog {background:var(--color-bg-app,#fff);width:min(420px,calc(100vw - 64px));padding:24px;border-radius:12px;max-height:85vh;overflow:auto;box-shadow:0 10px 40px #0003;}.notes__dialog label {display:flex;flex-direction:column;gap:6px;margin:12px 0;}.notes__dialog p {font-size:13px;}.notes [role=alert]{color:#d14343;padding:0 16px;}
-@media(max-width:650px){.notes header{flex-wrap:wrap;padding:16px;}.notes__cards,.notes__composer{padding:16px;}}
-.notes__description{margin:8px 0 0;font-size:13px;color:var(--color-text-secondary)}
-.notes__tabs{display:flex;gap:20px;padding:0 32px;border-bottom:1px solid var(--color-border-divider)}
-.notes__tabs [role=tab]{border:0;border-radius:0;border-bottom:2px solid transparent;padding:14px 2px;color:var(--color-text-secondary)}
-.notes__tabs [aria-selected=true]{border-bottom-color:var(--color-accent);color:var(--color-accent)}
-.notes__panel{flex:1;min-height:0;display:flex;flex-direction:column}.notes [hidden]{display:none!important}
-.notes__wiki{flex:1;overflow:auto;padding:40px 32px}.notes__wiki>svg{color:var(--color-accent)}.notes__wiki p,.notes__wiki li{font-size:14px;line-height:1.8;color:var(--color-text-secondary)}.notes__wiki-status{display:inline-block;margin:12px 0;font-size:12px;color:var(--color-text-tertiary)}.notes__wiki ul{padding-left:20px;margin-bottom:24px}
-@media(max-width:650px){.notes__tabs{padding:0 16px}.notes__wiki{padding:24px 16px}}
+/* 11-notes v2: 목록(.list)·행(.row)·상세(.detail) 공통 스타일을 그대로 쓰고, 메모함에만 필요한 것만 여기에 */
+.notes { flex: 1; min-width: 0; display: flex; height: 100%; background: var(--color-bg-app); color: var(--color-text-primary); position: relative; }
+.notes .notes__main { min-width: 0; }
+.notes .notes__title { flex: none; margin-left: 6px; }
+.notes .notes__seg { margin-left: 12px; -webkit-app-region: no-drag; }
+.notes .pane-header__actions { margin-left: auto; }
+
+/* 추가 바: textarea가 한 줄에서 5줄까지 자란다 */
+.notes .notes__addbar { height: auto; min-height: var(--size-addbar-height); align-items: stretch; }
+.notes .notes__addbar .addbar__line { align-items: flex-start; padding: 8px 0; min-height: 0; }
+.notes .notes__addbar .addbar__icon { margin-top: 1px; }
+.notes .notes__addbar-input { resize: none; padding: 0; height: 20px; line-height: 20px; max-height: 100px; overflow-y: auto; font: var(--text-body); }
+.notes .notes__hint { font: var(--text-meta); color: var(--color-text-tertiary); white-space: nowrap; line-height: 20px; }
+.notes .notes__search .addbar__tool { margin-right: -6px; }
+
+.notes .notes__scroll:focus { outline: none; }
+.notes .note-row { cursor: default; }
+.notes .note-row::after { left: calc(12px + 14px + var(--space-row-icon-gap)); }
+.notes .note-row.is-selected::after { display: none; }
+.notes .note-row .row__title { cursor: default; }
+.notes .note-row__icon { width: 14px; height: 14px; flex-shrink: 0; color: var(--color-text-tertiary); stroke-width: 1.6; }
+.notes .note-tag { font: var(--text-small); padding: 1px 6px; border-radius: var(--radius-full); background: var(--color-accent-subtle); color: var(--color-accent); }
+.notes .note-tag.is-gone { background: var(--color-bg-selected); color: var(--color-text-secondary); }
+.notes .notes__mark { background: var(--color-search-highlight); color: inherit; border-radius: 2px; }
+
+.notes .notes__loading { display: flex; flex-direction: column; gap: 20px; padding: 16px 12px; }
+.notes .notes__loading span { height: 10px; border-radius: 4px; background: var(--color-bg-input); width: 70%; }
+.notes .notes__loading span:nth-child(2n) { width: 50%; }
+.notes .notes__empty-icon { width: 48px; height: 48px; color: var(--color-text-quaternary); stroke-width: 1.2; }
+
+/* 상세 패널 336 — 앱 셸의 상세 폭과 같다 */
+.notes .note-detail { flex: none; width: var(--size-detail-width); border-left: 1px solid var(--color-border-divider); }
+.notes .note-detail.detail--empty { gap: 10px; }
+.notes .note-detail__empty-icon { width: 40px; height: 40px; color: var(--color-text-quaternary); stroke-width: 1.2; }
+.notes .note-detail .detail__header { justify-content: space-between; }
+.notes .note-detail__meta { font: var(--text-meta); color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notes .note-detail__title { display: block; width: 100%; border: 0; outline: 0; resize: none; overflow: hidden; background: transparent; color: var(--color-text-primary); padding: 0; margin-bottom: 10px; }
+.notes .note-detail__title::placeholder, .notes .note-detail__body::placeholder { color: var(--color-text-quaternary); }
+.notes .note-detail__body { width: 100%; min-height: 200px; border: 0; outline: 0; resize: none; background: transparent; color: var(--color-text-secondary); font: 400 14px/22px var(--font-family); padding: 0; overflow: hidden; user-select: text; }
+.notes .note-detail__links { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+.notes .note-detail__links a { display: flex; align-items: center; gap: 6px; font: var(--text-meta); color: var(--color-text-link); text-decoration: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.notes .note-detail__links a:hover { text-decoration: underline; }
+.notes .note-detail__links svg { width: 13px; height: 13px; flex-shrink: 0; }
+.notes .note-detail__footer { border-top: 1px solid var(--color-border-divider); }
+.notes .note-detail__link { display: flex; align-items: center; gap: 6px; width: 100%; font: var(--text-meta); color: var(--color-text-link); min-width: 0; }
+.notes .note-detail__link span { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notes .note-detail__link svg { width: 15px; height: 15px; color: var(--color-text-secondary); }
+.notes .note-detail__gone { font: var(--text-meta); color: var(--color-text-tertiary); }
+
+/* 할 일·일정으로 만들기 팝오버 */
+.menu.note-convert { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.note-convert__head { font: var(--text-body-strong); margin-bottom: 4px; }
+.note-convert__title { height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--color-border-divider); background: var(--color-bg-input); padding: 0 10px; font: var(--text-body); color: var(--color-text-primary); outline: none; }
+.note-convert__title:focus { border-color: var(--color-border-input-focus); }
+.note-convert__field { height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: var(--radius-sm); font: var(--text-menu); color: var(--color-text-primary); text-align: left; }
+.note-convert__field:hover { background: var(--color-bg-hover); }
+.note-convert__field > span:last-child { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.note-convert__field.is-today > span:last-child, .note-convert__field.is-future > span:last-child { color: var(--color-accent); }
+.note-convert__field.is-overdue > span:last-child { color: var(--color-text-danger); }
+.note-convert__label { width: 40px; color: var(--color-text-tertiary); }
+.note-convert__note { margin: 4px 0 0; font: var(--text-meta); color: var(--color-text-tertiary); }
+.note-convert__error { margin: 0; font: var(--text-meta); color: var(--color-text-danger); }
+.note-convert__actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+.note-convert__actions button { height: 28px; padding: 0 12px; border-radius: var(--radius-sm); font: var(--text-menu); background: var(--color-bg-selected); color: var(--color-text-primary); }
+.note-convert__actions button.is-primary { background: var(--color-accent); color: #fff; }
+.note-convert__actions button:disabled { opacity: .45; }
+
+/* 주제 위키(아직 주제 없음 상태) */
+.notes .notes__wiki { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.notes .notes__wiki-banner { display: flex; align-items: center; gap: 8px; margin: 0 var(--space-list-gutter); padding: 8px 12px; border-radius: var(--radius-sm); background: var(--color-accent-subtle); font: 400 13px/18px var(--font-family); }
+.notes .notes__wiki-banner svg { width: 14px; height: 14px; color: var(--color-accent); flex-shrink: 0; }
+.notes .notes__wiki-banner span { flex: 1; }
+.notes .notes__wiki-banner button { height: 26px; padding: 0 10px; border-radius: var(--radius-sm); background: var(--color-accent); color: #fff; font: var(--text-menu); }
+.notes .notes__wiki-banner button:disabled { opacity: .45; }
+.notes .notes__back { margin-top: 14px; height: 28px; padding: 0 12px; border-radius: var(--radius-sm); background: var(--color-bg-selected); font: var(--text-menu); color: var(--color-text-primary); }
+
+/* 좁은 창: 상세가 목록 위에 겹친다(02 §2와 같다) */
+@media (max-width: 760px) {
+  .notes .note-detail:not(.detail--empty) { position: absolute; inset: 0 0 0 auto; width: min(var(--size-detail-width), 100%); box-shadow: var(--shadow-modal); z-index: 5; background: var(--color-bg-app); }
+  .notes .note-detail.detail--empty { display: none; }
+}
