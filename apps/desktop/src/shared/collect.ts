@@ -156,6 +156,7 @@ function looseItems(raw: string): unknown[] | null {
 /** 글에 날짜·시각 말이 있는가. 없으면 모델이 날짜를 지어내도 버린다(작은 모델이 "아이디어"에도 날짜를 붙인다) */
 const DATE_WORDS = /(오늘|내일|낼|모레|글피|요일|주말|평일|이번\s*주|다음\s*주|담주|다음\s*달|이번\s*달|월말|월초|\d{1,2}\s*시|\d{1,2}:\d{2}|\d{1,2}\s*\/\s*\d{1,2}|\d{1,2}\s*월|\d{1,2}\s*일|아침|점심|저녁|밤|새벽|오전|오후|정오|자정|까지|마감|today|tomorrow|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{4}-\d{2}-\d{2})/i
 export const hasDateWords = (text: string) => DATE_WORDS.test(text)
+const TIME_WORDS = /(\d{1,2}\s*시|\d{1,2}:\d{2}|오전|오후|정오|자정|아침|점심|저녁|밤|새벽|tonight|\d{1,2}\s*(?:am|pm))/i
 
 const p2 = (n: number) => String(n).padStart(2, '0')
 const ymd = (d: Date) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
@@ -206,6 +207,8 @@ export function parseClassified(raw: string, items: ClassifyItem[], listIds: str
     let start = clip(v.start, 16), due = clip(v.due, 16)
     if ((start && !validDate(start)) || (due && !validDate(due)) || !hasDateWords(item.text)) start = due = ''
     if (!start) due = fixWeekday(item.text, due, item.sentIso)
+    // 시각 말이 없는데 시각을 붙이면(작은 모델이 '금요일까지'를 T00:00으로 낸다) 날짜만 남긴다 — 2026-10-04 E2E
+    if (!TIME_WORDS.test(item.text)) { start = start.slice(0, 10); due = due.slice(0, 10) }
     if (start && (!due || start.length !== due.length || start >= due)) { due = start; start = '' }
     const section: WikiSection = v.section === 'overview' || v.section === 'questions' ? v.section : 'key'
     seen.add(item.id)

@@ -64,7 +64,7 @@
 | `notes`(칸 추가) | `kind`(`memo`/`task`/`link`/`wiki`), `kind_source`(`ai`/`user`), `ai_state`(`pending`/`done`/`failed`), `suggestion`(할 일 제안 JSON: 제목·날짜·리스트), `url`, `link_title`, `seen_at`(봤어요), `topic_id`, `source`(`app`/`kakao_import`/`kakao_channel`), `captured_at`(원래 보낸 시각), `fingerprint`(중복 막기) | 기존 메모는 `kind=memo`로 본다 |
 | `wiki_topics`(새로) | common + `name`, `source`, `content`(구역별 글 JSON), `locked`(직접 고친 구역 목록), `version` | 주제 페이지 |
 | `wiki_versions`(새로) | common + `topic_id`, `version`, `content`, `reason` | 이력·되돌리기 |
-- AI 입력: 항목 글·링크 제목·현재 주제 이름 목록(제목·글까지 — 개인정보: 수집함 글은 Mac mini에서 처리됨을 처음 쓸 때 알린다). 모델 출력은 앱이 검증(종류는 4개 중 하나, 날짜는 v2 전환 검사와 같게).
+- AI 입력: 항목 글·링크 제목·현재 주제 이름 목록(제목·글까지 — 개인정보: 수집함 글은 Mac mini에서 처리됨을 처음 쓸 때 알린다). 모델 출력은 앱이 검증(종류는 4개 중 하나, 날짜는 v2 전환 검사와 같게. **글에 시각 말(N시·오전·오후·저녁 등)이 없으면 모델이 붙인 시각은 떼고 날짜만** — `금요일까지`가 금요일 오전 12:00(그날 새벽에 바로 지남)으로 제안되던 것, 2026-10-04 E2E).
 - ⚠️ 칸 추가 + 새 테이블 2개 → 서버 스키마·마이그레이션 필요(작업 지도·일기와 함께 적용).
 
 ## v3-7. 완료 기준

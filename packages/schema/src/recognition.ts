@@ -34,6 +34,10 @@ export function recognize(raw: string, lists: { id: string; name: string }[] = [
       if (explicit) {
         const parsed = new Date(`${explicit[1]}T12:00`)
         if (!Number.isNaN(parsed.getTime()) && dateKey(parsed) === explicit[1]) { date = explicit[1]; consume(explicit[0]) }
+      } else {
+        // 04 §1: 요일만 쓰면 가장 가까운 그 요일(오늘 포함). '월'처럼 한 글자는 다른 뜻이 많아 '요일'까지 쓴 것만
+        const bare = title.match(/(?:^|\s)([일월화수목금토])요일(?=\s|$)/)
+        if (bare) { date = addDays(today, (WEEKDAY_KO.indexOf(bare[1]) - now.getDay() + 7) % 7); consume(bare[0]) }
       }
     }
   }

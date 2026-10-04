@@ -12,4 +12,9 @@ assert.equal(recognize('내일의 계획', [], [], now).title, '내일의 계획
 const r = recognize('기획 #업무 ~회사 !높음', [{id:'l',name:'회사'}], [{id:'t',name:'업무'}], now)
 assert.deepEqual([r.title,r.list_id,r.tag_ids,r.priority], ['기획','l',['t'],3])
 assert.equal(recognize('작업 #없는태그').title, '작업 #없는태그')
-console.log('recognition: 10 assertions passed')
+// E2E(2026-10-04): 요일만 쓴 '금요일 오전 10시 보고서'가 오늘 10시로 잡히던 것
+assert.equal(recognize('금요일 오전 10시 보고서 제출', [], [], now).due_at, '2027-01-01T10:00')
+assert.equal(recognize('금요일 오전 10시 보고서 제출', [], [], now).title, '보고서 제출')
+assert.equal(recognize('목요일 회의', [], [], now).due_at, '2026-12-31')
+assert.equal(recognize('월요일엔 쉬기', [], [], now).due_at, null)
+console.log('recognition: 14 assertions passed')
