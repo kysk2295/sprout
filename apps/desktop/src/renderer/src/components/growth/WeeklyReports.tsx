@@ -5,6 +5,7 @@ import { carryMissed, markReportSeen, retryReport, thisWeek, useWeeklyReports, t
 import { useQuery } from '../../data/useQuery'
 import { CharacterArt } from './CharacterArt'
 import './growth-report.css'
+import { OverdueWeekLine } from '../overdue/OverdueBits' // 19 §4 이번 주 만료 줄
 
 // 10 §5 오른쪽 칸: 주간 리포트 목록 — 주 행을 누르면 아래에 펼친다(가장 최근 주는 처음부터 펼침)
 const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}시간${m % 60 ? ` ${m % 60}분` : ''}` : `${m}분`)
@@ -23,6 +24,7 @@ export function WeeklyReports({ diary }: { diary?: Diary } = {}) {
   return (
     <section className={`growth-card${diary ? ' gs-diary' : ''}`}>
       <h3 className="growth-card__title">{diary ? `${diary.name}의 일기` : '주간 리포트'}</h3>
+      <OverdueWeekLine voice={!!diary} />
       {reports && !reports.length && <p className="growth-card__empty">{diary ? `한 주가 끝나면 ${subj(diary.name)} 일기를 써요. 이번 주에 해낸 것과 다음 주에 같이 할 일을 적어 둘게요.` : '한 주가 끝나면 이번 주에 해낸 것과 다음 주 제안이 여기에 쌓여요.'}</p>}
       {reports?.map((r) => {
         const on = r.week_start === shown

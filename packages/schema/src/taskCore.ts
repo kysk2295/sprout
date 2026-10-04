@@ -202,3 +202,42 @@ export async function planReopenWithXp(db: CoreDb, ids: string[], env: CoreEnv):
   const del = await planDeleteHard(db, plan.records)
   return [...plan.stmts, ...revoke, ...del]
 }
+
+/** 반복 할 일의 "오늘 이후 첫 회차"(오늘 포함). 반복이 끝났으면 null */
+export function nextOccurrenceOnOrAfter(rule: string, from: string, today: string): string | null {
+  const r = parseRule(rule)
+  if (!r) return null
+  let d = datePart(from)
+  for (let i = 0; i < 2000 && d < today; i++) {
+    const n = nextOccurrence(r, d, 'due')
+    if (!n) return null
+    d = n
+  }
+  return d
+}
+
+/**
+ * XP 없는 완료(19 밀린 일 정리 §3.3): 정리 과정의 완료·"지난 일정 완료 처리"는 XP를 주지 않는다 — xp_events를 쓰지 않는 별도 경로.
+ * 일반 할 일은 하위와 함께 완료(planComplete와 같음). 반복 할 일은 완료 기록 없이 오늘 이후 첫 회차로 넘기고,
+ * 남은 회차가 없으면 완료한다. 부르는 쪽은 성장 반응(sprout:task-done)을 보내지 않는다.
+ */
+export async function planCompleteNoXp(db: CoreDb, ids: string[], env: CoreEnv): Promise<{ stmts: Stmt[]; open: string[]; repeating: string[] }> {
+  if (!ids.length) return { stmts: [], open: [], repeating: [] }
+  const at = nowOf(env)
+  const rows = await db.getAll<Row>(`SELECT id, start_at, due_at, repeat_rule FROM tasks WHERE id IN (${marks(ids.length)}) AND status = 0`, ids)
+  const repeating = rows.filter((r) => r.repeat_rule && r.due_at)
+  const plainTop = rows.filter((r) => !repeating.includes(r)).map((r) => r.id as string)
+  const all = await descendantsOf(db, plainTop)
+  const open = all.length ? (await db.getAll<{ id: string }>(`SELECT id FROM tasks WHERE status = 0 AND id IN (${marks(all.length)})`, all)).map((r) => r.id) : []
+  const stmts: Stmt[] = open.map((id) => updateStmt('tasks', id, { status: 1, completed_at: at }, at))
+  for (const t of repeating) {
+    const start = (t.start_at ?? t.due_at) as string
+    // 이번 회차 다음부터, 오늘 이후 첫 회차로(지난 회차는 기록 없이 건너뜀)
+    const rule = parseRule(t.repeat_rule as string)
+    const after = rule ? nextOccurrence(rule, datePart(start), 'due') : null
+    const next = after ? nextOccurrenceOnOrAfter(t.repeat_rule as string, after, env.today) : null
+    if (!next) { stmts.push(updateStmt('tasks', t.id as string, { status: 1, completed_at: at }, at)); continue }
+    stmts.push(updateStmt('tasks', t.id as string, { ...moveSpanToDate(t as { start_at: string | null; due_at: string }, next) }, at))
+  }
+  return { stmts, open, repeating: repeating.map((r) => r.id as string) }
+}

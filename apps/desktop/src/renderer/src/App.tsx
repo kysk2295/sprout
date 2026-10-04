@@ -36,6 +36,7 @@ import { MiniWindow } from './components/MiniWindow'
 import { DesktopSettings } from './components/DesktopSettings'
 import { ExtAgenda } from './components/calendars/ExtSidebar'
 import { CalendarConnectHost } from './components/calendars/ConnectHost'
+import { OverdueHost, openOverdueCleanup } from './components/overdue/OverdueBits'
 
 const SIDEBAR = { def: 261, min: 200, max: 400 } // 실측 261
 const DETAIL = { def: 298, min: 260, max: 560 } // 02 §0 실측 298
@@ -199,6 +200,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   useEffect(() => window.sprout?.desktop?.onQuickAdd(() => setOverlay('quick')), [])
   const commands:Command[] = [
     {id:'new',label:'할 일 추가',key:'⌘N',group:'공통 작업',run:()=>setOverlay('quick')},
+    {id:'overdue-cleanup',label:'밀린 일 정리',group:'공통 작업',run:()=>openOverdueCleanup()},
     {id:'ticktick-import',label:'틱틱에서 가져오기',group:'공통 작업',run:openTickTickImport},
     {id:'tasks',label:'할일',group:'내비게이션',run:()=>setView('tasks')},
     {id:'calendar',label:'달력',group:'내비게이션',run:()=>setView('calendar')},
@@ -218,6 +220,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
         <LevelUpWatcher />
         <CalendarConnectHost />
         <TickTickImportHost onOpenMap={() => setView('map')} onOpenCalendar={() => setView('calendar')} />
+        <OverdueHost />
         <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}} offset={view === 'tasks' && (!drawer || selection.length > 0) ? detailW : undefined}/>
         <ReminderCards onOpen={(id) => setSelection([id])} onComplete={(id) => void actions.complete([id])} />
         <Rail view={view} onView={setView} sync={sync} email={email} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} />

@@ -1,4 +1,4 @@
-import { ArrowRightToLine, CalendarDays, Check, Clock, Flag, Tag, Trash2, X } from 'lucide-react'
+import { ArrowRightToLine, CalendarDays, Check, Clock, Flag, SquareX, Tag, Trash2, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useQuery } from '../data/useQuery'
 import type { ListRow, TagRow, TaskRow } from '../data/types'
@@ -34,6 +34,8 @@ export function BatchPanel({ ids, lists, tags, actions, onClear }: { ids: string
         <button ref={refs.list} className="batch__tool" onClick={() => toggle('list')}><ArrowRightToLine /><span>이동</span></button>
         <button ref={refs.tag} className="batch__tool" onClick={() => toggle('tag')}><Tag /><span>태그</span></button>
         <button className="batch__tool" onClick={() => { void actions.complete(ids); onClear() }}><Check /><span>완료</span></button>
+        {/* 19 §2: 밀린 일을 빼는 길 — "하지 않음"(계획 취소)을 완료 옆에 눈에 띄게 */}
+        <button className="batch__tool" title="하지 않음(계획 취소)으로 표시 — 목록에서 빠지고 계획 취소 목록에 남아요" onClick={() => { void actions.wontDo(ids, true); onClear() }}><SquareX /><span>하지 않음</span></button>
         <button className="batch__tool is-danger" onClick={() => { void actions.trash(ids); onClear() }}><Trash2 /><span>삭제</span></button>
       </div>
       {menu === 'date' && (

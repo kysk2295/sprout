@@ -28,6 +28,8 @@ import { loadSchedule } from '../data/schedule'
 import type { Schedule } from '../lib/taskActions'
 import { INDENT, TaskRowView } from './TaskRow'
 import { useToast } from './Toast'
+import { FoldRow, OverdueCard, useFoldSetting, YesterdayBand } from './overdue/OverdueBits'
+import { isFolded } from '../data/overdue'
 
 // 02-task-list §3~§12: 머리 · 추가 바 · 그룹 · 행 · 선택/키보드 · 끌어 놓기 · 우클릭 메뉴 · 완료 영역 · 빈 상태
 type Props = {
@@ -41,7 +43,7 @@ type Props = {
   actions: TaskActions
   onToggleSidebar: () => void
 }
-type Group = { id: string; name: string; rows: FlatRow[]; count: number }
+type Group = { id: string; name: string; rows: FlatRow[]; count: number; folded?: number }
 type MenuState = { ids: string[]; point?: { x: number; y: number }; anchor?: HTMLElement }
 type DropTarget =
   | { kind: 'calendar'; target: CalendarDrop }
@@ -120,20 +122,31 @@ export function TaskListView(props: Props) {
   const [renamingSection, setRenamingSection] = useState<string>()
 
   // ── 그룹 · 트리 ──
-  const { groups, flat } = useMemo(() => {
-    if (!tasks) return { groups: [] as Group[], flat: [] as FlatRow[] }
+  // 19 §4: 오늘 화면에서 7일 넘은 만료는 한 줄로 접는다(설정 › 할 일, 기본 켬)
+  const [foldSetting] = useFoldSetting()
+  const fold = foldSetting && view === 'smart:today' && settings.group_by === 'time'
+  const { groups, flat, overdueIds } = useMemo(() => {
+    if (!tasks) return { groups: [] as Group[], flat: [] as FlatRow[], overdueIds: [] as string[] }
     const { roots, kids } = childrenMap(tasks)
     const g = archive ? grouping('none', lists, today) : grouping(settings.group_by, lists, today, tags, sections)
     const out: Group[] = []
-    const push = (id: string, name: string, rs: TaskRow[], keep = false) => {
-      if (!rs.length && !keep) return
+    const push = (id: string, name: string, rs: TaskRow[], keep = false, folded = 0) => {
+      if (!rs.length && !keep && !folded) return
       const all = flattenTree(rs, kids, id, new Set())
-      out.push({ id, name, rows: collapsedGroups.has(id) ? [] : flattenTree(rs, kids, id, collapsedTasks), count: all.length })
+      out.push({ id, name, rows: collapsedGroups.has(id) ? [] : flattenTree(rs, kids, id, collapsedTasks), count: all.length + folded, folded })
     }
     if (!archive) push(PINNED_GROUP.id, PINNED_GROUP.name, roots.filter((r) => r.pinned_at))
-    for (const d of g.defs) push(d.id, d.name, roots.filter((r) => (archive || !r.pinned_at) && g.of(r) === d.id), d.keep)
-    return { groups: out, flat: out.flatMap((x) => x.rows) }
-  }, [tasks, archive, settings.group_by, lists, tags, sections, today, collapsedGroups, collapsedTasks])
+    for (const d of g.defs) {
+      const rs = roots.filter((r) => (archive || !r.pinned_at) && g.of(r) === d.id)
+      if (d.id === 'overdue' && fold) {
+        const old = rs.filter((r) => isFolded(r, today))
+        push(d.id, d.name, rs.filter((r) => !isFolded(r, today)), d.keep, old.length)
+      } else push(d.id, d.name, rs, d.keep)
+    }
+    // 만료됨 머리 "미루기"는 접힌 것·접힌 묶음까지 만료 전부를 옮긴다(19 §2)
+    const overdueIds = settings.group_by === 'time' && !archive ? roots.filter((r) => !r.pinned_at && g.of(r) === 'overdue').map((r) => r.id) : []
+    return { groups: out, flat: out.flatMap((x) => x.rows), overdueIds }
+  }, [tasks, archive, settings.group_by, lists, tags, sections, today, collapsedGroups, collapsedTasks, fold])
   const groupOf = useMemo(() => {
     const g = grouping(settings.group_by, lists, today, tags, sections)
     return (t: TaskRow) => (t.pinned_at ? PINNED_GROUP.id : g.of(t))
@@ -582,6 +595,7 @@ export function TaskListView(props: Props) {
       )}
       <div className="list__scroll" ref={scrollRef} onPointerDown={startBox}>
         {empty && (
+        {view === 'smart:today' && <YesterdayBand today={today} onMove={(ids) => void actions.moveDates(ids, today, `어제 못 한 ${ids.length}개를 오늘로 옮겼어요`)} />}
           view === 'smart:today' ? <EmptyState title="오늘 할 일이 없어요" hint="입력창을 눌러 추가하세요" />
             : archive ? <EmptyState title={view === 'smart:trash' ? '휴지통이 비어 있어요' : '태스크가 없어요'} />
               : <EmptyState title="할 일이 없어요" hint="입력창을 눌러 추가하세요" />
@@ -609,7 +623,7 @@ export function TaskListView(props: Props) {
                   <span className="group__name">{g.name}</span>
                 )}
                 <span className="group__count">{g.count}</span>
-                {g.id === 'overdue' && <PostponeLink rows={g.rows} today={today} actions={actions} />}
+                {g.id === 'overdue' && <PostponeLink ids={overdueIds} today={today} actions={actions} />}
                 {g.id.startsWith('s:') && g.id !== 's:none' && (
                   <button className="group__more" aria-label="섹션 메뉴" onClick={(e) => { e.stopPropagation(); setSectionMenu({ id: g.id.slice(2), anchor: e.currentTarget }) }}><MoreHorizontal /></button>
                 )}
@@ -617,7 +631,9 @@ export function TaskListView(props: Props) {
             )}
             {g.rows.map(renderRow)}
           </section>
+            {g.id === 'overdue' && (view === 'smart:today' || view === 'smart:all') && !collapsedGroups.has(g.id) && <OverdueCard today={today} />}
         ))}
+            {g.id === 'overdue' && !!g.folded && !collapsedGroups.has(g.id) && <FoldRow count={g.folded} />}
         {showDone && doneTasks.length > 0 && (
           <section className="group done">
             <div className="group__header done__header" onClick={() => toggleGroup('done')}>
@@ -684,19 +700,23 @@ const completedLabel = (iso: string | null) => {
   return `${d.getMonth() + 1}월 ${d.getDate()}일`
 }
 
-/** 02 §5 만료됨 "미루기" → 오늘로 · 내일로 · 다음 주로 (날짜 지정은 M2) */
-function PostponeLink({ rows, today, actions }: { rows: FlatRow[]; today: string; actions: TaskActions }) {
+/**
+ * 02 §5 · 19 §2 [틱틱] 만료됨 "미루기": 누르면 만료 전부를 오늘로(시각 유지) + 토스트 되돌리기.
+ * 우클릭하면 내일로 · 다음 주로 · 날짜 지정 메뉴 [sprout]
+ */
+function PostponeLink({ ids, today, actions }: { ids: string[]; today: string; actions: TaskActions }) {
   const ref = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [pick, setPick] = useState(false)
   const to = async (offset: number, label: string) => {
     setOpen(false)
-    const top = rows.filter((r) => r.depth === 0).map((r) => r.task.id)
-    await actions.moveDates(top, dayKey(offset, new Date(`${today}T00:00`)), label)
+    if (ids.length) await actions.moveDates(ids, dayKey(offset, new Date(`${today}T00:00`)), label)
   }
   return (
     <>
-      <button ref={ref} className="group__action" onClick={(e) => { e.stopPropagation(); setOpen(!open) }}>미루기</button>
+      <button ref={ref} className="group__action" title="만료된 할 일을 모두 오늘로 (우클릭: 다른 날)"
+        onClick={(e) => { e.stopPropagation(); void to(0, `${ids.length}개를 오늘로 미뤘어요`) }}
+        onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(!open) }}>미루기</button>
       {open && (
         <Popover anchor={ref.current} onClose={() => setOpen(false)} align="end" width={160} className="menu">
           <MenuItem label="오늘로" onClick={() => void to(0, '오늘로 미뤘어요')} />
@@ -710,7 +730,7 @@ function PostponeLink({ rows, today, actions }: { rows: FlatRow[]; today: string
           variant="date-only"
           initial={{ ...EMPTY_SCHEDULE, due_at: today }}
           anchor={ref.current}
-          onSave={(s) => { if (s.due_at) void actions.moveDates(rows.filter((r) => r.depth === 0).map((r) => r.task.id), datePart(s.due_at), '미뤘어요') }}
+          onSave={(s) => { if (s.due_at && ids.length) void actions.moveDates(ids, datePart(s.due_at), '미뤘어요') }}
           onClose={() => setPick(false)}
         />
       )}
