@@ -40,3 +40,15 @@ export async function deleteOrganization(kind:OrganizationKind,id:string){
     await run(...links.map(t=>remove('task_tags',t.id)),...children.map(t=>update('tags',t.id,{parent_id:null})),remove('tags',id))
   }
 }
+/** 이름으로 태그를 찾고, 없으면 만든다(02 §4 `#새태그`, 05 태그 고르기 "새 태그 만들기"). 이름 순서대로 id를 돌려준다 */
+export async function ensureTags(names:string[]):Promise<string[]>{
+  const db=await getDb()
+  const ids:string[]=[]
+  for(const raw of names){
+    const name=raw.trim()
+    if(!name)continue
+    const found=await db.get<{id:string}>('SELECT id FROM tags WHERE name=? LIMIT 1',[name])
+    ids.push(found?found.id:await saveOrganization('tag',undefined,{name,color:null,parent_id:null}))
+  }
+  return ids
+}

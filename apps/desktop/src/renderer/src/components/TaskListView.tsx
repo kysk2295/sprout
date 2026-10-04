@@ -2,7 +2,10 @@ import { ArrowUpDown, CalendarDays, ChartGantt, Check, Columns3, List, Rows3, Sq
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent } from 'react'
 import { useQuery } from '../data/useQuery'
 import type { Stmt } from '../data/db'
-import { createTask, run, setViewSetting, snapshot, update, updateTask, withDescendants } from '../data/mutations'
+import { createTask, run, setTag, setViewSetting, snapshot, update, updateTask, withDescendants } from '../data/mutations'
+import { ensureTags } from '../data/organization'
+import { parseAdd } from '../lib/addParse'
+import { highlightRecognized } from './DesktopEntry'
 import type { ListRow, SectionRow, TagRow, TaskRow } from '../data/types'
 import { createSection, deleteSection, renameSection } from '../data/sections'
 import {
@@ -553,13 +556,17 @@ export function TaskListView(props: Props) {
           <MenuItem label="삭제" onClick={() => { const id = sectionMenu.id; setSectionMenu(undefined); void deleteSection(id, (tasks ?? []).filter((t) => t.section_id === id).map((t) => t.id)) }} />
         </Popover>
       )}
-      {!archive && inboxId && (
+      {!archive && (inboxId || view.startsWith('list:')) && (
         <AddBar
           placeholder={addbarPlaceholder(view)}
-          onCreate={async (title, content, schedule, priority) => {
-            const id = await createTask({ title, ...newTaskDefaults(view, inboxId), priority })
+          lists={lists}
+          tags={tags}
+          onCreate={async (title, content, schedule, priority, extra) => {
+            const defaults = newTaskDefaults(view, inboxId ?? '')
+            const id = await createTask({ title, ...defaults, ...(extra?.list_id ? { list_id: extra.list_id } : {}), priority })
             if (content) await updateTask(id, { content })
             if (schedule?.due_at) await actions.applySchedule([id], schedule)
+            for (const tagId of extra?.tag_ids ?? []) if (tagId !== defaults.tag_id) await setTag([id], tagId, true)
           }}
         />
       )}
@@ -579,7 +586,7 @@ export function TaskListView(props: Props) {
             : archive ? <EmptyState title={view === 'smart:trash' ? '휴지통이 비어 있어요' : '태스크가 없어요'} />
               : <EmptyState title="할 일이 없어요" hint="입력창을 눌러 추가하세요" />
         )}
-        {allDone && <EmptyState title="모두 완료했어요" />}
+        {allDone && <EmptyState variant="done" title="모두 완료했어요" />}
         {groups.map((g) => (
           <section key={g.id} className="group" data-group={g.id}>
             {g.name && (
@@ -711,22 +718,40 @@ function PostponeLink({ rows, today, actions }: { rows: FlatRow[]; today: string
   )
 }
 
-/** 02 §4·§0 추가 바: 포커스되면 강조색 테두리 + 오른쪽 📅(날짜 선택기) · ⌄(우선순위) */
-function AddBar({ placeholder, onCreate }: { placeholder: string; onCreate: (title: string, content?: string, schedule?: Schedule, priority?: number) => Promise<void> }) {
+/** 02 §4·§0 추가 바: 포커스되면 강조색 테두리 + 오른쪽 📅(날짜 선택기) · ⌄(우선순위).
+ *  자연어 인식(02 §4): 날짜·시각 문구 하이라이트 + 결과 칩(문구는 제목에 남김), #태그(없으면 새로 만듦) · ~리스트 · !우선순위 */
+type AddExtra = { list_id?: string; tag_ids?: string[] }
+function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; lists: ListRow[]; tags: TagRow[]; onCreate: (title: string, content?: string, schedule?: Schedule, priority?: number, extra?: AddExtra) => Promise<void> }) {
   const input = useRef<HTMLInputElement>(null)
   const desc = useRef<HTMLTextAreaElement>(null)
   const dateBtn = useRef<HTMLButtonElement>(null)
   const moreBtn = useRef<HTMLButtonElement>(null)
+  const saving = useRef(false)
+  const [raw, setRaw] = useState('')
+  const [scroll, setScroll] = useState(0)
+  const [recognition, setRecognition] = useState(true)
   const [descOpen, setDescOpen] = useState(false)
   const [focused, setFocused] = useState(false)
   const [schedule, setSchedule] = useState<Schedule>()
   const [priority, setPriority] = useState(0)
   const [pop, setPop] = useState<'date' | 'priority'>()
+  const parsed = useMemo(() => parseAdd(raw, lists.map((l) => ({ id: l.id, name: l.kind === 'inbox' ? '기본함' : l.name })), tags, { keepDate: true }), [raw, lists, tags])
+  const p = recognition ? parsed : undefined
+  const inferred: Schedule | undefined = p?.due_at
+    ? { ...EMPTY_SCHEDULE, due_at: p.due_at, is_all_day: p.due_at.includes('T') ? 0 : 1, repeat_rule: p.repeat_rule, repeat_from: p.repeat_rule ? 'due' : null, reminders: p.due_at.includes('T') ? ['-PT0M'] : [] }
+    : undefined
+  const chip = !schedule && inferred ? rowDateLabel({ due_at: inferred.due_at }, dayKey()) : null
   const submit = async () => {
-    const title = input.current?.value.trim()
-    if (!title) return
-    await onCreate(title, desc.current?.value.trim() || undefined, schedule, priority || undefined)
-    input.current!.value = ''
+    const title = p ? p.title : raw.trim()
+    if (!title || saving.current) return
+    saving.current = true
+    try {
+      const tagIds = p ? [...p.tag_ids, ...(await ensureTags(p.newTags))] : []
+      await onCreate(title, desc.current?.value.trim() || undefined, schedule ?? inferred, priority || p?.priority || undefined, { list_id: p?.list_id, tag_ids: tagIds })
+    } finally { saving.current = false }
+    setRaw('')
+    setScroll(0)
+    setRecognition(true)
     if (desc.current) desc.current.value = ''
     setDescOpen(false)
     setSchedule(undefined)
@@ -742,28 +767,43 @@ function AddBar({ placeholder, onCreate }: { placeholder: string; onCreate: (tit
     >
       <div className="addbar__line">
         <Plus className="addbar__icon" />
-        <input
-          ref={input}
-          className="addbar__input"
-          placeholder={placeholder}
-          onKeyDown={(e) => {
-            if (e.nativeEvent.isComposing) return // 한글 조합 중 Enter 무시
-            if (e.key === 'Enter' && e.shiftKey) {
-              e.preventDefault()
-              setDescOpen(true)
-              requestAnimationFrame(() => desc.current?.focus())
-            } else if (e.key === 'Enter') void submit()
-            else if (e.key === 'Escape') {
-              e.currentTarget.value = ''
-              setDescOpen(false)
-              e.currentTarget.blur()
-            }
-          }}
-        />
+        <span className="addbar__field">
+          {p && p.tokens.length > 0 && (
+            <span className="addbar__highlight" aria-hidden="true"><span style={{ transform: `translateX(-${scroll}px)` }}>{highlightRecognized(raw, p.tokens)}</span></span>
+          )}
+          <input
+            ref={input}
+            className="addbar__input"
+            spellCheck={false}
+            placeholder={placeholder}
+            value={raw}
+            onChange={(e) => setRaw(e.target.value)}
+            onScroll={(e) => setScroll(e.currentTarget.scrollLeft)}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return // 한글 조합 중 Enter 무시
+              if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault()
+                setDescOpen(true)
+                requestAnimationFrame(() => desc.current?.focus())
+              } else if (e.key === 'Enter') void submit()
+              else if (e.key === 'Escape') {
+                setRaw('')
+                setRecognition(true)
+                setDescOpen(false)
+                e.currentTarget.blur()
+              }
+            }}
+          />
+        </span>
+        {chip && (
+          <button className={`addbar__chip is-${chip.tone}`} title="눌러서 인식 해제" onMouseDown={(e) => e.preventDefault()} onClick={() => { setRecognition(false); input.current?.focus() }}>
+            <CalendarDays />{chip.label}
+          </button>
+        )}
         {active && (
           <span className="addbar__tools">
-            <button ref={dateBtn} className={`addbar__tool${schedule?.due_at ? ' is-set' : ''}`} aria-label="날짜" onMouseDown={(e) => e.preventDefault()} onClick={() => setPop(pop === 'date' ? undefined : 'date')}><CalendarDays /></button>
-            <button ref={moreBtn} className="addbar__tool" aria-label="우선순위" style={priority ? { color: flagColor(priority) } : undefined} onMouseDown={(e) => e.preventDefault()} onClick={() => setPop(pop === 'priority' ? undefined : 'priority')}><ChevronDown /></button>
+            <button ref={dateBtn} className={`addbar__tool${(schedule ?? inferred)?.due_at ? ' is-set' : ''}`} aria-label="날짜" onMouseDown={(e) => e.preventDefault()} onClick={() => setPop(pop === 'date' ? undefined : 'date')}><CalendarDays /></button>
+            <button ref={moreBtn} className="addbar__tool" aria-label="우선순위" style={priority || p?.priority ? { color: flagColor(priority || p?.priority || 0) } : undefined} onMouseDown={(e) => e.preventDefault()} onClick={() => setPop(pop === 'priority' ? undefined : 'priority')}><ChevronDown /></button>
           </span>
         )}
       </div>
@@ -783,11 +823,11 @@ function AddBar({ placeholder, onCreate }: { placeholder: string; onCreate: (tit
         />
       )}
       {pop === 'date' && (
-        <DatePicker initial={schedule ?? EMPTY_SCHEDULE} anchor={dateBtn.current} onSave={(s) => setSchedule(s)} onClose={() => { setPop(undefined); input.current?.focus() }} />
+        <DatePicker initial={schedule ?? inferred ?? EMPTY_SCHEDULE} anchor={dateBtn.current} onSave={(s) => setSchedule(s)} onClose={() => { setPop(undefined); input.current?.focus() }} />
       )}
       {pop === 'priority' && (
         <Popover anchor={moreBtn.current} align="end" onClose={() => { setPop(undefined); input.current?.focus() }} className="menu">
-          <PriorityRow value={priority} onPick={(p) => { setPriority(p); setPop(undefined); input.current?.focus() }} />
+          <PriorityRow value={priority || p?.priority || 0} onPick={(v) => { setPriority(v); setPop(undefined); input.current?.focus() }} />
         </Popover>
       )}
     </div>

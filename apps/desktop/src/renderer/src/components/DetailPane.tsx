@@ -1,3 +1,4 @@
+import { DetailEmptyArt } from './EmptyState'
 import {
   Baseline, CalendarDays, Repeat, Check, ChevronUp, ArrowUpToLine, Copy, Flag, GripVertical, Link, List, ListTree, MoreHorizontal, PinOff, Plus, SquareArrowRight, SquareX, Tag, Trash2, X
 } from 'lucide-react'
@@ -28,6 +29,7 @@ export function DetailPane({ taskId, ...rest }: Props) {
     return (
       <aside className="detail detail--empty">
         <div className="detail__drag" />
+        <DetailEmptyArt />
         <p className="detail__empty-text">태스크 제목을 누르면 자세히 볼 수 있어요</p>
       </aside>
     )

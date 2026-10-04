@@ -31,12 +31,13 @@ export function LoginScreen() {
   return (
     <div className="login">
       <div className="login__drag" />
-      <form className="login__card" onSubmit={(e) => { e.preventDefault(); void submit() }}>
+      <form className="login__card" noValidate onSubmit={(e) => { e.preventDefault(); void submit() }}>
         <h1 className="login__title">{mode === 'login' ? '로그인' : '등록하기'}</h1>
         <input
           ref={emailRef}
           className="login__input"
           type="email"
+          spellCheck={false}
           autoComplete="email"
           placeholder="이메일"
           value={email}

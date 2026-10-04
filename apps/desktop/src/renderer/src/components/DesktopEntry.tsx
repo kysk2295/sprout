@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, Flag, Inbox, Plus, Search, X } from 'lucide-react'
-import { recognize } from '@sprout/schema/recognition'
+import { parseAdd } from '../lib/addParse'
+import { dayKey, detailDateLabel } from '../lib/dates'
+import { ensureTags } from '../data/organization'
 import { getDb } from '../data/db'
 import { insert, run, uuid } from '../data/mutations'
 import type { ListRow, TagRow } from '../data/types'
@@ -18,7 +20,7 @@ export function CommandMenu({ commands, onSearch, onClose }: { commands: Command
   const root = useRef<HTMLDivElement>(null)
   useEffect(() => { root.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({block:'nearest'}) },[index])
   return <Dialog label="명령 메뉴" className="command-dialog" onClose={onClose}>
-    <div className="command-input"><input data-autofocus placeholder="명령어를 입력하거나 검색하세요." value={query} onChange={(e) => {setQuery(e.target.value);setIndex(0)}} role="combobox" aria-expanded aria-controls="command-results" aria-activedescendant={results[index] ? `cmd-${results[index].id}` : undefined} onKeyDown={(e) => { if(e.nativeEvent.isComposing)return; if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){e.preventDefault();setIndex((i)=>(i+(e.key==='ArrowDown'?1:-1)+results.length)%results.length)} if(e.key==='Enter' && results[index]){e.preventDefault();choose(results[index])} }}/><kbd>⌘K</kbd></div>
+    <div className="command-input"><input data-autofocus spellCheck={false} placeholder="명령어를 입력하거나 검색하세요." value={query} onChange={(e) => {setQuery(e.target.value);setIndex(0)}} role="combobox" aria-expanded aria-controls="command-results" aria-activedescendant={results[index] ? `cmd-${results[index].id}` : undefined} onKeyDown={(e) => { if(e.nativeEvent.isComposing)return; if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){e.preventDefault();setIndex((i)=>(i+(e.key==='ArrowDown'?1:-1)+results.length)%results.length)} if(e.key==='Enter' && results[index]){e.preventDefault();choose(results[index])} }}/><kbd>⌘K</kbd></div>
     <div ref={root} id="command-results" role="listbox" className="command-results">{results.map((c,i) => <div key={c.id}>{(i===0 || results[i-1].group!==c.group) && <div className="command-group">{c.group}</div>}<button id={`cmd-${c.id}`} role="option" aria-selected={index===i} className={index===i?'is-active':''} onMouseEnter={()=>setIndex(i)} onClick={()=>choose(c)}><span>{c.label}</span><kbd>{c.key}</kbd></button></div>)}</div>
   </Dialog>
 }
@@ -51,7 +53,7 @@ export function SearchDialog({ initial='', onClose, onPick }: { initial?:string;
   },[query])
   const choose=(r:SearchResult)=>{onClose();onPick(r)}
   return <Dialog label="검색" className="search-dialog" onClose={onClose}>
-    <div className="command-input"><Search size={18}/><input data-autofocus placeholder="검색" value={query} onChange={(e)=>setQuery(e.target.value)} role="combobox" aria-expanded aria-controls="search-results" aria-activedescendant={rows[index]?`search-${index}`:undefined} onKeyDown={(e)=>{if(e.nativeEvent.isComposing)return;if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();setIndex((i)=>Math.max(0,Math.min(rows.length-1,i+(e.key==='ArrowDown'?1:-1))))}if(e.key==='Enter'&&rows[index])choose(rows[index])}}/><button className="icon-btn" aria-label="검색 닫기" onClick={onClose}><X/></button></div>
+    <div className="command-input"><Search size={18}/><input data-autofocus spellCheck={false} placeholder="검색" value={query} onChange={(e)=>setQuery(e.target.value)} role="combobox" aria-expanded aria-controls="search-results" aria-activedescendant={rows[index]?`search-${index}`:undefined} onKeyDown={(e)=>{if(e.nativeEvent.isComposing)return;if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();setIndex((i)=>Math.max(0,Math.min(rows.length-1,i+(e.key==='ArrowDown'?1:-1))))}if(e.key==='Enter'&&rows[index])choose(rows[index])}}/><button className="icon-btn" aria-label="검색 닫기" onClick={onClose}><X/></button></div>
     <div className="command-results" id="search-results" role="listbox" aria-busy={loading}>
       {error?<p className="form-error" role="alert">{error}</p>:loading?<p className="entry-empty" role="status">검색 중…</p>:rows.length?rows.map((r,i)=><button key={`${r.kind}:${r.id}`} id={`search-${i}`} role="option" aria-selected={i===index} className={i===index?'is-active':''} onClick={()=>choose(r)} onMouseEnter={()=>setIndex(i)}><span className={r.status?'search-done':''}>{r.title}<small>{r.subtitle}{r.status===1?' · 완료':r.status===2?' · 계획 취소':''}</small></span></button>):<div className="entry-empty"><Search size={36}/><p>{query.trim()?'검색 결과가 없어요':'작업, 태그, 목록, 필터를 검색합니다.'}</p></div>}
     </div>
@@ -61,7 +63,7 @@ export function QuickAdd({ lists,tags,inboxId,onClose,onCreated }: {lists:ListRo
   const [raw,setRaw]=useState('')
   const [inputScroll,setInputScroll]=useState(0)
   const [recognition,setRecognition]=useState(true)
-  const parsed=useMemo(()=>recognize(raw,lists,tags),[raw,lists,tags])
+  const parsed=useMemo(()=>parseAdd(raw,lists,tags,{keepDate:false}),[raw,lists,tags])
   const [list,setList]=useState<string>()
   const [priority,setPriority]=useState<number>()
   const [schedule,setSchedule]=useState<Schedule>()
@@ -81,23 +83,24 @@ export function QuickAdd({ lists,tags,inboxId,onClose,onCreated }: {lists:ListRo
     try{
       const id=uuid()
       const s=selectedSchedule
+      const tagIds=recognition?[...parsed.tag_ids,...(await ensureTags(parsed.newTags))]:[]
       await run(insert('tasks',{id,title,list_id:listId,content:'',content_mode:'text',status:0,priority:p,start_at:s.start_at,due_at:s.due_at,is_all_day:s.is_all_day,time_zone:'floating',repeat_rule:s.repeat_rule,repeat_from:s.repeat_from,sort_order:-Date.now()}),
-        ...(recognition?parsed.tag_ids:[]).map((tag_id)=>insert('task_tags',{id:uuid(),task_id:id,tag_id})),
+        ...tagIds.map((tag_id)=>insert('task_tags',{id:uuid(),task_id:id,tag_id})),
         ...s.reminders.map((trigger)=>insert('reminders',{id:uuid(),task_id:id,trigger})))
       onClose();onCreated(id,listId)
     }catch{setError('저장하지 못했어요. 입력 내용은 유지됩니다. 다시 시도해 주세요.')}
     finally{saving.current=false;setBusy(false)}
   }
   return <Dialog label="할 일 추가" className="quick-add-dialog" onClose={()=>{if(!saving.current)onClose()}}>
-    <div className="quick-add-input-wrap"><div className="quick-add-highlight" aria-hidden="true"><span style={{transform:`translateX(-${inputScroll}px)`}}>{highlightRecognized(raw,recognition?parsed.recognized:[])}</span></div><input onScroll={e=>setInputScroll(e.currentTarget.scrollLeft)} data-autofocus className="quick-add-title" aria-label="새 할 일" placeholder='"기본함"에 할일 추가' value={raw} onChange={(e)=>setRaw(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'&&!e.nativeEvent.isComposing&&!document.querySelector('.popover')){e.preventDefault();void submit()}}}/></div>
-    {recognition&&parsed.recognized.length>0&&<div className="recognition-summary"><span>{parsed.recognized.join(' · ')}</span><button onClick={()=>setRecognition(false)}>인식 해제</button></div>}
-    <div className="quick-add-tools"><button ref={dateButton} onClick={()=>setPicker(true)}><CalendarDays size={17}/>{selectedSchedule.due_at?.replace('T',' ')??'날짜'}</button><label title="우선순위"><Flag size={17}/><select aria-label="우선순위" value={p} onChange={(e)=>setPriority(Number(e.target.value))}><option value={0}>없음</option><option value={3}>높음</option><option value={2}>중간</option><option value={1}>낮음</option></select></label><label><Inbox size={17}/><select aria-label="리스트" value={listId??''} onChange={(e)=>setList(e.target.value)}>{lists.map((l)=><option key={l.id} value={l.id}>{l.name}</option>)}</select></label><button className="entry-primary" disabled={busy||!title||!listId} onClick={()=>void submit()}><Plus size={16}/>{busy?'저장 중':'추가'}</button></div>
+    <div className="quick-add-input-wrap"><div className="quick-add-highlight" aria-hidden="true"><span style={{transform:`translateX(-${inputScroll}px)`}}>{highlightRecognized(raw,recognition?parsed.tokens:[])}</span></div><input onScroll={e=>setInputScroll(e.currentTarget.scrollLeft)} data-autofocus spellCheck={false} className="quick-add-title" aria-label="새 할 일" placeholder='"기본함"에 할일 추가' value={raw} onChange={(e)=>setRaw(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'&&!e.nativeEvent.isComposing&&!document.querySelector('.popover')){e.preventDefault();void submit()}}}/></div>
+    {recognition&&parsed.tokens.length>0&&<div className="recognition-summary"><span>{parsed.tokens.map(t=>parsed.newTags.includes(t.slice(1))&&t.startsWith('#')?`${t}(새 태그)`:t).join(' · ')}</span><button onClick={()=>setRecognition(false)}>인식 해제</button></div>}
+    <div className="quick-add-tools"><button ref={dateButton} onClick={()=>setPicker(true)}><CalendarDays size={17}/>{selectedSchedule.due_at?detailDateLabel({start_at:selectedSchedule.start_at,due_at:selectedSchedule.due_at},dayKey()).label:'날짜'}</button><label title="우선순위"><Flag size={17}/><select aria-label="우선순위" value={p} onChange={(e)=>setPriority(Number(e.target.value))}><option value={0}>없음</option><option value={3}>높음</option><option value={2}>중간</option><option value={1}>낮음</option></select></label><label><Inbox size={17}/><select aria-label="리스트" value={listId??''} onChange={(e)=>setList(e.target.value)}>{lists.map((l)=><option key={l.id} value={l.id}>{l.name}</option>)}</select></label><button className="entry-primary" disabled={busy||!title||!listId} onClick={()=>void submit()}><Plus size={16}/>{busy?'저장 중':'추가'}</button></div>
     {error&&<p role="alert" className="form-error">{error}</p>}
     {picker&&<DatePicker initial={selectedSchedule} anchor={dateButton.current} onSave={setSchedule} onClose={()=>setPicker(false)}/>}
   </Dialog>
 }
 
-function highlightRecognized(raw:string,tokens:string[]) {
+export function highlightRecognized(raw:string,tokens:string[]) {
  const ranges:{start:number;end:number}[]=[]
  for(const token of tokens){
   let from=0

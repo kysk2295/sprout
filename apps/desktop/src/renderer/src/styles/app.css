@@ -1047,6 +1047,55 @@ html:has(.mini), html:has(.mini) body { background: transparent; }
 .goal__float { position: absolute; right: 40px; top: -6px; font: 800 14px var(--font-family); color: var(--color-accent); animation: orb-up 1.1s ease-out forwards; white-space: nowrap; }
 @keyframes orb-up { from { opacity: 0; transform: translateY(6px); } 25% { opacity: 1; } to { opacity: 0; transform: translateY(-26px); } }
 @media (prefers-reduced-motion: reduce) {
+
+/* ── e2e-core 2026-10-04: 추가 바 자연어 인식(02 §4) ── */
+.addbar__field { position: relative; flex: 1; min-width: 0; display: flex; align-self: stretch; align-items: center; }
+.addbar__field .addbar__input { position: relative; width: 100%; padding: 0; }
+.addbar__highlight { position: absolute; inset: 0; display: flex; align-items: center; overflow: hidden; pointer-events: none; white-space: pre; font: var(--text-body); color: transparent; }
+.addbar__highlight > span { display: block; }
+.addbar__highlight mark { color: transparent; background: color-mix(in srgb, var(--color-accent) 22%, transparent); border-radius: 3px; }
+.addbar__chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: var(--radius-sm); border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent); background: transparent; color: var(--color-accent); font: var(--text-meta); cursor: pointer; white-space: nowrap; }
+.addbar__chip.is-overdue { color: var(--color-text-danger); border-color: color-mix(in srgb, var(--color-text-danger) 45%, transparent); }
+.addbar__chip svg { width: 13px; height: 13px; }
+.addbar__chip:hover { background: var(--color-bg-hover); }
+
+/* ── e2e-core: 필터 편집(07) — 조건 행 + 알약 ── */
+.filter-editor { width: 520px; max-width: calc(100vw - 48px); max-height: calc(100vh - 64px); box-sizing: border-box; }
+.filter-row { display: flex; align-items: flex-start; gap: 12px; padding: 7px 0; }
+.filter-row__label { flex: 0 0 72px; font: var(--text-meta); color: var(--color-text-tertiary); line-height: 26px; }
+.filter-row__value { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; max-height: 92px; overflow-y: auto; }
+.filter-pill { height: 26px; padding: 0 10px; border-radius: var(--radius-full); border: 1px solid var(--color-border-divider); background: transparent; color: var(--color-text-secondary); font: var(--text-meta); cursor: pointer; white-space: nowrap; }
+.filter-pill:hover { background: var(--color-bg-hover); }
+.filter-pill.is-on { border-color: transparent; background: var(--color-accent-subtle); color: var(--color-accent); }
+.filter-select, .filter-input { height: 30px; box-sizing: border-box; padding: 0 10px; border-radius: 4px; border: 1px solid var(--color-border-divider); background: var(--color-bg-input); color: var(--color-text-primary); font: var(--text-body); outline: none; }
+.filter-input { flex: 1; }
+.filter-select:focus, .filter-input:focus, .organization-name input:focus { outline: none; border-color: var(--color-border-input-focus); }
+.organization-dialog p:not(.form-error) { font: var(--text-body); color: var(--color-text-secondary); margin: 12px 0 0; }
+
+/* 목록 영역은 키보드 포커스를 받지만 테두리는 그리지 않는다(틱틱에 없음) */
+.list:focus, .list:focus-visible { outline: none; }
+.detail--empty { flex-direction: column; gap: 14px; }
+.detail__empty-art { opacity: .8; }
+
+/* ── e2e-core: 빠른 추가 도구 줄 — 기본 브라우저 select 모양 대신 글자 버튼 + 작은 ⌄ ── */
+.quick-add-tools select { appearance: none; -webkit-appearance: none; height: 26px; padding: 0 16px 0 2px; border-radius: var(--radius-sm); font: var(--text-meta); color: var(--color-text-secondary); cursor: pointer; outline: none;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 2px center; }
+.quick-add-tools select:hover, .quick-add-tools > button:not(.entry-primary):hover { background-color: var(--color-bg-hover); }
+.quick-add-tools > button:not(.entry-primary) { height: 26px; padding: 0 6px; border-radius: var(--radius-sm); font: var(--text-meta); cursor: pointer; }
+.quick-add-tools svg { width: 15px; height: 15px; color: var(--color-text-tertiary); flex-shrink: 0; }
+.quick-add-tools .entry-primary svg { color: inherit; }
+.quick-add-tools select option { background: var(--color-bg-popover); color: var(--color-text-primary); }
+.quick-add-tools select { field-sizing: content; max-width: 160px; }
+
+/* ── e2e-core: 사이드바 보관 목록 — 일반 항목과 같은 높이·여백, 복원은 호버 때 링크 ── */
+.sidebar-archive { height: var(--size-sidebar-item-height); flex-shrink: 0; margin: 0; padding: 0 10px 0 11px; gap: 8px; border-radius: var(--radius-md); font: var(--text-body); color: var(--color-text-tertiary); text-align: left; }
+.sidebar-archive:hover { background: var(--color-bg-hover); }
+.sidebar-archive svg { width: var(--size-icon-md); height: var(--size-icon-md); stroke-width: 1.6; }
+.sidebar-archive-item { height: 36px; flex-shrink: 0; align-items: center; padding: 0 10px 0 39px; border-radius: var(--radius-md); }
+.sidebar-archive-item:hover { background: var(--color-bg-hover); }
+.sidebar-archive-item button:first-child { flex: 1; min-width: 0; font: var(--text-body); color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0; }
+.sidebar-archive-item button:last-child { font: var(--text-meta); color: var(--color-text-link); opacity: 0; padding: 0; }
+.sidebar-archive-item:hover button:last-child, .sidebar-archive-item button:last-child:focus-visible { opacity: 1; }
   .room__breath, .room__char.is-hop .room__breath, .roadmap__step.is-now, .room__zzz, .weekchart__bar, .xpbar--big > span::after { animation: none !important; }
 }
 @media (max-width: 1100px) { .growth-hero__top { flex-direction: column; } .room { flex-basis: auto; } }
