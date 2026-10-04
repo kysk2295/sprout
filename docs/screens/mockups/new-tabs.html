@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>새 탭 시안</title>
+<style>
+/* 시안 전용: packages/tokens/tokens.css v1.2 값 일부를 그대로 옮겼다 */
+:root{
+  --color-bg-app:#fff;--color-bg-rail:#f8f8f8;--color-bg-input:#f8f8f9;--color-bg-selected:#f1f1f1;--color-bg-hover:#f5f5f5;--color-bg-card:#fafafa;--color-bg-popover:#fff;
+  --color-border-divider:#f3f3f4;--color-border-row:#f4f4f4;--color-border-popover:transparent;
+  --color-text-primary:#191919;--color-text-secondary:#7d7d7d;--color-text-tertiary:#a3a4a7;--color-text-quaternary:#b5b6b8;
+  --color-accent:#4e75f2;--color-accent-subtle:#ecf0fd;--color-danger:#d44343;--color-warn:#efab3e;
+  --color-rail-icon:#a3a4a7;--color-rail-icon-selected:#4e75f2;--color-menu-icon:#7d7d7d;--color-seg-track:#f3f3f3;--color-seg-on:#fff;
+  --card-border:rgba(0,0,0,.06);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Pretendard","Apple SD Gothic Neo",sans-serif;
+  --shadow-popover:0 4px 16px rgba(0,0,0,.1),0 0 0 1px rgba(0,0,0,.04);
+}
+[data-theme=dark]{
+  --color-bg-app:#1a1a1a;--color-bg-rail:#212121;--color-bg-input:#212121;--color-bg-selected:#2c2c2c;--color-bg-hover:#242424;--color-bg-card:#252525;--color-bg-popover:#212121;
+  --color-border-divider:#262626;--color-border-row:#212121;--color-border-popover:#2f2f2f;
+  --color-text-primary:#f2f2f2;--color-text-secondary:#cdcdcd;--color-text-tertiary:#606060;--color-text-quaternary:#474747;
+  --color-accent:#545dfa;--color-accent-subtle:#262a52;--color-rail-icon:#787878;--color-rail-icon-selected:#fff;--color-menu-icon:#969696;--color-seg-track:#1a1a1a;--color-seg-on:#282828;
+  --card-border:#2a2a2a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:400 14px/20px var(--font);background:#0e0e0e;color:var(--color-text-primary);padding:24px 16px 80px}
+html:not([data-theme=dark]) body{background:#e9e9ec}
+.page-head{max-width:1120px;margin:0 auto 18px;display:flex;align-items:center;gap:12px;color:#ddd}
+html:not([data-theme=dark]) .page-head{color:#333}
+.page-head h1{font:700 18px/24px var(--font)}
+.page-head p{font-size:12px;opacity:.7;flex:1}
+.page-head button{font:500 12px var(--font);padding:6px 12px;border-radius:6px;border:1px solid #555;background:transparent;color:inherit;cursor:pointer}
+.label{max-width:1120px;margin:34px auto 10px;color:#bbb;font:600 13px var(--font);display:flex;gap:10px;align-items:baseline}
+html:not([data-theme=dark]) .label{color:#444}
+.label small{font-weight:400;opacity:.75}
+.frame{max-width:1120px;height:720px;margin:0 auto;background:var(--color-bg-app);border-radius:10px;overflow:hidden;display:flex;box-shadow:0 10px 40px rgba(0,0,0,.35);position:relative}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+svg.sm{width:14px;height:14px}
+/* 레일 */
+.rail{width:55px;background:var(--color-bg-rail);display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:12px;flex-shrink:0}
+.dots{display:flex;gap:8px;margin-bottom:6px}.dots i{width:12px;height:12px;border-radius:50%;background:#ff5f57}.dots i:nth-child(2){background:#febc2e}.dots i:nth-child(3){background:#28c840}
+.rail .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#8fb3ff,#4e75f2);color:#fff;display:grid;place-items:center;font-weight:600;margin-bottom:6px}
+.rail b{width:40px;height:40px;display:grid;place-items:center;color:var(--color-rail-icon);border-radius:6px}
+.rail b svg{width:20px;height:20px}
+.rail b.on{color:var(--color-rail-icon-selected)}
+.rail .sp{flex:1}
+/* 공통 머리: 틱틱 목록 머리 57px, 제목 20/700, 오른쪽 아이콘 */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.head{height:57px;padding:9px 16px 0 21px;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.head h2{font:700 20px/26px var(--font);flex:1;display:flex;align-items:center;gap:10px;min-width:0}
+.ib{width:30px;height:30px;display:grid;place-items:center;color:var(--color-text-secondary);border-radius:6px}
+.ib.hover{background:var(--color-bg-hover)}
+.seg{display:inline-flex;background:var(--color-seg-track);border-radius:6px;padding:2px;gap:2px;border:1px solid var(--color-border-divider)}
+.seg span{font:500 12px/20px var(--font);padding:2px 12px;border-radius:4px;color:var(--color-text-secondary)}
+.seg span.on{background:var(--color-seg-on);color:var(--color-text-primary);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.addbar{margin:0 21px;height:38px;border-radius:6px;background:var(--color-bg-input);display:flex;align-items:center;gap:8px;padding:0 10px;color:var(--color-text-tertiary);flex-shrink:0}
+.addbar.focus{outline:1px solid var(--color-accent);color:var(--color-text-primary)}
+.group{display:flex;align-items:center;gap:6px;padding:14px 21px 6px;font:600 12.5px/16px var(--font);color:var(--color-text-primary)}
+.group .n{color:var(--color-text-tertiary);font-weight:500}
+.chev{color:var(--color-text-tertiary)}
+.row{height:40px;display:flex;align-items:center;gap:8px;padding:0 21px;position:relative;color:var(--color-text-primary)}
+.row::after{content:"";position:absolute;left:43px;right:21px;bottom:0;border-bottom:1px solid var(--color-border-row)}
+.row.sel{background:var(--color-bg-selected);border-radius:6px;margin:0 10px;padding:0 11px}
+.row.sel::after{display:none}
+.row .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .m{font:400 11px/15px var(--font);color:var(--color-text-tertiary)}
+.row .m.acc{color:var(--color-accent)}
+.ico{color:var(--color-text-tertiary)}
+.cb{width:14px;height:14px;border:1.5px solid var(--color-text-tertiary);border-radius:3px;flex-shrink:0}
+.cb.done{background:var(--color-text-tertiary);position:relative}
+.meta{font:400 11px/15px var(--font);color:var(--color-text-tertiary)}
+.acc{color:var(--color-accent)}
+.tag{display:inline-flex;align-items:center;gap:4px;font:500 10.5px/14px var(--font);padding:1px 6px;border-radius:999px;background:var(--color-accent-subtle);color:var(--color-accent)}
+.tag.gray{background:var(--color-bg-selected);color:var(--color-text-secondary)}
+/* 상세 패널 336 */
+.detail{width:336px;border-left:1px solid var(--color-border-divider);display:flex;flex-direction:column;flex-shrink:0}
+.detail .dh{height:57px;padding:9px 12px 0 16px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--color-border-divider)}
+.detail .dh .meta{flex:1}
+.detail .db{padding:16px;flex:1;overflow:hidden}
+.detail h3{font:700 19px/26px var(--font);margin-bottom:10px}
+.detail p{color:var(--color-text-secondary);font-size:14px;line-height:22px;margin-bottom:8px}
+.detail .df{border-top:1px solid var(--color-border-divider);height:44px;display:flex;align-items:center;gap:6px;padding:0 10px 0 16px}
+.detail .df .meta{flex:1}
+.btn{font:500 12px/18px var(--font);padding:5px 10px;border-radius:6px;background:var(--color-bg-selected);color:var(--color-text-primary);display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn.pri{background:var(--color-accent);color:#fff}
+.btn.ghost{background:transparent;color:var(--color-accent);padding-left:4px;padding-right:4px}
+/* 팝오버 메뉴 */
+.menu{position:absolute;background:var(--color-bg-popover);border:1px solid var(--color-border-popover);box-shadow:var(--shadow-popover);border-radius:8px;padding:6px;width:190px;z-index:5}
+.menu div{height:34px;display:flex;align-items:center;gap:10px;padding:0 10px;font:400 12px/20px var(--font);border-radius:4px;color:var(--color-text-primary)}
+.menu div svg{color:var(--color-menu-icon);width:16px;height:16px}
+.menu div.hv{background:var(--color-bg-hover)}
+.menu hr{border:0;border-top:1px solid var(--color-border-divider);margin:4px 0}
+.menu .danger{color:var(--color-danger)}
+.menu .danger svg{color:var(--color-danger)}
+.note-callout{position:absolute;font:500 11px/15px var(--font);background:#ffd166;color:#222;padding:4px 8px;border-radius:4px;z-index:9;max-width:220px;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+/* ── 1. AI 비서 ── */
+.chat{flex:1;overflow:hidden;display:flex;flex-direction:column;align-items:center;padding:8px 21px 0}
+.chat .col{width:100%;max-width:640px;display:flex;flex-direction:column;gap:14px;flex:1}
+.me{align-self:flex-end;background:var(--color-bg-input);padding:8px 12px;border-radius:12px 12px 4px 12px;max-width:75%}
+.ai{display:flex;gap:10px}
+.ai .who{width:26px;height:26px;border-radius:50%;background:var(--color-accent-subtle);color:var(--color-accent);display:grid;place-items:center;flex-shrink:0}
+.ai .who svg{width:15px;height:15px}
+.ai .body{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+.result{border:1px solid var(--card-border);border-radius:8px;overflow:hidden;background:var(--color-bg-card)}
+.result .rh{display:flex;align-items:center;gap:6px;padding:8px 12px;font:600 12px/16px var(--font);color:var(--color-text-secondary);border-bottom:1px solid var(--card-border)}
+.result .rh .n{margin-left:auto;font-weight:500;color:var(--color-text-tertiary)}
+.result .row{padding:0 12px}
+.result .row::after{left:34px;right:12px}
+.result .row:last-child::after{display:none}
+.stat{display:flex;gap:18px;padding:12px}
+.stat div{display:flex;flex-direction:column}
+.stat strong{font:700 20px/26px var(--font)}
+.steps{display:flex;gap:6px;align-items:center;font:400 11px/15px var(--font);color:var(--color-text-tertiary)}
+.steps .on{color:var(--color-accent)}
+.composer{width:100%;max-width:640px;margin:10px auto 6px;background:var(--color-bg-input);border-radius:8px;padding:10px 10px 8px 12px;display:flex;flex-direction:column;gap:6px;outline:1px solid var(--color-accent)}
+.composer .ph{color:var(--color-text-primary);min-height:20px}
+.composer .bar{display:flex;align-items:center;gap:8px}
+.composer .bar .meta{flex:1}
+.send{width:26px;height:26px;border-radius:50%;background:var(--color-accent);color:#fff;display:grid;place-items:center}
+.send svg{width:15px;height:15px}
+.foot{text-align:center;font:400 10.5px/14px var(--font);color:var(--color-text-tertiary);padding-bottom:10px}
+.status{display:inline-flex;align-items:center;gap:6px;font:500 11px/15px var(--font);color:var(--color-text-secondary);padding:4px 8px;border-radius:999px;background:var(--color-bg-input)}
+.status i{width:6px;height:6px;border-radius:50%;background:#3fb950}
+.status.wait i{background:var(--color-warn)}
+.suggest{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.suggest>span{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;background:var(--color-bg-card);border:1px solid var(--card-border);color:var(--color-text-secondary);font-size:13px}
+/* FAB */
+.fab{position:absolute;right:20px;bottom:20px;width:44px;height:44px;border-radius:50%;background:var(--color-accent);color:#fff;display:grid;place-items:center;box-shadow:0 6px 16px rgba(0,0,0,.3)}
+.quick{position:absolute;right:20px;bottom:74px;width:360px;height:470px;background:var(--color-bg-popover);border:1px solid var(--color-border-popover);box-shadow:0 12px 40px rgba(0,0,0,.35);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.quick .qh{height:44px;display:flex;align-items:center;gap:4px;padding:0 8px 0 14px;border-bottom:1px solid var(--color-border-divider)}
+.quick .qh strong{flex:1;font:600 14px/20px var(--font);display:flex;align-items:center;gap:8px}
+.quick .qb{flex:1;padding:12px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.quick .composer{margin:8px 10px 10px;width:auto;outline:none}
+/* ── 2. 메모함 ── */
+.wiki{flex:1;display:flex;min-height:0}
+.topics{width:240px;border-right:1px solid var(--color-border-divider);padding:6px 0;flex-shrink:0}
+.topics .row::after{left:21px}
+.page{flex:1;padding:4px 28px 0;overflow:hidden}
+.page h3{font:700 19px/26px var(--font);display:flex;align-items:center;gap:8px}
+.page .sub{display:flex;align-items:center;gap:8px;margin:6px 0 14px}
+.sec{margin-bottom:16px}
+.sec h4{font:600 12.5px/16px var(--font);color:var(--color-text-secondary);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.sec li{list-style:none;padding:5px 0 5px 14px;position:relative;color:var(--color-text-primary);line-height:21px}
+.sec li::before{content:"";position:absolute;left:2px;top:13px;width:4px;height:4px;border-radius:50%;background:var(--color-text-tertiary)}
+.src{display:inline-flex;align-items:center;font:500 10.5px/14px var(--font);color:var(--color-accent);background:var(--color-accent-subtle);border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:1px}
+.lock{color:var(--color-text-tertiary)}
+.banner{display:flex;align-items:center;gap:8px;margin:0 21px 4px;padding:8px 12px;border-radius:6px;background:var(--color-accent-subtle);color:var(--color-text-primary);font-size:13px}
+.banner .acts{margin-left:auto;display:flex;gap:4px}
+/* ── 3. 작업 지도 (틱틱 칸반) ── */
+.board{flex:1;display:flex;gap:16px;padding:6px 21px 0;overflow:hidden;align-items:flex-start}
+.colm{width:258px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;max-height:100%}
+.colm .ch{height:30px;display:flex;align-items:center;gap:6px;font:600 13px/18px var(--font)}
+.colm .ch .n{color:var(--color-text-tertiary);font-weight:500;flex:1}
+.colm .ch .ib{width:24px;height:24px}
+.sub-h{display:flex;align-items:center;gap:4px;font:600 11.5px/16px var(--font);color:var(--color-text-secondary);padding:6px 2px 2px}
+.sub-h .n{color:var(--color-text-tertiary);font-weight:500}
+.card{background:var(--color-bg-input);border:1px solid var(--color-border-divider);border-radius:4px;padding:10px 12px 10px 16px;display:flex;gap:8px} /* 틱틱 칸반 실측: 폭 258, 1줄 40·2줄 56, 간격 8, 배경 #212121 테두리 #262626 */
+.card .cb{margin-top:3px}
+.card .tt{font-size:13.5px;line-height:20px}
+.card .meta{margin-top:2px}
+.card.drag{transform:rotate(-2deg);box-shadow:0 8px 20px rgba(0,0,0,.4);outline:1px solid var(--color-accent)}
+.card.ghost{border:1px dashed var(--color-accent);background:transparent;height:40px}
+.newcol{color:var(--color-accent);display:flex;align-items:center;gap:6px;font:500 13px/18px var(--font);height:30px;white-space:nowrap}
+.ai-dot{width:5px;height:5px;border-radius:50%;background:var(--color-accent);display:inline-block;margin-left:2px;vertical-align:2px}
+.pin{color:var(--color-text-tertiary)}
+
+/* ── 3-b. 작업 지도 그래프 ── */
+.canvas{position:absolute;left:55px;right:0;top:57px;bottom:0;overflow:hidden;background-image:radial-gradient(var(--color-border-divider) 1px,transparent 1px);background-size:18px 18px}
+.canvas svg.edges{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.edges path{fill:none;stroke:var(--color-text-quaternary);stroke-width:1.5}
+.edges path.hl{stroke:var(--color-accent)}
+.edges path.dash{stroke-dasharray:4 4}
+.node{position:absolute;display:flex;align-items:center;gap:6px;background:var(--color-bg-card);border:1px solid var(--card-border);border-radius:8px;padding:0 10px;font:600 13px/18px var(--font);white-space:nowrap}
+.node .n{color:var(--color-text-tertiary);font-weight:500;flex:1}
+.node .fold{font:500 10.5px/14px var(--font);color:var(--color-text-secondary);background:var(--color-bg-selected);border-radius:4px;padding:1px 5px}
+.node.root{border-radius:999px;background:var(--color-bg-selected);font-size:12px;justify-content:center}
+.node.topic{font-size:12.5px}
+.node.sel{outline:1.5px solid var(--color-accent);background:var(--color-accent-subtle)}
+.node .dot{width:7px;height:7px;border-radius:50%}
+.gcard{position:absolute;width:150px;height:52px;background:var(--color-bg-input);border:1px solid var(--color-border-divider);border-radius:4px;padding:8px 10px;display:flex;gap:8px}
+.gcard .cb{margin-top:3px}.gcard .tt{font-size:12.5px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:104px}
+.gcard.memo{border-style:dashed}
+.dim{opacity:.42}
+.zoomctl{position:absolute;left:16px;bottom:16px;display:flex;flex-direction:column;background:var(--color-bg-popover);border:1px solid var(--color-border-popover);border-radius:8px;box-shadow:var(--shadow-popover);overflow:hidden}
+.zoomctl span{width:30px;height:30px;display:grid;place-items:center;color:var(--color-text-secondary);border-bottom:1px solid var(--color-border-divider)}
+.zoomctl span:last-child{border:0}
+.minimap{position:absolute;right:16px;bottom:16px;width:160px;height:100px;background:var(--color-bg-popover);border:1px solid var(--color-border-popover);border-radius:8px;box-shadow:var(--shadow-popover)}
+.minimap i{position:absolute;background:var(--color-text-quaternary);border-radius:2px;height:5px}
+.minimap b{position:absolute;left:10px;top:12px;width:120px;height:70px;border:1.5px solid var(--color-accent);border-radius:3px}
+/* ── 4. AI 사용량 ── */
+.usage{flex:1;overflow:hidden;padding:0 0 0}
+.ugrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:4px 21px 6px}
+.ucard{background:var(--color-bg-card);border:1px solid var(--card-border);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.ucard .uh{display:flex;align-items:flex-start;gap:8px}
+.ucard .uh div{flex:1;min-width:0}
+.ucard .uh strong{display:block;font:600 14px/20px var(--font);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{font:500 10.5px/14px var(--font);padding:2px 7px;border-radius:999px;background:var(--color-bg-selected);color:var(--color-text-secondary);white-space:nowrap}
+.badge.ok{background:rgba(63,185,80,.14);color:#3fb950}
+.badge.warn{background:rgba(239,171,62,.16);color:var(--color-warn)}
+.win{display:flex;flex-direction:column;gap:5px}
+.win .wl{display:flex;justify-content:space-between;font-size:12.5px}
+.win .wl b{font-weight:600}
+.meter{height:6px;border-radius:999px;background:var(--color-bg-selected);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--color-accent);border-radius:999px}
+.meter.low i{background:var(--color-danger)}
+.ucard .uf{display:flex;align-items:center;gap:6px;border-top:1px solid var(--card-border);padding-top:8px}
+.ucard .uf .meta{flex:1}
+.ucard.empty{align-items:flex-start;justify-content:center;min-height:84px;color:var(--color-text-secondary)}
+.inline-err{display:flex;align-items:center;gap:8px;margin:2px 21px 6px;padding:8px 12px;border-radius:6px;background:var(--color-bg-input);font-size:12.5px;color:var(--color-text-secondary)}
+.inline-err svg{color:var(--color-warn)}
+.inline-err .btn{margin-left:auto}
+.legend{max-width:1120px;margin:10px auto 0;color:#aaa;font-size:12px;line-height:19px}
+html:not([data-theme=dark]) .legend{color:#555}
+.legend b{color:#ffd166;font-weight:600}
+html:not([data-theme=dark]) .legend b{color:#a06a00}
+</style>
+</head>
+<body>
+<div class="page-head">
+  <h1>sprout 새 탭 시안 v1.1</h1>
+  <p>AI 비서 · 메모함(+주제 위키) · 작업 지도 · AI 사용량 — 틱틱 디자인 언어(57px 머리, 추가 바, 40px 행, 336px 상세, 258px 칸반 열)로 다시 그림. 데이터는 예시.</p>
+  <button onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'">라이트/다크 전환</button>
+</div>
+
+<!-- ───────── 1. AI 비서 ───────── -->
+<div class="label">① AI 비서 <small>13-assistant · 대화 중 상태 (등록 결과 + 집계 결과)</small></div>
+<div class="frame">
+  <nav class="rail" data-on="assistant"></nav>
+  <section class="main">
+    <div class="head">
+      <h2>AI 비서</h2>
+      <span class="status"><i></i>sprout AI · 연결됨</span>
+      <span class="ib" data-i="plus" title="새 대화"></span>
+      <span class="ib" data-i="more"></span>
+    </div>
+    <div class="chat"><div class="col">
+      <div class="me">내일 오후 3시에 기획 회의 한 시간 잡아줘</div>
+      <div class="ai"><span class="who" data-i="sparkle"></span><div class="body">
+        <div>기본함에 일정 1개를 등록했어요.</div>
+        <div class="result">
+          <div class="rh"><span data-i="check" class="sm"></span>등록한 일정<span class="n">1</span></div>
+          <div class="row"><span class="cb"></span><span class="t">기획 회의</span><span class="m acc">내일 오후 3:00–4:00</span><span class="ico" data-i="arrow" style="margin-left:6px"></span></div>
+        </div>
+        <div><span class="btn ghost"><span data-i="undo" class="sm"></span>되돌리기</span></div>
+      </div></div>
+      <div class="me">이번 주에 공부 몇 시간 했어?</div>
+      <div class="ai"><span class="who" data-i="sparkle"></span><div class="body">
+        <div>이번 주(10월 1일~7일) 완료한 공부 일정은 <b>6시간</b>이고, 시간이 없는 완료 할 일은 3개예요.</div>
+        <div class="result">
+          <div class="rh"><span data-i="chart" class="sm"></span>완료 기록 · 공부 리스트<span class="n">완료 시각 기준</span></div>
+          <div class="stat"><div><strong>6시간</strong><span class="meta">일정 길이 합계(겹친 시간 포함)</span></div><div><strong>3개</strong><span class="meta">시간 없는 할 일</span></div></div>
+          <div class="row"><span class="cb done"></span><span class="t">논문 1편 읽기</span><span class="m">10월 2일</span></div>
+          <div class="row"><span class="cb done"></span><span class="t">알고리즘 스터디</span><span class="m">10월 3일 · 2시간</span></div>
+        </div>
+        <div class="steps"><span class="on">● 연결</span>›<span class="on">● 해석</span>›<span class="on">● 조회</span>›<span>완료 · 4.2초</span></div>
+      </div></div>
+    </div>
+    <div class="composer"><div class="ph">다음 주 월요일 오전에 할 일 보여줘</div><div class="bar"><span class="meta">Enter 보내기 · Shift+Enter 줄바꿈</span><span class="send" data-i="up"></span></div></div>
+    <div class="foot">sprout AI는 운영자의 Mac mini에서 돌아가요 · 등록 결과는 카드에서 확인하고 되돌릴 수 있어요</div>
+    </div>
+  </section>
+  <div class="menu" style="right:16px;top:50px"><div class="hv"><span data-i="plus"></span>새 대화</div><div><span data-i="cpu"></span>모델: qwen3.5:9b</div><hr><div><span data-i="trash"></span>이 기기 대화 기록 지우기</div></div>
+  <div class="note-callout" style="left:200px;top:18px">⋯ 메뉴 예시. 부제목 없애고 모델 고르기·새 대화는 머리 아이콘으로 옮김</div>
+</div>
+
+<div class="label">①-b AI 비서 빈 상태 + 다른 화면의 빠른 창(FAB) <small>대기열 상태 예시</small></div>
+<div class="frame">
+  <nav class="rail" data-on="tasks"></nav>
+  <section class="main" style="opacity:.55">
+    <div class="head"><h2>오늘</h2><span class="ib" data-i="sort"></span><span class="ib" data-i="more"></span></div>
+    <div class="addbar"><span data-i="plus" class="sm"></span>"오늘"에 할일 추가</div>
+    <div class="group"><span class="chev" data-i="down" ></span>오늘 <span class="n">3</span></div>
+    <div class="row"><span class="cb"></span><span class="t">운영체제 과제 제출</span><span class="m acc">오늘</span></div>
+    <div class="row"><span class="cb"></span><span class="t">팀 회의 자료 정리</span><span class="m acc">오후 2:00</span></div>
+    <div class="row"><span class="cb"></span><span class="t">헬스장</span><span class="m acc">오후 7:00</span></div>
+  </section>
+  <div class="quick">
+    <div class="qh"><strong>AI 비서 <span class="status wait"><i></i>대기 중 · 앞에 1명</span></strong><span class="ib" data-i="expand"></span><span class="ib" data-i="x"></span></div>
+    <div class="qb">
+      <div class="ai"><span class="who" data-i="sparkle"></span><div class="body"><div style="color:var(--color-text-secondary)">할 일을 말로 등록하거나, 내 일정과 완료 기록을 물어보세요.</div>
+        <div class="suggest"><span><span data-i="cal" class="sm"></span>내일 3시 기획 회의 잡아줘</span><span><span data-i="list" class="sm"></span>이번 주 남은 할 일 보여줘</span><span><span data-i="chart" class="sm"></span>지난주에 완료한 거 몇 개야?</span></div></div></div>
+    </div>
+    <div class="composer"><div class="ph" style="color:var(--color-text-tertiary)">무엇이든 물어보세요</div><div class="bar"><span class="meta">Enter 보내기</span><span class="send" data-i="up" style="opacity:.4"></span></div></div>
+  </div>
+  <span class="fab" data-i="x"></span>
+</div>
+
+<!-- ───────── 2. 메모함 ───────── -->
+<div class="label">② 메모함 · 메모 <small>11-notes · 틱틱 "노트" 목록 모양: 추가 바 → 날짜 그룹 → 노트 행 → 오른쪽 상세</small></div>
+<div class="frame">
+  <nav class="rail" data-on="notes"></nav>
+  <section class="main">
+    <div class="head">
+      <h2>메모함 <span class="seg"><span class="on">메모</span><span>주제 위키</span></span></h2>
+      <span class="ib" data-i="search"></span>
+      <span class="ib" data-i="more"></span>
+    </div>
+    <div class="addbar focus"><span data-i="plus" class="sm"></span>스터디 발표 주제 — 강화학습 보상 설계<span style="margin-left:auto" class="meta">Enter 저장</span></div>
+    <div class="group"><span class="chev" data-i="down"></span>오늘 <span class="n">3</span></div>
+    <div class="row sel"><span class="ico" data-i="note"></span><span class="t">졸업 프로젝트 아이디어 — 일정 앱에 성장 캐릭터</span><span class="tag">할 일</span></div>
+    <div class="row"><span class="ico" data-i="note"></span><span class="t">https://arxiv.org/abs/2410.01234 나중에 읽기</span><span class="m">오후 1:12</span></div>
+    <div class="row"><span class="ico" data-i="note"></span><span class="t">면접 질문: 가장 어려웠던 협업 경험</span><span class="m">오전 9:40</span></div>
+    <div class="group"><span class="chev" data-i="down"></span>어제 <span class="n">2</span></div>
+    <div class="row"><span class="ico" data-i="note"></span><span class="t">카페 창업 아이디어 메모</span><span class="m">10월 3일</span></div>
+    <div class="row"><span class="ico" data-i="note"></span><span class="t">운영체제 중간 범위: 프로세스 동기화까지</span><span class="tag gray">일정 · 삭제됨</span></div>
+    <div class="group"><span class="chev" data-i="right"></span>이전 <span class="n">41</span></div>
+  </section>
+  <aside class="detail">
+    <div class="dh"><span class="meta">10월 4일 오전 11:02 작성 · 수정됨</span><span class="ib" data-i="task" title="할 일로 만들기"></span><span class="ib" data-i="more"></span></div>
+    <div class="db">
+      <h3>졸업 프로젝트 아이디어 — 일정 앱에 성장 캐릭터</h3>
+      <p>할 일을 끝낼 때마다 캐릭터가 자라는 구조. 주간 목표는 날짜 없이 "이번 주에 하고 싶은 일"로.</p>
+      <p>참고: 틱틱 UX + 다마고치 느낌. 교수님 면담 때 보여드리기.</p>
+    </div>
+    <div class="df"><span class="meta"><span class="acc">↳ 할 일: 졸업 프로젝트 기획서 초안</span></span><span class="ib" data-i="arrow"></span></div>
+  </aside>
+  <div class="menu" style="right:14px;top:52px"><div class="hv"><span data-i="task"></span>할 일로 만들기</div><div><span data-i="cal"></span>일정으로 만들기</div><div><span data-i="copy"></span>복사</div><hr><div class="danger"><span data-i="trash"></span>삭제</div></div>
+  <div class="note-callout" style="left:380px;top:56px">기존 카드+하단 입력창 → 틱틱식 위 추가 바(Enter 저장) + 행 + 상세 편집으로 변경 — 확인 필요</div>
+</div>
+
+<div class="label">②-b 메모함 · 주제 위키 <small>왼쪽 주제 목록 · 오른쪽 위키 페이지(출처 메모 연결, 직접 고친 구역 보호)</small></div>
+<div class="frame">
+  <nav class="rail" data-on="notes"></nav>
+  <section class="main">
+    <div class="head">
+      <h2>메모함 <span class="seg"><span>메모</span><span class="on">주제 위키</span></span></h2>
+      <span class="ib" data-i="more"></span>
+    </div>
+    <div class="wiki">
+      <div class="topics">
+        <div class="group" style="padding-top:8px">주제 <span class="n">4</span></div>
+        <div class="row sel"><span class="ico" data-i="book"></span><span class="t">졸업 프로젝트</span><span class="m">12</span></div>
+        <div class="row"><span class="ico" data-i="book"></span><span class="t">취업 준비</span><span class="m">8</span></div>
+        <div class="row"><span class="ico" data-i="book"></span><span class="t">읽을 논문</span><span class="m">15</span></div>
+        <div class="row"><span class="ico" data-i="book"></span><span class="t">카페 창업</span><span class="m">4</span></div>
+        <div class="row" style="color:var(--color-accent)"><span data-i="plus" class="sm"></span><span class="t">주제 추가</span></div>
+      </div>
+      <div class="page">
+        <div class="banner" style="margin:0 0 12px"><span data-i="sparkle" class="sm acc"></span>새 메모 3개가 있어요. 정리하면 바뀌는 부분을 먼저 보여드려요.<span class="acts"><span class="btn pri">AI로 정리하기</span><span class="btn">나중에</span></span></div>
+        <h3>졸업 프로젝트</h3>
+        <div class="sub"><span class="meta">메모 12개 · 10월 3일 정리 · 버전 4</span><span class="tag gray">원본 변경 3</span><span style="margin-left:auto" class="btn"><span data-i="history" class="sm"></span>이력</span></div>
+        <div class="sec"><h4>개요</h4><ul><li>할 일 앱에 성장 캐릭터를 붙인 데스크톱 앱. 틱틱 수준의 사용성이 목표 <span class="src">메모 1</span><span class="src">메모 4</span></li></ul></div>
+        <div class="sec"><h4>결정한 것 <span class="lock sm" data-i="lock" title="직접 고친 구역 — 자동 정리가 덮어쓰지 않음"></span><span class="meta">직접 고침</span></h4><ul><li>주간 목표는 날짜 없이 최대 5개, XP는 3개까지 <span class="src">메모 7</span></li><li>캐릭터는 동물 4종, 성향 조사로 배정 <span class="src">메모 9</span></li></ul></div>
+        <div class="sec"><h4>아이디어</h4><ul><li>메뉴바에서 캐릭터 보기 <span class="src">메모 2</span></li><li>주간 리포트를 일요일 밤에 <span class="src">메모 5</span></li></ul></div>
+        <div class="sec"><h4>열린 질문</h4><ul><li>모바일은 v1에 어디까지? <span class="src">메모 11</span></li></ul></div>
+        <div class="sec"><h4>연결된 할 일</h4>
+          <div class="row" style="padding:0"><span class="cb"></span><span class="t">졸업 프로젝트 기획서 초안</span><span class="m acc">10월 8일</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ───────── 3. 작업 지도 ───────── -->
+<div class="label">③ 작업 지도 <small>12-workspace-tabs → 14-work-map · 틱틱 칸반: 열 = 영역, 열 안 그룹 = 세부 주제, 카드 = 할 일·일정</small></div>
+<div class="frame">
+  <nav class="rail" data-on="map"></nav>
+  <section class="main">
+    <div class="head">
+      <h2>작업 지도</h2>
+      <span class="ib" data-i="sparkle" title="AI로 다시 정리"></span>
+      <span class="ib" data-i="filter"></span>
+      <span class="ib hover" data-i="more"></span>
+    </div>
+    <div class="banner"><span data-i="sparkle" class="sm acc"></span>새 할 일 6개를 분류했어요. 직접 옮긴 항목은 그대로 뒀어요.<span class="acts"><span class="btn ghost">바뀐 것 보기</span><span class="btn">되돌리기</span></span></div>
+    <div class="board">
+      <div class="colm">
+        <div class="ch">학교<span class="n">9</span><span class="ib" data-i="plus"></span><span class="ib" data-i="more"></span></div>
+        <div class="sub-h"><span class="chev" data-i="down"></span>운영체제 <span class="n">3</span></div>
+        <div class="card"><span class="cb"></span><div><div class="tt">과제 3 제출</div><div class="meta acc">오늘 23:59</div></div></div>
+        <div class="card"><span class="cb"></span><div><div class="tt">중간고사 범위 복습<span class="ai-dot" title="AI가 분류"></span></div><div class="meta acc">10월 14일</div></div></div>
+        <div class="sub-h"><span class="chev" data-i="down"></span>졸업 프로젝트 <span class="n">4</span></div>
+        <div class="card"><span class="cb"></span><div><div class="tt">기획서 초안</div><div class="meta acc">10월 8일</div></div></div>
+        <div class="card ghost"></div>
+        <div class="sub-h"><span class="chev" data-i="right"></span>알고리즘 <span class="n">2</span></div>
+      </div>
+      <div class="colm">
+        <div class="ch">인턴 · 회사<span class="n">5</span><span class="ib" data-i="plus"></span><span class="ib" data-i="more"></span></div>
+        <div class="sub-h"><span class="chev" data-i="down"></span>결제 리뉴얼 <span class="n">3</span></div>
+        <div class="card"><span class="cb"></span><div><div class="tt">API 명세 리뷰</div><div class="meta acc">내일</div></div></div>
+        <div class="card drag"><span class="cb"></span><div><div class="tt">QA 시나리오 정리 <span class="pin" data-i="pin" style="display:inline-block;vertical-align:-3px" title="직접 옮김"></span></div><div class="meta acc">10월 7일</div></div></div>
+        <div class="sub-h"><span class="chev" data-i="down"></span>주간 회의 <span class="n">2</span></div>
+        <div class="card"><span class="cb"></span><div><div class="tt">팀 회의 자료 정리</div><div class="meta acc">오후 2:00</div></div></div>
+      </div>
+      <div class="colm">
+        <div class="ch">개인<span class="n">6</span><span class="ib" data-i="plus"></span><span class="ib" data-i="more"></span></div>
+        <div class="sub-h"><span class="chev" data-i="down"></span>건강 <span class="n">2</span></div>
+        <div class="card"><span class="cb"></span><div><div class="tt">헬스장</div><div class="meta acc">오후 7:00</div></div></div>
+        <div class="sub-h"><span class="chev" data-i="down"></span>취업 준비 <span class="n">4</span></div>
+        <div class="card"><span class="cb"></span><div><div class="tt">자기소개서 1번 문항</div><div class="meta">날짜 없음</div></div></div>
+        <div class="card"><span class="cb"></span><div><div class="tt">코딩테스트 2문제</div><div class="meta acc">매일</div></div></div>
+      </div>
+      <div class="colm" style="width:200px">
+        <div class="ch" style="color:var(--color-text-secondary)">미분류<span class="n">2</span></div>
+        <div class="card"><span class="cb"></span><div><div class="tt">택배 반품</div><div class="meta">날짜 없음</div></div></div>
+        <div class="newcol" style="margin-top:6px"><span data-i="plus" class="sm"></span>새로운 영역</div>
+      </div>
+    </div>
+  </section>
+  <div class="menu" style="left:612px;top:136px;width:180px"><div><span data-i="pencil"></span>이름 바꾸기</div><div class="hv"><span data-i="merge"></span>다른 영역과 합치기</div><div><span data-i="plus"></span>세부 주제 추가</div><hr><div class="danger"><span data-i="trash"></span>영역 삭제(할 일은 미분류로)</div></div>
+  <div class="note-callout" style="left:600px;bottom:60px;max-width:260px">카드를 끌어 다른 영역·주제로 → 📌 직접 옮김 표시, AI가 다시 정리해도 안 바뀜. 점(•)은 AI가 분류한 항목</div>
+</div>
+
+
+<div class="label">③-b 작업 지도 · 그래프 보기 (기본) <small>14-work-map §0 · 위→아래: 나의 할 일 → 영역 → 세부 주제 → 할 일(시안 ③의 카드 그대로) · '졸업 프로젝트' 선택 시 길 강조</small></div>
+<div class="frame">
+  <nav class="rail" data-on="map"></nav>
+  <section class="main">
+    <div class="head">
+      <h2>작업 지도 <span class="seg"><span class="on">그래프</span><span>보드</span></span></h2>
+      <span class="ib" data-i="sparkle" title="AI로 다시 정리"></span>
+      <span class="ib" data-i="filter"></span>
+      <span class="ib" data-i="more"></span>
+    </div>
+  </section>
+  <div class="canvas">
+    <svg class="edges"><path class="hl" d="M532 42 C532 63.0 192 63.0 192 84"/><path class="" d="M532 42 C532 63.0 555 63.0 555 84"/><path class="" d="M532 42 C532 63.0 870 63.0 870 84"/><path class="" d="M192 124 C192 147.0 100 147.0 100 170"/><path class="hl" d="M192 124 C192 147.0 285 147.0 285 170"/><path class="" d="M555 124 C555 147.0 470 147.0 470 170"/><path class="" d="M555 124 C555 147.0 640 147.0 640 170"/><path class="" d="M870 124 C870 147.0 790 147.0 790 170"/><path class="" d="M870 124 C870 147.0 950 147.0 950 170"/><path class="" d="M32 204 L32 254 Q32 262 40 262 L42 262"/><path class="" d="M32 204 L32 316 Q32 324 40 324 L42 324"/><path class="hl" d="M217 204 L217 254 Q217 262 225 262 L227 262"/><path class="hl" d="M217 204 L217 316 Q217 324 225 324 L227 324"/><path class="" d="M402 204 L402 254 Q402 262 410 262 L412 262"/><path class="" d="M402 204 L402 316 Q402 324 410 324 L412 324"/><path class="" d="M882 204 L882 254 Q882 262 890 262 L892 262"/><path class="" d="M882 204 L882 316 Q882 324 890 324 L892 324"/><path class="hl dash" d="M300 374 C300 340 300 330 300 288"/></svg>
+    <div class="node root" style="left:472px;top:14px;width:120px;height:28px">나의 할 일</div><div class="node " style="left:107px;top:84px;width:170px;height:40px"><span class="dot" style="background:#4e75f2"></span>학교<span class="n">9</span><span class="fold">−</span></div><div class="node  dim" style="left:470px;top:84px;width:170px;height:40px"><span class="dot" style="background:#efab3e"></span>인턴 · 회사<span class="n">5</span><span class="fold">−</span></div><div class="node  dim" style="left:785px;top:84px;width:170px;height:40px"><span class="dot" style="background:#3fb950"></span>개인<span class="n">6</span><span class="fold">−</span></div><div class="node topic dim" style="left:30px;top:170px;width:140px;height:34px">운영체제<span class="n">3</span><span class="fold">−</span></div><div class="node topic sel" style="left:215px;top:170px;width:140px;height:34px">졸업 프로젝트<span class="n">4</span><span class="fold">−</span></div><div class="node topic dim" style="left:400px;top:170px;width:140px;height:34px">결제 리뉴얼<span class="n">3</span><span class="fold">−</span></div><div class="node topic dim" style="left:570px;top:170px;width:140px;height:34px">주간 회의<span class="n">2</span><span class="fold">+2</span></div><div class="node topic dim" style="left:720px;top:170px;width:140px;height:34px">건강<span class="n">2</span><span class="fold">+2</span></div><div class="node topic dim" style="left:880px;top:170px;width:140px;height:34px">취업 준비<span class="n">4</span><span class="fold">−</span></div>
+    <div class="gcard  dim" style="left:42px;top:236px"><span class="cb"></span><div><div class="tt">과제 3 제출</div><div class="meta acc">오늘 23:59</div></div></div><div class="gcard  dim" style="left:42px;top:298px"><span class="cb"></span><div><div class="tt">중간고사 범위 복습</div><div class="meta acc">10월 14일</div></div></div><div class="gcard " style="left:227px;top:236px"><span class="cb"></span><div><div class="tt">교수님 면담 준비</div><div class="meta acc">10월 10일</div></div></div><div class="gcard " style="left:227px;top:298px"><span class="cb"></span><div><div class="tt">기획서 초안</div><div class="meta acc">10월 8일</div></div></div><div class="gcard  dim" style="left:412px;top:236px"><span class="cb"></span><div><div class="tt">API 명세 리뷰</div><div class="meta acc">내일</div></div></div><div class="gcard  dim" style="left:412px;top:298px"><span class="cb"></span><div><div class="tt">QA 시나리오 정리 📌</div><div class="meta acc">10월 7일</div></div></div><div class="gcard  dim" style="left:892px;top:236px"><span class="cb"></span><div><div class="tt">자기소개서 1번 문항</div><div class="meta ">날짜 없음</div></div></div><div class="gcard  dim" style="left:892px;top:298px"><span class="cb"></span><div><div class="tt">코딩테스트 2문제</div><div class="meta acc">매일</div></div></div><div class="gcard memo" style="left:227px;top:374px"><span class="ico" data-i="note"></span><div><div class="tt">졸업 프로젝트 아이디어</div><div class="meta ">메모 · 10월 4일</div></div></div>
+    <div class="zoomctl"><span data-i="plus"></span><span data-i="minus"></span><span data-i="expand"></span></div>
+    <div class="minimap"><i style="left:70px;top:14px;width:20px"></i><i style="left:22px;top:30px;width:30px"></i><i style="left:66px;top:30px;width:30px"></i><i style="left:110px;top:30px;width:30px"></i><i style="left:14px;top:48px;width:132px"></i><i style="left:14px;top:62px;width:132px"></i><i style="left:14px;top:76px;width:132px"></i><b></b></div>
+  </div>
+  <div class="note-callout" style="left:640px;top:400px;max-width:300px">실선 = 포함(영역→주제→할 일), 점선 = 관련(메모→전환된 할 일). 빈 곳 끌기 = 이동, 핀치 = 확대, 노드 끌어 놓기 = 옮기기(📌), +N = 접힌 노드</div>
+</div>
+
+<!-- ───────── 4. AI 사용량 ───────── -->
+<div class="label">④ AI 사용량 <small>10-ai-usage · 머리 아이콘 버튼, 서비스별 접는 그룹(틱틱 그룹 머리), 카드 격자, 친절한 오류</small></div>
+<div class="frame">
+  <nav class="rail" data-on="usage"></nav>
+  <section class="main">
+    <div class="head">
+      <h2>AI 사용량</h2>
+      <span class="meta" style="margin-right:6px">방금 확인 · 5분마다 자동</span>
+      <span class="ib" data-i="refresh" title="전체 갱신"></span>
+      <span class="ib" data-i="plus" title="계정 연결"></span>
+      <span class="ib" data-i="more"></span>
+    </div>
+    <div class="usage">
+      <div class="group"><span class="chev" data-i="down"></span>GPT / Codex <span class="n">2</span></div>
+      <div class="ugrid">
+        <div class="ucard">
+          <div class="uh"><div><strong>개인 Pro</strong><span class="meta">Codex · ChatGPT 일반 채팅 제외 · prolite</span></div><span class="badge ok">최신</span></div>
+          <div class="win"><div class="wl"><span>5시간</span><b>72% 남음</b></div><div class="meter"><i style="width:72%"></i></div><span class="meta">2시간 14분 뒤 초기화 · 오후 4:10</span></div>
+          <div class="win"><div class="wl"><span>주간</span><b>39% 남음</b></div><div class="meter"><i style="width:39%"></i></div><span class="meta">5일 20시간 뒤 초기화 · 10월 10일 (토) 오후 2:13</span></div>
+          <div class="uf"><span class="meta">오후 1:43 확인</span><span class="ib" data-i="more"></span></div>
+        </div>
+        <div class="ucard">
+          <div class="uh"><div><strong>연구실 계정</strong><span class="meta">Codex</span></div><span class="badge warn">다시 로그인 필요</span></div>
+          <div class="win" style="opacity:.55"><div class="wl"><span>주간 · 마지막 확인값</span><b>8% 남음</b></div><div class="meter low"><i style="width:8%"></i></div><span class="meta">10월 2일 확인 — 지금 값은 다를 수 있어요</span></div>
+          <div class="uf"><span class="meta">로그인이 만료됐어요</span><span class="btn pri">다시 로그인</span></div>
+        </div>
+      </div>
+      <div class="group"><span class="chev" data-i="down"></span>Claude <span class="n">0</span></div>
+      <div class="inline-err"><span data-i="alert" class="sm"></span>Claude 한도를 가져오지 못했어요. 잠시 뒤 자동으로 다시 시도해요.<span class="btn">지금 다시 시도</span></div>
+      <div class="ugrid"><div class="ucard empty"><span class="meta">연결된 Claude 계정이 없어요</span><span class="btn ghost" style="padding-left:0"><span data-i="plus" class="sm"></span>Claude 계정 연결</span></div></div>
+      <div class="group"><span class="chev" data-i="right"></span>Grok <span class="n">1</span><span class="meta" style="margin-left:6px">주간 64% 남음</span></div>
+      <div class="group"><span class="chev" data-i="right"></span>Gemini <span class="n">1</span><span class="meta" style="margin-left:6px">앱에서 계정 추가 미지원</span></div>
+    </div>
+  </section>
+  <div class="menu" style="left:250px;top:330px;width:170px"><div><span data-i="pencil"></span>별칭 바꾸기</div><div><span data-i="refresh"></span>이 계정만 갱신</div><div><span data-i="eye"></span>숨기기</div><div><span data-i="arrow"></span>원본 페이지 열기</div><hr><div class="danger"><span data-i="unlink"></span>연결 해제</div></div>
+</div>
+
+<p class="legend"><b>노란 메모</b>는 설명용이며 실제 화면에는 없습니다. 아이콘은 lucide(오픈 라이선스) 모양, 틱틱 자산은 쓰지 않았습니다.</p>
+
+<script>
+const P={
+ tasks:'<path d="M21.8 10A10 10 0 1 1 17 3.3"/><path d="m9 11 3 3L22 4"/>',
+ cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+ sprout:'<path d="M7 20h10M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/>',
+ bot:'<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/>',
+ notes:'<path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4M2 10h4M2 14h4M2 18h4"/><path d="M21.4 5.6a2.1 2.1 0 1 0-3-3L13 8l-1 4 4-1z"/>',
+ map:'<rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3M12 12V8"/>',
+ usage:'<path d="m12 14 4-4"/><path d="M3.3 19a10 10 0 1 1 17.4 0"/>',
+ search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+ sync:'<path d="M3 12a9 9 0 0 1 9-9 9.8 9.8 0 0 1 6.7 2.7L21 8"/><path d="M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.8 9.8 0 0 1-6.7-2.7L3 16"/><path d="M8 16H3v5"/>',
+ bell:'<path d="M10.3 21a1.9 1.9 0 0 0 3.4 0M3.3 15.3A1 1 0 0 0 4 17h16a1 1 0 0 0 .7-1.7C19.4 14 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.4 6-2.7 7.3"/>',
+ help:'<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
+ plus:'<path d="M5 12h14M12 5v14"/>',more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+ sparkle:'<path d="M9.9 15.5A2 2 0 0 0 8.5 14l-6.1-1.6a.5.5 0 0 1 0-1L8.5 10A2 2 0 0 0 10 8.5l1.6-6.1a.5.5 0 0 1 1 0L14 8.5A2 2 0 0 0 15.5 10l6.1 1.6a.5.5 0 0 1 0 1L15.5 14a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z"/>',
+ check:'<path d="M20 6 9 17l-5-5"/>',arrow:'<path d="M7 7h10v10M7 17 17 7"/>',undo:'<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+ chart:'<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9M13 17V5M8 17v-3"/>',up:'<path d="m5 12 7-7 7 7M12 19V5"/>',
+ cpu:'<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>',
+ trash:'<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+ sort:'<path d="m3 16 4 4 4-4M7 20V4M21 8l-4-4-4 4M17 4v16"/>',down:'<path d="m6 9 6 6 6-6"/>',right:'<path d="m9 18 6-6-6-6"/>',
+ expand:'<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',x:'<path d="M18 6 6 18M6 6l12 12"/>',
+ list:'<path d="M3 12h.01M3 18h.01M3 6h.01M8 12h13M8 18h13M8 6h13"/>',
+ note:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 13H8M16 17H8"/>',
+ task:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 12 2 2 4-4"/>',copy:'<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+ book:'<path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+ history:'<path d="M3 12a9 9 0 1 0 9-9 9.8 9.8 0 0 0-6.7 2.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/>',
+ lock:'<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+ filter:'<path d="M22 3H2l8 9.5V19l4 2v-8.5z"/>',pencil:'<path d="M21.2 6.8a2.8 2.8 0 0 0-4-4L3.8 16.2a2 2 0 0 0-.5.8l-1.3 4.4a.5.5 0 0 0 .6.6l4.4-1.3a2 2 0 0 0 .8-.5z"/>',
+ merge:'<path d="m8 6 4-4 4 4M12 2v10.3a4 4 0 0 1-1.2 2.8L4 22M20 22l-5-5"/>',pin:'<path d="M12 17v5M9 10.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 5 15.2V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.8a2 2 0 0 0-1.1-1.8l-1.8-.9A2 2 0 0 1 15 10.8V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
+ refresh:'<path d="M3 12a9 9 0 0 1 9-9 9.8 9.8 0 0 1 6.7 2.7L21 8"/><path d="M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.8 9.8 0 0 1-6.7-2.7L3 16"/><path d="M8 16H3v5"/>',
+ eye:'<path d="M10.7 5.1A10.7 10.7 0 0 1 22 12a10.7 10.7 0 0 1-1.4 2.4M14.1 14.2a3 3 0 0 1-4.2-4.2M17.5 17.5a10.8 10.8 0 0 1-15.4-5.5 10.7 10.7 0 0 1 4.4-5.1M2 2l20 20"/>',
+ unlink:'<path d="m18.8 13.9 1.7-1.7a5 5 0 0 0-7.1-7.1l-1.7 1.7M5.2 10.1l-1.7 1.7a5 5 0 0 0 7.1 7.1l1.7-1.7M8 2v3M2 8h3M16 22v-3M22 16h-3"/>',
+ minus:'<path d="M5 12h14"/>',
+ alert:'<path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3M12 9v4M12 17h.01"/>'
+};
+const svg=(k,c='i')=>`<svg class="${c}" viewBox="0 0 24 24">${P[k]||''}</svg>`;
+document.querySelectorAll('[data-i]').forEach(el=>{el.insertAdjacentHTML('afterbegin',svg(el.dataset.i,el.classList.contains('sm')?'i sm':'i'))});
+document.querySelectorAll('nav.rail').forEach(n=>{const on=n.dataset.on;n.innerHTML='<div class="dots"><i></i><i></i><i></i></div><div class="av">K</div>'+['tasks','cal','sprout','bot','notes','map','usage','search'].map(k=>`<b class="${(k===on||(k==='bot'&&on==='assistant'))?'on':''}">${svg(k)}</b>`).join('')+'<div class="sp"></div>'+['sync','bell','help'].map(k=>`<b>${svg(k)}</b>`).join('')+'<div style="height:14px"></div>'});
+</script>
+</body>
+</html>

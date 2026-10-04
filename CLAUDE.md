@@ -2,6 +2,9 @@
 
 틱틱(TickTick)만큼 편한 할 일·캘린더 앱에 성장 루프(KPI → XP → 캐릭터 진화)를 얹은 제품. 코드네임 `sprout`, 정식 제품명은 출시 전에 정한다.
 
+## 이어받기
+- 새 세션·다른 계정은 먼저 [HANDOFF.md](HANDOFF.md)(현재 상태·다음 할 일·사용자 규칙)를 읽는다. 큰 작업을 마치면 HANDOFF.md를 갱신한다.
+
 ## 정본 문서
 - 제품 범위·결정: [PRD-sprout.md](PRD-sprout.md) — v1 범위 밖 기능은 만들지 않고 백로그로 보낸다.
 - 틱틱 조사 자료: `docs/ticktick-research/` — UI·UX·인터랙션의 근거.
