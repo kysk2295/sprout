@@ -1,5 +1,5 @@
 // 수집함 분류·작업 지도 분류·일기 대화가 같이 쓰는 AI 호출. 경로는 AI 비서와 같다(PRD AI 원칙):
-// 데스크톱 = 메인 프로세스 → SSH → 오너 Mac mini Ollama, 웹 미리보기 = /api/assistant 프록시. [다음] 배포판은 sprout API(/ai/*)
+// 데스크톱 = 메인 프로세스 → sprout API AI 프록시(/ai/<용도>) → Mac mini Ollama (SPROUT_AI_SSH=1이면 SSH 직결), 웹 미리보기 = /api/assistant 프록시
 import { localChat, localModels, type ChatInput } from '../../../shared/assistant'
 
 const MODEL_KEY = 'sprout.assistant.model'
@@ -32,4 +32,5 @@ export async function aiChat(input: Omit<ChatInput, 'model'> & { model?: string 
 }
 
 /** 연결이 안 되는 오류(맥미니 꺼짐·SSH 실패)는 "AI 없음" — 항목 실패가 아니다 */
-export const isUnavailable = (e: unknown) => /연결|connect|fetch|ECONN|timed? ?out|모델|Ollama|abort/i.test(e instanceof Error ? e.message : String(e))
+// 서버 프록시의 503(쓸 수 없음)·429(상한)·로그인 필요도 같은 취급 — 나중에 다시
+export const isUnavailable = (e: unknown) => /연결|connect|fetch|ECONN|timed? ?out|모델|Ollama|abort|쓸 수 없|상한|너무 많|잠시|로그인/i.test(e instanceof Error ? e.message : String(e))

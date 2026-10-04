@@ -24,6 +24,7 @@ const SYSTEM: Record<GrowthAiKind, string> = {
 /** 한 번 묻고 원문(JSON 문자열)을 돌려준다. 검사는 부르는 쪽(data/growth)이 schema 함수로 한다 */
 export async function askGrowthAi(kind: GrowthAiKind, payload: unknown, signal: AbortSignal): Promise<string> {
   return aiChat({
+    purpose: kind === 'weekly_report' ? 'weekly-report' : 'kpi-draft',
     format: kind === 'weekly_report' ? REPORT_FORMAT : DRAFT_FORMAT,
     messages: [
       { role: 'system', content: SYSTEM[kind] },

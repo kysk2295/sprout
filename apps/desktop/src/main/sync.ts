@@ -10,8 +10,9 @@ import { LOCAL_OWNER, TABLES } from '@sprout/schema'
 import { db } from './db'
 import { ensureSeed } from './seed'
 
-const API_URL = process.env.SPROUT_API_URL ?? 'http://127.0.0.1:6060'
-const SYNC_URL = process.env.SPROUT_SYNC_URL ?? 'http://127.0.0.1:8089'
+// 기본 = Mac mini 서버(Tailscale Funnel 공개 주소, 2026-10-05). 이 Mac의 개발 서버는 SPROUT_API_URL=http://127.0.0.1:6060 SPROUT_SYNC_URL=http://127.0.0.1:8089
+const API_URL = process.env.SPROUT_API_URL ?? 'https://macmini.tail425c97.ts.net'
+const SYNC_URL = process.env.SPROUT_SYNC_URL ?? 'https://macmini.tail425c97.ts.net:8443'
 const AUTH_FILE = () => join(app.getPath('userData'), 'auth.bin')
 
 type Session = { user: { id: string; email: string }; access_token: string; refresh_token: string; expires_at: number }
@@ -145,6 +146,8 @@ async function signIn(path: '/auth/login' | '/auth/signup', email: string, passw
 }
 
 export const isSignedIn = () => !!session
+/** 서버 AI 프록시 호출용: API 주소 + 새 접근 토큰(로그인 안 했으면 null) */
+export const serverAccess = async () => ({ url: API_URL, token: await freshToken() })
 
 export async function startSync() {
   session = load()
