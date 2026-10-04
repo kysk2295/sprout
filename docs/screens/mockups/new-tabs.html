@@ -265,6 +265,58 @@ svg.sm{width:14px;height:14px}
 .mbar{display:flex;height:8px;border-radius:999px;overflow:hidden;margin:8px 0 6px}
 .mbar i{display:block;height:100%}
 .rlegend{display:flex;gap:10px;font:400 11px/15px var(--font);color:var(--color-text-tertiary)}
+
+/* ── 2. 수집함 v3 ── */
+.kind{width:16px;height:16px;flex-shrink:0;color:var(--color-text-tertiary);display:grid;place-items:center}
+.kind.task{border:1.5px dashed var(--color-accent);border-radius:3px;width:13px;height:13px}
+.chip{font:500 10.5px/14px var(--font);padding:1px 7px;border-radius:999px;background:var(--color-bg-selected);color:var(--color-text-secondary);white-space:nowrap}
+.chip.acc{background:var(--color-accent-subtle);color:var(--color-accent)}
+.chip.wk{background:rgba(63,185,80,.14);color:#3fb950}
+.chip.src{background:transparent;border:1px solid var(--color-border-divider);color:var(--color-text-tertiary)}
+.mini-btn{font:500 11px/16px var(--font);padding:2px 8px;border-radius:4px;background:var(--color-accent);color:#fff}
+.spin{width:12px;height:12px;border:1.5px solid var(--color-text-quaternary);border-top-color:var(--color-accent);border-radius:50%}
+.progress{height:4px;border-radius:999px;background:var(--color-bg-selected);overflow:hidden;width:140px}
+.progress i{display:block;height:100%;width:38%;background:var(--color-accent)}
+.ai-card{border:1px solid var(--color-border-divider);background:var(--color-bg-card);border-radius:8px;padding:12px;margin-top:6px;display:flex;flex-direction:column;gap:8px}
+.ai-card h4{font:600 12px/16px var(--font);color:var(--color-text-secondary);display:flex;gap:6px;align-items:center}
+.ai-card .f{display:flex;gap:10px;font:400 13px/18px var(--font)}
+.ai-card .f span:first-child{width:36px;color:var(--color-text-tertiary)}
+.ai-card .acts{display:flex;gap:6px;margin-top:2px}
+.ai-card .other{font:400 11px/15px var(--font);color:var(--color-text-tertiary)}
+.yt{width:22px;height:16px;border-radius:4px;background:#e5484d;display:grid;place-items:center;flex-shrink:0}
+.yt::after{content:"";border-left:6px solid #fff;border-top:4px solid transparent;border-bottom:4px solid transparent;margin-left:1px}
+.web{width:22px;height:16px;border-radius:4px;background:var(--color-bg-selected);display:grid;place-items:center;flex-shrink:0;color:var(--color-text-tertiary)}
+.circle{width:14px;height:14px;border:1.5px solid var(--color-text-tertiary);border-radius:50%;flex-shrink:0}
+.domain{font:400 11px/15px var(--font);color:var(--color-text-tertiary);margin-left:6px}
+.modal-scrim{position:absolute;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:8}
+.modal{width:440px;background:var(--color-bg-popover);border:1px solid var(--color-border-popover);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.4);padding:20px;display:flex;flex-direction:column;gap:12px}
+.modal h3{font:700 16px/22px var(--font)}
+.modal ol{padding-left:18px;font:400 12.5px/20px var(--font);color:var(--color-text-secondary)}
+.drop{border:1.5px dashed var(--color-text-quaternary);border-radius:8px;padding:14px;display:flex;gap:10px;align-items:center;font:400 13px/18px var(--font)}
+.drop b{font-weight:600}
+.preview{background:var(--color-bg-selected);border-radius:8px;padding:10px 12px;font:400 12.5px/19px var(--font);color:var(--color-text-secondary)}
+.preview strong{color:var(--color-text-primary)}
+.modal .acts{display:flex;justify-content:flex-end;gap:6px}
+.wnote{display:flex;gap:8px;align-items:center;padding:7px 10px;border-radius:6px;background:var(--color-accent-subtle);font:400 12.5px/18px var(--font);margin-bottom:12px}
+.wnote .sp{flex:1}
+.sec li.new{background:var(--color-accent-subtle);border-radius:4px}
+.wlink{display:flex;align-items:center;gap:8px;padding:5px 0;font:400 13px/18px var(--font)}
+.rel{display:flex;gap:6px;flex-wrap:wrap}
+.rel span{font:500 12px/16px var(--font);color:var(--color-accent);background:var(--color-accent-subtle);border-radius:4px;padding:2px 8px}
+.newdot{width:6px;height:6px;border-radius:50%;background:var(--color-accent);display:inline-block;margin-left:4px}
+/* 일기 대화 */
+.today-strip{display:flex;align-items:center;gap:8px;font:400 12.5px/18px var(--font);color:var(--color-text-secondary);padding:7px 10px;border-radius:6px;background:var(--color-bg-input)}
+.today-strip .xp{font:600 11px/15px var(--font);color:var(--color-accent);background:var(--color-accent-subtle);border-radius:999px;padding:1px 7px}
+.talk-div{display:flex;align-items:center;gap:8px;font:600 12px/16px var(--font);color:var(--color-text-tertiary)}
+.talk-div::before,.talk-div::after{content:"";flex:1;height:1px;background:var(--color-border-divider)}
+.talk{display:flex;flex-direction:column;gap:10px}
+.cmsg{display:flex;gap:8px;align-items:flex-end;max-width:82%}
+.cmsg .cb2{background:var(--color-bg-card);border:1px solid var(--color-border-divider);border-radius:12px 12px 12px 4px;padding:8px 12px;font:400 13.5px/20px var(--font)}
+.umsg{align-self:flex-end;max-width:70%;background:var(--color-accent-subtle);border-radius:12px 12px 4px 12px;padding:8px 12px;font:400 13.5px/20px var(--font)}
+.sugg{display:inline-flex;gap:4px;align-items:center;margin-top:6px;font:500 11.5px/16px var(--font);color:var(--color-accent);border:1px solid var(--color-accent);border-radius:999px;padding:2px 9px}
+.talk-in{display:flex;align-items:center;gap:8px;background:var(--color-bg-input);border-radius:8px;padding:6px 6px 6px 10px}
+.talk-in .ph{flex:1;font:400 13px/18px var(--font);color:var(--color-text-quaternary)}
+.talk-in .send{width:26px;height:26px}
 /* ── 4. AI 사용량 ── */
 .usage{flex:1;overflow:hidden;padding:0 0 0}
 .ugrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:4px 21px 6px}
@@ -295,7 +347,7 @@ html:not([data-theme=dark]) .legend b{color:#a06a00}
 </head>
 <body>
 <div class="page-head">
-  <h1>sprout 새 탭 시안 v1.3</h1>
+  <h1>sprout 새 탭 시안 v1.4</h1>
   <p>AI 비서 · 메모함(+주제 위키) · 작업 지도 · AI 사용량 — 틱틱 디자인 언어(57px 머리, 추가 바, 40px 행, 336px 상세, 258px 칸반 열)로 다시 그림. 데이터는 예시.</p>
   <button onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'">라이트/다크 전환</button>
 </div>
@@ -363,70 +415,91 @@ html:not([data-theme=dark]) .legend b{color:#a06a00}
   <span class="fab" data-i="x"></span>
 </div>
 
-<!-- ───────── 2. 메모함 ───────── -->
-<div class="label">② 메모함 · 메모 <small>11-notes · 틱틱 "노트" 목록 모양: 추가 바 → 날짜 그룹 → 노트 행 → 오른쪽 상세</small></div>
+<!-- ───────── 2. 수집함 ───────── -->
+<div class="label">② 수집함 · 수집 <small>11-notes v3 · 카톡 "나에게 보내기" 대신 — 무엇이든 던지면 AI가 할 일 · 볼 것 · 위키 · 메모로 나눔</small></div>
 <div class="frame">
   <nav class="rail" data-on="notes"></nav>
   <section class="main">
-    <div class="head">
-      <h2>메모함 <span class="seg"><span class="on">메모</span><span>주제 위키</span></span></h2>
-      <span class="ib" data-i="search"></span>
-      <span class="ib" data-i="more"></span>
-    </div>
-    <div class="addbar focus"><span data-i="plus" class="sm"></span>스터디 발표 주제 — 강화학습 보상 설계<span style="margin-left:auto" class="meta">Enter 저장</span></div>
-    <div class="group"><span class="chev" data-i="down"></span>오늘 <span class="n">3</span></div>
-    <div class="row sel"><span class="ico" data-i="note"></span><span class="t">졸업 프로젝트 아이디어 — 일정 앱에 성장 캐릭터</span><span class="tag">할 일</span></div>
-    <div class="row"><span class="ico" data-i="note"></span><span class="t">https://arxiv.org/abs/2410.01234 나중에 읽기</span><span class="m">오후 1:12</span></div>
-    <div class="row"><span class="ico" data-i="note"></span><span class="t">면접 질문: 가장 어려웠던 협업 경험</span><span class="m">오전 9:40</span></div>
-    <div class="group"><span class="chev" data-i="down"></span>어제 <span class="n">2</span></div>
-    <div class="row"><span class="ico" data-i="note"></span><span class="t">카페 창업 아이디어 메모</span><span class="m">10월 3일</span></div>
-    <div class="row"><span class="ico" data-i="note"></span><span class="t">운영체제 중간 범위: 프로세스 동기화까지</span><span class="tag gray">일정 · 삭제됨</span></div>
-    <div class="group"><span class="chev" data-i="right"></span>이전 <span class="n">41</span></div>
+    <div class="head"><h2>수집함 <span class="seg"><span class="on">수집</span><span class="">볼 것</span><span class="">위키</span></span></h2><span class="ib" data-i="search"></span><span class="ib" data-i="more"></span></div>
+    <div class="banner" style="margin-bottom:8px"><span data-i="sparkle" class="sm acc"></span>카카오톡에서 가져온 312개를 정리하는 중 · 120/312<span class="progress" style="margin-left:8px"><i></i></span><span class="acts"><span class="btn">멈추기</span></span></div>
+    <div class="addbar"><span data-i="plus" class="sm"></span>무엇이든 던져 두세요 — 할 일, 링크, 메모</div>
+    <div class="group"><span class="chev" data-i="down"></span>오늘 <span class="n">5</span></div>
+    <div class="row sel"><span class="kind task"></span><span class="t">내일 3시 치과</span><span class="chip acc">할 일 제안 · 내일 오후 3:00</span><span class="mini-btn">등록</span></div>
+    <div class="row"><span class="kind" data-i="link"></span><span class="t">https://youtu.be/k3x… 파이썬 비동기 30분 정리</span><span class="chip">볼 것</span></div>
+    <div class="row"><span class="kind" data-i="book"></span><span class="t">RAG 청크는 512~1024 토큰이 무난, 겹침 10%</span><span class="chip wk">위키 · LLM 공부</span></div>
+    <div class="row"><span class="kind"><span class="spin"></span></span><span class="t">엄마 생신 선물 뭐하지</span><span class="m">정리 중…</span></div>
+    <div class="row"><span class="kind" data-i="note"></span><span class="t">카페 창업 — 동네에 스터디 카페가 없다</span><span class="chip">메모</span></div>
+    <div class="group"><span class="chev" data-i="down"></span>카카오톡에서 가져옴 · 10월 2일 <span class="n">3</span></div>
+    <div class="row"><span class="kind task"></span><span class="t">운영체제 과제 금요일까지</span><span class="chip src">카톡</span><span class="chip">할 일로 등록됨</span></div>
+    <div class="row"><span class="kind" data-i="link"></span><span class="t">https://news.example.com/ai-agents-2026</span><span class="chip src">카톡</span><span class="chip">볼 것</span></div>
+    <div class="row"><span class="kind" data-i="book"></span><span class="t">LangGraph는 상태 그래프로 에이전트 흐름을 짠다</span><span class="chip src">카톡</span><span class="chip wk">위키 · LLM 공부</span></div>
   </section>
   <aside class="detail">
-    <div class="dh"><span class="meta">10월 4일 오전 11:02 작성 · 수정됨</span><span class="ib" data-i="task" title="할 일로 만들기"></span><span class="ib" data-i="more"></span></div>
+    <div class="dh"><span class="meta">오늘 오후 1:12 · 카톡에서 가져옴</span><span class="ib" data-i="more"></span></div>
     <div class="db">
-      <h3>졸업 프로젝트 아이디어 — 일정 앱에 성장 캐릭터</h3>
-      <p>할 일을 끝낼 때마다 캐릭터가 자라는 구조. 주간 목표는 날짜 없이 "이번 주에 하고 싶은 일"로.</p>
-      <p>참고: 틱틱 UX + 다마고치 느낌. 교수님 면담 때 보여드리기.</p>
+      <h3>내일 3시 치과</h3>
+      <div class="ai-card">
+        <h4><span data-i="sparkle" class="sm acc"></span>AI가 할 일로 봤어요</h4>
+        <div class="f"><span>제목</span><span>치과</span></div>
+        <div class="f"><span>날짜</span><span class="acc">내일 오후 3:00</span></div>
+        <div class="f"><span>리스트</span><span>기본함</span></div>
+        <div class="acts"><span class="btn pri">할 일로 등록</span><span class="btn">메모로 두기</span></div>
+        <span class="other">다른 종류로: 볼 것 · 위키 · 메모</span>
+      </div>
     </div>
-    <div class="df"><span class="meta"><span class="acc">↳ 할 일: 졸업 프로젝트 기획서 초안</span></span><span class="ib" data-i="arrow"></span></div>
   </aside>
-  <div class="menu" style="right:14px;top:52px"><div class="hv"><span data-i="task"></span>할 일로 만들기</div><div><span data-i="cal"></span>일정으로 만들기</div><div><span data-i="copy"></span>복사</div><hr><div class="danger"><span data-i="trash"></span>삭제</div></div>
-  <div class="note-callout" style="left:380px;top:56px">기존 카드+하단 입력창 → 틱틱식 위 추가 바(Enter 저장) + 행 + 상세 편집으로 변경 — 확인 필요</div>
+  <div class="note-callout" style="left:430px;bottom:20px">할 일은 자동으로 만들지 않고 제안 → 한 번 눌러 등록(틀린 등록 방지). 링크는 제목·주소만</div>
 </div>
 
-<div class="label">②-b 메모함 · 주제 위키 <small>왼쪽 주제 목록 · 오른쪽 위키 페이지(출처 메모 연결, 직접 고친 구역 보호)</small></div>
+<div class="label">②-b 수집함 · 볼 것 + 카카오톡 대화 가져오기 <small>링크는 제목 · 주소만 저장 · ⋯ → 카카오톡 대화 가져오기(.txt)</small></div>
 <div class="frame">
   <nav class="rail" data-on="notes"></nav>
   <section class="main">
-    <div class="head">
-      <h2>메모함 <span class="seg"><span>메모</span><span class="on">주제 위키</span></span></h2>
-      <span class="ib" data-i="more"></span>
+    <div class="head"><h2>수집함 <span class="seg"><span class="">수집</span><span class="on">볼 것</span><span class="">위키</span></span></h2><span class="ib" data-i="search"></span><span class="ib" data-i="more"></span></div>
+    <div class="group"><span class="chev" data-i="down"></span>안 본 것 <span class="n">5</span></div>
+    <div class="row"><span class="circle"></span><span class="yt"></span><span class="t">파이썬 비동기 30분 정리<span class="domain">youtube.com</span></span><span class="m">오늘</span></div>
+    <div class="row"><span class="circle"></span><span class="web" data-i="link"></span><span class="t">AI 에이전트 2026 동향<span class="domain">news.example.com</span></span><span class="m">10월 2일</span></div>
+    <div class="row"><span class="circle"></span><span class="yt"></span><span class="t">LangGraph 입문 — 상태 그래프 이해하기<span class="domain">youtube.com</span></span><span class="m">9월 30일</span></div>
+    <div class="row"><span class="circle"></span><span class="web" data-i="link"></span><span class="t">카페 창업 비용 정리<span class="domain">blog.example.com</span></span><span class="m">9월 28일</span></div>
+    <div class="group"><span class="chev" data-i="right"></span>다 본 것 <span class="n">12</span></div>
+  </section>
+  <div class="modal-scrim">
+    <div class="modal">
+      <h3>카카오톡 대화 가져오기</h3>
+      <ol><li>카카오톡 "나와의 채팅"(또는 자주 보내던 채팅방)을 열어요</li><li>메뉴 → 대화 내보내기 → 텍스트로 저장</li><li>저장한 파일을 아래에 놓아 주세요</li></ol>
+      <div class="drop"><span data-i="note" class="sm"></span><div><b>KakaoTalkChats.txt</b><div class="meta">186KB</div></div><span style="margin-left:auto" class="btn ghost">다른 파일</span></div>
+      <div class="preview"><strong>메시지 312개</strong> · 2026년 3월 2일 ~ 10월 4일<br>링크 84 · 글 228 · 이미 가져온 40개는 건너뛰어요<br>사진·이모티콘·파일은 빼고 가져와요</div>
+      <div class="acts"><span class="btn">취소</span><span class="btn pri">가져와서 정리하기</span></div>
     </div>
+  </div>
+</div>
+
+<div class="label">②-c 수집함 · 위키 <small>LLM 위키: 새 자료가 들어오면 AI가 알아서 주제 페이지를 고침 · 문장마다 출처 · 주제끼리 연결 · 직접 고친 곳은 보호</small></div>
+<div class="frame">
+  <nav class="rail" data-on="notes"></nav>
+  <section class="main">
+    <div class="head"><h2>수집함 <span class="seg"><span class="">수집</span><span class="">볼 것</span><span class="on">위키</span></span></h2><span class="ib" data-i="search"></span><span class="ib" data-i="more"></span></div>
     <div class="wiki">
       <div class="topics">
-        <div class="group" style="padding-top:8px">주제 <span class="n">4</span></div>
-        <div class="row sel"><span class="ico" data-i="book"></span><span class="t">졸업 프로젝트</span><span class="m">12</span></div>
-        <div class="row"><span class="ico" data-i="book"></span><span class="t">취업 준비</span><span class="m">8</span></div>
-        <div class="row"><span class="ico" data-i="book"></span><span class="t">읽을 논문</span><span class="m">15</span></div>
+        <div class="group" style="padding-top:8px">주제 <span class="n">5</span></div>
+        <div class="row sel"><span class="ico" data-i="book"></span><span class="t">LLM 공부<span class="newdot"></span></span><span class="m">14</span></div>
+        <div class="row"><span class="ico" data-i="book"></span><span class="t">파이썬 비동기</span><span class="m">5</span></div>
+        <div class="row"><span class="ico" data-i="book"></span><span class="t">졸업 프로젝트</span><span class="m">12</span></div>
         <div class="row"><span class="ico" data-i="book"></span><span class="t">카페 창업</span><span class="m">4</span></div>
-        <div class="row" style="color:var(--color-accent)"><span data-i="plus" class="sm"></span><span class="t">주제 추가</span></div>
+        <div class="row"><span class="ico" data-i="book"></span><span class="t">운동 루틴</span><span class="m">3</span></div>
       </div>
       <div class="page">
-        <div class="banner" style="margin:0 0 12px"><span data-i="sparkle" class="sm acc"></span>새 메모 3개가 있어요. 정리하면 바뀌는 부분을 먼저 보여드려요.<span class="acts"><span class="btn pri">AI로 정리하기</span><span class="btn">나중에</span></span></div>
-        <h3>졸업 프로젝트</h3>
-        <div class="sub"><span class="meta">메모 12개 · 10월 3일 정리 · 버전 4</span><span class="tag gray">원본 변경 3</span><span style="margin-left:auto" class="btn"><span data-i="history" class="sm"></span>이력</span></div>
-        <div class="sec"><h4>개요</h4><ul><li>할 일 앱에 성장 캐릭터를 붙인 데스크톱 앱. 틱틱 수준의 사용성이 목표 <span class="src">메모 1</span><span class="src">메모 4</span></li></ul></div>
-        <div class="sec"><h4>결정한 것 <span class="lock sm" data-i="lock" title="직접 고친 구역 — 자동 정리가 덮어쓰지 않음"></span><span class="meta">직접 고침</span></h4><ul><li>주간 목표는 날짜 없이 최대 5개, XP는 3개까지 <span class="src">메모 7</span></li><li>캐릭터는 동물 4종, 성향 조사로 배정 <span class="src">메모 9</span></li></ul></div>
-        <div class="sec"><h4>아이디어</h4><ul><li>메뉴바에서 캐릭터 보기 <span class="src">메모 2</span></li><li>주간 리포트를 일요일 밤에 <span class="src">메모 5</span></li></ul></div>
-        <div class="sec"><h4>열린 질문</h4><ul><li>모바일은 v1에 어디까지? <span class="src">메모 11</span></li></ul></div>
-        <div class="sec"><h4>연결된 할 일</h4>
-          <div class="row" style="padding:0"><span class="cb"></span><span class="t">졸업 프로젝트 기획서 초안</span><span class="m acc">10월 8일</span></div>
-        </div>
+        <h3>LLM 공부</h3>
+        <div class="sub"><span class="meta">자료 14개 · 방금 AI가 고침 · 버전 9</span><span style="margin-left:auto" class="btn"><span data-i="history" class="sm"></span>이력</span></div>
+        <div class="wnote"><span data-i="sparkle" class="sm acc"></span>방금 들어온 자료 1개를 '핵심 정리'에 반영했어요<span class="sp"></span><span class="btn ghost">바뀐 곳</span><span class="btn">되돌리기</span></div>
+        <div class="sec"><h4>개요</h4><ul><li>RAG·에이전트·프롬프트 설계를 공부하며 모은 것 <span class="src">카톡 9/12</span></li></ul></div>
+        <div class="sec"><h4>핵심 정리</h4><ul><li class="new">RAG 청크는 512~1024 토큰이 무난하고 10% 정도 겹친다 <span class="src">오늘</span></li><li>LangGraph는 상태 그래프로 에이전트 흐름을 짠다 <span class="src">카톡 10/2</span></li><li>평가셋 없이 프롬프트를 고치면 좋아졌는지 알 수 없다 <span class="src">메모 9/30</span></li></ul></div>
+        <div class="sec"><h4>볼 것</h4><div class="wlink"><span class="yt"></span>LangGraph 입문 — 상태 그래프 이해하기<span class="domain">youtube.com</span></div><div class="wlink"><span class="web" data-i="link"></span>AI 에이전트 2026 동향<span class="domain">news.example.com</span></div></div>
+        <div class="sec"><h4>관련 주제</h4><div class="rel"><span>파이썬 비동기</span><span>졸업 프로젝트</span></div></div>
       </div>
     </div>
   </section>
+  <div class="note-callout" style="left:420px;bottom:20px">"AI로 정리하기" 버튼 없이 들어올 때마다 고침 · AI 비서에게 "저번에 저장한 LangGraph 영상 뭐였지?" → 여기서 찾아 줌</div>
 </div>
 
 <!-- ───────── 3. 작업 지도 ───────── -->
@@ -542,7 +615,7 @@ html:not([data-theme=dark]) .legend b{color:#a06a00}
 
 
 <!-- ───────── 5. 일기 ───────── -->
-<div class="label">⑤ 일기 · 쓰기 <small>15-diary 초안 · 왼쪽 미니 달력 + 날짜별 일기 목록, 오른쪽 그날 일기(기분 · 오늘의 질문 · 본문 · 오늘 한 일 카드 + 캐릭터 한마디)</small></div>
+<div class="label">⑤ 일기 · 쓰기 + 캐릭터와 이야기 <small>15-diary v0.2 · 내 성장 캐릭터가 공감하고 같이 고민 · 들어만 줘 / 같이 고민해 줘 · 처음에 켜야 동작</small></div>
 <div class="frame">
   <nav class="rail" data-on="diary"></nav>
   <section class="main" style="flex-direction:row">
@@ -561,26 +634,23 @@ html:not([data-theme=dark]) .legend b{color:#a06a00}
       </div>
     </div>
     <div class="deditor">
-      <div class="dh"><h3>10월 4일 토요일</h3><span class="meta">오후 11:02 · 자동 저장됨</span><span class="ib" data-i="lock" title="잠금"></span><span class="ib" data-i="more"></span></div>
-      <div class="dbody">
+      <div class="dh"><h3>10월 4일 토요일</h3><span class="meta">오후 11:02 · 자동 저장됨</span><span class="ib" data-i="lock" title="나만 보기"></span><span class="ib" data-i="more"></span></div>
+      <div class="dbody" style="gap:12px">
         <div class="moods"><span>😢</span><span>😕</span><span>😐</span><span class="on">😊</span><span>🤩</span><em>좋았어요</em></div>
-        <div class="prompt"><span data-i="sparkle" class="sm acc"></span>오늘의 질문 · 오늘 가장 뿌듯했던 순간은?<span class="btn ghost">다른 질문</span></div>
-        <div class="dtext">
-          <p>졸업 프로젝트 기획서를 드디어 반쯤 썼다. 막혔던 "왜 이 앱이어야 하는가" 부분을 캐릭터 성장 이야기로 풀어 보니 술술 써졌다.</p>
-          <p>저녁엔 헬스장. 오랜만에 가서 그런지 힘들었지만 개운하다. 내일은 교수님 면담 준비를 해야지.</p>
+        <div class="dtext" style="font-size:14.5px;line-height:24px"><p>졸업 프로젝트 기획서를 드디어 반쯤 썼다. 막혔던 부분을 캐릭터 성장 이야기로 풀어 보니 술술 써졌다. 근데 내일 교수님 면담이 좀 걱정된다.</p></div>
+        <div class="today-strip"><span data-i="check" class="sm"></span>오늘 한 일 6개<span class="xp">+6 XP</span><span class="sp" style="flex:1"></span><span class="acc">할 일 탭에서 보기</span></div>
+        <div class="talk-div">도토리와 이야기</div>
+        <div class="talk">
+          <div class="cmsg"><svg width="30" height="30" viewBox="0 0 120 120" style="flex-shrink:0"><g transform="translate(60 65) scale(.86) translate(-60 -58)"><path d="M88 84 C116 76 112 30 90 34 C104 46 96 64 84 70 Z" fill="#B5764A"/><ellipse cx="60" cy="66" rx="34" ry="32" fill="#E8B48A"/><circle cx="36" cy="40" r="7" fill="#E8B48A"/><circle cx="84" cy="40" r="7" fill="#E8B48A"/><path d="M44 63 q5 -6 10 0" stroke="#3A3A3A" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M66 63 q5 -6 10 0" stroke="#3A3A3A" stroke-width="2.6" fill="none" stroke-linecap="round"/><circle cx="41" cy="72" r="5" fill="#FF9FA8" opacity=".55"/><circle cx="79" cy="72" r="5" fill="#FF9FA8" opacity=".55"/><path d="M54 72 q6 7 12 0" stroke="#3A3A3A" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M60 36 V24" stroke="#5DBB63" stroke-width="3" stroke-linecap="round"/><path d="M60 26 C52 18 44 22 46 28 C52 30 57 29 60 26 Z" fill="#5DBB63"/><path d="M60 24 C68 16 76 20 74 26 C68 28 63 27 60 24 Z" fill="#5DBB63"/></g></svg><div class="cb2">기획서를 반이나 썼구나! 막혔던 게 풀릴 때 기분 좋았겠다 😊 내일 면담은 어떤 점이 제일 신경 쓰여?</div></div>
+          <div class="umsg">교수님이 주제가 너무 평범하다고 하실까 봐 걱정돼</div>
+          <div class="cmsg"><svg width="30" height="30" viewBox="0 0 120 120" style="flex-shrink:0"><g transform="translate(60 65) scale(.86) translate(-60 -58)"><path d="M88 84 C116 76 112 30 90 34 C104 46 96 64 84 70 Z" fill="#B5764A"/><ellipse cx="60" cy="66" rx="34" ry="32" fill="#E8B48A"/><circle cx="36" cy="40" r="7" fill="#E8B48A"/><circle cx="84" cy="40" r="7" fill="#E8B48A"/><path d="M44 63 q5 -6 10 0" stroke="#3A3A3A" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M66 63 q5 -6 10 0" stroke="#3A3A3A" stroke-width="2.6" fill="none" stroke-linecap="round"/><circle cx="41" cy="72" r="5" fill="#FF9FA8" opacity=".55"/><circle cx="79" cy="72" r="5" fill="#FF9FA8" opacity=".55"/><path d="M54 72 q6 7 12 0" stroke="#3A3A3A" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M60 36 V24" stroke="#5DBB63" stroke-width="3" stroke-linecap="round"/><path d="M60 26 C52 18 44 22 46 28 C52 30 57 29 60 26 Z" fill="#5DBB63"/><path d="M60 24 C68 16 76 20 74 26 C68 28 63 27 60 24 Z" fill="#5DBB63"/></g></svg><div class="cb2">그 걱정 충분히 이해돼. 그런데 오늘 쓴 '캐릭터 성장 이야기'가 바로 차별점 아닐까? 면담 전에 그 부분만 한 장으로 정리해 두면 마음이 좀 편할 것 같아.<br><span class="sugg"><span data-i="plus" class="sm"></span>할 일로: 면담용 차별점 한 장 정리</span></div></div>
         </div>
-        <div class="today-card">
-          <div class="tc-body">
-            <h4><span data-i="check" class="sm"></span>오늘 한 일 · 6개<span class="xp">+6 XP</span></h4>
-            <ul><li><span class="cb done"></span>기획서 초안 절반</li><li><span class="cb done"></span>헬스장</li><li><span class="cb done"></span>알고리즘 2문제</li><li class="meta" style="color:var(--color-text-tertiary)">외 3개 · 할 일 탭에서 보기</li></ul>
-          </div>
-          <div class="char"><div class="bubble">오늘 6개나 끝냈네! 푹 쉬어 🌙</div><svg width="76" height="76" viewBox="0 0 120 120"><ellipse cx="60" cy="110" rx="26" ry="5" fill="rgba(0,0,0,.12)"/><g transform="translate(60 65) scale(.86) translate(-60 -58)"><path d="M88 84 C116 76 112 30 90 34 C104 46 96 64 84 70 Z" fill="#B5764A"/><ellipse cx="60" cy="66" rx="34" ry="32" fill="#E8B48A"/><circle cx="36" cy="40" r="7" fill="#E8B48A"/><circle cx="84" cy="40" r="7" fill="#E8B48A"/><path d="M44 63 q5 -6 10 0" stroke="#3A3A3A" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M66 63 q5 -6 10 0" stroke="#3A3A3A" stroke-width="2.6" fill="none" stroke-linecap="round"/><circle cx="41" cy="72" r="5" fill="#FF9FA8" opacity=".55"/><circle cx="79" cy="72" r="5" fill="#FF9FA8" opacity=".55"/><path d="M54 72 q6 7 12 0" stroke="#3A3A3A" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M60 36 V24" stroke="#5DBB63" stroke-width="3" stroke-linecap="round"/><path d="M60 26 C52 18 44 22 46 28 C52 30 57 29 60 26 Z" fill="#5DBB63"/><path d="M60 24 C68 16 76 20 74 26 C68 28 63 27 60 24 Z" fill="#5DBB63"/></g></svg></div>
-        </div>
+        <div class="talk-in"><span class="seg"><span>들어만 줘</span><span class="on">같이 고민해 줘</span></span><span class="ph">도토리에게 이야기하기…</span><span class="send" data-i="up"></span></div>
       </div>
-      <div class="dfoot"><span>🔥 4일 연속 기록</span><span>글자 142</span><span class="sp"></span><span>일기는 나만 봐요 · AI가 읽지 않아요</span></div>
+      <div class="dfoot"><span>🔥 4일 연속 기록</span><span class="sp"></span><span>도토리만 같이 읽어요 · 🔒 나만 보기로 바꾸면 AI가 읽지 않아요</span></div>
     </div>
   </section>
-  <div class="note-callout" style="right:24px;bottom:52px">오늘 한 일 카드는 자동(할 일·XP에서 가져옴). 일기 글은 기본으로 AI에 보내지 않음</div>
+  <div class="note-callout" style="left:150px;bottom:20px;max-width:240px">위기 신호(자해·극단적 생각)가 보이면 대화를 멈추고 109 등 도움받을 곳을 먼저 안내</div>
 </div>
 
 <div class="label">⑤-b 일기 · 돌아보기 <small>한 달 기분 달력(날짜를 누르면 그날 일기) · 이번 달 기록·기분 비율·연속 기록</small></div>
@@ -636,6 +706,7 @@ const P={
  minus:'<path d="M5 12h14"/>',
  diary:'<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M12 6.5c-1.3-1.4-4-1-4 1.1 0 1.6 2.2 3 4 4.4 1.8-1.4 4-2.8 4-4.4 0-2.1-2.7-2.5-4-1.1z"/>',
  left:'<path d="m15 18-6-6 6-6"/>',
+ link:'<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
  alert:'<path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3M12 9v4M12 17h.01"/>'
 };
 const svg=(k,c='i')=>`<svg class="${c}" viewBox="0 0 24 24">${P[k]||''}</svg>`;
