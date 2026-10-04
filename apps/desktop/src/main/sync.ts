@@ -23,7 +23,11 @@ let session: Session | undefined
 
 // newAccount: 이 기기에서 방금 새 계정을 만들었다(가입·구글·애플 첫 로그인) → 화면이 첫 실행 안내(18)를 띄운다. 이번 실행 동안만
 let newAccount = false
-export type AuthState = { user: { id: string; email: string } | null; newAccount?: boolean; sync: { connected: boolean; uploading: boolean; downloading: boolean; lastSyncedAt: string | null; error: string | null } }
+// notice: 로그인 화면에 한 번 띄울 알림(08 §7.1 계정 삭제 뒤 "계정을 삭제했어요"). 다음 로그인 때 지운다
+let notice: 'account-deleted' | undefined
+// 08 §7.1 소셜 계정 삭제 전 "다시 로그인": 이 사용자로 다시 로그인한 토큰만 받는다(로컬 데이터는 그대로). 6분 안에만
+let reauth: { userId: string; until: number } | undefined
+export type AuthState = { user: { id: string; email: string } | null; newAccount?: boolean; notice?: 'account-deleted'; sync: { connected: boolean; uploading: boolean; downloading: boolean; lastSyncedAt: string | null; error: string | null } }
 
 // ── 저장 ──
 function save(s: Session | undefined) {
@@ -108,6 +112,7 @@ function state(): AuthState {
   return {
     user: session?.user ?? null,
     newAccount: !!session && newAccount,
+    ...(notice && !session ? { notice } : {}),
     sync: {
       connected: !!s?.connected,
       uploading: !!s?.dataFlowStatus?.uploading,
@@ -150,6 +155,20 @@ async function signIn(path: '/auth/login' | '/auth/signup', email: string, passw
 export const apiBase = () => API_URL
 export async function signInWithTokens(r: TokenResponse & { created?: boolean }, created = !!r.created): Promise<AuthState> {
   const s = toSession(r)
+  // 08 §7.1: 계정 삭제 전 다시 로그인 — 같은 계정이면 토큰만 바꾸고(데이터·동기화 그대로), 다른 계정이면 그 세션을 버리고 실패
+  const re = reauth
+  if (re && session && re.until > Date.now()) {
+    reauth = undefined
+    if (s.user.id !== re.userId) {
+      void api('/auth/logout', { body: { refresh_token: s.refresh_token } }).catch(() => {})
+      throw new Error('reauth: different account')
+    }
+    save(s)
+    broadcast()
+    return state()
+  }
+  reauth = undefined
+  notice = undefined
   newAccount = created
   await adopt(s)
   save(s)
@@ -177,18 +196,52 @@ export async function startSync() {
   ipcMain.handle('auth:sync-now', async () => { if (session) await db.connect(connector) })
   ipcMain.handle('auth:logout', async () => {
     const s = session
-    // 로그아웃하면 이 기기의 내 데이터를 지우고 처음 상태로 돌아간다(다음 사람에게 보이지 않게)
-    await db.disconnectAndClear()
-    save(undefined)
-    newAccount = false
-    await forgetTickTick() // 17: 로그아웃하면 틱틱 연결도 끊는다
-    await forgetCalendars().catch((e) => console.warn('[calendars] 로그아웃 정리 실패:', e)) // 16 결정 ⑤: 구글 연결 끊기·캐시 삭제
-    await clearWidget().catch((e) => console.warn('[widget] 로그아웃 정리 실패:', e)) // 25 §8.8: 위젯에 할 일 제목이 남지 않게
-    // 설정 창이 열려 있으면 닫는다(로그아웃한 계정 정보가 남아 보이지 않게)
-    for (const w of BrowserWindow.getAllWindows()) if (w.webContents.getURL().includes('window=settings')) w.close()
-    await ensureSeed(process.env.SPROUT_SEED !== '0' && (!app.isPackaged || process.env.SPROUT_SEED === '1'))
+    notice = undefined
+    await wipeLocal()
     if (s) await api('/auth/logout', { body: { refresh_token: s.refresh_token } }).catch(() => {})
     broadcast()
     return state()
   })
+
+  // ── 08 §7.1 계정 삭제 ──
+  // 비밀번호를 물을지(비밀번호 계정), 구글·애플로 다시 로그인하게 할지(소셜로만 가입) 고르는 정보
+  ipcMain.handle('auth:account', async () => {
+    const token = await freshToken()
+    if (!token) return { ok: false, error: 'unauthorized' }
+    try {
+      const me = await api<{ has_password?: boolean; providers?: string[] }>('/auth/me', { token })
+      return { ok: true, hasPassword: me.has_password !== false, providers: me.providers ?? [] }
+    } catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'network' } }
+  })
+  // 다음 auth:social 로그인을 "다시 확인"으로 쓴다(signInWithTokens 참고)
+  ipcMain.handle('auth:reauth-begin', () => { reauth = session ? { userId: session.user.id, until: Date.now() + 6 * 60_000 } : undefined })
+  ipcMain.handle('auth:reauth-end', () => { reauth = undefined })
+  ipcMain.handle('auth:delete-account', async (_e, password?: string) => {
+    const token = await freshToken()
+    if (!token) return { ok: false, error: 'unauthorized', status: 401 }
+    try {
+      await api('/auth/account', { method: 'DELETE', body: { ...(typeof password === 'string' && password ? { password } : {}) }, token })
+    } catch (e) {
+      return e instanceof ApiError ? { ok: false, error: e.message, status: e.status } : { ok: false, error: 'network', status: 0 }
+    }
+    // 서버에서 지워졌다(세션도 같이 없어짐) → 로그아웃처럼 이 기기 데이터를 지우고 로그인 화면에 알림
+    await wipeLocal()
+    notice = 'account-deleted'
+    broadcast()
+    return { ok: true }
+  })
+}
+
+/** 로그아웃·계정 삭제 공통: 이 기기의 내 데이터를 지우고 처음 상태로(다음 사람에게 보이지 않게) */
+async function wipeLocal() {
+  await db.disconnectAndClear()
+  save(undefined)
+  reauth = undefined
+  newAccount = false
+  await forgetTickTick() // 17: 로그아웃하면 틱틱 연결도 끊는다
+  await forgetCalendars().catch((e) => console.warn('[calendars] 로그아웃 정리 실패:', e)) // 16 결정 ⑤: 구글 연결 끊기·캐시 삭제
+  await clearWidget().catch((e) => console.warn('[widget] 로그아웃 정리 실패:', e)) // 25 §8.8: 위젯에 할 일 제목이 남지 않게
+  // 설정 창이 열려 있으면 닫는다(로그아웃한 계정 정보가 남아 보이지 않게)
+  for (const w of BrowserWindow.getAllWindows()) if (w.webContents.getURL().includes('window=settings')) w.close()
+  await ensureSeed(process.env.SPROUT_SEED !== '0' && (!app.isPackaged || process.env.SPROUT_SEED === '1'))
 }

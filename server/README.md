@@ -129,11 +129,39 @@ curl -s localhost:6060/auth/providers     # {"google":true,"apple":{...}} 확인
 ```
 - 남은 위험: 이메일 인증이 아직 없어서, 남이 **내 이메일로 먼저 비밀번호 가입**해 두면 내가 구글로 들어올 때 그 계정에 연결된다(선점 공격). 공개 출시 전 이메일 인증을 넣고, 인증 안 된 비밀번호 계정에 소셜을 연결할 때는 비밀번호를 지우거나 확인 메일을 받는다(08 §3.1).
 
+## 시도 제한 (api/src/ratelimit.ts · 명세 08 §4)
+메모리에 키별 최근 시각만 둔다(API 한 대 — 재시작하면 초기화). 막히면 **429** + `Retry-After`(초) + `{error:"로그인 시도가 너무 많아요. N분 뒤 다시 시도해 주세요.", code:"too_many_attempts", retry_after}`.
+
+| 경로 | 기본 한도 [임시] | 세는 것 | 환경 변수 |
+|---|---|---|---|
+| `/auth/login` | 이메일당 15분 10회 · IP당 15분 30회 | 실패만, 성공하면 이메일 기록 초기화 | `RL_LOGIN_EMAIL_*` · `RL_LOGIN_IP_*` |
+| `/auth/signup` | IP당 60분 5회 | 성공 포함 모든 시도 | `RL_SIGNUP_IP_*` |
+| `/auth/refresh` | IP당 15분 60회 | 실패만 | `RL_REFRESH_IP_*` |
+| `/auth/google` · `/auth/apple` | IP당 15분 30회 | 검증 실패만(애플 202 기다림은 안 셈) | `RL_SOCIAL_IP_*` |
+| `/auth/apple/callback` | IP당 15분 60회 | 모든 시도 | `RL_CALLBACK_IP_*` |
+| `DELETE /auth/account` | 사용자당 15분 5회 | 비밀번호 틀림·재확인 필요 | `RL_DELETE_USER_*` |
+`*`는 `_MAX`(횟수)·`_WINDOW_MIN`(분). 예: `RL_SIGNUP_IP_MAX=20`.
+
+**클라이언트 IP — `TRUST_PROXY`** (기본 `loopback`)
+- `X-Forwarded-For`는 **믿을 수 있는 앞단에서 온 연결일 때만** 쓰고, 맨 오른쪽 값(앞단이 직접 붙인 주소)을 쓴다. 그 밖에는 연결한 쪽 주소. 예전 `cf-connecting-ip`는 아무나 꾸밀 수 있어 더 이상 보지 않는다.
+- `loopback`: 127.0.0.1·::1에서 온 연결만 믿는다(API를 Docker 없이 호스트에서 돌리고 Tailscale Funnel이 127.0.0.1로 넘길 때).
+- `private`: 루프백 + 사설 주소(10/8·172.16/12·192.168/16·fc00::/7·링크 로컬). **Docker로 돌리면 이것이 필요하다** — Funnel → 호스트 127.0.0.1:6060 → 컨테이너로 들어올 때 연결 주소가 도커 게이트웨이(172.x·192.168.65.x)라서, `loopback`이면 모든 사용자가 한 IP로 세어져 IP 한도(가입 5회/시간)를 다 같이 쓰게 된다. 포트는 `127.0.0.1`에만 열려 있어 사설 주소로 들어오는 것은 호스트(Funnel)와 같은 compose 안 컨테이너뿐이다.
+- `none`: 헤더를 전혀 믿지 않는다.
+- Tailscale Funnel(`tailscale funnel`)은 앞단 역방향 프록시로 `X-Forwarded-For`에 바깥 주소를 붙인다 — 배포 뒤 바깥 망 두 곳에서 틀린 로그인을 해 보고 서로 따로 세어지는지 확인한다.
+
+## 계정 삭제 (api/src/account.ts · 명세 08 §7.1)
+- `DELETE /auth/account` (Bearer, 본문 `{password?}`) → `{ok:true}`.
+- 다시 확인: 비밀번호 계정은 **비밀번호**(403 `invalid password`). 구글·애플로만 가입한 계정은 접근 토큰의 **`auth_time`이 10분 안**(403 `reauth required`) — `auth_time`은 비밀번호·구글·애플로 막 로그인해 받은 토큰에만 있고 `/auth/refresh`로 받은 토큰에는 없다. 그래서 앱은 삭제 직전에 구글·애플로 다시 로그인시킨다. 마이그레이션 없음(토큰 클레임만).
+- 한 트랜잭션: `DELETE FROM ai_usage`(이미 CASCADE지만 명시) → `DELETE FROM users` → 동기화 테이블·`sessions`·`user_identities`는 모두 `ON DELETE CASCADE`. PowerSync가 지워진 행을 다른 기기로 내려보내고, 세션이 없어 다른 기기의 리프레시는 401. 다른 기기가 남은 접근 토큰(최대 1시간)으로 `/sync/upload` 하면 외래 키 오류 대신 401.
+- 로그는 "계정 1건 삭제"만. 백업(`backups/`, 14일)에는 그 기간 남는다 → 개인정보 처리방침에 적는다. 애플 토큰 폐기(`.p8`)는 [다음].
+- `GET /auth/me`가 `has_password`·`providers`를 더 준다(앱이 확인 방법을 고른다).
+
 ## 배포 전에 남은 일
 - [ ] Mac mini로 옮기기 + Cloudflare Tunnel(`api`, `powersync`만 공개, `db`는 공개하지 않는다)
 - [ ] 백업을 외부 저장소로(예: Cloudflare R2 + rclone). PRD 필수
 - [ ] Postgres 복제 전용 역할(지금은 슈퍼유저로 붙는다)
 - [ ] 비밀번호 재설정·이메일 인증(메일 발송 수단 필요)
+- [x] 로그인·가입 시도 제한, 계정 삭제(`DELETE /auth/account`) — 코드·시험 완료, compose에 `TRUST_PROXY: private` 추가 후 배포
 - [x] 구글·애플 로그인(`/auth/google`·`/auth/apple`, 코드·시험 완료 — 마이그레이션 적용·환경 변수는 승인 뒤)
 - [ ] 배포 주소를 앱 기본값으로(`SPROUT_API_URL`, `SPROUT_SYNC_URL`)
 - [x] AI 프록시(`/ai/*`) + 대기열·상한 (코드·시험 완료, 배포·마이그레이션 적용은 승인 뒤)

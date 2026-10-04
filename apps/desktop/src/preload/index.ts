@@ -32,7 +32,7 @@ const remindersApi = {
   snooze: (fired: Fired, minutes: number) => ipcRenderer.send('reminder:snooze', { fired, minutes })
 }
 
-type AuthState = { user: { id: string; email: string } | null; newAccount?: boolean; sync: { connected: boolean; uploading: boolean; downloading: boolean; lastSyncedAt: string | null; error: string | null } }
+type AuthState = { user: { id: string; email: string } | null; newAccount?: boolean; notice?: 'account-deleted'; sync: { connected: boolean; uploading: boolean; downloading: boolean; lastSyncedAt: string | null; error: string | null } }
 type AuthResult = { ok: true; state: AuthState } | { ok: false; error: string }
 const authApi = {
   state: () => ipcRenderer.invoke('auth:state') as Promise<AuthState>,
@@ -44,7 +44,12 @@ const authApi = {
   social: (provider: 'google' | 'apple') => ipcRenderer.invoke('auth:social', provider) as Promise<AuthResult | { ok: false; error: string; code: string }>,
   socialCancel: () => ipcRenderer.invoke('auth:social-cancel') as Promise<void>,
   socialStatus: () => ipcRenderer.invoke('auth:social-status') as Promise<{ google: boolean; apple: boolean | null; waiting: 'google' | 'apple' | null }>,
-  onState: (cb: (s: AuthState) => void) => on('auth:state', cb)
+  onState: (cb: (s: AuthState) => void) => on('auth:state', cb),
+  // 08 §7.1 계정 삭제: 다시 확인 방법 고르기 → (소셜이면 reauthBegin 후 social로 다시 로그인) → 삭제
+  account: () => ipcRenderer.invoke('auth:account') as Promise<{ ok: true; hasPassword: boolean; providers: string[] } | { ok: false; error: string }>,
+  reauthBegin: () => ipcRenderer.invoke('auth:reauth-begin') as Promise<void>,
+  reauthEnd: () => ipcRenderer.invoke('auth:reauth-end') as Promise<void>,
+  deleteAccount: (password?: string) => ipcRenderer.invoke('auth:delete-account', password) as Promise<{ ok: true } | { ok: false; error: string; status: number }>
 }
 
 const miniApi = {

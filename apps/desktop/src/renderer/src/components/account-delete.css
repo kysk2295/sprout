@@ -1,0 +1,21 @@
+/* 08 §7.1 계정 삭제 — 계정 탭 맨 아래(틱틱: 빨간 "Delete Account") → 같은 자리 카드 확인 */
+.account-delete { display: flex; justify-content: center; padding: 8px 0 24px; }
+.account-delete__link { font: var(--text-body); color: var(--color-danger); background: none; border: 0; padding: 6px 10px; border-radius: 6px; }
+.account-delete__link:hover { background: var(--color-bg-hover); }
+.account-delete--open { display: flex; flex-direction: column; gap: 12px; padding: 16px; margin: 0 0 24px; }
+.account-delete--open h3 { margin: 0; font: var(--text-body-strong); color: var(--color-danger); }
+.account-delete--open p { margin: 0; font: var(--text-body); color: var(--color-text-secondary); }
+.account-delete--open strong { color: var(--color-text-primary); }
+.account-delete__muted { color: var(--color-text-tertiary) !important; }
+.account-delete__field { display: flex; flex-direction: column; gap: 6px; font: var(--text-meta); color: var(--color-text-tertiary); }
+.account-delete__field input { height: 36px; box-sizing: border-box; padding: 0 10px; border-radius: 8px; border: 1px solid var(--color-border-divider); background: var(--color-bg-input); font: var(--text-body); color: var(--color-text-primary); outline: 0; user-select: text; }
+.account-delete__field input:focus { border: 1.5px solid var(--color-border-input-focus); background: var(--color-bg-app); }
+.account-delete__ok { font: var(--text-body); font-style: normal; color: var(--color-text-secondary); }
+.account-delete__error { color: var(--color-danger) !important; font: var(--text-meta) !important; }
+.account-delete--open footer { display: flex; justify-content: flex-end; gap: 8px; }
+.account-delete__btn { height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--color-border-divider); background: transparent; font: var(--text-body); color: var(--color-text-primary); align-self: flex-start; }
+.account-delete--open footer .account-delete__btn { align-self: auto; }
+.account-delete__btn:hover:not(:disabled) { background: var(--color-bg-hover); }
+.account-delete__btn--danger { background: var(--color-danger); border-color: transparent; color: #fff; }
+.account-delete__btn--danger:hover:not(:disabled) { background: var(--color-danger); filter: brightness(1.05); }
+.account-delete__btn:disabled { opacity: 0.5; }

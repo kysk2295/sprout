@@ -47,9 +47,10 @@ export async function loadKeys(path: string): Promise<Keys> {
   return { kid, privateKey: privateKey as KeyLike, publicJwk }
 }
 
-/** 접근 토큰 = PowerSync 토큰. sub = 사용자 id, aud = powersync, 1시간 */
-export function signAccessToken(keys: Keys, userId: string, issuer: string, ttlSec = 3600) {
-  return new SignJWT({})
+/** 접근 토큰 = PowerSync 토큰. sub = 사용자 id, aud = powersync, 1시간.
+ *  authTime: 비밀번호·구글·애플로 막 로그인했을 때만 넣는다(auth_time, 초). 리프레시로 받은 토큰에는 없다 → 계정 삭제 재확인(account.ts) */
+export function signAccessToken(keys: Keys, userId: string, issuer: string, ttlSec = 3600, authTime?: number) {
+  return new SignJWT(authTime ? { auth_time: authTime } : {})
     .setProtectedHeader({ alg: 'RS256', kid: keys.kid })
     .setSubject(userId)
     .setAudience(AUDIENCE)
@@ -60,8 +61,12 @@ export function signAccessToken(keys: Keys, userId: string, issuer: string, ttlS
 }
 
 export async function verifyAccessToken(keys: Keys, token: string, issuer: string): Promise<string> {
+  return (await verifyAccessClaims(keys, token, issuer)).sub
+}
+
+export async function verifyAccessClaims(keys: Keys, token: string, issuer: string): Promise<{ sub: string; authTime?: number }> {
   const pub = await importJWK(keys.publicJwk, 'RS256')
   const { payload } = await jwtVerify(token, pub, { audience: AUDIENCE, issuer })
   if (!payload.sub) throw new Error('no sub')
-  return payload.sub
+  return { sub: payload.sub, authTime: typeof payload.auth_time === 'number' ? payload.auth_time : undefined }
 }

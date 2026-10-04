@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { authApi, authErrorText } from '../data/auth'
+import { authApi, authErrorText, useAuth } from '../data/auth'
 import './login-social.css'
 
 type Provider = 'google' | 'apple'
@@ -16,6 +16,15 @@ export function LoginScreen() {
   const passwordRef = useRef<HTMLInputElement>(null)
   useEffect(() => { emailRef.current?.focus() }, [])
   const locked = busy || !!social
+  // 08 §7.1: 계정을 지우고 돌아오면 한 번 알림(토스트 2.5초)
+  const notice = useAuth().state?.notice
+  const [toast, setToast] = useState('')
+  useEffect(() => {
+    if (notice !== 'account-deleted') return
+    setToast('계정을 삭제했어요')
+    const t = window.setTimeout(() => setToast(''), 2500)
+    return () => window.clearTimeout(t)
+  }, [notice])
 
   const submit = async () => {
     const api = authApi()
@@ -55,6 +64,7 @@ export function LoginScreen() {
   return (
     <div className="login">
       <div className="login__drag" />
+      {toast && <div className="toast" role="status"><span>{toast}</span></div>}
       <form className="login__card" noValidate onSubmit={(e) => { e.preventDefault(); void submit() }}>
         <h1 className="login__title">{mode === 'login' ? '로그인' : '등록하기'}</h1>
         <input
