@@ -1,15 +1,19 @@
 import { Check, ChevronDown, ChevronRight, Circle } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { readTextJson, weekLabel, XP, type WeeklyStats } from '@sprout/schema/growth'
+import { readTextJson, weekLabel, XP, type Species, type WeeklyStats } from '@sprout/schema/growth'
 import { carryMissed, markReportSeen, retryReport, thisWeek, useWeeklyReports, type ReportRow } from '../../data/growth'
 import { useQuery } from '../../data/useQuery'
+import { CharacterArt } from './CharacterArt'
 import './growth-report.css'
 
 // 10 §5 오른쪽 칸: 주간 리포트 목록 — 주 행을 누르면 아래에 펼친다(가장 최근 주는 처음부터 펼침)
 const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}시간${m % 60 ? ` ${m % 60}분` : ''}` : `${m}분`)
 const sameTitle = (a: string, b: string) => a.replace(/\s+/g, '') === b.replace(/\s+/g, '')
 
-export function WeeklyReports() {
+/** diary가 있으면 10 §3.2.9 "○○의 일기": 캐릭터 얼굴 머리 · 줄 노트 바탕 · 캐릭터 말투 제목 */
+type Diary = { name: string; species: Species | null; stage: number }
+const subj = (n: string) => { const c = n.charCodeAt(n.length - 1) - 0xac00; return n + (c >= 0 && c < 11172 && c % 28 ? '이' : '가') }
+export function WeeklyReports({ diary }: { diary?: Diary } = {}) {
   const reports = useWeeklyReports()
   const [openWeek, setOpenWeek] = useState<string | null>()
   const shown = openWeek === undefined ? reports?.[0]?.week_start : openWeek
@@ -17,9 +21,9 @@ export function WeeklyReports() {
   // 펼치면 본 것으로
   useEffect(() => { if (opened && !opened.seen_at) void markReportSeen(opened.id) }, [opened])
   return (
-    <section className="growth-card">
-      <h3 className="growth-card__title">주간 리포트</h3>
-      {reports && !reports.length && <p className="growth-card__empty">한 주가 끝나면 이번 주에 해낸 것과 다음 주 제안이 여기에 쌓여요.</p>}
+    <section className={`growth-card${diary ? ' gs-diary' : ''}`}>
+      <h3 className="growth-card__title">{diary ? `${diary.name}의 일기` : '주간 리포트'}</h3>
+      {reports && !reports.length && <p className="growth-card__empty">{diary ? `한 주가 끝나면 ${subj(diary.name)} 일기를 써요. 이번 주에 해낸 것과 다음 주에 같이 할 일을 적어 둘게요.` : '한 주가 끝나면 이번 주에 해낸 것과 다음 주 제안이 여기에 쌓여요.'}</p>}
       {reports?.map((r) => {
         const on = r.week_start === shown
         return (
@@ -30,7 +34,7 @@ export function WeeklyReports() {
               {!r.seen_at && <span className="report__dot" aria-label="새 리포트" />}
               <span className="report__xp">{r.xp_total >= 0 ? '+' : ''}{r.xp_total} XP</span>
             </button>
-            {on && <ReportDetail row={r} />}
+            {on && <ReportDetail row={r} diary={diary} />}
           </div>
         )
       })}
@@ -38,7 +42,7 @@ export function WeeklyReports() {
   )
 }
 
-function ReportDetail({ row }: { row: ReportRow }) {
+function ReportDetail({ row, diary }: { row: ReportRow; diary?: Diary }) {
   const stats = JSON.parse(row.stats_json) as WeeklyStats
   const text = readTextJson(row.text_json)
   const [busy, setBusy] = useState(false)
@@ -54,6 +58,12 @@ function ReportDetail({ row }: { row: ReportRow }) {
   const lead = [...stats.topTags.map((t) => `#${t.name} ${t.count}`), ...stats.topLists.map((l) => `${l.name} ${l.count}`)]
   return (
     <div className="report__body">
+      {diary && (
+        <div className="gs-diary__head">
+          <CharacterArt species={diary.species} stage={diary.stage} size={32} />
+          <div><div className="gs-diary__week">{diary.name}의 한 주</div><div className="gs-diary__sub">{stats.xp.total >= 0 ? '+' : ''}{stats.xp.total} XP · 할 일 {stats.completed}개</div></div>
+        </div>
+      )}
       <div className="chips report__chips">
         <span className="chip">완료 <b>{stats.completed}</b></span>
         {stats.scheduledMinutes > 0 && <span className="chip">일정 <b>{hm(stats.scheduledMinutes)}</b></span>}
@@ -76,7 +86,7 @@ function ReportDetail({ row }: { row: ReportRow }) {
       {text.report && <p className="report__text">{text.report.done}</p>}
       {lead.length > 0 ? <p className="report__meta">많이 한 것 · {lead.join(' · ')}</p> : !text.report && <p className="report__meta">완료한 할 일 {stats.completed}개</p>}
 
-      <h4 className="report__h">목표 결과</h4>
+      <h4 className="report__h">{diary ? '퀘스트 결과' : '목표 결과'}</h4>
       {stats.goals.length === 0 && <p className="report__meta">이 주에는 목표가 없었어요.</p>}
       {stats.goals.map((g) => {
         const carried = current.some((c) => sameTitle(c.title, g.title))
@@ -96,7 +106,7 @@ function ReportDetail({ row }: { row: ReportRow }) {
 
       {text.report && (
         <>
-          <h4 className="report__h">다음 주 제안</h4>
+          <h4 className="report__h">{diary ? '다음 주에 같이 해 볼까?' : '다음 주 제안'}</h4>
           <ul className="report__next">{text.report.next.map((n) => <li key={n}>{n}</li>)}</ul>
         </>
       )}

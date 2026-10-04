@@ -1,7 +1,7 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { addDays } from '@sprout/schema/time'
 import {
-  aiLeft, canGrantTaskXp, kpiEarnsXp, parseGoalDraft, parseReportText, progressFromEvents, readTextJson, SPECIES, weekHasActivity, weekLabel, weeklyStats, XP, xpEventId,
+  aiLeft, canGrantTaskXp, kpiEarnsXp, parseGoalDraft, parseReportText, progressFromEvents, readTextJson, SPECIES, weekHasActivity, weekLabel, weeklyStats, XP, xpEventId, xpToNext,
   type GoalDraft, type ReportTextJson, type Species, type WeeklyStats, type WeekTask
 } from '@sprout/schema/growth'
 import { askGrowthAi } from './growth-ai'
@@ -347,3 +347,123 @@ export function useGrowth() {
   const progress = useMemo(() => progressFromEvents(events), [events])
   return { events, character, progress, loaded: raw !== undefined }
 }
+
+// ── 10 §3.2 캐릭터 중심 v3: 무대가 쓰는 계산(순수 함수) · 기기 저장 ──
+/** §3.2.7 레벨로 열리는 장식(자리는 고정) */
+export const DECOR = [
+  { id: 'sign', lv: 1, name: '이름 팻말' }, { id: 'flowers', lv: 2, name: '꽃 화분' }, { id: 'fence', lv: 3, name: '나무 울타리' },
+  { id: 'lamp', lv: 4, name: '버섯 등' }, { id: 'butterfly', lv: 5, name: '나비' }, { id: 'ball', lv: 6, name: '공' },
+  { id: 'bunting', lv: 8, name: '깃발 줄' }, { id: 'tent', lv: 10, name: '작은 텐트' }, { id: 'fireflies', lv: 12, name: '반딧불' }, { id: 'arch', lv: 15, name: '꽃 아치' }
+] as const
+export type DecorId = (typeof DECOR)[number]['id']
+/** prev 레벨 다음부터 now 레벨까지 새로 열린 장식 */
+export const newlyUnlocked = (prev: number, now: number) => DECOR.filter((d) => d.lv > prev && d.lv <= now)
+export const nextDecor = (level: number) => DECOR.find((d) => d.lv > level)
+
+export type TimeOfDay = 'morning' | 'day' | 'evening' | 'night'
+/** 아침 6–11 · 낮 11–17 · 저녁 17–20 · 밤 20–6 */
+export const timeOfDay = (h: number): TimeOfDay => (h < 6 ? 'night' : h < 11 ? 'morning' : h < 17 ? 'day' : h < 20 ? 'evening' : 'night')
+/** §3.2.3 졸림: 밤 23–6시 또는 이틀 넘게 XP 없음 */
+export const isSleepy = (h: number, idleDays: number) => h >= 23 || h < 6 || idleDays >= 2
+
+export type StageStats = {
+  todayDone: number; todayOpen: number; todayTaskXp: number; streak: number; idleDays: number
+  level: number; into: number; toNext: number; diaryUnseen: boolean
+  goals: { title: string; target: number; progress: number; achieved: boolean }[]
+}
+const josaOf = (w: string, withBatchim: string, without: string) => {
+  const c = w.charCodeAt(w.length - 1) - 0xac00
+  return w + (c >= 0 && c < 11172 && c % 28 ? withBatchim : without)
+}
+/** §3.2.4 말풍선 문장: 실제 숫자로 채운다(우선순위 순) */
+export function stageLines(s: StageStats): string[] {
+  const out: string[] = []
+  if (s.diaryUnseen) out.push('일기 썼어! 읽어 줄래?')
+  if (s.todayDone >= 3) out.push(`오늘 ${s.todayDone}개나 했어, 최고야`)
+  else if (s.todayDone > 0) out.push(`오늘 ${s.todayDone}개 했어!`)
+  else if (s.todayOpen > 0) out.push(`오늘 할 일 ${s.todayOpen}개 있어. 하나만 같이 해 볼까?`)
+  const left = s.goals.filter((g) => !g.achieved)
+  if (s.goals.length && !left.length) out.push(`이번 주 퀘스트 다 했다!${s.goals.length >= 2 ? ` 보너스 +${XP.kpiAll}` : ''}`)
+  else if (left.length) {
+    const near = left.filter((g) => g.target > 1).sort((a, b) => a.target - a.progress - (b.target - b.progress))[0]
+    out.push(near ? `'${near.title}' ${near.target - near.progress}번 남았어!` : `이번 주 퀘스트 ${left.length}개 남았어, 응원할게`)
+  }
+  const gap = s.toNext - s.into
+  if (gap <= 10) out.push(`레벨업까지 ${gap} XP! 거의 다 왔어`)
+  const nd = nextDecor(s.level)
+  if (nd) out.push(`Lv ${nd.lv}${'이이가이가가이이이가'[nd.lv % 10]} 되면 ${josaOf(nd.name, '이', '가')} 생겨`)
+  if (s.streak >= 2) out.push(`${s.streak}일 연속이야!`)
+  if (s.todayTaskXp >= XP.taskDailyCap) out.push('오늘은 배불러! 남은 건 내일 먹을게')
+  out.push('네가 끝낸 일만큼 자라', '잠깐 쉬어도 괜찮아')
+  return out
+}
+/** §3.2.4 하루 첫 인사 */
+export function greetingLine(t: TimeOfDay, s: Pick<StageStats, 'todayDone' | 'todayOpen'>): string {
+  if (t === 'morning') return s.todayOpen ? `좋은 아침! 오늘 할 일 ${s.todayOpen}개 있어` : '좋은 아침! 오늘도 같이 자라자'
+  if (t === 'day') return s.todayDone ? `오늘 벌써 ${s.todayDone}개 했어!` : '안녕! 오늘 첫 할 일, 같이 해 볼까?'
+  if (t === 'evening') return s.todayDone ? `오늘 ${s.todayDone}개 했네, 수고했어` : '오늘도 수고했어'
+  return '늦었네… 오늘은 이만 쉬자'
+}
+/** §3.2.5 자리 비운 사이 받은 XP: since 뒤에 들어온 +XP 사건. since가 없으면(처음 쓰는 기기) 없음 */
+export function catchUpOf(events: Pick<XpRow, 'kind' | 'amount' | 'created_at'>[], since: string | null) {
+  if (!since) return { tasks: 0, xp: 0, orbs: [] as number[] }
+  const got = events.filter((e) => e.amount > 0 && e.created_at > since)
+  const tasks = got.filter((e) => e.kind === 'task').length
+  const xp = got.reduce((s, e) => s + e.amount, 0)
+  // 할 일 +1은 작은 방울, 목표·보너스는 큰 방울. 합쳐 최대 10개 — 넘으면 마지막 방울에 나머지를 모은다
+  const all = got.map((e) => e.amount)
+  const orbs = all.length > 10 ? [...all.slice(0, 9), all.slice(9).reduce((a, b) => a + b, 0)] : all
+  return { tasks, xp, orbs }
+}
+/** 누적 XP → 그 레벨 안의 진행(방울이 닿을 때마다 막대를 채우는 표시용) */
+export function levelOfTotal(total: number) {
+  let level = 1
+  let rest = Math.max(0, total)
+  while (rest >= xpToNext(level)) { rest -= xpToNext(level); level++ }
+  return { level, into: rest, toNext: xpToNext(level) }
+}
+
+// 기기 저장(동기화하지 않는다 — 10 §3.2.12)
+const ls = {
+  get: (k: string) => { try { return localStorage.getItem(k) } catch { return null } },
+  set: (k: string, v: string) => { try { localStorage.setItem(k, v) } catch { /* 저장 꺼짐 */ } }
+}
+/** 치운 장식 id(새로 열린 것은 놓인 채로 시작) */
+export function readRoomOff(characterId: string): Set<string> {
+  try { return new Set(JSON.parse(ls.get(`sprout.room.${characterId}`) ?? '[]') as string[]) } catch { return new Set() }
+}
+export const writeRoomOff = (characterId: string, off: Set<string>) => ls.set(`sprout.room.${characterId}`, JSON.stringify([...off]))
+export const readSeenAt = (characterId: string) => ls.get(`sprout.growthSeenAt.${characterId}`)
+export const writeSeenAt = (characterId: string, iso = new Date().toISOString()) => ls.set(`sprout.growthSeenAt.${characterId}`, iso)
+/** 하루 첫 인사를 했는지(했으면 false), 안 했으면 표시하고 true */
+export function takeGreeting(day: string): boolean {
+  if (ls.get('sprout.greetedDay') === day) return false
+  ls.set('sprout.greetedDay', day)
+  return true
+}
+export const readLogOpen = () => ls.get('sprout.growthLogOpen') === '1'
+export const writeLogOpen = (open: boolean) => ls.set('sprout.growthLogOpen', open ? '1' : '0')
+
+/** §3.2.11 움직임 줄이기: OS 설정 또는 성장 화면 ⋯ 스위치(기기별) */
+export const readMotionPref = () => ls.get('sprout.growthMotion') === 'reduce'
+export function writeMotionPref(reduce: boolean) {
+  ls.set('sprout.growthMotion', reduce ? 'reduce' : 'full')
+  window.dispatchEvent(new CustomEvent('sprout:growth-motion'))
+}
+export const motionReduced = () => readMotionPref() || (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches)
+export function useMotionReduced() {
+  const [r, setR] = useState(motionReduced)
+  useEffect(() => {
+    const on = () => setR(motionReduced())
+    const mq = typeof matchMedia !== 'undefined' ? matchMedia('(prefers-reduced-motion: reduce)') : null
+    window.addEventListener('sprout:growth-motion', on)
+    mq?.addEventListener?.('change', on)
+    return () => { window.removeEventListener('sprout:growth-motion', on); mq?.removeEventListener?.('change', on) }
+  }, [])
+  return r
+}
+
+/** §3.2.6 성장 화면이 열려 있으면 레벨업 창 대신 무대가 연출한다 */
+let stageActive = 0
+export const setGrowthStageActive = (on: boolean) => { stageActive = Math.max(0, stageActive + (on ? 1 : -1)) }
+export const isGrowthStageActive = () => stageActive > 0

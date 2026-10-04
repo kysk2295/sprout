@@ -1,4 +1,5 @@
 import type { Species } from '@sprout/schema/growth'
+import './growth-stage.css'
 
 // 10 §2.2 자리 표시 그림(직접 그린 단순 벡터). 정식 그림 자산이 생기면 이 컴포넌트만 바꾼다.
 // 공통 화풍: 둥근 몸 · 큰 눈 · 볼터치 · 머리에 새싹(단계마다 자란다). species = null 이면 "아직 모르는 알".
@@ -9,12 +10,15 @@ const COLORS: Record<Species, { body: string; accent: string }> = {
   otter: { body: '#B89A7E', accent: '#7E6249' }
 }
 
-export function CharacterArt({ species, stage = 1, size = 120, mood = 'default', look, blink }: { species: Species | null; stage?: number; size?: number; mood?: 'default' | 'happy' | 'sleepy'; look?: { x: number; y: number }; blink?: boolean }) {
+/** 10 §3.2.3 얼굴: default 보통 · smile 눈 뜨고 웃는 입 · happy 웃는 눈 · content 배부름 · eat 냠(입 벌림) · sleepy 감은 눈 */
+export type CharacterMood = 'default' | 'smile' | 'happy' | 'content' | 'eat' | 'sleepy'
+export function CharacterArt({ species, stage = 1, size = 120, mood = 'default', look, blink, cracks }: { species: Species | null; stage?: number; size?: number; mood?: CharacterMood; look?: { x: number; y: number }; blink?: boolean; cracks?: number }) {
   // look: 눈동자가 바라보는 방향(−1~1), blink: 눈 감기(깜빡임 한 프레임)
   const lx = (look?.x ?? 0) * 2.6
   const ly = (look?.y ?? 0) * 2
-  if (!species) return <Egg size={size} />
+  if (!species) return <Egg size={size} cracks={cracks} />
   const c = COLORS[species]
+  const closed = <><path d="M44 62 q5 4 10 0" stroke="#3A3A3A" strokeWidth="2.4" fill="none" strokeLinecap="round" /><path d="M66 62 q5 4 10 0" stroke="#3A3A3A" strokeWidth="2.4" fill="none" strokeLinecap="round" /></>
   const scale = 0.72 + stage * 0.07 // 자랄수록 조금씩 커진다
   return (
     <svg className={`character character--${species}`} width={size} height={size} viewBox="0 0 120 120" role="img" aria-label="캐릭터">
@@ -29,16 +33,19 @@ export function CharacterArt({ species, stage = 1, size = 120, mood = 'default',
         {(species === 'squirrel' || species === 'otter') && (<><circle cx="36" cy="40" r="7" fill={c.body} /><circle cx="84" cy="40" r="7" fill={c.body} /></>)}
         {species === 'turtle' && (<><circle cx="30" cy="90" r="6" fill={c.body} /><circle cx="90" cy="90" r="6" fill={c.body} /></>)}
         {/* 얼굴 */}
-        {mood === 'sleepy' || blink ? (
-          <><path d="M44 62 q5 4 10 0" stroke="#3A3A3A" strokeWidth="2.4" fill="none" strokeLinecap="round" /><path d="M66 62 q5 4 10 0" stroke="#3A3A3A" strokeWidth="2.4" fill="none" strokeLinecap="round" /></>
-        ) : mood === 'happy' ? (
+        {mood === 'sleepy' || blink ? closed : mood === 'happy' || mood === 'content' ? (
           <><path d="M44 63 q5 -6 10 0" stroke="#3A3A3A" strokeWidth="2.6" fill="none" strokeLinecap="round" /><path d="M66 63 q5 -6 10 0" stroke="#3A3A3A" strokeWidth="2.6" fill="none" strokeLinecap="round" /></>
         ) : (
-          <g transform={`translate(${lx} ${ly})`}><circle cx="49" cy="62" r="4.5" fill="#3A3A3A" /><circle cx="71" cy="62" r="4.5" fill="#3A3A3A" /><circle cx="50.5" cy="60.5" r="1.4" fill="#fff" /><circle cx="72.5" cy="60.5" r="1.4" fill="#fff" /></g>
+          // 눈 뜬 얼굴: 깜빡임은 부모의 .is-blink 클래스로 감은 눈을 보인다(다시 그리지 않는다), 시선은 .character__pupils 변환
+          <>
+            <g className="character__eyes-open"><g className="character__pupils" transform={`translate(${lx} ${ly})`}><circle cx="49" cy="62" r="4.5" fill="#3A3A3A" /><circle cx="71" cy="62" r="4.5" fill="#3A3A3A" /><circle cx="50.5" cy="60.5" r="1.4" fill="#fff" /><circle cx="72.5" cy="60.5" r="1.4" fill="#fff" /></g></g>
+            <g className="character__eyes-closed">{closed}</g>
+          </>
         )}
         <circle cx="41" cy="72" r="5" fill="#FF9FA8" opacity="0.55" />
         <circle cx="79" cy="72" r="5" fill="#FF9FA8" opacity="0.55" />
-        <path d={mood === 'happy' ? 'M54 72 q6 7 12 0' : 'M55 73 q5 4 10 0'} stroke="#3A3A3A" strokeWidth="2" fill="none" strokeLinecap="round" />
+        {mood === 'eat' ? <ellipse cx="60" cy="75" rx="5" ry="5.5" fill="#7A3B3B" />
+          : <path d={mood === 'content' ? 'M53 72 q7 6 14 0' : mood === 'happy' || mood === 'smile' ? 'M54 72 q6 7 12 0' : 'M55 73 q5 4 10 0'} stroke="#3A3A3A" strokeWidth="2" fill="none" strokeLinecap="round" />}
         {/* 머리 새싹: 단계마다 잎이 늘고, 4단계부터 작은 나무, 5단계는 꽃 */}
         <Sprout stage={stage} />
       </g>
@@ -67,12 +74,15 @@ function Sprout({ stage }: { stage: number }) {
   )
 }
 
-function Egg({ size }: { size: number }) {
+function Egg({ size, cracks = 0 }: { size: number; cracks?: number }) {
   return (
     <svg className="character character--egg" width={size} height={size} viewBox="0 0 120 120" role="img" aria-label="아직 모르는 알">
       <ellipse cx="60" cy="108" rx="24" ry="5" fill="rgba(0,0,0,0.08)" />
       <path d="M60 22 C82 22 92 58 92 76 C92 96 78 106 60 106 C42 106 28 96 28 76 C28 58 38 22 60 22 Z" fill="#F3EBDD" stroke="#E0D3BC" strokeWidth="2" />
       <path d="M40 70 l8 -6 l8 6 l8 -6 l8 6 l8 -6" stroke="#D8C7A8" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+      {cracks > 0 && <path d="M50 40 l6 8 l-4 6 l6 6" stroke="#B9A47F" strokeWidth="2" fill="none" />}
+      {cracks > 1 && <path d="M74 46 l-5 7 l5 5" stroke="#B9A47F" strokeWidth="2" fill="none" />}
+      {cracks > 2 && <path d="M64 86 l-4 -7 l6 -5" stroke="#B9A47F" strokeWidth="2" fill="none" />}
       <path d="M60 30 V20" stroke="#5DBB63" strokeWidth="3" strokeLinecap="round" />
       <path d="M60 22 C53 15 46 19 48 24 C53 26 57 25 60 22 Z" fill="#5DBB63" />
     </svg>

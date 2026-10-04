@@ -165,4 +165,67 @@ assert.equal(isWeeklyCap(new Error('지금은 AI를 쓰는 사람이 많아요. 
   assert.equal(net(nId), 0)
   assert.equal(xpSum(), before - 30)
 }
+// 10 §3.2 캐릭터 중심 v3: 무대 계산(순수 함수)·기기 저장
+{
+  const { DECOR, newlyUnlocked, nextDecor, timeOfDay, isSleepy, stageLines, greetingLine, catchUpOf, levelOfTotal, readRoomOff, writeRoomOff, takeGreeting, readMotionPref, writeMotionPref, setGrowthStageActive, isGrowthStageActive } = await import('../src/renderer/src/data/growth')
+  const { cumulativeXp, progressFromEvents } = await import('@sprout/schema/growth')
+  // 장식: 레벨로 열린다, 건너뛴 레벨 사이 것도 모두
+  assert.deepEqual(newlyUnlocked(4, 6).map((d) => d.id), ['butterfly', 'ball'])
+  assert.deepEqual(newlyUnlocked(6, 6), [])
+  assert.equal(nextDecor(15), undefined)
+  assert.equal(nextDecor(6)?.id, 'bunting')
+  assert.equal(DECOR.length, 10)
+  // 시간대 · 졸림(밤 23–6시 또는 이틀 넘게 XP 없음)
+  assert.deepEqual([5, 6, 11, 17, 20].map(timeOfDay), ['night', 'morning', 'day', 'evening', 'night'])
+  assert.equal(isSleepy(23, 0), true)
+  assert.equal(isSleepy(5, 0), true)
+  assert.equal(isSleepy(14, 1), false)
+  assert.equal(isSleepy(14, 2), true)
+  // 말풍선: 실제 숫자
+  const base = { todayDone: 3, todayOpen: 2, todayTaskXp: 3, streak: 3, idleDays: 0, level: 4, into: 92, toNext: 100, diaryUnseen: true, goals: [{ title: '운동 3번', target: 3, progress: 2, achieved: false }, { title: '논문 읽기', target: 1, progress: 0, achieved: false }] }
+  const l = stageLines(base)
+  assert.equal(l[0], '일기 썼어! 읽어 줄래?')
+  assert.ok(l.includes('오늘 3개나 했어, 최고야'))
+  assert.ok(l.includes("'운동 3번' 1번 남았어!"))
+  assert.ok(l.includes('레벨업까지 8 XP! 거의 다 왔어'))
+  assert.ok(l.includes('Lv 5가 되면 나비가 생겨'))
+  assert.ok(l.includes('3일 연속이야!'))
+  const l2 = stageLines({ ...base, todayDone: 0, todayTaskXp: 10, diaryUnseen: false, streak: 0, goals: [{ title: 'a', target: 1, progress: 1, achieved: true }, { title: 'b', target: 1, progress: 1, achieved: true }] })
+  assert.ok(l2.includes('오늘 할 일 2개 있어. 하나만 같이 해 볼까?'))
+  assert.ok(l2.includes('이번 주 퀘스트 다 했다! 보너스 +20'))
+  assert.ok(l2.includes('오늘은 배불러! 남은 건 내일 먹을게'))
+  assert.ok(!l2.some((x) => x.includes('연속')))
+  assert.equal(greetingLine('morning', { todayDone: 0, todayOpen: 4 }), '좋은 아침! 오늘 할 일 4개 있어')
+  assert.equal(greetingLine('evening', { todayDone: 3, todayOpen: 0 }), '오늘 3개 했네, 수고했어')
+  // 자리 비운 사이: since 뒤 +XP만, 처음 쓰는 기기(since 없음)는 날리지 않는다, 방울은 10개까지
+  const ev = (kind: string, amount: number, at: string) => ({ kind, amount, created_at: at })
+  const evs = [ev('task', 1, '2026-10-04T01:00:00Z'), ev('task', 1, '2026-10-04T03:00:00Z'), ev('task_revoke', -1, '2026-10-04T03:10:00Z'), ev('kpi', 30, '2026-10-04T04:00:00Z')]
+  assert.deepEqual(catchUpOf(evs, null), { tasks: 0, xp: 0, orbs: [] })
+  assert.deepEqual(catchUpOf(evs, '2026-10-04T02:00:00Z'), { tasks: 1, xp: 31, orbs: [1, 30] })
+  const many = Array.from({ length: 13 }, (_, i) => ev('task', 1, `2026-10-04T05:${String(i).padStart(2, '0')}:00Z`))
+  assert.deepEqual(catchUpOf(many, '2026-10-04T00:00:00Z').orbs, [1, 1, 1, 1, 1, 1, 1, 1, 1, 4])
+  // 표시용 레벨 계산은 원장 계산과 같다
+  for (const t of [0, 39, 40, 99, 100, cumulativeXp(6), cumulativeXp(6) + 5]) {
+    const p = progressFromEvents([{ amount: t, created_at: '2026-10-04T00:00:00Z' }])
+    assert.deepEqual(levelOfTotal(t), { level: p.level, into: p.into, toNext: p.toNext })
+  }
+  // 기기 저장: 치운 장식 · 하루 첫 인사 한 번 · 움직임 줄이기
+  assert.equal(readRoomOff('c1').size, 0)
+  writeRoomOff('c1', new Set(['ball']))
+  assert.deepEqual([...readRoomOff('c1')], ['ball'])
+  assert.equal(takeGreeting('2026-10-04'), true)
+  assert.equal(takeGreeting('2026-10-04'), false)
+  assert.equal(takeGreeting('2026-10-05'), true)
+  assert.equal(readMotionPref(), false)
+  writeMotionPref(true)
+  assert.equal(readMotionPref(), true)
+  writeMotionPref(false)
+  // 성장 화면이 열려 있는 동안만 무대가 레벨업을 맡는다
+  assert.equal(isGrowthStageActive(), false)
+  setGrowthStageActive(true)
+  assert.equal(isGrowthStageActive(), true)
+  setGrowthStageActive(false)
+  setGrowthStageActive(false)
+  assert.equal(isGrowthStageActive(), false)
+}
 console.log('growth: ok')

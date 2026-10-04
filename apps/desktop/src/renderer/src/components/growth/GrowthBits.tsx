@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cumulativeXp, SPECIES, STAGES } from '@sprout/schema/growth'
-import { useGrowth, useWeeklyClose, type XpRow } from '../../data/growth'
+import { isGrowthStageActive, useGrowth, useWeeklyClose, type XpRow } from '../../data/growth'
 import { CharacterArt } from './CharacterArt'
 import { iGa, ro } from '../../lib/josa'
 import './growth-report.css'
@@ -45,6 +45,13 @@ export function LevelUpWatcher() {
     const stamp = () => { try { localStorage.setItem(`${seenKey}.at`, new Date().toISOString()) } catch { /* */ } }
     if (!seen) { try { localStorage.setItem(seenKey, String(progress.level)) } catch { /* */ } stamp(); ready.current = true; return }
     if (progress.level > seen) {
+      // 10 §3.2.6 결정: 성장 화면이 열려 있으면 창 대신 무대가 연출한다(본 레벨로 기록)
+      if (isGrowthStageActive()) {
+        window.dispatchEvent(new CustomEvent('sprout:growth-reveal', { detail: { prev: seen, level: progress.level } }))
+        try { localStorage.setItem(seenKey, String(progress.level)) } catch { /* */ }
+        stamp()
+        return
+      }
       const prevStage = STAGES.filter((s) => seen >= s.from).pop()!.stage
       let since: string | null = null
       try { since = localStorage.getItem(`${seenKey}.at`) } catch { /* */ }

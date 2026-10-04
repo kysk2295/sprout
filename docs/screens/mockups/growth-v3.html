@@ -509,7 +509,7 @@ function lines(){
   if(S.todayDone>=3)out.push(`오늘 ${S.todayDone}개나 했어, 최고야`);else if(S.todayDone>0)out.push(`오늘 ${S.todayDone}개 했어!`);else if(S.todayOpen)out.push(`오늘 할 일 ${S.todayOpen}개 있어. 하나만 같이 해 볼까?`)
   if(left.length)out.push(near?`'${near.t}'은 ${near.target-near.p}번 남았어!`:`이번 주 퀘스트 ${left.length}개 남았어`);else out.push('이번 주 퀘스트 다 했다! 보너스 +20')
   if(tn-S.into<=10)out.push(`레벨업까지 ${tn-S.into} XP! 거의 다 왔어`)
-  const nd=DECOR.find(d=>d.lv>S.level);if(nd)out.push(`Lv ${nd.lv}이 되면 ${josa(nd.name,'이','가')} 생겨`)
+  const nd=DECOR.find(d=>d.lv>S.level);if(nd)out.push(`Lv ${nd.lv}${'이이가이가가이이이가'[nd.lv%10]} 되면 ${josa(nd.name,'이','가')} 생겨`)
   if(S.streak>=2)out.push(`${S.streak}일 연속이야!`)
   if(S.todayXp>=10)out.push('오늘은 배불러! 남은 건 내일 먹을게')
   out.push('네가 끝낸 일만큼 자라','잠깐 쉬어도 괜찮아')
