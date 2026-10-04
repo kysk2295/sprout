@@ -833,3 +833,14 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .account__sync { font: var(--text-meta); color: var(--color-text-tertiary); }
 .account__logout { margin-top: 24px; width: 134px; height: 38px; border-radius: 8px; border: 1px solid var(--color-border-divider); font: var(--text-body); color: var(--color-text-primary); }
 .account__logout:hover { background: var(--color-bg-hover); }
+
+/* 02 §0 섹션 */
+.section-input { display: flex; align-items: center; gap: 4px; margin: 0 var(--space-list-gutter) 4px; height: 36px; border-bottom: 1.5px solid var(--color-accent); }
+.section-input__chevron { width: 14px; height: 14px; color: var(--color-text-tertiary); flex-shrink: 0; }
+.section-input input { flex: 1; border: 0; outline: 0; background: transparent; font: var(--text-meta); color: var(--color-text-primary); user-select: text; }
+.section-input input::placeholder { color: var(--color-text-quaternary); }
+.group__more { margin-left: auto; width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-sm); color: var(--color-text-tertiary); opacity: 0; }
+.group__header:hover .group__more, .group__more:focus-visible { opacity: 1; }
+.group__more:hover { background: var(--color-bg-hover); }
+.group__more svg { width: 15px; height: 15px; }
+.group__rename { font: var(--text-group); color: var(--color-text-primary); border: 0; outline: 0; border-bottom: 1.5px solid var(--color-accent); background: transparent; padding: 0; width: 180px; user-select: text; }

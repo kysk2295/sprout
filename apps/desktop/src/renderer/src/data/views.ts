@@ -1,6 +1,6 @@
 import { filterScope } from './filters'
 import { dayKey, moveToDate, TIME_GROUPS, timeGroup } from '../lib/dates'
-import type { ListRow, TagRow, TaskRow } from './types'
+import type { ListRow, SectionRow, TagRow, TaskRow } from './types'
 import { TASK_COLUMNS as COLUMNS } from './taskQueries'
 
 // 보기(사이드바 선택)마다의 조회 조건·그룹·정렬·기본값 — 01 §4.1, 02 §3·§4·§11·§14
@@ -103,21 +103,27 @@ export function doneTasksSql(view: ViewKey, today = dayKey()) {
 }
 
 // ── 그룹 ──
-export interface GroupDef { id: string; name: string }
+export interface GroupDef { id: string; name: string; keep?: boolean } // keep: 비어도 머리를 보인다(섹션)
 const PRIORITY_GROUPS: GroupDef[] = [
   { id: 'p3', name: '높은 우선순위' }, { id: 'p2', name: '중간 우선순위' }, { id: 'p1', name: '낮은 우선순위' }, { id: 'p0', name: '우선순위 없음' }
 ]
 export const PINNED_GROUP: GroupDef = { id: 'pinned', name: '고정됨' }
 
 /** 그룹 순서 목록과, 태스크가 어느 그룹에 드는지 */
-export function grouping(by: GroupBy, lists: ListRow[], today: string, tags: TagRow[] = []): { defs: GroupDef[]; of: (t: TaskRow) => string } {
+export function grouping(by: GroupBy, lists: ListRow[], today: string, tags: TagRow[] = [], sections?: SectionRow[]): { defs: GroupDef[]; of: (t: TaskRow) => string } {
   switch (by) {
+    // 02 §0 섹션: 섹션이 있거나 만드는 중이면(sections 배열) 섹션들 + 미분류, 아니면 머리 없이 한 덩어리
+    case 'custom':
+      if (!sections) return { defs: [{ id: 'all', name: '' }], of: () => 'all' }
+      return {
+        defs: [...sections.map((x) => ({ id: `s:${x.id}`, name: x.name, keep: true })), { id: 's:none', name: '미분류' }],
+        of: (t) => (t.section_id && sections.some((x) => x.id === t.section_id) ? `s:${t.section_id}` : 's:none')
+      }
     // 태그 순서상 첫 태그로 묶는다 + 태그 없음 [임시]
     case 'tag': return {
       defs: [...tags.map((g) => ({ id: `tg:${g.id}`, name: g.name })), { id: 'tg:none', name: '태그 없음' }],
       of: (t) => { const ids = t.tag_ids?.split(',') ?? []; const first = tags.find((g) => ids.includes(g.id)); return first ? `tg:${first.id}` : 'tg:none' }
     }
-    // 'custom'(섹션): 섹션 UI가 붙기 전에는 섹션이 없으므로 머리 없이 한 덩어리
     case 'time': return { defs: TIME_GROUPS.map(([id, name]) => ({ id, name })), of: (t) => timeGroup(t, today) }
     case 'priority': return { defs: PRIORITY_GROUPS, of: (t) => `p${t.priority}` }
     case 'list': return {
@@ -142,6 +148,7 @@ export function groupDropPatch(groupId: string, t: TaskRow, today: string): Reco
   }
   if (/^p\d$/.test(groupId)) return { priority: Number(groupId[1]) }
   if (groupId.startsWith('l:')) return { list_id: groupId.slice(2), parent_id: null }
+  if (groupId.startsWith('s:')) return { section_id: groupId === 's:none' ? null : groupId.slice(2) }
   return null
 }
 

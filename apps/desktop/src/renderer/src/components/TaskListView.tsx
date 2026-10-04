@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as R
 import { useQuery } from '../data/useQuery'
 import type { Stmt } from '../data/db'
 import { createTask, run, setViewSetting, snapshot, update, updateTask, withDescendants } from '../data/mutations'
-import type { ListRow, TagRow, TaskRow } from '../data/types'
+import type { ListRow, SectionRow, TagRow, TaskRow } from '../data/types'
+import { createSection, deleteSection, renameSection } from '../data/sections'
 import {
   addbarPlaceholder, defaultSettings, doneTasksSql, groupDropPatch, grouping, groupOptions, isDefaultSettings, newTaskDefaults, sortOptions, viewIsList, openTasksSql, PINNED_GROUP,
   sidebarDropOf, viewIsArchive, viewShowsListName, type GroupBy, type SortBy, type ViewKey, type ViewSettings
@@ -107,25 +108,33 @@ export function TaskListView(props: Props) {
   const cursor = useRef<string>(undefined)
   const suppressClick = useRef(false)
 
+  // ── 섹션(02 §0): 일반 리스트의 사용자 설정 그룹 ──
+  const listId = viewIsList(view) ? view.slice(5) : ''
+  const sectionRows = useQuery<SectionRow>('SELECT id, name, sort_order FROM sections WHERE list_id = ? ORDER BY sort_order', [listId])
+  const [addingSection, setAddingSection] = useState(false)
+  const sections = listId && (sectionRows?.length || addingSection) ? sectionRows ?? [] : undefined
+  const [sectionMenu, setSectionMenu] = useState<{ id: string; anchor: HTMLElement }>()
+  const [renamingSection, setRenamingSection] = useState<string>()
+
   // ── 그룹 · 트리 ──
   const { groups, flat } = useMemo(() => {
     if (!tasks) return { groups: [] as Group[], flat: [] as FlatRow[] }
     const { roots, kids } = childrenMap(tasks)
-    const g = archive ? grouping('none', lists, today) : grouping(settings.group_by, lists, today, tags)
+    const g = archive ? grouping('none', lists, today) : grouping(settings.group_by, lists, today, tags, sections)
     const out: Group[] = []
-    const push = (id: string, name: string, rs: TaskRow[]) => {
-      if (!rs.length) return
+    const push = (id: string, name: string, rs: TaskRow[], keep = false) => {
+      if (!rs.length && !keep) return
       const all = flattenTree(rs, kids, id, new Set())
       out.push({ id, name, rows: collapsedGroups.has(id) ? [] : flattenTree(rs, kids, id, collapsedTasks), count: all.length })
     }
     if (!archive) push(PINNED_GROUP.id, PINNED_GROUP.name, roots.filter((r) => r.pinned_at))
-    for (const d of g.defs) push(d.id, d.name, roots.filter((r) => (archive || !r.pinned_at) && g.of(r) === d.id))
+    for (const d of g.defs) push(d.id, d.name, roots.filter((r) => (archive || !r.pinned_at) && g.of(r) === d.id), d.keep)
     return { groups: out, flat: out.flatMap((x) => x.rows) }
-  }, [tasks, archive, settings.group_by, lists, tags, today, collapsedGroups, collapsedTasks])
+  }, [tasks, archive, settings.group_by, lists, tags, sections, today, collapsedGroups, collapsedTasks])
   const groupOf = useMemo(() => {
-    const g = grouping(settings.group_by, lists, today, tags)
+    const g = grouping(settings.group_by, lists, today, tags, sections)
     return (t: TaskRow) => (t.pinned_at ? PINNED_GROUP.id : g.of(t))
-  }, [settings.group_by, lists, tags, today])
+  }, [settings.group_by, lists, tags, sections, today])
   const doneShown = doneMore ? doneTasks : doneTasks.slice(0, DONE_PREVIEW)
   const doneCollapsed = collapsedGroups.has('done')
   const visible = useMemo(() => [...flat.map((r) => r.task), ...(showDone && !doneCollapsed ? doneShown : [])], [flat, showDone, doneCollapsed, doneShown])
@@ -255,6 +264,16 @@ export function TaskListView(props: Props) {
       for (let k = i + 1; k < flat.length && flat[k].depth > r.depth; k++) skip.add(flat[k].task.id)
     })
     const rows = flat.filter((r) => !skip.has(r.task.id))
+    // 빈 그룹(예: 새 섹션) 위에 놓으면 그 그룹 맨 위로
+    const grpEl = hit.closest<HTMLElement>('[data-group]')
+    const gi = groups.findIndex((g) => g.id === grpEl?.dataset.group)
+    if (grpEl && gi >= 0 && !rows.some((r) => r.groupId === groups[gi].id)) {
+      const order = new Map(groups.map((g, k) => [g.id, k]))
+      const idx = rows.filter((r) => (order.get(r.groupId) ?? 0) < gi).length
+      const head = grpEl.querySelector('.group__header')?.getBoundingClientRect() ?? grpEl.getBoundingClientRect()
+      const scTop0 = sc.getBoundingClientRect().top - sc.scrollTop
+      return { kind: 'list', index: idx, depth: 0, parentId: null, groupId: groups[gi].id, prevSib: undefined, nextSib: undefined, lineY: head.bottom - scTop0 }
+    }
     const rects = rows.map((r) => rowEls.current.get(r.task.id)!.getBoundingClientRect())
     let i = rects.findIndex((rc) => y < rc.top + rc.height / 2)
     if (i < 0) i = rows.length
@@ -519,6 +538,19 @@ export function TaskListView(props: Props) {
           <div className="menu__divider" />
           <MenuItem icon={<SquareCheck />} label={settings.show_completed ? '완료된 할일 숨기기' : '완료된 할일 보기'} onClick={() => { setHeaderMenu(undefined); void setViewSetting(view, { show_completed: settings.show_completed ? 0 : 1 }) }} />
           <MenuItem icon={<List />} label="자세히 보기" trail={settings.show_details ? <Check className="menu__check" /> : undefined} onClick={() => { setHeaderMenu(undefined); void setViewSetting(view, { show_details: settings.show_details ? 0 : 1 }) }} />
+          {viewIsList(view) && (
+            <>
+              <div className="menu__divider" />
+              {/* 02 §0: "새로운 열" = 섹션 추가. 그룹이 사용자 설정이 아니면 사용자 설정으로 바꾼다 [임시] */}
+              <MenuItem icon={<Plus />} label="새로운 열" onClick={() => { setHeaderMenu(undefined); if (settings.group_by !== 'custom') void setViewSetting(view, { group_by: 'custom' }); setAddingSection(true) }} />
+            </>
+          )}
+        </Popover>
+      )}
+      {sectionMenu && (
+        <Popover anchor={sectionMenu.anchor} align="end" width={140} className="menu" onClose={() => setSectionMenu(undefined)}>
+          <MenuItem label="이름 바꾸기" onClick={() => { setRenamingSection(sectionMenu.id); setSectionMenu(undefined) }} />
+          <MenuItem label="삭제" onClick={() => { const id = sectionMenu.id; setSectionMenu(undefined); void deleteSection(id, (tasks ?? []).filter((t) => t.section_id === id).map((t) => t.id)) }} />
         </Popover>
       )}
       {!archive && inboxId && (
@@ -531,6 +563,16 @@ export function TaskListView(props: Props) {
           }}
         />
       )}
+      {addingSection && listId && (
+        <SectionInput
+          onCancel={() => setAddingSection(false)}
+          onCreate={async (name) => {
+            const top = sectionRows?.length ? Math.min(...sectionRows.map((x) => x.sort_order)) - 1 : 0
+            await createSection(listId, name, top)
+            setAddingSection(false)
+          }}
+        />
+      )}
       <div className="list__scroll" ref={scrollRef} onPointerDown={startBox}>
         {empty && (
           view === 'smart:today' ? <EmptyState title="오늘 할 일이 없어요" hint="입력창을 눌러 추가하세요" />
@@ -539,13 +581,31 @@ export function TaskListView(props: Props) {
         )}
         {allDone && <EmptyState title="모두 완료했어요" />}
         {groups.map((g) => (
-          <section key={g.id} className="group">
+          <section key={g.id} className="group" data-group={g.id}>
             {g.name && (
               <div className="group__header" onClick={() => toggleGroup(g.id)}>
                 <ChevronDown className={`group__chevron${collapsedGroups.has(g.id) ? ' is-collapsed' : ''}`} />
-                <span className="group__name">{g.name}</span>
+                {renamingSection === g.id.slice(2) ? (
+                  <input
+                    className="group__rename"
+                    autoFocus
+                    defaultValue={g.name}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      if (e.nativeEvent.isComposing) return
+                      if (e.key === 'Escape') setRenamingSection(undefined)
+                      if (e.key === 'Enter') { const v = e.currentTarget.value.trim(); if (v) void renameSection(g.id.slice(2), v); setRenamingSection(undefined) }
+                    }}
+                    onBlur={(e) => { const v = e.currentTarget.value.trim(); if (v && v !== g.name) void renameSection(g.id.slice(2), v); setRenamingSection(undefined) }}
+                  />
+                ) : (
+                  <span className="group__name">{g.name}</span>
+                )}
                 <span className="group__count">{g.count}</span>
                 {g.id === 'overdue' && <PostponeLink rows={g.rows} today={today} actions={actions} />}
+                {g.id.startsWith('s:') && g.id !== 's:none' && (
+                  <button className="group__more" aria-label="섹션 메뉴" onClick={(e) => { e.stopPropagation(); setSectionMenu({ id: g.id.slice(2), anchor: e.currentTarget }) }}><MoreHorizontal /></button>
+                )}
               </div>
             )}
             {g.rows.map(renderRow)}
@@ -730,6 +790,25 @@ function AddBar({ placeholder, onCreate }: { placeholder: string; onCreate: (tit
           <PriorityRow value={priority} onPick={(p) => { setPriority(p); setPop(undefined); input.current?.focus() }} />
         </Popover>
       )}
+    </div>
+  )
+}
+
+/** 02 §0 섹션 만들기: 추가 바 아래 이름 입력 줄. Enter = 만들기, Esc·빈 채로 벗어나기 = 취소 */
+function SectionInput({ onCreate, onCancel }: { onCreate: (name: string) => Promise<void>; onCancel: () => void }) {
+  return (
+    <div className="section-input">
+      <ChevronDown className="section-input__chevron" />
+      <input
+        autoFocus
+        placeholder="섹션 이름을 입력하십시오. 만들려면 Enter 키를 누르십시오."
+        onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return
+          if (e.key === 'Escape') onCancel()
+          if (e.key === 'Enter') { const v = e.currentTarget.value.trim(); if (v) void onCreate(v); else onCancel() }
+        }}
+        onBlur={(e) => { if (!e.currentTarget.value.trim()) onCancel() }}
+      />
     </div>
   )
 }

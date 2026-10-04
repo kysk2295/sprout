@@ -2,6 +2,7 @@ export interface TaskRow {
   id: string
   list_id: string | null
   parent_id: string | null
+  section_id?: string | null
   title: string
   content: string | null
   content_mode: string | null
@@ -50,3 +51,5 @@ export interface CheckItemRow {
 }
 export const listLabel = (l: { kind: string | null; name: string | null; emoji?: string | null }) =>
   l.kind === 'inbox' ? '기본함' : `${l.emoji ? `${l.emoji} ` : ''}${l.name ?? ''}`
+
+export interface SectionRow { id: string; name: string; sort_order: number }
