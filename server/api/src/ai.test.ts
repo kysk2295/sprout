@@ -286,6 +286,43 @@ assert.deepEqual(localModelNames({ models: [{ name: 'a' }, { name: 'b' }] }, ['b
   assert.deepEqual(both.map((x) => x.status).sort(), [200, 429])
 }
 
+// 31 작업 지도 AI 쪼개기: 용도 breakdown, 하루 10회(용도별) + 공용 분·일 상한 그대로, 실패는 세지 않음, 원문 저장 없음, 형식 지시
+{
+  clock = Date.parse('2026-10-07T03:00:00Z')
+  assert.equal(aiConfigFromEnv({}).daily.breakdown, 10)
+  assert.equal(aiConfigFromEnv({ AI_DAILY_BREAKDOWN: '3' }).daily.breakdown, 3)
+  const { base, store } = await proxy({ daily: { breakdown: 2 } })
+  const schema = { type: 'object', properties: { steps: { type: 'array' }, note: { type: 'string' } }, required: ['steps', 'note'] }
+  let r = await call(base, '/ai/breakdown', { messages: [{ role: 'system', content: 'split' }, ...msg('졸업 기획서 쪼개기')], format: schema })
+  assert.equal(r.status, 200)
+  assert.ok(bodies.at(-1).messages[0].content.includes('"required":["steps","note"]'), '다른 용도처럼 지시문에 형식(스키마)을 붙인다')
+  assert.deepEqual(bodies.at(-1).format, schema)
+  assert.equal((await call(base, '/ai/breakdown', { messages: msg('fail') })).status, 503)
+  assert.equal((await call(base, '/ai/breakdown', { messages: msg('b2') })).status, 200, '실패한 1회는 돌려준다')
+  r = await call(base, '/ai/breakdown', { messages: msg('b3') })
+  assert.equal(r.status, 429)
+  const j = await r.json()
+  assert.equal(j.code, 'daily')
+  assert.equal(j.error, '오늘은 이 AI 기능을 다 썼어요. 내일 다시 쓸 수 있어요.')
+  assert.equal(Number(r.headers.get('retry-after')), 12 * 3600, '한국 자정까지')
+  assert.equal((await call(base, '/ai/assistant', { messages: msg('a') })).status, 200, '다른 용도는 쪼개기 상한과 무관')
+  const st = await (await fetch(base + '/ai/status', { headers: { authorization: 'Bearer user-a' } })).json()
+  assert.deepEqual(st.usage.daily.breakdown, { used: 2, limit: 2 })
+  const row = [...store.rows.values()].find((x) => x.endpoint === 'breakdown')!
+  assert.equal(row.requests, 2)
+  assert.equal(row.failures, 1)
+  const dump = JSON.stringify([...store.rows.values(), ...store.calls])
+  for (const secret of ['졸업', 'split', 'b2', 'steps']) assert.ok(!dump.includes(secret), `저장소에 원문 없음: ${secret}`)
+  clock += 13 * 3600_000 // 다음 날
+  assert.equal((await call(base, '/ai/breakdown', { messages: msg('b4') })).status, 200)
+  // 분 상한은 공용 그대로
+  const { base: b2 } = await proxy({ perMinute: 1 })
+  assert.equal((await call(b2, '/ai/breakdown', { messages: msg('m1') })).status, 200)
+  r = await call(b2, '/ai/breakdown', { messages: msg('m2') })
+  assert.equal(r.status, 429)
+  assert.equal((await r.json()).code, 'rate_minute')
+}
+
 // 시간 초과 → 504, 실패로 기록(원문 없이)
 {
   const { base, store } = await proxy({ timeoutMs: 200 })

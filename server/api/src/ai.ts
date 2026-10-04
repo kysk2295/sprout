@@ -1,15 +1,15 @@
 // AI 프록시: 앱 → (JWT) → 여기(대기열·상한) → 백엔드(ai-backend.ts: 직접 URL 또는 Mac mini 워커) → Ollama. PRD "AI 사용 원칙"
 //   GET  /ai/status                       → 쓸 수 있는지·모델·대기열·내 사용량
-//   POST /ai/assistant|classify|map|diary|kpi-draft|weekly-report
+//   POST /ai/assistant|classify|map|diary|kpi-draft|weekly-report|breakdown
 //        {messages, format?, model?, stream?, options?: {temperature}}
 //        stream=false → {model, message:{role,content}, done, ...숫자}
 //        stream=true  → NDJSON: 대기 중 {"queue":{"position":n,"waiting":m}} → Ollama 줄 그대로 → 오류면 {"error","code"}
-// 규칙: 동시 실행 수 + 대기열(공용), 사용자별 분·일 상한, 성장 주간 AI(kpi-draft·weekly-report) 주 1+1,
+// 규칙: 동시 실행 수 + 대기열(공용), 사용자별 분·일 상한, 성장 주간 AI(kpi-draft·weekly-report) 주 1+1, 용도별 하루 상한(breakdown 10),
 //       컨텍스트 4096·출력 700 토큰·제한 시간, 클라우드·원격 모델 금지. 요청·응답 원문은 저장도 기록도 하지 않는다(숫자만).
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AiBackend } from './ai-backend.ts'
 
-export const ENDPOINTS = ['assistant', 'classify', 'map', 'diary', 'kpi-draft', 'weekly-report'] as const
+export const ENDPOINTS = ['assistant', 'classify', 'map', 'diary', 'kpi-draft', 'weekly-report', 'breakdown'] as const
 export type Endpoint = (typeof ENDPOINTS)[number]
 const isEndpoint = (s: string): s is Endpoint => (ENDPOINTS as readonly string[]).includes(s)
 
@@ -25,6 +25,8 @@ export type AiConfig = {
   perMinute: number
   perDay: number
   weekly: Partial<Record<Endpoint, number>>
+  /** 용도별 하루 상한(전체 공용 perDay와 별도) — 31 작업 지도 AI 쪼개기 */
+  daily: Partial<Record<Endpoint, number>>
   numCtx: number
   numPredict: number
   keepAlive: string
@@ -51,6 +53,7 @@ export function aiConfigFromEnv(env: Record<string, string | undefined> = proces
     perMinute: n('AI_USER_PER_MINUTE', 6),
     perDay: n('AI_USER_PER_DAY', 100),
     weekly: { 'kpi-draft': n('AI_WEEKLY_KPI_DRAFT', 1), 'weekly-report': n('AI_WEEKLY_REPORT', 1) },
+    daily: { breakdown: n('AI_DAILY_BREAKDOWN', 10) },
     numCtx: n('AI_NUM_CTX', 4096),
     numPredict: n('AI_NUM_PREDICT', 700),
     keepAlive: env.AI_KEEP_ALIVE || '5m',
@@ -73,6 +76,7 @@ const MESSAGES = {
   rate_minute: [429, 'AI 요청이 너무 잦아요. 잠시 뒤 다시 시도해 주세요.'],
   rate_day: [429, '오늘 AI 사용 한도를 다 썼어요. 내일 다시 시도해 주세요.'],
   weekly: [429, '이번 주에는 이미 사용했어요. 다음 주 월요일에 다시 쓸 수 있어요.'],
+  daily: [429, '오늘은 이 AI 기능을 다 썼어요. 내일 다시 쓸 수 있어요.'],
   queue_full: [503, '지금은 AI를 쓰는 사람이 많아요. 잠시 뒤 다시 시도해 주세요.'],
   queue_timeout: [503, '지금은 AI를 쓰는 사람이 많아요. 잠시 뒤 다시 시도해 주세요.'],
   unavailable: [503, '지금은 AI를 쓸 수 없어요. 잠시 뒤 다시 시도해 주세요.'],
@@ -341,6 +345,10 @@ export function createAi(deps: AiDeps) {
       if (weeklyCap !== undefined && (await deps.store.count(userId, weekKey(t, cfg.tzOffsetMin), endpoint)) >= weeklyCap) {
         throw new AiError('weekly', secsToNextWeek(t, cfg.tzOffsetMin))
       }
+      const dailyCap = cfg.daily?.[endpoint]
+      if (dailyCap !== undefined && (await deps.store.count(userId, day, endpoint)) >= dailyCap) {
+        throw new AiError('daily', secsToNextDay(t, cfg.tzOffsetMin))
+      }
       if (queue.full) throw new AiError('queue_full', 10)
       await deps.store.add(userId, endpoint, day, { requests: 1 })
       recent.push(t)
@@ -377,6 +385,9 @@ export function createAi(deps: AiDeps) {
     const week = weekKey(t, cfg.tzOffsetMin)
     const weekly: Record<string, { used: number; limit: number }> = {}
     for (const [ep, limit] of Object.entries(cfg.weekly)) weekly[ep] = { used: await deps.store.count(userId, week, ep as Endpoint), limit: limit! }
+    const today = dayKey(t, cfg.tzOffsetMin)
+    const daily: Record<string, { used: number; limit: number }> = {}
+    for (const [ep, limit] of Object.entries(cfg.daily ?? {})) daily[ep] = { used: await deps.store.count(userId, today, ep as Endpoint), limit: limit! }
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
     res.end(JSON.stringify({
       available,
@@ -386,7 +397,7 @@ export function createAi(deps: AiDeps) {
       backend: deps.backend.name,
       queue: { running: queue.running, waiting: queue.waiting.length, concurrency: cfg.concurrency, max: cfg.queueMax },
       limits: { per_minute: cfg.perMinute, per_day: cfg.perDay, num_ctx: cfg.numCtx, num_predict: cfg.numPredict, timeout_ms: cfg.timeoutMs },
-      usage: { today: await deps.store.count(userId, dayKey(t, cfg.tzOffsetMin)), weekly }
+      usage: { today: await deps.store.count(userId, today), weekly, daily }
     }))
   }
 
