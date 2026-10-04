@@ -30,6 +30,9 @@
   --color-dp-muted: var(--color-text-tertiary);
   --color-dp-icon: var(--color-text-secondary);
   --color-cal-other: var(--color-text-quaternary);
+  --color-login-bg: #f9f9f9;
+  --color-login-card: #ffffff;
+  --color-login-input-border: rgba(25, 25, 25, 0.1);
   /* 강조·상태 */
   --color-accent: #4e75f2;
   --color-accent-subtle: #ecf0fd;
@@ -140,6 +143,9 @@
   --color-dp-muted: #757575;
   --color-dp-icon: #afafaf;
   --color-cal-other: #666666;
+  --color-login-bg: #1a1a1a;
+  --color-login-card: #212121;
+  --color-login-input-border: rgba(255, 255, 255, 0.1);
   --cal-fill: 62%;
   --cal-fill-past: 20%;
   --cal-text: #ffffff;

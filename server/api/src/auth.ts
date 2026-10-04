@@ -25,7 +25,8 @@ export const newRefreshToken = () => randomBytes(32).toString('base64url')
 export const hashToken = (t: string) => createHash('sha256').update(t).digest('hex')
 
 export const validEmail = (e: unknown): e is string => typeof e === 'string' && e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)
-export const validPassword = (p: unknown): p is string => typeof p === 'string' && p.length >= 8 && p.length <= 200
+// 08 §8: 틱틱과 같이 6-64자
+export const validPassword = (p: unknown): p is string => typeof p === 'string' && p.length >= 6 && p.length <= 64
 
 // ── JWT ──
 export type Keys = { kid: string; privateKey: KeyLike; publicJwk: JWK }

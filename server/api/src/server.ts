@@ -72,7 +72,7 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
     rateLimit(req)
     const { email, password } = await readJson(req)
     if (!validEmail(email)) throw new UploadError('invalid email')
-    if (!validPassword(password)) throw new UploadError('password must be 8+ characters')
+    if (!validPassword(password)) throw new UploadError('password must be 6-64 characters')
     const normalized = email.trim().toLowerCase()
     const r = await pool.query('INSERT INTO users (email, password_hash) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING RETURNING id', [normalized, await hashPassword(password)])
     if (!r.rowCount) throw new UploadError('email already registered', 409)

@@ -157,6 +157,7 @@ export async function startSync() {
   ipcMain.handle('auth:signup', async (_e, email: string, password: string) => {
     try { return { ok: true, state: await signIn('/auth/signup', email, password) } } catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : String(e) } }
   })
+  ipcMain.handle('auth:sync-now', async () => { if (session) await db.connect(connector) })
   ipcMain.handle('auth:logout', async () => {
     const s = session
     // 로그아웃하면 이 기기의 내 데이터를 지우고 처음 상태로 돌아간다(다음 사람에게 보이지 않게)

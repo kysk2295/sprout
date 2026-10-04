@@ -36,6 +36,7 @@ const authApi = {
   login: (email: string, password: string) => ipcRenderer.invoke('auth:login', email, password) as Promise<AuthResult>,
   signup: (email: string, password: string) => ipcRenderer.invoke('auth:signup', email, password) as Promise<AuthResult>,
   logout: () => ipcRenderer.invoke('auth:logout') as Promise<AuthState>,
+  syncNow: () => ipcRenderer.invoke('auth:sync-now') as Promise<void>,
   onState: (cb: (s: AuthState) => void) => on('auth:state', cb)
 }
 

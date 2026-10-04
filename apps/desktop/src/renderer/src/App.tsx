@@ -16,6 +16,8 @@ import type { ListRow, TagRow } from './data/types'
 import { viewTitle } from './data/views'
 import { useLocalState, usePreferences } from './data/preferences'
 import { CommandMenu, SearchDialog, QuickAdd, type Command } from './components/DesktopEntry'
+import { useAuth, type AuthState } from './data/auth'
+import { LoginScreen } from './components/LoginScreen'
 import { DesktopSettings } from './components/DesktopSettings'
 
 const SIDEBAR = { def: 261, min: 200, max: 400 } // 실측 261
@@ -25,15 +27,27 @@ const DRAWER_BELOW = 1100
 const NARROW_BELOW = 900
 
 export function App() {
+  const auth = useAuth()
   if (new URLSearchParams(location.search).get('window') === 'settings') return <DesktopSettings onClose={() => window.close()} />
+  // 08 §2 A안: 데스크톱은 로그아웃 상태면 로그인 화면이 먼저 (웹 미리보기는 서버가 없어 건너뛴다)
+  if (auth.enabled && !auth.state) return null
+  if (auth.enabled && !auth.state?.user) return <ThemedLogin />
   return (
     <ToastProvider>
-      <Shell />
+      <Shell sync={auth.state?.sync} email={auth.state?.user?.email} />
     </ToastProvider>
   )
 }
 
-function Shell() {
+function ThemedLogin() {
+  const prefs = usePreferences()
+  const [systemDark, setSystemDark] = useState(matchMedia('(prefers-color-scheme: dark)').matches)
+  useEffect(() => { const m = matchMedia('(prefers-color-scheme: dark)'); const change = () => setSystemDark(m.matches); m.addEventListener('change', change); return () => m.removeEventListener('change', change) }, [])
+  useEffect(() => { document.documentElement.dataset.theme = prefs.followDark && systemDark ? 'dark' : prefs.theme }, [prefs.theme, prefs.followDark, systemDark])
+  return <LoginScreen />
+}
+
+function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   const [view, setView] = useLocalState<RailView>('sprout.view', 'tasks')
   const [selected, setSelected] = useLocalState('sprout.selected', 'smart:today')
   const [selection, setSelection] = useState<string[]>([])
@@ -151,7 +165,7 @@ function Shell() {
   return (
       <div className="app">
         <ReminderCards onOpen={(id) => setSelection([id])} onComplete={(id) => void actions.complete([id])} />
-        <Rail view={view} onView={setView} onSearch={()=>{setSearchQuery('');setOverlay('search')}} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} />
+        <Rail view={view} onView={setView} sync={sync} email={email} onSearch={()=>{setSearchQuery('');setOverlay('search')}} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} />
         {overlay==='command' && <CommandMenu commands={commands} onClose={()=>setOverlay(undefined)} onSearch={(q)=>{setSearchQuery(q);setOverlay('search')}}/>}
         {overlay==='search' && <SearchDialog initial={searchQuery} onClose={()=>setOverlay(undefined)} onPick={(r)=>{setView('tasks');if(r.kind==='task'){setSelected(r.list_id?`list:${r.list_id}`:'smart:all');setSelection([r.id])}else selectView(`${r.kind}:${r.id}`)}}/>}
         {overlay==='quick' && <QuickAdd lists={lists} tags={tags} inboxId={inboxId} onClose={()=>setOverlay(undefined)} onCreated={(id,listId)=>{setView('tasks');setSelected(`list:${listId}`);setSelection([id])}}/>}

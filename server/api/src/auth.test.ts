@@ -9,7 +9,7 @@ assert.ok(await verifyPassword('correct horse', h))
 assert.ok(!(await verifyPassword('wrong', h)))
 assert.ok(!(await verifyPassword('x', 'garbage')))
 assert.ok(validEmail('a@b.co') && !validEmail('nope') && !validEmail(3))
-assert.ok(validPassword('12345678') && !validPassword('short'))
+assert.ok(validPassword('123456') && !validPassword('12345') && !validPassword('x'.repeat(65)))
 
 // 키는 파일에 남아 재시작해도 같다, 토큰 왕복
 const path = join(mkdtempSync(join(tmpdir(), 'sprout-keys-')), 'keys.json')
