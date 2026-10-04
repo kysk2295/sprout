@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { ListSuggestSettings } from './listSuggest/ListSuggest'
-import { CircleUser, Keyboard, ListChecks, ListFilter, Palette, Plug, Settings2, X } from 'lucide-react'
+import { Bell, CircleUser, Keyboard, ListChecks, ListFilter, Palette, Plug, Settings2, X } from 'lucide-react'
 import { OverdueSettings } from './overdue/OverdueBits'
+import { NotifySettings } from './NotifySettings'
 import { authApi, deleteErrorText, deleteMode, deleteReady, DELETE_WORD, providerLabel, useAuth, type DeleteMode } from '../data/auth'
 import { LINK_NAME, linkErrorText, loginMethodRows, linkToast, unlinkToast, type LinkedIdentity, type LinkProvider } from '../data/auth'
 import './account-delete.css'
@@ -30,7 +31,7 @@ export function DesktopSettings({ onClose, initial = authApi() ? 'account' : 'sm
   return <Dialog label="설정" className="settings-dialog" onClose={onClose}>
     <nav className="settings-nav" aria-label="설정 항목">
       <button className="icon-btn" aria-label="설정 닫기" onClick={onClose}><X /></button><h2>설정</h2>
-      {([...(authApi() ? [['account','계정',CircleUser]] as const : []),['smart','스마트 목록',ListFilter],['tasks','할 일',ListChecks],['appearance','외관',Palette],['integrations','연동',Plug],['general','일반',Settings2],['shortcuts','단축키',Keyboard]] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><Icon />{label}</button>)}
+      {([...(authApi() ? [['account','계정',CircleUser]] as const : []),['smart','스마트 목록',ListFilter],['tasks','할 일',ListChecks],['appearance','외관',Palette],['integrations','연동',Plug],['notify','알림',Bell],['general','일반',Settings2],['shortcuts','단축키',Keyboard]] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><Icon />{label}</button>)}
     </nav>
     <section className="settings-content">
       {error && <p role="alert" className="form-error">{error}</p>}
@@ -39,6 +40,7 @@ export function DesktopSettings({ onClose, initial = authApi() ? 'account' : 'sm
       {tab === 'tasks' && <><OverdueSettings /><ListSuggestSettings /></>}
       {tab === 'appearance' && <><h2>테마</h2><ThemePicker save={save} /></>}
       {tab === 'integrations' && <IntegrationsPane />}
+      {tab === 'notify' && <NotifySettings />}
       {tab === 'general' && <GeneralPane />}
       {tab === 'shortcuts' && <><h2>단축키</h2><div className="settings-card">{SHORTCUTS.map(([label,key]) => <div className="settings-row" key={label}><span>{label}</span><kbd>{window.sprout?.platform === 'win32' ? key.replaceAll('⌘','Ctrl+') : key}</kbd></div>)}</div></>}
     </section>

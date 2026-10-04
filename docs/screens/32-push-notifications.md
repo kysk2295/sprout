@@ -1,6 +1,6 @@
 # 32 · 푸시 알림 (FCM) — 할 일 알림 · 하루 요약 · 다른 기기 변경 · 성장 소식
 
-- 상태: **확정 v1.0 (2026-10-05)** — 사용자 "추천대로 전부, 나머지는 다 승인": §12 N1~N5 = 추천안, §10 인프라 I1~I8 승인. 서버 쪽(1·3·4·5·6단계 서버) 구현 완료 — §15 구현 메모
+- 상태: **확정 v1.0 (2026-10-05)** — 사용자 "추천대로 전부, 나머지는 다 승인": §12 N1~N5 = 추천안, §10 인프라 I1~I8 승인. 서버 쪽(1·3·4·5·6단계 서버) 구현 완료 — §15 구현 메모 · 7단계 데스크톱 `알림` 탭 구현 완료 — §16
 - 사용자 결정(2026-10-05): FCM(HTTP v1, 셀프호스트 Node API가 서비스 계정으로 보냄). 알림 종류 4가지 모두 — ① 서버가 보내는 할 일 알림 ② 아침 하루 요약 ③ 다른 기기 변경 즉시 반영(조용한 푸시) ④ 성장·AI 소식. **Android 먼저 끝까지**, iOS는 코드 길만 준비하고 Apple 개발자 계정·APNs 키가 생기면 켠다(그 전까지 iOS는 지금의 로컬 알림 그대로).
 - 바꾸는 결정: [20 모바일 §0 D3](20-mobile-overview.md)("로컬 알림, 서버 푸시는 [다음]") → **로컬 알림은 그대로 두고 서버 푸시를 더한다**(§4.3 하이브리드). 20 §4.4의 로컬 예약 규칙(48시간·50개·버튼·완료 경로)은 그대로 쓴다.
 - 표기: **[틱틱]** 틱틱 동작 근거 있음 · **[sprout]** 틱틱에 없음(성장·AI·동기화) · **[임시]** 숫자·문구 추정값 · **[승인]** 인프라 변경이라 사용자 승인 필요
@@ -213,7 +213,7 @@ CREATE INDEX IF NOT EXISTS tasks_open_due_idx ON tasks (due_at) WHERE status = 0
 
 ### 9.2 동기화 테이블 한 칸 추가 — `user_prefs.notify_json` (text) [승인]
 - `{ "reminders": true, "hideTitles": false, "daily": {"on": false, "time": "08:00", "skipWeekends": false}, "growth": {"evolve": true, "report": true, "goalDue": true, "inboxCleanup": false} }` — 없으면 이 기본값.
-- 사용자 단위라 데스크톱 설정에서도 바꾼다: 데스크톱 설정에 **`알림` 탭**(DesktopSettings의 탭 줄, `일반` 앞)을 더하고 위 칸들을 `휴대폰으로 받는 알림` 머리 아래 같은 순서로 둔다(시험 알림·배터리 줄 없음). 데스크톱 자기 OS 알림은 지금처럼 늘 켜짐(03 §7) — 이 탭에 `이 컴퓨터의 할 일 알림` 스위치를 둘지는 [다음].
+- 사용자 단위라 데스크톱 설정에서도 바꾼다: 데스크톱 설정에 **`알림` 탭**(DesktopSettings의 탭 줄, `일반` 앞)을 더하고 위 칸들을 `휴대폰으로 받는 알림` 머리 아래 같은 순서로 둔다(시험 알림·배터리 줄 없음). 데스크톱 자기 OS 알림은 지금처럼 늘 켜짐(03 §7) — 이 탭에 `이 컴퓨터의 할 일 알림` 스위치를 둘지는 [다음]. → 구현 §16.
 - 바꾸는 곳: `packages/schema` TABLES → `npm run server:schema`(gen-sql·sync-config 다시 생성) → `ALTER TABLE user_prefs ADD COLUMN IF NOT EXISTS notify_json text`. **서버를 먼저 배포**하고 앱을 낸다(모르는 칸 = 409, upload.ts 규칙).
 - 기기별 값(이 휴대폰의 권한·`push_reminders`)은 `device_tokens`에만.
 
@@ -312,4 +312,35 @@ CREATE INDEX IF NOT EXISTS tasks_open_due_idx ON tasks (due_at) WHERE status = 0
 - `FCM_PROJECT_ID`가 있는데 키가 없거나 깨졌으면 api는 그대로 뜨고 푸시만 꺼진다(로그 `[push] FCM 설정 오류`).
 
 휴대폰 쪽이 할 일(2단계): 기기 id(`sprout.deviceId`, uuid v4) · `PUT /push/devices/:id`(caps: 지금 열 수 있는 것만) · 업로드에 헤더 `X-Sprout-Device` · 로컬 예약 바뀔 때 `PUT …/local` · 로그아웃 때 DELETE → `/auth/logout {refresh_token, device_id}` · 받기 처리기(`reminder`/`daily`/`growth`/`sync`/`test`) · 채널 `daily`·`growth` 추가 · plan.ts `bodyOf`를 `reminderBody`로 바꾸기(같은 문구).
+
+## 16. 구현 메모 — 데스크톱 설정 `알림` 탭 (2026-10-05, 7단계)
+| 곳 | 내용 |
+|---|---|
+| `apps/desktop/src/renderer/src/data/notifyPrefs.ts` | `useNotifyPrefs()`(user_prefs.notify_json → 공용 `parseNotifyPrefs`) · `saveNotifyPrefs(patch)`(DB에서 지금 값을 다시 읽어 안쪽까지 합친 뒤 **모든 칸을 담은 JSON**을 일반 동기화 쓰기 `update`/`insert`로 — `/sync/upload`로 올라가 휴대폰·서버가 받는다) · `mergeNotify` · `dailyTimeOptions` |
+| `apps/desktop/src/renderer/src/components/NotifySettings.tsx` | 탭 내용. DesktopSettings 탭 줄 `연동` 뒤·`일반` 앞에 `알림`(종 아이콘) |
+| `apps/desktop/tests/notify.test.ts` | 합치기·깨진 값 기본값·행 없음 insert/있음 update(다른 칸 보존)·시각 목록 |
+
+레이아웃(위에서 아래, 기존 `settings-card`·`settings-row`·`dp__switch` 그대로):
+```
+알림
+휴대폰으로 받는 알림
+┌ 할 일 알림 ─────────────── ● ┐ 설명 "정한 시간에 휴대폰으로 할 일을 알려 드려요"
+│ 알림에 제목 숨기기 ──────── ○ │ 설명 "잠금 화면·서버 전송에 할 일 제목을 넣지 않아요"
+└──────────────────────────────┘
+┌ 하루 요약 ──────────────── ○ ┐ 설명 "정한 시각에 오늘 할 일을 한 번에 알려 드려요"
+│ 받을 시각 ───────── 오전 8:00 │ 드롭다운 30분 간격(휴대폰에서 고른 08:15 같은 값은 목록에 끼워 보인다)
+│ 주말 건너뛰기 ───────────── ○ │ 하루 요약이 꺼져 있으면 두 줄 흐림·잠금
+└──────────────────────────────┘
+성장 소식
+┌ 캐릭터 진화 ────────────── ● ┐
+│ 주간 리포트 도착 ────────── ● │
+│ 이번 주 목표 마감 알림 ──── ● │ 설명 "일요일 저녁 8시, 남은 목표가 있을 때"
+└──────────────────────────────┘
+휴대폰 앱에 로그인한 기기로 보내요. 이 컴퓨터의 할 일 알림은 앱이 켜져 있을 때 늘 울려요(시스템 설정 › 알림에서 끌 수 있어요).
+```
+명세와 다르게/더 정한 것:
+- `기본함 정리 제안` 줄은 데스크톱에서 **숨긴다** — 휴대폰 `caps`에 `inbox-cleanup`이 생길 때만 휴대폰에 보이는 줄이고(§7.1), 데스크톱은 휴대폰의 caps를 모른다. 값은 저장할 때 그대로 보존된다.
+- 서버 FCM 상태(`push.enabled`)는 데스크톱이 기기 등록을 안 하므로 묻지 않는다 — 상태 줄 없이 맨 아래 안내 한 줄만.
+- `이 컴퓨터의 할 일 알림` 스위치는 계속 [다음] — 안내 문구로 OS 설정을 가리킨다.
+- 확인(2026-10-05): 새 계정에서 칸을 바꾸고 로그아웃(로컬 삭제) → 다시 로그인하면 서버에서 같은 `notify_json`이 내려옴.
 
