@@ -206,6 +206,65 @@ svg.sm{width:14px;height:14px}
 .lane-label{position:absolute;font:600 11px/14px var(--font);color:var(--color-text-tertiary)}
 .kchip{font:500 10px/14px var(--font);color:var(--color-text-secondary);background:var(--color-bg-selected);border-radius:3px;padding:0 4px;margin-left:6px}
 .kbadge{font:500 10px/14px var(--font);color:#c27c0e;background:rgba(239,171,62,.16);border-radius:999px;padding:0 6px;margin-left:6px}
+
+/* ── 5. 일기 ── */
+.diary{flex:1;display:flex;min-width:0}
+.dside{width:300px;border-right:1px solid var(--color-border-divider);display:flex;flex-direction:column;flex-shrink:0}
+.mcal{padding:4px 21px 10px}
+.mcal .mh{display:flex;align-items:center;justify-content:space-between;font:600 13px/18px var(--font);margin-bottom:6px}
+.mcal .mh span{display:flex;gap:6px;color:var(--color-text-tertiary)}
+.mcal .g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.mcal .g b{font:500 10.5px/18px var(--font);color:var(--color-text-tertiary)}
+.mcal .g i{font:400 11.5px/26px var(--font);font-style:normal;border-radius:6px;position:relative;color:var(--color-text-secondary)}
+.mcal .g i.o{color:var(--color-text-quaternary)}
+.mcal .g i.has::after{content:"";position:absolute;left:50%;bottom:2px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--mood,var(--color-accent))}
+.mcal .g i.sel{background:var(--color-accent);color:#fff}
+.mcal .g i.today{color:var(--color-accent);font-weight:600}
+.dlist{flex:1;overflow:hidden;padding:0 10px}
+.drow{display:flex;gap:10px;padding:8px 11px;border-radius:6px;align-items:flex-start}
+.drow.sel{background:var(--color-bg-selected)}
+.drow .mood{font-size:18px;line-height:22px}
+.drow .dt{font:600 12px/16px var(--font);color:var(--color-text-secondary)}
+.drow .pv{font:400 13px/18px var(--font);color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px}
+.deditor{flex:1;display:flex;flex-direction:column;min-width:0}
+.deditor .dh{height:57px;padding:9px 16px 0 28px;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.deditor .dh h3{font:700 20px/26px var(--font);flex:1}
+.dbody{flex:1;overflow:hidden;padding:4px 28px 0;display:flex;flex-direction:column;gap:14px}
+.moods{display:flex;gap:6px;align-items:center}
+.moods span{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:19px;background:var(--color-bg-input);border:1.5px solid transparent}
+.moods span.on{border-color:var(--color-accent);background:var(--color-accent-subtle)}
+.moods em{font:400 12px/16px var(--font);color:var(--color-text-tertiary);font-style:normal;margin-left:6px}
+.prompt{display:flex;align-items:center;gap:8px;font:400 13px/18px var(--font);color:var(--color-text-secondary)}
+.prompt .btn{margin-left:auto}
+.dtext{font:400 15px/26px var(--font);color:var(--color-text-primary)}
+.dtext p{margin-bottom:10px}
+.today-card{border:1px solid var(--color-border-divider);background:var(--color-bg-card);border-radius:8px;display:flex;gap:14px;padding:12px 14px;align-items:center}
+.today-card .tc-body{flex:1;min-width:0}
+.today-card h4{font:600 12px/16px var(--font);color:var(--color-text-secondary);margin-bottom:6px;display:flex;gap:6px;align-items:center}
+.today-card ul{list-style:none;display:flex;flex-direction:column;gap:3px}
+.today-card li{display:flex;gap:8px;align-items:center;font:400 13px/18px var(--font)}
+.today-card li .cb{width:12px;height:12px}
+.today-card .xp{font:600 11px/15px var(--font);color:var(--color-accent);background:var(--color-accent-subtle);border-radius:999px;padding:1px 7px}
+.bubble{position:relative;background:var(--color-bg-input);border-radius:10px;padding:6px 10px;font:400 12px/17px var(--font);color:var(--color-text-secondary);max-width:150px}
+.char{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0}
+.dfoot{height:36px;display:flex;align-items:center;gap:10px;padding:0 28px;border-top:1px solid var(--color-border-divider);font:400 11px/15px var(--font);color:var(--color-text-tertiary);flex-shrink:0}
+.dfoot .sp{flex:1}
+/* 돌아보기 */
+.review{flex:1;overflow:hidden;padding:0 21px}
+.rgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;width:560px;flex-shrink:0}
+.rgrid b{font:500 11px/18px var(--font);color:var(--color-text-tertiary);text-align:center}
+.rgrid i{height:66px;border-radius:8px;background:var(--color-bg-input);font-style:normal;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:400 11px/14px var(--font);color:var(--color-text-tertiary)}
+.rgrid i em{font-style:normal;font-size:20px;line-height:24px}
+.rgrid i.blank{background:transparent}
+.rgrid i.today{outline:1.5px solid var(--color-accent)}
+.rwrap{display:flex;gap:28px;align-items:flex-start}
+.rstats{flex:1;display:flex;flex-direction:column;gap:12px;min-width:220px}
+.rstat{border:1px solid var(--color-border-divider);background:var(--color-bg-card);border-radius:8px;padding:12px 14px}
+.rstat strong{font:700 20px/26px var(--font);display:block}
+.rstat span{font:400 11px/15px var(--font);color:var(--color-text-tertiary)}
+.mbar{display:flex;height:8px;border-radius:999px;overflow:hidden;margin:8px 0 6px}
+.mbar i{display:block;height:100%}
+.rlegend{display:flex;gap:10px;font:400 11px/15px var(--font);color:var(--color-text-tertiary)}
 /* ── 4. AI 사용량 ── */
 .usage{flex:1;overflow:hidden;padding:0 0 0}
 .ugrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:4px 21px 6px}
@@ -236,7 +295,7 @@ html:not([data-theme=dark]) .legend b{color:#a06a00}
 </head>
 <body>
 <div class="page-head">
-  <h1>sprout 새 탭 시안 v1.2</h1>
+  <h1>sprout 새 탭 시안 v1.3</h1>
   <p>AI 비서 · 메모함(+주제 위키) · 작업 지도 · AI 사용량 — 틱틱 디자인 언어(57px 머리, 추가 바, 40px 행, 336px 상세, 258px 칸반 열)로 다시 그림. 데이터는 예시.</p>
   <button onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'">라이트/다크 전환</button>
 </div>
@@ -481,6 +540,65 @@ html:not([data-theme=dark]) .legend b{color:#a06a00}
   <div class="menu" style="left:250px;top:330px;width:170px"><div><span data-i="pencil"></span>별칭 바꾸기</div><div><span data-i="refresh"></span>이 계정만 갱신</div><div><span data-i="eye"></span>숨기기</div><div><span data-i="arrow"></span>원본 페이지 열기</div><hr><div class="danger"><span data-i="unlink"></span>연결 해제</div></div>
 </div>
 
+
+<!-- ───────── 5. 일기 ───────── -->
+<div class="label">⑤ 일기 · 쓰기 <small>15-diary 초안 · 왼쪽 미니 달력 + 날짜별 일기 목록, 오른쪽 그날 일기(기분 · 오늘의 질문 · 본문 · 오늘 한 일 카드 + 캐릭터 한마디)</small></div>
+<div class="frame">
+  <nav class="rail" data-on="diary"></nav>
+  <section class="main" style="flex-direction:row">
+    <div class="dside">
+      <div class="head"><h2>일기 <span class="seg"><span class="on">쓰기</span><span>돌아보기</span></span></h2><span class="ib" data-i="search"></span></div>
+      <div class="mcal">
+        <div class="mh">2026년 10월<span><span data-i="left" class="sm"></span><span data-i="right" class="sm"></span></span></div>
+        <div class="g"><b>일</b><b>월</b><b>화</b><b>수</b><b>목</b><b>금</b><b>토</b><i class="o">27</i><i class="o">28</i><i class="o">29</i><i class="o">30</i><i class="has" style="--mood:#3fb950">1</i><i class="has" style="--mood:#4e75f2">2</i><i class="has" style="--mood:#efab3e">3</i><i class="sel" style="--mood:#3fb950">4</i><i class="">5</i><i class="">6</i><i class="">7</i><i class="">8</i><i class="">9</i><i class="">10</i><i class="">11</i><i class="">12</i><i class="">13</i><i class="">14</i><i class="">15</i><i class="">16</i><i class="">17</i><i class="">18</i><i class="">19</i><i class="">20</i><i class="">21</i><i class="">22</i><i class="">23</i><i class="">24</i><i class="">25</i><i class="">26</i><i class="">27</i><i class="">28</i><i class="">29</i><i class="">30</i><i class="">31</i><i class="o">1</i><i class="o">2</i><i class="o">3</i><i class="o">4</i><i class="o">5</i><i class="o">6</i><i class="o">7</i></div>
+      </div>
+      <div class="group" style="padding-top:6px"><span class="chev" data-i="down"></span>10월 <span class="n">4</span></div>
+      <div class="dlist">
+        <div class="drow sel"><span class="mood">😊</span><div><div class="dt">10월 4일 토 · 오늘</div><div class="pv">졸업 프로젝트 기획서를 드디어 반쯤…</div></div></div>
+        <div class="drow"><span class="mood">🙂</span><div><div class="dt">10월 3일 금</div><div class="pv">스터디에서 강화학습 발표를 맡았다</div></div></div>
+        <div class="drow"><span class="mood">😐</span><div><div class="dt">10월 2일 목</div><div class="pv">하루 종일 비. 과제만 붙잡고 있었다</div></div></div>
+        <div class="drow"><span class="mood">😊</span><div><div class="dt">10월 1일 수</div><div class="pv">새 달 시작. 이번 달 목표 세 가지</div></div></div>
+      </div>
+    </div>
+    <div class="deditor">
+      <div class="dh"><h3>10월 4일 토요일</h3><span class="meta">오후 11:02 · 자동 저장됨</span><span class="ib" data-i="lock" title="잠금"></span><span class="ib" data-i="more"></span></div>
+      <div class="dbody">
+        <div class="moods"><span>😢</span><span>😕</span><span>😐</span><span class="on">😊</span><span>🤩</span><em>좋았어요</em></div>
+        <div class="prompt"><span data-i="sparkle" class="sm acc"></span>오늘의 질문 · 오늘 가장 뿌듯했던 순간은?<span class="btn ghost">다른 질문</span></div>
+        <div class="dtext">
+          <p>졸업 프로젝트 기획서를 드디어 반쯤 썼다. 막혔던 "왜 이 앱이어야 하는가" 부분을 캐릭터 성장 이야기로 풀어 보니 술술 써졌다.</p>
+          <p>저녁엔 헬스장. 오랜만에 가서 그런지 힘들었지만 개운하다. 내일은 교수님 면담 준비를 해야지.</p>
+        </div>
+        <div class="today-card">
+          <div class="tc-body">
+            <h4><span data-i="check" class="sm"></span>오늘 한 일 · 6개<span class="xp">+6 XP</span></h4>
+            <ul><li><span class="cb done"></span>기획서 초안 절반</li><li><span class="cb done"></span>헬스장</li><li><span class="cb done"></span>알고리즘 2문제</li><li class="meta" style="color:var(--color-text-tertiary)">외 3개 · 할 일 탭에서 보기</li></ul>
+          </div>
+          <div class="char"><div class="bubble">오늘 6개나 끝냈네! 푹 쉬어 🌙</div><svg width="76" height="76" viewBox="0 0 120 120"><ellipse cx="60" cy="110" rx="26" ry="5" fill="rgba(0,0,0,.12)"/><g transform="translate(60 65) scale(.86) translate(-60 -58)"><path d="M88 84 C116 76 112 30 90 34 C104 46 96 64 84 70 Z" fill="#B5764A"/><ellipse cx="60" cy="66" rx="34" ry="32" fill="#E8B48A"/><circle cx="36" cy="40" r="7" fill="#E8B48A"/><circle cx="84" cy="40" r="7" fill="#E8B48A"/><path d="M44 63 q5 -6 10 0" stroke="#3A3A3A" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M66 63 q5 -6 10 0" stroke="#3A3A3A" stroke-width="2.6" fill="none" stroke-linecap="round"/><circle cx="41" cy="72" r="5" fill="#FF9FA8" opacity=".55"/><circle cx="79" cy="72" r="5" fill="#FF9FA8" opacity=".55"/><path d="M54 72 q6 7 12 0" stroke="#3A3A3A" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M60 36 V24" stroke="#5DBB63" stroke-width="3" stroke-linecap="round"/><path d="M60 26 C52 18 44 22 46 28 C52 30 57 29 60 26 Z" fill="#5DBB63"/><path d="M60 24 C68 16 76 20 74 26 C68 28 63 27 60 24 Z" fill="#5DBB63"/></g></svg></div>
+        </div>
+      </div>
+      <div class="dfoot"><span>🔥 4일 연속 기록</span><span>글자 142</span><span class="sp"></span><span>일기는 나만 봐요 · AI가 읽지 않아요</span></div>
+    </div>
+  </section>
+  <div class="note-callout" style="right:24px;bottom:52px">오늘 한 일 카드는 자동(할 일·XP에서 가져옴). 일기 글은 기본으로 AI에 보내지 않음</div>
+</div>
+
+<div class="label">⑤-b 일기 · 돌아보기 <small>한 달 기분 달력(날짜를 누르면 그날 일기) · 이번 달 기록·기분 비율·연속 기록</small></div>
+<div class="frame">
+  <nav class="rail" data-on="diary"></nav>
+  <section class="main">
+    <div class="head"><h2>일기 <span class="seg"><span>쓰기</span><span class="on">돌아보기</span></span></h2><span class="seg" style="margin-right:6px"><span class="on">월</span><span>연</span></span><span class="ib" data-i="left"></span><span class="meta" style="font-size:13px;color:var(--color-text-primary)">2026년 10월</span><span class="ib" data-i="right"></span></div>
+    <div class="review"><div class="rwrap">
+      <div class="rgrid"><b>일</b><b>월</b><b>화</b><b>수</b><b>목</b><b>금</b><b>토</b><i class="blank"></i><i class="blank"></i><i class="blank"></i><i class="blank"></i><i class=""><em>😊</em>1</i><i class=""><em>😐</em>2</i><i class=""><em>🙂</em>3</i><i class="today"><em>😊</em>4</i><i>5</i><i>6</i><i>7</i><i>8</i><i>9</i><i>10</i><i>11</i><i>12</i><i>13</i><i>14</i><i>15</i><i>16</i><i>17</i><i>18</i><i>19</i><i>20</i><i>21</i><i>22</i><i>23</i><i>24</i><i>25</i><i>26</i><i>27</i><i>28</i><i>29</i><i>30</i><i>31</i></div>
+      <div class="rstats">
+        <div class="rstat"><strong>4일</strong><span>이번 달 기록 · 🔥 4일 연속</span></div>
+        <div class="rstat"><span>이번 달 기분</span><div class="mbar"><i style="width:50%;background:#3fb950"></i><i style="width:25%;background:#4e75f2"></i><i style="width:25%;background:#efab3e"></i></div><div class="rlegend"><span>😊 2</span><span>🙂 1</span><span>😐 1</span></div></div>
+        <div class="rstat"><strong>기분이 좋았던 날</strong><span>할 일을 5개 넘게 끝낸 날이 많았어요 (할 일 기록과 같이 보기)</span></div>
+      </div>
+    </div></div>
+  </section>
+</div>
+
 <p class="legend"><b>노란 메모</b>는 설명용이며 실제 화면에는 없습니다. 아이콘은 lucide(오픈 라이선스) 모양, 틱틱 자산은 쓰지 않았습니다.</p>
 
 <script>
@@ -516,11 +634,13 @@ const P={
  eye:'<path d="M10.7 5.1A10.7 10.7 0 0 1 22 12a10.7 10.7 0 0 1-1.4 2.4M14.1 14.2a3 3 0 0 1-4.2-4.2M17.5 17.5a10.8 10.8 0 0 1-15.4-5.5 10.7 10.7 0 0 1 4.4-5.1M2 2l20 20"/>',
  unlink:'<path d="m18.8 13.9 1.7-1.7a5 5 0 0 0-7.1-7.1l-1.7 1.7M5.2 10.1l-1.7 1.7a5 5 0 0 0 7.1 7.1l1.7-1.7M8 2v3M2 8h3M16 22v-3M22 16h-3"/>',
  minus:'<path d="M5 12h14"/>',
+ diary:'<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M12 6.5c-1.3-1.4-4-1-4 1.1 0 1.6 2.2 3 4 4.4 1.8-1.4 4-2.8 4-4.4 0-2.1-2.7-2.5-4-1.1z"/>',
+ left:'<path d="m15 18-6-6 6-6"/>',
  alert:'<path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3M12 9v4M12 17h.01"/>'
 };
 const svg=(k,c='i')=>`<svg class="${c}" viewBox="0 0 24 24">${P[k]||''}</svg>`;
 document.querySelectorAll('[data-i]').forEach(el=>{el.insertAdjacentHTML('afterbegin',svg(el.dataset.i,el.classList.contains('sm')?'i sm':'i'))});
-document.querySelectorAll('nav.rail').forEach(n=>{const on=n.dataset.on;n.innerHTML='<div class="dots"><i></i><i></i><i></i></div><div class="av">K</div>'+['tasks','cal','sprout','bot','notes','map','usage','search'].map(k=>`<b class="${(k===on||(k==='bot'&&on==='assistant'))?'on':''}">${svg(k)}</b>`).join('')+'<div class="sp"></div>'+['sync','bell','help'].map(k=>`<b>${svg(k)}</b>`).join('')+'<div style="height:14px"></div>'});
+document.querySelectorAll('nav.rail').forEach(n=>{const on=n.dataset.on;n.innerHTML='<div class="dots"><i></i><i></i><i></i></div><div class="av">K</div>'+['tasks','cal','sprout','bot','notes','diary','map','usage','search'].map(k=>`<b class="${(k===on||(k==='bot'&&on==='assistant'))?'on':''}">${svg(k)}</b>`).join('')+'<div class="sp"></div>'+['sync','bell','help'].map(k=>`<b>${svg(k)}</b>`).join('')+'<div style="height:14px"></div>'});
 </script>
 </body>
 </html>
