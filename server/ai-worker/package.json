@@ -1,0 +1,11 @@
+{
+  "name": "@sprout/ai-worker",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Mac mini에서 도는 sprout AI 워커 — API에서 일을 당겨 가 로컬 Ollama로 돌린다(의존성 없음)",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node --experimental-strip-types --no-warnings --env-file=worker.env worker.ts"
+  }
+}

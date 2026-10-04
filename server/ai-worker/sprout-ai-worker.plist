@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mac mini launchd 예시. 경로 두 군데(node, 워커 폴더)를 실제 값으로 바꾼 뒤:
+     cp sprout-ai-worker.plist ~/Library/LaunchAgents/com.sprout.ai-worker.plist
+     launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.sprout.ai-worker.plist
+     로그: /tmp/sprout-ai-worker.log  ·  멈춤: launchctl bootout gui/$(id -u)/com.sprout.ai-worker
+     비밀(AI_WORKER_TOKEN)은 이 파일이 아니라 worker.env(chmod 600)에 둔다. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.sprout.ai-worker</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/opt/node@22/bin/node</string>
+    <string>--experimental-strip-types</string>
+    <string>--no-warnings</string>
+    <string>--env-file=worker.env</string>
+    <string>worker.ts</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/CHANGE_ME/sprout/server/ai-worker</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>10</integer>
+  <key>StandardOutPath</key><string>/tmp/sprout-ai-worker.log</string>
+  <key>StandardErrorPath</key><string>/tmp/sprout-ai-worker.log</string>
+</dict>
+</plist>

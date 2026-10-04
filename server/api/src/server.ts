@@ -7,12 +7,16 @@
 //   GET  /.well-known/jwks.json               → PowerSync가 토큰을 검증할 공개키
 //   POST /sync/upload  (Bearer) {batch}       → 기기 변경분을 한 트랜잭션으로 적용
 //   GET  /health
+//   GET  /ai/status, POST /ai/{assistant,classify,map,diary,kpi-draft,weekly-report}  (Bearer) → ai.ts
+//   POST /ai/worker/poll, /ai/worker/result/:id  (Bearer AI_WORKER_TOKEN, Mac mini 워커) → ai-backend.ts
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import pg from 'pg'
 import {
   hashPassword, hashToken, loadKeys, newRefreshToken, signAccessToken, validEmail, validPassword, verifyAccessToken, verifyPassword
 } from './auth.ts'
 import { toStatements, UploadError } from './upload.ts'
+import { aiConfigFromEnv, createAi, pgUsageStore } from './ai.ts'
+import { backendFromEnv } from './ai-backend.ts'
 import { TABLES } from '../../../packages/schema/src/index.ts'
 
 const PORT = Number(process.env.API_PORT ?? 6060)
@@ -42,6 +46,9 @@ async function userFrom(req: IncomingMessage): Promise<string> {
   if (!h.startsWith('Bearer ')) throw new UploadError('unauthorized', 401)
   try { return await verifyAccessToken(keys, h.slice(7), ISSUER) } catch { throw new UploadError('unauthorized', 401) }
 }
+
+// AI 프록시: Mac mini Ollama로 대기열·상한을 걸어 전달한다(원문 저장 없음)
+const ai = createAi({ config: aiConfigFromEnv(), backend: backendFromEnv(), store: pgUsageStore((sql, params) => pool.query(sql, params)), auth: userFrom })
 
 // 로그인 시도 제한: IP당 10분에 20회
 const attempts = new Map<string, number[]>()
@@ -136,6 +143,7 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
 
 createServer(async (req, res) => {
   const path = (req.url ?? '/').split('?')[0]
+  if (await ai.handle(req, res, path)) return
   const handler = routes[`${req.method} ${path}`]
   if (!handler) return send(res, 404, { error: 'not found' })
   try {

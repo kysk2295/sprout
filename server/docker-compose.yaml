@@ -1,7 +1,7 @@
 # sprout 백엔드 — Mac mini(또는 Railway·VPS)에서 그대로 쓴다.
 #   db        Postgres 18 (wal_level=logical). 데이터 DB + PowerSync 저장 DB(powersync_storage)
 #   powersync PowerSync Service Open Edition — 사용자별 변경분을 기기로 스트리밍
-#   api       Node API — 이메일 로그인·JWT(JWKS)·업로드
+#   api       Node API — 이메일 로그인·JWT(JWKS)·업로드·AI 프록시(→ 호스트 Ollama)
 #   backup    매일 pg_dump, 14일 보관 (외부 저장소 전송은 배포 때 붙인다)
 # 처음: ./scripts/init-env.sh 로 .env를 만든 뒤 docker compose up -d
 name: sprout
@@ -36,6 +36,25 @@ services:
       API_PORT: 6060
       API_ISSUER: sprout-api
       KEYS_PATH: /data/keys.json
+      # AI 프록시(README "AI 프록시"). Ollama는 인터넷에 열지 않는다. 상한 숫자는 [임시]
+      # AI_BACKEND: direct(OLLAMA_URL로 바로) | worker(Mac mini 워커가 당겨 감, Railway 배포용). 비우면 AI_WORKER_TOKEN 있으면 worker
+      AI_BACKEND: ${AI_BACKEND:-}
+      AI_WORKER_TOKEN: ${AI_WORKER_TOKEN:-}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434} # direct일 때. host.docker.internal = 로컬 개발용
+      OLLAMA_TOKEN: ${OLLAMA_TOKEN:-}
+      AI_MODEL: ${AI_MODEL:-qwen3.5:9b}
+      AI_MODELS: ${AI_MODELS:-}
+      AI_CONCURRENCY: ${AI_CONCURRENCY:-1}
+      AI_QUEUE_MAX: ${AI_QUEUE_MAX:-20}
+      AI_QUEUE_WAIT_MS: ${AI_QUEUE_WAIT_MS:-180000}
+      AI_TIMEOUT_MS: ${AI_TIMEOUT_MS:-120000}
+      AI_USER_CONCURRENT: ${AI_USER_CONCURRENT:-2}
+      AI_USER_PER_MINUTE: ${AI_USER_PER_MINUTE:-6}
+      AI_USER_PER_DAY: ${AI_USER_PER_DAY:-100}
+      AI_WEEKLY_KPI_DRAFT: ${AI_WEEKLY_KPI_DRAFT:-1}
+      AI_WEEKLY_REPORT: ${AI_WEEKLY_REPORT:-1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # 리눅스(VPS)에서도 호스트의 Ollama에 닿게. Docker Desktop(Mac)은 원래 된다
     volumes:
       - api_data:/data
     depends_on:
