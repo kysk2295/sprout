@@ -187,10 +187,10 @@
 | `characters` (Postgres 예약어 피함) | id, owner_id, name, species(`turtle`·`squirrel`·`cat`·`otter`), type_code(예 `plan-deep`), answers_json, assessed_at, created_at | 레벨·단계는 저장하지 않고 계산. 다시 조사하면 species·type만 바뀐다 |
 | `kpis` (주간 목표) | id, owner_id, week_start, title, target(기본 1), progress(직접 센 수), link_kind(`none`·`task`·`tag`·`list`), link_id, status(`active`·`achieved`·`missed`), source(`manual`·`ai`), achieved_at, sort_order | 연결이 있으면 진행은 계산, 없으면 progress. 다음 주에 적은 목표는 week_start가 다음 주 |
 | `weekly_reports` | id(`report:<캐릭터 id>:<week_start>`), owner_id, week_start, stats_json, text_json, xp_total, seen_at | 숫자(stats)는 앱이 계산해 저장, 문장(text)은 AI |
-| 서버 `ai_usage` | user_id, week_start, kind, used_at | **주 2회 상한을 서버가 강제**(KPI 초안 1 · 리포트 1). 동기화하지 않는다 |
+| 서버 `ai_usage` | user_id, kind(`assistant`·`kpi_draft`·`weekly_report`…), tokens, used_at | **상한을 서버가 강제**(성장: 주 2회, 비서: 분·일 상한). 동기화하지 않는다. 요청 원문은 저장하지 않는다 |
 - 스키마는 `@sprout/schema` 한 곳에서 바꾸고 `npm run server:schema`로 서버 SQL·동기화 규칙을 다시 만든다(노트 세션과 같은 규칙).
-- 서버 API(Node, 서버에서만 AI 호출): `POST /ai/kpi-draft`, `POST /ai/weekly-report`. 한도를 넘으면 429 → 화면은 §3 "AI 한도" 상태.
-- **AI에 보내는 것 — 결정: 할 일 제목까지** (2026-10-04): 이번 주 완료·미완료 할 일 제목 + 태그·리스트 이름 + 앱이 계산한 숫자. 할 일 제목이 서버의 AI 공급자에게 간다는 점을 **개인정보 처리방침과 KPI 카드 아래 한 줄 안내**("주간 KPI·리포트를 만들 때 이번 주 할 일 제목을 AI에 보내요")로 알린다. 로컬 AI 비서(노트 설계)와 달리 이건 클라우드 호출이다. 메모(notes)는 보내지 않는다.
+- 서버 API(Node): `POST /ai/kpi-draft`, `POST /ai/weekly-report`. **모델은 오너 Mac mini의 Ollama**(2026-10-04 결정 — 외부 AI API 없음, AI 비서와 같은 프록시·대기열). 주 2회 한도를 넘으면 429 → 화면은 §3 "AI 한도" 상태.
+- **AI에 보내는 것 — 결정: 할 일 제목까지** (2026-10-04): 이번 주 완료·미완료 할 일 제목 + 태그·리스트 이름 + 앱이 계산한 숫자. 할 일 제목이 sprout 서버(오너 Mac mini)의 AI에서 처리된다는 점을 **개인정보 처리방침과 KPI 카드 아래 한 줄 안내**("주간 KPI·리포트를 만들 때 이번 주 할 일 제목을 AI에 보내요")로 알린다. 제3자 AI 공급자에게는 가지 않는다. 메모(notes)는 보내지 않는다.
 
 ## 8. 완료 기준
 - [x] 첫 로그인 뒤 성향 조사(8문항)를 하면 유형에 맞는 캐릭터가 배정되고 이름을 지을 수 있다. 건너뛰어도 할 일은 다 쓸 수 있고 XP는 쌓인다.

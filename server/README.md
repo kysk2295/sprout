@@ -39,9 +39,14 @@ docker compose up -d --build api && docker compose restart powersync   # 새 테
 - 첫 로그인: 서버에 내 데이터가 없으면 이 기기 데이터를 내 계정으로 올린다. 있으면 로컬 시드를 지우고 내려받는다.
 - 로그아웃: 이 기기의 내 데이터를 지우고 첫 실행 상태로 돌아간다.
 
+## AI 프록시 (2026-10-04 결정, 아직 구현 전)
+모든 사용자의 AI 요청은 `api`가 받아 **같은 Mac mini의 Ollama**(`host.docker.internal:11434`)로 전달한다. Ollama는 외부에 열지 않는다. `api`가 JWT 확인 · 대기열(동시 1~2) · 사용자별 상한 · 토큰 제한을 강제하고, 원문 없이 사용량만 `ai_usage`에 남긴다. 엔드포인트: `POST /ai/assistant`(스트림), `POST /ai/kpi-draft`, `POST /ai/weekly-report`.
+
 ## 배포 전에 남은 일
 - [ ] Mac mini로 옮기기 + Cloudflare Tunnel(`api`, `powersync`만 공개, `db`는 공개하지 않는다)
 - [ ] 백업을 외부 저장소로(예: Cloudflare R2 + rclone). PRD 필수
 - [ ] Postgres 복제 전용 역할(지금은 슈퍼유저로 붙는다)
 - [ ] 비밀번호 재설정·이메일 인증(메일 발송 수단 필요), 구글·애플 로그인
 - [ ] 배포 주소를 앱 기본값으로(`SPROUT_API_URL`, `SPROUT_SYNC_URL`)
+- [ ] AI 프록시(`/ai/*`) + 대기열·상한, 앱 AI 비서를 SSH 포워딩 대신 프록시로(배포판)
+- [ ] Mac mini 부하 측정(동시 요청·응답 시간)으로 상한 값 정하기
