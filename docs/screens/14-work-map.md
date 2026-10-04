@@ -2,6 +2,7 @@
 
 - 상태: **확정 v2.0 (2026-10-05) · 구현됨** — 사용자 결정 "리스트와 AI 정리를 하나로 합친다. 틱틱처럼 내가 수정도 할 수 있는 구조. 괜히 기능을 나누면 헷갈린다."(자세한 결정·AI 제안 규칙은 [30 §B](30-lists-and-areas.md)). v1.2(AI 영역 › 주제 자동 분류)는 아래 §8에 기록만 남긴다.
 - 시안: [mockups/new-tabs.html](mockups/new-tabs.html) ③ 보드, ③-b 그래프 — 모양은 그대로, 노드 내용만 폴더·리스트로.
+- **v3 제안 (2026-10-05, 사용자 확인 전):** 지금 할 일 강조 · 타임라인 보기 · 목표로 묶기 · AI로 큰 일 쪼개기 → [31 작업 지도 v3](31-work-map-v3.md) (시안 [mockups/work-map-v3.html](mockups/work-map-v3.html)). 확인되면 이 문서에 합친다. 그전까지 이 문서(v2.0)가 기준.
 - 앞선 명세: [02 목록](02-task-list.md) 상세·완료·이동, [05 리스트·폴더](05-list-edit.md), [08-group-sort 연구](../ticktick-research/08-group-sort.md), PRD I
 - 표기: **[틱틱]** · **[sprout]** · **[임시]** · **[다음]**
 

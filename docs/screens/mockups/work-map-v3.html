@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>작업 지도 v3 시안</title>
+<style>
+/* 시안 전용 — 토큰은 new-tabs.html(= packages/tokens v1.2 일부)과 같다. 명세: ../31-work-map-v3.md (제안, 사용자 확인 전) */
+:root{
+  --color-bg-app:#fff;--color-bg-rail:#f8f8f8;--color-bg-input:#f8f8f9;--color-bg-selected:#f1f1f1;--color-bg-hover:#f5f5f5;--color-bg-card:#fafafa;--color-bg-popover:#fff;
+  --color-border-divider:#f3f3f4;--color-border-row:#f4f4f4;--color-border-popover:transparent;
+  --color-text-primary:#191919;--color-text-secondary:#7d7d7d;--color-text-tertiary:#a3a4a7;--color-text-quaternary:#b5b6b8;
+  --color-accent:#4e75f2;--color-accent-subtle:#ecf0fd;--color-danger:#d44343;--color-warn:#efab3e;--color-gold:#d9a22b;--color-goal:#e8a23a;
+  --color-rail-icon:#a3a4a7;--color-rail-icon-selected:#4e75f2;--color-menu-icon:#7d7d7d;--color-seg-track:#f3f3f3;--color-seg-on:#fff;
+  --card-border:rgba(0,0,0,.06);--weekend:#f7f7f8;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Pretendard","Apple SD Gothic Neo",sans-serif;
+  --shadow-popover:0 4px 16px rgba(0,0,0,.1),0 0 0 1px rgba(0,0,0,.04);
+  --page:#e9e9ec;--page-text:#333;
+}
+[data-theme=dark]{
+  --color-bg-app:#1a1a1a;--color-bg-rail:#212121;--color-bg-input:#212121;--color-bg-selected:#2c2c2c;--color-bg-hover:#242424;--color-bg-card:#252525;--color-bg-popover:#212121;
+  --color-border-divider:#262626;--color-border-row:#212121;--color-border-popover:#2f2f2f;
+  --color-text-primary:#f2f2f2;--color-text-secondary:#cdcdcd;--color-text-tertiary:#606060;--color-text-quaternary:#474747;
+  --color-accent:#545dfa;--color-accent-subtle:#262a52;--color-rail-icon:#787878;--color-rail-icon-selected:#fff;--color-menu-icon:#969696;--color-seg-track:#1a1a1a;--color-seg-on:#282828;
+  --card-border:#2a2a2a;--weekend:#1e1e1e;--shadow-popover:0 6px 20px rgba(0,0,0,.5),0 0 0 1px #2f2f2f;
+  --page:#0e0e0e;--page-text:#ddd;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:400 14px/20px var(--font);background:var(--page);color:var(--color-text-primary);padding:24px 16px 80px}
+.page-head{max-width:1120px;margin:0 auto 6px;display:flex;align-items:center;gap:12px;color:var(--page-text)}
+.page-head h1{font:700 18px/24px var(--font)}
+.page-head p{font-size:12px;opacity:.75;flex:1}
+.page-head button{font:500 12px var(--font);padding:6px 12px;border-radius:6px;border:1px solid #888;background:transparent;color:inherit;cursor:pointer}
+.proposal{max-width:1120px;margin:0 auto;font:600 12px/18px var(--font);color:#b26b00}
+[data-theme=dark] .proposal{color:#efab3e}
+.label{max-width:1120px;margin:34px auto 10px;color:var(--page-text);font:600 13px var(--font);display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.label small{font-weight:400;opacity:.75}
+.scroll{overflow-x:auto}
+.frame{width:1120px;height:720px;margin:0 auto;background:var(--color-bg-app);border-radius:10px;overflow:hidden;display:flex;box-shadow:0 10px 40px rgba(0,0,0,.3);position:relative}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+svg.sm{width:14px;height:14px}
+.rail{width:55px;background:var(--color-bg-rail);display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:12px;flex-shrink:0;z-index:2}
+.dots{display:flex;gap:8px;margin-bottom:6px}.dots i{width:12px;height:12px;border-radius:50%;background:#ff5f57}.dots i:nth-child(2){background:#febc2e}.dots i:nth-child(3){background:#28c840}
+.rail .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#8fb3ff,#4e75f2);color:#fff;display:grid;place-items:center;font-weight:600;margin-bottom:6px}
+.rail b{width:40px;height:40px;display:grid;place-items:center;color:var(--color-rail-icon);border-radius:6px}
+.rail b svg{width:20px;height:20px}
+.rail b.on{color:var(--color-rail-icon-selected)}
+.rail .sp{flex:1}
+.main{position:absolute;left:55px;right:0;top:0;bottom:0;display:flex;flex-direction:column}
+.head{height:57px;padding:9px 16px 0 21px;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.head h2{font:700 20px/26px var(--font);flex:1;display:flex;align-items:center;gap:10px;min-width:0}
+.ib{width:30px;height:30px;display:grid;place-items:center;color:var(--color-text-secondary);border-radius:6px;position:relative}
+.ib.on{background:var(--color-bg-selected);color:var(--color-accent)}
+.ib .pip{position:absolute;right:5px;top:5px;width:6px;height:6px;border-radius:50%;background:var(--color-accent)}
+.seg{display:inline-flex;background:var(--color-seg-track);border-radius:6px;padding:2px;gap:2px;border:1px solid var(--color-border-divider)}
+.seg span{font:500 12px/20px var(--font);padding:2px 12px;border-radius:4px;color:var(--color-text-secondary)}
+.seg span.on{background:var(--color-seg-on);color:var(--color-text-primary);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.seg span.new{position:relative}
+.seg span.new::after{content:"";position:absolute;right:3px;top:3px;width:5px;height:5px;border-radius:50%;background:var(--color-accent)}
+.txtbtn{font:500 12px/20px var(--font);padding:3px 8px;border-radius:6px;color:var(--color-text-primary);border:1px solid var(--color-border-divider)}
+.cb{width:14px;height:14px;border:1.5px solid var(--color-text-tertiary);border-radius:3px;flex-shrink:0;display:inline-grid;place-items:center}
+.cb.done{background:var(--color-text-tertiary);border-color:var(--color-text-tertiary)}
+.cb.done::after{content:"";width:6px;height:3px;border-left:1.5px solid var(--color-bg-app);border-bottom:1.5px solid var(--color-bg-app);transform:rotate(-45deg) translate(0,-1px)}
+.cb.on{background:var(--color-accent);border-color:var(--color-accent)}
+.cb.on::after{content:"";width:6px;height:3px;border-left:1.5px solid #fff;border-bottom:1.5px solid #fff;transform:rotate(-45deg) translate(0,-1px)}
+.meta{font:400 11px/15px var(--font);color:var(--color-text-tertiary)}
+.acc{color:var(--color-accent)}
+.red{color:var(--color-danger)}
+.btn{font:500 12px/18px var(--font);padding:5px 12px;border-radius:6px;background:var(--color-bg-selected);color:var(--color-text-primary);display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn.pri{background:var(--color-accent);color:#fff}
+.btn.ghost{background:transparent;color:var(--color-accent);padding-left:4px;padding-right:4px}
+.note-callout{position:absolute;font:500 11px/15px var(--font);background:#ffd166;color:#222;padding:4px 8px;border-radius:4px;z-index:20;max-width:240px;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.menu{position:absolute;background:var(--color-bg-popover);border:1px solid var(--color-border-popover);box-shadow:var(--shadow-popover);border-radius:8px;padding:6px;width:200px;z-index:15}
+.menu div{height:32px;display:flex;align-items:center;gap:10px;padding:0 10px;font:400 12px/20px var(--font);border-radius:4px;color:var(--color-text-primary)}
+.menu div svg{color:var(--color-menu-icon);width:16px;height:16px}
+.menu div.hv{background:var(--color-bg-hover)}
+.menu .cap{height:24px;font-size:11px;color:var(--color-text-tertiary)}
+.menu hr{border:0;border-top:1px solid var(--color-border-divider);margin:4px 0}
+.menu .chk{margin-left:auto;color:var(--color-accent)}
+
+/* 지금 띠 */
+.now{height:44px;display:flex;align-items:center;gap:8px;padding:0 16px 0 21px;flex-shrink:0;border-bottom:1px solid var(--color-border-divider)}
+.now .lbl{font:600 13px/18px var(--font);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.now .lbl .n{color:var(--color-text-tertiary);font-weight:500}
+.pill{height:28px;max-width:200px;display:flex;align-items:center;gap:6px;padding:0 10px 0 8px;border-radius:14px;background:var(--color-bg-input);border:1px solid var(--color-border-divider);font-size:12.5px;white-space:nowrap}
+.pill .t{overflow:hidden;text-overflow:ellipsis}
+.pill .why{font-size:10.5px;color:var(--color-text-tertiary);flex-shrink:0}
+.pill .why.red{color:var(--color-danger)}
+.pill.glow{border-color:var(--color-accent);box-shadow:0 0 0 2px var(--color-accent-subtle)}
+.now .more{font:500 12px var(--font);color:var(--color-accent);white-space:nowrap}
+.now .sp{flex:1}
+
+/* 그래프 */
+.canvas{position:absolute;left:0;right:0;bottom:0;overflow:hidden;background-image:radial-gradient(var(--color-border-divider) 1px,transparent 1px);background-size:18px 18px}
+.canvas svg.edges{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.edges path{fill:none;stroke:var(--color-text-quaternary);stroke-width:1.5}
+.edges path.seq{stroke:var(--color-text-secondary);stroke-width:1.6}
+.edges path.goal{stroke:var(--color-goal);stroke-width:1.6}
+.edges path.hl{stroke:var(--color-accent);stroke-width:2.2}
+.edges path.dim{opacity:.3}
+.node{position:absolute;display:flex;align-items:center;gap:6px;background:var(--color-bg-card);border:1px solid var(--card-border);border-radius:8px;padding:0 10px;font:600 13px/18px var(--font);white-space:nowrap}
+.node .n{color:var(--color-text-tertiary);font-weight:500;flex:1}
+.node .fold{font:500 10.5px/14px var(--font);color:var(--color-text-secondary);background:var(--color-bg-selected);border-radius:4px;padding:1px 5px}
+.node.root{border-radius:999px;background:var(--color-bg-selected);font-size:12px;justify-content:center}
+.node.list{font-size:12.5px}
+.node .prog{font:500 11px var(--font);color:var(--color-text-tertiary)}
+.ring{width:16px;height:16px;flex-shrink:0}
+.ring circle{fill:none;stroke-width:2.4}
+.ring .bg{stroke:var(--color-bg-selected)}
+.ring .fg{stroke:var(--color-accent)}
+.gcard{position:absolute;width:170px;height:56px;background:var(--color-bg-input);border:1px solid var(--color-border-divider);border-radius:4px;padding:9px 10px 9px 12px;display:flex;gap:8px;overflow:hidden}
+.gcard .cb{margin-top:3px}
+.gcard .tt{font-size:12.5px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+.gcard .meta{display:flex;gap:6px;align-items:center;margin-top:2px;white-space:nowrap}
+.gcard.now::before,.bar.now::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--color-accent)}
+.gcard.blocked{opacity:.45}
+.gcard.dim,.node.dim{opacity:.3}
+.gcard.done .tt{text-decoration:line-through;color:var(--color-text-tertiary)}
+.gcard.hl{outline:2px solid var(--color-accent);outline-offset:-1px}
+.chip{font:500 10px/14px var(--font);padding:0 5px;border-radius:4px;background:var(--color-bg-selected);color:var(--color-text-secondary)}
+.chip.goal{background:rgba(232,162,58,.16);color:#c07d12}
+[data-theme=dark] .chip.goal{color:#efab3e}
+.goalnode{position:absolute;display:flex;align-items:center;gap:8px;background:var(--color-bg-card);border:1px solid var(--color-goal);border-radius:8px;padding:0 10px}
+.goalnode .gt{display:flex;flex-direction:column;min-width:0;flex:1}
+.goalnode .gt b{font:600 13px/18px var(--font);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.goalnode .gt span{font:400 10.5px/14px var(--font);color:var(--color-text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.goalnode .rw{font:600 10.5px var(--font);color:var(--color-text-tertiary)}
+.goalnode .rw.ok{color:var(--color-gold)}
+.goalnode.sel{background:var(--color-accent-subtle);outline:1.5px solid var(--color-accent)}
+.goalnode.achieved{border-color:var(--color-gold);box-shadow:0 0 0 1px var(--color-gold) inset}
+.goalnode.achieved .gt b{color:var(--color-text-tertiary)}
+.goalnode.drop{outline:1.5px dashed var(--color-accent);outline-offset:2px}
+.goalnode.add{border:1px dashed var(--color-text-quaternary);color:var(--color-text-tertiary);font:500 12px var(--font);justify-content:center}
+.dots3{letter-spacing:1px;color:var(--color-gold);font-size:11px}
+.zoomctl{position:absolute;left:16px;bottom:16px;display:flex;flex-direction:column;background:var(--color-bg-popover);border:1px solid var(--color-border-popover);border-radius:8px;box-shadow:var(--shadow-popover);overflow:hidden}
+.zoomctl span{width:30px;height:30px;display:grid;place-items:center;color:var(--color-text-secondary);border-bottom:1px solid var(--color-border-divider)}
+.zoomctl span:last-child{border:0}
+.face{width:20px;height:20px;border-radius:50%;background:#8bc48a;position:relative;flex-shrink:0}
+.face::before,.face::after{content:"";position:absolute;top:8px;width:3px;height:3px;border-radius:50%;background:#253}
+.face::before{left:6px}.face::after{right:6px}
+.drag{transform:rotate(-2deg);box-shadow:0 8px 20px rgba(0,0,0,.35);outline:1px solid var(--color-accent);z-index:6}
+.plus30{position:absolute;font:700 12px var(--font);color:var(--color-gold)}
+
+/* 타임라인 */
+.tl{flex:1;display:flex;min-height:0;position:relative}
+.rows{width:200px;flex-shrink:0;border-right:1px solid var(--color-border-divider);position:relative}
+.grid{flex:1;position:relative;overflow:hidden}
+.panel{width:224px;flex-shrink:0;border-left:1px solid var(--color-border-divider);padding:14px 12px;display:flex;flex-direction:column;gap:8px}
+.panel h4{font:700 14px/20px var(--font);display:flex;align-items:center}
+.panel h4 .ib{margin-left:auto;width:24px;height:24px}
+.panel .grp{font:600 11px/16px var(--font);color:var(--color-text-tertiary);margin-top:6px}
+.panel .box{border:1px solid var(--color-border-divider);border-radius:6px;padding:7px 10px;font-size:12.5px;display:flex;gap:8px;align-items:center;background:var(--color-bg-app)}
+.panel .box.lift{box-shadow:0 6px 16px rgba(0,0,0,.25);transform:rotate(-1.5deg);outline:1px solid var(--color-accent)}
+.dh{height:48px;border-bottom:1px solid var(--color-border-divider);position:relative}
+.rh{position:absolute;left:0;right:0;display:flex;align-items:center;gap:6px;padding:0 10px 0 12px;font-size:12.5px;white-space:nowrap;overflow:hidden}
+.rh.f{font-weight:600;font-size:13px}
+.rh.l{font-weight:600;font-size:12px;color:var(--color-text-secondary);padding-left:22px}
+.rh.t{padding-left:34px}
+.rh.t .t{overflow:hidden;text-overflow:ellipsis}
+.rh.sel{background:var(--color-bg-selected)}
+.bar{position:absolute;height:24px;border-radius:4px;display:flex;align-items:center;gap:6px;padding:0 8px;font:500 12px/16px var(--font);color:#fff;white-space:nowrap;overflow:visible}
+.bar .cb{border-color:rgba(255,255,255,.85);width:12px;height:12px}
+.bar.blocked{opacity:.45}
+.bar.later{filter:saturate(.6)}
+.bar.donebar{opacity:.4;text-decoration:line-through}
+.bar.sel{box-shadow:0 0 0 2px var(--color-bg-app),0 0 0 4px var(--color-accent)}
+.bar .out{position:absolute;left:calc(100% + 6px);color:var(--color-text-secondary);font-weight:400}
+.bar .hnd{position:absolute;right:-4px;top:7px;width:8px;height:10px;border-radius:2px;background:#fff;border:1.5px solid var(--color-accent)}
+.bar.over::after{content:"";position:absolute;right:0;top:0;bottom:0;width:2px;background:var(--color-danger);border-radius:0 4px 4px 0}
+.tip{position:absolute;font:500 11px/15px var(--font);background:var(--color-text-primary);color:var(--color-bg-app);padding:3px 7px;border-radius:4px;white-space:nowrap;z-index:8}
+.ghostbar{position:absolute;height:24px;border-radius:4px;border:1.5px dashed var(--color-accent);background:var(--color-accent-subtle)}
+
+/* 쪼개기 창 */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:10}
+[data-theme=dark] .scrim{background:rgba(0,0,0,.55)}
+.sheet{position:absolute;left:50%;top:40px;transform:translateX(-50%);width:600px;background:var(--color-bg-popover);border:1px solid var(--color-border-popover);border-radius:10px;box-shadow:0 16px 48px rgba(0,0,0,.35);z-index:11;display:flex;flex-direction:column}
+.sheet .sh{height:48px;display:flex;align-items:center;gap:8px;padding:0 10px 0 18px;font:700 15px var(--font);border-bottom:1px solid var(--color-border-divider)}
+.sheet .sh .ib{margin-left:auto}
+.sheet .sb{padding:14px 18px;display:flex;flex-direction:column;gap:10px}
+.target{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;background:var(--color-bg-input);font-size:13px}
+.target b{font-weight:600}
+.input{height:34px;border-radius:6px;background:var(--color-bg-input);display:flex;align-items:center;padding:0 10px;font-size:13px;outline:1px solid var(--color-accent);gap:8px}
+.input .ph{flex:1}
+.opt{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-text-secondary)}
+.sw{width:28px;height:16px;border-radius:8px;background:var(--color-bg-selected);position:relative;flex-shrink:0}
+.sw::after{content:"";position:absolute;left:2px;top:2px;width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.sw.on{background:var(--color-accent)}.sw.on::after{left:14px}
+.prev{display:flex;gap:12px}
+.steps{flex:1;border:1px solid var(--color-border-divider);border-radius:8px;overflow:hidden}
+.steps .sh2{display:flex;align-items:center;gap:6px;padding:7px 10px;font:600 11.5px var(--font);color:var(--color-text-secondary);border-bottom:1px solid var(--color-border-divider);background:var(--color-bg-card)}
+.step{height:40px;display:flex;align-items:center;gap:8px;padding:0 8px 0 10px;border-bottom:1px solid var(--color-border-row);font-size:13px}
+.step:last-child{border-bottom:0}
+.step .no{width:16px;font:600 11px var(--font);color:var(--color-text-tertiary);text-align:center}
+.step .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.step .t.edit{outline:1px solid var(--color-accent);border-radius:4px;padding:2px 6px;background:var(--color-bg-app)}
+.step .grip{color:var(--color-text-quaternary);font-size:11px;letter-spacing:-2px}
+.step.off .t,.step.off .no{color:var(--color-text-quaternary);text-decoration:line-through}
+.step.add{color:var(--color-text-tertiary);font-size:12.5px}
+.mini{width:150px;border:1px solid var(--color-border-divider);border-radius:8px;padding:8px;flex-shrink:0}
+.mini .cap{font:600 11px var(--font);color:var(--color-text-tertiary);margin-bottom:4px}
+.sheet .sf{border-top:1px solid var(--color-border-divider);padding:10px 18px;display:flex;align-items:center;gap:8px}
+.sheet .sf .meta{flex:1;font-size:12px}
+.dd{display:inline-flex;align-items:center;gap:4px;font:500 12px var(--font);padding:3px 8px;border-radius:6px;border:1px solid var(--color-border-divider);color:var(--color-text-primary)}
+.toast{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);background:#2b2b2b;color:#f2f2f2;border-radius:8px;padding:9px 12px 9px 16px;font-size:13px;display:flex;gap:12px;align-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:12;white-space:nowrap}
+.toast .u{color:#8ea4ff;font-weight:600}
+.legend{max-width:1120px;margin:10px auto 0;font-size:12px;color:var(--page-text);opacity:.85;line-height:19px}
+.legend b{color:#b26b00}
+[data-theme=dark] .legend b{color:#efab3e}
+</style>
+</head>
+<body>
+<div class="page-head">
+  <h1>작업 지도 v3 시안</h1>
+  <p>명세: docs/screens/31-work-map-v3.md · 수치는 [임시] · 틱틱 로고·아이콘 원본 없음(아이콘은 직접 그린 선 그림)</p>
+  <button id="theme">라이트 ↔ 다크</button>
+</div>
+<div class="proposal">제안 (사용자 확인 전) — 확인받기 전에는 코드로 만들지 않는다</div>
+
+<!-- ───────── A. 지금 할 일 ───────── -->
+<div class="label">A · 지금 할 일 (그래프, 묶기 = 리스트) <small>① 지도를 열면 머리 아래 “지금 할 수 있는 일” 띠 · 지금 = 왼쪽 강조색 줄 · 막힘 = 흐림 + 먼저 N · 나중(시작일이 뒤) = 날짜만 흐림</small></div>
+<div class="scroll"><div class="frame">
+  <nav class="rail" data-on="map"></nav>
+  <section class="main">
+    <div class="head">
+      <h2>작업 지도 <span class="seg"><span class="on">그래프</span><span>보드</span><span class="new">타임라인</span></span></h2>
+      <span class="seg" style="margin-right:6px"><span class="on">이번 주</span><span>전체</span></span>
+      <span class="ib" data-i="bolt" title="지금 할 수 있는 일만 밝게 (8)"></span>
+      <span class="ib" data-i="sparkle"></span><span class="ib" data-i="filter"></span><span class="ib" data-i="more"></span>
+    </div>
+    <div class="now">
+      <span class="lbl"><span data-i="bolt" class="sm acc"></span>지금 할 수 있는 일 <span class="n">8</span></span>
+      <span class="pill"><span class="cb"></span><span class="t">과제 3 제출</span><span class="why red">오늘 마감</span></span>
+      <span class="pill glow"><span class="cb"></span><span class="t">목차 정하기</span><span class="why">3단계를 열어요 · 🎯</span></span>
+      <span class="pill"><span class="cb"></span><span class="t">API 명세 리뷰</span><span class="why">2단계를 열어요</span></span>
+      <span class="pill"><span class="cb"></span><span class="t">팀 회의 자료 정리</span><span class="why">오늘</span></span>
+      <span class="pill"><span class="cb"></span><span class="t">자기소개서 1번</span></span>
+      <span class="more">3개 더</span><span class="sp"></span>
+      <span class="ib" data-i="up" title="접기"></span>
+    </div>
+    <div class="canvas" style="top:101px" id="graphA"></div>
+  </section>
+  <div class="note-callout" style="left:880px;top:430px;max-width:220px">알약을 누르면 그 할 일로 화면이 옮겨 가고 오른쪽에 상세. 체크하면 완료 → 뒤 할 일이 풀려 띠에 반짝(강조 테두리)</div>
+  <div class="note-callout" style="left:880px;top:540px;max-width:220px">🎯 목표 아래 “남은 3단계 · 다음: 목차 정하기” = 목표에 닿는 가장 긴 순서 사슬. 목표를 누르면 그 길만 진하게(C 참고)</div>
+</div></div>
+
+<!-- ───────── B. 타임라인 ───────── -->
+<div class="label">B · 타임라인 (주 배율) <small>② 틱틱 타임라인 그대로: 일·주·월, 빈 곳 클릭 = 그 날 할 일, 몸통 끌기 = 옮기기, 가장자리 = 기간, 날짜 없는 할 일 = 오른쪽 할일 정렬 칸 · [sprout] 순서 화살표(어긋나면 경고색)</small></div>
+<div class="scroll"><div class="frame">
+  <nav class="rail" data-on="map"></nav>
+  <section class="main">
+    <div class="head">
+      <h2>작업 지도 <span class="seg"><span>그래프</span><span>보드</span><span class="on">타임라인</span></span></h2>
+      <span class="seg"><span>일</span><span class="on">주</span><span>월</span></span>
+      <span class="txtbtn">오늘</span><span class="ib" data-i="left"></span><span class="ib" data-i="right"></span>
+      <span class="ib" data-i="bolt"><i class="pip"></i></span>
+      <span class="ib" data-i="sparkle"></span><span class="ib" data-i="filter"></span><span class="ib" data-i="more"></span>
+    </div>
+    <div class="tl">
+      <div class="rows" id="tlRows"><div class="dh"></div></div>
+      <div class="grid" id="tlGrid"><div class="dh" id="tlHead"></div></div>
+      <div class="panel">
+        <h4>할일 정렬<span class="ib" data-i="x"></span></h4>
+        <div class="meta">날짜 없는 할 일 · 끌어서 타임라인에 놓기</div>
+        <div class="grp">🎓 졸업 프로젝트</div>
+        <div class="box lift"><span class="cb"></span>참고문헌 정리</div>
+        <div class="grp">💼 결제 리뉴얼</div>
+        <div class="box"><span class="cb"></span>롤백 절차 문서</div>
+        <div class="grp">🏃 개인</div>
+        <div class="box"><span class="cb"></span>자기소개서 1번 문항</div>
+        <div class="box"><span class="cb"></span>택배 반품</div>
+      </div>
+    </div>
+  </section>
+  <div class="note-callout" style="left:640px;top:640px;max-width:280px">‘교수님 검토’가 ‘초안 쓰기’ 끝나기 전에 시작 → 순서 선이 경고색, 막대 툴팁 “‘초안 쓰기’보다 먼저 시작해요”. 날짜를 자동으로 밀지는 않는다</div>
+  <div class="note-callout" style="left:250px;top:610px;max-width:260px">띠를 접으면(▴) 머리 ⚡에 점. 줄 머리를 다른 리스트 머리에 끌면 리스트 옮기기(14 규칙)</div>
+</div></div>
+
+<!-- ───────── C. 목표로 묶기 ───────── -->
+<div class="label">C · 목표로 묶기 (그래프, 묶기 = 목표) <small>③ 이번 주 목표 → 리스트 → 할 일 · 진행 고리 · 보상 표시는 성장 탭과 같음(+30, 주 3개) · 목표 체크 = 성장 탭과 같은 달성</small></div>
+<div class="scroll"><div class="frame">
+  <nav class="rail" data-on="map"></nav>
+  <section class="main">
+    <div class="head">
+      <h2>작업 지도 <span class="seg"><span class="on">그래프</span><span>보드</span><span>타임라인</span></span></h2>
+      <span class="seg" style="margin-right:6px"><span class="on">이번 주</span><span>다음 주</span></span>
+      <span class="ib" data-i="bolt"></span><span class="ib" data-i="sparkle"></span><span class="ib on" data-i="filter"></span><span class="ib" data-i="more"></span>
+    </div>
+    <div class="now">
+      <span class="lbl"><span data-i="bolt" class="sm acc"></span>지금 할 수 있는 일 <span class="n">8</span></span>
+      <span class="pill glow"><span class="cb"></span><span class="t">목차 정하기</span><span class="why">3단계를 열어요 · 🎯</span></span>
+      <span class="pill"><span class="cb"></span><span class="t">API 명세 리뷰</span><span class="why">🎯</span></span>
+      <span class="pill"><span class="cb"></span><span class="t">과제 3 제출</span><span class="why red">오늘 마감</span></span>
+      <span class="more">5개 더</span><span class="sp"></span><span class="ib" data-i="up"></span>
+    </div>
+    <div class="canvas" style="top:101px" id="graphC"></div>
+  </section>
+  <div class="menu" style="left:858px;top:52px;width:230px">
+    <div class="cap">묶기</div>
+    <div><span data-i="list"></span>리스트</div>
+    <div class="hv"><span data-i="target"></span>목표<span class="chk" data-i="check"></span></div>
+    <hr>
+    <div><span class="cb on" style="width:13px;height:13px"></span>순서 선 보이기</div>
+    <div><span class="cb" style="width:13px;height:13px"></span>완료한 항목 보이기</div>
+    <div><span class="cb on" style="width:13px;height:13px"></span>날짜 없는 항목 보이기</div>
+    <div><span class="cb" style="width:13px;height:13px"></span>메모 보이기</div>
+    <div>범위: 모든 리스트<span style="margin-left:auto" data-i="right" class="sm"></span></div>
+  </div>
+  <div class="note-callout" style="left:610px;top:420px;max-width:260px">카드를 다른 목표에 끌어 놓으면 연결이 옮겨짐(토스트 + ⟲). ‘목표 없는 할 일’에 놓으면 연결 끊기</div>
+  <div class="note-callout" style="left:110px;top:640px;max-width:300px">목표를 누르면 남은 길(목차 → 초안 → 검토)만 진하게, 나머지는 흐리게. 체크 = 달성 → XP 방울이 사이드바 캐릭터로</div>
+</div></div>
+
+<!-- ───────── D. AI 쪼개기 ───────── -->
+<div class="label">D · AI로 큰 일 쪼개기 <small>④ 할 일 우클릭 ✦ AI로 쪼개기 → 미리 보기에서 고치고 골라 승인 → 하위 할 일 + 순서 선. 자동 생성 없음, 24시간 되돌리기</small></div>
+<div class="scroll"><div class="frame">
+  <nav class="rail" data-on="map"></nav>
+  <section class="main">
+    <div class="head">
+      <h2>작업 지도 <span class="seg"><span class="on">그래프</span><span>보드</span><span>타임라인</span></span></h2>
+      <span class="ib" data-i="bolt"></span><span class="ib" data-i="sparkle"></span><span class="ib" data-i="filter"></span><span class="ib" data-i="more"></span>
+    </div>
+    <div class="canvas" style="top:57px" id="graphD"></div>
+  </section>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="sh"><span data-i="sparkle" class="sm acc"></span>큰 일 쪼개기<span class="ib" data-i="x"></span></div>
+    <div class="sb">
+      <div class="target"><span>🎓</span><b>졸업 기획서 마무리</b><span class="meta">졸업 프로젝트 · 10월 16일 마감 · 하위 1개 있음</span></div>
+      <div class="input"><span class="ph">다음 주 금요일까지, 하루 2시간 정도</span><span class="meta">17/200</span></div>
+      <div class="opt"><span class="cb"></span>메모도 함께 보내기 <span class="meta">(기본 끔 · 할 일 제목·리스트 이름만 보내요)</span><span style="flex:1"></span><span class="btn">다시 제안</span></div>
+      <div class="meta" style="margin-top:-2px">✦ 검토 일정은 미리 잡아 두세요</div>
+      <div class="prev">
+        <div class="steps">
+          <div class="sh2">제안 5단계 · 고치거나 끄고 만들기<span style="flex:1"></span>예상 · 먼저</div>
+          <div class="step"><span class="cb on"></span><span class="no">1</span><span class="t">목차 정하기</span><span class="chip">1일</span><span class="chip" style="opacity:.5">—</span><span class="grip">⋮⋮</span></div>
+          <div class="step"><span class="cb on"></span><span class="no">2</span><span class="t edit">초안 쓰기 (2·3장)</span><span class="chip">3일</span><span class="chip">먼저 1</span><span class="grip">⋮⋮</span></div>
+          <div class="step off"><span class="cb"></span><span class="no">3</span><span class="t">그림·표 만들기</span><span class="chip">1일</span><span class="chip">먼저 1</span><span class="grip">⋮⋮</span></div>
+          <div class="step"><span class="cb on"></span><span class="no">4</span><span class="t">교수님 검토 받기</span><span class="chip">2일</span><span class="chip">먼저 2</span><span class="grip">⋮⋮</span></div>
+          <div class="step"><span class="cb on"></span><span class="no">5</span><span class="t">고쳐서 제출</span><span class="chip">1일</span><span class="chip">먼저 4</span><span class="grip">⋮⋮</span></div>
+          <div class="step add"><span data-i="plus" class="sm"></span>단계 추가</div>
+        </div>
+        <div class="mini"><div class="cap">순서</div><svg id="miniDag" width="132" height="200" viewBox="0 0 132 200"></svg></div>
+      </div>
+      <div class="opt">만들 곳 <span class="dd">하위 할 일로 · 부모: 졸업 기획서 마무리 <span data-i="down" class="sm"></span></span></div>
+      <div class="opt"><span class="sw"></span>마감에 맞춰 날짜 나눠 넣기 <span class="meta">(10월 16일까지 거꾸로 채움 · 타임라인 단계에서)</span></div>
+    </div>
+    <div class="sf"><span class="meta">새 할 일 4개 · 순서 선 3개 (꺼진 3번의 앞뒤는 이어 붙이는데, 이미 1 → 2 → 4라 선이 늘지 않아요)</span><span class="btn">취소</span><span class="btn pri">4개 만들기</span></div>
+  </div>
+  <div class="note-callout" style="left:870px;top:150px;max-width:220px">상태: 대기 순번 → 만드는 중(멈추기) → 미리 보기. 503/429/형식 깨짐은 창 안 안내 + [다시 시도]</div>
+  <div class="note-callout" style="left:870px;top:250px;max-width:220px">서버 /ai/breakdown · 원문 저장 없음 · 하루 10회[임시] · AI 답은 창을 닫으면 사라짐</div>
+  <div class="toast" style="bottom:18px">‘졸업 기획서 마무리’를 4단계로 쪼갰어요<span class="u">⟲ 되돌리기</span></div>
+  <div class="note-callout" style="left:62px;bottom:110px;max-width:180px">만든 뒤 토스트(창 닫힌 다음 모습). 24시간 안에는 지도 ⋯ › AI 쪼개기 되돌리기 — 손대지 않은 것만 지움</div>
+</div></div>
+
+<p class="legend"><b>읽는 법</b> — 강조색 왼쪽 줄 = 지금 할 수 있음 · 흐림 + “먼저 N” = 앞 할 일이 안 끝남 · 회색 화살표 = 순서(먼저 해야 함) · 주황 선 = 목표 연결 · 경고색 화살표 = 순서와 날짜가 어긋남 · 금색 테두리 = 달성한 목표. 그래프·보드의 나머지 모양은 v2.0(new-tabs.html ③·③-b) 그대로.</p>
+
+<script>
+const P={
+ tasks:'<path d="M21.8 10A10 10 0 1 1 17 3.3"/><path d="m9 11 3 3L22 4"/>',
+ cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+ sprout:'<path d="M7 20h10M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/>',
+ bot:'<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/>',
+ notes:'<path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4M2 10h4M2 14h4M2 18h4"/><path d="M21.4 5.6a2.1 2.1 0 1 0-3-3L13 8l-1 4 4-1z"/>',
+ map:'<rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3M12 12V8"/>',
+ diary:'<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M12 6.5c-1.3-1.4-4-1-4 1.1 0 1.6 2.2 3 4 4.4 1.8-1.4 4-2.8 4-4.4 0-2.1-2.7-2.5-4-1.1z"/>',
+ search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+ sync:'<path d="M3 12a9 9 0 0 1 9-9 9.8 9.8 0 0 1 6.7 2.7L21 8"/><path d="M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.8 9.8 0 0 1-6.7-2.7L3 16"/><path d="M8 16H3v5"/>',
+ bell:'<path d="M10.3 21a1.9 1.9 0 0 0 3.4 0M3.3 15.3A1 1 0 0 0 4 17h16a1 1 0 0 0 .7-1.7C19.4 14 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.4 6-2.7 7.3"/>',
+ help:'<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
+ plus:'<path d="M5 12h14M12 5v14"/>',minus:'<path d="M5 12h14"/>',more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+ sparkle:'<path d="M9.9 15.5A2 2 0 0 0 8.5 14l-6.1-1.6a.5.5 0 0 1 0-1L8.5 10A2 2 0 0 0 10 8.5l1.6-6.1a.5.5 0 0 1 1 0L14 8.5A2 2 0 0 0 15.5 10l6.1 1.6a.5.5 0 0 1 0 1L15.5 14a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z"/>',
+ bolt:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+ target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+ check:'<path d="M20 6 9 17l-5-5"/>',filter:'<path d="M22 3H2l8 9.5V19l4 2v-8.5z"/>',
+ down:'<path d="m6 9 6 6 6-6"/>',up:'<path d="m18 15-6-6-6 6"/>',right:'<path d="m9 18 6-6-6-6"/>',left:'<path d="m15 18-6-6 6-6"/>',
+ x:'<path d="M18 6 6 18M6 6l12 12"/>',expand:'<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
+ list:'<path d="M3 12h.01M3 18h.01M3 6h.01M8 12h13M8 18h13M8 6h13"/>'
+};
+const svg=(k,c='i')=>`<svg class="${c}" viewBox="0 0 24 24">${P[k]||''}</svg>`;
+const ARW=`<defs>
+<marker id="a-seq" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" style="fill:var(--color-text-secondary)"/></marker>
+<marker id="a-hl" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" style="fill:var(--color-accent)"/></marker>
+<marker id="a-goal" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" style="fill:var(--color-goal)"/></marker>
+<marker id="a-warn" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" style="fill:var(--color-warn)"/></marker></defs>`;
+const ring=(d,t)=>{const c=37.7,f=t?c*d/t:0;return `<svg class="ring" viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg" cx="8" cy="8" r="6" stroke-dasharray="${f.toFixed(1)} ${c}" transform="rotate(-90 8 8)"/></svg>`};
+const card=(x,y,title,meta,cls='',chips='')=>`<div class="gcard ${cls}" style="left:${x}px;top:${y}px"><span class="cb ${cls.includes('done')?'done':''}"></span><div style="min-width:0"><div class="tt">${title}</div><div class="meta">${meta}${chips}</div></div></div>`;
+const curve=(x1,y1,x2,y2)=>`M${x1} ${y1} C${x1} ${(y1+y2)/2} ${x2} ${(y1+y2)/2} ${x2} ${y2}`;
+const stem=(x,y1,y2)=>`M${x} ${y1} L${x} ${y2-8} Q${x} ${y2} ${x+8} ${y2} L${x+10} ${y2}`;
+const side=(x,y1,y2)=>`M${x} ${y1} C${x+24} ${y1} ${x+24} ${y2} ${x+3} ${y2}`;
+
+/* ── A 그래프 ── */
+(function(){
+ const e=[],n=[];
+ n.push(`<div class="node root" style="left:432px;top:14px;width:120px;height:28px">나의 할 일</div>`);
+ n.push(`<div class="node" style="left:150px;top:68px;width:180px;height:40px">🏫 대학교<span class="n">9</span><span class="fold">−</span></div>`);
+ n.push(`<div class="node" style="left:560px;top:68px;width:180px;height:40px">💼 회사<span class="n">5</span><span class="fold">−</span></div>`);
+ n.push(`<div class="node" style="left:800px;top:68px;width:180px;height:40px">🏃 개인<span class="n">6</span><span class="fold">+6</span></div>`);
+ e.push(curve(492,42,240,68),curve(492,42,650,68),curve(492,42,890,68));
+ n.push(`<div class="node list" style="left:60px;top:138px;width:150px;height:34px">${ring(1,4)}졸업 프로젝트<span class="n"></span><span class="prog">1/4</span></div>`);
+ n.push(`<div class="node list" style="left:270px;top:138px;width:140px;height:34px">${ring(0,2)}운영체제<span class="n"></span><span class="prog">0/2</span></div>`);
+ n.push(`<div class="node list" style="left:520px;top:138px;width:140px;height:34px">${ring(0,3)}결제 리뉴얼<span class="n"></span><span class="prog">0/3</span></div>`);
+ n.push(`<div class="node list" style="left:700px;top:138px;width:130px;height:34px">${ring(1,2)}주간 회의<span class="n"></span><span class="prog">1/2</span></div>`);
+ e.push(curve(240,108,135,138),curve(240,108,340,138),curve(650,108,590,138),curve(650,108,765,138));
+ // 졸업 프로젝트
+ const c1=[[200,'자료 조사','10월 2일','done'],[264,'목차 정하기','<span class="acc">오늘</span>','now','<span class="chip goal">🎯</span>'],[328,'초안 쓰기','10월 8일','blocked','<span class="chip">먼저 1</span>'],[392,'교수님 검토 받기','10월 10일','blocked','<span class="chip">먼저 1</span><span class="chip goal">🎯</span>']];
+ c1.forEach(([y,t,m,c,ch])=>{n.push(card(74,y,t,m,c,ch||''));e.push(stem(66,172,y+28))});
+ e.push({d:side(244,292,356),c:'seq'},{d:side(244,356,420),c:'seq'});
+ // 운영체제
+ n.push(card(284,200,'과제 3 제출','<span class="red">오늘 23:59</span>','now'));
+ n.push(card(284,264,'중간고사 범위 복습','<span style="opacity:.6">10월 12일부터</span>',''));
+ e.push(stem(276,172,228),stem(276,172,292));
+ // 결제
+ n.push(card(534,200,'API 명세 리뷰','<span class="acc">내일</span>','now'));
+ n.push(card(534,264,'QA 시나리오 정리','10월 7일','blocked','<span class="chip">먼저 1</span>'));
+ n.push(card(534,328,'배포 체크리스트','10월 9일','blocked','<span class="chip">먼저 1</span>'));
+ e.push(stem(526,172,228),stem(526,172,292),stem(526,172,356));
+ e.push({d:side(704,228,292),c:'seq'},{d:side(704,292,356),c:'seq'});
+ // 주간 회의
+ n.push(card(714,200,'팀 회의 자료 정리','<span class="acc">오후 2:00</span>','now'));
+ n.push(card(714,264,'회의록 공유','어제','done'));
+ e.push(stem(706,172,228),stem(706,172,292));
+ // 목표
+ n.push(`<div class="goalnode" style="left:60px;top:476px;width:250px;height:52px"><span class="cb"></span><div class="gt"><b>🎯 졸업 기획서 마무리</b><span>남은 3단계 · 다음: 목차 정하기</span></div>${ring(1,4)}<span class="rw">+30</span></div>`);
+ e.push({d:`M185 476 C185 462 160 462 160 448`,c:'goal'});
+ n.push(`<div class="goalnode" style="left:520px;top:476px;width:240px;height:52px"><span class="cb"></span><div class="gt"><b>🎯 결제 QA 끝내기</b><span>남은 3단계 · 다음: API 명세 리뷰</span></div>${ring(0,3)}<span class="rw">+30</span></div>`);
+ e.push({d:`M640 476 C640 440 620 420 620 384`,c:'goal'});
+ const paths=e.map(p=>typeof p==='string'?`<path d="${p}"/>`:`<path class="${p.c}" marker-end="url(#a-${p.c==='seq'?'seq':'goal'})" d="${p.d}"/>`).join('');
+ document.getElementById('graphA').innerHTML=`<svg class="edges">${ARW}${paths}</svg>${n.join('')}<div class="zoomctl"><span data-i="plus"></span><span data-i="minus"></span><span data-i="expand"></span></div>`;
+})();
+
+/* ── C 목표 묶기 ── */
+(function(){
+ const e=[],n=[];
+ n.push(`<div class="node root" style="left:360px;top:12px;width:260px;height:30px;gap:8px"><span class="face"></span>이번 주 목표 · 10월 5일–11일</div>`);
+ n.push(`<div class="goalnode sel" style="left:40px;top:66px;width:250px;height:52px"><span class="cb"></span><div class="gt"><b>🎯 졸업 기획서 마무리</b><span>남은 3단계 · 다음: 목차 정하기</span></div>${ring(1,4)}<span class="rw">+30</span></div>`);
+ n.push(`<div class="goalnode drop" style="left:330px;top:66px;width:240px;height:52px"><span class="cb"></span><div class="gt"><b>🎯 결제 QA 끝내기</b><span>남은 3단계 · 다음: API 명세 리뷰</span></div>${ring(0,3)}<span class="rw">+30</span></div>`);
+ n.push(`<div class="goalnode achieved" style="left:610px;top:66px;width:200px;height:52px"><span class="cb on" style="background:var(--color-gold);border-color:var(--color-gold)"></span><div class="gt"><b>🎯 운동 3번</b><span><span class="dots3">●●●</span> 이번 주 달성</span></div><span class="rw ok">+30 ✓</span></div>`);
+ n.push(`<div class="plus30" style="left:770px;top:46px">+30</div>`);
+ n.push(`<div class="goalnode add" style="left:850px;top:300px;width:140px;height:40px">+ 이번 주 목표</div>`);
+ n.push(`<div class="node dim" style="left:835px;top:360px;width:170px;height:40px;opacity:.7">목표 없는 할 일<span class="n">12</span><span class="fold">+12</span></div>`);
+ e.push({d:curve(490,42,165,66),c:''},{d:curve(490,42,450,66),c:''},{d:curve(490,42,710,66),c:''},{d:curve(490,42,920,300),c:''});
+ e.push({d:`M920 340 L920 360`,c:''});
+ // 목표1 → 리스트 → 할 일
+ n.push(`<div class="node list" style="left:90px;top:148px;width:150px;height:34px">${ring(1,4)}🎓 졸업 프로젝트<span class="n"></span><span class="prog">1/4</span></div>`);
+ e.push({d:curve(165,118,165,148),c:'goal'});
+ const c1=[[210,'자료 조사','10월 2일','done'],[274,'목차 정하기','<span class="acc">오늘</span>','now hl'],[338,'초안 쓰기','10월 8일','blocked hl','<span class="chip">먼저 1</span>'],[402,'교수님 검토 받기','10월 10일','blocked hl','<span class="chip">먼저 1</span>']];
+ c1.forEach(([y,t,m,c,ch])=>{n.push(card(104,y,t,m,c,ch||''));e.push({d:stem(96,182,y+28),c:c.includes('hl')?'hl':''})});
+ e.push({d:side(274,302,366),c:'hl'},{d:side(274,366,430),c:'hl'});
+ // 목표2
+ n.push(`<div class="node list dim" style="left:375px;top:148px;width:150px;height:34px">${ring(0,3)}💼 결제 리뉴얼<span class="n"></span><span class="prog">0/3</span></div>`);
+ e.push({d:curve(450,118,450,148),c:'goal dim'});
+ n.push(card(389,210,'API 명세 리뷰','<span class="acc">내일</span>','now dim'));
+ n.push(card(389,274,'QA 시나리오 정리','10월 7일','blocked dim','<span class="chip">먼저 1</span>'));
+ e.push({d:stem(381,182,238),c:'dim'},{d:stem(381,182,302),c:'dim'});
+ n.push(`<div class="gcard drag" style="left:396px;top:346px"><span class="cb"></span><div><div class="tt">배포 체크리스트</div><div class="meta">10월 9일</div></div></div>`);
+ // 목표3
+ n.push(`<div class="node list dim" style="left:635px;top:148px;width:150px;height:34px">${ring(3,3)}🏃 개인<span class="n"></span><span class="prog">3/3</span></div>`);
+ e.push({d:curve(710,118,710,148),c:'goal dim'});
+ n.push(card(649,210,'헬스장','어제','done dim'));
+ const paths=e.map(p=>{const cls=p.c||'';const m=cls.includes('hl')&&p.d.startsWith('M274')?'marker-end="url(#a-hl)"':'';return `<path class="${cls}" ${m} d="${p.d}"/>`}).join('');
+ document.getElementById('graphC').innerHTML=`<svg class="edges">${ARW}${paths}</svg>${n.join('')}<div class="zoomctl"><span data-i="plus"></span><span data-i="minus"></span><span data-i="expand"></span></div>`;
+})();
+
+/* ── D 배경 그래프 ── */
+(function(){
+ const n=[],e=[];
+ n.push(`<div class="node root" style="left:432px;top:14px;width:120px;height:28px">나의 할 일</div>`);
+ n.push(`<div class="node" style="left:150px;top:68px;width:180px;height:40px">🏫 대학교<span class="n">9</span></div>`);
+ n.push(`<div class="node" style="left:560px;top:68px;width:180px;height:40px">💼 회사<span class="n">5</span></div>`);
+ n.push(`<div class="node list" style="left:60px;top:138px;width:150px;height:34px">🎓 졸업 프로젝트</div>`);
+ n.push(card(74,200,'졸업 기획서 마무리','10월 16일','')+card(74,264,'자료 조사','10월 2일','done'));
+ e.push(curve(492,42,240,68),curve(492,42,650,68),curve(240,108,135,138));
+ document.getElementById('graphD').innerHTML=`<svg class="edges">${e.map(d=>`<path d="${d}"/>`).join('')}</svg>${n.join('')}`;
+ // 미니 순서 그림 (1 → 2 → 4 → 5, 3 꺼짐)
+ const pts={1:[30,20],2:[30,70],3:[100,70],4:[30,120],5:[30,170]};
+ let s=ARW;
+ const ln=(a,b,off)=>{const[x1,y1]=pts[a],[x2,y2]=pts[b];s+=`<path d="M${x1} ${y1+9} C${x1} ${(y1+y2)/2} ${x2} ${(y1+y2)/2} ${x2} ${y2-10}" style="fill:none;stroke:var(--color-text-secondary);stroke-width:1.4${off?';stroke-dasharray:3 3;opacity:.4':''}" ${off?'':'marker-end="url(#a-seq)"'}/>`};
+ ln(1,2);ln(2,4);ln(4,5);ln(1,3,1);ln(3,4,1);
+ for(const k in pts){const[x,y]=pts[k];const off=k==='3';s+=`<circle cx="${x}" cy="${y}" r="9" style="fill:${off?'none':'var(--color-accent-subtle)'};stroke:${off?'var(--color-text-quaternary)':'var(--color-accent)'};stroke-width:1.4${off?';stroke-dasharray:2 2':''}"/><text x="${x}" y="${y+4}" text-anchor="middle" style="font:600 10px var(--font);fill:${off?'var(--color-text-quaternary)':'var(--color-accent)'}">${k}</text>`}
+ s+=`<text x="60" y="74" style="font:400 10px var(--font);fill:var(--color-text-tertiary)">꺼짐</text>`;
+ document.getElementById('miniDag').innerHTML=s;
+})();
+
+/* ── B 타임라인 ── */
+(function(){
+ const DAY=44, START=1; // 10월 1일(목)부터
+ const dow=['목','금','토','일','월','화','수'];
+ const grid=document.getElementById('tlGrid'), rows=document.getElementById('tlRows'), head=document.getElementById('tlHead');
+ const W=15, TODAY=5;
+ let h='';
+ h+=`<div style="position:absolute;left:8px;top:6px;font:600 11.5px var(--font);color:var(--color-text-secondary)">2026년 10월 · 1주</div><div style="position:absolute;left:${(5-START)*DAY+6}px;top:6px;font:600 11.5px var(--font);color:var(--color-text-secondary)">2주</div><div style="position:absolute;left:${(12-START)*DAY+6}px;top:6px;font:600 11.5px var(--font);color:var(--color-text-secondary)">3주</div>`;
+ for(let i=0;i<W;i++){const d=START+i,isT=d===TODAY,wk=dow[i%7];h+=`<div style="position:absolute;left:${i*DAY}px;width:${DAY}px;top:24px;text-align:center;font:${isT?600:400} 11px/20px var(--font);color:${isT?'#fff':(wk==='토'||wk==='일'?'var(--color-text-tertiary)':'var(--color-text-secondary)')}"><span style="display:inline-block;min-width:20px;border-radius:10px;${isT?'background:var(--color-accent);':''}">${d}</span> <span style="font-size:9.5px;${isT?'color:var(--color-accent)':''}">${wk}</span></div>`}
+ head.innerHTML=h;
+ // 줄
+ const R=[
+  {k:'f',t:'▾ 🏫 대학교'},
+  {k:'l',t:'▾ 🎓 졸업 프로젝트'},
+  {k:'t',t:'자료 조사',b:[1,2],c:'#4e75f2',cls:'donebar',done:1},
+  {k:'t',t:'목차 정하기',b:[5,6],c:'#4e75f2',cls:'now',id:'mok'},
+  {k:'t',t:'초안 쓰기',b:[8,9],c:'#4e75f2',cls:'blocked sel',id:'cho',hnd:1},
+  {k:'t',t:'교수님 검토 받기',b:[9,11],c:'#4e75f2',cls:'blocked',id:'gum'},
+  {k:'l',t:'▾ 📘 운영체제'},
+  {k:'t',t:'과제 3 제출',b:[5,5],c:'#8a63d2',cls:'now over'},
+  {k:'t',t:'중간고사 범위 복습',b:[12,14],c:'#8a63d2',cls:'later'},
+  {k:'f',t:'▾ 💼 회사'},
+  {k:'l',t:'▾ 💳 결제 리뉴얼'},
+  {k:'t',t:'API 명세 리뷰',b:[6,6],c:'#e0883a',cls:'now',id:'api'},
+  {k:'t',t:'QA 시나리오 정리',b:[7,8],c:'#e0883a',cls:'blocked',id:'qa'},
+  {k:'t',t:'배포 체크리스트',b:[9,9],c:'#e0883a',cls:'blocked',id:'dep'},
+ ];
+ let y=48, rh='', bars='', bg='';
+ for(let i=0;i<W;i++){const wk=dow[i%7];if(wk==='토'||wk==='일')bg+=`<div style="position:absolute;left:${i*DAY}px;top:48px;bottom:0;width:${DAY}px;background:var(--weekend)"></div>`}
+ bg+=`<div style="position:absolute;left:${(TODAY-START)*DAY+DAY*0.45}px;top:44px;bottom:0;width:1px;background:var(--color-accent)"></div>`;
+ const pos={};
+ R.forEach(r=>{const hh=r.k==='t'?36:30;
+  rh+=`<div class="rh ${r.k}${r.cls&&r.cls.includes('sel')?' sel':''}" style="top:${y}px;height:${hh}px">${r.k==='t'?`<span class="cb ${r.done?'done':''}"></span><span class="t" style="${r.done?'text-decoration:line-through;color:var(--color-text-tertiary)':''}">${r.t}</span>`:r.t}</div>`;
+  bg+=`<div style="position:absolute;left:0;right:0;top:${y+hh-1}px;height:1px;background:var(--color-border-row)"></div>`;
+  if(r.b){const x=(r.b[0]-START)*DAY+2,w=(r.b[1]-r.b[0]+1)*DAY-4,top=y+6;
+   const inner=w>110;
+   bars+=`<div class="bar ${r.cls||''}" style="left:${x}px;top:${top}px;width:${w}px;background:${r.c}"><span class="cb ${r.done?'done':''}"></span>${inner?r.t:''}${inner?'':`<span class="out">${r.t}</span>`}${r.hnd?'<span class="hnd"></span>':''}</div>`;
+   if(r.id)pos[r.id]={x1:x,x2:x+w,y:top+12};}
+  y+=hh;});
+ rows.insertAdjacentHTML('beforeend',rh);
+ // 화살표
+ const ar=(a,b,warn)=>{const A=pos[a],B=pos[b];const x1=A.x2,x2=B.x1;const d=`M${x1} ${A.y} C${x1+18} ${A.y} ${x2-18} ${B.y} ${x2-1} ${B.y}`;return `<path d="${d}" style="fill:none;stroke:${warn?'var(--color-warn)':'var(--color-text-secondary)'};stroke-width:1.6" marker-end="url(#${warn?'a-warn':'a-seq'})"/>`};
+ const arrows=`<svg style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none">${ARW}${ar('mok','cho')}${ar('cho','gum',1)}${ar('api','qa')}${ar('qa','dep')}</svg>`;
+ // 끄는 중: 할일 정렬 칸 → 10월 13일 줄(빈 곳)
+ const ghost=`<div class="ghostbar" style="left:${(13-START)*DAY+2}px;top:${48+30+30+36*0+6}px;width:${DAY-4}px"></div>`;
+ const tip=`<div class="tip" style="left:${pos.cho.x2-60}px;top:${pos.cho.y-38}px">↔ 10월 8일 – 10월 9일</div><div class="tip" style="left:${(13-START)*DAY-30}px;top:${48+30+30+36*0-20}px">10월 13일에 놓기</div>`;
+ const plus=`<div style="position:absolute;left:${(11-START)*DAY+14}px;top:${48+30+30+36*1+10}px;width:16px;height:16px;border-radius:4px;display:grid;place-items:center;color:var(--color-text-tertiary);background:var(--color-bg-hover);font:600 12px var(--font)">+</div>`;
+ grid.insertAdjacentHTML('beforeend',bg+arrows+bars+ghost+tip+plus);
+})();
+
+document.querySelectorAll('[data-i]').forEach(el=>{el.insertAdjacentHTML('afterbegin',svg(el.dataset.i,el.classList.contains('sm')?'i sm':'i'))});
+document.querySelectorAll('nav.rail').forEach(n=>{const on=n.dataset.on;n.innerHTML='<div class="dots"><i></i><i></i><i></i></div><div class="av">K</div>'+['tasks','cal','sprout','bot','notes','diary','map'].map(k=>`<b class="${k===on?'on':''}">${svg(k)}</b>`).join('')+'<div class="sp"></div>'+['sync','bell','help'].map(k=>`<b>${svg(k)}</b>`).join('')+'<div style="height:14px"></div>'});
+const root=document.documentElement;
+try{const h=location.hash.slice(1);const s=(h==='light'||h==='dark')?h:localStorage.getItem('sprout.mock.theme');root.dataset.theme=s||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}catch{root.dataset.theme='dark'}
+document.getElementById('theme').onclick=()=>{root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';try{localStorage.setItem('sprout.mock.theme',root.dataset.theme)}catch{}};
+</script>
+</body>
+</html>
