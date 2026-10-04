@@ -95,15 +95,12 @@ export async function knownFingerprints(prints: string[]) {
   }
   return known
 }
-/** 원래 보낸 시각을 작성 시각으로. id는 지문으로 결정적이라 두 기기에서 같은 파일을 올려도 한 행 */
+/** 원래 보낸 시각을 작성 시각으로. 중복은 지문으로 거른다(같은 파일 안 같은 메시지도 한 번만).
+ *  id는 새로 만든다 — 지문을 id로 쓰면 같은 단톡방을 내보낸 다른 사용자와 서버에서 id가 부딪친다 */
 export async function importKakao(messages: KakaoMessage[]) {
   const known = await knownFingerprints(messages.map((m) => m.fingerprint))
-  const fresh = messages.filter((m) => !known.has(m.fingerprint))
-  const stmts = fresh.map((m) => {
-    const s = insert('notes', { id: m.fingerprint.replace(':', '-'), ...itemRow(m.text, { source: 'kakao_import', captured_at: m.at, fingerprint: m.fingerprint, created_at: m.at, ai_state: isBareLink(m.text) ? 'done' : 'pending' }) })
-    s.sql = s.sql.replace('INSERT INTO', 'INSERT OR IGNORE INTO')
-    return s
-  })
+  const fresh = messages.filter((m) => !known.has(m.fingerprint) && (known.add(m.fingerprint), true))
+  const stmts = fresh.map((m) => insert('notes', { id: uuid(), ...itemRow(m.text, { source: 'kakao_import', captured_at: m.at, fingerprint: m.fingerprint, created_at: m.at, ai_state: isBareLink(m.text) ? 'done' : 'pending' }) }))
   for (let i = 0; i < stmts.length; i += 200) await run(...stmts.slice(i, i + 200))
   return fresh.length
 }

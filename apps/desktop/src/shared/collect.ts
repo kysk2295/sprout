@@ -7,10 +7,14 @@ export type WikiSection = 'overview' | 'key' | 'questions'
 
 const URL_RE = /https?:\/\/[^\s<>"'）)\]]+/i
 export const firstUrl = (text: string) => text.match(URL_RE)?.[0]?.replace(/[.,!?。]+$/, '') ?? null
-/** 링크만 덩그러니 있으면(앞뒤 글 40자 이하) AI 없이 바로 볼 것 */
+// 링크 옆 짧은 글에 날짜·마감 말이 있으면 할 일일 수 있다("이 영상 보고 금요일까지 요약") → AI에게 맡긴다
+const TASK_HINT = /(까지|해야|내일|오늘|모레|[월화수목금토일]요일|\d{1,2}\s*시|\d{1,2}\/\d{1,2}|\d{1,2}월\s*\d{1,2}일|요약|제출|예약|신청)/
+/** 링크만 덩그러니 있으면(앞뒤 글 40자 이하, 날짜·마감 말 없음) AI 없이 바로 볼 것 */
 export function isBareLink(text: string) {
   const url = firstUrl(text)
-  return !!url && text.replace(url, '').trim().length <= 40
+  if (!url) return false
+  const rest = text.replace(url, '').trim()
+  return rest.length <= 40 && !TASK_HINT.test(rest)
 }
 export const isYoutube = (url: string) => { try { return /(^|\.)(youtube\.com|youtu\.be)$/.test(new URL(url).hostname) } catch { return false } }
 export const domainOf = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url } }

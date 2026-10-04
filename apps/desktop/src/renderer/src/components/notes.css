@@ -1,4 +1,4 @@
-/* 11-notes v2: 목록(.list)·행(.row)·상세(.detail) 공통 스타일을 그대로 쓰고, 메모함에만 필요한 것만 여기에 */
+/* 11-notes v2·v3 수집함: 목록(.list)·행(.row)·상세(.detail) 공통 스타일을 그대로 쓰고, 메모함에만 필요한 것만 여기에 */
 .notes { flex: 1; min-width: 0; display: flex; height: 100%; background: var(--color-bg-app); color: var(--color-text-primary); position: relative; }
 .notes .notes__main { min-width: 0; }
 .notes .notes__title { flex: none; margin-left: 6px; }
@@ -36,7 +36,7 @@
 .notes .note-detail__meta { font: var(--text-meta); color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .notes .note-detail__title { display: block; width: 100%; border: 0; outline: 0; resize: none; overflow: hidden; background: transparent; color: var(--color-text-primary); padding: 0; margin-bottom: 10px; }
 .notes .note-detail__title::placeholder, .notes .note-detail__body::placeholder { color: var(--color-text-quaternary); }
-.notes .note-detail__body { width: 100%; min-height: 200px; border: 0; outline: 0; resize: none; background: transparent; color: var(--color-text-secondary); font: 400 14px/22px var(--font-family); padding: 0; overflow: hidden; user-select: text; }
+.notes .note-detail__body { width: 100%; min-height: 200px; border: 0; outline: 0; resize: none; background: transparent; color: var(--color-text-secondary); font: 400 14px/22px var(--font-family); padding: 0; overflow: hidden; user-select: text; min-height: 88px; }
 .notes .note-detail__links { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
 .notes .note-detail__links a { display: flex; align-items: center; gap: 6px; font: var(--text-meta); color: var(--color-text-link); text-decoration: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .notes .note-detail__links a:hover { text-decoration: underline; }
@@ -65,17 +65,156 @@
 .note-convert__actions button.is-primary { background: var(--color-accent); color: #fff; }
 .note-convert__actions button:disabled { opacity: .45; }
 
-/* 주제 위키(아직 주제 없음 상태) */
-.notes .notes__wiki { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.notes .notes__wiki-banner { display: flex; align-items: center; gap: 8px; margin: 0 var(--space-list-gutter); padding: 8px 12px; border-radius: var(--radius-sm); background: var(--color-accent-subtle); font: 400 13px/18px var(--font-family); }
-.notes .notes__wiki-banner svg { width: 14px; height: 14px; color: var(--color-accent); flex-shrink: 0; }
-.notes .notes__wiki-banner span { flex: 1; }
-.notes .notes__wiki-banner button { height: 26px; padding: 0 10px; border-radius: var(--radius-sm); background: var(--color-accent); color: #fff; font: var(--text-menu); }
-.notes .notes__wiki-banner button:disabled { opacity: .45; }
-.notes .notes__back { margin-top: 14px; height: 28px; padding: 0 12px; border-radius: var(--radius-sm); background: var(--color-bg-selected); font: var(--text-menu); color: var(--color-text-primary); }
-
 /* 좁은 창: 상세가 목록 위에 겹친다(02 §2와 같다) */
 @media (max-width: 760px) {
   .notes .note-detail:not(.detail--empty) { position: absolute; inset: 0 0 0 auto; width: min(var(--size-detail-width), 100%); box-shadow: var(--shadow-modal); z-index: 5; background: var(--color-bg-app); }
   .notes .note-detail.detail--empty { display: none; }
+}
+
+/* ── v3 수집: 종류 아이콘 · 꼬리표 · 진행 띠 ── */
+.notes .note-row::after { left: calc(12px + 16px + var(--space-row-icon-gap)); }
+.collect-kind { width: 16px; height: 16px; flex-shrink: 0; display: grid; place-items: center; color: var(--color-text-tertiary); }
+.collect-kind svg { width: 14px; height: 14px; stroke-width: 1.6; }
+.collect-kind__task { width: 13px; height: 13px; border: 1.5px dashed var(--color-accent); border-radius: 3px; box-sizing: border-box; }
+.collect-spin { width: 12px; height: 12px; border: 1.5px solid var(--color-text-quaternary); border-top-color: var(--color-accent); border-radius: 50%; box-sizing: border-box; animation: collect-spin 0.9s linear infinite; flex-shrink: 0; }
+@keyframes collect-spin { to { transform: rotate(360deg); } }
+.collect-chip { font: 500 10.5px/14px var(--font-family); padding: 1px 7px; border-radius: var(--radius-full); background: var(--color-bg-selected); color: var(--color-text-secondary); white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+.collect-chip.is-accent { background: var(--color-accent-subtle); color: var(--color-accent); }
+.collect-chip.is-wiki { background: rgba(63, 185, 80, .14); color: #2f9e44; }
+[data-theme="dark"] .collect-chip.is-wiki { color: #3fb950; }
+.collect-chip.is-src { background: transparent; border: 1px solid var(--color-border-divider); color: var(--color-text-tertiary); padding: 0 6px; }
+.collect-pending { font: var(--text-meta); color: var(--color-text-tertiary); }
+.collect-mini { font: 500 11px/16px var(--font-family); padding: 2px 8px; border-radius: 4px; background: var(--color-accent); color: #fff; }
+.collect-mini:hover { filter: brightness(1.08); }
+
+.notes .collect-band { display: flex; align-items: center; gap: 8px; margin: 0 var(--space-list-gutter) 8px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--color-accent-subtle); font: 400 13px/18px var(--font-family); }
+.notes .collect-band > svg { width: 14px; height: 14px; color: var(--color-accent); flex-shrink: 0; }
+.notes .collect-band__text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.notes .collect-band__bar { width: 140px; height: 4px; flex-shrink: 1; min-width: 40px; border-radius: var(--radius-full); background: var(--color-bg-selected); overflow: hidden; margin-left: 4px; }
+.notes .collect-band__bar i { display: block; height: 100%; background: var(--color-accent); transition: width var(--motion-base); }
+.notes .collect-band button { margin-left: auto; height: 26px; padding: 0 10px; border-radius: var(--radius-sm); background: var(--color-bg-selected); color: var(--color-text-primary); font: var(--text-menu); white-space: nowrap; }
+
+/* 상세의 AI 판단 카드 */
+.collect-card { border: 1px solid var(--color-border-divider); background: var(--color-bg-card); border-radius: 8px; padding: 12px; margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.collect-card h4 { margin: 0; font: 600 12px/16px var(--font-family); color: var(--color-text-secondary); display: flex; gap: 6px; align-items: center; }
+.collect-card h4 svg { width: 14px; height: 14px; color: var(--color-accent); flex-shrink: 0; }
+.collect-card__f { display: flex; gap: 10px; font: 400 13px/18px var(--font-family); min-width: 0; }
+.collect-card__f > span:first-child { width: 36px; flex-shrink: 0; color: var(--color-text-tertiary); }
+.collect-card__f > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.collect-card__f .is-today, .collect-card__f .is-future { color: var(--color-accent); }
+.collect-card__f .is-overdue { color: var(--color-text-danger); }
+.collect-card__acts { display: flex; gap: 6px; margin-top: 2px; }
+.collect-card__acts > * { font: 500 12px/18px var(--font-family); padding: 5px 10px; border-radius: 6px; background: var(--color-bg-selected); color: var(--color-text-primary); text-decoration: none; white-space: nowrap; }
+.collect-card__acts .is-primary { background: var(--color-accent); color: #fff; }
+.collect-card__acts > *:disabled { opacity: .45; }
+.collect-card__other { font: var(--text-meta); color: var(--color-text-tertiary); }
+.collect-card__other button { font: inherit; color: var(--color-text-link); padding: 0; }
+.collect-card__other button:hover { text-decoration: underline; }
+
+/* ── v3 볼 것 ── */
+.watch-row__circle { width: 14px; height: 14px; flex-shrink: 0; border: 1.5px solid var(--color-text-tertiary); border-radius: 50%; box-sizing: border-box; padding: 0; position: relative; }
+.watch-row__circle.is-on { background: var(--color-text-tertiary); }
+.watch-row__circle.is-on::after { content: ""; position: absolute; left: 3.5px; top: 1px; width: 3px; height: 6px; border: solid var(--color-bg-app); border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+.notes .watch-row::after { left: calc(12px + 14px + 22px + 2 * var(--space-row-icon-gap)); }
+.notes .watch-row.is-seen .row__title { color: var(--color-text-tertiary); }
+.collect-yt { width: 22px; height: 16px; border-radius: 4px; background: #e5484d; display: grid; place-items: center; flex-shrink: 0; }
+.collect-yt::after { content: ""; border-left: 6px solid #fff; border-top: 4px solid transparent; border-bottom: 4px solid transparent; margin-left: 1px; }
+.collect-web { width: 22px; height: 16px; border-radius: 4px; background: var(--color-bg-selected); display: grid; place-items: center; flex-shrink: 0; color: var(--color-text-tertiary); }
+.collect-web svg { width: 11px; height: 11px; }
+.watch-row__domain { font: var(--text-meta); color: var(--color-text-tertiary); margin-left: 6px; }
+.watch-row__open { display: grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: var(--color-text-tertiary); visibility: hidden; flex-shrink: 0; }
+.watch-row__open:hover { background: var(--color-bg-hover); }
+.watch-row__open svg { width: 14px; height: 14px; }
+.watch-row:hover .watch-row__open, .watch-row.is-selected .watch-row__open { visibility: visible; }
+
+/* ── v3 위키: 주제 목록 240 + 주제 페이지 ── */
+.notes .wiki { flex: 1; display: flex; min-height: 0; }
+.notes .wiki__topics { width: 240px; flex-shrink: 0; border-right: 1px solid var(--color-border-divider); padding: 0 8px 12px; overflow-y: auto; }
+.notes .wiki__topics-head { padding-left: 4px; cursor: default; }
+.notes .wiki__topic { cursor: default; padding-left: 8px; }
+.notes .wiki__topic::after { left: 8px; }
+.notes .wiki__topic.is-selected::after { display: none; }
+.notes .wiki__topic-icon { width: 15px; height: 15px; flex-shrink: 0; color: var(--color-text-tertiary); stroke-width: 1.6; }
+.notes .wiki__topic .row__title { cursor: default; }
+.notes .wiki__newdot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); display: inline-block; margin-left: 6px; vertical-align: 2px; }
+.notes .wiki__topic-more { width: 22px; height: 22px; display: none; place-items: center; border-radius: var(--radius-sm); color: var(--color-text-tertiary); }
+.notes .wiki__topic-more svg { width: 15px; height: 15px; }
+.notes .wiki__topic:hover .wiki__topic-more { display: grid; }
+.notes .wiki__topic:hover .row__meta { display: none; }
+.notes .wiki__name-input { flex: 1; min-width: 0; height: 26px; border: 1px solid var(--color-border-input-focus); border-radius: var(--radius-sm); background: var(--color-bg-input); color: var(--color-text-primary); padding: 0 8px; font: var(--text-body); outline: none; }
+.notes .wiki__add { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 8px; font: var(--text-menu); color: var(--color-accent); }
+.notes .wiki__add svg { width: 15px; height: 15px; }
+.notes .wiki-empty__acts { display: flex; gap: 8px; }
+.notes .notes__back { margin-top: 14px; height: 28px; padding: 0 12px; border-radius: var(--radius-sm); background: var(--color-bg-selected); font: var(--text-menu); color: var(--color-text-primary); }
+
+.notes .wiki__page { flex: 1; min-width: 0; overflow-y: auto; padding: 4px 28px 28px; user-select: text; }
+.notes .wiki__title { margin: 0; font: 700 19px/26px var(--font-family); }
+.notes .wiki__info { display: flex; align-items: center; gap: 8px; margin: 6px 0 14px; font: var(--text-meta); color: var(--color-text-tertiary); }
+.notes .wiki__btn { display: inline-flex; align-items: center; gap: 5px; font: 500 12px/18px var(--font-family); padding: 4px 10px; border-radius: 6px; background: var(--color-bg-selected); color: var(--color-text-primary); white-space: nowrap; }
+.notes .wiki__info .wiki__btn { margin-left: auto; }
+.notes .wiki__btn svg { width: 14px; height: 14px; }
+.notes .wiki__btn.is-primary { background: var(--color-accent); color: #fff; }
+.notes .wiki__btn.is-ghost { background: transparent; color: var(--color-accent); padding: 4px; }
+.notes .wiki__band { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; background: var(--color-accent-subtle); font: 400 12.5px/18px var(--font-family); margin-bottom: 12px; }
+.notes .wiki__band > svg { width: 14px; height: 14px; color: var(--color-accent); flex-shrink: 0; }
+.notes .wiki__band-text { flex: 1; min-width: 0; }
+.notes .wiki__band-close { width: 22px; height: 22px; display: grid; place-items: center; border-radius: var(--radius-sm); color: var(--color-text-tertiary); }
+.notes .wiki__band-close svg { width: 14px; height: 14px; }
+.notes .wiki__sec { margin-bottom: 16px; }
+.notes .wiki__sec h4 { margin: 0 0 6px; font: 600 12.5px/16px var(--font-family); color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px; }
+.notes .wiki__lock { display: inline-flex; align-items: center; gap: 3px; font: var(--text-meta); color: var(--color-text-tertiary); }
+.notes .wiki__lock svg { width: 12px; height: 12px; }
+.notes .wiki__unlock { font: var(--text-meta); color: var(--color-text-link); margin-left: auto; }
+.notes .wiki__lines { margin: 0; padding: 0; border-radius: 6px; }
+.notes .wiki__lines.is-editable { cursor: text; }
+.notes .wiki__lines.is-editable:hover { background: var(--color-bg-hover); }
+.notes .wiki__lines li { list-style: none; padding: 5px 4px 5px 14px; position: relative; color: var(--color-text-primary); line-height: 21px; border-radius: 4px; }
+.notes .wiki__lines li::before { content: ""; position: absolute; left: 4px; top: 13px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-text-tertiary); }
+.notes .wiki__lines li.is-new { background: var(--color-accent-subtle); }
+.notes .wiki__lines li.wiki__placeholder { color: var(--color-text-quaternary); }
+.notes .wiki__src { display: inline-flex; align-items: center; font: 500 10.5px/14px var(--font-family); color: var(--color-accent); background: var(--color-accent-subtle); border-radius: 4px; padding: 0 5px; margin-left: 4px; vertical-align: 1px; }
+.notes .wiki__src:hover { text-decoration: underline; }
+.notes .wiki__editor { width: 100%; box-sizing: border-box; resize: vertical; border: 1px solid var(--color-border-input-focus); border-radius: 6px; background: var(--color-bg-input); color: var(--color-text-primary); padding: 6px 10px; font: 400 14px/21px var(--font-family); outline: none; }
+.notes .wiki__sug { margin-top: 4px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.notes .wiki__sug-toggle { font: var(--text-meta); color: var(--color-text-link); }
+.notes .wiki__sug-item { display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px dashed var(--color-border-divider); font: 400 13px/19px var(--font-family); }
+.notes .wiki__sug-item > span { flex: 1; min-width: 0; }
+.notes .wiki__link { display: flex; align-items: center; gap: 8px; padding: 5px 0; font: 400 13px/18px var(--font-family); color: var(--color-text-primary); text-decoration: none; min-width: 0; }
+.notes .wiki__link-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+.notes .wiki__link:hover .wiki__link-title { text-decoration: underline; }
+.notes .wiki__rel { display: flex; gap: 6px; flex-wrap: wrap; }
+.notes .wiki__rel button { font: 500 12px/16px var(--font-family); color: var(--color-accent); background: var(--color-accent-subtle); border-radius: 4px; padding: 2px 8px; }
+.notes .wiki__more { display: flex; align-items: center; gap: 4px; margin: 4px 0 0; font: var(--text-meta); color: var(--color-text-tertiary); }
+.notes .wiki__more svg { width: 13px; height: 13px; }
+.notes .wiki__more button { font: inherit; color: var(--color-text-link); padding: 0; }
+.menu.wiki__history { padding: 6px; max-height: 360px; overflow-y: auto; }
+.wiki__history-head { font: var(--text-body-strong); padding: 4px 8px 6px; }
+.wiki__history-item { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; width: 100%; text-align: left; padding: 6px 8px; border-radius: var(--radius-sm); }
+.wiki__history-item:hover, .wiki__history-item.is-active { background: var(--color-bg-hover); }
+.wiki__history-v { font: 500 12px/16px var(--font-family); color: var(--color-text-primary); }
+.wiki__history-at { font: var(--text-meta); color: var(--color-text-tertiary); }
+.wiki__history-reason { grid-column: 1 / -1; font: var(--text-meta); color: var(--color-text-secondary); }
+.wiki__history-empty { margin: 4px 8px; font: var(--text-meta); color: var(--color-text-tertiary); }
+
+/* ── v3 카카오톡 가져오기 대화 상자(폭 440, document.body에 붙는다) ── */
+.kakao-dialog { width: 440px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.kakao-dialog h3 { margin: 0; font: 700 16px/22px var(--font-family); }
+.kakao-dialog ol { margin: 0; padding-left: 18px; font: 400 12.5px/20px var(--font-family); color: var(--color-text-secondary); }
+.kakao-dialog__drop { border: 1.5px dashed var(--color-text-quaternary); border-radius: 8px; padding: 14px; display: flex; gap: 10px; align-items: center; font: 400 13px/18px var(--font-family); }
+.kakao-dialog__drop.is-over { border-color: var(--color-accent); background: var(--color-accent-subtle); }
+.kakao-dialog__drop > svg { width: 18px; height: 18px; color: var(--color-text-tertiary); flex-shrink: 0; }
+.kakao-dialog__file { display: flex; flex-direction: column; min-width: 0; }
+.kakao-dialog__file b { font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.kakao-dialog__file span { font: var(--text-meta); color: var(--color-text-tertiary); }
+.kakao-dialog__pick { margin-left: auto; flex-shrink: 0; font: 500 12px/18px var(--font-family); color: var(--color-accent); background: transparent; padding: 4px; }
+.kakao-dialog__preview { background: var(--color-bg-selected); border-radius: 8px; padding: 10px 12px; font: 400 12.5px/19px var(--font-family); color: var(--color-text-secondary); }
+.kakao-dialog__preview strong { color: var(--color-text-primary); }
+.kakao-dialog__error { margin: 0; font: var(--text-meta); color: var(--color-text-danger); }
+.kakao-dialog__acts { display: flex; justify-content: flex-end; gap: 6px; }
+.kakao-dialog__acts button { font: 500 12px/18px var(--font-family); padding: 5px 10px; border-radius: 6px; background: var(--color-bg-selected); color: var(--color-text-primary); border: 0; }
+.kakao-dialog__acts button.is-primary { background: var(--color-accent); color: #fff; }
+
+@media (max-width: 760px) {
+  .notes .wiki__topics { width: 180px; }
+  .notes .wiki__page { padding: 4px 16px 20px; }
 }
