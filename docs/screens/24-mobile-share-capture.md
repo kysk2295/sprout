@@ -106,3 +106,21 @@
 - [ ] 사진만 공유할 때는 공유 목록에 sprout가 보이지 않는다.
 - [ ] 로그아웃 상태 안내, 처음 한 번 개인정보 안내.
 - [ ] iPhone·Android, 라이트·다크에서 카드가 틱틱 공유 화면과 비슷한 무게(크기·버튼 위치)다.
+
+## 7. 구현 메모 (2026-10-04, iOS)
+| 부분 | 위치 · 내용 |
+|---|---|
+| 공유 확장(Swift) | `apps/mobile/plugins/share-extension/ios/` — `ShareViewController`(받은 글·링크 꺼내기), `ShareView`(SwiftUI 카드 C1·확인 C2·로그아웃 카드), `ShareCore`(링크 판정·행·대기열·업로드). 타깃 `SproutShare`, 번들 `app.sprout.mobile.share` |
+| config 플러그인 | `apps/mobile/plugins/share-extension/index.js` — `expo prebuild` 때마다 타깃·entitlements·소스를 다시 붙인다(ios/는 커밋 안 함). app.json `plugins`에 `["./plugins/share-extension", { "teamId": "BU697KN34B", "appGroup": "group.app.sprout.mobile" }]` |
+| 이름 | App Group `group.app.sprout.mobile`, 키체인 공유 그룹 `BU697KN34B.app.sprout.mobile.shared`(접두사를 글자로 박음 — `$(AppIdentifierPrefix)`는 시뮬레이터에서 비어 JS와 어긋남). 본 앱 키체인 첫 그룹은 `BU697KN34B.app.sprout.mobile`(세션·리프레시 토큰은 그대로 본 앱 전용) |
+| 토큰 건네기 | 본 앱이 로그인 상태로 앞으로 올 때마다 `sprout.share.access` = `{access_token, user_id, api_url}`를 공유 그룹에 쓴다(expo-secure-store, `AFTER_FIRST_UNLOCK`). 로그아웃이면 지운다 → 확장은 로그인 카드. 확장은 JWT `exp`가 1분 넘게 남았을 때만 쓴다. 새로 고침은 본 앱만 |
+| 저장 순서 | ① 대기열 파일 `share-queue/<uuid>.json`(`{v:1,id,content,captured_at,user_id}`)을 먼저 쓴다 ② 토큰이 쓸 만하면 `POST /sync/upload` `[{op:'PUT',table:'notes',id,data}]`(6초 제한) ③ 200이면 파일 삭제. 실패·만료·오프라인이면 파일이 남는다 → 같은 `저장했어요` |
+| 대기열 비우기 | `apps/mobile/src/share/` — `useShareInbox()`(`app/_layout.tsx` 뿌리에서 한 줄)가 로그인 상태에서 시작·앞으로 올 때 `drainQueue`: 같은 id가 로컬에 있으면 넣지 않고 파일만 지움, 다른 계정(`user_id`)·망가진 파일은 지움, 넣기 실패면 파일을 남겨 다음에. 넣은 행은 PowerSync가 올린다 |
+| 행 규칙 | `src/share/link.ts`·`row.ts` = 데스크톱 `shared/collect.ts`의 `firstUrl`·`isBareLink`·`itemRow`와 같은 규칙(M-S1): 링크만이면 `kind 'link'`·`kind_source 'ai'`·`ai_state 'done'`, 나머지는 `ai_state 'pending'`. `source 'app'`, `captured_at = created_at = modified_at = 공유 시각(UTC ISO)`, `fingerprint NULL`. 데스크톱 파일은 `./assistant`까지 끌고 와 Metro로 직접 가져오지 않고 옮겼다 — `share.test.ts`가 정규식 원문·본문이 데스크톱과 같은지 검사한다 |
+| 시험 | `npm run test:mobile`(share.test.ts: 데스크톱과 같은 판정·업로드 모양·대기열 멱등) + `sh apps/mobile/plugins/share-extension/test/check-vectors.sh`(Swift 판정이 같은 예시 `src/share/vectors.json`을 통과) |
+| 공유 목록 | `NSExtensionActivationSupportsText` + `WebURLWithMaxCount 1`만 → 사진·파일만 공유하면 sprout가 안 뜬다 |
+| 안내 줄 | 링크만이면 `링크만 있어서 바로 ‘볼 것’에 넣어요`, 아니면 `AI가 할 일·볼 것·위키·메모로 정리해 둘게요` [임시 — 구현 때 추가, 결과가 다르다는 걸 미리 보여 줌] |
+| 다른 점 [임시] | iOS 26에서 확장 화면은 시스템 시트 안에 뜬다(`overFullScreen`을 무시) → 덮개는 시트 안에만 그려진다. 카드 높이 500·모서리 22·머리 52는 명세대로. [sprout 열기]는 공식 API가 없어 응답자 사슬로 `sprout://`를 연다(안 되면 그냥 닫힘, 실기기 확인 필요) |
+| 실기기 | Apple Developer에서 App ID `app.sprout.mobile`·`app.sprout.mobile.share` 둘 다 App Groups(`group.app.sprout.mobile`) 켜기, 팀 `BU697KN34B`로 서명. 키체인 공유는 같은 팀이면 따로 등록 없음 |
+| [다음] | Android 공유 받기(`SEND` `text/plain` → 본 앱 RN 화면, 바로 로컬 DB). 오늘 탭 위 `공유한 N개를 수집함에 넣는 중…` 띠. 설정의 `공유 목록에 sprout 추가하는 법` 안내 |
+| 확인 (iOS 26.5 시뮬레이터, 2026-10-05) | 사파리 링크 공유 → 바로 업로드(`kind link`·`done`), 글 공유 → 바로 업로드(`pending`), 토큰 만료 상태 공유 → 대기열 → 앱 열 때 넣기(같은 id 두 파일 → 한 줄, 원래 `captured_at` 유지), 다시 열어도 중복 없음, 로그아웃 → 로그인 카드 → [sprout 열기]로 앱 열림, 다크 모드 카드, 취소 = 저장 없음. 데스크톱 화면에서 직접은 보지 않았다(서버 행·모바일 수집함 탭으로 확인) |

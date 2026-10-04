@@ -48,3 +48,51 @@ assert.equal(nextMonday(today), '2026-10-05')
 assert.equal(withRo('업무'), '업무로')
 assert.equal(withRo('기본함'), '기본함으로')
 console.log('views ok')
+
+// ── 2026-10-05 모바일 전체 기능: 묶기·정렬·보기 범위 ──
+import { defaultSettings, newTaskDefaults, openSql, settingsOf, smartVisible, readVisibility, splitView, viewTitle, doneSql } from './views.ts'
+const p1 = t({ priority: 1, title: '나' })
+const p3 = t({ priority: 3, title: '가', tag_ids: 'g2' })
+const p0 = t({ priority: 0, title: '다', tag_ids: 'g1,g2' })
+const tags = [{ id: 'g1', name: '운동' }, { id: 'g2', name: '공부' }]
+// 우선순위 묶기
+const pg = buildGroups('smart:all', [p1, p3, p0], [], { today, settings: { group_by: 'priority', sort_by: 'date' } })
+assert.deepEqual(pg.map((g) => g.title), ['높은 우선순위', '낮은 우선순위', '우선순위 없음'])
+// 태그 묶기: 태그 순서상 첫 태그, 태그 없음
+const tg = buildGroups('smart:all', [p1, p3, p0], [], { today, tags, settings: { group_by: 'tag', sort_by: 'title' } })
+assert.deepEqual(tg.map((g) => [g.id, g.count]), [['tg:g1', 1], ['tg:g2', 1], ['tg:none', 1]])
+// 묶기 없음 + 제목 정렬
+const ng = buildGroups('smart:all', [p1, p3, p0], [], { today, settings: { group_by: 'none', sort_by: 'title' } })
+assert.deepEqual(ng[0].rows.map((r) => r.task.title), ['가', '나', '다'])
+// 목록 묶기(폴더 기본)
+const lists = [{ id: 'l1', name: '업무', emoji: null, color: null, kind: 'normal', folder_id: 'f', sort_order: 1 }, { id: 'l2', name: '개인', emoji: null, color: null, kind: 'normal', folder_id: 'f', sort_order: 2 }]
+const fg = buildGroups('folder:f', [t({ list_id: 'l2' }), t({})], [], { today, lists })
+assert.deepEqual(fg.map((g) => g.title), ['업무', '개인'])
+// 빈 섹션도 머리는 보인다
+const es = buildGroups('list:l1', [t({})], [], { today, sections: [{ id: 'x', list_id: 'l1', name: '빈 섹션', sort_order: 0 }] })
+assert.deepEqual(es.map((g) => [g.title, g.count]), [['', 1], ['빈 섹션', 0]])
+// 설정: 기본값, 다른 보기 값은 무시
+assert.deepEqual(defaultSettings('list:l1'), { group_by: 'custom', sort_by: 'custom' })
+assert.deepEqual(defaultSettings('smart:today'), { group_by: 'time', sort_by: 'date' })
+assert.deepEqual(settingsOf('smart:today', { group_by: 'custom', sort_by: 'priority' }), { group_by: 'time', sort_by: 'priority' })
+// 계획 취소·완료: 완료 날짜별 묶음
+const wd = buildGroups('smart:wontdo', [t({ status: 2, completed_at: '2026-10-04T03:00:00' })], [], { today })
+assert.equal(wd[0].title, '오늘')
+assert.match(openSql('smart:wontdo').sql, /t\.status = 2/)
+assert.match(openSql('tag:g1').sql, /task_tags/)
+assert.match(openSql('filter:f1').sql, /FROM filters f/)
+assert.match(doneSql('smart:today').sql, /status IN \(1, 2\)/)
+// 날짜 보기(캘린더 빈 칸 → 빠른 입력)
+assert.deepEqual(splitView('date:2026-10-07T15:00'), ['date', '2026-10-07T15:00'])
+assert.deepEqual(newTaskDefaults('date:2026-10-07T15:00', 'inbox', today), { list_id: 'inbox', due_at: '2026-10-07T15:00' })
+assert.deepEqual(newTaskDefaults('tag:g1', 'inbox', today), { list_id: 'inbox', due_at: null, tag_id: 'g1' })
+assert.equal(viewTitle('tag:g1', [], [], { tags }).title, '#운동')
+assert.equal(viewTitle('smart:wontdo', [], []).title, '계획 취소')
+// 스마트 목록 표시
+const vis = readVisibility('{"all":"hide","trash":"auto","x":"nope"}')
+assert.deepEqual(vis, { all: 'hide', trash: 'auto' })
+assert.equal(smartVisible('all', vis), false)
+assert.equal(smartVisible('trash', vis, 0), false)
+assert.equal(smartVisible('trash', vis, 2), true)
+assert.equal(smartVisible('inbox', { inbox: 'hide' }), true)
+console.log('views+ ok')

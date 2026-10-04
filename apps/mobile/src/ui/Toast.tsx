@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 
-type ToastOpts = { undo?: () => Promise<void> | void; error?: boolean; duration?: number; icon?: boolean }
+type ToastOpts = { undo?: () => Promise<void> | void; error?: boolean; duration?: number; icon?: boolean; /** 되돌리기 대신 다른 이름의 버튼(예: "열기") */ action?: { label: string; onPress: () => void } }
 type Toast = ToastOpts & { id: number; message: string }
 const Ctx = createContext<{ show: (message: string, opts?: ToastOpts) => void }>({ show: () => {} })
 export const useToast = () => useContext(Ctx)
@@ -23,7 +23,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     clearTimeout(timer.current)
     const id = ++seq.current
     setToast({ id, message, ...opts })
-    timer.current = setTimeout(() => setToast((t) => (t?.id === id ? null : t)), opts.duration ?? (opts.undo ? 3000 : 2000))
+    timer.current = setTimeout(() => setToast((t) => (t?.id === id ? null : t)), opts.duration ?? (opts.undo || opts.action ? 3000 : 2000))
   }, [])
   useEffect(() => () => clearTimeout(timer.current), [])
   const value = useMemo(() => ({ show }), [show])
@@ -46,6 +46,10 @@ function ToastView({ toast, onClose }: { toast: Toast; onClose: () => void }) {
       {toast.undo ? (
         <Pressable accessibilityRole="button" accessibilityLabel="되돌리기" hitSlop={8} onPress={async () => { onClose(); await toast.undo?.() }}>
           <Text style={[s.undo, { color: p.toastAction }]}>되돌리기</Text>
+        </Pressable>
+      ) : toast.action ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={toast.action.label} hitSlop={8} onPress={() => { onClose(); toast.action?.onPress() }}>
+          <Text style={[s.undo, { color: p.toastAction }]}>{toast.action.label}</Text>
         </Pressable>
       ) : null}
     </Animated.View>

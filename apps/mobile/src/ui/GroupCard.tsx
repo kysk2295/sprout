@@ -1,17 +1,18 @@
 // 묶음 카드(21 §2): 회색 바닥 위 흰 카드(좌우 12, 모서리 14, 사이 10). 머리 44 = 이름 15/600 · 오른쪽 개수 ⌄(3차).
 // 만료됨 머리는 개수 앞에 "미루기"(강조색). 머리를 누르면 접힘/펼침. 이름 없는 묶음(리스트의 미분류)은 머리 없이.
+// 섹션 머리는 길게 눌러 메뉴(이름 바꾸기·삭제 — 02 §0)
 import { ChevronDown } from 'lucide-react-native'
 import type { ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native'
 import { FONT, M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 
-export function GroupCard(props: { title: string; count: number; collapsed: boolean; onToggle: () => void; onPostpone?: () => void; children?: ReactNode }) {
+export function GroupCard(props: { title: string; count: number; collapsed: boolean; onToggle: () => void; onPostpone?: () => void; onLongPress?: (e: GestureResponderEvent) => void; children?: ReactNode }) {
   const p = usePalette()
   return (
     <View style={[s.card, { backgroundColor: p.cardBg }]}>
       {props.title ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={`${props.title} ${props.count}개, ${props.collapsed ? '펼치기' : '접기'}`} onPress={props.onToggle} style={s.head}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${props.title} ${props.count}개, ${props.collapsed ? '펼치기' : '접기'}`} onPress={props.onToggle} onLongPress={props.onLongPress} delayLongPress={350} style={s.head}>
           <Text style={[FONT.group, { color: p.textPrimary }]}>{props.title}</Text>
           <View style={{ flex: 1 }} />
           {props.onPostpone ? (

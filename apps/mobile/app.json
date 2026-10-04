@@ -15,7 +15,7 @@
       "package": "app.sprout.mobile",
       "edgeToEdgeEnabled": true
     },
-    "plugins": ["expo-router", "expo-secure-store"],
+    "plugins": ["expo-router", "expo-secure-store", "expo-background-task", "expo-notifications", ["./plugins/share-extension", { "teamId": "BU697KN34B", "appGroup": "group.app.sprout.mobile" }]],
     "experiments": { "typedRoutes": false },
     "extra": {
       "apiUrl": "https://macmini.tail425c97.ts.net",

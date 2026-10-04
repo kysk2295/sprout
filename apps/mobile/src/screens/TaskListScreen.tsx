@@ -1,17 +1,24 @@
 // 할 일 탭 목록(21): 오늘(기본) 또는 서랍에서 고른 목록. 회색 바닥 위 묶음 카드, 둥근 ☰ · ⋯, 큰 제목, 떠 있는 +.
 // 체크 → 바로 완료 묶음 + "작업이 완료되었습니다." 토스트(되돌리기) + 성장 탭 +1. 스와이프·길게 누름·미루기·당겨서 새로 고침.
+// 2026-10-05 전체 기능: 전체·계획 취소·태그·필터 보기, ⋯ = 리스트/태그/필터 편집 · 섹션 추가 · 묶기 › · 정렬 › · 자세히 보기 · 완료 보기,
+// 섹션 머리 길게 눌러 이름 바꾸기·순서·삭제, 휴지통은 복원 · 영구 삭제(확인) · 휴지통 비우기, 머리 🔍 = 검색.
 import { useQuery, useStatus } from '@powersync/react-native'
 import { useRouter, useScrollToTop } from 'expo-router'
-import { Calendar, Check, Ellipsis, FolderInput, Menu, Pin, Plus, RotateCcw, Trash2, Undo2 } from 'lucide-react-native'
+import { Calendar, Check, Ellipsis, FolderInput, Menu, Pin, Plus, RotateCcw, Search, Trash2, Undo2 } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { syncNow } from '../data/auth'
 import { useFolders, useLists, useSections } from '../data/lists'
 import {
   completeTasks, deleteForever, moveDates, reopenTasks, restoreTasks, setPinned, setPriority, trashTasks, type Undo
 } from '../data/tasks'
-import { buildGroups, doneSql, isArchive, isListView, openSql, showsListName, viewTitle, type Node, type TaskRow } from '../data/views'
+import {
+  addSection, deleteSection, moveSection, renameSection, saveViewSettings, useFilters, useTagsFull, useViewSettings
+} from '../data/organization'
+import {
+  buildGroups, doneSql, GROUP_LABEL, groupOptions, isArchive, isListView, openSql, showsListName, SORT_LABEL, sortOptions, viewTitle, type Node, type TaskRow
+} from '../data/views'
 import { dayKey, longDay, nextMonday } from '../lib/dates'
 import { useTasksView } from '../state/tasksView'
 import { M } from '../theme/palette'
@@ -26,6 +33,8 @@ import { closeOpenRow, SwipeRow, type SwipeAction } from '../ui/SwipeRow'
 import { tabBarBottom, useToast } from '../ui/Toast'
 import { TaskRowView } from '../ui/TaskRow'
 import { DrawerEdge } from '../ui/Drawer'
+import { afterMenu } from '../ui/Drawer'
+import { FilterEditSheet, ListEditSheet, TagEditSheet, TextPrompt } from '../ui/OrgSheets'
 
 /** 오늘 날짜(자정이 지나면 바뀐다) */
 function useToday() {
@@ -56,12 +65,15 @@ export default function TaskListScreen() {
   const doneQ = useMemo(() => doneSql(listView, today), [listView, today])
   const open = useQuery<TaskRow>(openQ.sql, openQ.params)
   const done = useQuery<TaskRow>(doneQ.sql, doneQ.params)
-  const folderLists = useMemo(() => (view.startsWith('folder:') ? lists.filter((l) => l.folder_id === view.slice(7)) : []), [view, lists])
+  const tags = useTagsFull()
+  const filters = useFilters()
+  const settings = useViewSettings(view)
+  const groupLists = useMemo(() => (view.startsWith('folder:') ? lists.filter((l) => l.folder_id === view.slice(7)) : lists), [view, lists])
   const groups = useMemo(
-    () => buildGroups(listView, open.data, v.showCompleted ? done.data.filter((t) => t.id) : [], { today, sections, lists: folderLists }),
-    [listView, open.data, done.data, today, sections, folderLists, v.showCompleted]
+    () => buildGroups(listView, open.data, v.showCompleted ? done.data.filter((t) => t.id) : [], { today, sections, lists: groupLists, tags, settings }),
+    [listView, open.data, done.data, today, sections, groupLists, tags, settings, v.showCompleted]
   )
-  const { title, emoji } = viewTitle(view, lists, folders)
+  const { title, emoji } = viewTitle(view, lists, folders, { tags, filters })
   const isToday = view === 'smart:today'
   const archive = isArchive(view)
 
@@ -94,11 +106,23 @@ export default function TaskListScreen() {
     if (undo) withUndo('작업이 완료되었습니다.', undo)
   }
   const trash = async (ids: string[]) => withUndo('휴지통으로 옮겼어요', await trashTasks(ids), 5000)
+  /** 영구 삭제는 되돌릴 수 없어 확인을 받는다(02 §13.4) */
+  const confirmForever = (ids: string[], all = false) =>
+    Alert.alert(all ? '휴지통을 비울까요?' : '영구 삭제할까요?', all ? `${ids.length}개의 할 일이 모든 기기에서 영구히 지워져요. 되돌릴 수 없어요.` : '이 할 일이 모든 기기에서 영구히 지워져요. 되돌릴 수 없어요.', [
+      { text: '취소', style: 'cancel' },
+      { text: all ? '비우기' : '영구 삭제', style: 'destructive', onPress: () => void deleteForever(ids).then(() => toast.show(all ? '휴지통을 비웠어요' : '영구 삭제했어요')) }
+    ])
   const openDetail = (t: TaskRow) => { closeOpenRow(); router.push(`/task/${t.id}`) }
   const openSheet = (path: '/move' | '/date' | '/tags', ids: string[]) => router.push({ pathname: path, params: { ids: ids.join(',') } })
 
-  // 길게 누름
+  // 길게 누름(휴지통 행은 복원 · 영구 삭제)
   const [lp, setLp] = useState<{ task: TaskRow; rect: Rect } | null>(null)
+  const [trashMenu, setTrashMenu] = useState<{ task: TaskRow; rect: Rect } | null>(null)
+  // ⋯ 아래 단계(묶기 › · 정렬 ›), 편집 시트, 섹션
+  const [sub, setSub] = useState<{ kind: 'group' | 'sort'; rect: Rect } | null>(null)
+  const [editing, setEditing] = useState<'list' | 'tag' | 'filter' | null>(null)
+  const [prompt, setPrompt] = useState<{ kind: 'add' } | { kind: 'rename'; id: string; name: string } | null>(null)
+  const [secMenu, setSecMenu] = useState<{ id: string; name: string; rect: Rect } | null>(null)
   const onLongPressAction = async (a: LongPressAction) => {
     const t = lp?.task
     if (!t) return
@@ -131,7 +155,7 @@ export default function TaskListScreen() {
         left: [],
         right: [
           { key: 'restore', color: p.swipeDone, icon: icon(RotateCcw), label: '복원', onPress: () => void restoreTasks([t.id]).then(() => toast.show('복원했어요')) },
-          { key: 'forever', color: p.swipeDel, icon: icon(Trash2), label: '영구 삭제', onPress: () => void deleteForever([t.id]) }
+          { key: 'forever', color: p.swipeDel, icon: icon(Trash2), label: '영구 삭제', onPress: () => confirmForever([t.id]) }
         ]
       }
     }
@@ -175,7 +199,7 @@ export default function TaskListScreen() {
               onToggleExpand={() => v.toggleExpand(t.id)}
               onCheck={t.deleted_at ? undefined : () => void complete(t)}
               onPress={() => openDetail(t)}
-              onLongPress={() => rowRefs.current.get(t.id)?.measureInWindow((x, y, width, height) => setLp({ task: t, rect: { x, y, width, height } }))}
+              onLongPress={() => rowRefs.current.get(t.id)?.measureInWindow((x, y, width, height) => (t.deleted_at ? setTrashMenu({ task: t, rect: { x, y, width, height } }) : setLp({ task: t, rect: { x, y, width, height } })))}
             />
           </View>
         </SwipeRow>
@@ -184,6 +208,20 @@ export default function TaskListScreen() {
     )
   }
 
+  const openSub = (kind: 'group' | 'sort') => { const r = more.rect; if (r) afterMenu(() => setSub({ kind, rect: r })) }
+  const moreItems = view === 'smart:trash'
+    ? [{ key: 'empty', label: '휴지통 비우기', danger: true, disabled: !open.data.length, onPress: () => afterMenu(() => confirmForever(open.data.map((t) => t.id), true)) }]
+    : archive ? [{ key: 'none', label: '보관함은 정렬을 바꿀 수 없어요', disabled: true, onPress: () => {} }]
+    : [
+      ...(listId ? [{ key: 'edit', label: '리스트 편집', onPress: () => afterMenu(() => setEditing('list')) }] : []),
+      ...(view.startsWith('tag:') ? [{ key: 'edit', label: '태그 편집', onPress: () => afterMenu(() => setEditing('tag')) }] : []),
+      ...(view.startsWith('filter:') ? [{ key: 'edit', label: '필터 편집', onPress: () => afterMenu(() => setEditing('filter')) }] : []),
+      ...(listId && settings.group_by === 'custom' ? [{ key: 'section', label: '섹션 추가', onPress: () => afterMenu(() => setPrompt({ kind: 'add' })) }] : []),
+      { key: 'group', label: `묶기 · ${GROUP_LABEL[settings.group_by]}`, onPress: () => openSub('group') },
+      { key: 'sort', label: `정렬 · ${SORT_LABEL[settings.sort_by]}`, onPress: () => openSub('sort') },
+      { key: 'details', label: '자세히 보기', checked: v.showDetails, onPress: () => v.setShowDetails(!v.showDetails) },
+      { key: 'completed', label: v.showCompleted ? '완료한 할 일 숨기기' : '완료한 할 일 보기', onPress: () => v.setShowCompleted(!v.showCompleted) }
+    ]
   const openCount = open.data.length
   const doneCount = done.data.filter((t) => t.id).length
   const bottomPad = tabBarBottom(insets.bottom) + M.tabH + M.fab + 40
@@ -193,9 +231,12 @@ export default function TaskListScreen() {
       <NavRow
         left={<GlassButton label="리스트 서랍" onPress={() => v.setDrawerOpen(true)}><Menu size={22} color={p.textPrimary} /></GlassButton>}
         right={
-          <View ref={more.ref} collapsable={false}>
-            <GlassButton label="더보기" badge={offline || !!syncError} onPress={more.open}><Ellipsis size={22} color={p.textPrimary} /></GlassButton>
-          </View>
+          <>
+            <GlassButton label="검색" onPress={() => router.push('/search')}><Search size={20} color={p.textPrimary} /></GlassButton>
+            <View ref={more.ref} collapsable={false}>
+              <GlassButton label="더보기" badge={offline || !!syncError} onPress={more.open}><Ellipsis size={22} color={p.textPrimary} /></GlassButton>
+            </View>
+          </>
         }
       />
       <BigTitle title={title} emoji={emoji} sub={isToday ? longDay(today) : undefined} />
@@ -211,7 +252,7 @@ export default function TaskListScreen() {
             : isToday ? <EmptyState title="오늘 할 일이 없어요" sub="+를 눌러 추가하세요" />
             : <EmptyState title="할 일이 없어요" sub="+를 눌러 추가하세요" />
         ) : null}
-        {!firstLoad && archive && openCount === 0 ? <EmptyState title={view === 'smart:trash' ? '휴지통이 비어 있어요' : '완료한 할 일이 없어요'} /> : null}
+        {!firstLoad && archive && openCount === 0 ? <EmptyState title={view === 'smart:trash' ? '휴지통이 비어 있어요' : view === 'smart:wontdo' ? '계획 취소한 할 일이 없어요' : '완료한 할 일이 없어요'} /> : null}
         <View style={openCount === 0 && doneCount > 0 ? { marginTop: 28 } : undefined}>
           {groups.map((g) => {
             const byDefault = g.done && (isListView(view) || openCount === 0)
@@ -224,6 +265,7 @@ export default function TaskListScreen() {
                 collapsed={g.title ? collapsed : false}
                 onToggle={() => v.toggleGroup(g.id, !!byDefault)}
                 onPostpone={g.postpone ? postpone.open : undefined}
+                onLongPress={g.sectionId ? (e: GestureResponderEvent) => setSecMenu({ id: g.sectionId!, name: g.title, rect: { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, width: 0, height: 0 } }) : undefined}
               >
                 {g.rows.map((n) => renderNode(n))}
               </GroupCard>
@@ -261,11 +303,50 @@ export default function TaskListScreen() {
         header={offline || syncError ? (
           <Text style={[s.status, { color: p.danger, borderBottomColor: p.borderDivider }]}>{syncError ? '동기화에 실패했어요 — 다시 시도하는 중' : '오프라인 — 연결되면 자동으로 올라가요'}</Text>
         ) : undefined}
-        items={archive ? [] : [
-          { key: 'details', label: '자세히 보기', checked: v.showDetails, onPress: () => v.setShowDetails(!v.showDetails) },
-          { key: 'completed', label: v.showCompleted ? '완료한 할 일 숨기기' : '완료한 할 일 보기', onPress: () => v.setShowCompleted(!v.showCompleted) }
-        ]}
+        items={moreItems}
       />
+      <PopMenu
+        anchor={sub?.rect ?? null}
+        onClose={() => setSub(null)}
+        width={200}
+        items={sub?.kind === 'group'
+          ? groupOptions(view).map((g) => ({ key: g, label: GROUP_LABEL[g], checked: settings.group_by === g, onPress: () => void saveViewSettings(view, { group_by: g }) }))
+          : sortOptions(view).map((o) => ({ key: o, label: SORT_LABEL[o], checked: settings.sort_by === o, onPress: () => void saveViewSettings(view, { sort_by: o }) }))}
+      />
+      <PopMenu
+        anchor={trashMenu?.rect ?? null}
+        onClose={() => setTrashMenu(null)}
+        width={200}
+        align="left"
+        items={trashMenu ? [
+          { key: 'restore', label: '복원', onPress: () => void restoreTasks([trashMenu.task.id]).then(() => toast.show('복원했어요')) },
+          { key: 'forever', label: '영구 삭제', danger: true, onPress: () => afterMenu(() => confirmForever([trashMenu.task.id])) }
+        ] : []}
+      />
+      <PopMenu
+        anchor={secMenu?.rect ?? null}
+        onClose={() => setSecMenu(null)}
+        width={200}
+        align="left"
+        items={secMenu ? [
+          { key: 'rename', label: '이름 바꾸기', onPress: () => afterMenu(() => setPrompt({ kind: 'rename', id: secMenu.id, name: secMenu.name })) },
+          { key: 'up', label: '위로', onPress: () => void moveSection(sections, secMenu.id, -1) },
+          { key: 'down', label: '아래로', onPress: () => void moveSection(sections, secMenu.id, 1) },
+          { key: 'delete', label: '삭제', danger: true, onPress: () => afterMenu(() => Alert.alert(`"${secMenu.name}" 섹션을 삭제할까요?`, '안의 할 일은 지우지 않고 미분류로 옮겨요.', [{ text: '취소', style: 'cancel' }, { text: '삭제', style: 'destructive', onPress: () => void deleteSection(secMenu.id) }])) }
+        ] : []}
+      />
+      <TextPrompt
+        open={!!prompt}
+        title={prompt?.kind === 'rename' ? '섹션 이름 바꾸기' : '섹션 추가'}
+        initial={prompt?.kind === 'rename' ? prompt.name : ''}
+        placeholder="섹션 이름"
+        confirm={prompt?.kind === 'rename' ? '저장' : '추가'}
+        onClose={() => setPrompt(null)}
+        onSubmit={async (name) => { if (prompt?.kind === 'rename') await renameSection(prompt.id, name); else if (listId) await addSection(listId, name) }}
+      />
+      <ListEditSheet open={editing === 'list'} id={listId} onClose={() => setEditing(null)} />
+      <TagEditSheet open={editing === 'tag'} id={view.startsWith('tag:') ? view.slice(4) : null} onClose={() => setEditing(null)} />
+      <FilterEditSheet open={editing === 'filter'} id={view.startsWith('filter:') ? view.slice(7) : null} onClose={() => setEditing(null)} />
       <LongPressMenu
         rect={lp?.rect ?? null}
         pinned={!!lp?.task.pinned_at}

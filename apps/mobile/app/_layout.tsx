@@ -10,6 +10,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { startAuth, useAuth } from '../src/data/auth'
 import { db } from '../src/data/db'
+import { useShareInbox } from '../src/share/useShareInbox'
+import { useReminderNotifications } from '../src/notifications/background'
 import { ThemeProvider, usePalette } from '../src/theme/ThemeProvider'
 import { ToastProvider } from '../src/ui/Toast'
 
@@ -18,6 +20,7 @@ export const unstable_settings = { anchor: '(tabs)' }
 export default function Root() {
   useEffect(() => { void startAuth() }, [])
   const { status } = useAuth()
+  useShareInbox() // 24: 공유 확장 토큰 건네기 + 대기열 비우기
   if (status === 'loading') return null
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -37,6 +40,7 @@ export default function Root() {
 function Screens({ signedIn }: { signedIn: boolean }) {
   const p = usePalette()
   useEffect(() => { void SystemUI.setBackgroundColorAsync(p.pageBg) }, [p.pageBg])
+  useReminderNotifications(signedIn) // 20 §4.4 로컬 알림: 예약·감시·알림 동작·백그라운드 새로 고침
   const sheet = (detents: number[]) => ({
     presentation: 'formSheet' as const,
     sheetAllowedDetents: detents,
@@ -54,7 +58,7 @@ function Screens({ signedIn }: { signedIn: boolean }) {
           <Stack.Screen name="task/[id]" options={sheet([0.6, 1])} />
           <Stack.Screen name="move" options={{ ...sheet([0.8, 1]), contentStyle: { backgroundColor: p.pageBg } }} />
           <Stack.Screen name="tags" options={{ ...sheet([0.7, 1]), contentStyle: { backgroundColor: p.pageBg } }} />
-          <Stack.Screen name="date" options={sheet([0.5, 1])} />
+          <Stack.Screen name="date" options={sheet([0.85, 1])} />
           <Stack.Screen name="quick-add" options={{ presentation: 'transparentModal', animation: 'fade', contentStyle: { backgroundColor: 'transparent' } }} />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>

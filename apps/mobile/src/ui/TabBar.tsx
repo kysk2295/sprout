@@ -1,10 +1,11 @@
 // 떠 있는 탭 알약(20 §2 [틱틱 iOS 26]): 좌우 16, 홈 표시줄 위 22, 높이 58, 아이콘만(접근성 라벨은 붙임).
+// 2026-10-05 5칸: 할 일 · 캘린더(오늘 날짜 숫자) · 수집함 · 성장 · 더보기. 설정은 더보기 안 화면이라 설정에 있으면 더보기가 켜진다.
 // 선택 = 강조색. 탭을 다시 누르면 맨 위로(목록이 useScrollToTop). 완료로 XP가 들어오면 성장 아이콘 위 "+1"(21 §3, 0.9초).
 import type { BottomTabBarProps } from 'expo-router/tabs'
 import { BlurView } from 'expo-blur'
-import { Settings, SquareCheckBig, Sprout } from 'lucide-react-native'
+import { CircleEllipsis, Layers, Settings, SquareCheckBig, Sprout } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
-import { Platform, Pressable, StyleSheet, View } from 'react-native'
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeOut, SlideInDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { xpGained } from '../data/events'
@@ -12,11 +13,26 @@ import { M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { tabBarBottom } from './Toast'
 
-const TABS: Record<string, { label: string; Icon: typeof Settings }> = {
-  index: { label: '할 일', Icon: SquareCheckBig },
-  growth: { label: '성장', Icon: Sprout },
-  settings: { label: '설정', Icon: Settings }
+type IconT = typeof Settings
+/** 캘린더 탭 아이콘: 둥근 사각 안 오늘 날짜 숫자(시안 .date-ic) — 선택이면 채움 */
+function DateIcon({ color, size, strokeWidth }: { color: string; size: number; strokeWidth: number }) {
+  const on = strokeWidth > 2
+  return (
+    <View style={{ width: size - 3, height: size - 3, borderRadius: 6, borderWidth: 2, borderColor: color, backgroundColor: on ? color : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontSize: 10, lineHeight: 13, fontWeight: '700', color: on ? '#fff' : color }}>{new Date().getDate()}</Text>
+    </View>
+  )
 }
+const TABS: Record<string, { label: string; Icon: IconT | typeof DateIcon }> = {
+  index: { label: '할 일', Icon: SquareCheckBig },
+  calendar: { label: '캘린더', Icon: DateIcon },
+  collect: { label: '수집함', Icon: Layers },
+  'collect/index': { label: '수집함', Icon: Layers },
+  growth: { label: '성장', Icon: Sprout },
+  more: { label: '더보기', Icon: CircleEllipsis }
+}
+/** 탭 바에 없는 화면이 어느 칸을 켜나 */
+const OWNER: Record<string, string> = { settings: 'more' }
 
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const p = usePalette()
@@ -35,11 +51,12 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       {state.routes.map((route, i) => {
         const tab = TABS[route.name]
         if (!tab) return null
-        const focused = state.index === i
+        const cur = state.routes[state.index]?.name
+        const focused = state.index === i || OWNER[cur] === route.name
         const color = focused ? p.tabOn : p.tabIcon
         const onPress = () => {
           const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true })
-          if (!focused && !e.defaultPrevented) navigation.navigate(route.name, route.params)
+          if (state.index !== i && !e.defaultPrevented) navigation.navigate(route.name, route.params)
         }
         return (
           <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={tab.label} accessibilityState={{ selected: focused }} onPress={onPress} style={s.tab}>

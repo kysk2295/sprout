@@ -1,0 +1,18 @@
+{
+  "_": "링크 판정 예시 — share.test.ts(TS·데스크톱 원본)와 plugins/share-extension/check-vectors.sh(Swift)가 같이 쓴다",
+  "cases": [
+    { "text": "https://youtu.be/k7Gs1aBcD2e", "url": "https://youtu.be/k7Gs1aBcD2e", "bare": true },
+    { "text": "LangGraph로 에이전트 만들기 — 30분 완성\nhttps://youtu.be/k7Gs1aBcD2e", "url": "https://youtu.be/k7Gs1aBcD2e", "bare": true },
+    { "text": "이 영상 보고 금요일까지 요약\nhttps://youtu.be/abc", "url": "https://youtu.be/abc", "bare": false },
+    { "text": "내일 3시 치과", "url": null, "bare": false },
+    { "text": "좋은 글: https://example.com/a?b=1.", "url": "https://example.com/a?b=1", "bare": true },
+    { "text": "(https://example.com/path)", "url": "https://example.com/path", "bare": true },
+    { "text": "HTTPS://EXAMPLE.COM/X", "url": "HTTPS://EXAMPLE.COM/X", "bare": true },
+    { "text": "https://a.com 그리고 https://b.com", "url": "https://a.com", "bare": true },
+    { "text": "아주 긴 설명이 붙어 있어서 링크만 있다고 보기 어려운 경우의 글입니다 정말로 깁니다 https://a.com", "url": "https://a.com", "bare": false },
+    { "text": "10/12 신청 https://a.com", "url": "https://a.com", "bare": false },
+    { "text": "링크 https://ko.wikipedia.org/wiki/새싹）다음", "url": "https://ko.wikipedia.org/wiki/새싹", "bare": true },
+    { "text": "  https://a.com/x!?  ", "url": "https://a.com/x", "bare": true },
+    { "text": "", "url": null, "bare": false }
+  ]
+}

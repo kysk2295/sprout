@@ -1,18 +1,21 @@
 // 설정 탭(20 §2, 시안 I-1): 프로필 카드(아바타·이름·Lv·캐릭터) → 색 사각 아이콘 칸 → 빨간 로그아웃
-// [다음] 소리와 알림·날짜와 시간·일반(스와이프·완료음)·AI 사용량 칸 — 해당 기능이 생길 때 붙인다
+// [다음] 일반(스와이프·완료음) 칸 — 해당 기능이 생길 때 붙인다
+// 2026-10-05: 설정은 더보기 안 화면(머리 ‹ 뒤로) · 프로필 카드 → 계정(로그아웃·계정 삭제) · 날짜와 시간(주 시작 월요일 고정 — 데스크톱과 같음) · 리스트 관리
 import { useQuery, useStatus } from '@powersync/react-native'
 import { progressFromEvents, SPECIES, type Species } from '@sprout/schema/growth'
 import { useRouter } from 'expo-router'
-import { Info, Palette, RefreshCw } from 'lucide-react-native'
+import { CalendarDays, ChevronLeft, ChevronRight, Info, ListTree, Palette, RefreshCw } from 'lucide-react-native'
 import { useState } from 'react'
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { APP_VERSION } from '../../../src/config'
 import { logout, syncNow, useAuth } from '../../../src/data/auth'
+import { NotificationCell } from '../../../src/notifications/NotificationCell'
 import { findTheme } from '../../../src/theme/themes'
 import { M } from '../../../src/theme/palette'
 import { usePalette, useTheme } from '../../../src/theme/ThemeProvider'
 import { Cell, Cells } from '../../../src/ui/Cells'
+import { GlassButton } from '../../../src/ui/Glass'
 import { NavRow } from '../../../src/ui/Header'
 import { tabBarBottom, useToast } from '../../../src/ui/Toast'
 
@@ -46,9 +49,9 @@ export default function Settings() {
   const white = { size: 18, color: '#fff' }
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
-      <NavRow title="설정" />
+      <NavRow title="설정" left={<GlassButton label="뒤로" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/more'))}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>} right={<View style={{ width: 40 }} />} />
       <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: tabBarBottom(insets.bottom) + M.tabH + 30 }}>
-        <View style={[s.prof, { backgroundColor: p.cardBg }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="계정" onPress={() => router.push('/settings/account')} style={({ pressed }) => [s.prof, { backgroundColor: pressed ? p.bgSelected : p.cardBg }]}>
           <View style={s.av}><Text style={s.avText}>{name.slice(0, 1).toUpperCase()}</Text></View>
           <View style={{ flex: 1 }}>
             <Text style={[s.name, { color: p.textPrimary }]} numberOfLines={1}>{name}</Text>
@@ -58,9 +61,13 @@ export default function Settings() {
               {ch?.species ? <Text style={[s.badge, { backgroundColor: p.accentSubtle, color: p.accent }]}>{SPECIES[ch.species].name}</Text> : null}
             </View>
           </View>
-        </View>
+          <ChevronRight size={16} color={p.textQuaternary} />
+        </Pressable>
         <Cells>
           <Cell first label="외관" value={findTheme(themeId)?.name} icon={<Palette {...white} />} iconBg="#775dbe" onPress={() => router.push('/settings/appearance')} />
+          <NotificationCell />
+          <Cell label="날짜와 시간" value="주 시작 월요일" icon={<CalendarDays {...white} />} iconBg="#f29a2e" chevron={false} />
+          <Cell label="리스트 관리" value="스마트 목록 · 보관함" icon={<ListTree {...white} />} iconBg="#4e75f2" onPress={() => router.push('/lists/manage')} />
         </Cells>
         <Cells>
           <Cell

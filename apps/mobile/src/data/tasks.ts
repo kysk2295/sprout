@@ -137,20 +137,51 @@ export async function duplicateTask(id: string): Promise<string | null> {
   return nid
 }
 
-/** 새 할 일(빠른 입력): 그룹 맨 위(02 §4) */
-export async function createTask(input: { title: string; list_id: string; due_at?: string | null; priority?: number; tag_ids?: string[]; repeat_rule?: string | null; parent_id?: string | null }) {
+/** 새 할 일(빠른 입력): 그룹 맨 위(02 §4). 날짜 시트 값(기간·반복 기준·알림)과 설명도 한 트랜잭션에(22 §5) */
+export async function createTask(input: {
+  title: string; list_id: string; due_at?: string | null; priority?: number; tag_ids?: string[]; repeat_rule?: string | null; parent_id?: string | null
+  content?: string; start_at?: string | null; repeat_from?: string | null; reminders?: string[]
+}) {
   const id = uuid()
   const due = input.due_at ?? null
   const stmts: Stmt[] = [
     insert('tasks', {
-      id, list_id: input.list_id, parent_id: input.parent_id ?? null, title: input.title, content: '', content_mode: 'text', status: 0,
-      priority: input.priority ?? 0, due_at: due, is_all_day: due && due.includes('T') ? 0 : 1, time_zone: 'floating',
-      repeat_rule: input.repeat_rule ?? null, repeat_from: input.repeat_rule ? 'due' : null, sort_order: -Date.now()
+      id, list_id: input.list_id, parent_id: input.parent_id ?? null, title: input.title, content: input.content ?? '', content_mode: 'text', status: 0,
+      priority: input.priority ?? 0, start_at: due ? (input.start_at ?? null) : null, due_at: due, is_all_day: due && due.includes('T') ? 0 : 1, time_zone: 'floating',
+      repeat_rule: input.repeat_rule ?? null, repeat_from: input.repeat_rule ? (input.repeat_from ?? 'due') : null, sort_order: -Date.now()
     })
   ]
   for (const tag of input.tag_ids ?? []) stmts.push(insert('task_tags', { id: uuid(), task_id: id, tag_id: tag }))
+  if (due) for (const trigger of input.reminders ?? []) stmts.push(insert('reminders', { id: uuid(), task_id: id, trigger }))
   await run(stmts)
   return id
+}
+
+// ── 날짜 시트(22 §3.3, 03) — 데스크톱 applySchedule과 같은 쓰기 ──
+export type ScheduleValue = { start_at: string | null; due_at: string | null; is_all_day: number; repeat_rule: string | null; repeat_from: string | null; reminders: string[] }
+/** 첫 할 일의 지금 날짜·반복·알림(여러 개를 고쳐도 첫 것을 보여 준다 — 데스크톱과 같음) */
+export async function getSchedule(id: string): Promise<ScheduleValue | null> {
+  const t = await db.getOptional<Omit<ScheduleValue, 'reminders'>>('SELECT start_at, due_at, is_all_day, repeat_rule, repeat_from FROM tasks WHERE id = ?', [id])
+  if (!t) return null
+  const rs = await db.getAll<{ trigger: string }>('SELECT trigger FROM reminders WHERE task_id = ? ORDER BY created_at', [id])
+  return { ...t, is_all_day: t.is_all_day ?? 1, reminders: rs.map((r) => r.trigger) }
+}
+/** 날짜·기간·시각·반복과 알림 목록을 통째로 저장. 되돌리기 = 이전 값과 알림 행 그대로 */
+export async function applySchedule(ids: string[], v: ScheduleValue): Promise<Undo> {
+  if (!ids.length) return async () => {}
+  const undoTasks = await snapshot(ids, ['start_at', 'due_at', 'is_all_day', 'repeat_rule', 'repeat_from'])
+  const old = await db.getAll<{ id: string; task_id: string; trigger: string }>(`SELECT id, task_id, trigger FROM reminders WHERE task_id IN (${marks(ids.length)})`, ids)
+  const reminders = v.due_at ? v.reminders : []
+  await run([
+    ...ids.map((id) => update('tasks', id, { start_at: v.due_at ? v.start_at : null, due_at: v.due_at, is_all_day: v.due_at && v.due_at.includes('T') ? 0 : 1, repeat_rule: v.due_at ? v.repeat_rule : null, repeat_from: v.due_at && v.repeat_rule ? (v.repeat_from ?? 'due') : null })),
+    ...old.map((r) => deleteStmt('reminders', r.id)),
+    ...ids.flatMap((id) => reminders.map((trigger) => insert('reminders', { id: uuid(), task_id: id, trigger })))
+  ])
+  return async () => {
+    await undoTasks()
+    const now = await db.getAll<{ id: string }>(`SELECT id FROM reminders WHERE task_id IN (${marks(ids.length)})`, ids)
+    await run([...now.map((r) => deleteStmt('reminders', r.id)), ...old.map((r) => insert('reminders', { id: r.id, task_id: r.task_id, trigger: r.trigger }))])
+  }
 }
 
 // ── 체크리스트(21 §5, 20 M3: 체크·항목 추가는 v1) ──

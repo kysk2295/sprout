@@ -75,21 +75,21 @@ export default function TaskDetail() {
 
   return (
     <View style={{ flex: 1, backgroundColor: p.sheetBg }}>
-      <View style={[s.top, { marginTop: full ? insets.top : 10 }]}>
-        {full ? <GlassButton label="닫기" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton> : null}
-        <Pressable accessibilityRole="button" accessibilityLabel={`리스트: ${listName}, 이동`} onPress={() => openSheet('/move')} style={s.list}>
-          {task.list_emoji ? <Text>{task.list_emoji}</Text> : <View style={[s.dot, { backgroundColor: task.list_color ?? (task.list_kind === 'inbox' ? p.slInbox : p.textQuaternary) }]} />}
-          <Text style={[s.listText, { color: p.textSecondary }]} numberOfLines={1}>{listName}</Text>
-          <ChevronsUpDown size={14} color={p.textSecondary} />
-        </Pressable>
-        <View style={{ flex: 1 }} />
-        <View ref={priority.ref} collapsable={false}>
-          <GlassButton label="우선순위" onPress={priority.open}><Flag size={20} color={priorityColor(p, task.priority)} fill={task.priority ? priorityColor(p, task.priority) : 'transparent'} /></GlassButton>
-        </View>
-        <GlassButton label="더보기" onPress={() => setMore(true)}><Ellipsis size={22} color={p.textPrimary} /></GlassButton>
-      </View>
-
+      {/* iOS formSheet는 ScrollView를 시트 맨 위에 붙인다 — 머리를 형제로 두면 날짜 줄이 겹쳐서 안에 둔다(README 주의) */}
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
+        <View style={[s.top, { marginTop: full ? insets.top : 10 }]}>
+          {full ? <GlassButton label="닫기" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton> : null}
+          <Pressable accessibilityRole="button" accessibilityLabel={`리스트: ${listName}, 이동`} onPress={() => openSheet('/move')} style={s.list}>
+            {task.list_emoji ? <Text>{task.list_emoji}</Text> : <View style={[s.dot, { backgroundColor: task.list_color ?? (task.list_kind === 'inbox' ? p.slInbox : p.textQuaternary) }]} />}
+            <Text style={[s.listText, { color: p.textSecondary }]} numberOfLines={1}>{listName}</Text>
+            <ChevronsUpDown size={14} color={p.textSecondary} />
+          </Pressable>
+          <View style={{ flex: 1 }} />
+          <View ref={priority.ref} collapsable={false}>
+            <GlassButton label="우선순위" onPress={priority.open}><Flag size={20} color={priorityColor(p, task.priority)} fill={task.priority ? priorityColor(p, task.priority) : 'transparent'} /></GlassButton>
+          </View>
+          <GlassButton label="더보기" onPress={() => setMore(true)}><Ellipsis size={22} color={p.textPrimary} /></GlassButton>
+        </View>
         <View style={s.dateRow}>
           {checklist ? <ListChecks size={18} color={p.textTertiary} /> : (
             <Checkbox priority={task.priority} done={done} onPress={() => void toggleDone(task).then((u) => u && toast.show('작업이 완료되었습니다.', { undo: u }))} />

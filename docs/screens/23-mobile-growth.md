@@ -111,3 +111,14 @@
 - [ ] 조사 전 → 휴대폰에서 조사(D6) → 캐릭터·이름이 데스크톱에도 보인다.
 - [ ] 캐릭터 쓰다듬기·기분·진화 길 미리보기가 동작하고, 모션 감소 설정에서 멈춘다.
 - [ ] 라이트·다크·색 테마, 작은 휴대폰(폭 360)에서 방·카드가 잘리지 않는다 — 시안 B1~B8과 나란히.
+
+## 7. 구현 메모 (2026-10-04, 첫 구현)
+- **파일**: 화면 `app/(tabs)/growth.tsx`(배치·머리 ⋯·레벨업 감지·첫 실행 조사 권하기) · `app/growth/survey.tsx`(B5~B7) · `app/growth/report/[week].tsx`(B3) · `app/growth/rules.tsx`(⋯ → XP 규칙 보기). 부품 `src/growth/`: `Room.tsx`(① 방 + ② XP 줄) · `Cards.tsx`(③ 칩 · ④ 진화 길 · ⑤ 목표 · ⑥ XP · ⑦ 리포트 목록) · `LevelUp.tsx`(가운데 카드 · B4 전체 화면) · `RenameModal.tsx` · `Bits.tsx`(색종이·하트·XP 방울·밥그릇) · `art/CharacterArt.tsx`(데스크톱 그림을 react-native-svg로 같은 도형) · `art/RoomScene.tsx`(데스크톱 StageScene 장면·소품·장식 10개를 휴대폰 방 600×400 좌표로 다시 배치).
+- **계산**: `src/growth/logic.ts`(순수 — 말풍선·인사·밥그릇·방울·연속·졸림·레벨 감지·받은 XP 내역·주 막대·목표 표시·초안 줄·리포트 한마디·조사 흐름), **쓰기 문장** `src/growth/goalCore.ts`(목표 체크 +30/되돌림·3개 한도·모두 달성 +20·5개 한도·초안 숨기기·본 것·조사 결과·이름 — 데스크톱 `data/growth.ts`와 같은 규칙·같은 XP id). 시험 `logic.test.ts`·`goalCore.test.ts`(sql.js로 실제 SQL) → `npm run test:mobile`.
+- **데스크톱 v3와 맞춘 것**(10 §3.2): 시간대 장면 · 숨쉬기·깜빡임·12~20초 대기 동작 · 누르면 깡충+하트+실제 숫자 말풍선(바로 전 문장 안 고름) · 길게 누르면 쓰다듬기 · 2초 안 5번 = 어지러움 · 졸림(밤 23–6시·이틀 XP 없음, 누르면 "으음… 안 잤어!") · **밥그릇**(왼쪽 아래, 오늘 할 일 XP 10칸, 누르면 "오늘 할 일로 3 XP 먹었어…") · **XP 방울**(성장 탭에 들어올 때 "자리 비운 사이" 띠 + 왼쪽 → 밥그릇 → 입, 보는 중 목표 XP는 위에서 큰 방울) · 장식 10개는 레벨대로 놓임(기기 저장 `sprout.room.<id>` — 꾸미기 패널은 휴대폰 v1에 없음 [다음]) · 단계마다 장면이 풍성해짐.
+- **기기에만**(10 §3.2.12와 같은 키 이름): `expo-secure-store`에 `sprout.seenLevel.<id>`(+`.at`) · `sprout.growthSeenAt.<id>` · `sprout.greetedDay` · `sprout.room.<id>` · `sprout.growthMotion` · `sprout.surveyOffered`. 새 네이티브 의존성 없음.
+- **레벨업 감지**: 성장 탭이 보이고 앱이 앞에 있을 때, 첫 동기화가 끝난 뒤에만(내려받는 XP를 레벨업으로 착각하지 않게). 처음 보는 기기는 기준만 잡는다. 여러 단계를 한 번에 넘어도 한 번(가장 높은 레벨).
+- **첫 실행**: 캐릭터(species)가 없으면 성장 탭을 처음 열 때 조사 화면을 한 번 띄운다(`sprout.surveyOffered`). 앱 시작 직후 띄우는 것은 뿌리 `_layout`(이 작업 범위 밖)을 고쳐야 해서 성장 탭에서 한다.
+- **⋯ 메뉴**: 이름 바꾸기 · XP 규칙 보기 · 성향 (다시) 조사하기 + **움직임 줄이기**(데스크톱 10 §3.2.11 결정과 같은 기기별 스위치, OS 동작 줄이기가 켜져 있으면 늘 줄임).
+- **이 명세와 다르게/덜 한 것**: 목표 행 `⋯`(다음 주로 넘기기·삭제)는 없음(휴대폰은 체크·초안 받기만, D7). 진화 길 미리보기는 길 아래 카드로 뜬다(말풍선 대신). 리포트 화면 캐릭터 한마디는 AI 문장 첫 문장 그대로(이미 캐릭터 1인칭 일기체 — 10 §3.2.9).
+- **packages/schema로 옮길 것(TODO)**: `goalCore.ts` 전체(데스크톱 `setGoalProgress`·`addGoalRow`·`dismissDraft`·`assignCharacter`도 이것을 부르게), `logic.ts`의 `DECOR`·`stageLines`·`greetingLine`·`catchUpOf`·`levelOfTotal`·`streakOf`·`gainedSince`·`SURVEY_DESC`·`surveyQueue`·`typeCodeOf`·주 시작(월요일) `weekStartOf`.
