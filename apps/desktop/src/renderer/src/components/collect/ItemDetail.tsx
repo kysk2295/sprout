@@ -142,7 +142,7 @@ function AiCard({ item, lists, onTopic }: { item: CollectItem; lists: ListRow[];
   if (item.ai_state === 'pending') {
     return (
       <div className="collect-card">
-        <h4><span className="collect-spin" />{!st.auto && !st.working ? '자동 분류가 꺼져 있어요' : st.aiDown ? '지금은 AI를 쓸 수 없어요 — 돌아오면 정리해요' : st.paused ? '정리를 멈췄어요' : '정리 중…'}</h4>
+        <h4>{st.aiDown || st.paused || (!st.auto && !st.working) ? <Sparkles /> : <span className="collect-spin" />}{!st.auto && !st.working ? '자동 분류가 꺼져 있어요' : st.aiDown ? '지금은 AI를 쓸 수 없어요 — 돌아오면 정리해요' : st.paused ? '정리를 멈췄어요' : '정리 중…'}</h4>
         {!st.auto && <div className="collect-card__acts"><button className="is-primary" onClick={() => collector.force(item.id)}>AI로 정리</button></div>}
         <Other />
       </div>

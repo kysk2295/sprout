@@ -1,6 +1,6 @@
 // 14 작업 지도 v1.2 — 머리(그래프·보드 · 기간 · ✦ · 거름틀 · ⋯), 알림 띠, 그래프/보드, 상세 패널(02와 같은 컴포넌트)
 import { Check, Filter, HelpCircle, MoreHorizontal, Network, Sparkles, Square, Trash2, Unlock, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { localModels } from '../../../../shared/assistant'
 import { isUnavailable } from '../../data/ai'
 import { setGoalProgress, type GoalRow } from '../../data/growth'
@@ -28,6 +28,9 @@ import './map.css'
 const DETAIL = { def: 298, min: 260, max: 560 }
 type Banner = { kind: 'done'; count: number; runId: string; stopped?: boolean } | { kind: 'running'; done: number; total: number }
 type Notice = { id: number; text: string; action?: { label: string; run: () => void }; sticky?: boolean }
+// ✦ 다시 정리는 화면을 떠나도 계속 돈다 → 진행 띠·멈추기를 화면 밖(모듈)에 둬서 돌아와도 보이게(안 그러면 ✦를 또 눌러 겹쳐 돌고 되돌리기 기준이 바뀐다)
+const organizing: { banner?: Banner; stop?: AbortController; subs: Set<(b: Banner | undefined) => void> } = { subs: new Set() }
+const setOrganizing = (b: Banner | undefined) => { organizing.banner = b; organizing.subs.forEach((f) => f(b)) }
 
 export function WorkMapView({ lists, onTasks }: { lists: ListRow[]; onOpen: (taskId: string) => void; onTasks: () => void }) {
   const toast = useToast()
@@ -40,7 +43,9 @@ export function WorkMapView({ lists, onTasks }: { lists: ListRow[]; onOpen: (tas
   const [detailW, setDetailW] = useState(DETAIL.def)
   const [editing, setEditing] = useState<string | null>(null)
   const [checking, setChecking] = useState<Set<string>>(new Set())
-  const [banner, setBanner] = useState<Banner>()
+  const [banner, setBannerState] = useState<Banner | undefined>(organizing.banner)
+  useEffect(() => { organizing.subs.add(setBannerState); return () => { organizing.subs.delete(setBannerState) } }, [])
+  const setBanner = setOrganizing
   const [flash, setFlash] = useState<Set<string>>(new Set())
   const [confirm, setConfirm] = useState<MapArea>()
   const [pop, setPop] = useState<{ kind: 'filter' | 'more'; anchor: HTMLElement }>()
@@ -49,7 +54,7 @@ export function WorkMapView({ lists, onTasks }: { lists: ListRow[]; onOpen: (tas
   const [aiOk, setAiOk] = useState<boolean | null>(null)
   const [skipIntro, setSkipIntro] = useState(false)
   const [newAreaKey, setNewAreaKey] = useState(0)
-  const stop = useRef<AbortController>(undefined)
+  const stop = { get current() { return organizing.stop }, set current(c: AbortController | undefined) { organizing.stop = c } }
 
   // AI를 쓸 수 있는지(맥미니 Ollama) — 처음·앱 포커스 때 확인
   useEffect(() => {

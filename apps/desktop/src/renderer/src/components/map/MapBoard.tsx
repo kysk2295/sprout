@@ -57,6 +57,8 @@ export function MapBoard({ data, actions, onReorder, autoNewArea }: { data: MapD
     },
     onDragLeave: (e: DragEvent) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setOver(null) },
     onDrop: (e: DragEvent) => {
+      // 열 머리에 할 일을 놓으면 열(영역 바로 아래)이 받게 그대로 올려 보낸다(14 §4)
+      if (d.kind === 'col' && !e.dataTransfer.types.includes(AREA)) return
       e.preventDefault()
       e.stopPropagation()
       setOver(null)

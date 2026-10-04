@@ -99,7 +99,7 @@ export function parseKakao(raw: string): KakaoParse {
 }
 
 // ── AI 분류 ─────────────────────────────────────────────────────────────
-export interface ClassifyItem { id: string; text: string; sent: string; linkTitle?: string | null; fixedKind?: CollectKind | null }
+export interface ClassifyItem { id: string; text: string; sent: string; sentIso?: string; linkTitle?: string | null; fixedKind?: CollectKind | null }
 export interface Classified { id: string; kind: CollectKind; title: string; start: string; due: string; listId: string; topic: string; section: WikiSection; point: string; overview: string; related: string[] }
 
 const dateField = { type: 'string', pattern: '^(|[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2})?)$' }
@@ -132,23 +132,80 @@ export const classifySchema = (ids: string[], listIds: string[]) => ({
   additionalProperties: false
 })
 
+/** 서버가 스키마(format)를 강제하지 못할 때가 있다(Ollama: think=false면 format 무시) — 작은 모델이 흔히 내는 모양을 모두 받는다:
+ *  {items:[…]} · 맨 배열 […] · 다른 이름의 배열 하나({results:[…]}) · 항목 하나({id,…}) · 코드 울타리·앞뒤 설명 글 */
+function looseItems(raw: string): unknown[] | null {
+  const text = raw.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/, '$1')
+  let data: unknown
+  try { data = JSON.parse(text) } catch {
+    const a = text.indexOf('['), o = text.indexOf('{')
+    const start = a >= 0 && (o < 0 || a < o) ? a : o
+    const end = Math.max(text.lastIndexOf(']'), text.lastIndexOf('}'))
+    if (start < 0 || end <= start) return null
+    try { data = JSON.parse(text.slice(start, end + 1)) } catch { return null }
+  }
+  if (Array.isArray(data)) return data
+  if (!data || typeof data !== 'object') return null
+  const obj = data as Record<string, unknown>
+  if (Array.isArray(obj.items)) return obj.items
+  if (typeof obj.id === 'string') return [obj]
+  const arrays = Object.values(obj).filter(Array.isArray)
+  return arrays.length === 1 ? arrays[0] : null
+}
+
+/** 글에 날짜·시각 말이 있는가. 없으면 모델이 날짜를 지어내도 버린다(작은 모델이 "아이디어"에도 날짜를 붙인다) */
+const DATE_WORDS = /(오늘|내일|낼|모레|글피|요일|주말|평일|이번\s*주|다음\s*주|담주|다음\s*달|이번\s*달|월말|월초|\d{1,2}\s*시|\d{1,2}:\d{2}|\d{1,2}\s*\/\s*\d{1,2}|\d{1,2}\s*월|\d{1,2}\s*일|아침|점심|저녁|밤|새벽|오전|오후|정오|자정|까지|마감|today|tomorrow|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{4}-\d{2}-\d{2})/i
+export const hasDateWords = (text: string) => DATE_WORDS.test(text)
+
+const p2 = (n: number) => String(n).padStart(2, '0')
+const ymd = (d: Date) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
+const KO_DAY = ['일', '월', '화', '수', '목', '금', '토']
+/** 보낸 시각 기준 날짜 표 — 작은 모델이 "내일·다음 주 월요일"을 셈하지 않고 고르기만 하게(기기 지역 시간).
+ *  주는 월요일 시작(한국어 "다음 주 월요일" 말뜻) */
+export function dateRef(iso: string) {
+  const base = new Date(iso)
+  const at = (days: number) => { const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + days); return `${ymd(d)} ${KO_DAY[d.getDay()]}` }
+  const monday = (base.getDay() + 6) % 7
+  const week = (offset: number) => KO_DAY.slice(1).concat('일').map((k, i) => `${k} ${at(i - monday + offset * 7).slice(0, 10)}`).join(', ')
+  return { 오늘: at(0), 내일: at(1), 모레: at(2), '이번 주': week(0), '다음 주': week(1) }
+}
+
+/** "금요일까지"·"다음 주 월요일"의 날짜는 앱이 정한다(작은 모델이 요일 셈을 자주 틀린다). 요일 말이 하나뿐일 때만 날짜 부분을 바꾼다 */
+export function fixWeekday(text: string, value: string, sentIso: string | undefined) {
+  if (!value || !sentIso) return value
+  const days = [...text.matchAll(/([월화수목금토일])요일/g)].map((m) => m[1])
+  if (new Set(days).size !== 1) return value
+  const want = KO_DAY.indexOf(days[0])
+  const sent = new Date(sentIso)
+  const base = new Date(sent.getFullYear(), sent.getMonth(), sent.getDate())
+  let d: Date
+  if (/(다음|담)\s*주/.test(text)) {
+    const monday = (base.getDay() + 6) % 7
+    d = new Date(base.getFullYear(), base.getMonth(), base.getDate() - monday + 7 + ((want + 6) % 7))
+  } else if (/(이번|이)\s*주/.test(text)) {
+    const monday = (base.getDay() + 6) % 7
+    d = new Date(base.getFullYear(), base.getMonth(), base.getDate() - monday + ((want + 6) % 7))
+  } else d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + ((want - base.getDay() + 7) % 7))
+  return ymd(d) + value.slice(10)
+}
+
 const clip = (s: unknown, n: number) => (typeof s === 'string' ? s.trim().slice(0, n) : '')
 /** 모델 출력은 믿지 않는다: 요청한 id만, 종류는 4개 중 하나, 날짜는 전환 검사와 같게. 틀린 항목은 버린다(다음에 다시) */
 export function parseClassified(raw: string, items: ClassifyItem[], listIds: string[]): Classified[] {
-  let data: { items?: unknown[] }
-  try { data = JSON.parse(raw.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/, '$1')) } catch { throw new Error('AI 응답 형식을 확인할 수 없어요.') }
-  if (!data || !Array.isArray(data.items)) throw new Error('AI 응답 형식을 확인할 수 없어요.')
+  const list = looseItems(raw)
+  if (!list) throw new Error('AI 응답 형식을 확인할 수 없어요.')
   const byId = new Map(items.map((i) => [i.id, i]))
   const seen = new Set<string>()
   const out: Classified[] = []
-  for (const value of data.items) {
+  for (const value of list) {
     const v = value as Record<string, unknown>
     const item = typeof v?.id === 'string' ? byId.get(v.id) : undefined
     if (!item || seen.has(item.id)) continue
     const kind = item.fixedKind ?? (KINDS.includes(v.kind as CollectKind) ? (v.kind as CollectKind) : null)
     if (!kind) continue
     let start = clip(v.start, 16), due = clip(v.due, 16)
-    if ((start && !validDate(start)) || (due && !validDate(due))) start = due = ''
+    if ((start && !validDate(start)) || (due && !validDate(due)) || !hasDateWords(item.text)) start = due = ''
+    if (!start) due = fixWeekday(item.text, due, item.sentIso)
     if (start && (!due || start.length !== due.length || start >= due)) { due = start; start = '' }
     const section: WikiSection = v.section === 'overview' || v.section === 'questions' ? v.section : 'key'
     seen.add(item.id)

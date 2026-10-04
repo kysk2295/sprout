@@ -363,8 +363,17 @@ export type ClassifyPlan = {
 }
 export function parseAiJson(raw: string): AiOutput {
   const cleaned = raw.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/, '$1')
-  const data = JSON.parse(cleaned)
-  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('AI 응답 형식이 올바르지 않아요.')
+  // 서버가 스키마(format)를 강제하지 못할 때가 있다(Ollama: think=false면 format 무시) → 앞뒤 설명 글을 걷어 내고, 맨 배열은 items로 받는다
+  let data: any
+  try { data = JSON.parse(cleaned) } catch {
+    const a = cleaned.indexOf('['), o = cleaned.indexOf('{')
+    const start = a >= 0 && (o < 0 || a < o) ? a : o
+    const end = Math.max(cleaned.lastIndexOf(']'), cleaned.lastIndexOf('}'))
+    if (start < 0 || end <= start) throw new Error('AI 응답 형식이 올바르지 않아요.')
+    data = JSON.parse(cleaned.slice(start, end + 1))
+  }
+  if (Array.isArray(data)) data = { items: data }
+  if (!data || typeof data !== 'object') throw new Error('AI 응답 형식이 올바르지 않아요.')
   // 작은 모델이 입력 모양(tasks[])을 그대로 돌려주는 경우도 받아 준다
   if (!Array.isArray(data.items) && Array.isArray(data.tasks)) data.items = data.tasks
   return data as AiOutput

@@ -6,7 +6,7 @@
 
 /* ── 머리 ── */
 .map-head { gap: 6px; padding-left: 21px; }
-.map-head__title { display: flex; align-items: center; gap: 10px; }
+.workspace.map .map-head__title { display: flex; align-items: center; gap: 12px; font: var(--text-title); margin: 0 0 0 6px; } /* .workspace h1(22px·아래 여백)을 덮고 수집함·태스크 머리와 같은 자리·크기 */
 .map-seg { display: inline-flex; background: var(--color-seg-track); border: 1px solid var(--color-border-divider); border-radius: 6px; padding: 2px; gap: 2px; -webkit-app-region: no-drag; flex-shrink: 0; }
 .map-seg button { font: 500 12px/20px var(--font-family); padding: 1px 12px; border-radius: 4px; color: var(--color-text-secondary); }
 .map-seg button.is-on { background: var(--color-seg-on); color: var(--color-text-primary); box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
@@ -197,7 +197,7 @@
 .map-zoom button:last-child { border-bottom: 0; }
 .map-zoom button:hover { background: var(--color-bg-hover); }
 .map-zoom svg { width: 15px; height: 15px; }
-.map-canvas .react-flow__minimap.map-minimap { width: 160px; height: 100px; margin: 16px; border: 1px solid var(--color-border-popover); border-radius: 8px; box-shadow: var(--shadow-popover); overflow: hidden; }
+.map-canvas .react-flow__minimap.map-minimap { width: 160px; height: 100px; margin: 16px 16px 76px; /* 아래 16 + 앱 공용 비서 단추(44) 자리 */ border: 1px solid var(--color-border-popover); border-radius: 8px; box-shadow: var(--shadow-popover); overflow: hidden; }
 .map-canvas .react-flow__minimap svg { width: 160px; height: 100px; display: block; }
 
 /* ── 대화 상자 ── */
@@ -213,3 +213,5 @@
   .map-canvas .react-flow__minimap { display: none; }
   .map-seg--period { display: none; }
 }
+/* 점 격자(시안 ③-b): SVG 속성에는 CSS 변수가 안 먹어서 색은 CSS로 */
+.map-canvas .map-dots .react-flow__background-pattern.dots { fill: var(--color-text-quaternary); opacity: .5; }

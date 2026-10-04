@@ -55,8 +55,8 @@ export function Highlight({ text, query }: { text: string; query: string }) {
 }
 
 /** 행 왼쪽 종류 표시: 정리 중 = 회전, 할 일 = 점선 칸, 볼 것 = 링크, 위키 = 책, 메모 = 문서 */
-export function KindIcon({ item }: { item: CollectItem }) {
-  if (item.ai_state === 'pending') return <span className="collect-kind"><span className="collect-spin" aria-label="정리 중" /></span>
+export function KindIcon({ item, idle }: { item: CollectItem; idle?: boolean }) {
+  if (item.ai_state === 'pending' && !idle) return <span className="collect-kind"><span className="collect-spin" aria-label="정리 중" /></span>
   if (item.task_id || (item.kind === 'task')) return <span className="collect-kind"><span className="collect-kind__task" /></span>
   const k = item.kind
   const Icon = k === 'link' ? Link2 : k === 'wiki' ? BookOpen : FileText

@@ -11,6 +11,7 @@ import { useQuery } from '../../data/useQuery'
 import { dayKey } from '../../lib/dates'
 import { MenuItem, Popover, SubMenu } from '../Popover'
 import { useToast } from '../Toast'
+import { eulReul, ro } from '../../lib/josa'
 import { Empty, Highlight, SiteMark, fullKo, localDay, monthDayKo, sourceLabel, timeKo } from './shared'
 
 // 11 v3-5 위키(LLM 위키): 왼쪽 주제 목록(240) + 오른쪽 주제 페이지
@@ -28,6 +29,7 @@ export function WikiView({ query, topicId, onTopic, onJump, onBack }: Props) {
   const [menu, setMenu] = useState<{ topic: Topic; anchor?: HTMLElement | null; point?: { x: number; y: number } }>()
   const [renaming, setRenaming] = useState<string>()
   const [adding, setAdding] = useState(false)
+  const [pageKey, setPageKey] = useState(0)
   const q = query.trim().toLowerCase()
   const shown = useMemo(() => (topics ?? []).filter((t) => !q || t.name.toLowerCase().includes(q) || t.content.toLowerCase().includes(q)), [topics, q])
   const current = topics?.find((t) => t.id === topicId)
@@ -45,7 +47,15 @@ export function WikiView({ query, topicId, onTopic, onJump, onBack }: Props) {
   }
   const merge = async (from: Topic, into: Topic) => {
     setMenu(undefined)
-    try { await mergeTopic(from, into); onTopic(into.id); toast.show(`'${from.name}'을 '${into.name}'에 합쳤어요`) }
+    try {
+      await mergeTopic(from, into)
+      // 합치기는 내가 한 일 → 띠로 알리지 않는다(v3-5 띠 기준). 합친 버전을 본 것으로 두고 페이지를 새 기준으로 다시 연다
+      const row = await (await getDb()).get<{ version: number }>('SELECT version FROM wiki_topics WHERE id = ?', [into.id])
+      if (row) markSeen(into.id, row.version)
+      setPageKey((k) => k + 1)
+      onTopic(into.id)
+      toast.show(`'${from.name}'${eulReul(from.name).slice(from.name.length)} '${into.name}'에 합쳤어요`)
+    }
     catch { toast.show('합치지 못했어요. 다시 시도해 주세요.') }
   }
 
@@ -84,7 +94,7 @@ export function WikiView({ query, topicId, onTopic, onJump, onBack }: Props) {
           : <button className="wiki__add" onClick={() => setAdding(true)}><Plus />주제 추가</button>}
       </div>
       {current
-        ? <TopicPage key={current.id} topic={current} topics={topics} seenVersion={seen[current.id]} onSeen={(v) => markSeen(current.id, v)} onTopic={onTopic} onJump={onJump} />
+        ? <TopicPage key={`${current.id}:${pageKey}`} topic={current} topics={topics} seenVersion={seen[current.id]} onSeen={(v) => markSeen(current.id, v)} onTopic={onTopic} onJump={onJump} />
         : <div className="wiki__page"><Empty icon={<BookOpen className="notes__empty-icon" />} title={q ? `"${query}"와 맞는 주제가 없어요` : '주제를 고르세요'} /></div>}
       {menu && (
         <Popover anchor={menu.anchor} point={menu.point} align="end" onClose={() => setMenu(undefined)} className="menu" width={190}>
@@ -187,7 +197,7 @@ function TopicPage({ topic, topics, seenVersion, onSeen, onTopic, onJump }: { to
         <div className="wiki__band">
           <History />
           <span className="wiki__band-text">버전 {preview.version} 미리보기 · {preview.reason}</span>
-          <button className="wiki__btn is-primary" onClick={() => void own(() => restoreVersion(topic, preview.version)).then((ok) => { if (ok) { setPreview(undefined); toast.show(`버전 ${preview.version}(으)로 되돌렸어요`) } })}>이 버전으로 되돌리기</button>
+          <button className="wiki__btn is-primary" onClick={() => void own(() => restoreVersion(topic, preview.version)).then((ok) => { if (ok) { setPreview(undefined); toast.show(`${ro(`버전 ${preview.version}`)} 되돌렸어요`) } })}>이 버전으로 되돌리기</button>
           <button className="wiki__btn" onClick={() => setPreview(undefined)}>닫기</button>
         </div>
       )}
@@ -198,6 +208,12 @@ function TopicPage({ topic, topics, seenVersion, onSeen, onTopic, onJump }: { to
           <button className="wiki__btn is-ghost" onClick={showChanges}>바뀐 곳</button>
           {baseline >= 1 && <button className="wiki__btn" onClick={() => void own(() => restoreVersion(topic, baseline)).then((ok) => ok && toast.show('되돌렸어요'))}>되돌리기</button>}
           <button className="wiki__band-close" aria-label="닫기" onClick={() => setBaseline(topic.version)}><X /></button>
+        </div>
+      )}
+      {!preview && !writing && hidden.length === SECTIONS.length && !content.suggestions.length && !links?.length && !related.length && (
+        <div className="wiki__blank">
+          <p className="wiki__blank-title">아직 정리된 내용이 없어요</p>
+          <p className="wiki__blank-hint">이 주제에 맞는 자료를 수집에 던져 두면 AI가 여기에 정리해요. 아래에서 직접 써도 돼요.</p>
         </div>
       )}
       <SectionBlock {...block('overview')} />

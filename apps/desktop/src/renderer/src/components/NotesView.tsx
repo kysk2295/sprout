@@ -52,7 +52,7 @@ export function NotesView({ lists, onOpen, section, onSection }: Props) {
   const listRef = useRef<HTMLDivElement>(null)
   const q = search ?? ''
   const items = useQuery<CollectItem>(
-    `SELECT n.*, t.title AS task_title, t.deleted_at AS task_deleted, CASE WHEN t.start_at IS NOT NULL OR t.due_at LIKE '%T%' THEN 1 ELSE 0 END AS task_scheduled, w.name AS topic_name
+    `SELECT n.*, t.title AS task_title, t.deleted_at AS task_deleted, CASE WHEN t.start_at IS NOT NULL THEN 1 ELSE 0 END AS task_scheduled, w.name AS topic_name
      FROM notes n LEFT JOIN tasks t ON t.id = n.task_id LEFT JOIN wiki_topics w ON w.id = n.topic_id
      WHERE instr(lower(n.content || ' ' || COALESCE(n.link_title, '')), lower(?)) > 0
      ORDER BY COALESCE(n.captured_at, n.created_at) DESC, n.id DESC`,
@@ -200,6 +200,7 @@ export function NotesView({ lists, onOpen, section, onSection }: Props) {
                         {!shut && g.items.map((n) => (
                           <ItemRow
                             key={n.id}
+                            idle={status.aiDown || status.paused || !status.auto}
                             item={n}
                             query={q}
                             selected={n.id === selected}
@@ -351,13 +352,14 @@ function NoteAddBar({ value, onChange, onSubmit }: { value: string; onChange: (v
 }
 
 /** 행(40): 종류 아이콘 · 첫 줄 · 꼬리표(카톡 테두리 + 종류). 꼬리표가 없으면 시각·날짜 */
-function ItemRow({ item, query, selected, showTime, onRegister, onClick, onContextMenu }: { item: CollectItem; query: string; selected: boolean; showTime: boolean; onRegister: () => void; onClick: () => void; onContextMenu: (e: React.MouseEvent) => void }) {
+/** idle = AI를 지금 못 쓰거나(멈춤·자동 분류 끔 포함) 정리를 기다리는 중 → "정리 중…"을 띄우지 않고 꼬리표 없이 둔다(v3-3) */
+function ItemRow({ item, query, selected, showTime, idle, onRegister, onClick, onContextMenu }: { item: CollectItem; query: string; selected: boolean; showTime: boolean; idle: boolean; onRegister: () => void; onClick: () => void; onContextMenu: (e: React.MouseEvent) => void }) {
   const chips: React.ReactNode[] = []
   if (isKakao(item)) chips.push(<span key="src" className="collect-chip is-src">카톡</span>)
   if (registered(item)) {
     chips.push(<span key="k" className="collect-chip">{registeredGone(item) ? `${scheduledWord(item)} · 삭제됨` : (scheduledWord(item) === '일정' ? '일정으로 등록됨' : '할 일로 등록됨')}</span>)
   } else if (item.ai_state === 'pending') {
-    chips.push(<span key="k" className="collect-pending">정리 중…</span>)
+    if (!idle) chips.push(<span key="k" className="collect-pending">정리 중…</span>)
   } else if (item.kind === 'task' && item.ai_state !== 'failed') {
     const d = suggestionDate(item)
     chips.push(<span key="k" className="collect-chip is-accent">할 일 제안{d ? ` · ${d.label}` : ''}</span>)
@@ -369,7 +371,7 @@ function ItemRow({ item, query, selected, showTime, onRegister, onClick, onConte
   const hasKind = chips.length > (isKakao(item) ? 1 : 0)
   return (
     <div data-id={item.id} className={`row note-row${selected ? ' is-selected' : ''}`} onClick={onClick} onContextMenu={onContextMenu}>
-      <KindIcon item={item} />
+      <KindIcon item={item} idle={idle} />
       <div className="row__main"><span className="row__title"><Highlight text={titleOf(item)} query={query} /></span></div>
       <span className="row__meta">
         {chips}

@@ -2,7 +2,10 @@
 .notes { flex: 1; min-width: 0; display: flex; height: 100%; background: var(--color-bg-app); color: var(--color-text-primary); position: relative; }
 .notes .notes__main { min-width: 0; }
 .notes .notes__title { flex: none; margin-left: 6px; }
-.notes .notes__seg { margin-left: 12px; -webkit-app-region: no-drag; }
+.notes .notes__seg { margin-left: 12px; -webkit-app-region: no-drag; gap: 2px; border: 1px solid var(--color-border-divider); border-radius: 6px; }
+/* 작업 지도 머리 세그먼트(.map-seg)와 같은 모양 — 다크에서 바탕과 구분되게 테두리·선택 그림자(시안 ②) */
+.notes .notes__seg button { height: 22px; font: 500 12px/20px var(--font-family); border-radius: 4px; }
+.notes .notes__seg button.is-on { box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
 .notes .pane-header__actions { margin-left: auto; }
 
 /* 추가 바: textarea가 한 줄에서 5줄까지 자란다 */
@@ -36,7 +39,7 @@
 .notes .note-detail__meta { font: var(--text-meta); color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .notes .note-detail__title { display: block; width: 100%; border: 0; outline: 0; resize: none; overflow: hidden; background: transparent; color: var(--color-text-primary); padding: 0; margin-bottom: 10px; }
 .notes .note-detail__title::placeholder, .notes .note-detail__body::placeholder { color: var(--color-text-quaternary); }
-.notes .note-detail__body { width: 100%; min-height: 200px; border: 0; outline: 0; resize: none; background: transparent; color: var(--color-text-secondary); font: 400 14px/22px var(--font-family); padding: 0; overflow: hidden; user-select: text; min-height: 88px; }
+.notes .note-detail__body { width: 100%; border: 0; outline: 0; resize: none; background: transparent; color: var(--color-text-secondary); font: 400 14px/22px var(--font-family); padding: 0; overflow: hidden; user-select: text; min-height: 44px; } /* 빈 본문이 AI 판단 카드를 밀어내지 않게(시안 ②: 제목 바로 아래 카드) */
 .notes .note-detail__links { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
 .notes .note-detail__links a { display: flex; align-items: center; gap: 6px; font: var(--text-meta); color: var(--color-text-link); text-decoration: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .notes .note-detail__links a:hover { text-decoration: underline; }
@@ -218,3 +221,7 @@
   .notes .wiki__topics { width: 180px; }
   .notes .wiki__page { padding: 4px 16px 20px; }
 }
+/* 위키 — 빈 주제 페이지(직접 만든 주제, 자료 0개) */
+.notes .wiki__blank { margin: 18px 0 6px; padding: 16px 18px; border: 1px dashed var(--color-border-divider); border-radius: 8px; }
+.notes .wiki__blank-title { margin: 0 0 4px; font: var(--text-body-strong); color: var(--color-text-secondary); }
+.notes .wiki__blank-hint { margin: 0; font: var(--text-meta); color: var(--color-text-tertiary); }

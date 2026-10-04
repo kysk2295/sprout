@@ -1,7 +1,7 @@
 // 14 §0 그래프 보기(기본) — 뿌리 → 영역 → 세부 주제 → 할 일을 위→아래로(dagre), 선 3종(포함·순서·목표 연결)
 import '@xyflow/react/dist/style.css'
 import {
-  Background, BackgroundVariant, BaseEdge, EdgeLabelRenderer, Handle, MiniMap, Position, ReactFlow, ReactFlowProvider, getBezierPath, useReactFlow,
+  Background, BackgroundVariant, BaseEdge, EdgeLabelRenderer, Handle, MiniMap, Position, ReactFlow, ReactFlowProvider, getBezierPath, useInternalNode, useReactFlow,
   type Edge, type EdgeProps, type Node, type NodeProps, type OnConnectEnd, type Viewport
 } from '@xyflow/react'
 import { Check, Maximize2, Minus, Plus, X } from 'lucide-react'
@@ -124,10 +124,21 @@ function StemEdge({ sourceX, sourceY, targetX, targetY, style, className }: Edge
   return <path d={d} className={`react-flow__edge-path ${className ?? ''}`} style={style} fill="none" />
 }
 /** 순서·목표 선. AI 제안은 점선 + ✓ ✕ */
-function LinkEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data }: EdgeProps<Edge<{ link: LinkRow }>>) {
+function LinkEdge({ id, source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data }: EdgeProps<Edge<{ link: LinkRow }>>) {
   const ctx = useContext(GraphCtx)
-  const [path, lx, ly] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition })
   const link = data!.link
+  const from = useInternalNode(source)
+  const to = useInternalNode(target)
+  let [path, lx, ly] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition })
+  // 같은 주제 열에 쌓인 할 일끼리의 순서 선은 카드 사이 8px 틈에 묻힌다 → 시안 ③-b처럼 오른쪽으로 휘어 오른쪽 가운데로 들어간다
+  if (link.kind === 'sequence' && from && to && Math.abs(sourceX - targetX) < 40) {
+    const right = (n: NonNullable<typeof from>) => ({ x: n.internals.positionAbsolute.x + (n.measured.width ?? 0), y: n.internals.positionAbsolute.y + (n.measured.height ?? 0) / 2 })
+    const a = right(from), b = right(to)
+    const bulge = 22 + Math.min(40, Math.abs(b.y - a.y) / 6)
+    path = `M ${a.x} ${a.y} C ${a.x + bulge} ${a.y}, ${b.x + bulge} ${b.y}, ${b.x + 2} ${b.y}`
+    lx = Math.max(a.x, b.x) + bulge * 0.75
+    ly = (a.y + b.y) / 2
+  }
   return (
     <>
       <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={14} />
@@ -208,12 +219,23 @@ function Graph({ data, actions, links, onBlank }: Props) {
   }), [data, actions, links, hl, collapsed, toggle, hidden, topicCount])
 
   // 집중 보기: 영역을 두 번 누르면 그 영역만 화면에 맞춤. Esc · ⤢ = 전체
-  const fitAll = useCallback(() => { void flow.fitView({ padding: 0.12, duration: 250, maxZoom: 1 }) }, [flow])
+  // 전체 맞춤(⤢·Esc): 다 들어가게, 단 0.5배 아래로는 줄이지 않는다. 처음 열 때는 글자를 읽을 수 있게 0.8배에서 멈춘다.
+  // 세로는 위에 붙인다(시안 ③-b: 뿌리가 맨 위), 가로는 가운데(뿌리)
+  const fitAll = useCallback((floor = 0.5, duration = 250, fixed?: number) => {
+    const el = wrap.current
+    const ns = flow.getNodes()
+    if (!el || !ns.length) return
+    const b = flow.getNodesBounds(ns)
+    const pad = 24
+    const zoom = fixed ?? Math.max(floor, Math.min(1, (el.clientWidth - pad * 2) / b.width, (el.clientHeight - pad * 2) / b.height))
+    const x = (el.clientWidth - b.width * zoom) / 2 - b.x * zoom // 넘치면 가운데(뿌리)를 기준으로
+    void flow.setViewport({ x, y: pad - b.y * zoom, zoom }, { duration })
+  }, [flow])
   const focusArea = (id: string) => {
     const ids = new Set([id])
     let grew = true
     while (grew) { grew = false; for (const e of layout.edges) if ((e.kind === 'contain' || e.kind === 'stem') && ids.has(e.source) && !ids.has(e.target)) { ids.add(e.target); grew = true } }
-    void flow.fitView({ nodes: [...ids].map((x) => ({ id: x })), padding: 0.15, duration: 300 })
+    void flow.fitView({ nodes: [...ids].map((x) => ({ id: x })), padding: 0.15, duration: 300, maxZoom: 1.25 })
   }
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -235,7 +257,8 @@ function Graph({ data, actions, links, onBlank }: Props) {
   useEffect(() => {
     if (!first.current || !baseNodes.length) return
     first.current = false
-    if ('none' in viewport) window.setTimeout(fitAll, 30)
+    // 배율만 기억한다(14 §0.5). 위치는 지도가 바뀌면 의미가 없어서 매번 뿌리 기준으로 맞춘다
+    window.setTimeout(() => fitAll(0.8, 0, 'zoom' in viewport ? Math.min(2, Math.max(0.25, viewport.zoom)) : undefined), 30)
   }, [baseNodes, viewport, fitAll])
 
   // 끌어 옮기기: 놓은 자리의 주제 열·영역으로. 아니면 제자리로
@@ -294,7 +317,6 @@ function Graph({ data, actions, links, onBlank }: Props) {
           onConnectEnd={onConnectEnd}
           isValidConnection={(c) => c.target !== c.source && c.target.startsWith('task:')}
           onMoveEnd={(_, vp) => setViewport(vp)}
-          defaultViewport={'none' in viewport ? undefined : viewport}
           minZoom={0.25}
           maxZoom={2}
           panOnScroll
@@ -309,7 +331,7 @@ function Graph({ data, actions, links, onBlank }: Props) {
           elevateEdgesOnSelect={false}
           proOptions={{ hideAttribution: true }}
         >
-          <Background variant={BackgroundVariant.Dots} gap={18} size={1} color="var(--color-border-divider)" />
+          <Background variant={BackgroundVariant.Dots} gap={18} size={1.4} className="map-dots" />
           <MiniMap className="map-minimap" pannable zoomable nodeBorderRadius={2} nodeColor={(n) => (n.type === 'task' ? 'var(--color-text-quaternary)' : n.type === 'goal' ? 'var(--map-goal)' : n.type === 'lane' || n.type === 'anchor' ? 'transparent' : 'var(--color-text-tertiary)')} maskColor="rgba(0,0,0,0.08)" />
         </ReactFlow>
         <div className="map-zoom">

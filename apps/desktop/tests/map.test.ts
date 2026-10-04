@@ -78,7 +78,10 @@ const area = (id:string,name:string,parent_id:string|null=null,source='ai'):MapA
   // 작은 모델이 입력 모양(tasks[])으로 답하거나 확신을 빠뜨려도 받는다(빠뜨림 = 보통 0.7)
   const loose = planClassification(parseAiJson('```json\n{"tasks":[{"id":"t1","area":"영역3","topic":""}]}\n```'), {tasks:new Map([['t1','A']]),goals:new Map(),areas,taskAreas:[],links:[]}, id)
   assert.deepEqual(loose.assign.map(a=>[a.area_id,a.state]), [['a3','ok']])
-  assert.throws(()=>parseAiJson('[1]'))
+  // 서버가 스키마를 강제하지 못할 때(Ollama think=false): 맨 배열 = items, 앞뒤 설명 글은 걷어 낸다. JSON이 없으면 던진다
+  assert.deepEqual(parseAiJson('[{"id":"t1","area":"영역3"}]').items, [{id:'t1',area:'영역3'}])
+  assert.deepEqual(parseAiJson('분류 결과:\n{"items":[{"id":"t1","area":"영역3"}]} 끝').items, [{id:'t1',area:'영역3'}])
+  assert.throws(()=>parseAiJson('모르겠어요'))
   // 엉뚱한 모양은 무시
   assert.deepEqual(planClassification({items:'x' as never,sequences:null as never}, {tasks:new Map(),goals:new Map(),areas:[],taskAreas:[],links:[]}).assign, [])
 }

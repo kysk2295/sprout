@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import initSqlJs from 'sql.js'
 import { TABLES } from '@sprout/schema'
-import { fingerprint, isBareLink, parseClassified, parseKakao, type ClassifyItem } from '../src/shared/collect'
+import { dateRef, fingerprint, fixWeekday, hasDateWords, isBareLink, parseClassified, parseKakao, type ClassifyItem } from '../src/shared/collect'
 import { applyToWiki, contentOf, editSection, importKakao, lockedOf, registerSuggestion, saveItem, setKind, type CollectItem, type WikiTopic } from '../src/renderer/src/data/collect'
 import { insert, run } from '../src/renderer/src/data/mutations'
 const SQL = await initSqlJs()
@@ -96,8 +96,31 @@ assert.deepEqual(out[1].related, ['x'])
 const dates = parseClassified(JSON.stringify({ items: [
   { ...base, id: 'a', kind: 'task', due: '2026-02-30' },
   { ...base, id: 'b', kind: 'task', start: '2026-10-05T15:00', due: '' }
-] }), items, [])
+] }), [items[0], { id: 'b', text: '월요일 3시 회의', sent: '' }], [])
 assert.deepEqual(dates.map((c) => [c.start, c.due]), [['', ''], ['', '2026-10-05T15:00']])
+
+// 서버가 스키마를 강제하지 못할 때(Ollama think=false) 작은 모델이 내는 모양: 맨 배열·빠진 칸·앞뒤 설명 글
+const bare = parseClassified('[{"id":"a","kind":"task","title":"치과","due":"2026-10-05T15:00"},{"id":"b","kind":"wiki","topic":"LLM"}]', items, [])
+assert.deepEqual(bare.map((c) => [c.id, c.kind, c.due, c.topic, c.section]), [['a', 'task', '2026-10-05T15:00', '', 'key'], ['b', 'wiki', '', 'LLM', 'key']])
+assert.deepEqual(parseClassified('결과입니다:\n{"results":[{"id":"a","kind":"memo"}]}\n끝', items, []).map((c) => c.kind), ['memo'])
+assert.deepEqual(parseClassified('{"id":"b","kind":"memo"}', items, []).map((c) => c.id), ['b'])
+// 날짜 말이 없는 글에 모델이 지어낸 날짜는 버린다
+const invented = parseClassified('[{"id":"x","kind":"task","title":"수요 조사","due":"2026-09-30T10:00"}]', [{ id: 'x', text: '카페 창업 아이디어: 수요 조사하기', sent: '' }], [])
+assert.equal(invented[0].due, '')
+assert.equal(hasDateWords('다음주 월요일 10시 팀 회의'), true)
+assert.equal(hasDateWords('카페 창업 아이디어'), false)
+// 요일 말은 앱이 날짜를 정한다(보낸 시각 기준, 주는 월요일 시작)
+const sentFri = new Date(2026, 9, 2, 15, 12).toISOString() // 2026-10-02 금
+const sentSat = new Date(2026, 9, 3, 9, 30).toISOString() // 2026-10-03 토
+assert.equal(fixWeekday('금요일까지 운영체제 과제 제출', '2026-10-04T23:59', sentFri), '2026-10-02T23:59')
+assert.equal(fixWeekday('다음주 월요일 10시 팀 회의', '2026-10-12T10:00', sentSat), '2026-10-05T10:00')
+assert.equal(fixWeekday('이번 주 수요일 보고', '2026-10-07', sentSat), '2026-09-30')
+assert.equal(fixWeekday('월요일이랑 화요일', '2026-10-07', sentSat), '2026-10-07') // 요일이 둘이면 손대지 않는다
+const fri = parseClassified('[{"id":"k","kind":"task","title":"과제","due":"2026-10-04T23:59"}]', [{ id: 'k', text: '금요일까지 과제', sent: '', sentIso: sentFri }], [])
+assert.equal(fri[0].due, '2026-10-02T23:59')
+const ref = dateRef(sentSat)
+assert.equal(ref['내일'], '2026-10-04 일')
+assert.ok(ref['다음 주'].startsWith('월 2026-10-05'))
 
 // ── 위키 반영 ──
 const n1 = await saveItem('RAG 청크는 512~1024 토큰')

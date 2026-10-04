@@ -3,6 +3,9 @@ import { firstUrl, isBareLink, type Classified, type CollectKind, type KakaoMess
 import { getDb, type Stmt } from './db'
 import { insert, now, remove, run, update, uuid } from './mutations'
 import { convertNote, type Note } from './notes'
+import { eulReul, eunNeun, ro } from '../lib/josa'
+/** 따옴표 이름 + 받침에 맞는 조사: '핵심 정리'는 · '개요'를 */
+const quoted = (name: string, josa: (w: string) => string) => `'${name}'${josa(name).slice(name.length)}`
 
 export interface Suggestion { title: string; start?: string; due?: string; listId?: string }
 export interface CollectItem extends Note {
@@ -159,7 +162,7 @@ export async function applyToWiki(item: Pick<CollectItem, 'id' | 'content' | 'to
   let reason: string
   if (locked.includes(c.section)) {
     content.suggestions.push({ ...line, section: c.section })
-    reason = `'${SECTION_NAME[c.section]}'은 직접 고친 곳이라 제안 1개로 남겼어요`
+    reason = `${quoted(SECTION_NAME[c.section], eunNeun)} 직접 고친 곳이라 제안 1개로 남겼어요`
   } else {
     content.sections[c.section].push(line)
     reason = `방금 들어온 자료 1개를 '${SECTION_NAME[c.section]}'에 반영했어요`
@@ -192,7 +195,7 @@ export async function editSection(topic: WikiTopic, section: WikiSection, text: 
   const at = now()
   content.sections[section] = text.split('\n').map((l) => l.replace(/^[-•·]\s*/, '').trim()).filter(Boolean).map((t) => prev.find((l) => l.text === t) ?? { text: t, at, by: 'user' as const })
   const locked = Array.from(new Set([...lockedOf(topic), section]))
-  await run(...writeVersion(topic, content, `'${SECTION_NAME[section]}'을 직접 고쳤어요`, { locked: JSON.stringify(locked) }))
+  await run(...writeVersion(topic, content, `${quoted(SECTION_NAME[section], eulReul)} 직접 고쳤어요`, { locked: JSON.stringify(locked) }))
 }
 export async function unlockSection(topic: WikiTopic, section: WikiSection) {
   await run(update('wiki_topics', topic.id, { locked: JSON.stringify(lockedOf(topic).filter((s) => s !== section)) }))
@@ -211,7 +214,7 @@ export async function versionsOf(topicId: string) {
 export async function restoreVersion(topic: WikiTopic, version: number) {
   const row = await (await getDb()).get<{ content: string }>('SELECT content FROM wiki_versions WHERE topic_id=? AND version=?', [topic.id, version])
   if (!row) throw new Error('그 버전을 찾을 수 없어요.')
-  await run(...writeVersion(topic, contentOf(row), `버전 ${version}(으)로 되돌렸어요`))
+  await run(...writeVersion(topic, contentOf(row), `${ro(`버전 ${version}`)} 되돌렸어요`))
 }
 export async function addTopic(name: string) {
   const n = name.trim().slice(0, 20)
