@@ -1,0 +1,12 @@
+/* 06 캘린더 — 좁은 창 보강(06 §2: 창 900px 미만이면 왼쪽 패널은 겹쳐 뜨는 서랍) */
+.cal__title { white-space: nowrap; flex-shrink: 0; }
+.cal__tools { flex-shrink: 0; }
+.cal__header { min-width: 0; overflow: hidden; }
+.tg__allday { overflow-x: hidden; }
+.cal__side.is-overlay { position: absolute; top: 0; bottom: 0; left: 0; z-index: 30; box-shadow: var(--shadow-modal); }
+.cal__scrim { position: absolute; inset: 0; z-index: 29; }
+/* 좁은 칸: 막대의 시각보다 제목을 먼저 보인다(시각이 먼저 줄어 사라짐) */
+.cal-item.is-bar { container-type: inline-size; }
+@container (max-width: 130px) { .cal-item__time { display: none; } }
+/* 06 §4.2: 완료는 취소선 */
+.cal-item.is-done .cal-item__title { text-decoration: line-through; }

@@ -30,7 +30,9 @@ function save() {
 
 function bodyOf(it: Item): string {
   const start = it.start_at ?? it.due_at
-  const time = start.includes('T') ? ` ${start.slice(11, 16)}` : ''
+  // 앱 날짜 표기와 같게 "오후 3:00"(02 행 날짜)
+  const [h, m] = start.includes('T') ? start.slice(11, 16).split(':').map(Number) : [NaN, 0]
+  const time = Number.isNaN(h) ? '' : ` ${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${String(m).padStart(2, '0')}`
   const d = new Date(start.includes('T') ? start : `${start}T00:00`)
   return `${d.getMonth() + 1}월 ${d.getDate()}일${time}${it.list_name ? ` · ${it.list_name}` : ''}`
 }
@@ -47,9 +49,10 @@ async function send(channel: string, payload: unknown) {
 function fire(f: Fired) {
   if (!state.fired.includes(f.key)) state.fired.push(f.key)
   save()
-  const win = BrowserWindow.getAllWindows()[0]
-  // 앱이 앞에 있으면 앱 안 팝업 카드도 함께(03 §7)
-  if (win?.isFocused()) win.webContents.send('reminder:fired', f)
+  // 앱이 앞에 있으면(메인·미니·설정 창 중 하나라도 앞) 메인 창에 앱 안 팝업 카드도 함께(03 §7).
+  // getAllWindows()[0]은 미니 창일 수 있어서 주소에 ?window=가 없는 메인 창을 고른다
+  const main = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed() && !/[?&]window=/.test(w.webContents.getURL()))
+  if (main && main.isVisible() && BrowserWindow.getFocusedWindow()) main.webContents.send('reminder:fired', f)
   if (!Notification.isSupported()) return
   const n = new Notification({
     title: f.title || '제목 없음',

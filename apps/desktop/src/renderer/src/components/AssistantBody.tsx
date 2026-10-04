@@ -15,6 +15,8 @@ export function useAssistant(account: string) {
   const [models, setModels] = useState<string[]>([]), [model, setModel] = useState(localStorage.getItem('sprout.assistant.model') || '')
   const [busy, setBusy] = useState(false), [connecting, setConnecting] = useState(false), [error, setError] = useState('')
   const [progress, setProgress] = useState<AssistantProgress>({ phase: 'connecting' }), [started, setStarted] = useState(0), [lastRequest, setLastRequest] = useState('')
+  const [cooldown, setCooldown] = useState(0) // 상한(429)·혼잡(503) 뒤 다시 시도를 잠시 막는다(13 §6)
+  useEffect(() => { if (cooldown <= Date.now()) return; const t = setTimeout(() => setCooldown(0), cooldown - Date.now()); return () => clearTimeout(t) }, [cooldown])
   const request = useRef<AbortController | null>(null)
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify(messages.slice(-100))) } catch { setError('대화 기록을 보관할 공간이 부족해요.') } }, [messages, key])
   useEffect(() => { localStorage.setItem('sprout.assistant.model', model) }, [model])
@@ -25,40 +27,52 @@ export function useAssistant(account: string) {
       setModels(found)
       setModel((old) => (found.includes(old) ? old : found.find((m) => m === 'qwen3.5:9b') || found[0] || ''))
       if (!found.length) setError('지금은 AI를 쓸 수 없어요. 할 일·캘린더는 그대로 쓸 수 있어요.')
-    } catch { setModels([]); setModel(''); setError('지금은 AI를 쓸 수 없어요. 할 일·캘린더는 그대로 쓸 수 있어요.') } finally { setConnecting(false) }
+    } catch (e) { setModels([]); setModel(''); setError(humanize(e)) } finally { setConnecting(false) }
   }
   useEffect(() => { void refresh(); return () => request.current?.abort() }, [])
+  // 13 §6: 쓸 수 없으면 1분 뒤 저절로 다시 확인
+  useEffect(() => { if (connecting || busy || models.length) return; const t = setTimeout(() => void refresh(), 60000); return () => clearTimeout(t) }, [connecting, busy, models.length])
   const send = async (text: string) => {
     if (request.current || !text.trim() || !model) return false
     const abort = new AbortController(); request.current = abort; setBusy(true); setError(''); setLastRequest(text); setStarted(Date.now()); setProgress({ phase: 'connecting' }); const id = crypto.randomUUID()
-    const timer = setTimeout(() => abort.abort(), 120000)
-    setMessages((old) => [...old, { id: id + 'user', role: 'user', text }])
+    // 서버 대기열(최대 180초) + 생성(120초)을 기다린다 — 메인 프로세스 제한(320초)보다 조금 길게
+    let timedOut = false
+    const timer = setTimeout(() => { timedOut = true; abort.abort() }, 330000)
+    // 다시 시도: 답을 못 받은 같은 말은 말풍선을 또 쌓지 않는다
+    setMessages((old) => (old.at(-1)?.role === 'user' && old.at(-1)?.text === text ? old : [...old, { id: id + 'user', role: 'user', text }]))
     try { const result = await askAssistant(text, model, id, abort.signal, messages.slice(-8).map((m) => ({ role: m.role, content: m.text })), setProgress); setMessages((old) => [...old, { id, role: 'assistant', text: result.text, result }]); return true }
-    catch (e) { setError(abort.signal.aborted ? '요청을 멈췄어요. 내용을 확인한 뒤 다시 보내 주세요.' : humanize(e)); return false }
+    catch (e) { setError(timedOut ? 'AI 응답이 너무 오래 걸려요. 다시 시도해 주세요.' : abort.signal.aborted ? '요청을 멈췄어요. 내용을 확인한 뒤 다시 보내 주세요.' : humanize(e)); if (isLimit(e)) setCooldown(Date.now() + 30000); return false }
     finally { clearTimeout(timer); request.current = null; setBusy(false) }
   }
   const undo = async (message: Message) => {
     if (!message.result?.created) return
     try { await undoAssistant(message.result.created); setMessages((old) => old.map((m) => (m.id === message.id ? { ...m, text: '등록을 되돌렸어요.', result: undefined } : m))) } catch (e) { setError(e instanceof Error ? e.message : '되돌리지 못했어요.') }
   }
-  return { progress, started, lastRequest, messages, models, model, setModel, busy, connecting, error, refresh, send, undo, cancel: () => request.current?.abort(), clear: () => { if (!request.current) { setMessages([]); setError('') } } }
+  return { cooldown: cooldown > Date.now(), progress, started, lastRequest, messages, models, model, setModel, busy, connecting, error, refresh, send, undo, cancel: () => request.current?.abort(), clear: () => { if (!request.current) { setMessages([]); setError('') } } }
 }
 export type AssistantController = ReturnType<typeof useAssistant>
 
-/** 13 §6: 원문 오류(영문·JSON·네트워크)는 사람 말로 바꾼다. 앱이 만든 한국어 문구는 그대로 */
-function humanize(e: unknown) {
-  const raw = e instanceof Error ? e.message : String(e ?? '')
+/** 13 §6: 원문 오류(영문·JSON·네트워크)는 사람 말로 바꾼다. 앱·서버가 만든 한국어 문구는 그대로 */
+const OFFLINE = '지금은 AI를 쓸 수 없어요. 할 일·캘린더는 그대로 쓸 수 있어요.'
+// IPC를 거친 오류는 "Error invoking remote method 'assistant:chat': Error: …"로 감싸여 온다
+const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e ?? '')).replace(/^Error invoking remote method '[^']*':\s*/, '').replace(/^(\w*Error):\s*/, '')
+export function humanize(e: unknown) {
+  const raw = messageOf(e)
+  if (/^지금은 AI를 쓸 수 없어요/.test(raw)) return OFFLINE
+  if (/[가-힣]/.test(raw) && !/[{}<>]|Error|https?:/.test(raw)) return raw
   if (/429|rate.?limit|too many/i.test(raw)) return '잠시 뒤 다시 시도해 주세요.'
-  if (/fetch|network|ECONN|ssh|socket|timeout|Ollama|모델 요청 실패|연결/i.test(raw)) return '지금은 AI를 쓸 수 없어요. 할 일·캘린더는 그대로 쓸 수 있어요.'
-  if (/[가-힣]/.test(raw) && !/[{}<>]/.test(raw)) return raw
+  if (/fetch|network|ENOTFOUND|ECONN|EAI_AGAIN|socket/i.test(raw)) return 'sprout AI에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.'
+  if (/ssh|timeout|Ollama|503|502|504/i.test(raw)) return OFFLINE
   return '요청을 처리하지 못했어요. 다시 시도해 주세요.'
 }
+const isLimit = (e: unknown) => /너무 잦아요|한도|처리 중인 AI 요청|쓰는 사람이 많아요|429/.test(messageOf(e))
 
 /** 머리 상태 알약: 연결됨 · 연결 중 · 쓸 수 없음 (대기열은 서버 프록시 뒤) — 13 §2.1 */
 export function AssistantStatus({ assistant: a, short }: { assistant: AssistantController; short?: boolean }) {
-  const state = a.connecting ? 'wait' : a.models.length ? 'ok' : 'off'
-  const label = a.connecting ? '연결 중…' : a.models.length ? (short ? '연결됨' : 'sprout AI · 연결됨') : '지금은 쓸 수 없어요'
-  return <button className={`assistant-status is-${state}`} title="다시 연결" disabled={a.connecting || a.busy} onClick={() => void a.refresh()}><i />{label}</button>
+  const waiting = a.busy && (a.progress.queue ?? 0) > 0
+  const state = a.connecting || waiting ? 'wait' : a.models.length ? 'ok' : 'off'
+  const label = a.connecting ? '연결 중…' : waiting ? `대기 중 · 앞에 ${a.progress.queue}명` : a.models.length ? (short ? '연결됨' : 'sprout AI · 연결됨') : '지금은 쓸 수 없어요'
+  return <button className={`assistant-status is-${state}`} title="다시 연결" disabled={a.connecting || a.busy} onClick={() => void a.refresh()}><i /><span>{label}</span></button>
 }
 
 /** 전용 화면 머리 오른쪽: 상태 · 새 대화 · ⋯(모델 · 다시 연결 · 기록 지우기) */
@@ -152,7 +166,7 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
               <div className="assistant-ai">
                 <span className="assistant-avatar"><Sparkles /></span>
                 <div className="assistant-ai__body">
-                  {a.progress.preview ? <p className="assistant-text">{a.progress.preview}<span className="assistant-caret" /></p> : <p className="assistant-muted">{a.progress.phase === 'connecting' ? 'sprout AI에 연결하는 중…' : '생각하는 중…'}</p>}
+                  {a.progress.preview ? <p className="assistant-text">{a.progress.preview}<span className="assistant-caret" /></p> : <p className="assistant-muted">{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.progress.phase === 'connecting' ? 'sprout AI에 연결하는 중…' : '생각하는 중…'}</p>}
                   <div className="assistant-steps" role="status">
                     {STEPS.map((s, i) => <span key={s.label} className={i <= phaseIndex ? 'is-on' : ''}>{i > 0 && <em>›</em>}● {s.label}</span>)}
                     <span>· {elapsed}초</span>
@@ -164,7 +178,7 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
               <div className="assistant-error" role="alert">
                 <p>{a.error}</p>
                 <div>
-                  {a.lastRequest && <button disabled={a.busy} onClick={() => void submit(a.lastRequest)}><RefreshCw />다시 시도</button>}
+                  {a.lastRequest && <button disabled={a.busy || a.cooldown || !a.model} title={a.cooldown ? '잠시 뒤 다시 시도할 수 있어요' : undefined} onClick={() => void submit(a.lastRequest)}><RefreshCw />다시 시도</button>}
                   {a.lastRequest && <button onClick={() => { onDraft(a.lastRequest); input.current?.focus() }}>입력으로 가져오기</button>}
                   {!a.models.length && <button disabled={a.connecting} onClick={() => void a.refresh()}>다시 연결</button>}
                 </div>

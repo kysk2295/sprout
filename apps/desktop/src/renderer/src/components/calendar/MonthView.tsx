@@ -109,17 +109,17 @@ export function MonthView(p: Props) {
 
   return (
     <div className="mv">
-      <div className="mv__head" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+      <div className="mv__head" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
         {WEEK.map((w) => <span key={w}>{w}</span>)}
       </div>
-      <div className="mv__body" ref={bodyRef} style={{ gridTemplateRows: `repeat(${nRows}, 1fr)` }}>
+      <div className="mv__body" ref={bodyRef} style={{ gridTemplateRows: `repeat(${nRows}, minmax(0, 1fr))` }}>
         {rows.map((row, r) => {
           const bars = packBars(items, row)
           const covering = row.map((_, c) => bars.filter((b) => b.col <= c && c < b.col + b.span))
           const overflow = covering.some((cv) => cv.length > maxLanes)
           const limit = overflow ? maxLanes - 1 : maxLanes
           return (
-            <div key={r} className="mv__row" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+            <div key={r} className="mv__row" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
               {row.map((d, c) => {
                 const other = d.slice(0, 7) !== month
                 const label = d.endsWith('-01') ? `${Number(d.slice(5, 7))}월 1일` : String(Number(d.slice(8)))

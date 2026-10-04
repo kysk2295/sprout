@@ -206,7 +206,7 @@ export function TimeGrid(p: Props) {
 
   return (
     <div className="tg">
-      <div className="tg__head" style={{ gridTemplateColumns: `${GUTTER}px repeat(${n}, 1fr)` }}>
+      <div className="tg__head" style={{ gridTemplateColumns: `${GUTTER}px repeat(${n}, minmax(0, 1fr))` }}>
         <div />
         {days.map((d) => <div key={d} className="tg__dayhead">{WEEK[new Date(`${d}T00:00`).getDay()]}</div>)}
       </div>
@@ -220,7 +220,7 @@ export function TimeGrid(p: Props) {
           start(e, { kind: 'create-allday', a: c, b: c })
         }}
       >
-        <div className="tg__allday-cols" style={{ gridTemplateColumns: `${GUTTER}px repeat(${n}, 1fr)`, minHeight: NUMROW + lanes * LANE + 6 }}>
+        <div className="tg__allday-cols" style={{ gridTemplateColumns: `${GUTTER}px repeat(${n}, minmax(0, 1fr))`, minHeight: NUMROW + lanes * LANE + 6 }}>
           <div />
           {days.map((d, i) => {
             const sel = drag?.kind === 'create-allday' && i >= Math.min(drag.a, drag.b) && i <= Math.max(drag.a, drag.b)
@@ -244,7 +244,7 @@ export function TimeGrid(p: Props) {
         </div>
       </div>
       <div className="tg__scroll" ref={scrollRef}>
-        <div className="tg__grid" ref={gridRef} style={{ height: totalH, gridTemplateColumns: `${GUTTER}px repeat(${n}, 1fr)` }}>
+        <div className="tg__grid" ref={gridRef} style={{ height: totalH, gridTemplateColumns: `${GUTTER}px repeat(${n}, minmax(0, 1fr))` }}>
           <div className="tg__gutter">
             {collapsed && <button className="tg__band" style={{ height: BAND - 4 }} onClick={() => p.onCollapsed(false)} title="펼치기">00:00<br />- 07:00</button>}
             {hours.map((h) => (

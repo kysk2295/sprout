@@ -23,6 +23,13 @@
 .assistant-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-text-tertiary); }
 .assistant-status.is-ok i { background: #3fb950; }
 .assistant-status.is-wait i { background: var(--color-priority-medium); }
+/* 머리 배치: 좁은 폭에서도 제목·알약·버튼이 겹치지 않게 — 버튼 줄은 줄지 않고, 알약 글자가 먼저 말줄임 */
+.assistant-view .pane-header__actions { flex-shrink: 0; min-width: 0; max-width: 70%; }
+.assistant-status { min-width: 0; max-width: 100%; overflow: hidden; flex-shrink: 1; }
+.assistant-status i { flex-shrink: 0; }
+.assistant-status span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.assistant-quick > header strong { white-space: nowrap; flex-shrink: 0; }
+.assistant-quick > header .icon-btn { flex-shrink: 0; }
 
 .assistant-v2 { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .assistant-v2 .assistant-scroll-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
@@ -111,3 +118,5 @@
 .assistant-quick > header .icon-btn svg { width: 16px; height: 16px; }
 .workspace :focus-visible, .assistant-quick :focus-visible, .assistant-fab:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .assistant-v2 .assistant-row.is-done .assistant-row__meta { color: var(--color-text-tertiary); }
+/* 다크: 빠른 창 바탕(--color-bg-popover)과 입력 바탕이 같은 #212121이라 말풍선·입력창·예시가 안 보인다 → 빠른 창 안에서만 한 단계 밝게 */
+[data-theme="dark"] .assistant-quick { --color-bg-input: color-mix(in srgb, var(--color-text-primary) 8%, var(--color-bg-popover)); }

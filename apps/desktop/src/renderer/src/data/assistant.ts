@@ -62,13 +62,20 @@ export async function askAssistant(text:string,model:string,id:string,signal:Abo
  signal.throwIfAborted()
  let raw:string,partial=''
  const delta=(text:string)=>{partial+=text;onProgress?.({phase:'generating',characters:partial.length,preview:conversational?partial:replyPreview(partial)})}
- if(window.sprout?.assistant){const cancel=()=>window.sprout?.assistant?.cancel(id);signal.addEventListener('abort',cancel,{once:true});const unsubscribe=window.sprout.assistant.onDelta?.(event=>{if(event.id===id)delta(event.text)});try{raw=await window.sprout.assistant.chat(id,input)}finally{unsubscribe?.();signal.removeEventListener('abort',cancel)}}else raw=await localChat(input,signal,undefined,delta)
+ if(window.sprout?.assistant){const cancel=()=>window.sprout?.assistant?.cancel(id);signal.addEventListener('abort',cancel,{once:true});const unsubscribe=window.sprout.assistant.onDelta?.(event=>{if(event.id!==id)return;const queue=(event as {queue?:unknown}).queue;if(typeof queue==='number'){if(!partial)onProgress?.({phase:'connecting',queue});return}delta(event.text)});try{raw=await window.sprout.assistant.chat(id,input)}finally{unsubscribe?.();signal.removeEventListener('abort',cancel)}}else raw=await localChat(input,signal,undefined,delta)
  signal.throwIfAborted()
  if(conversational)return {text:raw}
  onProgress?.({phase:'validating'})
- const intent=parseIntent(raw)
  const writing=/(등록|추가|만들|생성|저장|잡아|예약)/.test(text)
  const reading=/(보여|알려|조회|확인|몇|얼마|있어|있니)/.test(text)
+ let intent:Intent
+ try{intent=parseIntent(raw)}catch(error){
+  // 서버 경로는 JSON 스키마가 강제되지 않아 모델이 다른 모양으로 답할 때가 있다. 읽기 요청이면 앱이 직접 조회로 바꾼다(아래 기간·상태 규칙이 채운다)
+  if(writing||!reading)throw error
+  intent={action:'query',status:'all',message:'',title:'',listId:'',start:'',due:'',from:'',to:'',keyword:'',repeat:''}
+ }
+ // 13 부록 A "길이를 말하지 않으면 길이를 만들지 않는다": 모델이 붙인 1시간 등은 걷어 내고 그 시각 한 점으로
+ if(intent.action==='create'&&intent.start&&intent.due&&intent.start.includes('T')&&!/(시간|분\s*(동안|간|짜리)|까지|부터|동안|~|〜|–|—|\d\s*-\s*\d)/.test(text)){intent.due=intent.start;intent.start=''}
  if(!writing&&reading&&/(일정|할 ?일|태스크|업무|완료|끝낸|끝난|한 일|오늘|내일|이번\s*주)/.test(text)){
   intent.action=/(완료|끝낸|끝난|한 일)/.test(text)&&/(시간|몇|얼마|통계|집계)/.test(text)?'stats':'query'
   intent.status=/(완료|끝낸|끝난|한 일)/.test(text)?'completed':/(일정|할 ?일)/.test(text)?'open':intent.status

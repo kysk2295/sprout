@@ -18,7 +18,11 @@ export function validDate(value:string,dayOnly=false){
 export function parseIntent(value:string):Intent{
  const cleaned=value.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/, '$1')
  let data:Intent
- try{data=JSON.parse(cleaned)}catch{throw new Error('AI 응답 형식을 확인할 수 없어요. 다시 말씀해 주세요.')}
+ // 서버(Ollama think:false)에서는 JSON 스키마 강제가 걸리지 않을 때가 있다 → 앞뒤 군말을 걷어 내고 객체만 읽는다
+ const object=(text:string)=>{const a=text.indexOf('{'),b=text.lastIndexOf('}');return a>=0&&b>a?text.slice(a,b+1):text}
+ try{data=JSON.parse(cleaned)}catch{try{data=JSON.parse(object(cleaned))}catch{throw new Error('AI 응답 형식을 확인할 수 없어요. 다시 말씀해 주세요.')}}
+ // 모델이 빈 칸을 빼먹는 일이 잦다(스키마 강제 없음): 빠진 문자열 칸은 빈칸, 상태는 all로 본다
+ if(data&&typeof data==='object'&&!Array.isArray(data)){const loose=data as unknown as Record<string,unknown>;for(const key of fields)if(loose[key]===undefined||loose[key]===null)loose[key]='';if(loose.status===undefined||loose.status===null||loose.status==='')loose.status='all'}
  if(!data||!['create','query','stats','reply'].includes(data.action)||!['all','open','completed'].includes(data.status)||fields.some(key=>typeof data[key]!=='string'||data[key].length>4000))throw new Error('AI 응답 형식을 확인할 수 없어요. 다시 말씀해 주세요.')
  for(const key of (data.action==='create'?['start','due'] as const:['from','to'] as const))if(data[key]&&!validDate(data[key],key==='from'||key==='to'))throw new Error('AI가 해석한 날짜가 올바르지 않아요. 날짜를 다시 알려 주세요.')
  if(data.action==='create'&&data.start&&(!data.due||data.start.length!==data.due.length||data.start>=data.due))throw new Error('종료 시각은 시작 시각 이후여야 해요.')
@@ -45,7 +49,7 @@ export async function localChat(input:ChatInput,signal?:AbortSignal,base='/api/a
 }
 
 /** Decode NDJSON across arbitrary UTF-8/network boundaries. An unfinished stream is not a result. */
-export async function readChatStream(response:Response,onDelta:(text:string)=>void,signal?:AbortSignal){
+export async function readChatStream(response:Response,onDelta:(text:string)=>void,signal?:AbortSignal,onQueue?:(queue:{position:number;waiting:number})=>void){
  const reader=response.body?.getReader()
  if(!reader)throw new Error('응답 스트림이 비어 있어요.')
  const decoder=new TextDecoder();let buffer='',result='',done=false
@@ -53,6 +57,8 @@ export async function readChatStream(response:Response,onDelta:(text:string)=>vo
   if(!value.trim())return
   const item=JSON.parse(value)
   if(item.error)throw new Error(String(item.error))
+  // 서버 AI 프록시 대기열 줄: {"queue":{"position":n,"waiting":m}} (13 §6 대기 중 · 앞에 N명)
+  if(item.queue&&typeof item.queue.position==='number'){onQueue?.({position:item.queue.position,waiting:Number(item.queue.waiting)||0});return}
   const delta=item.message?.content
   if(typeof delta==='string'&&delta){result+=delta;onDelta(delta)}
   if(item.done)done=true
@@ -64,7 +70,7 @@ export async function readChatStream(response:Response,onDelta:(text:string)=>vo
   return result
  }finally{await reader.cancel().catch(()=>{});reader.releaseLock()}
 }
-export type AssistantProgress={phase:'connecting'|'generating'|'validating'|'saving'|'querying';characters?:number;preview?:string}
+export type AssistantProgress={phase:'connecting'|'generating'|'validating'|'saving'|'querying';characters?:number;preview?:string;/** 서버 대기열에서 내 앞에 있는 요청 수(0 = 내 차례) */queue?:number}
 export function replyPreview(raw:string){
  if(!/"action"\s*:\s*"reply"/.test(raw))return ''
  const match=raw.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)/)

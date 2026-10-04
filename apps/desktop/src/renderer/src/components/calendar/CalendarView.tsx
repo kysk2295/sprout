@@ -22,6 +22,7 @@ import { TimeGrid } from './TimeGrid'
 import type { CalHandlers, Change, Draft, Rect } from './types'
 import { ArrangePanel } from './ArrangePanel'
 import { ViewOptions } from './ViewOptions'
+import './calendar.css'
 
 // 06-calendar: 머리글 · 일/주/월 보기 · 왼쪽 패널 · 팝오버 · 단축키
 type Props = { lists: ListRow[]; tags: TagRow[]; inboxId?: string; actions: TaskActions }
@@ -68,6 +69,9 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
   const viewBtn = useRef<HTMLButtonElement>(null)
   const moreBtn = useRef<HTMLButtonElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  // 06 §2: 창이 900px보다 좁으면 왼쪽 패널은 겹쳐 뜨는 서랍(밖을 누르면 닫힘)
+  const [narrow, setNarrow] = useState(() => window.innerWidth < 900)
+  useEffect(() => { const on = () => setNarrow(window.innerWidth < 900); window.addEventListener('resize', on); return () => window.removeEventListener('resize', on) }, [])
 
   // ── 보기 설정(동기화: view_settings 'calendar' 행의 options_json) ──
   const row = useQuery<{ options_json: string | null }>("SELECT options_json FROM view_settings WHERE view_key = 'calendar'")?.[0]
@@ -189,8 +193,9 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
 
   return (
     <div className="cal">
+      {panelOpen && narrow && <div className="cal__scrim" onPointerDown={() => setPanelOpen(false)} />}
       {panelOpen && (
-        <div className="app__sidebar cal__side">
+        <div className={`app__sidebar cal__side${narrow ? ' is-overlay' : ''}`}>
           <CalendarSide
             cursor={cursor}
             today={today}
@@ -200,7 +205,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
             tags={tags}
             filterLists={opts.lists}
             filterTags={opts.tags}
-            onPick={setCursor}
+            onPick={(d) => { setCursor(d); if (narrow) setPanelOpen(false) }}
             onFilter={(l, t) => setOpts({ lists: l, tags: t })}
           />
         </div>
