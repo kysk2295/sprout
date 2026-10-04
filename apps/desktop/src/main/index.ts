@@ -1,3 +1,4 @@
+import './profile'
 import { createUsageLogin, readUsageProfiles } from './usageLogin'
 import { createUsageService } from './usageService'
 import { registerAssistant } from './assistant'
