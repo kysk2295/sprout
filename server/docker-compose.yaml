@@ -53,10 +53,20 @@ services:
       AI_USER_PER_DAY: ${AI_USER_PER_DAY:-100}
       AI_WEEKLY_KPI_DRAFT: ${AI_WEEKLY_KPI_DRAFT:-1}
       AI_WEEKLY_REPORT: ${AI_WEEKLY_REPORT:-1}
+      # 로그인 시도 제한(08 §4): 도커 안에서는 Funnel·게이트웨이가 사설 IP로 보여 X-Forwarded-For를 믿는다
+      TRUST_PROXY: ${TRUST_PROXY:-private}
+      # 소셜 로그인(08 §3.1, README "소셜 로그인"). 비우면 그 버튼만 "준비 중"
+      GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
+      APPLE_SERVICES_ID: ${APPLE_SERVICES_ID:-}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+      APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+      APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:+/run/secrets/apple.p8}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-https://macmini.tail425c97.ts.net}
     extra_hosts:
       - "host.docker.internal:host-gateway" # 리눅스(VPS)에서도 호스트의 Ollama에 닿게. Docker Desktop(Mac)은 원래 된다
     volumes:
       - api_data:/data
+      - ${APPLE_PRIVATE_KEY:-/dev/null}:/run/secrets/apple.p8:ro # 애플 .p8(있을 때만)
     depends_on:
       db:
         condition: service_healthy
