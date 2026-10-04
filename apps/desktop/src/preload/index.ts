@@ -1,3 +1,5 @@
+import type { UsageProvider, UsageSnapshot, UsageLogin } from '../shared/usage'
+import type { ChatInput } from '../shared/assistant'
 import { contextBridge, ipcRenderer } from 'electron'
 
 type Row = Record<string, unknown>
@@ -49,8 +51,12 @@ const miniApi = {
   onShown: (cb: () => void) => on('mini:shown', cb)
 }
 
+const usageApi={read:(provider:UsageProvider,force=false)=>ipcRenderer.invoke('usage:read',provider,force) as Promise<UsageSnapshot>,login:(provider:UsageProvider)=>ipcRenderer.invoke('usage:login:start',provider) as Promise<UsageLogin>,loginStatus:(id:string)=>ipcRenderer.invoke('usage:login:status',id) as Promise<UsageLogin>,submitLoginCode:(id:string,code:string)=>ipcRenderer.invoke('usage:login:code',id,code) as Promise<UsageLogin>,cancelLogin:(id:string)=>ipcRenderer.invoke('usage:login:cancel',id) as Promise<UsageLogin>}
+export type SproutUsageApi=typeof usageApi
+const assistantApi = { onDelta:(cb:(data:{id:string;text:string})=>void)=>on('assistant:delta',cb), models:()=>ipcRenderer.invoke('assistant:models') as Promise<string[]>, chat:(id:string,input:ChatInput)=>ipcRenderer.invoke('assistant:chat',id,input) as Promise<string>, cancel:(id:string)=>ipcRenderer.send('assistant:cancel',id) }
+export type SproutAssistantApi = typeof assistantApi
 const desktopApi = { openSettings: () => ipcRenderer.send('desktop:settings'), onQuickAdd: (cb: () => void) => on('desktop:quick-add', cb) }
-contextBridge.exposeInMainWorld('sprout', { platform: process.platform, db: dbApi, reminders: remindersApi, desktop: desktopApi, auth: authApi, mini: miniApi })
+contextBridge.exposeInMainWorld('sprout', { platform: process.platform, assistant: assistantApi, usage: usageApi, db: dbApi, reminders: remindersApi, desktop: desktopApi, auth: authApi, mini: miniApi })
 export type SproutMiniApi = typeof miniApi
 export type SproutAuthApi = typeof authApi
 export type SproutDesktopApi = typeof desktopApi

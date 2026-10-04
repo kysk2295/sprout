@@ -1,3 +1,8 @@
+import { normalizeUsage, quotaIsStale } from '../src/shared/usage'
+import { createUsageService } from '../src/main/usageService'
+import { executeIntent, completedSummary, undoAssistant, askAssistant } from '../src/renderer/src/data/assistant'
+import { parseIntent, readChatStream, replyPreview, localModels, localChat, intentSchema, type Intent } from '../src/shared/assistant'
+import type { TaskRow } from '../src/renderer/src/data/types'
 import { saveNote, convertNote } from '../src/renderer/src/data/notes'
 import { timeSelection } from '../src/renderer/src/lib/calendarSelection'
 import { createCalendarTask } from '../src/renderer/src/data/calendarCreate'
@@ -85,5 +90,135 @@ db.run("CREATE TRIGGER reject_note_link BEFORE UPDATE OF task_id ON notes BEGIN 
 await assert.rejects(()=>convertNote(invalidNote,{title:'롤백',listId:inbox}),/note failure/)
 assert.equal(all('SELECT id FROM tasks WHERE id=?',['note-'+invalidNote]).length,0)
 db.run('DROP TRIGGER reject_note_link')
+const base:Intent={action:'query',status:'all',message:'',title:'',listId:'',start:'',due:'',from:'',to:'',keyword:'',repeat:''}
+assert.throws(()=>parseIntent(JSON.stringify({...base,action:'create',due:'2026-02-30'})))
+assert.throws(()=>parseIntent(JSON.stringify({...base,action:'create',start:'2026-10-04T15:00',due:'2026-10-04T14:00'})))
+const signal=new AbortController().signal
+const made=await executeIntent({...base,action:'create',title:'AI QA',listId:inbox,start:'2026-10-05T15:00',due:'2026-10-05T16:00'},'assistant-test',signal)
+assert.equal(all('SELECT due_at FROM tasks WHERE id=?',['assistant-test'])[0].due_at,'2026-10-05T16:00')
+await assert.rejects(()=>executeIntent({...base,action:'create',title:'Duplicate',listId:inbox},'assistant-test',signal))
+assert.equal((await executeIntent({...base,keyword:'100%_'},'query-test',signal)).tasks?.length,1)
+assert.equal((await executeIntent({...base,keyword:"' OR 1=1 --"},'query-test',signal)).tasks?.length,0)
+await undoAssistant(made.created!)
+assert.ok(all('SELECT deleted_at FROM tasks WHERE id=?',['assistant-test'])[0].deleted_at)
+await assert.rejects(()=>undoAssistant(made.created!))
+const changed=await executeIntent({...base,action:'create',title:'Changed',listId:inbox},'changed-assistant',signal)
+await run({sql:'UPDATE tasks SET modified_at=? WHERE id=?',params:['changed','changed-assistant']})
+await assert.rejects(()=>undoAssistant(changed.created!))
+await run(insert('tasks',{id:'completed-stats',title:'Completed',list_id:inbox,status:1,start_at:'2026-10-04T10:00',due_at:'2026-10-04T11:30',is_all_day:0,completed_at:new Date('2026-10-04T12:00:00').toISOString()}))
+assert.match((await executeIntent({...base,action:'stats',from:'2026-10-04',to:'2026-10-04'},'stats-query',signal)).text,/1.5시간/)
+assert.equal((await executeIntent({...base,action:'stats',from:'2026-10-05',to:'2026-10-05'},'stats-query',signal)).tasks?.length,0)
+const aborted=new AbortController();aborted.abort()
+await assert.rejects(()=>executeIntent({...base,action:'create',title:'Cancelled',listId:inbox},'cancelled',aborted.signal))
+assert.equal(all('SELECT * FROM tasks WHERE id=?',['cancelled']).length,0)
+const parent={id:'p',parent_id:null,is_all_day:0,start_at:'2026-10-04T10:00',due_at:'2026-10-04T12:00'} as TaskRow
+assert.match(completedSummary([parent,{...parent,id:'c',parent_id:'p'}]),/2시간/)
+assert.match(completedSummary([{...parent,is_all_day:1}]),/0시간/)
+Object.assign(window.sprout!,{assistant:{chat:async()=>JSON.stringify({...base,action:'stats',status:'completed'}),cancel:()=>{}}})
+const corrected=await askAssistant('내일 일정 보여줘','test','intent-regression',signal)
+assert.match(corrected.text,/개의 항목/)
+assert.doesNotMatch(corrected.text,/완료한 항목/)
+Object.assign(window.sprout!,{assistant:{chat:async()=>JSON.stringify({...base,action:'create',title:'Unrequested',listId:inbox}),cancel:()=>{}}})
+assert.match((await askAssistant('테스트','test','unrequested',signal)).text,/등록하려면/)
+assert.equal(all('SELECT * FROM tasks WHERE id=?',['unrequested']).length,0)
+Object.assign(window.sprout!,{assistant:{chat:async()=> '일정 등록과 조회를 도와드려요.',cancel:()=>{}}})
+const beforeHelp=all('SELECT id FROM tasks').length
+assert.equal((await askAssistant('어떤 기능이 있어?','test','help-only',signal)).text,'일정 등록과 조회를 도와드려요.')
+assert.equal(all('SELECT id FROM tasks').length,beforeHelp)
+assert.equal(parseIntent('```json\n'+JSON.stringify(base)+'\n```').action,'query')
+const previousFetch=globalThis.fetch
+const requests:{url:string;body?:Record<string,unknown>}[]=[]
+globalThis.fetch=(async(url,options)=>{
+ const body=options?.body?JSON.parse(String(options.body)):undefined
+ requests.push({url:String(url),body})
+ return new Response(JSON.stringify(String(url).endsWith('/api/tags')?{models:[{name:'qwen3.5:9b',capabilities:['completion']},{name:'bge-m3',capabilities:['embedding']},{name:'remote-cloud',capabilities:['completion']}]}:{message:{content:JSON.stringify(base)}}),{status:200})
+}) as typeof fetch
+try{
+ assert.deepEqual(await localModels(undefined,'http://127.0.0.1:43210'),['qwen3.5:9b'])
+ await localChat({model:'qwen3.5:9b',messages:[{role:'user',content:'test'}],format:intentSchema},signal,'http://127.0.0.1:43210')
+ assert.ok(requests.every(r=>r.url.startsWith('http://127.0.0.1:43210/')))
+ assert.deepEqual(requests.at(-1)?.body?.options,{temperature:0,num_ctx:4096,num_predict:700})
+ await assert.rejects(()=>localChat({model:'bge-m3',messages:[],format:intentSchema},signal,'http://127.0.0.1:43210'))
+}finally{globalThis.fetch=previousFetch}
+const streamText=[{message:{content:'안녕'},done:false},{message:{content:'하세요'},done:false},{done:true}].map(x=>JSON.stringify(x)).join('\n')
+const bytes=new TextEncoder().encode(streamText),deltas:string[]=[]
+const streamed=await readChatStream(new Response(new ReadableStream({start(controller){for(let i=0;i<bytes.length;i+=2)controller.enqueue(bytes.slice(i,i+2));controller.close()}})),d=>deltas.push(d))
+assert.equal(streamed,'안녕하세요')
+assert.deepEqual(deltas,['안녕','하세요'])
+await assert.rejects(()=>readChatStream(new Response('{"message":{"content":"partial"}}\n'),()=>{}),/끊겼/)
+await assert.rejects(()=>readChatStream(new Response('{"error":"offline"}\n'),()=>{}),/offline/)
+assert.equal(replyPreview('{"action":"reply","message":"안녕'), '안녕')
+assert.equal(replyPreview('{"action":"create","message":"저장했어요'), '')
+assert.equal(replyPreview('{"action":"reply","message":"첫줄\\n다음'), '첫줄\n다음')
+const usageFixture=(label:string,org:string,used:unknown)=>({provider:'codex',account:label,source:'oauth',token:'must-not-leak',usage:{identity:{accountEmail:'same@example.test',accountOrganization:org},updatedAt:new Date().toISOString(),primary:{usedPercent:used,resetsAt:new Date(Date.now()+600000).toISOString(),windowMinutes:300},secondary:null},rateWindowLabels:{primary:'Session'}})
+const quotaRows=normalizeUsage('codex',[usageFixture('profile-a','workspace-a',25),usageFixture('profile-b','workspace-b',null)])
+assert.notEqual(quotaRows[0].id,quotaRows[1].id)
+assert.equal(quotaRows[0].windows[0].remainingPercent,75)
+assert.equal(quotaRows[1].windows[0].remainingPercent,null)
+assert.equal(quotaRows[0].windows.length,1)
+assert.equal(JSON.stringify(quotaRows).includes('must-not-leak'),false)
+assert.equal(normalizeUsage('codex',[usageFixture('zero','org',0)])[0].windows[0].remainingPercent,100)
+assert.equal(normalizeUsage('codex',[usageFixture('bad','org',150)])[0].windows[0].remainingPercent,null)
+assert.throws(()=>normalizeUsage('claude',[usageFixture('wrong','org',1)]),/mismatch/)
+assert.throws(()=>normalizeUsage('codex',[usageFixture('duplicate','org',1),usageFixture('duplicate','org',1)]),/Ambiguous/)
+assert.equal(quotaIsStale({...quotaRows[0],observedAt:'2020-01-01T00:00:00Z'}),true)
+assert.equal(quotaIsStale({...quotaRows[0],windows:[{...quotaRows[0].windows[0],resetsAt:'2020-01-01T00:00:00Z'}]}),true)
+let quotaCalls=0
+const quotaService=createUsageService({binary:async()=>'/test/codexbar',command:async()=>{quotaCalls++;await Promise.resolve();return JSON.stringify([usageFixture('profile-a','workspace-a',25)])}})
+await Promise.all([quotaService.read('codex'),quotaService.read('codex')])
+assert.equal(quotaCalls,1)
+await quotaService.read('codex',true)
+assert.equal(quotaCalls,1)
+await assert.rejects(()=>quotaService.read('not-a-provider'))
+const missingQuota=createUsageService({binary:async()=>{throw new Error('not-installed')},command:async()=>''})
+assert.equal((await missingQuota.read('codex')).installed,false)
+const partialQuota=createUsageService({binary:async()=>'/test/codexbar',command:async()=>JSON.stringify([usageFixture('ok','org',10),{provider:'codex',account:'expired',error:{message:'auth expired'}}])})
+const partialResult=await partialQuota.read('codex')
+assert.equal(partialResult.accounts[0].status,'fresh')
+assert.equal(partialResult.accounts[1].status,'auth_required')
+assert.equal(partialResult.accounts[1].windows.length,0)
 db.close()
 console.log('desktop data and filter assertions passed')
+
+// Login orchestration: no real credentials or browser launches in unit tests.
+const {createUsageLogin,profileEnvironment,loginUrl}=await import('../src/main/usageLogin')
+const {mkdtemp,rm,readdir,readFile}=await import('node:fs/promises')
+const {tmpdir}=await import('node:os')
+const {join}=await import('node:path')
+const {EventEmitter}=await import('node:events')
+const {PassThrough}=await import('node:stream')
+const loginRoot=await mkdtemp(join(tmpdir(),'sprout-login-test-'))
+const children:any[]=[]
+const loginService=createUsageLogin({root:loginRoot,executable:async()=>'/fake/codex',launch:(_path,args,env,cwd)=>{
+ assert.equal(env.CODEX_HOME??env.CLAUDE_CONFIG_DIR??env.GROK_HOME,cwd)
+ assert.equal(env.OPENAI_API_KEY,undefined)
+ assert.equal(env.ANTHROPIC_AUTH_TOKEN,undefined)
+ assert.ok(args.includes('login'))
+ const process=new EventEmitter() as any;process.stdin=new PassThrough();process.stdout=new PassThrough();process.stderr=new PassThrough();process.exitCode=null;process.kill=()=>{process.exitCode=143;return true};children.push(process);return process
+}})
+try{
+ assert.notEqual(profileEnvironment('codex','/isolated').CODEX_HOME,process.env.CODEX_HOME)
+ assert.equal(loginUrl('codex','https://evil.example/auth https://auth.openai.com/oauth/authorize?state=test'),'https://auth.openai.com/oauth/authorize?state=test')
+ assert.equal(loginUrl('codex','https://auth.openai.com.evil.example/'),undefined)
+ assert.equal(loginUrl('claude','https://auth.openai.com/oauth/authorize'),undefined)
+ assert.equal(loginUrl('claude','https://claude.com/oauth/authorize?state=test'),'https://claude.com/oauth/authorize?state=test')
+ await assert.rejects(()=>loginService.start('../codex'),/지원/)
+ await assert.rejects(()=>loginService.start('gemini'),/지원/)
+ const cancelled=await loginService.start('codex')
+ await assert.rejects(()=>loginService.start('grok'),/진행/)
+ assert.throws(()=>loginService.status('other'),/찾지/)
+ children[0].stdout.write('https://auth.openai.com/oauth/authorize?state=test\nsecret-not-forwarded')
+ assert.equal(loginService.status(cancelled.id).url,'https://auth.openai.com/oauth/authorize?state=test')
+ assert.ok(!JSON.stringify(loginService.status(cancelled.id)).includes('secret-not-forwarded'))
+ loginService.cancel(cancelled.id);children[0].emit('close',0)
+ assert.equal(loginService.status(cancelled.id).status,'cancelled')
+ assert.ok(!(await readdir(join(loginRoot,cancelled.id))).includes('connected.json'))
+ const connected=await loginService.start('claude');children[1].stdout.write('https://claude.com/cai/oauth/authorize?redirect_uri=https%3A%2F%2Fplatform.claude.com%2Foauth%2Fcode%2Fcallback');assert.equal(loginService.status(connected.id).requiresCode,true);assert.throws(()=>loginService.submitCode(connected.id,'bad\ncode'),/인증/);loginService.submitCode(connected.id,'test-code#test-state');assert.equal(children[1].stdin.read().toString(),'test-code#test-state\n');assert.equal(loginService.status(connected.id).requiresCode,false);children[1].exitCode=0;children[1].emit('close',0)
+ for(let i=0;i<100&&loginService.status(connected.id).status==='waiting';i++)await new Promise(r=>setTimeout(r,5))
+ assert.equal(loginService.status(connected.id).status,'connected')
+ assert.deepEqual(JSON.parse(await readFile(join(loginRoot,connected.id,'connected.json'),'utf8')),{provider:'claude',id:connected.id})
+ const failed=await loginService.start('grok');children[2].emit('close',1)
+ assert.equal(loginService.status(failed.id).status,'error')
+ assert.ok(!(await readdir(join(loginRoot,failed.id))).includes('connected.json'))
+}finally{loginService.close();await rm(loginRoot,{recursive:true,force:true})}
+console.log('Usage login isolation, cancellation, completion and URL validation passed')

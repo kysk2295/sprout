@@ -1,0 +1,71 @@
+export interface ChatInput {model:string;messages:{role:'system'|'user'|'assistant';content:string}[];format?:Record<string,unknown>}
+export interface Intent {action:'create'|'query'|'stats'|'reply';message:string;title:string;listId:string;start:string;due:string;from:string;to:string;keyword:string;status:'all'|'open'|'completed';repeat:string}
+const fields=['message','title','listId','start','due','from','to','keyword','repeat'] as const
+export const intentSchema={type:'object',properties:{action:{type:'string',enum:['create','query','stats','reply']},status:{type:'string',enum:['all','open','completed']},...Object.fromEntries(fields.map(key=>[key,{type:'string'}]))},required:['action','status',...fields],additionalProperties:false}
+Object.assign(intentSchema.properties, {
+ start:{type:'string',description:'Event start; empty for deadline-only task',pattern:'^(|[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2})?)$'},
+ due:{type:'string',description:'Event END time, or task deadline. For one-hour meeting at 15:00 this is 16:00.',pattern:'^(|[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2})?)$'},
+ from:{type:'string',description:'Query beginning date only, empty for create',pattern:'^(|[0-9]{4}-[0-9]{2}-[0-9]{2})$'},
+ to:{type:'string',description:'Query ending date inclusive, empty for create',pattern:'^(|[0-9]{4}-[0-9]{2}-[0-9]{2})$'}
+})
+export function validDate(value:string,dayOnly=false){
+ if(!(dayOnly?/^\d{4}-\d{2}-\d{2}$/:/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/).test(value))return false
+ const date=new Date(value.includes('T')?`${value}:00Z`:`${value}T00:00:00Z`)
+ return !Number.isNaN(date.getTime())&&date.toISOString().slice(0,value.length)===value
+}
+export function parseIntent(value:string):Intent{
+ const cleaned=value.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/, '$1')
+ let data:Intent
+ try{data=JSON.parse(cleaned)}catch{throw new Error('AI 응답 형식을 확인할 수 없어요. 다시 말씀해 주세요.')}
+ if(!data||!['create','query','stats','reply'].includes(data.action)||!['all','open','completed'].includes(data.status)||fields.some(key=>typeof data[key]!=='string'||data[key].length>4000))throw new Error('AI 응답 형식을 확인할 수 없어요. 다시 말씀해 주세요.')
+ for(const key of (data.action==='create'?['start','due'] as const:['from','to'] as const))if(data[key]&&!validDate(data[key],key==='from'||key==='to'))throw new Error('AI가 해석한 날짜가 올바르지 않아요. 날짜를 다시 알려 주세요.')
+ if(data.action==='create'&&data.start&&(!data.due||data.start.length!==data.due.length||data.start>=data.due))throw new Error('종료 시각은 시작 시각 이후여야 해요.')
+ if(data.from&&data.to&&data.from>data.to)throw new Error('조회 기간이 올바르지 않아요.')
+ if(data.action==='create'&&data.repeat&&!/^FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;INTERVAL=[1-9]\d?)?(;BYDAY=(MO|TU|WE|TH|FR|SA|SU)(,(MO|TU|WE|TH|FR|SA|SU))*)?$/.test(data.repeat))throw new Error('반복 조건을 해석하지 못했어요. 매일 또는 매주 요일로 다시 알려 주세요.')
+ if(data.action==='create'&&data.repeat&&!data.due)throw new Error('반복 시작 날짜를 알려 주세요.')
+ return data
+}
+export async function localModels(signal?:AbortSignal,base='/api/assistant'):Promise<string[]>{
+ const res=await fetch(`${base}/api/tags`,{signal:signal??AbortSignal.timeout(20000)})
+ if(!res.ok)throw new Error('Ollama 모델 목록을 가져오지 못했어요.')
+ const json=await res.json()
+ return (json.models??[]).filter((m:{name:string;remote_host?:string;capabilities?:string[];details?:{family?:string}})=>typeof m.name==='string'&&!m.remote_host&&!/cloud/i.test(m.name)&&(!m.capabilities||m.capabilities.includes('completion'))&&!/bert/i.test(m.details?.family??'')).map((m:{name:string})=>m.name)
+}
+export async function localChat(input:ChatInput,signal?:AbortSignal,base='/api/assistant',onDelta?:(text:string)=>void):Promise<string>{
+ if(!input||typeof input.model!=='string'||!Array.isArray(input.messages)||input.messages.length>30||input.messages.some(m=>!['system','user','assistant'].includes(m.role)||typeof m.content!=='string'||m.content.length>30000))throw new Error('요청이 너무 크거나 올바르지 않아요.')
+ if(!(await localModels(signal,base)).includes(input.model))throw new Error('설치된 로컬 모델을 선택해 주세요.')
+ const res=await fetch(`${base}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({...input,stream:!!onDelta,think:false,keep_alive:'5m',options:{temperature:0,num_ctx:4096,num_predict:700}})})
+ if(!res.ok){const error=await res.json().catch(()=>null);throw new Error(typeof error?.error==='string'?error.error:`맥미니 모델 요청 실패 (${res.status})`)}
+ if(onDelta)return readChatStream(res,onDelta,signal)
+ const json=await res.json()
+ if(typeof json.message?.content!=='string')throw new Error('모델 응답이 비어 있어요.')
+ return json.message.content
+}
+
+/** Decode NDJSON across arbitrary UTF-8/network boundaries. An unfinished stream is not a result. */
+export async function readChatStream(response:Response,onDelta:(text:string)=>void,signal?:AbortSignal){
+ const reader=response.body?.getReader()
+ if(!reader)throw new Error('응답 스트림이 비어 있어요.')
+ const decoder=new TextDecoder();let buffer='',result='',done=false
+ const line=(value:string)=>{
+  if(!value.trim())return
+  const item=JSON.parse(value)
+  if(item.error)throw new Error(String(item.error))
+  const delta=item.message?.content
+  if(typeof delta==='string'&&delta){result+=delta;onDelta(delta)}
+  if(item.done)done=true
+ }
+ try{
+  while(!done){signal?.throwIfAborted();const chunk=await reader.read();if(chunk.done){buffer+=decoder.decode();if(buffer.trim())line(buffer);break}buffer+=decoder.decode(chunk.value,{stream:true});let end:number;while((end=buffer.indexOf('\n'))>=0){line(buffer.slice(0,end));buffer=buffer.slice(end+1)}}
+  signal?.throwIfAborted()
+  if(!done)throw new Error('응답 연결이 끊겼어요. 다시 시도해 주세요.')
+  return result
+ }finally{await reader.cancel().catch(()=>{});reader.releaseLock()}
+}
+export type AssistantProgress={phase:'connecting'|'generating'|'validating'|'saving'|'querying';characters?:number;preview?:string}
+export function replyPreview(raw:string){
+ if(!/"action"\s*:\s*"reply"/.test(raw))return ''
+ const match=raw.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)/)
+ if(!match)return ''
+ try{return JSON.parse('"'+match[1]+'"') as string}catch{return ''}
+}

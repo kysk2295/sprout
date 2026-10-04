@@ -1,17 +1,22 @@
+import { BookOpen } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '../data/useQuery'
 import { convertNote, saveNote, type Note } from '../data/notes'
 import { listLabel, type ListRow } from '../data/types'
 import './notes.css'
 
-export function NotesView({lists,onOpen}:{lists:ListRow[];onOpen:(id:string)=>void}) {
+export function NotesView({lists,onOpen,section,onSection}:{lists:ListRow[];onOpen:(id:string)=>void;section:'notes'|'wiki';onSection:(section:'notes'|'wiki')=>void}) {
  const [draft,setDraft]=useState(''), [search,setSearch]=useState(''), [error,setError]=useState(''), [busy,setBusy]=useState(false)
  const [editing,setEditing]=useState<string>(), [edit,setEdit]=useState('')
  const [conversion,setConversion]=useState<{note:Note; scheduled:boolean}>()
  const notes=useQuery<Note>(`SELECT n.*, t.title AS task_title,t.deleted_at AS task_deleted FROM notes n LEFT JOIN tasks t ON t.id=n.task_id WHERE instr(lower(n.content),lower(?))>0 ORDER BY n.created_at DESC,n.id DESC`,[search])
  async function perform(action:()=>Promise<unknown>,done:()=>void) {if(busy)return;setBusy(true);setError('');try{await action();done()}catch(e){setError(e instanceof Error?e.message:'저장하지 못했어요. 다시 시도해 주세요.')}finally{setBusy(false)}}
  return <main className="notes">
-  <header><h1>메모함</h1><input aria-label="메모 검색" placeholder="메모 검색" value={search} onChange={e=>setSearch(e.target.value)}/></header>
+  <header><div><h1>메모함</h1><p className="notes__description">빠르게 남기고, 주제별로 정리하는 공간</p></div><input hidden={section!=='notes'} aria-label="메모 검색" placeholder="메모 검색" value={search} onChange={e=>setSearch(e.target.value)}/></header>
+  <div className="notes__tabs" role="tablist" aria-label="메모함 보기" onKeyDown={e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const next=e.key==='Home'?'notes':e.key==='End'?'wiki':section==='notes'?'wiki':'notes';onSection(next);e.currentTarget.querySelector<HTMLButtonElement>(`#notes-tab-${next}`)?.focus()}}>
+   {(['notes','wiki'] as const).map(tab=><button key={tab} role="tab" id={`notes-tab-${tab}`} aria-selected={section===tab} aria-controls={`notes-panel-${tab}`} tabIndex={section===tab?0:-1} onClick={()=>onSection(tab)}>{tab==='notes'?'메모':'주제 위키'}</button>)}
+  </div>
+  <div className="notes__panel" role="tabpanel" id="notes-panel-notes" aria-labelledby="notes-tab-notes" hidden={section!=='notes'}>
   {error&&<p role="alert">{error}</p>}
   <section className="notes__cards" aria-label="저장된 메모">
    {!notes?<p>메모를 불러오는 중…</p>:!notes.length?<p className="notes__empty">{search?'검색 결과가 없어요.':'생각나는 내용을 남겨 보세요. 필요할 때 할 일이나 일정으로 바꿀 수 있어요.'}</p>:notes.map(note=><article key={note.id}>
@@ -26,6 +31,10 @@ export function NotesView({lists,onOpen}:{lists:ListRow[];onOpen:(id:string)=>vo
    <textarea aria-label="새 메모" placeholder="생각나는 내용을 적어 보세요…" value={draft} onChange={e=>setDraft(e.target.value)} disabled={busy} onKeyDown={e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'&&!e.nativeEvent.isComposing){e.preventDefault();if(draft.trim())void perform(()=>saveNote(draft),()=>setDraft(''))}}}/>
    <div><small>⌘ / Ctrl + Enter로 저장</small><button disabled={busy||!draft.trim()} type="submit">{busy?'저장 중…':'메모 저장'}</button></div>
   </form>
+  </div>
+  <section className="notes__wiki" role="tabpanel" id="notes-panel-wiki" aria-labelledby="notes-tab-wiki" hidden={section!=='wiki'}>
+   <BookOpen size={32}/><h2>메모가 쌓이면, 주제별로 정리해요</h2><p>흩어진 메모를 모아 요약하고 원본과 연결하는 공간이에요.</p><span className="notes__wiki-status">위키 생성 기능 준비 중</span><ul><li>필요할 때 AI로 주제별 정리</li><li>요약에서 원본 메모와 연결된 할 일 열기</li><li>직접 수정한 내용은 보존</li></ul><button onClick={()=>onSection('notes')}>메모로 돌아가기</button>
+  </section>
   {conversion&&<Conversion key={conversion.note.id} note={conversion.note} scheduled={conversion.scheduled} lists={lists} onClose={()=>setConversion(undefined)}/>}
  </main>
 }

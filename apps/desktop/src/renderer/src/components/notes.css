@@ -9,3 +9,10 @@
 .notes footer {display:flex;gap:8px;flex-wrap:wrap;}.notes textarea {width:100%;box-sizing:border-box;resize:vertical;min-height:90px;}.notes__composer {padding:16px 32px 24px;border-top:1px solid var(--color-border-divider);}.notes__composer>div {display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
 .notes__backdrop {position:fixed;inset:0;background:#0005;z-index:500;display:grid;place-items:center;}.notes__dialog {background:var(--color-bg-app,#fff);width:min(420px,calc(100vw - 64px));padding:24px;border-radius:12px;max-height:85vh;overflow:auto;box-shadow:0 10px 40px #0003;}.notes__dialog label {display:flex;flex-direction:column;gap:6px;margin:12px 0;}.notes__dialog p {font-size:13px;}.notes [role=alert]{color:#d14343;padding:0 16px;}
 @media(max-width:650px){.notes header{flex-wrap:wrap;padding:16px;}.notes__cards,.notes__composer{padding:16px;}}
+.notes__description{margin:8px 0 0;font-size:13px;color:var(--color-text-secondary)}
+.notes__tabs{display:flex;gap:20px;padding:0 32px;border-bottom:1px solid var(--color-border-divider)}
+.notes__tabs [role=tab]{border:0;border-radius:0;border-bottom:2px solid transparent;padding:14px 2px;color:var(--color-text-secondary)}
+.notes__tabs [aria-selected=true]{border-bottom-color:var(--color-accent);color:var(--color-accent)}
+.notes__panel{flex:1;min-height:0;display:flex;flex-direction:column}.notes [hidden]{display:none!important}
+.notes__wiki{flex:1;overflow:auto;padding:40px 32px}.notes__wiki>svg{color:var(--color-accent)}.notes__wiki p,.notes__wiki li{font-size:14px;line-height:1.8;color:var(--color-text-secondary)}.notes__wiki-status{display:inline-block;margin:12px 0;font-size:12px;color:var(--color-text-tertiary)}.notes__wiki ul{padding-left:20px;margin-bottom:24px}
+@media(max-width:650px){.notes__tabs{padding:0 16px}.notes__wiki{padding:24px 16px}}

@@ -7,6 +7,8 @@ declare global {
 declare global {
   interface Window {
     sprout?: {
+      usage?: import('../../preload').SproutUsageApi
+    assistant?: import('../../preload').SproutAssistantApi
       platform: NodeJS.Platform
       db: DbApi
       desktop?: import('../../preload').SproutDesktopApi

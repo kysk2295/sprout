@@ -29,3 +29,7 @@ docs/verification/**/ticktick-*.png
 
 # 서버 백업 덤프(사용자 데이터)
 server/backups/
+
+# 실제 계정 이메일이 보이는 검증 캡처(로컬에만 보관)
+docs/verification/usage/dashboard.png
+docs/verification/usage/login-waiting.png

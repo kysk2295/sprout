@@ -1,3 +1,6 @@
+import { createUsageLogin, readUsageProfiles } from './usageLogin'
+import { createUsageService } from './usageService'
+import { registerAssistant } from './assistant'
 import { app, BrowserWindow, shell, ipcMain, globalShortcut } from 'electron'
 import { join } from 'node:path'
 import { db } from './db'
@@ -64,6 +67,15 @@ app.whenReady().then(async () => {
   // 로그인한 기기는 서버 데이터를 내려받으므로 시드를 넣지 않는다(기본함이 두 개 생기지 않게)
   if (!isSignedIn()) await ensureSeed(!app.isPackaged || process.env.SPROUT_SEED === '1')
   registerDbIpc()
+  registerAssistant()
+  const usage=createUsageService(undefined,readUsageProfiles)
+  const usageLogin=createUsageLogin()
+  app.once('before-quit',()=>usageLogin.close())
+  ipcMain.handle('usage:read',(_event,provider,force)=>usage.read(provider,force===true))
+  ipcMain.handle('usage:login:start',(_event,provider)=>usageLogin.start(provider))
+  ipcMain.handle('usage:login:status',(_event,id)=>{const state=usageLogin.status(id);if(state.status==='connected')usage.invalidate(state.provider);return state})
+  ipcMain.handle('usage:login:code',(_event,id,code)=>usageLogin.submitCode(id,code))
+  ipcMain.handle('usage:login:cancel',(_event,id)=>usageLogin.cancel(id))
   ipcMain.on('desktop:settings', openSettings)
   createWindow()
   startReminders(getWindow)

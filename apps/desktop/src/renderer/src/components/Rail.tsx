@@ -1,4 +1,4 @@
-import { Bell, CalendarDays, CircleCheckBig, CircleHelp, RefreshCw, Search, Sprout, NotebookPen, Bot, Network, BookOpen, Gauge } from 'lucide-react'
+import { Bell, CalendarDays, CircleCheckBig, CircleHelp, RefreshCw, Search, Sprout, NotebookPen, Bot, Network, Gauge } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { authApi, type AuthState } from '../data/auth'
 
@@ -19,9 +19,8 @@ export function Rail({ view, onView, onSearch, onSettings, onHelp, sync, email }
       <RailButton label="캘린더" active={view === 'calendar'} onClick={() => onView('calendar')} icon={<CalendarDays />} />
       <RailButton label="성장" active={view === 'growth'} onClick={() => onView('growth')} icon={<Sprout />} />
       <RailButton label="AI 비서" active={view === 'assistant'} onClick={() => onView('assistant')} icon={<Bot />} />
-      <RailButton label="메모함" active={view === 'notes'} onClick={() => onView('notes')} icon={<NotebookPen />} />
+      <RailButton label="메모함" active={view === 'notes' || view === 'wiki'} onClick={() => onView('notes')} icon={<NotebookPen />} />
       <RailButton label="작업 지도" active={view === 'map'} onClick={() => onView('map')} icon={<Network />} />
-      <RailButton label="주제 위키" active={view === 'wiki'} onClick={() => onView('wiki')} icon={<BookOpen />} />
       <RailButton label="AI 사용량" active={view === 'usage'} onClick={() => onView('usage')} icon={<Gauge />} />
       <RailButton label="검색" onClick={onSearch} icon={<Search />} />
       <div className="rail__spacer" />

@@ -1,3 +1,4 @@
+import { useAssistant } from './components/AssistantBody'
 import { WorkspaceView, AssistantLauncher } from './components/WorkspaceViews'
 import { NotesView } from './components/NotesView'
 import { GrowthView } from './components/growth/GrowthView'
@@ -42,7 +43,7 @@ export function App() {
   if (auth.enabled && !auth.state?.user) return <ThemedLogin />
   return (
     <ToastProvider>
-      <Shell sync={auth.state?.sync} email={auth.state?.user?.email} />
+      <Shell key={auth.state?.user?.email ?? 'preview'} sync={auth.state?.sync} email={auth.state?.user?.email} />
     </ToastProvider>
   )
 }
@@ -64,7 +65,8 @@ function ThemedMini({ signedIn }: { signedIn: boolean }) {
 }
 
 function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
-  const [assistantDraft,setAssistantDraft] = useLocalState('sprout.assistant.draft','')
+  const assistant = useAssistant(email ?? 'preview')
+  const [assistantDraft,setAssistantDraft] = useLocalState(`sprout.assistant.draft.${email ?? 'preview'}`,'')
   const [view, setView] = useLocalState<RailView>('sprout.view', 'tasks')
   const [selected, setSelected] = useLocalState('sprout.selected', 'smart:today')
   const [selection, setSelection] = useState<string[]>([])
@@ -192,14 +194,14 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
       <div className="app">
         {survey && <SurveyDialog onClose={() => { setSurvey(false); try { localStorage.setItem('sprout.survey.prompted', '1') } catch { /* */ } }} />}
         <LevelUpWatcher />
-        <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft}/>
+        <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/>
         <ReminderCards onOpen={(id) => setSelection([id])} onComplete={(id) => void actions.complete([id])} />
         <Rail view={view} onView={setView} sync={sync} email={email} onSearch={()=>{setSearchQuery('');setOverlay('search')}} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} />
         {overlay==='command' && <CommandMenu commands={commands} onClose={()=>setOverlay(undefined)} onSearch={(q)=>{setSearchQuery(q);setOverlay('search')}}/>}
         {overlay==='search' && <SearchDialog initial={searchQuery} onClose={()=>setOverlay(undefined)} onPick={(r)=>{setView('tasks');if(r.kind==='task'){setSelected(r.list_id?`list:${r.list_id}`:'smart:all');setSelection([r.id])}else selectView(`${r.kind}:${r.id}`)}}/>}
         {overlay==='quick' && <QuickAdd lists={lists} tags={tags} inboxId={inboxId} onClose={()=>setOverlay(undefined)} onCreated={(id,listId)=>{setView('tasks');setSelected(`list:${listId}`);setSelection([id])}}/>}
         {(overlay==='settings'||overlay==='shortcuts') && <DesktopSettings initial={overlay==='shortcuts'?'shortcuts':'smart'} onClose={()=>setOverlay(undefined)}/> }
-        {view === 'growth' ? <GrowthView onSurvey={() => setSurvey(true)} /> : ['assistant','map','wiki','usage'].includes(view) ? <WorkspaceView view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft}/> : view === 'notes' ? <NotesView lists={lists} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : view === 'calendar' ? (
+        {view === 'growth' ? <GrowthView onSurvey={() => setSurvey(true)} /> : ['assistant','map','usage'].includes(view) ? <WorkspaceView view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : (view === 'notes' || view === 'wiki') ? <NotesView section={view} onSection={setView} lists={lists} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : view === 'calendar' ? (
           <CalendarView lists={lists} tags={tags} inboxId={inboxId} actions={actions} />
         ) : (
           <>
