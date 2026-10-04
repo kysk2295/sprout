@@ -1,0 +1,104 @@
+// 할 일 행(21 §2·§3): 체크박스 18 · 제목 16 · 오른쪽 날짜 12(강조색 / 만료 빨강) + 아이콘(⟲ 반복 · 🔔 알림 · ≡ 설명)
+// 스마트 목록이면 제목 아래 메타 줄(리스트 색 점 + 이름 · 체크리스트 진행 1/3). 행 46, 메타 줄 있으면 62. 행 사이 선 없음.
+import { AlignLeft, Bell, ChevronDown, ChevronRight, ListChecks, Repeat } from 'lucide-react-native'
+import { memo } from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { rowDateLabel } from '../lib/dates'
+import type { TaskRow as Task } from '../data/views'
+import { FONT, M } from '../theme/palette'
+import { usePalette } from '../theme/ThemeProvider'
+import { Checkbox } from './Checkbox'
+
+export type RowProps = {
+  task: Task
+  today: string
+  depth?: number
+  showList?: boolean
+  showDetails?: boolean
+  hideTodayLabel?: boolean
+  childCount?: number
+  expanded?: boolean
+  flash?: boolean
+  onToggleExpand?: () => void
+  onCheck?: () => void
+  onPress?: () => void
+  onLongPress?: () => void
+  pressed?: boolean
+}
+
+export const TaskRowView = memo(function TaskRowView(props: RowProps) {
+  const p = usePalette()
+  const t = props.task
+  const done = t.status !== 0
+  const date = done ? null : rowDateLabel(t, props.today, { hideToday: props.hideTodayLabel })
+  const listDot = t.list_color ?? (t.list_kind === 'inbox' ? p.slInbox : p.textQuaternary)
+  const listName = t.list_kind === 'inbox' ? '기본함' : t.list_name
+  const progress = t.check_total > 0 ? `${t.check_done}/${t.check_total}` : null
+  const meta = !done && ((props.showList && listName) || progress)
+  const details = props.showDetails && t.content_mode !== 'checklist' && t.content ? t.content.split('\n')[0] : null
+  const two = !!meta || !!details
+  return (
+    <Pressable
+      onPress={props.onPress}
+      onLongPress={props.onLongPress}
+      delayLongPress={350}
+      accessibilityLabel={t.title || '제목 없음'}
+      style={({ pressed }) => [
+        s.row,
+        two && s.two,
+        { backgroundColor: props.flash ? p.accentSubtle : pressed || props.pressed ? p.bgSelected : p.cardBg, paddingLeft: 14 + (props.depth ?? 0) * 30 }
+      ]}
+    >
+      <View style={two ? { marginTop: -11 } : undefined}>
+        <Checkbox priority={t.priority} done={done} onPress={props.onCheck} label={`${t.title} 완료`} flash={props.flash} disabled={!!t.deleted_at} />
+      </View>
+      <View style={s.tx}>
+        <Text style={[FONT.body, { color: done ? p.textTertiary : p.textPrimary }]} numberOfLines={1}>{t.title || '제목 없음'}</Text>
+        {meta ? (
+          <View style={s.sub}>
+            {props.showList && listName ? (
+              <View style={s.subItem}>
+                <View style={[s.dot, { backgroundColor: listDot }]} />
+                <Text style={[FONT.meta, { color: p.textTertiary }]} numberOfLines={1}>{t.list_emoji ? `${t.list_emoji} ` : ''}{listName}</Text>
+              </View>
+            ) : null}
+            {progress ? (
+              <View style={s.subItem}>
+                <ListChecks size={12} color={p.textTertiary} />
+                <Text style={[FONT.meta, { color: p.textTertiary }]}>{progress}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        {details ? <Text style={[FONT.meta, { color: p.textTertiary }]} numberOfLines={1}>{details}</Text> : null}
+      </View>
+      <View style={s.right}>
+        {date ? <Text style={[FONT.meta, { color: date.tone === 'overdue' ? p.overdue : p.accent }]} numberOfLines={1}>{date.label}</Text> : null}
+        {!done && (t.repeat_rule || t.reminder_count > 0 || (t.content && t.content_mode !== 'checklist')) ? (
+          <View style={s.icons}>
+            {t.repeat_rule ? <Repeat size={12} color={p.textTertiary} /> : null}
+            {t.reminder_count > 0 ? <Bell size={12} color={p.textTertiary} /> : null}
+            {t.content && t.content_mode !== 'checklist' && !props.showDetails ? <AlignLeft size={12} color={p.textTertiary} /> : null}
+          </View>
+        ) : null}
+      </View>
+      {props.childCount ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={props.expanded ? '하위 할 일 접기' : '하위 할 일 펼치기'} hitSlop={10} onPress={props.onToggleExpand} style={s.chev}>
+          {props.expanded ? <ChevronDown size={14} color={p.textQuaternary} /> : <ChevronRight size={14} color={p.textQuaternary} />}
+        </Pressable>
+      ) : null}
+    </Pressable>
+  )
+})
+
+const s = StyleSheet.create({
+  row: { minHeight: M.rowH, flexDirection: 'row', alignItems: 'center', gap: 12, paddingRight: 14 },
+  two: { minHeight: M.rowH2, paddingTop: 10, paddingBottom: 9 },
+  tx: { flex: 1, minWidth: 0, gap: 3, justifyContent: 'center' },
+  sub: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  subItem: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  right: { alignItems: 'flex-end', gap: 2, flexShrink: 0, maxWidth: 140 },
+  icons: { flexDirection: 'row', gap: 3 },
+  chev: { width: 18, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', marginLeft: -6 }
+})

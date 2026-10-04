@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "sprout",
+    "slug": "sprout",
+    "scheme": "sprout",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "app.sprout.mobile",
+      "supportsTablet": true,
+      "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
+    },
+    "android": {
+      "package": "app.sprout.mobile",
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": { "typedRoutes": false },
+    "extra": {
+      "apiUrl": "https://macmini.tail425c97.ts.net",
+      "syncUrl": "https://macmini.tail425c97.ts.net:8443"
+    }
+  }
+}

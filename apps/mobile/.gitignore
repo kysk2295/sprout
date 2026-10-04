@@ -1,0 +1,11 @@
+# Expo 생성물 — 네이티브 폴더는 prebuild로 다시 만든다(20 §4.1)
+/ios
+/android
+.expo/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision

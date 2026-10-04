@@ -21,6 +21,11 @@
     "test:api": "npm test -w @sprout/api",
     "dist:mac": "npm run dist:mac -w @sprout/desktop",
     "dist:mac:release": "npm run dist:mac:release -w @sprout/desktop",
-    "widget:build": "npm run widget:build -w @sprout/desktop"
+    "widget:build": "npm run widget:build -w @sprout/desktop",
+    "mobile": "npm run start -w @sprout/mobile",
+    "mobile:ios": "npm run ios -w @sprout/mobile",
+    "mobile:android": "npm run android -w @sprout/mobile",
+    "typecheck:mobile": "npm run typecheck -w @sprout/mobile",
+    "test:mobile": "npm test -w @sprout/mobile"
   }
 }
