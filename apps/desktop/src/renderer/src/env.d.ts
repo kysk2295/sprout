@@ -9,6 +9,7 @@ declare global {
     sprout?: {
       usage?: import('../../preload').SproutUsageApi
     assistant?: import('../../preload').SproutAssistantApi
+    collect?: import('../../preload').SproutCollectApi
       platform: NodeJS.Platform
       db: DbApi
       desktop?: import('../../preload').SproutDesktopApi

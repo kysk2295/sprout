@@ -1,8 +1,8 @@
-import { Bell, CalendarDays, CircleCheckBig, CircleHelp, RefreshCw, Search, Sprout, NotebookPen, Bot, Network, Gauge } from 'lucide-react'
+import { Bell, CalendarDays, CircleCheckBig, CircleHelp, RefreshCw, Search, Sprout, NotebookPen, Bot, Network, Gauge, BookHeart } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { authApi, type AuthState } from '../data/auth'
 
-export type RailView = 'tasks' | 'calendar' | 'growth' | 'notes' | 'assistant' | 'map' | 'wiki' | 'usage'
+export type RailView = 'tasks' | 'calendar' | 'growth' | 'notes' | 'watch' | 'wiki' | 'diary' | 'assistant' | 'map' | 'usage'
 
 // 01-app-shell §3: 아바타 · 태스크 · 캘린더 · 성장 · 검색 / 동기화 · 알림 · 도움말
 export function Rail({ view, onView, onSearch, onSettings, onHelp, sync, email }: { view: RailView; onView: (v: RailView) => void; onSearch: () => void; onSettings: () => void; onHelp: () => void; sync?: AuthState['sync']; email?: string }) {
@@ -19,7 +19,8 @@ export function Rail({ view, onView, onSearch, onSettings, onHelp, sync, email }
       <RailButton label="캘린더" active={view === 'calendar'} onClick={() => onView('calendar')} icon={<CalendarDays />} />
       <RailButton label="성장" active={view === 'growth'} onClick={() => onView('growth')} icon={<Sprout />} />
       <RailButton label="AI 비서" active={view === 'assistant'} onClick={() => onView('assistant')} icon={<Bot />} />
-      <RailButton label="메모함" active={view === 'notes' || view === 'wiki'} onClick={() => onView('notes')} icon={<NotebookPen />} />
+      <RailButton label="수집함" active={view === 'notes' || view === 'watch' || view === 'wiki'} onClick={() => onView('notes')} icon={<NotebookPen />} />
+      <RailButton label="일기" active={view === 'diary'} onClick={() => onView('diary')} icon={<BookHeart />} />
       <RailButton label="작업 지도" active={view === 'map'} onClick={() => onView('map')} icon={<Network />} />
       <RailButton label="AI 사용량" active={view === 'usage'} onClick={() => onView('usage')} icon={<Gauge />} />
       <RailButton label="검색" onClick={onSearch} icon={<Search />} />

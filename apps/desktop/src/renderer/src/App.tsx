@@ -1,6 +1,10 @@
 import { useAssistant } from './components/AssistantBody'
 import { WorkspaceView, AssistantLauncher } from './components/WorkspaceViews'
 import { NotesView } from './components/NotesView'
+import { WorkMapView } from './components/map/WorkMapView'
+import { DiaryView } from './components/diary/DiaryView'
+import { useCollector } from './data/collector'
+import { useMapClassifier } from './data/mapClassifier'
 import { GrowthView } from './components/growth/GrowthView'
 import { SurveyDialog } from './components/growth/SurveyDialog'
 import { LevelUpWatcher } from './components/growth/GrowthBits'
@@ -90,6 +94,10 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   const [searchQuery, setSearchQuery] = useState('')
   useEffect(() => { const m = matchMedia('(prefers-color-scheme: dark)'); const change = () => setSystemDark(m.matches); m.addEventListener('change', change); return () => m.removeEventListener('change', change) }, [])
   const lists = useQuery<ListRow>('SELECT id, name, emoji, color, kind, sort_order FROM lists WHERE archived_at IS NULL ORDER BY sort_order') ?? []
+  const openTask = (id: string) => { setView('tasks'); setSelected('smart:all'); setSelection([id]) }
+  // 뒤에서 도는 정리: 수집함 AI 분류·링크 제목(11 v3-3), 새 할 일 영역 분류(14 §0.3)
+  useCollector(lists)
+  useMapClassifier()
   const tags = useQuery<TagRow>('SELECT id, name, color FROM tags ORDER BY sort_order') ?? []
   const folder = useQuery<{name:string}>('SELECT name FROM folders WHERE id = ?', [selected.startsWith('folder:') ? selected.slice(7) : ''])?.[0]
   const selectedFilter = useQuery<{name:string}>('SELECT name FROM filters WHERE id=?',[selected.startsWith('filter:')?selected.slice(7):''])?.[0]
@@ -201,7 +209,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
         {overlay==='search' && <SearchDialog initial={searchQuery} onClose={()=>setOverlay(undefined)} onPick={(r)=>{setView('tasks');if(r.kind==='task'){setSelected(r.list_id?`list:${r.list_id}`:'smart:all');setSelection([r.id])}else selectView(`${r.kind}:${r.id}`)}}/>}
         {overlay==='quick' && <QuickAdd lists={lists} tags={tags} inboxId={inboxId} onClose={()=>setOverlay(undefined)} onCreated={(id,listId)=>{setView('tasks');setSelected(`list:${listId}`);setSelection([id])}}/>}
         {(overlay==='settings'||overlay==='shortcuts') && <DesktopSettings initial={overlay==='shortcuts'?'shortcuts':'smart'} onClose={()=>setOverlay(undefined)}/> }
-        {view === 'growth' ? <GrowthView onSurvey={() => setSurvey(true)} /> : ['assistant','map','usage'].includes(view) ? <WorkspaceView view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : (view === 'notes' || view === 'wiki') ? <NotesView section={view} onSection={setView} lists={lists} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : view === 'calendar' ? (
+        {view === 'growth' ? <GrowthView onSurvey={() => setSurvey(true)} /> : view === 'map' ? <WorkMapView lists={lists} onOpen={openTask}/> : view === 'diary' ? <DiaryView onOpen={openTask}/> : ['assistant','usage'].includes(view) ? <WorkspaceView view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={openTask}/> : (view === 'notes' || view === 'watch' || view === 'wiki') ? <NotesView section={view} onSection={setView} lists={lists} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : view === 'calendar' ? (
           <CalendarView lists={lists} tags={tags} inboxId={inboxId} actions={actions} />
         ) : (
           <>

@@ -55,8 +55,10 @@ const usageApi={read:(provider:UsageProvider,force=false)=>ipcRenderer.invoke('u
 export type SproutUsageApi=typeof usageApi
 const assistantApi = { onDelta:(cb:(data:{id:string;text:string})=>void)=>on('assistant:delta',cb), models:()=>ipcRenderer.invoke('assistant:models') as Promise<string[]>, chat:(id:string,input:ChatInput)=>ipcRenderer.invoke('assistant:chat',id,input) as Promise<string>, cancel:(id:string)=>ipcRenderer.send('assistant:cancel',id) }
 export type SproutAssistantApi = typeof assistantApi
+const collectApi = { linkTitle: (url: string) => ipcRenderer.invoke('collect:link-title', url) as Promise<string> }
+export type SproutCollectApi = typeof collectApi
 const desktopApi = { openSettings: () => ipcRenderer.send('desktop:settings'), onQuickAdd: (cb: () => void) => on('desktop:quick-add', cb) }
-contextBridge.exposeInMainWorld('sprout', { platform: process.platform, assistant: assistantApi, usage: usageApi, db: dbApi, reminders: remindersApi, desktop: desktopApi, auth: authApi, mini: miniApi })
+contextBridge.exposeInMainWorld('sprout', { platform: process.platform, assistant: assistantApi, collect: collectApi, usage: usageApi, db: dbApi, reminders: remindersApi, desktop: desktopApi, auth: authApi, mini: miniApi })
 export type SproutMiniApi = typeof miniApi
 export type SproutAuthApi = typeof authApi
 export type SproutDesktopApi = typeof desktopApi

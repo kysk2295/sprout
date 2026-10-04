@@ -12,7 +12,7 @@ import { useToast } from './Toast'
 import './notes.css'
 
 // 11-notes v2: 틱틱 노트 리스트 모양 — 머리(제목 + 메모·주제 위키 전환) · 추가 바 · 작성일 그룹 · 문서 아이콘 행 · 오른쪽 상세(336)
-type Section = 'notes' | 'wiki'
+type Section = 'notes' | 'watch' | 'wiki'
 type Props = { lists: ListRow[]; onOpen: (id: string) => void; section: Section; onSection: (section: Section) => void }
 type GroupId = 'today' | 'yesterday' | 'week' | 'older'
 const GROUPS: [GroupId, string][] = [['today', '오늘'], ['yesterday', '어제'], ['week', '이번 주'], ['older', '이전']]

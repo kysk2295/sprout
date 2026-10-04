@@ -1,6 +1,7 @@
 import { createUsageLogin, readUsageProfiles } from './usageLogin'
 import { createUsageService } from './usageService'
 import { registerAssistant } from './assistant'
+import { registerCollect } from './collect'
 import { app, BrowserWindow, shell, ipcMain, globalShortcut } from 'electron'
 import { join } from 'node:path'
 import { db } from './db'
@@ -68,6 +69,7 @@ app.whenReady().then(async () => {
   if (!isSignedIn()) await ensureSeed(!app.isPackaged || process.env.SPROUT_SEED === '1')
   registerDbIpc()
   registerAssistant()
+  registerCollect()
   const usage=createUsageService(undefined,readUsageProfiles)
   const usageLogin=createUsageLogin()
   app.once('before-quit',()=>usageLogin.close())
