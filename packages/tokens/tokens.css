@@ -114,6 +114,7 @@
 
 [data-theme="dark"] {
   /* 00 v1.2 다크: 실제 틱틱 다크 테마 화면에서 픽셀을 뽑은 값(research 18) */
+  color-scheme: dark; /* 스크롤 막대·기본 입력 요소도 어둡게 */
   --color-bg-app: #1a1a1a;
   --color-bg-sidebar: #1a1a1a;
   --color-bg-rail: #212121;

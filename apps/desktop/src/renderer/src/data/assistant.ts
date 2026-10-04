@@ -2,8 +2,14 @@ import { intentSchema, localChat, parseIntent, replyPreview, type AssistantProgr
 import { getDb } from './db'
 import { insert, run, now } from './mutations'
 import type { ListRow, TaskRow } from './types'
-export type AssistantResult={text:string;tasks?:Pick<TaskRow,'id'|'title'|'start_at'|'due_at'>[];created?:{id:string;stamp:string}}
-export function completedSummary(rows:TaskRow[]){
+export type AssistantStats={count:number;hours:number;untimed:number;range:string}
+export type AssistantResult={text:string;tasks?:Pick<TaskRow,'id'|'title'|'start_at'|'due_at'>[];created?:{id:string;stamp:string};stats?:AssistantStats;total?:number}
+/** 13 v2 집계 카드용 숫자. 계산은 completedSummary와 같다 */
+export function completedStats(rows:TaskRow[]){return completedSummaryParts(rows)}
+export function completedSummary(rows:TaskRow[]){const {count,hours,untimed}=completedSummaryParts(rows)
+ return `완료한 항목 ${count}개 · 예정된 시간 ${hours}시간\n완료된 항목의 시작·종료 시간으로 계산했어요. 실제 측정 시간이 아니며, 시간이 없는 ${untimed}개는 시간 합계에서 제외했어요.`
+}
+function completedSummaryParts(rows:TaskRow[]){
  const timed=new Map(rows.filter(t=>!t.is_all_day&&t.start_at?.includes('T')&&t.due_at?.includes('T')&&Date.parse(t.due_at)>Date.parse(t.start_at)).map(t=>[t.id,t]))
  let minutes=0
  for(const task of timed.values()){
@@ -11,7 +17,7 @@ export function completedSummary(rows:TaskRow[]){
   while(parent&&!seen.has(parent)){seen.add(parent);if(timed.has(parent)){nested=true;break}parent=rows.find(r=>r.id===parent)?.parent_id??null}
   if(!nested)minutes+=(Date.parse(task.due_at!)-Date.parse(task.start_at!))/60000
  }
- return `완료한 항목 ${rows.length}개 · 예정된 시간 ${Math.round(minutes/60*10)/10}시간\n완료된 항목의 시작·종료 시간으로 계산했어요. 실제 측정 시간이 아니며, 시간이 없는 ${rows.length-timed.size}개는 시간 합계에서 제외했어요.`
+ return {count:rows.length,hours:Math.round(minutes/60*10)/10,untimed:rows.length-timed.size}
 }
 export async function executeIntent(intent:Intent,id:string,signal:AbortSignal):Promise<AssistantResult>{
  const db=await getDb();signal.throwIfAborted()
@@ -37,7 +43,7 @@ export async function executeIntent(intent:Intent,id:string,signal:AbortSignal):
  const rows=await db.getAll<TaskRow>(`SELECT t.* FROM tasks t LEFT JOIN lists l ON l.id=t.list_id WHERE ${clauses.join(' AND ')} ORDER BY t.due_at,t.title`,args)
  signal.throwIfAborted()
  const range=[intent.from,intent.to].filter(Boolean).join(' ~ ')
- return {text:`${range?range+'\n':''}${intent.action==='stats'?completedSummary(rows):`${rows.length}개의 항목을 찾았어요.`}${rows.length>100?'\n처음 100개를 표시해요.':''}`,tasks:rows.slice(0,100).map(({id,title,start_at,due_at})=>({id,title,start_at,due_at}))}
+ return {text:`${range?range+'\n':''}${intent.action==='stats'?completedSummary(rows):`${rows.length}개의 항목을 찾았어요.`}${rows.length>100?'\n처음 100개를 표시해요.':''}`,tasks:rows.slice(0,100).map(({id,title,start_at,due_at})=>({id,title,start_at,due_at})),total:rows.length,...(intent.action==='stats'?{stats:{...completedStats(rows),range}}:{})}
 }
 export async function undoAssistant(created:{id:string;stamp:string}){
  const db=await getDb();const t=await db.get<TaskRow>('SELECT * FROM tasks WHERE id=?',[created.id])
