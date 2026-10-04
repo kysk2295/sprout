@@ -29,7 +29,9 @@ import { GlassButton } from '../ui/Glass'
 import { GroupCard } from '../ui/GroupCard'
 import { LongPressMenu, type LongPressAction } from '../ui/LongPressMenu'
 import { PopMenu, useAnchor, type Rect } from '../ui/Menu'
-import { tabBarBottom, useToast } from '../ui/Toast'
+import { useToast } from '../ui/Toast'
+import { Fab } from '../ui/Fab'
+import { useTabBarSpace } from '../ui/tabBarSpace'
 import { TaskRowView } from '../ui/TaskRow'
 
 type Item = CalItem<TaskRow>
@@ -48,6 +50,7 @@ function useToday() {
 export default function CalendarScreen() {
   const p = usePalette()
   const insets = useSafeAreaInsets()
+  const space = useTabBarSpace()
   const router = useRouter()
   const toast = useToast()
   const today = useToday()
@@ -110,7 +113,7 @@ export default function CalendarScreen() {
 
   const title = monthTitle(view === 'month' ? `${cursor.slice(0, 7)}-01` : cursor, today)
   const shift = (n: number) => setCursor((c) => (view === 'month' ? (() => { const m = shiftCursor('month', c, n); return m.slice(0, 7) === today.slice(0, 7) ? today : m })() : shiftCursor(view, c, n)))
-  const bottomPad = tabBarBottom(insets.bottom) + M.tabH + M.fab + 40
+  const bottomPad = space.padFab
   const ViewIcon = VIEW_ICON[view]
   const timeline = view === 'day' || view === '3day'
 
@@ -152,14 +155,7 @@ export default function CalendarScreen() {
       ) : null}
       {view === 'list' ? <Agenda today={today} cursor={cursor} items={items} onCheck={check} onOpen={openDetail} onLong={setLp} onMore={() => shift(1)} onBack={cursor > today ? () => setCursor(today) : undefined} bottomPad={bottomPad} /> : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="할 일 추가"
-        onPress={() => addAt(timeline ? floatingAt(cursor, Math.min(23 * 60, (new Date().getHours() + 1) * 60)) : cursor)}
-        style={({ pressed }) => [s.fab, { backgroundColor: p.accent, bottom: tabBarBottom(insets.bottom) + M.tabH + 14, opacity: pressed ? 0.85 : 1, shadowOpacity: p.dark ? 0.5 : 0.22 }]}
-      >
-        <Plus size={28} color="#fff" strokeWidth={2.4} />
-      </Pressable>
+      <Fab onPress={() => addAt(timeline ? floatingAt(cursor, Math.min(23 * 60, (new Date().getHours() + 1) * 60)) : cursor)} />
 
       <PopMenu
         anchor={viewMenu.rect}
@@ -541,7 +537,6 @@ const s = StyleSheet.create({
   blockCheck: { width: 11, height: 11, borderRadius: 3, borderWidth: 1.5, marginTop: 2 },
   now: { position: 'absolute', left: -4, right: 0, flexDirection: 'row', alignItems: 'center' },
   nowDot: { width: 8, height: 8, borderRadius: 4 },
-  fab: { position: 'absolute', right: 18, width: M.fab, height: M.fab, borderRadius: M.fab / 2, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowRadius: 8, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
   more: { alignItems: 'center', paddingVertical: 14 },
   sheetHead: { height: 60, flexDirection: 'row', alignItems: 'center', paddingTop: 8 },
   card: { marginHorizontal: M.cardInset, borderRadius: M.radiusCard, overflow: 'hidden' },

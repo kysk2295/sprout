@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { xpGained } from '../data/events'
 import { M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
-import { tabBarBottom } from './Toast'
+import { tabBarBottom } from './tabBarSpace'
 
 type IconT = typeof Settings
 /** 캘린더 탭 아이콘: 둥근 사각 안 오늘 날짜 숫자(시안 .date-ic) — 선택이면 채움 */

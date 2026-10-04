@@ -7,7 +7,6 @@ import { useIsFocused, useRouter } from 'expo-router'
 import { MoreHorizontal } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
 import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { syncNow } from '../../src/data/auth'
 import { CharacterArt } from '../../src/growth/art/CharacterArt'
 import { EvolutionRoad, GoalsCard, ReportsCard, SummaryChips, XpCard } from '../../src/growth/Cards'
@@ -19,16 +18,15 @@ import { RenameModal } from '../../src/growth/RenameModal'
 import { GrowthRoom, ROOM_H } from '../../src/growth/Room'
 import { KEY, keysFor, preload, read, write } from '../../src/growth/store'
 import { dayKey } from '../../src/lib/dates'
-import { M } from '../../src/theme/palette'
 import { usePalette } from '../../src/theme/ThemeProvider'
 import { GlassButton } from '../../src/ui/Glass'
 import { BigTitle, NavRow } from '../../src/ui/Header'
 import { PopMenu, useAnchor } from '../../src/ui/Menu'
-import { tabBarBottom } from '../../src/ui/Toast'
+import { useTabBarSpace } from '../../src/ui/tabBarSpace'
 
 export default function Growth() {
   const p = usePalette()
-  const insets = useSafeAreaInsets()
+  const space = useTabBarSpace()
   const router = useRouter()
   const focused = useIsFocused()
   const status = useStatus()
@@ -103,7 +101,7 @@ export default function Growth() {
         scrollEventThrottle={32}
         onScroll={(e) => { const y = e.nativeEvent.contentOffset.y; if (y > 40 !== scrolled) setScrolled(y > 40) }}
         onScrollBeginDrag={() => setRoad(null)}
-        contentContainerStyle={{ paddingBottom: tabBarBottom(insets.bottom) + M.tabH + 22 + 16 }}
+        contentContainerStyle={{ paddingBottom: space.pad }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={p.textTertiary} />}
       >
         <View style={s.wrap}>

@@ -7,7 +7,6 @@ import { useRouter, useScrollToTop } from 'expo-router'
 import { Calendar, Check, Ellipsis, FolderInput, Menu, Pin, Plus, RotateCcw, Search, Trash2, Undo2 } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AssistantButton } from '../assistant/AssistantSheet'
 import { syncNow } from '../data/auth'
 import { useFolders, useLists, useSections } from '../data/lists'
@@ -31,7 +30,9 @@ import { BigTitle, NavRow } from '../ui/Header'
 import { LongPressMenu, type LongPressAction } from '../ui/LongPressMenu'
 import { PopMenu, useAnchor, type Rect } from '../ui/Menu'
 import { closeOpenRow, SwipeRow, type SwipeAction } from '../ui/SwipeRow'
-import { tabBarBottom, useToast } from '../ui/Toast'
+import { useToast } from '../ui/Toast'
+import { Fab } from '../ui/Fab'
+import { useTabBarSpace } from '../ui/tabBarSpace'
 import { TaskRowView } from '../ui/TaskRow'
 import { DrawerEdge } from '../ui/Drawer'
 import { afterMenu } from '../ui/Drawer'
@@ -49,7 +50,7 @@ function useToday() {
 
 export default function TaskListScreen() {
   const p = usePalette()
-  const insets = useSafeAreaInsets()
+  const space = useTabBarSpace()
   const router = useRouter()
   const toast = useToast()
   const today = useToday()
@@ -225,7 +226,7 @@ export default function TaskListScreen() {
     ]
   const openCount = open.data.length
   const doneCount = done.data.filter((t) => t.id).length
-  const bottomPad = tabBarBottom(insets.bottom) + M.tabH + M.fab + 40
+  const bottomPad = space.padFab
 
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
@@ -277,16 +278,7 @@ export default function TaskListScreen() {
         </View>
       </ScrollView>
       <DrawerEdge />
-      {!archive ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="할 일 추가"
-          onPress={() => router.push({ pathname: '/quick-add', params: { view: listView } })}
-          style={({ pressed }) => [s.fab, { backgroundColor: p.accent, bottom: tabBarBottom(insets.bottom) + M.tabH + 14, opacity: pressed ? 0.85 : 1, shadowOpacity: p.dark ? 0.5 : 0.22 }]}
-        >
-          <Plus size={28} color="#fff" strokeWidth={2.4} />
-        </Pressable>
-      ) : null}
+      {!archive ? <Fab onPress={() => router.push({ pathname: '/quick-add', params: { view: listView } })} /> : null}
 
       <View ref={postpone.ref} collapsable={false} style={{ position: 'absolute', right: 12, top: 0, width: 1, height: 1 }} />
       <PopMenu
@@ -378,7 +370,6 @@ function Skeleton() {
 }
 
 const s = StyleSheet.create({
-  fab: { position: 'absolute', right: 18, width: M.fab, height: M.fab, borderRadius: M.fab / 2, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowRadius: 8, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
   status: { fontSize: 13, lineHeight: 18, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   skel: { marginHorizontal: M.cardInset, borderRadius: M.radiusCard, paddingVertical: 8 },
   skelRow: { height: M.rowH, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14 },

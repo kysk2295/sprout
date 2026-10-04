@@ -6,7 +6,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft, History, Lock, Sparkles, X } from 'lucide-react-native'
 import { useEffect, useMemo, useState } from 'react'
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { FONT, M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { BottomSheet } from '../ui/BottomSheet'
@@ -21,6 +20,7 @@ import { restoreVersion } from './data'
 import { openItem } from './events'
 import { SiteMark } from './parts'
 import { markSeen, seenVersions } from './wikiSeen'
+import { useTabBarSpace } from '../ui/tabBarSpace'
 
 type Topic = WikiTopic & { count: number }
 type Version = { id: string; version: number; content: string; reason: string; created_at: string }
@@ -29,9 +29,9 @@ type Src = Pick<CollectItem, 'id' | 'source' | 'captured_at' | 'created_at'>
 export default function WikiPage() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const p = usePalette()
+  const space = useTabBarSpace()
   const router = useRouter()
   const toast = useToast()
-  const insets = useSafeAreaInsets()
   const topic = useQuery<Topic>('SELECT w.*, (SELECT COUNT(*) FROM notes n WHERE n.topic_id = w.id) AS count FROM wiki_topics w WHERE w.id = ?', [id ?? '']).data[0]
   const topics = useQuery<{ id: string; name: string }>('SELECT id, name FROM wiki_topics').data
   const versions = useQuery<Version>('SELECT id, version, content, reason, created_at FROM wiki_versions WHERE topic_id = ? ORDER BY version DESC', [id ?? '']).data
@@ -115,7 +115,7 @@ export default function WikiPage() {
         left={<GlassButton label="위키" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>}
         right={<GlassButton label="이력" onPress={() => setHistory(true)}><History size={19} color={p.textPrimary} /></GlassButton>}
       />
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + M.tabH + 60 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: space.pad }}>
         <View style={{ paddingHorizontal: M.gutter }}>
           <Text style={[s.h1, { color: p.textPrimary }]}>{topic.name}</Text>
           <Text style={[FONT.meta, { color: p.textTertiary, marginTop: 4, marginBottom: 10 }]}>자료 {topic.count} · 버전 {topic.version} · {changedAt(topic.modified_at).replace(' 고침', ' 정리')}</Text>

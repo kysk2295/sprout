@@ -6,7 +6,6 @@ import { progressFromEvents, SPECIES, STAGES, type Species } from '@sprout/schem
 import { useRouter, type Href } from 'expo-router'
 import { BookHeart, ChevronRight, Network, Search, Settings, Sparkles } from 'lucide-react-native'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CharacterArt } from '../../../src/growth/art/CharacterArt'
 import { dayKey } from '../../../src/lib/dates'
 import { FONT, M } from '../../../src/theme/palette'
@@ -14,11 +13,11 @@ import { usePalette } from '../../../src/theme/ThemeProvider'
 import { Cell, Cells } from '../../../src/ui/Cells'
 import { SproutPot } from '../../../src/ui/EmptyState'
 import { BigTitle, NavRow } from '../../../src/ui/Header'
-import { tabBarBottom } from '../../../src/ui/Toast'
+import { useTabBarSpace } from '../../../src/ui/tabBarSpace'
 
 export default function More() {
   const p = usePalette()
-  const insets = useSafeAreaInsets()
+  const space = useTabBarSpace()
   const router = useRouter()
   const events = useQuery<{ amount: number; created_at: string }>('SELECT amount, created_at FROM xp_events').data
   const ch = useQuery<{ name: string | null; species: Species | null }>('SELECT name, species FROM characters WHERE species IS NOT NULL LIMIT 1').data[0]
@@ -31,7 +30,7 @@ export default function More() {
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
       <NavRow />
       <BigTitle title="더보기" />
-      <ScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: tabBarBottom(insets.bottom) + M.tabH + 30 }}>
+      <ScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: space.pad }}>
         <Pressable accessibilityRole="button" accessibilityLabel="성장 보기" onPress={() => router.navigate('/growth')} style={({ pressed }) => [s.card, { backgroundColor: pressed ? p.bgSelected : p.cardBg }]}>
           {ch?.species ? <CharacterArt species={ch.species} stage={prog.stage} size={46} mood="happy" /> : <SproutPot size={46} />}
           <View style={{ flex: 1 }}>

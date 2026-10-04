@@ -17,7 +17,7 @@ import { GroupCard } from '../ui/GroupCard'
 import { BigTitle, NavRow } from '../ui/Header'
 import { PopMenu, useAnchor, type Rect } from '../ui/Menu'
 import { closeOpenRow, SwipeRow } from '../ui/SwipeRow'
-import { tabBarBottom, useToast } from '../ui/Toast'
+import { useToast } from '../ui/Toast'
 import {
   domainOf, groupItems, isBareLink, isKakao, ITEMS_SQL, KIND_NAME, KINDS, localDay, monthDayKo, ro, sentAt, shortDay, timeKo, titleOf, watchGroups,
   type CollectItem, type WikiTopic
@@ -27,6 +27,7 @@ import { openItem } from './events'
 import { ItemSheet } from './ItemSheet'
 import { ChipView, CollectEmpty, ItemRow, Segmented, SiteMark } from './parts'
 import { seedSeen, useSeen } from './wikiSeen'
+import { useTabBarSpace } from '../ui/tabBarSpace'
 
 type Section = 'notes' | 'watch' | 'wiki'
 type Topic = WikiTopic & { count: number }
@@ -39,6 +40,7 @@ function useToday() {
 
 export default function CollectScreen() {
   const p = usePalette()
+  const space = useTabBarSpace()
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const toast = useToast()
@@ -109,7 +111,7 @@ export default function CollectScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         onScrollBeginDrag={closeOpenRow}
-        contentContainerStyle={{ paddingBottom: tabBarBottom(insets.bottom) + M.tabH + 40 }}
+        contentContainerStyle={{ paddingBottom: space.pad }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />}
       >
         {search === null ? <BigTitle title="수집함" /> : null}

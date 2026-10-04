@@ -11,6 +11,7 @@ import { usePalette } from '../src/theme/ThemeProvider'
 import { DateSheet } from '../src/ui/DateSheet'
 import { addsReminder, chipLabel, EMPTY_SCHEDULE, type Schedule } from '../src/ui/dateSheetModel'
 import { useToast } from '../src/ui/Toast'
+import { SheetScrollGuard } from '../src/ui/SheetScrollGuard'
 
 export default function DateRoute() {
   const { ids: raw } = useLocalSearchParams<{ ids: string }>()
@@ -36,6 +37,7 @@ export default function DateRoute() {
   }
   return (
     <View style={{ flex: 1, backgroundColor: p.sheetBg }}>
+      <SheetScrollGuard />
       {initial ? <DateSheet initial={initial} onDone={(s) => void done(s)} onClose={() => router.back()} /> : null}
     </View>
   )

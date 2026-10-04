@@ -7,7 +7,6 @@ import { useRouter } from 'expo-router'
 import { CalendarDays, ChevronLeft, ChevronRight, Info, ListTree, Palette, RefreshCw } from 'lucide-react-native'
 import { useState } from 'react'
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { APP_VERSION } from '../../../src/config'
 import { logout, syncNow, useAuth } from '../../../src/data/auth'
 import { NotificationCell } from '../../../src/notifications/NotificationCell'
@@ -17,7 +16,8 @@ import { usePalette, useTheme } from '../../../src/theme/ThemeProvider'
 import { Cell, Cells } from '../../../src/ui/Cells'
 import { GlassButton } from '../../../src/ui/Glass'
 import { NavRow } from '../../../src/ui/Header'
-import { tabBarBottom, useToast } from '../../../src/ui/Toast'
+import { useToast } from '../../../src/ui/Toast'
+import { useTabBarSpace } from '../../../src/ui/tabBarSpace'
 
 function ago(d: Date | undefined): string {
   if (!d) return '아직 안 됨'
@@ -27,8 +27,8 @@ function ago(d: Date | undefined): string {
 
 export default function Settings() {
   const p = usePalette()
+  const space = useTabBarSpace()
   const { themeId } = useTheme()
-  const insets = useSafeAreaInsets()
   const router = useRouter()
   const toast = useToast()
   const { user } = useAuth()
@@ -50,7 +50,7 @@ export default function Settings() {
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
       <NavRow title="설정" left={<GlassButton label="뒤로" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/more'))}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>} right={<View style={{ width: 40 }} />} />
-      <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: tabBarBottom(insets.bottom) + M.tabH + 30 }}>
+      <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: space.pad }}>
         <Pressable accessibilityRole="button" accessibilityLabel="계정" onPress={() => router.push('/settings/account')} style={({ pressed }) => [s.prof, { backgroundColor: pressed ? p.bgSelected : p.cardBg }]}>
           <View style={s.av}><Text style={s.avText}>{name.slice(0, 1).toUpperCase()}</Text></View>
           <View style={{ flex: 1 }}>

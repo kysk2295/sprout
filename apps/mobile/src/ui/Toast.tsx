@@ -3,17 +3,16 @@ import { Check, CircleAlert } from 'lucide-react-native'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
+import { useFabShown } from './Fab'
+import { useTabBarSpace } from './tabBarSpace'
 
 type ToastOpts = { undo?: () => Promise<void> | void; error?: boolean; duration?: number; icon?: boolean; /** 되돌리기 대신 다른 이름의 버튼(예: "열기") */ action?: { label: string; onPress: () => void } }
 type Toast = ToastOpts & { id: number; message: string }
 const Ctx = createContext<{ show: (message: string, opts?: ToastOpts) => void }>({ show: () => {} })
 export const useToast = () => useContext(Ctx)
 
-/** 탭 알약의 바닥 위치(홈 표시줄 위 22 — 시안 키트 --m-tab-bottom, 안전 영역 34 기준) */
-export const tabBarBottom = (insetBottom: number) => Math.max(insetBottom - 12, 12)
+export { tabBarBottom } from './tabBarSpace'
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<Toast | null>(null)
@@ -37,8 +36,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 function ToastView({ toast, onClose }: { toast: Toast; onClose: () => void }) {
   const p = usePalette()
-  const insets = useSafeAreaInsets()
-  const bottom = tabBarBottom(insets.bottom) + M.tabH + 14
+  const space = useTabBarSpace()
+  // + 버튼이 떠 있으면 그 위, 아니면 탭 알약 바로 위(21 §2)
+  const bottom = useFabShown() ? space.toastBottom : space.fabBottom
   return (
     <Animated.View entering={FadeInDown.duration(160)} exiting={FadeOutDown.duration(160)} style={[s.toast, { bottom, backgroundColor: p.toastBg, borderColor: toast.error ? p.danger : 'transparent' }]} accessibilityLiveRegion="polite">
       {toast.error ? <CircleAlert size={16} color={p.danger} /> : toast.icon === false ? null : <Check size={16} color="#fff" />}

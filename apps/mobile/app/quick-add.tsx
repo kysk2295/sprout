@@ -49,6 +49,13 @@ export default function QuickAdd() {
   const more = useAnchor()
 
   useEffect(() => { draft.text = text; draft.desc = desc }, [text, desc])
+  // 키보드가 없을 때(하드웨어 키보드·키보드 내림) 도구 막대가 홈 표시줄·둥근 화면 모서리에 붙지 않게 아래 안전 영역만큼 띄운다
+  const [kb, setKb] = useState(false)
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKb(true))
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKb(false))
+    return () => { show.remove(); hide.remove() }
+  }, [])
   useEffect(() => {
     if (!flash) return
     const t = setTimeout(() => setFlash((f) => (f?.id === flash.id ? null : f)), 2000)
@@ -211,6 +218,7 @@ export default function QuickAdd() {
             ))}
           </ScrollView>
         ) : null}
+        {!dateOpen && !kb ? <View style={{ height: insets.bottom, backgroundColor: sugg.length ? p.bgInput : p.sheetBg }} /> : null}
       </KeyboardAvoidingView>
 
       {/* 날짜 시트: 키보드 대신 올라온다(22 §3.3). ✓/빠른 날짜 → 칩에 반영하고 키보드로 돌아온다 */}

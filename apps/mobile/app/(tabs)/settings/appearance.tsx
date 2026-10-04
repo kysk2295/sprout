@@ -5,21 +5,23 @@ import { Check, ChevronLeft } from 'lucide-react-native'
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
 import { savePrefs } from '../../../src/data/prefs'
 import { DARK_THEMES, encodeTheme, THEMES } from '../../../src/theme/themes'
-import { M, paletteOf } from '../../../src/theme/palette'
+import { paletteOf } from '../../../src/theme/palette'
 import { usePalette, useTheme } from '../../../src/theme/ThemeProvider'
 import { Cell, Cells } from '../../../src/ui/Cells'
 import { GlassButton } from '../../../src/ui/Glass'
 import { NavRow } from '../../../src/ui/Header'
+import { useTabBarSpace } from '../../../src/ui/tabBarSpace'
 
 export default function Appearance() {
   const p = usePalette()
+  const space = useTabBarSpace()
   const { themeId, darkThemeId, followDark } = useTheme()
   const router = useRouter()
   const pickMain = (id: string) => void savePrefs({ theme: encodeTheme(id, darkThemeId), follow_system_dark: followDark ? 1 : 0 })
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
       <NavRow title="외관" left={<GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>} />
-      <ScrollView contentContainerStyle={{ paddingBottom: 140 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: space.pad }}>
         <Cells>
           <Cell first label="시스템 다크 모드 따라가기" right={<Switch value={followDark} onValueChange={(on) => void savePrefs({ follow_system_dark: on ? 1 : 0, theme: encodeTheme(themeId, darkThemeId) })} trackColor={{ true: p.accent }} />} />
           {DARK_THEMES.map((t) => (
