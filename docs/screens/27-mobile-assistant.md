@@ -109,6 +109,7 @@
 - 오늘 머리 ✦: `import { AssistantButton } from 'src/assistant/AssistantSheet'` — 둥근 ✦ 버튼이 반 시트를 직접 띄운다(루트 등록 불필요).
 - 빠른 입력 ✦ `AI에게`: `router.push({ pathname: '/assistant', params: { draft: 쓴 글 } })` — 초안이 채워진 전체 화면.
 - 더보기 › AI 비서: `/assistant`(이미 연결됨).
+- 2026-10-05 붙임 완료: ① 할 일 탭 머리 ✦(🔍 왼쪽, `TaskListScreen`) ② 빠른 입력 `✦ AI에게`(22 §8). iOS 시뮬레이터에서 ✦ → 반 시트(`● 연결됨`) · 빠른 입력 글 → 전체 화면 입력창에 채워짐 · ‹ 뒤로 = 할 일 탭(빠른 입력은 닫혀 있음) 확인.
 
 ### 7.2 파일
 `apps/mobile/app/assistant/index.tsx` → `src/assistant/AssistantScreen.tsx`, `AssistantSheet.tsx`, `AssistantChat.tsx`(본문·결과 카드·입력창·상태 알약), `store.ts`(대화 상태 하나·기록 저장·연결 확인 1분 재시도), `data.ts`(서버·실행·되돌리기), `core.ts`(순수, 시험 `assistant.test.ts`).

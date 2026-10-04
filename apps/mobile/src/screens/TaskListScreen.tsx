@@ -8,6 +8,7 @@ import { Calendar, Check, Ellipsis, FolderInput, Menu, Pin, Plus, RotateCcw, Sea
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { AssistantButton } from '../assistant/AssistantSheet'
 import { syncNow } from '../data/auth'
 import { useFolders, useLists, useSections } from '../data/lists'
 import {
@@ -232,6 +233,8 @@ export default function TaskListScreen() {
         left={<GlassButton label="리스트 서랍" onPress={() => v.setDrawerOpen(true)}><Menu size={22} color={p.textPrimary} /></GlassButton>}
         right={
           <>
+            {/* 27 D3 · M-A1 ①: 할 일 머리 ✦(강조색) → AI 비서 반 시트. 🔍 · ⋯ 왼쪽 */}
+            <AssistantButton />
             <GlassButton label="검색" onPress={() => router.push('/search')}><Search size={20} color={p.textPrimary} /></GlassButton>
             <View ref={more.ref} collapsable={false}>
               <GlassButton label="더보기" badge={offline || !!syncError} onPress={more.open}><Ellipsis size={22} color={p.textPrimary} /></GlassButton>

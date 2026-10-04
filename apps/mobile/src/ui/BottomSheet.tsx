@@ -1,7 +1,7 @@
 // 아래 시트(시안 키트 .m-sheet — 위 모서리 22, 잡는 막대): 두 높이(중간 · 전체), 잡는 막대·머리를 끌어 오르내리고 아래로 끌면 닫힘.
 // 경로(formSheet)가 아닌 화면 안에서 띄우는 시트 — 수집 항목 상세(26 C4), AI 비서 빠른 진입(27 D3)이 쓴다.
 // 키보드가 올라오면 시트 바닥이 키보드 위로 올라간다. 모션 감소 설정이면 튕김 없이 바로.
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AccessibilityInfo, Keyboard, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated'
@@ -29,6 +29,8 @@ export function BottomSheet(props: {
 }) {
   const p = usePalette()
   const insets = useSafeAreaInsets()
+  const insetsBottom = useRef(insets.bottom)
+  insetsBottom.current = insets.bottom
   const { height: H } = useWindowDimensions()
   const fullH = H - insets.top - 10
   const midH = Math.min(fullH, H * (props.mid ?? 0.6))
@@ -40,7 +42,8 @@ export function BottomSheet(props: {
 
   useEffect(() => { void AccessibilityInfo.isReduceMotionEnabled().then(setReduce) }, [])
   useEffect(() => {
-    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', (e) => setKb(e.endCoordinates.height))
+    // Android(전체 화면 그리기)는 키보드 높이에 아래 제스처 막대가 빠져 있어 그만큼 더한다 — 안 더하면 입력창이 키보드에 반쯤 가린다
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', (e) => setKb(e.endCoordinates.height + (Platform.OS === 'android' ? insetsBottom.current : 0)))
     const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKb(0))
     return () => { show.remove(); hide.remove() }
   }, [])

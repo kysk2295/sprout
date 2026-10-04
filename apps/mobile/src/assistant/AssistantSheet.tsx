@@ -3,8 +3,9 @@
 // 쓰는 법(오늘 머리 담당): <AssistantButton /> 를 머리 오른쪽에 두면 된다. 버튼이 시트를 직접 띄운다(루트 경로 등록 불필요).
 import { useRouter } from 'expo-router'
 import { Maximize2, Sparkles, X } from 'lucide-react-native'
-import { useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { useEffect, useState } from 'react'
+import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { usePalette } from '../theme/ThemeProvider'
 import { BottomSheet } from '../ui/BottomSheet'
 import { GlassButton } from '../ui/Glass'
@@ -15,6 +16,14 @@ export function AssistantSheet({ visible, onClose }: { visible: boolean; onClose
   const p = usePalette()
   const router = useRouter()
   const a = useAssistant()
+  const insets = useSafeAreaInsets()
+  // 키보드가 없으면 입력창을 홈 표시줄(iOS)·제스처 막대(Android) 위로 올린다. 키보드가 있으면 시트가 키보드 위에 붙는다
+  const [kb, setKb] = useState(false)
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKb(true))
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKb(false))
+    return () => { show.remove(); hide.remove() }
+  }, [])
   const head = (
     <View style={s.head}>
       <Text style={[s.title, { color: p.textPrimary }]}>AI 비서</Text>
@@ -26,7 +35,7 @@ export function AssistantSheet({ visible, onClose }: { visible: boolean; onClose
   )
   return (
     <BottomSheet visible={visible} onClose={onClose} mid={0.62} head={head} label="AI 비서">
-      <View style={{ flex: 1, paddingBottom: 10 }}>
+      <View style={{ flex: 1, paddingBottom: kb ? 10 : Math.max(insets.bottom, 10) }}>
         <AssistantChat a={a} variant="sheet" autoFocus />
       </View>
     </BottomSheet>

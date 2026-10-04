@@ -5,7 +5,7 @@
 // - 보내면 입력 창은 비운 채 열려 있다(연속 입력). 닫으면 쓴 글은 초안으로 남는다(22 §4)
 import * as Haptics from 'expo-haptics'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { ArrowUp, Calendar, Ellipsis, Flag, Hash, Inbox, List as ListIcon } from 'lucide-react-native'
+import { ArrowUp, Calendar, Ellipsis, Flag, Hash, Inbox, List as ListIcon, Sparkles } from 'lucide-react-native'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
 import Animated, { FadeIn, FadeInDown, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated'
@@ -102,6 +102,15 @@ export default function QuickAdd() {
     setCursor(next.length)
     titleRef.current?.focus()
   }
+  // 27 M-A1 ② · §7.1: 쓴 글(제목 + 설명)을 AI 비서 전체 화면 입력창으로 넘긴다. 넘긴 글은 초안에서 지운다
+  const askAI = () => {
+    const t = [text.trim(), desc.trim()].filter(Boolean).join('\n')
+    Keyboard.dismiss()
+    setText(''); setDesc(''); setCursor(0); setIgnored([]); setManual(null); setPriority(null); setListId(null)
+    draft.text = ''; draft.desc = ''
+    router.back()
+    router.push(t ? { pathname: '/assistant', params: { draft: t } } : '/assistant')
+  }
   const openDate = () => { Keyboard.dismiss(); setDateOpen(true) }
   const dateInitial: Schedule = manual ?? {
     ...EMPTY_SCHEDULE,
@@ -181,6 +190,11 @@ export default function QuickAdd() {
                 <Tool label="더보기" onPress={more.open}><Ellipsis size={21} color={p.textSecondary} /></Tool>
               </View>
               <View style={{ flex: 1 }} />
+              {/* 27 §2.2: 도구 막대 ✦ AI에게. 날짜 칩이 자리를 차지하면 ✦만 */}
+              <Pressable accessibilityRole="button" accessibilityLabel="AI에게" onPress={askAI} hitSlop={4} style={({ pressed }) => [s.ai, { backgroundColor: p.accentSubtle }, pressed && { opacity: 0.6 }]}>
+                <Sparkles size={15} color={p.accent} />
+                {chip ? null : <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '600', color: p.accent }}>AI에게</Text>}
+              </Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="추가" disabled={!canSend} onPress={() => void send()} style={[s.send, { backgroundColor: p.accent, opacity: canSend ? 1 : 0.35 }]}>
                 <ArrowUp size={19} color="#fff" />
               </Pressable>
@@ -265,6 +279,7 @@ const s = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 12, height: 40 },
   tool: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   dateChip: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 30, paddingHorizontal: 10, borderRadius: 15, borderWidth: 1, marginRight: 4 },
+  ai: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 30, paddingHorizontal: 10, borderRadius: 15, marginRight: 8 },
   send: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   sugg: { flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 6 },
   sChip: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 30, paddingHorizontal: 10, borderRadius: 15 },

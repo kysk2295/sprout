@@ -6,7 +6,7 @@ import { useQuery } from '@powersync/react-native'
 import { useRouter } from 'expo-router'
 import { ArrowDown, ArrowUp, BarChart3, CalendarDays, Check, List, RefreshCw, RotateCcw, Sparkles, Square, TriangleAlert } from 'lucide-react-native'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { AccessibilityInfo, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 import { completeTasks } from '../data/tasks'
 import { dayKey, rowDateLabel } from '../lib/dates'
@@ -49,6 +49,13 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
   useEffect(() => { if (!notice) return; const t = setTimeout(() => setNotice(''), 2500); return () => clearTimeout(t) }, [notice])
   useEffect(() => { if (follow.current) requestAnimationFrame(() => scroll.current?.scrollToEnd({ animated: true })) }, [a.messages, a.busy, a.progress, a.error])
   const latest = () => { follow.current = true; setShowLatest(false); scroll.current?.scrollToEnd({ animated: true }) }
+  // ↓ 최신으로는 맨 아래에서 70 넘게 떨어졌을 때만. 반 시트가 커지는 동안(높이만 바뀌고 스크롤 이벤트는 없음)에도 다시 잰다
+  const box = useRef({ content: 0, view: 0, y: 0 })
+  const measure = () => {
+    const { content, view, y } = box.current
+    follow.current = content - y - view < 70
+    setShowLatest(!follow.current)
+  }
   const submit = async (text = a.draft) => {
     if (a.busy || !a.model || !text.trim()) return
     if (text === a.draft) setDraft('')
@@ -71,9 +78,15 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16, gap: 14 }}
         onScroll={(e) => {
           const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent
-          follow.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 70
-          setShowLatest(!follow.current)
+          box.current = { content: contentSize.height, view: layoutMeasurement.height, y: contentOffset.y }
+          measure()
         }}
+        onLayout={(e) => {
+          const wasFollowing = follow.current
+          box.current.view = e.nativeEvent.layout.height
+          if (wasFollowing) { scroll.current?.scrollToEnd({ animated: false }); follow.current = true; setShowLatest(false) } else measure()
+        }}
+        onContentSizeChange={(_, h) => { box.current.content = h; if (!follow.current) measure() }}
         scrollEventThrottle={100}
         accessibilityLabel="AI 대화 기록"
       >
@@ -172,13 +185,21 @@ function Btn({ label, onPress, disabled, icon }: { label: string; onPress: () =>
 
 function Composer({ a, onSubmit, autoFocus }: { a: AssistantState; onSubmit: () => void; autoFocus?: boolean }) {
   const p = usePalette()
+  const input = useRef<TextInput>(null)
+  // Android: Modal(반 시트) 안의 autoFocus는 창이 붙기 전에 불려 키보드가 안 뜬다 → 조금 뒤에 직접 초점
+  useEffect(() => {
+    if (!autoFocus || Platform.OS !== 'android') return
+    const t = setTimeout(() => input.current?.focus(), 350)
+    return () => clearTimeout(t)
+  }, [autoFocus])
   const can = !a.busy && !!a.model && !!a.draft.trim() && !a.connecting
   return (
     <View style={[s.composer, { backgroundColor: p.dark ? '#2a2a2c' : '#ececf0' }]}>
       <TextInput
+        ref={input}
         value={a.draft}
         onChangeText={setDraft}
-        autoFocus={autoFocus}
+        autoFocus={autoFocus && Platform.OS !== 'android'}
         multiline
         maxLength={4000}
         placeholder={a.busy ? '다음에 물어볼 내용을 적어 두세요' : '무엇이든 물어보세요'}
