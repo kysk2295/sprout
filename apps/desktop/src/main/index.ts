@@ -1,6 +1,4 @@
 import './profile'
-import { createUsageLogin, readUsageProfiles } from './usageLogin'
-import { createUsageService } from './usageService'
 import { registerAssistant } from './assistant'
 import { registerCollect } from './collect'
 import { registerTickTick } from './ticktick'
@@ -108,15 +106,6 @@ app.whenReady().then(async () => {
   registerTickTick()
   registerCalendars() // 16 캘린더 연동(구글·Apple 읽기)
   registerSocialAuth() // 08 §3.1 구글·애플로 계속하기
-  const usage=createUsageService(undefined,readUsageProfiles)
-  const usageLogin=createUsageLogin()
-  app.once('before-quit',()=>usageLogin.close())
-  ipcMain.handle('usage:read',(_event,provider,force)=>usage.read(provider,force===true))
-  ipcMain.handle('usage:login:start',(_event,provider)=>usageLogin.start(provider))
-  ipcMain.handle('usage:login:status',(_event,id)=>{const state=usageLogin.status(id);if(state.status==='connected')usage.invalidate(state.provider);return state})
-  ipcMain.handle('usage:login:code',(_event,id,code)=>usageLogin.submitCode(id,code))
-  ipcMain.handle('usage:login:cancel',(_event,id)=>usageLogin.cancel(id))
-  ipcMain.handle('usage:disconnect',async(_event,id)=>{const r=await usageLogin.disconnect(id);usage.invalidate(r.provider);return r})
   ipcMain.on('desktop:settings', openSettings)
   createWindow()
   startReminders(getWindow)

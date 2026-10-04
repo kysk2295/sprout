@@ -1,4 +1,3 @@
-import { UsageView } from './UsageView'
 import { AssistantBody, AssistantHeaderActions, AssistantStatus, type AssistantController } from './AssistantBody'
 import { Sprout, X, MessageCircle, Maximize2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -11,7 +10,6 @@ const content = {
  growth: {title:'성장',icon:Sprout,description:'완료한 일들이 나의 성장으로 이어지는 공간',status:'성장 기능 준비 중',items:['주간 목표와 진행 상황','완료 기록을 바탕으로 한 주간 리포트','XP와 캐릭터 성장']},
 }
 export function WorkspaceView({view,onView,draft,onDraft,assistant,onOpen}:Props){
- if(view==='usage')return <UsageView/>
  // 13 v2 §2.1: 틱틱 목록 머리(제목 + 오른쪽 상태·새 대화·⋯), 부제목 없음
  if(view==='assistant')return <main className="workspace assistant-view"><header className="pane-header"><h1 className="pane-header__title assistant-view__title">AI 비서</h1><AssistantHeaderActions assistant={assistant}/></header><AssistantBody draft={draft} onDraft={onDraft} assistant={assistant} onOpen={onOpen}/></main>
  const data=content[view as keyof typeof content]

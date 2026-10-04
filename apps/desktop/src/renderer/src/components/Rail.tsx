@@ -1,8 +1,8 @@
-import { Bell, CalendarDays, CircleCheckBig, CircleHelp, RefreshCw, Sprout, NotebookPen, Bot, Network, Gauge, BookHeart } from 'lucide-react'
+import { Bell, CalendarDays, CircleCheckBig, CircleHelp, RefreshCw, Sprout, NotebookPen, Bot, Network, BookHeart } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { authApi, type AuthState } from '../data/auth'
 
-export type RailView = 'tasks' | 'calendar' | 'growth' | 'notes' | 'watch' | 'wiki' | 'diary' | 'assistant' | 'map' | 'usage'
+export type RailView = 'tasks' | 'calendar' | 'growth' | 'notes' | 'watch' | 'wiki' | 'diary' | 'assistant' | 'map'
 
 // 01-app-shell §3: 아바타 · 태스크 · 캘린더 · 성장 · … / 동기화 · 알림 · 도움말 (검색 버튼은 2026-10-05 뺌 — ⌘F로 연다)
 export function Rail({ view, onView, onSettings, onHelp, sync, email }: { view: RailView; onView: (v: RailView) => void; onSettings: () => void; onHelp: () => void; sync?: AuthState['sync']; email?: string }) {
@@ -22,7 +22,6 @@ export function Rail({ view, onView, onSettings, onHelp, sync, email }: { view: 
       <RailButton label="수집함" active={view === 'notes' || view === 'watch' || view === 'wiki'} onClick={() => onView('notes')} icon={<NotebookPen />} />
       <RailButton label="일기" active={view === 'diary'} onClick={() => onView('diary')} icon={<BookHeart />} />
       <RailButton label="작업 지도" active={view === 'map'} onClick={() => onView('map')} icon={<Network />} />
-      <RailButton label="AI 사용량" active={view === 'usage'} onClick={() => onView('usage')} icon={<Gauge />} />
       <div className="rail__spacer" />
       <RailButton label={syncLabel} className={`rail__sync${busy ? ' is-busy' : ''}${problem ? ' has-problem' : ''}`} onClick={() => void authApi()?.syncNow()} icon={<RefreshCw />} />
       <RailButton label="알림" icon={<Bell />} />

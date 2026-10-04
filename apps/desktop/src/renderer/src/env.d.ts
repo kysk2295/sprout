@@ -7,7 +7,6 @@ declare global {
 declare global {
   interface Window {
     sprout?: {
-      usage?: import('../../preload').SproutUsageApi
     assistant?: import('../../preload').SproutAssistantApi
     collect?: import('../../preload').SproutCollectApi
     ticktick?: import('../../preload').SproutTickTickApi
