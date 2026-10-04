@@ -55,6 +55,26 @@ function createWindow(): BrowserWindow {
   return win
 }
 
+// 한 번에 앱 하나만(같은 데이터 폴더에 앱 둘이 붙으면 DB·로그인이 섞인다 — 2026-10-05 실제로 겪음).
+// 프로필(SPROUT_PROFILE)마다 데이터 폴더가 달라 잠금도 따로라 E2E 동시 실행은 그대로 된다
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) app.quit()
+
+// sprout:// 링크(25 맥 위젯·17 등): sprout://task/<id> → 그 할 일 상세, 그 밖 → 앱만 앞으로
+let linkReady = false
+const pendingLinks: string[] = []
+async function openLink(url: string) {
+  if (!linkReady) { pendingLinks.push(url); return }
+  const win = await getWindow()
+  if (win.isMinimized()) win.restore()
+  win.show(); win.focus()
+  const task = /^sprout:\/\/task\/([\w-]{1,100})\/?$/.exec(url)
+  if (task) win.webContents.send('reminder:open', task[1]) // 알림·미니 창과 같은 "할 일 열기" 통로
+}
+app.on('open-url', (e, url) => { e.preventDefault(); void openLink(url) }) // 첫 실행 링크도 받게 whenReady 전에 등록
+app.on('second-instance', (_e, argv) => { void openLink(argv.find((a) => a.startsWith('sprout://')) ?? 'sprout://') })
+if (!process.defaultApp) app.setAsDefaultProtocolClient('sprout') // 개발 실행(electron .)은 등록하지 않는다
+
 /** 알림을 눌렀을 때: 창이 없으면 새로 열고 화면이 뜰 때까지 기다린다 */
 async function getWindow(): Promise<BrowserWindow> {
   const existing = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined
@@ -65,6 +85,7 @@ async function getWindow(): Promise<BrowserWindow> {
 }
 
 app.whenReady().then(async () => {
+  if (!gotLock) return
   await db.init()
   await startSync()
   // 로그인한 기기는 서버 데이터를 내려받으므로 시드를 넣지 않는다(기본함이 두 개 생기지 않게)
@@ -88,6 +109,8 @@ app.whenReady().then(async () => {
   // 09 메뉴바 미니 창 + 메인 창 단축키(⇧⌘E). 메인 창을 닫아도 메뉴 막대에 남는다
   const showMain = async () => { const win = await getWindow(); if (win.isMinimized()) win.restore(); win.show(); win.focus(); return win }
   startMini(async (taskId) => { const win = await showMain(); win.webContents.send('reminder:open', taskId) }, () => void showMain())
+  linkReady = true
+  for (const url of pendingLinks.splice(0)) void openLink(url)
   globalShortcut.register(process.platform === 'darwin' ? 'Shift+Command+E' : 'Alt+Shift+E', () => {
     const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined
     if (win?.isVisible() && win.isFocused()) win.hide()
