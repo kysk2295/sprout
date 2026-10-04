@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
-  canGrantTaskXp, cumulativeXp, kpiEarnsXp, levelFromXp, levelsToNextStage, progressFromEvents, QUESTIONS, scoreSurvey, speciesFrom, stageOf, xpEventId, xpToNext
+  aiLeft, canGrantTaskXp, cumulativeXp, kpiEarnsXp, levelFromXp, levelsToNextStage, parseGoalDraft, parseReportText, progressFromEvents, QUESTIONS, readTextJson,
+  scoreSurvey, speciesFrom, stageOf, weekHasActivity, weekLabel, weeklyStats, xpEventId, xpToNext
 } from './growth.ts'
 
 // 레벨 곡선: 40, 60, 80 …
@@ -50,4 +51,54 @@ assert.equal(scoreSurvey(tie).plan.tie, true)
 assert.equal(speciesFrom(scoreSurvey(tie)), null)
 assert.equal(speciesFrom(scoreSurvey({ ...tie, 't-plan': 'B' })), 'cat')
 assert.equal(scoreSurvey(all('A', 'B')).plan.ratioA, 1)
+
+// ── 주간 리포트 숫자(10 §5) ──
+{
+  const W = '2026-10-04' // 일요일
+  const tasks = [
+    { title: '운동', list: '건강', tags: ['운동'], day: '2026-10-04' },
+    { title: '회의', list: '업무', tags: [], day: '2026-10-06', start_at: '2026-10-06T10:00', due_at: '2026-10-06T11:30' },
+    { title: '운동', list: '건강', tags: ['운동', '아침'], day: '2026-10-10' },
+    { title: '지난주', list: '업무', tags: ['운동'], day: '2026-10-03' }, // 주 밖
+    { title: '종일', list: null, tags: [], day: '2026-10-07', start_at: '2026-10-07', due_at: '2026-10-08' } // 시각 없음 → 일정 시간 0
+  ]
+  const goals = [
+    { id: 'g1', title: '운동 3번', target: 3, progress: 3, status: 'achieved' },
+    { id: 'g2', title: '논문', target: 1, progress: 0, status: 'missed' }
+  ]
+  const xp = [
+    { kind: 'task', amount: 1, day: '2026-10-04' }, { kind: 'task', amount: 1, day: '2026-10-06' }, { kind: 'task_revoke', amount: -1, day: '2026-10-06' },
+    { kind: 'kpi', amount: 30, day: '2026-10-09' }, { kind: 'task', amount: 1, day: '2026-10-11' } // 다음 주
+  ]
+  const s = weeklyStats(W, tasks, goals, xp)
+  assert.equal(s.completed, 4)
+  assert.deepEqual(s.perDay, [1, 0, 1, 1, 0, 0, 1])
+  assert.deepEqual(s.topTags, [{ name: '운동', count: 2 }, { name: '아침', count: 1 }])
+  assert.deepEqual(s.topLists, [{ name: '건강', count: 2 }, { name: '업무', count: 1 }])
+  assert.equal(s.scheduledMinutes, 90)
+  assert.equal(s.goalsAchieved, 1)
+  assert.deepEqual(s.xp, { total: 31, task: 1, kpi: 30 })
+  assert.deepEqual(weeklyStats(W, tasks, goals, xp), s) // 결정적
+  assert.equal(weekHasActivity(weeklyStats(W, [], [], [])), false)
+  assert.equal(weekLabel('2026-09-27'), '9월 다섯째 주') // 수요일 9/30
+  assert.equal(weekLabel('2026-10-04'), '10월 첫째 주')
+}
+
+// ── AI 답 검사 ──
+assert.deepEqual(parseReportText('```json\n{"done":" 할 일 12개를\\n끝냈어요 ","goals":"운동을 이뤘어요","next":["논문 읽기","운동 3번","논문 읽기",""]}\n```'),
+  { done: '할 일 12개를 끝냈어요', goals: '운동을 이뤘어요', next: ['논문 읽기', '운동 3번'] })
+assert.throws(() => parseReportText('그냥 문장'), /형식/)
+assert.throws(() => parseReportText('{"done":"","goals":"x","next":["a"]}'), /형식/)
+assert.throws(() => parseReportText('{"done":"a","goals":"b","next":[]}'), /형식/)
+assert.throws(() => parseReportText('[1,2]'), /형식/)
+assert.deepEqual(parseGoalDraft('{"goals":[{"title":"운동","target":3},{"title":"논문 하나 읽기","target":1},{"title":"독서 2회","target":1},{"title":"기획서","target":1}]}', ['기획서']),
+  [{ title: '운동 3번', target: 3 }, { title: '논문 하나 읽기', target: 1 }, { title: '독서 2회', target: 2 }])
+assert.deepEqual(parseGoalDraft('{"goals":[{"title":"a","target":99},{"title":" A 10번 ","target":1}]}'), [{ title: 'a 10번', target: 10 }])
+assert.throws(() => parseGoalDraft('{"goals":[{"title":"","target":1}]}'), /형식/)
+assert.throws(() => parseGoalDraft('{"goals":"x"}'), /형식/)
+
+// ── 주 2회 한도 기록 ──
+assert.deepEqual(aiLeft(readTextJson(null)), { report: true, draft: true })
+assert.deepEqual(aiLeft(readTextJson('{"reportTried":true}')), { report: false, draft: true })
+assert.deepEqual(readTextJson('깨진 값'), {})
 console.log('growth: ok')

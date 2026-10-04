@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { SPECIES, STAGES } from '@sprout/schema/growth'
-import { useGrowth } from '../../data/growth'
+import { useGrowth, useWeeklyClose } from '../../data/growth'
 import { CharacterArt } from './CharacterArt'
 import { iGa, ro } from '../../lib/josa'
 
@@ -32,6 +32,8 @@ export function SidebarCharacter({ onOpen }: { onOpen: () => void }) {
 /** 10 §2.4 레벨업·진화 화면. 본 레벨은 기기에 기억(처음엔 보여주지 않고 기준만 잡는다) */
 export function LevelUpWatcher() {
   const { character, progress } = useGrowth()
+  // 10 §5 새 주 첫 실행 때 지난주 마감(앱에 늘 붙어 있는 이 감시자에서 부른다)
+  useWeeklyClose()
   const [shown, setShown] = useState<{ level: number; stage: number; prevStage: number }>()
   const seenKey = character ? `sprout.seenLevel.${character.id}` : ''
   const ready = useRef(false)

@@ -1,18 +1,21 @@
-import { Check, MoreHorizontal, Plus } from 'lucide-react'
+import { Check, MoreHorizontal, Plus, Sparkles, X } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { levelsToNextStage, SPECIES, STAGES, XP } from '@sprout/schema/growth'
 import { addDays } from '@sprout/schema/time'
-import { addGoal, carryOver, nextWeek, removeGoal, renameCharacter, setGoalProgress, thisWeek, useGrowth, type GoalRow, type XpRow } from '../../data/growth'
+import { addGoal, carryOver, dismissDraft, nextWeek, removeGoal, renameCharacter, setGoalProgress, thisWeek, useGoalDraft, useGrowth, useWeeklyClose, type GoalRow, type XpRow } from '../../data/growth'
 import { useQuery } from '../../data/useQuery'
 import { dayKey } from '../../lib/dates'
 import { MenuItem, Popover } from '../Popover'
 import { CharacterRoom, Confetti, Roadmap, streakOf, WeekChart, type RoomStats } from './Interactive'
+import { WeeklyReports } from './WeeklyReports'
+import './growth-report.css'
 
 // 10 §3 성장 화면: 왼쪽 640(캐릭터 · 주간 목표 · 이번 주 XP) · 오른쪽 298(주간 리포트)
 const md = (d: string) => { const x = new Date(`${d}T00:00`); return `${x.getMonth() + 1}월 ${x.getDate()}일` }
 
 export function GrowthView({ onSurvey }: { onSurvey: () => void }) {
   const { events, character, progress, loaded } = useGrowth()
+  useWeeklyClose() // 10 §5 — 앱 전체에서는 LevelUpWatcher가 부른다. 여기서도 불러 성장 화면을 열면 확인
   const [menu, setMenu] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const moreRef = useRef<HTMLButtonElement>(null)
@@ -87,10 +90,7 @@ export function GrowthView({ onSurvey }: { onSurvey: () => void }) {
           <XpCard events={events} />
         </div>
         <aside className="growth__side">
-          <section className="growth-card">
-            <h3 className="growth-card__title">주간 리포트</h3>
-            <p className="growth-card__empty">한 주가 끝나면 이번 주에 해낸 것과 다음 주 제안이 여기에 쌓여요.</p>
-          </section>
+          <WeeklyReports />
         </aside>
       </div>
     </div>
@@ -105,6 +105,21 @@ function GoalsCard() {
   const [full, setFull] = useState(false)
   const [rowMenu, setRowMenu] = useState<{ goal: GoalRow; anchor: HTMLElement }>()
   const [cheer, setCheer] = useState<string>()
+  // 10 §4.3 AI 초안: 회색 제안 줄 — 누르면 입력 줄에 넣어 고친 뒤 확정, +는 그대로 추가, ×는 숨김
+  const draft = useGoalDraft(week)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [pending, setPending] = useState<string>()
+  const key = (t: string) => t.replace(/\s+/g, '').toLowerCase()
+  const drafts = goals.length >= XP.goalsPerWeek ? [] : draft.items.filter((d) => !goals.some((g) => key(g.title) === key(d.title)))
+  const acceptDraft = async (title: string) => { if ((await addGoal(week, title, 'ai')) === 'full') setFull(true) }
+  const editDraft = (title: string) => {
+    const el = inputRef.current
+    if (!el) return
+    el.value = title
+    setPending(title)
+    el.focus()
+    el.setSelectionRange(title.length, title.length)
+  }
   const progressTo = async (g: GoalRow, n: number) => {
     const before = g.status === 'achieved'
     await setGoalProgress(g, n)
@@ -153,6 +168,15 @@ function GoalsCard() {
           </div>
         )
       })}
+      {drafts.map((d) => (
+        <div key={d.title} className="row goal-draft" title="눌러서 고친 뒤 Enter로 목표에 넣어요" onClick={() => editDraft(d.title)}>
+          <Sparkles className="goal-draft__icon" />
+          <span className="goal-draft__title">{d.title}</span>
+          <span className="goal-draft__tag">AI 제안</span>
+          <button className="goal-draft__btn is-add" aria-label="목표로 추가" onClick={(e) => { e.stopPropagation(); void acceptDraft(d.title) }}><Plus /></button>
+          <button className="goal-draft__btn" aria-label="제안 숨기기" onClick={(e) => { e.stopPropagation(); void dismissDraft(draft.reportWeek, d.title) }}><X /></button>
+        </div>
+      ))}
       {rowMenu && (
         <Popover anchor={rowMenu.anchor} align="end" width={160} className="menu" onClose={() => setRowMenu(undefined)}>
           {tab === 'this' && rowMenu.goal.status !== 'achieved' && <MenuItem label="다음 주로 넘기기" onClick={() => { void carryOver(rowMenu.goal); setRowMenu(undefined) }} />}
@@ -162,6 +186,7 @@ function GoalsCard() {
       <div className="goal-add">
         <Plus className="addbar__icon" />
         <input
+          ref={inputRef}
           className="addbar__input"
           placeholder={full ? `${tab === 'this' ? '이번' : '다음'} 주는 ${XP.goalsPerWeek}개까지 적을 수 있어요` : `${tab === 'this' ? '이번' : '다음'} 주에 하고 싶은 일 추가`}
           disabled={goals.length >= XP.goalsPerWeek}
@@ -170,13 +195,19 @@ function GoalsCard() {
             const v = e.currentTarget.value.trim()
             if (!v) return
             const input = e.currentTarget
-            const r = await addGoal(week, v)
+            // AI 제안을 고쳐 넣은 것이면 source 'ai', 그 제안 줄은 숨긴다
+            const r = await addGoal(week, v, pending ? 'ai' : 'manual')
             setFull(r === 'full')
-            if (r === 'ok') input.value = ''
+            if (r === 'ok') {
+              input.value = ''
+              if (pending) { void dismissDraft(draft.reportWeek, pending); setPending(undefined) }
+            }
           }}
+          onChange={(e) => { if (!e.currentTarget.value) setPending(undefined) }}
         />
       </div>
-      {!goals.length && <p className="growth-card__empty">예: 논문 하나 읽기 · 운동 3번 · 포트폴리오 첫 장 쓰기</p>}
+      {!goals.length && !drafts.length && <p className="growth-card__empty">예: 논문 하나 읽기 · 운동 3번 · 포트폴리오 첫 장 쓰기</p>}
+      <p className="goal-note">주간 KPI·리포트를 만들 때 이번 주 할 일 제목을 AI에 보내요.</p>
     </section>
   )
 }

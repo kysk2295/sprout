@@ -1,0 +1,48 @@
+/* 10 §4.3 AI 초안 줄 · §5 주간 리포트 — 틱틱 디자인 언어(행 40 · 그룹 머리 · 강조색) */
+
+/* ── AI 초안 줄: 회색 제안 행, 눌러야 목표가 된다 ── */
+.goal-draft { cursor: pointer; padding-left: 2px; }
+.goal-draft::after { left: calc(2px + var(--size-checkbox) + var(--space-row-icon-gap)); }
+.goal-draft__icon { width: var(--size-checkbox); height: var(--size-checkbox); flex-shrink: 0; color: var(--color-text-tertiary); }
+.goal-draft__title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: var(--text-body); color: var(--color-text-tertiary); }
+.goal-draft:hover .goal-draft__title { color: var(--color-text-secondary); }
+.goal-draft__tag { font: var(--text-meta); color: var(--color-text-tertiary); flex-shrink: 0; }
+.goal-draft__btn { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-sm); color: var(--color-text-tertiary); flex-shrink: 0; }
+.goal-draft__btn:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.goal-draft__btn svg { width: 15px; height: 15px; }
+.goal-draft__btn.is-add { color: var(--color-accent); }
+.goal-note { margin: 8px 0 0; font: var(--text-meta); font-size: 11px; color: var(--color-text-tertiary); }
+.goal-note.is-warn { color: var(--color-text-secondary); }
+
+/* ── 주간 리포트 ── */
+.report + .report { border-top: 1px solid var(--color-border-row); }
+.report:first-of-type { margin-top: 4px; }
+.report__row { width: 100%; height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 4px; border-radius: var(--radius-sm); text-align: left; font: var(--text-body); color: var(--color-text-primary); }
+.report__row:hover { background: var(--color-bg-hover); }
+.report__chev { width: 14px; height: 14px; color: var(--color-text-tertiary); flex-shrink: 0; }
+.report__label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.report__row.is-open .report__label { font-weight: 600; }
+.report__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); flex-shrink: 0; }
+.report__xp { font: 600 12px var(--font-family); color: var(--color-accent); flex-shrink: 0; }
+.report__body { padding: 2px 4px 12px 24px; }
+.report__chips { margin-top: 2px; }
+.report__h { margin: 14px 0 4px; font: var(--text-group); font-size: 12px; color: var(--color-text-secondary); }
+.report__text { margin: 2px 0; font: var(--text-body); line-height: 1.55; color: var(--color-text-primary); }
+.report__meta { margin: 2px 0; font: var(--text-meta); color: var(--color-text-tertiary); }
+.report__ai { margin: 12px 0 0; padding: 8px 10px; border-radius: var(--radius-md); background: var(--color-bg-input); font: var(--text-meta); color: var(--color-text-secondary); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.report__ai.is-muted { color: var(--color-text-tertiary); }
+.report__retry { flex-shrink: 0; height: 24px; padding: 0 10px; border-radius: var(--radius-sm); font: var(--text-meta); color: var(--color-accent); }
+.report__retry:hover { background: var(--color-accent-subtle); }
+.report__next { margin: 2px 0 0; padding-left: 18px; font: var(--text-body); color: var(--color-text-primary); }
+.report__next li { line-height: 26px; }
+.report__next li::marker { color: var(--color-accent); }
+.report-goal { min-height: 30px; display: flex; align-items: center; gap: 8px; font: var(--text-body); color: var(--color-text-primary); }
+.report-goal__icon { width: 14px; height: 14px; flex-shrink: 0; color: var(--color-text-tertiary); }
+.report-goal.is-done .report-goal__icon { color: var(--color-accent); }
+.report-goal__title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.report-goal.is-done .report-goal__title { color: var(--color-text-secondary); }
+.report-goal__n { font: var(--text-meta); color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+.report-goal__carry { flex-shrink: 0; height: 22px; padding: 0 8px; border-radius: var(--radius-sm); font: var(--text-meta); color: var(--color-accent); }
+.report-goal__carry:hover:not(:disabled) { background: var(--color-accent-subtle); }
+.report-goal__carry:disabled { color: var(--color-text-tertiary); cursor: default; }
+.report-goal__carried { font: var(--text-meta); color: var(--color-text-tertiary); }
