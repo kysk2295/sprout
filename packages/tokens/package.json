@@ -1,0 +1,9 @@
+{
+  "name": "@sprout/tokens",
+  "version": "0.0.1",
+  "private": true,
+  "description": "디자인 토큰 — docs/screens/00-design-tokens.md v1.1",
+  "exports": {
+    "./tokens.css": "./tokens.css"
+  }
+}

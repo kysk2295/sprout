@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "allowJs": true,
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "noImplicitAny": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "moduleResolution": "bundler"
+  },
+  "include": [
+    "src/**/*"
+  ]
+}

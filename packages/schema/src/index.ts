@@ -1,0 +1,71 @@
+// 동기화 테이블 정의 — docs/screens/01-app-shell §10, 02-task-list §14, 03-date-picker §9
+// 모든 테이블은 id(uuid, 암묵적) + owner_id + created_at + modified_at을 가진다.
+export type ColumnType = 'text' | 'integer' | 'real'
+export interface TableDef {
+  columns: Record<string, ColumnType>
+  indexes?: Record<string, string[]>
+}
+
+const common = { owner_id: 'text', created_at: 'text', modified_at: 'text' } as const
+
+export const TABLES = {
+  folders: { columns: { ...common, name: 'text', sort_order: 'real' } },
+  lists: {
+    columns: {
+      ...common,
+      name: 'text',
+      emoji: 'text',
+      color: 'text',
+      folder_id: 'text',
+      kind: 'text', // 'inbox' | 'normal'
+      sort_order: 'real',
+      pinned: 'integer',
+      archived_at: 'text',
+      show_in_smart: 'text' // 'all' | 'none'
+    }
+  },
+  tags: { columns: { ...common, name: 'text', color: 'text', parent_id: 'text', sort_order: 'real', pinned: 'integer' } },
+  filters: { columns: { ...common, name: 'text', emoji: 'text', rule_json: 'text', sort_order: 'real' } },
+  sections: { columns: { ...common, list_id: 'text', name: 'text', sort_order: 'real' }, indexes: { list: ['list_id'] } },
+  tasks: {
+    columns: {
+      ...common,
+      list_id: 'text',
+      parent_id: 'text',
+      section_id: 'text',
+      title: 'text',
+      content: 'text',
+      content_mode: 'text', // 'text' | 'checklist'
+      status: 'integer', // 0 미완료 · 1 완료 · 2 하지 않음
+      priority: 'integer', // 0 없음 · 1 낮음 · 2 중간 · 3 높음
+      start_at: 'text',
+      due_at: 'text', // floating: 'YYYY-MM-DD' (종일) 또는 'YYYY-MM-DDTHH:mm'
+      is_all_day: 'integer',
+      time_zone: 'text', // 'floating'
+      repeat_rule: 'text',
+      repeat_from: 'text',
+      repeat_origin_id: 'text',
+      sort_order: 'real',
+      pinned_at: 'text',
+      completed_at: 'text',
+      deleted_at: 'text'
+    },
+    indexes: { list: ['list_id'], due: ['due_at'], parent: ['parent_id'], status: ['status'] }
+  },
+  check_items: {
+    columns: { ...common, task_id: 'text', title: 'text', done: 'integer', sort_order: 'real', completed_at: 'text' },
+    indexes: { task: ['task_id'] }
+  },
+  task_tags: { columns: { ...common, task_id: 'text', tag_id: 'text' }, indexes: { task: ['task_id'], tag: ['tag_id'] } },
+  reminders: { columns: { ...common, task_id: 'text', trigger: 'text' }, indexes: { task: ['task_id'] } },
+  view_settings: {
+    columns: { ...common, view_key: 'text', group_by: 'text', sort_by: 'text', sort_dir: 'text', show_completed: 'integer', show_details: 'integer', options_json: 'text' },
+    indexes: { key: ['view_key'] }
+  },
+  user_prefs: { columns: { ...common, smart_list_visibility: 'text', theme: 'text', follow_system_dark: 'integer', week_start: 'integer' } }
+} satisfies Record<string, TableDef>
+
+export type TableName = keyof typeof TABLES
+
+/** 로그인 전(M1~M2) 로컬 데이터의 owner_id. M3에서 로그인하면 실제 사용자 id로 바꾼다. */
+export const LOCAL_OWNER = 'local'

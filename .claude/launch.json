@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "desktop-web",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/koyunseo/ticktick && . scripts/node22.sh && npm run web"],
+      "port": 5173
+    }
+  ]
+}

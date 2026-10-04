@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": [
+      "node"
+    ],
+    "paths": {
+      "@renderer/*": [
+        "./src/renderer/src/*"
+      ]
+    },
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "src/**/*",
+    "electron.vite.config.ts",
+    "vite.web.config.ts"
+  ]
+}

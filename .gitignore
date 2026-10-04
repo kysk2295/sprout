@@ -1,0 +1,28 @@
+node_modules/
+dist/
+out/
+.vite/
+.webpack/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# 틱틱 캡처 원본은 틱틱의 저작물 — 내부 참고용, 레포에 넣지 않는다
+docs/ticktick-captures/_help/
+docs/ticktick-captures/_video/
+docs/ticktick-captures/**/*.png
+docs/ticktick-captures/**/*.jpg
+docs/ticktick-captures/**/*.jpeg
+docs/ticktick-captures/**/*.gif
+
+# 스파이크 산출물
+spikes/**/node_modules/
+spikes/**/out/
+spikes/**/.webpack/
+docs/ticktick-research/**/*.png
+docs/ticktick-research/**/*.jpg
+docs/ticktick-research/**/*.jpeg
+docs/verification/**/ticktick-*.jpg
+docs/verification/**/ticktick-*.png

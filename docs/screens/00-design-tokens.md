@@ -1,0 +1,227 @@
+# 00 · 디자인 토큰
+
+- 상태: **확정 v1.1** (2026-10-03) — v1.0 확인 후 크기·글자를 실측으로 보정(§1 보정 기록)
+
+> **v1.2 (2026-10-03) — 실제 앱 실측으로 다시 맞춤.** 사용자 Mac의 TickTick 앱을 직접 재서([research 17 §9](../ticktick-research/17-calendar-live.md)) 크기·글자를 바꿨다. 아래 표의 v1.1 값(영상 프레임 + 신호등 20pt 가정으로 1.18배 보정)과 다르면 **이 표가 우선**한다. 토큰 파일은 px로 적는다.
+>
+> | 토큰 | v1.2 실측 | v1.1 |
+> |---|---|---|
+> | 본문 / 굵은 본문 | 14px / 20 | 15 |
+> | 제목 | 20px 굵게 | 24 |
+> | 메타·캡션 / 작은 글자 / 그룹 머리 | 11px / 10.5px / 12.5px 굵게 | 13 / 12 / 15 |
+> | 레일 폭 · 아바타 위 · 아이콘 칸·간격 | 55 · 35 · 40 + 8 (중심 간격 48, 첫 아이콘 중심 107) | 66 · 44 · 44 + 9 |
+> | 사이드바 폭 · 첫 항목 위 · 항목 높이 | 261 · 12 · 40 | 264 · 20 · 40 |
+> | 머리글 높이 · 위 여백 | 57 · 9 (제목 중심 33) | 70 · 14 |
+> | 추가 바 높이 · 아래 간격 · 목록 좌우 여백 | 38 · 8 · 21 (2026-10-04 픽셀 재측정) | 40 · 12 · 20 |
+> | 행 높이 · 체크박스 · 체크박스–제목 간격 | 40 · 14 · 8 | 44 · 17 · 12 |
+> | 아이콘 레일 / 중간 / 작은 | 20 / 18 / 13 | 22 / 20 / 15 |
+> - 한국어 용어도 실제 앱을 따른다: Inbox = **기본함**, Overdue = **만료됨**, Add task = **할일 추가**.
+> - 글자 렌더링: 틱틱은 macOS 기본 렌더링(획 두께 보정)이라 글자가 더 굵어 보인다. `-webkit-font-smoothing: antialiased`를 쓰지 않는다(2026-10-04 나란히 비교).
+
+- 모든 화면 명세(`docs/screens/*.md`)가 이 문서의 토큰 이름을 쓴다. 화면 코드에 색·크기 값을 직접 쓰지 않는다.
+
+## 1. 근거와 측정 방법
+| 출처 | 쓴 곳 | 신뢰도 |
+|---|---|---|
+| 공식 Mac 스크린샷 [site-mac-preview.png](../ticktick-captures/shell-layout/site-mac-preview.png) (PNG 3621×2136) | Default 테마 배경·선택·구분선, **크기 비율** | 높음 |
+| 도움말 PNG ([06 하위 태스크](../ticktick-captures/_help/multilevel-tasks-349248/06-desktop-create-subtasks.png), [13 부모 연결](../ticktick-captures/_help/multilevel-tasks-349248/13-desktop-link-parent-task.png), [10 그룹·정렬](../ticktick-captures/_help/manage-tasks-with-group-sort-801280/10-desktop-how-to-use-group-sort.png), [스마트 리스트 설정](../ticktick-captures/_help/manage-tasks-with-lists-396608/02-desktop-how-to-enable-smart-lists.png), [계정](../ticktick-captures/_help/faq-028672/12-desktop-account-data.png)) — **1x 캡처** | 강조색, 우선순위, 글자색, Sky 테마, 설정 화면, 행 간격 | 높음 |
+| 영상 프레임 JPEG (8.0 [f0104](../ticktick-captures/_video/aJ0ELyY215A/f0104.jpg), [EUB f0072](../ticktick-captures/_video/EUBxb9MgYWg/f0072.jpg), [QKA f0008](../ticktick-captures/_video/QKAA8p3PY_8/f0008.jpg), zq 다크 프레임) | 테마 색 목록, 리스트 색 팔레트, 다크 테마 면 색 | 중간 (넓은 면만. JPEG이라 채도가 약간 튈 수 있음) |
+
+- 색: 넓은 면은 5×5 픽셀 중앙값, 글자·테두리는 배경에서 가장 먼 픽셀 4개의 평균(안티앨리어싱 제외)으로 뽑았다. 스크립트는 `scratchpad/sample*.py`.
+- 크기: **macOS 신호등 버튼 중심 간격(약 20pt, OS 고정값)을 자로 삼아** 캡처의 px→pt 배율을 구한 뒤 쟀다. 8.0 영상(1px=1.015pt), 2026 영상(1.060pt), 공식 Mac 스크린샷(0.572pt) 세 곳이 서로 맞는다. 스크립트 `scratchpad/calib.py`.
+- **보정 기록 (v1.0 → v1.1, 2026-10-03):** v1.0은 도움말 PNG를 1x로 가정했는데, 실제로는 약 85%로 줄인 캡처였다. 그래서 크기·글자가 15~20% 작게 잡혔다. 색은 바뀌지 않았다.
+- 틱틱 v1 기준 테마는 **Default(흰색)**. Sky와 Dark를 함께 제공한다.
+
+## 2. 색 토큰 — Default (라이트)
+### 면 (surface)
+| 토큰 | 값 | 근거 |
+|---|---|---|
+| `color.bg.app` | `#FFFFFF` | 목록·상세·사이드바 배경 (Mac 스크린샷) |
+| `color.bg.rail` | `#F5F5F5` | 아이콘 레일 |
+| `color.bg.sidebar` | `#FFFFFF` | Default 테마는 사이드바도 흰색 |
+| `color.bg.input` | `#F8F8F9` | 추가 바 등 회색 입력창 |
+| `color.bg.selected` | `#F1F1F1` | 사이드바 선택 항목, 선택된 행 |
+| `color.bg.hover` | `#F5F5F5` | 선택보다 한 단계 옅게 (추정) |
+| `color.bg.card` | `#FAFAFA` | 설정 창 안의 묶음 카드 |
+| `color.bg.settings-nav` | `#F8F8F8` | 설정 창 왼쪽 메뉴 |
+| `color.bg.popover` | `#FFFFFF` | 메뉴·팝오버·모달 |
+| `color.overlay.scrim` | `rgba(0,0,0,0.18)` | 모달 뒤 배경 (계정 캡처 #D0D0D0 기준 역산) |
+
+### 선
+| 토큰 | 값 | 근거 |
+|---|---|---|
+| `color.border.divider` | `#F3F3F4` | 사이드바\|목록\|상세 세로 구분선 (1px) |
+| `color.border.row` | `#F1F1F1` | 목록 행 사이 가로선 (1px, 제목 시작점부터) |
+| `color.border.input-focus` | `color.accent` | 입력 포커스 테두리 |
+
+### 글자
+| 토큰 | 값 | 쓰임 |
+|---|---|---|
+| `color.text.primary` | `#191919` | 제목, 태스크 이름, 메뉴 항목 |
+| `color.text.secondary` | `#7D7D7D` | 설정 값("Show", "Custom"), 보조 설명 |
+| `color.text.tertiary` | `#A3A4A7` | 자리 표시 문구("Due Date", "Add task"), 미래 날짜 |
+| `color.text.quaternary` | `#B5B6B8` | 개수, 구역 소제목("Lists", "Date") |
+| `color.text.link` | `color.accent` | "Change Password", "Postpone" |
+| `color.text.danger` | `#D44343` | "Delete Account", **기한 지난 날짜** |
+
+### 강조·상태
+| 토큰 | 값 | 근거 |
+|---|---|---|
+| `color.accent` | `#4E75F2` | 상세 날짜, 오늘 날짜 글자, 링크, 토글 켬, OK·Save 버튼, 오늘 원 (도움말 3곳에서 일치) |
+| `color.accent.subtle` | `#ECF0FD` | 메뉴에서 현재 값 표시 배경(우선순위 줄의 선택 칸) |
+| `color.danger` | `#D44343` | 삭제, 만료됨, 현재 시각 선 |
+| `color.search-highlight` | `#FBE38E` | 검색 일치 부분 (다크 캡처 #DCBF77에서 추정, 라이트 값은 확인 필요) |
+
+### 우선순위 (체크박스 테두리·깃발에 공통)
+| 토큰 | 값 | 비고 |
+|---|---|---|
+| `color.priority.high` | `#C53C31` | 깃발 채움. 체크박스 1.5px 테두리는 렌더링되면 `#D35E59`처럼 보인다 |
+| `color.priority.medium` | `#EFAB3E` | |
+| `color.priority.low` | `#4E75F2` | = accent |
+| `color.priority.none` | `#A6A7A9` | 체크박스 기본 테두리 |
+
+### 리스트·태그 색 팔레트 (Edit List / Add Tag 스와치)
+| 토큰 | 값 (2026 캡처) | 값 (2025 캡처) |
+|---|---|---|
+| `color.list.red` | `#EF5260` | `#F14457` |
+| `color.list.orange` | `#F6AC3E` | `#F39F33` |
+| `color.list.yellow` | `#F9DC29` | `#FAD525` |
+| `color.list.lime` | `#E4F54D` | `#DEF546` |
+| `color.list.green` | `#44F273` | `#3AEE64` |
+| `color.list.blue` | `#52A4FA` | `#4E99F7` |
+| `color.list.purple` | `#6F6EEE` | `#6264EA` |
+| (없음) | 사선 원 | |
+| (사용자 지정) | 무지개 원 → 계열별 팔레트(Macaron, Morandi, Rococo, Classic …) | |
+- JPEG에서 뽑아 초록·연두는 실제보다 채도가 높을 수 있다. **2026 값을 기준으로 삼고, 구현할 때 채도를 10~15% 낮춰 틱틱과 비교한다.**
+- 사용자 지정 색이 흔하다(캡처 속 사이드바 점: `#B37974`, `#D28C41`, `#E1CF88`, `#81A694`, `#848DAE`). 리스트 색은 임의의 hex를 허용한다.
+
+### 파생 규칙 (리스트·태그 색에서 계산)
+| 요소 | 규칙 | 캡처 확인값 |
+|---|---|---|
+| 사이드바 색 점 | 리스트 색 그대로, 지름 6px | |
+| 캘린더 태스크 막대 배경 | 리스트 색 **35%** + 흰색 | 주황 `#F0C9A8` |
+| 캘린더 막대 글자 | 리스트 색 **45%** + 검정 | 주황 막대 글자 `#754F33` |
+| 지난 날짜·완료 막대 | 배경 15%, 글자 `color.text.tertiary` | 옅은 복숭아 `#EDE2D3` |
+| 폴더·스마트 리스트의 행 왼쪽 세로 막대 | 리스트 색 50% + 흰색, 폭 3px | `#F7D9B5` |
+| 태그 알약 배경 | 태그 색 **35%** + 흰색, 글자는 `color.text.primary` | 분홍 `#CFA5BA` / 글자 `#31282C` |
+
+## 3. 색 토큰 — Sky 테마 (8.0 기본 색 테마)
+Default와 다른 토큰만 적는다.
+| 토큰 | 값 | 근거 |
+|---|---|---|
+| `color.bg.rail` | `#6387F5` | 레일 전체가 테마색으로 채워짐 (8.0 영상 `#5A79F8`) |
+| `color.rail.icon` | `rgba(255,255,255,0.72)` | 레일 아이콘 |
+| `color.rail.icon-selected-bg` | `#FFFFFF` | 선택된 레일 아이콘의 흰 사각 배경, 아이콘은 테마색 |
+| `color.bg.sidebar` | `#F5F7FF` | |
+| `color.bg.app` | `#FBFCFF` | 목록·상세 |
+| `color.bg.selected` | `#E3EAFE` | 사이드바 선택, 선택된 행 (`#E8EEFE`) |
+| `color.bg.input` | `#EFF3F6` | |
+- 강조색은 Sky 테마에서도 `#4E75F2` 계열 그대로다.
+
+## 4. 색 토큰 — Dark
+| 토큰 | 값 | 근거 (zq 프레임) |
+|---|---|---|
+| `color.bg.app` / `sidebar` / `rail` | `#1B1B1B` | 창 전체가 한 색 |
+| `color.bg.popover` | `#212121` | 검색 팝업, 메뉴 |
+| `color.bg.selected` | `#2B2B2B` | 선택 항목 |
+| `color.bg.input` | `#252525` | (추정) |
+| `color.border.divider` | `#262626` | (추정, 아주 옅음) |
+| `color.text.primary` | `#CDCDCD` | |
+| `color.text.secondary` | `#8A8A8A` | (추정) |
+| `color.text.quaternary` | `#5A5A5A` | 구역 소제목 (`#505050` 근처) |
+| `color.search-highlight` | `#DCBF77` | 검색 일치 부분 |
+- 강조색, 우선순위색, 리스트 색은 라이트와 같다.
+
+## 5. 테마 목록 (설정 → Appearance → Color Series)
+| 이름 | 대표색 | v1 |
+|---|---|---|
+| Default | `#FFFFFF` | ✅ 기본 |
+| Sky | `#5A77F7` | ✅ |
+| Turquoise | `#5CD9AF` | 후보 |
+| Teal | `#77C8C2` | 후보 |
+| Matcha | `#ACBF9F` | 후보 |
+| Sunshine | `#F6BB77` | 후보 |
+| Peach | `#F589A3` | 후보 |
+| Lilac | `#B0A3D3` | 후보 |
+| Ebony | `#A98A75` | 후보 |
+| Navy | `#2B3455` | 후보 |
+| Gray | `#363B41` | 후보 |
+| Dark | `#1A1A1A` | ✅ (시스템 다크 모드 연동) |
+- 색 테마는 **레일 색, 사이드바·선택 배경의 틴트, 오늘 원·주요 버튼색**만 바꾼다. 나머지 토큰은 Default와 같게 두고, 테마마다 3~5개 토큰만 덮어쓴다.
+
+## 6. 글꼴
+| 토큰 | 값 |
+|---|---|
+| `font.family` | `-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif` |
+| `font.family.numeric` | 같은 글꼴 + `font-variant-numeric: tabular-nums` (시간·개수) |
+- 틱틱은 OS 기본 글꼴을 쓴다. 한국어는 Pretendard를 앱에 넣어 Mac·Windows에서 같게 보이게 한다.
+
+| 토큰 | 크기 / 굵기 / 줄 높이 | 쓰임 | 근거 |
+|---|---|---|---|
+| `text.title` | 24px / 700 / 32px | 목록 제목("Inbox"), 상세 제목 | 8.0 대문자 높이 17.3pt |
+| `text.body` | 15px / 400 / 22px | 태스크 이름, 사이드바 항목, 메뉴 항목, 본문 | 8.0 행 제목 15.3~16.4pt |
+| `text.body-strong` | 15px / 600 / 22px | 그룹 머리("Today"), 모달 제목 | 8.0 그룹 머리 |
+| `text.meta` | 13px / 400 / 18px | 행 오른쪽 날짜·시간, 리스트 이름, 태그 알약 | 8.0 "Jul 11" 12.7pt |
+| `text.caption` | 13px / 500 / 18px | 구역 소제목("Lists"), 개수 | 8.0 "Lists" |
+| `text.small` | 12px / 500 / 16px | 메뉴 소제목("Date", "Priority") | 8.0 12.0pt |
+| `text.placeholder-large` | 20px / 400 | 캘린더 빠른 만들기 "What would you like to do?" | |
+| `text.cal-day` | 14px / 500 | 캘린더 날짜 숫자 | |
+- 크기를 사용자가 바꿀 수 있다(Cmd/Ctrl + `+`/`-`/`0`). 모든 크기는 `rem` 기준으로 두고(기본 루트 15px), 루트 크기를 12~20px로 바꿔서 조절한다.
+
+## 7. 크기·간격
+기본 단위 `space.1 = 4px`. 간격은 4의 배수만 쓴다.
+| 토큰 | 값 | 근거 |
+|---|---|---|
+| `size.rail.width` | 66px | 실측 67pt (8.0) / 65pt (공식) |
+| `size.sidebar.width` | 264px (최소 200, 최대 400, 끌어서 조절) | 실측 271pt (8.0) / 259pt (공식) |
+| `size.detail.width` | 336px (최소 280, 최대 560, 끌어서 조절) | 실측 338pt (8.0) |
+| `size.list.min-width` | 360px | |
+| `size.header.height` | 70px (위 14px는 신호등 줄, 내용 중심 42) | 목록·캘린더·상세 머리. 실측 제목 중심 42.6pt, 추가 바 위 71pt |
+| `size.rail.top` / `size.rail.item-gap` | 44px / 9px | 레일 맨 위 신호등 영역 / 아이콘 중심 간격 53pt(44+9). 아바타 중심 61pt |
+| `size.sidebar.top` | 20px | 사이드바 첫 항목 위. 첫 항목 중심 40pt |
+| `size.addbar.height` | 40px | 실측 41.6pt. 둥근 모서리 `radius.md` |
+| `size.row.height` | 44px | 실측 44.7pt (8.0) |
+| `size.sidebar-item.height` | 40px | 실측 간격 42.6pt에서 위아래 1px씩 |
+| `size.checkbox` | 17px, 테두리 1.5px, `radius.xs` | 실측 17.3pt |
+| `size.dot` | 6px | 리스트 색 점 |
+| `size.icon.sm` / `md` / `rail` | 15 / 20 / 22px | 행 메타 아이콘 / 사이드바·메뉴 / 레일 |
+| `space.list.gutter` | 좌우 20px | 목록 영역 안쪽 여백 |
+| `space.row.icon-gap` | 12px | 체크박스와 제목 사이 |
+| `space.meta-gap` | 8px | 행 오른쪽 메타 사이 (태그·리스트·아이콘·날짜) |
+| `size.menu.width` | 200~240px | 우클릭 메뉴 |
+| `size.menu.item-height` | 38px | 메뉴 항목 |
+| `size.modal.width` | 설정 720px, 리스트 편집 840px(폼 + 미리보기), 일반 모달 400~480px | |
+
+## 8. 모서리·그림자·아이콘·움직임
+| 토큰 | 값 |
+|---|---|
+| `radius.xs` | 3px (체크박스) |
+| `radius.sm` | 6px (선택 배경, 알약, 버튼) |
+| `radius.md` | 8px (추가 바, 입력창, 카드) |
+| `radius.lg` | 12px (메뉴, 팝오버, 모달) |
+| `radius.full` | 999px (오늘 원, 토글, 색 점) |
+| `shadow.popover` | `0 4px 16px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)` |
+| `shadow.modal` | `0 12px 40px rgba(0,0,0,0.16)` |
+| `shadow.toast` | 없음. 검정 둥근 알약 `#1F1F1F`, 흰 글자 |
+| 아이콘 | 가는 선(1.5px) 아이콘. 리스트 아이콘은 컬러 이모지. 틱틱 아이콘 원본은 쓰지 않고 오픈 라이선스 아이콘 세트(Lucide 등)에서 가까운 모양을 고른다 |
+| `motion.fast` | 120ms ease-out (호버, 체크) |
+| `motion.base` | 180ms ease-out (메뉴·팝오버 열기, 패널 접기) |
+| `motion.toast` | 등장 180ms, 3초 뒤 사라짐 |
+- 그림자, 움직임은 캡처로 잴 수 없어서 **추정값**이다. 구현 후 영상과 나란히 놓고 맞춘다.
+
+## 9. 구현 규칙
+- 토큰은 CSS 변수로 둔다: `--color-bg-app`, `--text-body-size` 등. 테마는 `[data-theme="sky"]`, `[data-theme="dark"]`에서 변수만 덮어쓴다.
+- 리스트 색 파생값(막대 배경, 글자, 알약)은 `color-mix(in srgb, var(--list-color) 35%, white)`처럼 계산한다. 색마다 값을 따로 저장하지 않는다.
+- 데스크톱(Electron)과 모바일(React Native)이 같은 토큰 JSON(`packages/tokens/tokens.json`)을 쓰고, 웹용 CSS 변수와 RN 상수를 그 JSON에서 생성한다.
+
+## 10. 완료 기준 (틱틱과 나란히 놓고 확인)
+- [ ] Default 테마 목록 화면 캡처와 우리 화면을 같은 창 크기로 겹쳤을 때, 레일·사이드바·목록·상세 경계가 ±4px 안에 들어온다.
+- [ ] 신호등 간격으로 환산한 틱틱 8.0 캡처와 행 높이·체크박스·글자 크기가 ±1px.
+- [ ] 우선순위 4색, 강조색, 만료됨 빨강이 캡처와 눈으로 구분되지 않는다.
+- [ ] Sky·Dark로 바꿔도 토큰 3~5개 덮어쓰기만으로 캡처와 같은 인상이 난다.
+- [ ] 글자 크기를 바꾸면(Cmd +/-) 모든 크기가 비율대로 따라간다.
+
+## 11. 열린 질문
+1. 라이트 테마의 검색 강조색 — 라이트 캡처가 없다. 다크 값에서 추정했다.
+2. 리스트 색 팔레트의 정확한 값 — JPEG 채도 문제. 앱을 직접 열 수 있으면 확정한다.
+3. ~~사이드바 오른쪽 표시~~ → **결정(2026-10-03): 색 점 + 개수, 개수가 0이면 숨김.** [01-app-shell](01-app-shell.md) 참고.

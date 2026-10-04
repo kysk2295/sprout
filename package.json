@@ -1,0 +1,20 @@
+{
+  "name": "sprout",
+  "private": true,
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @sprout/desktop",
+    "web": "npm run web -w @sprout/desktop",
+    "build": "npm run build -w @sprout/desktop",
+    "typecheck": "npm run typecheck -w @sprout/desktop",
+    "test": "npm test -w @sprout/schema",
+    "test:desktop": "node scripts/test-desktop-data.mjs"
+  }
+}

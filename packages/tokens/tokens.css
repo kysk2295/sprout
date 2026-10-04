@@ -1,0 +1,146 @@
+/* sprout 디자인 토큰 — 정본: docs/screens/00-design-tokens.md (v1.1)
+   화면 코드에서는 이 변수만 쓴다. 테마는 [data-theme]에서 변수만 덮어쓴다. */
+:root {
+  /* 면 */
+  --color-bg-app: #ffffff;
+  --color-bg-rail: #f8f8f8;
+  --color-bg-sidebar: #ffffff;
+  --color-bg-input: #f8f8f9;
+  --color-bg-selected: #f1f1f1;
+  --color-bg-hover: #f5f5f5;
+  --color-bg-card: #fafafa;
+  --color-bg-settings-nav: #f8f8f8;
+  --color-bg-popover: #ffffff;
+  --color-overlay-scrim: rgba(0, 0, 0, 0.18);
+  /* 선 */
+  --color-border-divider: #f3f3f4;
+  --color-border-row: #f4f4f4;
+  --color-border-input-focus: var(--color-accent);
+  /* 글자 */
+  --color-text-primary: #191919;
+  --color-text-secondary: #7d7d7d;
+  --color-text-tertiary: #a3a4a7;
+  --color-text-quaternary: #b5b6b8;
+  --color-text-link: var(--color-accent);
+  --color-text-danger: #d44343;
+  --color-menu-icon: var(--color-text-secondary);
+  --color-border-popover: transparent;
+  --color-seg-track: #f3f3f3;
+  --color-seg-on: var(--color-bg-popover);
+  --color-dp-muted: var(--color-text-tertiary);
+  --color-dp-icon: var(--color-text-secondary);
+  --color-cal-other: var(--color-text-quaternary);
+  /* 강조·상태 */
+  --color-accent: #4e75f2;
+  --color-accent-subtle: #ecf0fd;
+  --color-danger: #d44343;
+  --color-search-highlight: #fbe38e;
+  /* 우선순위 */
+  --color-priority-high: #c53c31;
+  --color-priority-medium: #efab3e;
+  --color-priority-low: #4e75f2;
+  --color-priority-none: #8b8b8b;
+  /* 레일 (Default) */
+  --color-rail-icon: #a3a4a7;
+  --color-rail-icon-selected: var(--color-accent);
+  --color-rail-icon-selected-bg: transparent;
+
+  /* 글꼴 */
+  --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --text-title: 700 20px/26px var(--font-family);
+  --text-body: 400 14px/20px var(--font-family);
+  --text-body-strong: 600 14px/20px var(--font-family);
+  --text-meta: 400 11px/15px var(--font-family);
+  --text-caption: 500 11px/15px var(--font-family);
+  --text-small: 500 10.5px/14px var(--font-family);
+  --text-group: 600 12.5px/16px var(--font-family);
+  --text-menu: 400 12px/20px var(--font-family);
+  --text-detail-title: 700 19px/26px var(--font-family);
+  --text-detail-meta: 400 13px/18px var(--font-family);
+
+  /* 크기 (rem = 루트 15px 기준, 글자 크기 조절 시 함께 커진다) */
+  --size-rail-width: 55px;
+  --size-rail-top: 35px;                /* 아바타 위쪽(아바타 34, 중심 52) */
+  --size-rail-item-gap: 8px;            /* 아이콘 칸 40 + 8 = 간격 48, 첫 아이콘 중심 107 */
+  --size-sidebar-width: 261px;
+  --size-detail-width: 336px;
+  --size-list-min-width: 360px;
+  --size-header-height: 57px;           /* 목록·상세·캘린더 머리 (제목 중심 33) */
+  --size-header-pad-top: 9px;
+  --size-sidebar-top: 12px;             /* 첫 항목 위 (중심 32) */
+  --size-addbar-height: 38px;
+  --size-row-height: 40px;
+  --size-sidebar-item-height: 40px;
+  --size-checkbox: 14px;
+  --size-dot: 6px;
+  --size-icon-sm: 13px;
+  --size-icon-md: 18px;
+  --size-icon-rail: 20px;
+  --space-1: 4px;
+  --space-list-gutter: 21px;
+  --space-row-icon-gap: 8px;
+  --space-meta-gap: 6px;
+  --size-menu-item-height: 34px;
+
+  /* 모서리·그림자·움직임 */
+  --cal-fill: 60%;        /* 06 §14.1 라이트 실측(2026-10-04): 리스트 색 60%, 지난 항목 20% */
+  --cal-fill-past: 20%;
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  /* 00 v1.2 (2026-10-03): 실제 틱틱 앱(Mac) 실측값 — research 17 §9. v1.1의 영상 기반 1.18배 보정은 버렸다 */
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+  --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.16);
+  --motion-fast: 120ms ease-out;
+  --motion-base: 180ms ease-out;
+}
+
+[data-theme="sky"] {
+  --color-bg-rail: #6387f5;
+  --color-rail-icon: rgba(255, 255, 255, 0.72);
+  --color-rail-icon-selected: #6387f5;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-bg-sidebar: #f5f7ff;
+  --color-bg-app: #fbfcff;
+  --color-bg-selected: #e3eafe;
+  --color-bg-hover: #eef2fe;
+  --color-bg-input: #eff3f6;
+}
+
+[data-theme="dark"] {
+  /* 00 v1.2 다크: 실제 틱틱 다크 테마 화면에서 픽셀을 뽑은 값(research 18) */
+  --color-bg-app: #1a1a1a;
+  --color-bg-sidebar: #1a1a1a;
+  --color-bg-rail: #212121;
+  --color-bg-popover: #212121;
+  --color-bg-selected: #2c2c2c;
+  --color-bg-hover: #242424;
+  --color-bg-input: #212121;
+  --color-bg-card: #252525;
+  --color-border-divider: #262626;
+  --color-border-row: #212121;
+  --color-text-primary: #f2f2f2;
+  --color-text-secondary: #cdcdcd;
+  --color-text-tertiary: #606060;
+  --color-text-quaternary: #474747;
+  --color-priority-none: #474747;
+  --color-accent: #545dfa;
+  --color-border-input-focus: #545dfa;
+  --color-rail-icon: #787878;
+  --color-rail-icon-selected: #ffffff;
+  --color-rail-icon-selected-bg: transparent;
+  --color-search-highlight: #dcbf77;
+  --color-accent-subtle: #262a52;
+  --color-menu-icon: #969696;
+  --color-border-popover: #2f2f2f;
+  --color-seg-track: #1a1a1a;
+  --color-seg-on: #282828;
+  --color-dp-muted: #757575;
+  --color-dp-icon: #afafaf;
+  --color-cal-other: #666666;
+  --cal-fill: 62%;
+  --cal-fill-past: 20%;
+  --cal-text: #ffffff;
+}

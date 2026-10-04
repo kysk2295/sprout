@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict'
+import { recognize } from './recognition.ts'
+const now = new Date(2026, 11, 31, 12)
+assert.equal(recognize('회의 내일 오후 3시', [], [], now).due_at, '2027-01-01T15:00')
+assert.equal(recognize('회의 내일 오후 3시', [], [], now).title, '회의')
+assert.equal(recognize('배포 2027-02-30', [], [], now).title, '배포 2027-02-30')
+assert.equal(recognize('알림 25시', [], [], now).due_at, null)
+assert.equal(recognize('매일 운동', [], [], now).repeat_rule, 'FREQ=DAILY')
+assert.equal(recognize('매주 월요일 운동', [], [], now).due_at, '2027-01-04')
+assert.equal(recognize('다음 주 금요일 회의', [], [], now).due_at, '2027-01-08')
+assert.equal(recognize('내일의 계획', [], [], now).title, '내일의 계획')
+const r = recognize('기획 #업무 ~회사 !높음', [{id:'l',name:'회사'}], [{id:'t',name:'업무'}], now)
+assert.deepEqual([r.title,r.list_id,r.tag_ids,r.priority], ['기획','l',['t'],3])
+assert.equal(recognize('작업 #없는태그').title, '작업 #없는태그')
+console.log('recognition: 10 assertions passed')
