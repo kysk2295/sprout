@@ -58,6 +58,8 @@ export function useTaskActions() {
         const open = all.length ? (await db.getAll<{ id: string }>(`SELECT id FROM tasks WHERE status = 0 AND id IN (${marks(all.length)})`, all)).map((r) => r.id) : []
         playCompleteSound()
         const repIds = repeating.map((r) => r.id as string)
+        // 10 §3.2: 앱 어디서 끝내든 성장 캐릭터가 반응하게 알린다(하루 XP 상한을 넘겨도)
+        if (open.length || repIds.length) window.dispatchEvent(new CustomEvent('sprout:task-done', { detail: { ids: [...open, ...repIds] } }))
         const restoreRep = await snapshot(repIds, [...DATE_FIELDS, 'status', 'completed_at'])
         const restorePlain = await snapshot(open, ['status', 'completed_at'])
         const checks = repIds.length ? await db.getAll<Row>(`SELECT id, done, completed_at FROM check_items WHERE task_id IN (${marks(repIds.length)})`, repIds) : []
