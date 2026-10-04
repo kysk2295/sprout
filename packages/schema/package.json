@@ -7,9 +7,10 @@
     ".": "./src/index.ts",
     "./seed": "./src/seed.ts",
     "./time": "./src/time.ts",
-    "./recognition": "./src/recognition.ts"
+    "./recognition": "./src/recognition.ts",
+    "./growth": "./src/growth.ts"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --no-warnings src/time.test.ts && node --experimental-strip-types --experimental-specifier-resolution=node --no-warnings src/recognition.test.ts"
+    "test": "node --experimental-strip-types --no-warnings src/time.test.ts && node --experimental-strip-types --experimental-specifier-resolution=node --no-warnings src/recognition.test.ts && node --experimental-strip-types --no-warnings src/growth.test.ts"
   }
 }
