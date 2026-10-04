@@ -4,6 +4,7 @@ import { db } from './db'
 import { registerDbIpc } from './ipc'
 import { ensureSeed } from './seed'
 import { startReminders } from './reminders'
+import { isSignedIn, startSync } from './sync'
 
 // 01-app-shell §2 창: 최소 800×560, Mac은 제목 표시줄을 숨기고 신호등이 레일 위에 놓인다.
 let mainWindow: BrowserWindow | undefined
@@ -58,7 +59,9 @@ async function getWindow(): Promise<BrowserWindow> {
 
 app.whenReady().then(async () => {
   await db.init()
-  await ensureSeed(!app.isPackaged || process.env.SPROUT_SEED === '1')
+  await startSync()
+  // 로그인한 기기는 서버 데이터를 내려받으므로 시드를 넣지 않는다(기본함이 두 개 생기지 않게)
+  if (!isSignedIn()) await ensureSeed(!app.isPackaged || process.env.SPROUT_SEED === '1')
   registerDbIpc()
   ipcMain.on('desktop:settings', openSettings)
   createWindow()

@@ -10,6 +10,7 @@ declare global {
       platform: NodeJS.Platform
       db: DbApi
       desktop?: import('../../preload').SproutDesktopApi
+      auth?: import('../../preload').SproutAuthApi
       reminders?: import('../../preload').SproutRemindersApi
     }
   }

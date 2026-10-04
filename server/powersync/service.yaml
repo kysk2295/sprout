@@ -1,0 +1,28 @@
+# PowerSync Service 설정 (Open Edition, 셀프호스트). 환경 변수는 PS_로 시작해야 !env로 읽힌다.
+telemetry:
+  disable_telemetry_sharing: true
+
+replication:
+  connections:
+    - type: postgresql
+      uri: !env PS_DATA_SOURCE_URI
+      sslmode: disable # 같은 Docker 네트워크 안이라 TLS 없음
+
+storage:
+  type: postgresql
+  uri: !env PS_STORAGE_SOURCE_URI
+  sslmode: disable
+
+port: !env PS_PORT
+
+sync_config:
+  path: sync-config.yaml # npm run server:schema 로 생성
+
+# 기기 토큰은 sprout API가 RS256으로 서명한다. 공개키는 JWKS로 가져온다.
+client_auth:
+  jwks_uri: !env PS_JWKS_URL
+  audience: ["powersync"]
+
+api:
+  tokens:
+    - !env PS_ADMIN_TOKEN

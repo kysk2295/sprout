@@ -1,0 +1,9 @@
+# server/api 이미지는 packages/schema와 server/api만 쓴다
+**/node_modules
+apps
+docs
+spikes
+out
+server/backups
+server/.env
+.git

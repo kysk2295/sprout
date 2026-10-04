@@ -1,0 +1,15 @@
+{
+  "name": "@sprout/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "sprout Node API — 이메일 로그인·JWT 발급(JWKS)·PowerSync 업로드. 나중에 AI 프록시",
+  "scripts": {
+    "start": "node --experimental-strip-types --no-warnings src/server.ts",
+    "test": "node --experimental-strip-types --no-warnings src/upload.test.ts && node --experimental-strip-types --no-warnings src/auth.test.ts"
+  },
+  "dependencies": {
+    "jose": "^6.0.0",
+    "pg": "^8.13.0"
+  }
+}

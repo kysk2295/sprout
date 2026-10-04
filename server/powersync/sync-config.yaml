@@ -1,0 +1,20 @@
+# 자동 생성: npm run server:schema. 직접 고치지 않는다.
+# 사용자는 자기 owner_id 행만 내려받는다.
+config:
+  edition: 3
+
+streams:
+  user_data:
+    auto_subscribe: true
+    queries:
+      - SELECT * FROM folders WHERE owner_id = auth.user_id()
+      - SELECT * FROM lists WHERE owner_id = auth.user_id()
+      - SELECT * FROM tags WHERE owner_id = auth.user_id()
+      - SELECT * FROM filters WHERE owner_id = auth.user_id()
+      - SELECT * FROM sections WHERE owner_id = auth.user_id()
+      - SELECT * FROM tasks WHERE owner_id = auth.user_id()
+      - SELECT * FROM check_items WHERE owner_id = auth.user_id()
+      - SELECT * FROM task_tags WHERE owner_id = auth.user_id()
+      - SELECT * FROM reminders WHERE owner_id = auth.user_id()
+      - SELECT * FROM view_settings WHERE owner_id = auth.user_id()
+      - SELECT * FROM user_prefs WHERE owner_id = auth.user_id()

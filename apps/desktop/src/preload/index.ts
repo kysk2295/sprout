@@ -29,8 +29,19 @@ const remindersApi = {
   snooze: (fired: Fired, minutes: number) => ipcRenderer.send('reminder:snooze', { fired, minutes })
 }
 
+type AuthState = { user: { id: string; email: string } | null; sync: { connected: boolean; uploading: boolean; downloading: boolean; lastSyncedAt: string | null; error: string | null } }
+type AuthResult = { ok: true; state: AuthState } | { ok: false; error: string }
+const authApi = {
+  state: () => ipcRenderer.invoke('auth:state') as Promise<AuthState>,
+  login: (email: string, password: string) => ipcRenderer.invoke('auth:login', email, password) as Promise<AuthResult>,
+  signup: (email: string, password: string) => ipcRenderer.invoke('auth:signup', email, password) as Promise<AuthResult>,
+  logout: () => ipcRenderer.invoke('auth:logout') as Promise<AuthState>,
+  onState: (cb: (s: AuthState) => void) => on('auth:state', cb)
+}
+
 const desktopApi = { openSettings: () => ipcRenderer.send('desktop:settings'), onQuickAdd: (cb: () => void) => on('desktop:quick-add', cb) }
-contextBridge.exposeInMainWorld('sprout', { platform: process.platform, db: dbApi, reminders: remindersApi, desktop: desktopApi })
+contextBridge.exposeInMainWorld('sprout', { platform: process.platform, db: dbApi, reminders: remindersApi, desktop: desktopApi, auth: authApi })
+export type SproutAuthApi = typeof authApi
 export type SproutDesktopApi = typeof desktopApi
 export type SproutDbApi = typeof dbApi
 export type SproutRemindersApi = typeof remindersApi

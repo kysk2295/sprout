@@ -26,3 +26,6 @@ docs/ticktick-research/**/*.jpg
 docs/ticktick-research/**/*.jpeg
 docs/verification/**/ticktick-*.jpg
 docs/verification/**/ticktick-*.png
+
+# 서버 백업 덤프(사용자 데이터)
+server/backups/
