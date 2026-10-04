@@ -7,14 +7,15 @@
 //   DELETE /auth/account (Bearer) {password?} → 계정 삭제(다시 확인: 비밀번호 또는 10분 안에 로그인한 토큰) — account.ts
 //   로그인·가입·리프레시·구글·애플은 시도 제한(ratelimit.ts) → 429 + Retry-After
 //   GET  /auth/providers                      → 소셜 로그인 설정 여부 {google, apple:{services_id, redirect_uri}|null}
-//   POST /auth/google  {id_token, nonce}      → 같은 토큰 응답 + created (social.ts)
+//   POST /auth/google  {id_token, nonce?}     → 같은 토큰 응답 + created (social.ts). nonce 없음 = 모바일 기기 로그인(azp≠aud·10분·한 번만)
 //   POST /auth/apple/callback (애플 form_post) → state별로 5분 맡기고 sprout://auth/apple 로 돌려보냄
 //   POST /auth/apple   {state, nonce}         → 202 {pending} 또는 토큰 응답 + created
-//   POST /auth/link/google (Bearer) {id_token, nonce} · POST /auth/link/apple (Bearer) {state, nonce}
+//   POST /auth/link/google (Bearer) {id_token, nonce?} · POST /auth/link/apple (Bearer) {state, nonce}
 //                                             → 로그인한 계정에 연결 {linked, identities:[{provider, email(가림)}]} (link.ts, 08 §3.1.1)
 //   DELETE /auth/link/google · /auth/link/apple (Bearer) → 연결 해제(로그인할 길이 없어지면 409)
 //   GET  /.well-known/jwks.json               → PowerSync가 토큰을 검증할 공개키
-//   POST /sync/upload  (Bearer) {batch}       → 기기 변경분을 한 트랜잭션으로 적용
+//   POST /sync/upload  (Bearer) {batch}       → 기기 변경분을 한 트랜잭션으로 적용. 헤더 X-Sprout-Device(휴대폰 기기 id) → 푸시 효과에서 그 기기는 뺀다
+//   PUT/DELETE /push/devices/:id, PUT /push/devices/:id/local, POST /push/test (Bearer) → push.ts (FCM 푸시, 32). /auth/logout {device_id?}도 그 기기 등록을 지운다
 //   GET  /health
 //   GET  /ai/status, POST /ai/{assistant,classify,map,diary,kpi-draft,weekly-report}  (Bearer) → ai.ts
 //   POST /ai/worker/poll, /ai/worker/result/:id  (Bearer AI_WORKER_TOKEN, Mac mini 워커) → ai-backend.ts
@@ -32,6 +33,9 @@ import {
 } from './social.ts'
 import { linkedView, linkIdentity, parseProvider, pgLinkStore, unlinkProvider } from './link.ts'
 import { aiConfigFromEnv, createAi, pgUsageStore } from './ai.ts'
+import { createPush, pushConfigFromEnv } from './push.ts'
+import { pgPushStore } from './push-store.ts'
+import { createFcmSender, fcmConfigFromEnv } from './fcm.ts'
 import { backendFromEnv } from './ai-backend.ts'
 import { TABLES } from '../../../packages/schema/src/index.ts'
 
@@ -75,6 +79,12 @@ async function userFrom(req: IncomingMessage): Promise<string> {
 
 // AI 프록시: Mac mini Ollama로 대기열·상한을 걸어 전달한다(원문 저장 없음)
 const ai = createAi({ config: aiConfigFromEnv(), backend: backendFromEnv(), store: pgUsageStore((sql, params) => pool.query(sql, params)), auth: userFrom })
+
+// 푸시 알림(32, push.ts): FCM_PROJECT_ID가 비었거나 키가 잘못되면 푸시만 꺼지고 나머지는 그대로 돈다
+const pushConfig = pushConfigFromEnv()
+const fcm = await fcmConfigFromEnv().catch((e) => { console.error(`[push] FCM 설정 오류 — 푸시 꺼짐: ${(e as Error).message}`); return null })
+const pushStore = pgPushStore(pool, pushConfig.ios)
+const push = createPush({ config: pushConfig, store: pushStore, sender: fcm ? createFcmSender(fcm) : null, auth: userFrom })
 
 // 시도 제한(ratelimit.ts, 메모리 — API는 한 대). 한도는 RL_* 환경 변수, IP는 TRUST_PROXY 앞단의 X-Forwarded-For만 믿는다(README)
 const limiter = new RateLimiter()
@@ -250,7 +260,11 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
   }),
 
   'POST /auth/logout': async (req) => {
-    const { refresh_token } = await readJson(req)
+    const { refresh_token, device_id } = await readJson(req)
+    // 32 §3.2: 앱이 DELETE /push/devices/:id에 실패해도 정리된다(그 세션 사용자의 기기일 때만)
+    if (typeof refresh_token === 'string' && typeof device_id === 'string' && /^[0-9a-f-]{36}$/i.test(device_id)) {
+      await pushStore.deleteDeviceBySession(device_id.toLowerCase(), hashToken(refresh_token)).catch((e) => console.error('[push] logout device', (e as Error).message))
+    }
     if (typeof refresh_token === 'string') await pool.query('DELETE FROM sessions WHERE token_hash = $1', [hashToken(refresh_token)])
     return [200, { ok: true }]
   },
@@ -300,6 +314,9 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
     } finally {
       client.release()
     }
+    // 커밋 뒤 푸시 효과(조용한 동기화·알림 지우기·성장 소식) — 기다리지 않는다
+    const device = req.headers['x-sprout-device']
+    void push.afterUpload(userId, typeof device === 'string' ? device.toLowerCase() : null, batch).catch((e) => console.error('[push] afterUpload', (e as Error).message))
     return [200, { applied: stmts.length }]
   }
 }
@@ -307,6 +324,7 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
 createServer(async (req, res) => {
   const path = (req.url ?? '/').split('?')[0]
   if (await ai.handle(req, res, path)) return
+  if (await push.handle(req, res, path)) return
   const handler = routes[`${req.method} ${path}`]
   if (!handler) return send(res, 404, { error: 'not found' })
   try {
@@ -322,4 +340,7 @@ createServer(async (req, res) => {
     console.error(req.method, path, e)
     send(res, 500, { error: 'server error' })
   }
-}).listen(PORT, () => console.log(`sprout api :${PORT} · tables ${Object.keys(TABLES).length}`))
+}).listen(PORT, () => {
+  console.log(`sprout api :${PORT} · tables ${Object.keys(TABLES).length} · push ${push.enabled ? 'on' : 'off'}`)
+  push.start()
+})

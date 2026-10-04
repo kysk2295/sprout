@@ -1,7 +1,7 @@
 // 계정 삭제 (08 §7.1) — DELETE /auth/account (Bearer)
 // - 다시 확인: 비밀번호가 있는 계정은 비밀번호, 구글·애플로만 가입한 계정은 "방금 로그인"(접근 토큰의 auth_time이 10분 안).
 //   리프레시로 받은 토큰에는 auth_time이 없으므로, 소셜 계정은 삭제 직전에 구글·애플로 다시 로그인해야 한다.
-// - 한 트랜잭션: ai_usage를 명시적으로 지우고(이미 CASCADE지만 확실히) users 행을 지운다 → 동기화 테이블·세션·소셜 식별자는 ON DELETE CASCADE.
+// - 한 트랜잭션: ai_usage·device_tokens(푸시)를 명시적으로 지우고(이미 CASCADE지만 확실히) users 행을 지운다 → 동기화 테이블·세션·소셜 식별자는 ON DELETE CASCADE.
 //   PowerSync가 지워진 행을 다른 기기에도 내려보내고, 세션이 없어져 다른 기기의 리프레시는 401이 된다.
 // - 개인 정보는 로그에 남기지 않는다(이메일·id 없이 "1건"만).
 import { verifyPassword } from './auth.ts'
@@ -42,6 +42,7 @@ export async function deleteAccount(db: AccountDb, input: DeleteInput, onFail?: 
   }
   await db.transaction(async (q) => {
     await q('DELETE FROM ai_usage WHERE user_id = $1', [input.userId])
+    await q('DELETE FROM device_tokens WHERE user_id = $1', [input.userId]) // 32 푸시: 이 계정의 기기 토큰(이미 CASCADE지만 확실히 — 삭제 뒤 알림이 가지 않게)
     const r = await q('DELETE FROM users WHERE id = $1', [input.userId])
     if (!r.rowCount) throw new AccountError('unauthorized', 401)
   })

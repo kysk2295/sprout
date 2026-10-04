@@ -35,3 +35,10 @@ server/backups/
 # 실제 계정 이메일이 보이는 검증 캡처(로컬에만 보관)
 docs/verification/usage/dashboard.png
 docs/verification/usage/login-waiting.png
+
+# 32 푸시: Firebase 설정·서비스 계정 키는 git 밖(~/.config/sprout/)에 둔다
+google-services.json
+GoogleService-Info.plist
+*firebase-adminsdk*.json
+*service-account*.json
+fcm*.json

@@ -5,7 +5,7 @@ import { AccountError, deleteAccount, REAUTH_WINDOW_SEC, type AccountDb } from '
 
 type Row = { id: string; password_hash: string | null }
 function fakeDb(users: Row[], opts: { failOn?: RegExp } = {}) {
-  const state = { users: [...users], aiUsage: users.map((u) => u.id), log: [] as string[], committed: 0, rolledBack: 0 }
+  const state = { users: [...users], aiUsage: users.map((u) => u.id), devices: users.map((u) => u.id), log: [] as string[], committed: 0, rolledBack: 0 }
   const db: AccountDb = {
     query: async (sql, params = []) => {
       state.log.push(sql)
@@ -16,12 +16,13 @@ function fakeDb(users: Row[], opts: { failOn?: RegExp } = {}) {
       throw new Error(`unexpected sql ${sql}`)
     },
     transaction: async (fn) => {
-      const snapshot = { users: [...state.users], aiUsage: [...state.aiUsage] }
+      const snapshot = { users: [...state.users], aiUsage: [...state.aiUsage], devices: [...state.devices] }
       try {
         const out = await fn(async (sql, params = []) => {
           state.log.push(sql)
           if (opts.failOn?.test(sql)) throw new Error('db down')
           if (sql === 'DELETE FROM ai_usage WHERE user_id = $1') { const n = state.aiUsage.length; state.aiUsage = state.aiUsage.filter((x) => x !== params[0]); return { rows: [], rowCount: n - state.aiUsage.length } }
+          if (sql === 'DELETE FROM device_tokens WHERE user_id = $1') { const n = state.devices.length; state.devices = state.devices.filter((x) => x !== params[0]); return { rows: [], rowCount: n - state.devices.length } }
           if (sql === 'DELETE FROM users WHERE id = $1') { const n = state.users.length; state.users = state.users.filter((x) => x.id !== params[0]); return { rows: [], rowCount: n - state.users.length } }
           throw new Error(`unexpected sql ${sql}`)
         })
@@ -30,6 +31,7 @@ function fakeDb(users: Row[], opts: { failOn?: RegExp } = {}) {
       } catch (e) {
         state.users = snapshot.users
         state.aiUsage = snapshot.aiUsage
+        state.devices = snapshot.devices
         state.rolledBack++
         throw e
       }
@@ -58,6 +60,7 @@ const NOW = 2_000_000_000
   await deleteAccount(db, { userId: 'pw', password: 'correct horse' }, onFail)
   assert.deepEqual(state.users.map((u) => u.id), ['other']) // 남의 계정은 그대로
   assert.deepEqual(state.aiUsage, ['other']) // ai_usage도 명시적으로 지운다
+  assert.deepEqual(state.devices, ['other']) // 푸시 기기 토큰도(32) — 삭제 뒤 알림이 가지 않는다
   assert.equal(state.committed, 1)
   assert.equal(fails, 4)
   // 이미 지워진 계정(같은 토큰으로 다시) → 401
@@ -85,6 +88,7 @@ const NOW = 2_000_000_000
   assert.equal(state.rolledBack, 1)
   assert.deepEqual(state.users.map((u) => u.id), ['pw'])
   assert.deepEqual(state.aiUsage, ['pw'])
+  assert.deepEqual(state.devices, ['pw'])
 }
 
 // ── 없는 사용자 ──

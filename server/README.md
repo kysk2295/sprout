@@ -103,9 +103,9 @@ curl -s localhost:6060/ai/status -H "authorization: Bearer <접근 토큰>"   # 
 
 | 환경 변수(server/.env) | 예 | 설명 |
 |---|---|---|
-| `GOOGLE_CLIENT_IDS` | `123-abc.apps.googleusercontent.com` | 받아 줄 구글 클라이언트 id(쉼표로 여러 개 — 데스크톱·모바일). `GOOGLE_CLIENT_ID` 하나만 써도 된다. 비우면 `/auth/google` 503 |
+| `GOOGLE_CLIENT_IDS` | `123-abc.apps.googleusercontent.com` | 받아 줄 구글 클라이언트 id(쉼표로 여러 개 — 데스크톱 클라이언트 + 모바일이 쓰는 웹 클라이언트, 08·20 §4.3). `GOOGLE_CLIENT_ID` 하나만 써도 된다. 비우면 `/auth/google` 503 |
 | `APPLE_SERVICES_ID` | `com.example.sprout.signin` | 애플 Services ID(= 애플 토큰의 aud). 비우면 애플 로그인 끔 |
-| `APPLE_TEAM_ID` | `Z32F3Z65RD` | 기본값 그대로 |
+| `APPLE_TEAM_ID` | `BU697KN34B` | 기본값 그대로(인증서 이름 괄호 안 `Z32F3Z65RD`는 팀 ID가 아니다) |
 | `APPLE_KEY_ID` · `APPLE_PRIVATE_KEY` | `ABC123DEFG` · `/run/secrets/apple.p8` | Sign in with Apple 키(.p8)와 그 id. 없어도 로그인은 되지만(ID 토큰 검증만), 있으면 코드 교환으로 한 번 더 확인하고 나중에 계정 삭제 때 애플 토큰 폐기에 쓴다 |
 | `API_PUBLIC_URL` | `https://macmini.tail425c97.ts.net` | 애플 돌아오는 주소 = `<이 값>/auth/apple/callback`(`APPLE_REDIRECT_URI`로 직접 정해도 됨) |
 
@@ -113,7 +113,7 @@ curl -s localhost:6060/ai/status -H "authorization: Bearer <접근 토큰>"   # 
 ```yaml
       GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
       APPLE_SERVICES_ID: ${APPLE_SERVICES_ID:-}
-      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-Z32F3Z65RD}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-BU697KN34B}
       APPLE_KEY_ID: ${APPLE_KEY_ID:-}
       APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:+/run/secrets/apple.p8}
       API_PUBLIC_URL: ${API_PUBLIC_URL:-https://macmini.tail425c97.ts.net}
@@ -156,6 +156,46 @@ curl -s localhost:6060/auth/providers     # {"google":true,"apple":{...}} 확인
 - 로그는 "계정 1건 삭제"만. 백업(`backups/`, 14일)에는 그 기간 남는다 → 개인정보 처리방침에 적는다. 애플 토큰 폐기(`.p8`)는 [다음].
 - `GET /auth/me`가 `has_password`·`providers`를 더 준다(앱이 확인 방법을 고른다).
 
+## 푸시 알림 — FCM (api/src/push.ts · push-plan.ts · push-store.ts · fcm.ts · 명세 32)
+api 프로세스 안에서 돈다(새 컨테이너 없음). **`FCM_PROJECT_ID`가 비면 푸시 전체가 꺼진다** — 기기 등록은 받아 두고 `push.enabled=false`를 돌려주며 아무것도 보내지 않는다(앱은 로컬 알림만 = 지금과 같음). 키가 잘못돼도 푸시만 꺼지고 로그인·동기화는 그대로(로그 `[push] FCM 설정 오류`).
+
+| 경로 (Bearer) | 본문 | 응답 |
+|---|---|---|
+| `PUT /push/devices/:id` | `{token, platform:"android"\|"ios", app_version?, caps[], timezone(IANA), locale?, push_reminders}` | `{ok, push:{enabled, ios}}` · 사용자당 분당 10 |
+| `PUT /push/devices/:id/local` | `{keys:["r:<rid>@<ms>"…] (≤200), until?}` | `{ok}` · 남의 기기 404 |
+| `DELETE /push/devices/:id` | — | `{ok, deleted}` |
+| `POST /push/test` | `{device_id}` | `{ok}` · 404 · 429(10분에 3) · 503(푸시 꺼짐) · 502(FCM 실패) |
+- `/auth/logout {refresh_token, device_id?}` → 그 세션 사용자의 기기 행도 지운다. 계정 삭제는 `device_tokens`를 명시적으로 지운다(+ CASCADE).
+- `/sync/upload`에 헤더 `X-Sprout-Device: <기기 id>`(휴대폰만)가 오면 그 기기는 효과에서 뺀다. 커밋 뒤(응답을 기다리게 하지 않음): 완료·휴지통·삭제·시각 변경 → 다른 기기에 **바로** `{type:"sync", dismiss:"[ids]"}` · 그 밖의 `tasks·reminders·lists·check_items·xp_events·kpis·weekly_reports` 변경 → 기기마다 30초에 1번(꼬리 1번) `{type:"sync"}` · 진화·주간 리포트·초안·기본함 정리 소식.
+- 스케줄러: 30초마다(`PUSH_TICK_MS`), Postgres advisory lock(여러 api가 떠도 하나만). 창 `(max(cursor, now-1h), now]`의 할 일 알림 · 기기 시각 하루 요약(따라잡기 2시간) · 일요일 20:00 목표 마감. `push_sent (device_id, key)`로 중복 막기(7일 보관), 기기가 보고한 로컬 예약 id(`local_keys`)는 보내지 않는다. 실패(429·5xx)는 3번까지 다시, 그래도 실패면 울릴 시각 뒤 1시간 안에서 다음 tick에. FCM이 `UNREGISTERED` 등이면 그 기기 행을 지운다.
+- 로그·DB에 할 일 제목을 남기지 않는다(`push_sent`는 key·kind·task_id만). "알림에 제목 숨기기"면 페이로드에도 없다. AI 글은 어떤 페이로드에도 넣지 않는다.
+
+| 환경 변수(server/.env) | 예 | 설명 |
+|---|---|---|
+| `FCM_PROJECT_ID` | `sprout-510614` | 비면 푸시 꺼짐 |
+| `FCM_SERVICE_ACCOUNT` | `/Users/<나>/.config/sprout/fcm-service-account.json` | 호스트의 키 파일 경로 → compose가 `/run/secrets/fcm.json`에 읽기 전용으로 붙인다(apple.p8과 같은 방식) |
+| `FCM_SERVICE_ACCOUNT_B64` | `base64 -i key.json` 결과 | 파일을 붙일 수 없는 곳(Railway). 있으면 파일보다 먼저 쓴다 |
+| `PUSH_TICK_MS` · `PUSH_SYNC_MIN_SEC` · `PUSH_IOS` | `30000` · `30` · `0` | 스케줄러 간격 · 조용한 동기화 최소 간격 · iOS 보내기(Apple 계정 뒤 `1`) |
+- 나가는 HTTPS만 필요: `oauth2.googleapis.com`(서비스 계정 JWT → 토큰, 55분 캐시), `fcm.googleapis.com`. 들어오는 포트 없음. 새 npm 패키지 없음(`jose`).
+- 서비스 계정 역할은 **Firebase Cloud Messaging API Admin**만. 키 파일은 권한 600, iCloud·git 밖(`.gitignore`에 `google-services.json`·`*service-account*.json`·`fcm*.json`).
+
+배포(Mac mini, 순서대로 — **서버를 앱보다 먼저**: 앱이 `user_prefs.notify_json`을 올리면 옛 서버는 409):
+```bash
+cd ~/sprout/server
+docker compose exec -T db pg_dump -U sprout -Fc sprout > backups/manual/before-push-$(date +%Y%m%d).dump        # 1. 백업
+docker compose exec -T db psql -U sprout -d sprout -v ON_ERROR_STOP=1 < db/migrations/20261007-push.sql          # 2. 마이그레이션(다시 돌려도 안전)
+chmod 600 ~/.config/sprout/fcm-service-account.json                                                              # 3. 키 파일(Firebase 콘솔에서 받은 것)
+cat >> .env <<'ENV'                                                                                              # 4. 환경 변수
+FCM_PROJECT_ID=sprout-510614
+FCM_SERVICE_ACCOUNT=/Users/<나>/.config/sprout/fcm-service-account.json
+ENV
+docker compose up -d --build api && docker compose restart powersync                                             # 5. api 다시 빌드 + 동기화 규칙 다시 읽기
+docker compose logs api | grep -E 'push (on|off)|\[push\]'                                                      # "push on" · "[push] 켜짐 · 30초마다"
+```
+- 되돌리기: `.env`에서 `FCM_PROJECT_ID`를 비우고 `docker compose up -d api` → 푸시만 꺼진다(테이블은 둬도 된다).
+- Mac mini가 잠들면 서버 알림이 나가지 않는다 → `sudo pmset -a sleep 0 autorestart 1`. 꺼져 있어도 휴대폰이 아는 알림은 로컬로 울린다.
+- 시험: `npm run test:api`(가짜 FCM·OAuth, 네트워크 없음) — `push.test.ts`.
+
 ## 배포 전에 남은 일
 - [ ] Mac mini로 옮기기 + Cloudflare Tunnel(`api`, `powersync`만 공개, `db`는 공개하지 않는다)
 - [ ] 백업을 외부 저장소로(예: Cloudflare R2 + rclone). PRD 필수
@@ -163,6 +203,7 @@ curl -s localhost:6060/auth/providers     # {"google":true,"apple":{...}} 확인
 - [ ] 비밀번호 재설정·이메일 인증(메일 발송 수단 필요)
 - [x] 로그인·가입 시도 제한, 계정 삭제(`DELETE /auth/account`) — 코드·시험 완료, compose에 `TRUST_PROXY: private` 추가 후 배포
 - [x] 구글·애플 로그인(`/auth/google`·`/auth/apple`, 코드·시험 완료 — 마이그레이션 적용·환경 변수는 승인 뒤)
+- [x] 푸시 알림(FCM, 32) 서버 — 코드·시험 완료. 마이그레이션 `20261007-push.sql`·환경 변수·키 파일은 위 "푸시 알림" 순서대로
 - [ ] 배포 주소를 앱 기본값으로(`SPROUT_API_URL`, `SPROUT_SYNC_URL`)
 - [x] AI 프록시(`/ai/*`) + 대기열·상한 (코드·시험 완료, 배포·마이그레이션 적용은 승인 뒤)
 - [ ] 앱 AI(비서·수집함·지도·일기·성장)를 SSH 포워딩 대신 프록시로(배포판)

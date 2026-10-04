@@ -1,6 +1,6 @@
 # 32 · 푸시 알림 (FCM) — 할 일 알림 · 하루 요약 · 다른 기기 변경 · 성장 소식
 
-- 상태: **제안 (사용자 확인 전)** · v0.1 (2026-10-05)
+- 상태: **확정 v1.0 (2026-10-05)** — 사용자 "추천대로 전부, 나머지는 다 승인": §12 N1~N5 = 추천안, §10 인프라 I1~I8 승인. 서버 쪽(1·3·4·5·6단계 서버) 구현 완료 — §15 구현 메모
 - 사용자 결정(2026-10-05): FCM(HTTP v1, 셀프호스트 Node API가 서비스 계정으로 보냄). 알림 종류 4가지 모두 — ① 서버가 보내는 할 일 알림 ② 아침 하루 요약 ③ 다른 기기 변경 즉시 반영(조용한 푸시) ④ 성장·AI 소식. **Android 먼저 끝까지**, iOS는 코드 길만 준비하고 Apple 개발자 계정·APNs 키가 생기면 켠다(그 전까지 iOS는 지금의 로컬 알림 그대로).
 - 바꾸는 결정: [20 모바일 §0 D3](20-mobile-overview.md)("로컬 알림, 서버 푸시는 [다음]") → **로컬 알림은 그대로 두고 서버 푸시를 더한다**(§4.3 하이브리드). 20 §4.4의 로컬 예약 규칙(48시간·50개·버튼·완료 경로)은 그대로 쓴다.
 - 표기: **[틱틱]** 틱틱 동작 근거 있음 · **[sprout]** 틱틱에 없음(성장·AI·동기화) · **[임시]** 숫자·문구 추정값 · **[승인]** 인프라 변경이라 사용자 승인 필요
@@ -75,7 +75,7 @@
 ### 4.2 스케줄러 (api 프로세스 안)
 - `setInterval` 30초(`PUSH_TICK_MS`) [임시]. Postgres **advisory lock**으로 한 프로세스만 돈다(Railway·VPS로 옮겨 여러 개가 떠도 안전).
 - 한 번 돌 때: 창 `(cursor, now]`에 울릴 알림을 기기별로 계산 → 보냄 → `push_sent(device_id, key)`에 기록 → `cursor = now`(`push_cursor` 한 행에 저장).
-- 후보 줄이기: `due_at`의 날짜 부분이 `[오늘-2일, 오늘+3일]`(문자열 비교, 떠 있는 시각이라 시간대 여유를 둠) + 부분 색인 `tasks (due_at) WHERE status = 0 AND deleted_at IS NULL`.
+- 후보 줄이기: 시작(없으면 마감) 또는 마감의 날짜 부분이 `[오늘-2일, 오늘+15일]`(문자열 비교, 떠 있는 시각이라 시간대 여유를 둠. +15일 = '1주 전' 알림과 기간 할 일의 시작 기준 알림이 빠지지 않게 — v0.1의 +3일에서 고침) + 부분 색인 `tasks (due_at) WHERE status = 0 AND deleted_at IS NULL`.
 - **중복 안 보냄**: `push_sent` PRIMARY KEY `(device_id, key)` → `INSERT … ON CONFLICT DO NOTHING`이 성공한 것만 보낸다. 7일 지난 기록은 지운다.
 - **서버가 꺼져 있던 동안(따라잡기)**: 다시 켜지면 창의 시작을 `max(cursor, now - 60분)`으로 — **지난 1시간 안 것만** 보낸다(데스크톱 03 §7 "지난 1시간"과 같은 값). 그보다 오래된 것은 버린다(늦은 알림은 소음). FCM `ttl` = 1시간: 휴대폰이 꺼져 있다 1시간 넘어 켜지면 FCM도 버린다.
 - 실패: FCM 429·5xx는 `Retry-After`/지수 백오프로 3번까지(같은 tick 안 10초 이하), 그래도 실패하면 `push_sent`에서 지우고 다음 tick에 다시(1시간 창 안에서만). 동시 전송 10개.
@@ -188,7 +188,7 @@
 - 주의: 주간 리포트·초안은 **데스크톱이 주간 마감을 돌려야** 생긴다(10 §5). 데스크톱을 안 켜는 주에는 오지 않는다 — 서버 주간 마감은 [다음].
 
 ## 9. 데이터
-### 9.1 서버 전용 새 테이블 (마이그레이션 `server/db/migrations/2026100X-push.sql` + `db/init/05-push.sql`) [승인]
+### 9.1 서버 전용 새 테이블 (마이그레이션 `server/db/migrations/20261007-push.sql` + `db/init/05-push.sql`) [승인]
 ```sql
 CREATE TABLE IF NOT EXISTS device_tokens (   -- §3.1 칸 그대로
   id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -205,7 +205,7 @@ CREATE TABLE IF NOT EXISTS push_sent (        -- 중복 막기·지우기 대상
 CREATE INDEX IF NOT EXISTS push_sent_task_idx ON push_sent (task_id, sent_at);
 CREATE TABLE IF NOT EXISTS push_state (       -- 사용자별 마지막 진화 단계·기본함 제안 시각
   user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  last_stage integer, last_inbox_nudge_at timestamptz);
+  last_stage integer, last_report_week text, last_draft_week text, last_inbox_nudge_at timestamptz);
 CREATE TABLE IF NOT EXISTS push_cursor (id integer PRIMARY KEY DEFAULT 1, at timestamptz NOT NULL);
 CREATE INDEX IF NOT EXISTS tasks_open_due_idx ON tasks (due_at) WHERE status = 0 AND deleted_at IS NULL;
 ```
@@ -233,10 +233,10 @@ CREATE INDEX IF NOT EXISTS tasks_open_due_idx ON tasks (due_at) WHERE status = 0
 | # | 무엇 | 내용 | 비용·주의 |
 |---|---|---|---|
 | I1 | **Firebase 프로젝트** | 이미 있는 GCP 프로젝트 `sprout-510614`에 Firebase를 붙인다(콘솔 "기존 Google Cloud 프로젝트에 Firebase 추가"). Android 앱 `app.sprout.mobile` 등록(FCM에는 SHA-1 불필요). "Firebase Cloud Messaging API (V1)" 사용 설정 | 무료(Spark 요금제 그대로, FCM은 메시지 수 과금 없음). 구글 로그인 OAuth 설정과 같은 프로젝트라 관리가 한곳 |
-| I2 | **서비스 계정 키** | 서비스 계정 `sprout-push@sprout-510614.iam.gserviceaccount.com`, 역할 **Firebase Cloud Messaging API Admin**만(`roles/firebasecloudmessaging.admin`). JSON 키 1개 | 키 파일 = 비밀. Mac mini `~/.config/sprout/fcm-service-account.json`(권한 600, iCloud·git 밖) → compose가 읽기 전용으로 `/run/secrets/fcm.json`에 붙인다(apple.p8과 같은 방식). Railway처럼 파일을 못 붙이는 곳은 환경 변수 `FCM_SERVICE_ACCOUNT_JSON`(base64)도 받는다 |
+| I2 | **서비스 계정 키** | 서비스 계정 `sprout-push@sprout-510614.iam.gserviceaccount.com`, 역할 **Firebase Cloud Messaging API Admin**만(`roles/firebasecloudmessaging.admin`). JSON 키 1개 | 키 파일 = 비밀. Mac mini `~/.config/sprout/fcm-service-account.json`(권한 600, iCloud·git 밖) → compose가 읽기 전용으로 `/run/secrets/fcm.json`에 붙인다(apple.p8과 같은 방식). Railway처럼 파일을 못 붙이는 곳은 환경 변수 `FCM_SERVICE_ACCOUNT_B64`(base64)도 받는다(`FCM_SERVICE_ACCOUNT_JSON`도 같은 뜻으로 받음) |
 | I3 | **google-services.json** | Firebase에서 받은 Android 설정 파일 → `apps/mobile/google-services.json` | 엄밀한 비밀은 아니다(앱 안에 들어가고 API 키는 앱 패키지로 제한됨). 그래도 **git에 넣지 않는다**(`apps/mobile/.gitignore`에 추가) — 공개 저장소가 될 수 있고, 키 제한을 확인하기 전까지 퍼지지 않게. 원본은 `~/.config/sprout/google-services.json`, 빌드 전에 복사(또는 EAS 파일 비밀) |
 | I4 | **DB 마이그레이션** | §9.1 새 테이블 4개 + 부분 색인 1개(서버 전용), §9.2 `user_prefs.notify_json` 한 칸(동기화) | 적용 전 `pg_dump` 백업(README 절차 그대로). 다시 돌려도 안전(`IF NOT EXISTS`) |
-| I5 | **docker-compose** | `api.environment`: `FCM_PROJECT_ID`(=`sprout-510614`), `FCM_SERVICE_ACCOUNT: ${FCM_SERVICE_ACCOUNT:+/run/secrets/fcm.json}`, `FCM_SERVICE_ACCOUNT_JSON`, `PUSH_TICK_MS`(30000), `PUSH_SYNC_MIN_SEC`(30), `PUSH_IOS`(0) · `volumes`: `${FCM_SERVICE_ACCOUNT:-/dev/null}:/run/secrets/fcm.json:ro`. **새 컨테이너 없음**(스케줄러는 api 안) | `FCM_PROJECT_ID`가 비면 푸시 전체가 꺼지고 앱은 로컬 알림만 — 지금과 같은 상태로 안전하게 되돌아간다 |
+| I5 | **docker-compose** | `api.environment`: `FCM_PROJECT_ID`(=`sprout-510614`), `FCM_SERVICE_ACCOUNT: ${FCM_SERVICE_ACCOUNT:+/run/secrets/fcm.json}`, `FCM_SERVICE_ACCOUNT_B64`, `PUSH_TICK_MS`(30000), `PUSH_SYNC_MIN_SEC`(30), `PUSH_IOS`(0) · `volumes`: `${FCM_SERVICE_ACCOUNT:-/dev/null}:/run/secrets/fcm.json:ro`. **새 컨테이너 없음**(스케줄러는 api 안) | `FCM_PROJECT_ID`가 비면 푸시 전체가 꺼지고 앱은 로컬 알림만 — 지금과 같은 상태로 안전하게 되돌아간다 |
 | I6 | **API 의존성** | 새 패키지 없음 — OAuth 토큰은 이미 쓰는 `jose`로 서비스 계정 JWT(RS256, scope `https://www.googleapis.com/auth/firebase.messaging`)를 만들어 `oauth2.googleapis.com/token`과 바꾼다(55분 캐시). `firebase-admin`은 쓰지 않는다(무겁고 필요 없음) | Mac mini에서 `fcm.googleapis.com`·`oauth2.googleapis.com`으로 나가는 HTTPS만 필요(들어오는 포트 없음) |
 | I7 | **모바일 네이티브 설정** | `app.json` `android.googleServicesFile`, 채널 `daily`·`growth` 추가. 새 네이티브 모듈은 N3 결과에 따라(기본안: 없음) → 개발용 빌드 다시 만들기 | — |
 | I8 | **운영** | 할 일 알림이 **Mac mini가 켜져 있어야** 서버에서 나간다 → 잠자기 끔(`pmset`)·정전 뒤 자동 켜기 확인. 꺼져 있어도 로컬 예약이 있어 휴대폰이 아는 알림은 울린다 | 개인정보 처리방침에 "Google FCM으로 알림 전송(제목 포함, 숨기기 가능)" 한 줄(출시 준비 A 목록과 함께) |
@@ -251,14 +251,14 @@ CREATE INDEX IF NOT EXISTS tasks_open_due_idx ON tasks (due_at) WHERE status = 0
   5. iOS는 데이터 메시지만으로는 앱이 꺼져 있으면 알림을 못 그린다 → iOS 할 일 알림은 `apns.payload.aps.alert` + `category: "sprout-task"` + `mutable-content`로 **보이는 알림**을 보내고, 중복 막기는 §4.3의 2번(로컬 목록 보고)에만 기댄다. 조용한 동기화는 `content-available: 1`(iOS가 횟수를 줄일 수 있음).
 - 스위치: 서버 `PUSH_IOS=1` + 앱 `extra.pushIos: true`(원격 설정 없이 빌드 값) — 둘 다 켜져야 iOS가 등록·수신한다.
 
-## 12. 열린 결정 (5개)
-| # | 질문 | 추천 | 이유 |
+## 12. 결정 (5개 — 2026-10-05 모두 추천안으로 확정)
+| # | 질문 | 결정 | 이유 |
 |---|---|---|---|
-| N1 | Android에서 할 일 알림을 누가 울리나? ⓐ 하이브리드(로컬 예약 유지 + 서버는 휴대폰이 모르는 것만, 같은 id) ⓑ 서버만(푸시가 켜지면 로컬 예약 끔) | **ⓐ 하이브리드** | 오프라인·Mac mini 꺼짐·앱 강제 종료에도 울린다(KR2). ⓑ는 단순하지만 휴대폰에서 오프라인으로 만든 할 일·서버 다운 때 안 울림 |
-| N2 | 서버 페이로드에 할 일 제목을 넣나? | **넣는다 + `알림에 제목 숨기기`(기본 꺼짐)** | 휴대폰이 아직 그 할 일을 내려받지 못해도 제목이 보여야 쓸모가 있다. 제목은 Google(FCM)을 지나간다 — 설정 설명과 처리방침에 적고, 원하면 숨긴다. AI 글은 어떤 경우에도 넣지 않는다 |
-| N3 | 휴대폰 쪽 FCM 라이브러리 | **먼저 `expo-notifications`만**(이미 설치, `getDevicePushTokenAsync` + 백그라운드 알림 작업). 1단계 실험에서 앱이 꺼진 상태의 데이터 메시지 처리가 안 되면 `@react-native-firebase/messaging`(`setBackgroundMessageHandler`)으로 | 새 네이티브 모듈 없이 갈 수 있으면 빌드·iOS 위험이 작다. RN Firebase는 iOS에서 정적 프레임워크 설정이 필요해 다른 모듈과 부딪칠 수 있다. iOS 토큰 문제(§11-4)는 iOS를 켤 때 다시 정한다 |
-| N4 | 하루 요약 기본값 | **꺼짐 · 08:00 · 0개인 날 안 보냄** | 틱틱도 켜야 받는 기능 [research 30]. 첫 할 일 알림 권한을 받은 뒤 설정 화면에서만 켠다 |
-| N5 | 성장 소식 기본 묶음 | **진화·주간 리포트(초안 포함)·일요일 목표 마감 = 켬, 기본함 정리 = 꺼짐(모바일 정리 화면 생기면 켬), 레벨업은 안 보냄** | 주 2~3건 이하로 성장 루프를 끌어오되 소음은 피한다. 기본함 정리는 지금 휴대폰에서 열 화면이 없다 |
+| N1 | Android에서 할 일 알림을 누가 울리나? ⓐ 하이브리드(로컬 예약 유지 + 서버는 휴대폰이 모르는 것만, 같은 id) ⓑ 서버만(푸시가 켜지면 로컬 예약 끔) | **ⓐ 하이브리드** ✅ | 오프라인·Mac mini 꺼짐·앱 강제 종료에도 울린다(KR2). ⓑ는 단순하지만 휴대폰에서 오프라인으로 만든 할 일·서버 다운 때 안 울림 |
+| N2 | 서버 페이로드에 할 일 제목을 넣나? | **넣는다 + `알림에 제목 숨기기`(기본 꺼짐)** ✅ | 휴대폰이 아직 그 할 일을 내려받지 못해도 제목이 보여야 쓸모가 있다. 제목은 Google(FCM)을 지나간다 — 설정 설명과 처리방침에 적고, 원하면 숨긴다. AI 글은 어떤 경우에도 넣지 않는다 |
+| N3 | 휴대폰 쪽 FCM 라이브러리 | **먼저 `expo-notifications`만** ✅(이미 설치, `getDevicePushTokenAsync` + 백그라운드 알림 작업). 0단계 실험에서 앱이 꺼진 상태의 데이터 메시지 처리가 안 되면 `@react-native-firebase/messaging`(`setBackgroundMessageHandler`)으로 | 새 네이티브 모듈 없이 갈 수 있으면 빌드·iOS 위험이 작다. RN Firebase는 iOS에서 정적 프레임워크 설정이 필요해 다른 모듈과 부딪칠 수 있다. iOS 토큰 문제(§11-4)는 iOS를 켤 때 다시 정한다 |
+| N4 | 하루 요약 기본값 | **꺼짐 · 08:00 · 0개인 날 안 보냄** ✅ | 틱틱도 켜야 받는 기능 [research 30]. 첫 할 일 알림 권한을 받은 뒤 설정 화면에서만 켠다 |
+| N5 | 성장 소식 기본 묶음 | **진화·주간 리포트(초안 포함)·일요일 목표 마감 = 켬, 기본함 정리 = 꺼짐(모바일 정리 화면 생기면 켬), 레벨업은 안 보냄** ✅ | 주 2~3건 이하로 성장 루프를 끌어오되 소음은 피한다. 기본함 정리는 지금 휴대폰에서 열 화면이 없다 |
 
 ## 13. 구현 순서 (단계)
 | 단계 | 내용 | 확인 |
@@ -287,3 +287,29 @@ CREATE INDEX IF NOT EXISTS tasks_open_due_idx ON tasks (due_at) WHERE status = 0
 - [ ] 11. `FCM_PROJECT_ID`를 비우면 서버는 아무것도 안 보내고, 앱은 로컬 알림만으로 지금과 똑같이 동작한다(되돌리기 확인).
 - [ ] 12. 설정 › 소리와 알림이 틱틱 `Sounds & Notifications`와 같은 자리·같은 칸 모양(라이트·다크·13 테마), 권한 꺼짐·서버 준비 중·오프라인 상태 문구가 맞다.
 - [ ] 13. 서버 로그·DB에 할 일 제목이 남지 않는다(`push_sent`는 key·kind·task_id만).
+
+## 15. 구현 메모 — 서버 (2026-10-05, 1·3·4·5·6단계 서버 쪽)
+| 곳 | 내용 |
+|---|---|
+| `packages/schema/src/time.ts` | `reminderFireTimeIn(task, trigger, timeZone)` · `floatingToMs` · `msToFloating` · `dayKeyIn` · `zonedParts` · `isTimeZone`(Intl만). JS Date와 같은 규칙(없는 시각 = 바뀌기 전 오프셋, 두 번 있는 시각 = 앞의 것) → 서울·뉴욕·런던·로드하우(30분 서머타임)에서 `reminderFireTime`과 720건 같음(`notify.test.ts`) |
+| `packages/schema/src/notify.ts` (`@sprout/schema/notify`) | `parseNotifyPrefs`·`DEFAULT_NOTIFY`(§9.2) · `reminderKey` · `CHANNELS`·`TASK_CATEGORY`·`PUSH_CAPS` · `josa()` · `reminderBody(row, fireAt, tz, withList)`(plan.ts `bodyOf`의 시간대 버전) · `dailySummary` · `growthCopy`·`TEST_NOTICE` — 휴대폰·데스크톱 설정도 이것을 쓴다 |
+| `packages/schema` TABLES | `user_prefs.notify_json` 추가 → `npm run server:schema`(02-schema.sql) |
+| `server/db` | `migrations/20261007-push.sql`(ALTER + 테이블 4개 + 부분 색인), `init/05-push.sql`(새 DB) |
+| `server/api/src/fcm.ts` | 서비스 계정 JWT(jose RS256) → OAuth 토큰(55분 캐시) → `messages:send`. `UNREGISTERED`·`SENDER_ID_MISMATCH`·토큰 형식 오류 = 기기 행 삭제, 429·5xx 3번(10초 이하), 401은 토큰 새로 받기 |
+| `server/api/src/push.ts` · `push-plan.ts` · `push-store.ts` | 경로 4개(§3.2) · 스케줄러(§4.2·§5·§8 목표 마감) · `afterUpload`(§4.5·§6·§8) · 순수 계산 · Postgres/메모리 저장소 |
+| `server.ts` | `push.handle` 연결, `/sync/upload` 커밋 뒤 `afterUpload`(기다리지 않음, `X-Sprout-Device`), `/auth/logout {device_id}`, 시작 때 스케줄러 |
+| `account.ts` | 계정 삭제 트랜잭션에서 `device_tokens`도 명시적으로 지움(+ CASCADE) |
+
+명세와 다르게/더 정한 것:
+- FCM 메시지 `data`에 앱이 그리기 편하게 **`channel`**(`tasks`·`daily`·`growth`)을 넣는다. `reminder`는 `category: "sprout-task"`도. `daily`·`growth`는 `type`=`daily`/`growth` + `kind`. 시험 알림은 `{type:"test", kind:"test", key, title, body, channel:"tasks"}`.
+- iOS(`PUSH_IOS=1`)는 `apns` 블록(보이는 알림 + `category`, 동기화는 `content-available`)까지 서버에 준비해 두었다.
+- 하루 요약에서 오늘 할 일이 모두 끝났으면 본문 `오늘 할 일을 모두 끝냈어요` [임시]. 목록 이름은 40자에서 자른다. "오늘"은 보관·스마트 목록 숨김 리스트를 뺀다(views.ts와 같음).
+- 목표 마감의 "남은 목표" = 그 주(`월요일 시작`) `kpis.status`가 `active`(또는 비어 있음)인 것.
+- 진화: 처음 보는 사용자는 기준 단계만 저장하고 보내지 않는다(배포 직후 몰려 가지 않게). 캐릭터 이름이 없으면 종 이름(`꾸준한 거북이`), 캐릭터가 없으면 `캐릭터`.
+- 주간 리포트·초안 중복 막기 = `push_state.last_report_week`·`last_draft_week`(주 단위라 push_sent 7일 보관보다 길게).
+- 지운 알림(`reminders` DELETE·트리거 변경)은 할 일 id를 `push_sent`에서 찾아 지우기 목록에 넣는다(서버가 보낸 적 없는 알림은 휴대폰이 다시 계산할 때 정리).
+- 같은 할 일·같은 순간 알림이 여럿이면 가장 작은 reminder id 하나로 보내고, 기기의 `local_keys`에 그중 어느 id라도 있으면 보내지 않는다(휴대폰 plan.ts는 행 순서로 하나를 고르므로).
+- `FCM_PROJECT_ID`가 있는데 키가 없거나 깨졌으면 api는 그대로 뜨고 푸시만 꺼진다(로그 `[push] FCM 설정 오류`).
+
+휴대폰 쪽이 할 일(2단계): 기기 id(`sprout.deviceId`, uuid v4) · `PUT /push/devices/:id`(caps: 지금 열 수 있는 것만) · 업로드에 헤더 `X-Sprout-Device` · 로컬 예약 바뀔 때 `PUT …/local` · 로그아웃 때 DELETE → `/auth/logout {refresh_token, device_id}` · 받기 처리기(`reminder`/`daily`/`growth`/`sync`/`test`) · 채널 `daily`·`growth` 추가 · plan.ts `bodyOf`를 `reminderBody`로 바꾸기(같은 문구).
+

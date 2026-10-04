@@ -1,7 +1,7 @@
 # sprout 백엔드 — Mac mini(또는 Railway·VPS)에서 그대로 쓴다.
 #   db        Postgres 18 (wal_level=logical). 데이터 DB + PowerSync 저장 DB(powersync_storage)
 #   powersync PowerSync Service Open Edition — 사용자별 변경분을 기기로 스트리밍
-#   api       Node API — 이메일 로그인·JWT(JWKS)·업로드·AI 프록시(→ 호스트 Ollama)
+#   api       Node API — 이메일 로그인·JWT(JWKS)·업로드·AI 프록시(→ 호스트 Ollama)·FCM 푸시(스케줄러 포함, 새 컨테이너 없음)
 #   backup    매일 pg_dump, 14일 보관 (외부 저장소 전송은 배포 때 붙인다)
 # 처음: ./scripts/init-env.sh 로 .env를 만든 뒤 docker compose up -d
 name: sprout
@@ -62,11 +62,19 @@ services:
       APPLE_KEY_ID: ${APPLE_KEY_ID:-}
       APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:+/run/secrets/apple.p8}
       API_PUBLIC_URL: ${API_PUBLIC_URL:-https://macmini.tail425c97.ts.net}
+      # 푸시 알림(32, README "푸시 알림"). FCM_PROJECT_ID가 비면 푸시 전체가 꺼지고 앱은 로컬 알림만 쓴다
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      FCM_SERVICE_ACCOUNT: ${FCM_SERVICE_ACCOUNT:+/run/secrets/fcm.json}
+      FCM_SERVICE_ACCOUNT_B64: ${FCM_SERVICE_ACCOUNT_B64:-}
+      PUSH_TICK_MS: ${PUSH_TICK_MS:-30000}
+      PUSH_SYNC_MIN_SEC: ${PUSH_SYNC_MIN_SEC:-30}
+      PUSH_IOS: ${PUSH_IOS:-0}
     extra_hosts:
       - "host.docker.internal:host-gateway" # 리눅스(VPS)에서도 호스트의 Ollama에 닿게. Docker Desktop(Mac)은 원래 된다
     volumes:
       - api_data:/data
       - ${APPLE_PRIVATE_KEY:-/dev/null}:/run/secrets/apple.p8:ro # 애플 .p8(있을 때만)
+      - ${FCM_SERVICE_ACCOUNT:-/dev/null}:/run/secrets/fcm.json:ro # FCM 서비스 계정 키(있을 때만)
     depends_on:
       db:
         condition: service_healthy

@@ -298,3 +298,79 @@ export function repeatPresets(anchor: string): { label: string; hint?: string; r
 }
 export const RR_DAY_CODES = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] as const
 export const rrDayLabel = (code: string) => WEEKDAY_KO[RR_DAYS.indexOf(code)]
+
+// ── 시간대를 정해 계산하기(32 §4.1) — 서버(기기의 IANA 시간대)와 휴대폰이 같은 알림 시각(ms)을 얻는다 ──
+// 위의 함수들은 "이 컴퓨터의 시간대"로 계산한다. 아래는 시간대를 인자로 받는 같은 계산(Intl만 쓴다, 의존성 없음).
+// 규칙은 JS Date와 같다: 없는 시각(서머타임 시작의 빈 시간)은 바뀌기 전 오프셋으로, 두 번 있는 시각은 앞의 것으로.
+
+const dtfCache = new Map<string, Intl.DateTimeFormat>()
+function dtf(timeZone: string): Intl.DateTimeFormat {
+  let f = dtfCache.get(timeZone)
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-US', { timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', weekday: 'short' })
+    dtfCache.set(timeZone, f)
+  }
+  return f
+}
+/** 올바른 IANA 시간대 이름인가 */
+export function isTimeZone(tz: unknown): tz is string {
+  if (typeof tz !== 'string' || !tz || tz.length > 64) return false
+  try { dtf(tz); return true } catch { return false }
+}
+export type ZonedParts = { year: number; month: number; day: number; hour: number; minute: number; second: number; weekday: number }
+const WD_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+/** 그 순간(ms)의 그 시간대 벽시계 */
+export function zonedParts(ms: number, timeZone: string): ZonedParts {
+  const p: Record<string, string> = {}
+  for (const { type, value } of dtf(timeZone).formatToParts(new Date(ms))) p[type] = value
+  return { year: Number(p.year), month: Number(p.month), day: Number(p.day), hour: Number(p.hour) % 24, minute: Number(p.minute), second: Number(p.second), weekday: WD_EN.indexOf(p.weekday) }
+}
+/** 그 순간의 시간대 오프셋(분, UTC보다 앞서면 +) */
+function offsetMin(ms: number, timeZone: string): number {
+  const z = zonedParts(ms, timeZone)
+  const asUtc = Date.UTC(z.year, z.month - 1, z.day, z.hour, z.minute, z.second)
+  return Math.round((asUtc - (ms - (((ms % 1000) + 1000) % 1000))) / 60000)
+}
+/** 그 시간대의 날짜 'YYYY-MM-DD' */
+export function dayKeyIn(ms: number, timeZone: string): string {
+  const z = zonedParts(ms, timeZone)
+  return `${z.year}-${pad(z.month)}-${pad(z.day)}`
+}
+/** 떠 있는 시각('YYYY-MM-DD' 또는 'YYYY-MM-DDTHH:mm')을 그 시간대의 순간(ms)으로 */
+export function floatingToMs(f: string, timeZone: string): number {
+  const [d, t = '00:00'] = f.split('T')
+  const [y, mo, da] = d.split('-').map(Number)
+  const [h, mi] = t.split(':').map(Number)
+  const wall = Date.UTC(y, mo - 1, da, h, mi)
+  if (Number.isNaN(wall)) return NaN
+  const before = offsetMin(wall - 36 * 3600_000, timeZone)
+  const after = offsetMin(wall + 36 * 3600_000, timeZone)
+  const t1 = wall - before * 60000
+  if (before === after) return t1
+  const t2 = wall - after * 60000
+  const ok1 = offsetMin(t1, timeZone) === before
+  const ok2 = offsetMin(t2, timeZone) === after
+  if (ok1 && ok2) return Math.min(t1, t2) // 두 번 있는 시각 → 앞의 것
+  if (ok1) return t1
+  if (ok2) return t2
+  return t1 // 없는 시각 → 바뀌기 전 오프셋(JS Date와 같다)
+}
+/** 그 순간의 그 시간대 벽시계를 떠 있는 시각 'YYYY-MM-DDTHH:mm'으로 */
+export function msToFloating(ms: number, timeZone: string): string {
+  const z = zonedParts(ms, timeZone)
+  return `${z.year}-${pad(z.month)}-${pad(z.day)}T${pad(z.hour)}:${pad(z.minute)}`
+}
+/**
+ * reminderFireTime()의 시간대 버전: 알림이 울리는 순간(ms). 없으면 null.
+ * reminderFireTime은 기준 시각을 Date로 만든 뒤 벽시계에서 분을 더한다(setMinutes) — 같은 순서로 계산해 결과가 같다.
+ */
+export function reminderFireTimeIn(t: { start_at?: string | null; due_at: string | null; is_all_day?: number | null }, trigger: string, timeZone: string): number | null {
+  if (!t.due_at) return null
+  const allDay = !hasTime(t.due_at)
+  const base = trigger.startsWith('END') ? t.due_at : allDay ? datePart(t.start_at ?? t.due_at) : (t.start_at ?? t.due_at)
+  const baseMs = floatingToMs(allDay ? datePart(base) : base, timeZone)
+  if (Number.isNaN(baseMs)) return null
+  const z = zonedParts(baseMs, timeZone)
+  const wall = new Date(Date.UTC(z.year, z.month - 1, z.day, z.hour, z.minute + durationMinutes(trigger)))
+  return floatingToMs(wall.toISOString().slice(0, 16), timeZone)
+}
