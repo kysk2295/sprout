@@ -169,7 +169,9 @@ export async function startSync() {
     await db.disconnectAndClear()
     save(undefined)
     await forgetTickTick() // 17: 로그아웃하면 틱틱 연결도 끊는다
-    await ensureSeed(!app.isPackaged || process.env.SPROUT_SEED === '1')
+    // 설정 창이 열려 있으면 닫는다(로그아웃한 계정 정보가 남아 보이지 않게)
+    for (const w of BrowserWindow.getAllWindows()) if (w.webContents.getURL().includes('window=settings')) w.close()
+    await ensureSeed(process.env.SPROUT_SEED !== '0' && (!app.isPackaged || process.env.SPROUT_SEED === '1'))
     if (s) await api('/auth/logout', { body: { refresh_token: s.refresh_token } }).catch(() => {})
     broadcast()
     return state()

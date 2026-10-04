@@ -77,13 +77,17 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   const [selection, setSelection] = useState<string[]>([])
   // 10 §2.2: 첫 로그인 뒤 한 번 성향 조사를 권한다(나중에 눌러도 성장 화면에 남는다)
   const [survey, setSurvey] = useState(false)
+  // 로그인 직후 서버 데이터가 내려오기 전에 만들면 빈 캐릭터가 계정에 쌓인다 → 첫 동기화가 끝난 뒤(웹 미리보기는 바로)
+  const synced = !sync || !!sync.lastSyncedAt
+  const surveyKey = `sprout.survey.prompted.${email ?? 'preview'}` // 같은 기기의 다른 계정도 한 번씩 권한다
   useEffect(() => {
+    if (!synced) return
     void ensureCharacter().then((c) => {
       let prompted = false
-      try { prompted = localStorage.getItem('sprout.survey.prompted') === '1' } catch { /* */ }
+      try { prompted = localStorage.getItem(surveyKey) === '1' } catch { /* */ }
       if (!c.species && !prompted) setSurvey(true)
     })
-  }, [])
+  }, [synced, surveyKey])
   const actions = useTaskActions()
   const [sidebarW, setSidebarW] = useLocalState('sprout.sidebar.width', SIDEBAR.def)
   const [detailW, setDetailW] = useLocalState('sprout.detail.width', DETAIL.def)
@@ -95,6 +99,8 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   const [searchQuery, setSearchQuery] = useState('')
   useEffect(() => { const m = matchMedia('(prefers-color-scheme: dark)'); const change = () => setSystemDark(m.matches); m.addEventListener('change', change); return () => m.removeEventListener('change', change) }, [])
   const lists = useQuery<ListRow>('SELECT id, name, emoji, color, kind, sort_order FROM lists WHERE archived_at IS NULL ORDER BY sort_order') ?? []
+  // 기본함은 사이드바에서 스마트 목록으로 보이므로 list:<기본함 id> 대신 smart:inbox로(선택 표시가 맞게)
+  const listView = (listId: string) => (listId === inboxId ? 'smart:inbox' : `list:${listId}`)
   const openTask = (id: string) => { setView('tasks'); setSelected('smart:all'); setSelection([id]) }
   // 뒤에서 도는 정리: 수집함 AI 분류·링크 제목(11 v3-3), 새 할 일 영역 분류(14 §0.3)
   useCollector(lists)
@@ -202,15 +208,15 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   toggleRef.current = toggleSidebar
   return (
       <div className="app">
-        {survey && <SurveyDialog onClose={() => { setSurvey(false); try { localStorage.setItem('sprout.survey.prompted', '1') } catch { /* */ } }} />}
+        {survey && <SurveyDialog onClose={() => { setSurvey(false); try { localStorage.setItem(surveyKey, '1') } catch { /* */ } }} />}
         <LevelUpWatcher />
         <TickTickImportHost onOpenMap={() => setView('map')} onOpenCalendar={() => setView('calendar')} />
-        <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/>
+        <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}} offset={view === 'tasks' && (!drawer || selection.length > 0) ? detailW : undefined}/>
         <ReminderCards onOpen={(id) => setSelection([id])} onComplete={(id) => void actions.complete([id])} />
         <Rail view={view} onView={setView} sync={sync} email={email} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} />
         {overlay==='command' && <CommandMenu commands={commands} onClose={()=>setOverlay(undefined)} onSearch={(q)=>{setSearchQuery(q);setOverlay('search')}}/>}
-        {overlay==='search' && <SearchDialog initial={searchQuery} onClose={()=>setOverlay(undefined)} onPick={(r)=>{setView('tasks');if(r.kind==='task'){setSelected(r.list_id?`list:${r.list_id}`:'smart:all');setSelection([r.id])}else selectView(`${r.kind}:${r.id}`)}}/>}
-        {overlay==='quick' && <QuickAdd lists={lists} tags={tags} inboxId={inboxId} onClose={()=>setOverlay(undefined)} onCreated={(id,listId)=>{setView('tasks');setSelected(`list:${listId}`);setSelection([id])}}/>}
+        {overlay==='search' && <SearchDialog initial={searchQuery} onClose={()=>setOverlay(undefined)} onPick={(r)=>{setView('tasks');if(r.kind==='task'){setSelected(r.list_id?listView(r.list_id):'smart:all');setSelection([r.id])}else selectView(`${r.kind}:${r.id}`)}}/>}
+        {overlay==='quick' && <QuickAdd lists={lists} tags={tags} inboxId={inboxId} onClose={()=>setOverlay(undefined)} onCreated={(id,listId)=>{setView('tasks');setSelected(listView(listId));setSelection([id])}}/>}
         {(overlay==='settings'||overlay==='shortcuts') && <DesktopSettings initial={overlay==='shortcuts'?'shortcuts':'smart'} onClose={()=>setOverlay(undefined)}/> }
         {view === 'growth' ? <GrowthView onSurvey={() => setSurvey(true)} /> : view === 'map' ? <WorkMapView lists={lists} onOpen={openTask} onTasks={() => setView('tasks')}/> : view === 'diary' ? <DiaryView onOpen={openTask}/> : ['assistant','usage'].includes(view) ? <WorkspaceView view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={openTask}/> : (view === 'notes' || view === 'watch' || view === 'wiki') ? <NotesView section={view} onSection={setView} lists={lists} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : view === 'calendar' ? (
           <CalendarView lists={lists} tags={tags} inboxId={inboxId} actions={actions} />

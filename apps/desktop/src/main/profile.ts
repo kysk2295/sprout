@@ -10,3 +10,5 @@ if (profile && /^[\w-]{1,40}$/.test(profile)) {
   mkdirSync(dir, { recursive: true }) // 처음엔 폴더가 없어 PowerSync가 DB를 못 만든다
   app.setPath('userData', dir)
 }
+// 새로 설치한 기기는 userData 폴더가 아직 없어 PowerSync가 "dbLocation does not exist"로 첫 실행에 실패한다
+mkdirSync(app.getPath('userData'), { recursive: true })

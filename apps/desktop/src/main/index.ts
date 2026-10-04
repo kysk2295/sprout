@@ -68,7 +68,7 @@ app.whenReady().then(async () => {
   await db.init()
   await startSync()
   // 로그인한 기기는 서버 데이터를 내려받으므로 시드를 넣지 않는다(기본함이 두 개 생기지 않게)
-  if (!isSignedIn()) await ensureSeed(!app.isPackaged || process.env.SPROUT_SEED === '1')
+  if (!isSignedIn()) await ensureSeed(process.env.SPROUT_SEED !== '0' && (!app.isPackaged || process.env.SPROUT_SEED === '1'))
   registerDbIpc()
   registerAssistant()
   registerCollect()
