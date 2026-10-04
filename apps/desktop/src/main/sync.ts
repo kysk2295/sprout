@@ -9,6 +9,7 @@ import { UpdateType, type AbstractPowerSyncDatabase, type PowerSyncBackendConnec
 import { LOCAL_OWNER, TABLES } from '@sprout/schema'
 import { db } from './db'
 import { ensureSeed } from './seed'
+import { forgetTickTick } from './ticktick'
 
 // 기본 = Mac mini 서버(Tailscale Funnel 공개 주소, 2026-10-05). 이 Mac의 개발 서버는 SPROUT_API_URL=http://127.0.0.1:6060 SPROUT_SYNC_URL=http://127.0.0.1:8089
 const API_URL = process.env.SPROUT_API_URL ?? 'https://macmini.tail425c97.ts.net'
@@ -167,6 +168,7 @@ export async function startSync() {
     // 로그아웃하면 이 기기의 내 데이터를 지우고 처음 상태로 돌아간다(다음 사람에게 보이지 않게)
     await db.disconnectAndClear()
     save(undefined)
+    await forgetTickTick() // 17: 로그아웃하면 틱틱 연결도 끊는다
     await ensureSeed(!app.isPackaged || process.env.SPROUT_SEED === '1')
     if (s) await api('/auth/logout', { body: { refresh_token: s.refresh_token } }).catch(() => {})
     broadcast()

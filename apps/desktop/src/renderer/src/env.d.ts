@@ -10,6 +10,7 @@ declare global {
       usage?: import('../../preload').SproutUsageApi
     assistant?: import('../../preload').SproutAssistantApi
     collect?: import('../../preload').SproutCollectApi
+    ticktick?: import('../../preload').SproutTickTickApi
       platform: NodeJS.Platform
       db: DbApi
       desktop?: import('../../preload').SproutDesktopApi

@@ -3,6 +3,7 @@ import { WorkspaceView, AssistantLauncher } from './components/WorkspaceViews'
 import { NotesView } from './components/NotesView'
 import { WorkMapView } from './components/map/WorkMapView'
 import { DiaryView } from './components/diary/DiaryView'
+import { TickTickImportHost, openTickTickImport } from './components/TickTickImport'
 import { useCollector } from './data/collector'
 import { useMapClassifier } from './data/mapClassifier'
 import { GrowthView } from './components/growth/GrowthView'
@@ -188,6 +189,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   useEffect(() => window.sprout?.desktop?.onQuickAdd(() => setOverlay('quick')), [])
   const commands:Command[] = [
     {id:'new',label:'할 일 추가',key:'⌘N',group:'공통 작업',run:()=>setOverlay('quick')},
+    {id:'ticktick-import',label:'틱틱에서 가져오기',group:'공통 작업',run:openTickTickImport},
     {id:'tasks',label:'할일',group:'내비게이션',run:()=>setView('tasks')},
     {id:'calendar',label:'달력',group:'내비게이션',run:()=>setView('calendar')},
     {id:'search',label:'검색창 열기',key:'⌘F',group:'내비게이션',run:()=>{setSearchQuery('');setOverlay('search')}},
@@ -202,6 +204,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
       <div className="app">
         {survey && <SurveyDialog onClose={() => { setSurvey(false); try { localStorage.setItem('sprout.survey.prompted', '1') } catch { /* */ } }} />}
         <LevelUpWatcher />
+        <TickTickImportHost onOpenMap={() => setView('map')} onOpenCalendar={() => setView('calendar')} />
         <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/>
         <ReminderCards onOpen={(id) => setSelection([id])} onComplete={(id) => void actions.complete([id])} />
         <Rail view={view} onView={setView} sync={sync} email={email} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} />
