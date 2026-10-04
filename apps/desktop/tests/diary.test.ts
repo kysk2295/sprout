@@ -171,7 +171,7 @@ assert.equal(buddyLine({ kind: 'private' }), '안 볼게. 너만의 페이지야
 assert.equal(buddyLine({ kind: 'open', hour: 23 }), '늦게까지 고생했어')
 // 위기 카드: 109가 맨 위, 희망의 말이 함께
 assert.equal(CRISIS_CARD.lines[0].number, '109')
-assert.deepEqual(CRISIS_CARD.lines.map((l) => l.number), ['109', '1577-0199', '112 / 119'])
+assert.deepEqual(CRISIS_CARD.lines.map((l) => l.number), ['109', '112 / 119'])
 assert.ok(CRISIS_CARD.hope.length > 0)
 // 오늘 한 일 타임라인은 완료 시각도 읽는다
 assert.ok(DONE_SQL.includes('completed_at FROM tasks'))

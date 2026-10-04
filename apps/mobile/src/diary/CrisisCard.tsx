@@ -41,7 +41,7 @@ export function CrisisCard({ buddy, stage }: { buddy: Buddy; stage: number }) {
             <Pressable
               key={n}
               accessibilityRole="button"
-              accessibilityLabel={`${n === '15770199' ? '1577-0199' : n}에 전화 걸기`}
+              accessibilityLabel={`${n}에 전화 걸기`}
               onPress={() => void call(n, l.label)}
               style={({ pressed }) => [s.phone, { backgroundColor: l.tel.length > 1 ? p.danger : '#3fb950' }, pressed && { opacity: 0.7 }]}
             >

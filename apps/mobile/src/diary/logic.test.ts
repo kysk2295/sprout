@@ -15,7 +15,7 @@ for (const t of ['배고파 죽겠다', '웃겨 죽는 줄 알았어', '과제 �
 assert.equal(detectCrisis('그냥\n죽고\n싶다'), true)
 
 // 위기 카드: 109 맨 위, 전화 번호는 숫자만
-assert.deepEqual(CRISIS_CARD.lines.map((l) => l.number), ['109', '1577-0199', '112 · 119'])
+assert.deepEqual(CRISIS_CARD.lines.map((l) => l.number), ['109', '112 · 119'])
 for (const l of CRISIS_CARD.lines) for (const n of l.tel) assert.match(n, /^\d+$/)
 assert.ok(CRISIS_CARD.hope.length > 0)
 
