@@ -11,7 +11,8 @@ import {
 } from '../src/renderer/src/data/map'
 import {
   validateItems, parseAiJson, buildProposals, mergeProposals, applyProposalStmts, undoProposalStmts, shouldAutoMove, topicCandidates, chipFor,
-  suggestStore, askAi, proposeStructure, applyProposals, undoApply, acceptSuggestions, cleanListName, nameKey, type SuggestList, type Suggestion
+  suggestStore, askAi, proposeStructure, applyProposals, undoApply, acceptSuggestions, cleanListName, nameKey, type SuggestList, type Suggestion,
+  scoreOf, keywords, isVague, keywordVotes, keywordSure, guardSure, SUGGEST
 } from '../src/renderer/src/data/listSuggest'
 const SQL = await initSqlJs()
 const db = new SQL.Database()
@@ -128,6 +129,39 @@ const sl = [SL('in','Inbox',{kind:'inbox'}),SL('u','대학교',{emoji:'🏫'}),S
   assert.equal(by.get('G')!.listId, 'w')
   assert.equal(r.length, 7)
   assert.deepEqual(parseAiJson('설명: [{"id":"t1","list":"l1"}] 끝').items?.length, 1, '맨 배열·설명 글 섞임도 받는다')
+}
+
+// ── 확신 점수(0~100) · 낱말 검사 (30 §B 자동 이동 조정, 2026-10-05) ──
+{
+  assert.equal(scoreOf(87), 87); assert.equal(scoreOf('92%'), 92); assert.equal(scoreOf(0.9), 90); assert.equal(scoreOf('x'), null); assert.equal(scoreOf(140), 100)
+  const tk = new Map([['t1','A'],['t2','B'],['t3','C'],['t4','D']])
+  const lk = new Map([['l1','u'],['l2','w']])
+  const r = new Map(validateItems({items:[
+    {id:'t1',list:'l1',new:'',emoji:'',confidence:SUGGEST.autoScore}, // 기준 이상 → 확실
+    {id:'t2',list:'l1',new:'',emoji:'',confidence:70}, // 칩만
+    {id:'t3',list:'l2',new:'',emoji:'',confidence:30}, // 너무 낮음 → 칩도 없음
+    {id:'t4',list:'l2',new:'',emoji:'',confidence:'95',sure:'low'} // 점수가 있으면 점수를 따른다
+  ]}, tk, lk, sl).map(x=>[x.taskId,x]))
+  assert.deepEqual([r.get('A')!.sure, r.get('B')!.sure, r.get('B')!.listId, r.get('C')!.listId, r.get('D')!.sure], [true, false, 'u', null, true])
+
+  assert.deepEqual(keywords('교수님께 메일 보내기'), ['교수님','메일'], '조사·끝말을 떼고 흔한 낱말은 뺀다')
+  assert.deepEqual(keywords('자료구조 과제 제출하기'), ['자료구조','과제','제출'])
+  assert.equal(isVague('정리하기'), true); assert.equal(isVague('오후 3시 통화'), true); assert.equal(isVague('선형대수 숙제'), false)
+
+  const lists = [SL('in','Inbox',{kind:'inbox'}),SL('u','대학교'),SL('w','운동'),SL('c','회사')]
+  const recent = { u:['알고리즘 과제','조별 과제 회의','운영체제 과제','기말고사 공부'], w:['아침 러닝','러닝화 사기','저녁 러닝'], c:['팀 회의 준비','주간 보고서'] }
+  const votes = keywordVotes('네트워크 과제 제출', recent)
+  assert.equal(votes.get('u'), 3)
+  // "회의"는 대학교·회사 둘 다에 나와 뚜렷하지 않다
+  assert.equal(keywordVotes('회의 자료', recent).size, 0)
+  const pre = keywordSure([{id:'a',title:'네트워크 과제 제출'},{id:'b',title:'러닝 10km'},{id:'c',title:'운동 과제'},{id:'d',title:'조별 과제 발표'},{id:'e',title:'회사 과제 정리'}], lists, { ...recent, u: recent.u.slice(0, 2) .concat('운영체제 과제') })
+  assert.deepEqual(pre.map(x=>[x.taskId,x.listId,x.sure]), [['a','u',true],['b','w',true],['d','u',true]], '한 리스트의 최근 할 일 3개 이상과 겹칠 때만, 다른 리스트 이름이 제목에 있으면 빼고')
+  assert.equal(keywordSure([{id:'x',title:'과제'}], lists, { u:['과제 1','과제 2'] }).length, 0, '2개로는 부족')
+
+  const sure:Suggestion = {taskId:'A',listId:'c',newName:null,emoji:null,sure:true}
+  assert.equal(guardSure(sure, '정리하기', recent).sure, false, '막연한 제목은 확실해도 칩으로')
+  assert.equal(guardSure(sure, '저녁 러닝 5km', recent).sure, false, '낱말이 다른 리스트를 가리키면 칩으로')
+  assert.equal(guardSure(sure, '분기 보고서 작성', recent).sure, true)
 }
 
 // ── 기본함 정리 묶기 ──
