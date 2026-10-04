@@ -70,6 +70,7 @@
 - AI 사용량 화면의 `Unexpected token '<'` 오류: 오래된 preload로 떠 있던 앱 때문(코드 버그 아님). 다시 띄우면 정상.
 
 ## 6. 참고 위치
+- **원격 저장소: https://github.com/kysk2295/sprout (비공개, `main`)** — 2026-10-04 사용자가 직접 생성·첫 push. 다른 컴퓨터에서는 `gh repo clone kysk2295/sprout`.
 - 틱틱 조사: `docs/ticktick-research/` (18 = 노트 목록·칸반 실측)
 - 설계 원본: `docs/superpowers/specs/` (노트·비서, 계정 한도)
 - 빌드 주의(Electron·npm 11·webpack): [spikes/a1-powersync-electron/RESULT.md](spikes/a1-powersync-electron/RESULT.md)
