@@ -1,0 +1,860 @@
+/* ════════════════════════════════════════════════════════════════════
+   sprout 모바일 시안 공용 뼈대 (mobile-kit.css) — v0.1 2026-10-04
+   - 모바일 시안(mobile.html, 성장·수집함·일기·AI 비서·작업 지도 시안)이 함께 쓴다.
+     시안 HTML은 외부 파일을 읽지 않게 이 파일 내용을 <style>에 그대로 복사해 넣는다.
+   - 1부: packages/tokens/tokens.css 전체 복사(테마 13종 + 트루 블랙). 바꾸지 말고 정본에서 다시 복사한다.
+   - 2부: 모바일 전용 크기·글자 토큰(--m-*) — 근거 research 24 §1, 값은 대부분 [임시] 추정.
+   - 3부: 페이지·폰 틀(393×852, 안전 영역 59/34)·상태 막대·홈 표시줄
+   - 4부: 머리·탭 바·떠 있는 + 버튼(FAB)  5부: 행·체크박스·묶음 머리
+   - 6부: 시트·칩·세그먼트·토글·버튼·입력·설정 칸  7부: 아이콘(마스크, currentColor)
+   쓰는 법:
+     <body class="m-doc">  (시안 문서 바탕 · 맨 위 .m-toolbar · 묶음 .m-section · 폰 줄 .m-row-of-phones > .m-shot(.m-label + .m-phone + .m-note))
+     <html data-theme="default|sky|…|dark" [data-theme-variant="black"]>
+     <div class="m-phone"><div class="m-screen m-page"> m-island · m-status · m-nav · m-title · m-body · m-fab · m-tabbar · m-home </div></div>
+     .m-page = 회색 바닥(목록·설정), 그 위 .m-gcard(묶음 카드) 안에 .m-group + .m-task. 시트 .m-sheet, 메뉴 .m-menu, 서랍 .m-drawer
+     상태 막대·탭 바·키보드는 mobile.html의 <script> 도우미가 채운다(data-time · nav.m-tabbar[data-on][data-tabs] · [data-kb]) — 같이 복사해 쓰면 된다
+     아이콘: <i class="ic ic-calendar"></i> (크기 .ic-sm 16 / 기본 22 / .ic-lg 26)
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── 1부: 디자인 토큰 (packages/tokens/tokens.css 복사) ── */
+/* sprout 디자인 토큰 — 정본: docs/screens/00-design-tokens.md (v1.1)
+   화면 코드에서는 이 변수만 쓴다. 테마는 [data-theme]에서 변수만 덮어쓴다.
+   테마 목록·대비 규칙: 00 §5. 다크 계열은 모두 data-theme="dark"이고, 변형은 data-theme-variant로 덮는다(00 §5.3).
+   [data-theme="default"]는 설정의 테마 견본처럼 문서 안 일부를 기본 테마로 되돌릴 때 쓴다. */
+:root, [data-theme="default"] {
+  /* 면 */
+  --color-bg-app: #ffffff;
+  --color-bg-rail: #f8f8f8;
+  --color-bg-sidebar: #ffffff;
+  --color-bg-input: #f8f8f9;
+  --color-bg-selected: #f1f1f1;
+  --color-bg-hover: #f5f5f5;
+  --color-bg-card: #fafafa;
+  --color-bg-settings-nav: #f8f8f8;
+  --color-bg-popover: #ffffff;
+  --color-overlay-scrim: rgba(0, 0, 0, 0.18);
+  /* 선 */
+  --color-border-divider: #f3f3f4;
+  --color-border-row: #f4f4f4;
+  --color-border-input-focus: var(--color-accent);
+  /* 글자 */
+  --color-text-primary: #191919;
+  --color-text-secondary: #7d7d7d;
+  --color-text-tertiary: #a3a4a7;
+  --color-text-quaternary: #b5b6b8;
+  --color-text-link: var(--color-accent);
+  --color-text-danger: #d44343;
+  --color-menu-icon: var(--color-text-secondary);
+  --color-border-popover: transparent;
+  --color-seg-track: #f3f3f3;
+  --color-seg-on: var(--color-bg-popover);
+  --color-dp-muted: var(--color-text-tertiary);
+  --color-dp-icon: var(--color-text-secondary);
+  --color-cal-other: var(--color-text-quaternary);
+  --color-login-bg: #f9f9f9;
+  --color-login-card: #ffffff;
+  --color-login-input-border: rgba(25, 25, 25, 0.1);
+  /* 강조·상태 */
+  --color-accent: #4e75f2;
+  --color-accent-subtle: #ecf0fd;
+  --color-danger: #d44343;
+  --color-search-highlight: #fbe38e;
+  /* 우선순위 */
+  --color-priority-high: #c53c31;
+  --color-priority-medium: #efab3e;
+  --color-priority-low: #4e75f2;
+  --color-priority-none: #8b8b8b;
+  /* 레일 (Default) */
+  --color-rail-icon: #a3a4a7;
+  --color-rail-icon-selected: var(--color-accent);
+  --color-rail-icon-selected-bg: transparent;
+  --color-rail-hover: var(--color-bg-hover);          /* 레일 버튼 호버 면 — 색 레일 테마는 레일색 위에서 보이게 덮는다 */
+  --color-rail-icon-hover: var(--color-rail-icon);
+
+  /* 글꼴 */
+  --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --text-title: 700 20px/26px var(--font-family);
+  --text-body: 400 14px/20px var(--font-family);
+  --text-body-strong: 600 14px/20px var(--font-family);
+  --text-meta: 400 11px/15px var(--font-family);
+  --text-caption: 500 11px/15px var(--font-family);
+  --text-small: 500 10.5px/14px var(--font-family);
+  --text-group: 600 12.5px/16px var(--font-family);
+  --text-menu: 400 12px/20px var(--font-family);
+  --text-detail-title: 700 19px/26px var(--font-family);
+  --text-detail-meta: 400 13px/18px var(--font-family);
+
+  /* 크기 (rem = 루트 15px 기준, 글자 크기 조절 시 함께 커진다) */
+  --size-rail-width: 55px;
+  --size-rail-top: 35px;                /* 아바타 위쪽(아바타 34, 중심 52) */
+  --size-rail-item-gap: 8px;            /* 아이콘 칸 40 + 8 = 간격 48, 첫 아이콘 중심 107 */
+  --size-sidebar-width: 261px;
+  --size-detail-width: 336px;
+  --size-list-min-width: 360px;
+  --size-header-height: 57px;           /* 목록·상세·캘린더 머리 (제목 중심 33) */
+  --size-header-pad-top: 9px;
+  --size-sidebar-top: 12px;             /* 첫 항목 위 (중심 32) */
+  --size-addbar-height: 38px;
+  --size-row-height: 40px;
+  --size-sidebar-item-height: 40px;
+  --size-checkbox: 14px;
+  --size-dot: 6px;
+  --size-icon-sm: 13px;
+  --size-icon-md: 18px;
+  --size-icon-rail: 20px;
+  --space-1: 4px;
+  --space-list-gutter: 21px;
+  --space-row-icon-gap: 8px;
+  --space-meta-gap: 6px;
+  --size-menu-item-height: 34px;
+
+  /* 모서리·그림자·움직임 */
+  --cal-fill: 60%;        /* 06 §14.1 라이트 실측(2026-10-04): 리스트 색 60%, 지난 항목 20% */
+  --cal-fill-past: 20%;
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  /* 00 v1.2 (2026-10-03): 실제 틱틱 앱(Mac) 실측값 — research 17 §9. v1.1의 영상 기반 1.18배 보정은 버렸다 */
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+  --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.16);
+  --motion-fast: 120ms ease-out;
+  --motion-base: 180ms ease-out;
+}
+
+[data-theme="sky"] {
+  --color-bg-rail: #6387f5;
+  --color-rail-icon: rgba(255, 255, 255, 0.72);
+  --color-rail-icon-selected: #6387f5;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-bg-sidebar: #f5f7ff;
+  --color-bg-app: #fbfcff;
+  --color-bg-selected: #e3eafe;
+  --color-bg-hover: #eef2fe;
+  --color-bg-input: #eff3f6;
+  --color-rail-hover: rgba(255, 255, 255, 0.14);
+  --color-rail-icon-hover: #ffffff;
+}
+
+/* 00 §5.1 색상 시리즈 — 틱틱 견본색을 레일에, 같은 색을 옅게 섞어 면에 쓴다.
+   강조색은 견본색을 어둡게 해 흰 바탕·선택 면에서 4.5:1 이상. 밝은 레일은 흰 아이콘이 3:1이 안 돼서 진한 같은 계열 아이콘을 쓴다 [sprout].
+   값은 대비를 계산해 정했다 — apps/desktop/tests/theme.test.ts가 지킨다. */
+[data-theme="turquoise"] {
+  --color-bg-rail: #5cd9af;
+  --color-rail-icon: #107352;
+  --color-rail-icon-selected: #117b58;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #107352;
+  --color-bg-sidebar: #f7fdfb;
+  --color-bg-settings-nav: #f7fdfb;
+  --color-bg-app: #fcfefd;
+  --color-bg-card: #f9fefc;
+  --color-bg-selected: #e5f9f2;
+  --color-bg-hover: #f0fcf8;
+  --color-bg-input: #f4fcf9;
+  --color-seg-track: #effbf7;
+  --color-accent: #117b58;
+  --color-accent-subtle: #e2efeb;
+}
+[data-theme="teal"] {
+  --color-bg-rail: #77c8c2;
+  --color-rail-icon: #1d6a64;
+  --color-rail-icon-selected: #237973;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #1d6a64;
+  --color-bg-sidebar: #f8fcfc;
+  --color-bg-settings-nav: #f8fcfc;
+  --color-bg-app: #fcfefe;
+  --color-bg-card: #fafdfd;
+  --color-bg-selected: #e9f6f5;
+  --color-bg-hover: #f3fafa;
+  --color-bg-input: #f5fbfb;
+  --color-seg-track: #f1faf9;
+  --color-accent: #237973;
+  --color-accent-subtle: #e5efee;
+}
+[data-theme="matcha"] {
+  --color-bg-rail: #acbf9f;
+  --color-rail-icon: #476631;
+  --color-rail-icon-selected: #55793d;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #476631;
+  --color-bg-sidebar: #fbfcfa;
+  --color-bg-settings-nav: #fbfcfa;
+  --color-bg-app: #fdfefd;
+  --color-bg-card: #fcfdfc;
+  --color-bg-selected: #f2f5f0;
+  --color-bg-hover: #f8f9f6;
+  --color-bg-input: #f9fbf8;
+  --color-seg-track: #f7f9f5;
+  --color-accent: #55793d;
+  --color-accent-subtle: #ebefe8;
+}
+[data-theme="sunshine"] {
+  --color-bg-rail: #f6bb77;
+  --color-rail-icon: #9c5300;
+  --color-rail-icon-selected: #ab5c00;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #9c5300;
+  --color-bg-sidebar: #fffcf8;
+  --color-bg-settings-nav: #fffcf8;
+  --color-bg-app: #fffefc;
+  --color-bg-card: #fffdfa;
+  --color-bg-selected: #fef4e9;
+  --color-bg-hover: #fef9f3;
+  --color-bg-input: #fefaf5;
+  --color-seg-track: #fef8f1;
+  --color-accent: #ab5c00;
+  --color-accent-subtle: #f5ebe0;
+}
+[data-theme="peach"] {
+  --color-bg-rail: #f589a3;
+  --color-rail-icon: #9c1c52;
+  --color-rail-icon-selected: #c4286a;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #9c1c52;
+  --color-bg-sidebar: #fff9fa;
+  --color-bg-settings-nav: #fff9fa;
+  --color-bg-app: #fffdfd;
+  --color-bg-card: #fffbfc;
+  --color-bg-selected: #fdecf0;
+  --color-bg-hover: #fef4f7;
+  --color-bg-input: #fef7f9;
+  --color-seg-track: #fef3f6;
+  --color-accent: #c4286a;
+  --color-accent-subtle: #fae6ed;
+}
+[data-theme="lilac"] {
+  --color-bg-rail: #b0a3d3;
+  --color-rail-icon: #5d40ad;
+  --color-rail-icon-selected: #775dbe;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #5d40ad;
+  --color-bg-sidebar: #fbfafd;
+  --color-bg-settings-nav: #fbfafd;
+  --color-bg-app: #fdfdfe;
+  --color-bg-card: #fcfcfd;
+  --color-bg-selected: #f2f0f8;
+  --color-bg-hover: #f8f7fb;
+  --color-bg-input: #f9f9fc;
+  --color-seg-track: #f7f6fb;
+  --color-accent: #775dbe;
+  --color-accent-subtle: #efecf7;
+}
+[data-theme="ebony"] {
+  --color-bg-rail: #a98a75;
+  --color-rail-icon: #ffffff;
+  --color-rail-icon-selected: #87634a;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(0, 0, 0, 0.12);
+  --color-rail-icon-hover: #ffffff;
+  --color-bg-sidebar: #fbf9f8;
+  --color-bg-settings-nav: #fbf9f8;
+  --color-bg-app: #fdfdfc;
+  --color-bg-card: #fcfbfa;
+  --color-bg-selected: #f1ece9;
+  --color-bg-hover: #f7f4f3;
+  --color-bg-input: #f9f7f5;
+  --color-seg-track: #f6f3f1;
+  --color-accent: #87634a;
+  --color-accent-subtle: #f1ece9;
+}
+[data-theme="navy"] {
+  --color-bg-rail: #2b3455;
+  --color-rail-icon: #d9dae0;
+  --color-rail-icon-selected: #2b3455;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.12);
+  --color-rail-icon-hover: #ffffff;
+  --color-bg-sidebar: #f9f9fa;
+  --color-bg-settings-nav: #f9f9fa;
+  --color-bg-app: #fdfdfd;
+  --color-bg-card: #fbfbfc;
+  --color-bg-selected: #ecedf0;
+  --color-bg-hover: #f5f5f7;
+  --color-bg-input: #f7f7f8;
+  --color-seg-track: #f3f4f6;
+  --color-accent: #2b3455;
+  --color-accent-subtle: #e6e7eb;
+}
+[data-theme="gray"] {
+  --color-bg-rail: #363b41;
+  --color-rail-icon: #dbdcdd;
+  --color-rail-icon-selected: #363b41;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.12);
+  --color-rail-icon-hover: #ffffff;
+  --color-bg-sidebar: #f9fafa;
+  --color-bg-settings-nav: #f9fafa;
+  --color-bg-app: #fdfdfd;
+  --color-bg-card: #fbfbfb;
+  --color-bg-selected: #edeeee;
+  --color-bg-hover: #f5f5f6;
+  --color-bg-input: #f7f7f8;
+  --color-seg-track: #f4f4f5;
+  --color-accent: #363b41;
+  --color-accent-subtle: #e7e7e8;
+}
+
+[data-theme="dark"] {
+  /* 00 v1.2 다크: 실제 틱틱 다크 테마 화면에서 픽셀을 뽑은 값(research 18) */
+  color-scheme: dark; /* 스크롤 막대·기본 입력 요소도 어둡게 */
+  --color-bg-app: #1a1a1a;
+  --color-bg-sidebar: #1a1a1a;
+  --color-bg-rail: #212121;
+  --color-bg-popover: #212121;
+  --color-bg-selected: #2c2c2c;
+  --color-bg-hover: #242424;
+  --color-bg-input: #212121;
+  --color-bg-card: #252525;
+  --color-border-divider: #262626;
+  --color-border-row: #212121;
+  --color-text-primary: #f2f2f2;
+  --color-text-secondary: #cdcdcd;
+  --color-text-tertiary: #606060;
+  --color-text-quaternary: #474747;
+  --color-priority-none: #474747;
+  --color-accent: #545dfa;
+  --color-border-input-focus: #545dfa;
+  --color-rail-icon: #787878;
+  --color-rail-icon-selected: #ffffff;
+  --color-rail-icon-selected-bg: transparent;
+  --color-search-highlight: #dcbf77;
+  --color-accent-subtle: #262a52;
+  --color-menu-icon: #969696;
+  --color-border-popover: #2f2f2f;
+  --color-seg-track: #1a1a1a;
+  --color-seg-on: #282828;
+  --color-dp-muted: #757575;
+  --color-dp-icon: #afafaf;
+  --color-cal-other: #666666;
+  --color-login-bg: #1a1a1a;
+  --color-login-card: #212121;
+  --color-login-input-border: rgba(255, 255, 255, 0.1);
+  --cal-fill: 62%;
+  --cal-fill-past: 20%;
+  --cal-text: #ffffff;
+}
+
+/* 00 §5.2 트루 블랙 [sprout] — 다크 계열 변형. data-theme="dark"의 화면별 다크 규칙을 그대로 받고 면만 더 검게 덮는다 */
+[data-theme="dark"][data-theme-variant="black"] {
+  --color-bg-app: #000000;
+  --color-bg-sidebar: #000000;
+  --color-bg-rail: #0a0a0a;
+  --color-bg-popover: #161616;
+  --color-bg-selected: #222222;
+  --color-bg-hover: #141414;
+  --color-bg-input: #141414;
+  --color-bg-card: #111111;
+  --color-bg-settings-nav: #0d0d0d;
+  --color-border-divider: #1c1c1c;
+  --color-border-row: #141414;
+  --color-border-popover: #262626;
+  --color-seg-track: #0d0d0d;
+  --color-seg-on: #222222;
+  --color-login-bg: #000000;
+  --color-login-card: #141414;
+  /* 순검정 위에서 4.5:1을 넘기려고 다크 강조색(#545DFA)을 한 단계 밝혔다 — 흰 글자 대비도 4.5:1 유지 */
+  --color-accent: #5a62fa;
+  --color-border-input-focus: #5a62fa;
+  --color-accent-subtle: #1e2147;
+}
+
+/* ── 2부: 모바일 토큰 [임시 — research 24 §1, 틱틱 도움말 iOS 캡처(2025~26, iOS 26 모양)에서 비율로 잰 추정값] ── */
+:root {
+  --m-w: 393px; --m-h: 852px;                /* iPhone 15/16 Pro 논리 해상도 */
+  --m-safe-top: 59px; --m-safe-bottom: 34px; /* 다이내믹 아일랜드 기종 */
+  --m-nav-h: 52px;                           /* 머리 줄: 둥근 ☰ · 둥근 ⋯ (지름 40) */
+  --m-title-h: 48px;                         /* 그 아래 큰 제목 줄 */
+  --m-tab-h: 58px;                           /* 떠 있는 탭 알약 높이 [틱틱 iOS 26] */
+  --m-tab-inset: 16px;                       /* 알약 좌우 여백 */
+  --m-tab-bottom: 22px;                      /* 알약 아래 = 홈 표시줄 위 */
+  --m-gutter: 16px;                          /* 화면 좌우 여백(카드 없는 화면) */
+  --m-card-inset: 12px;                      /* 묶음 카드 좌우 여백 */
+  --m-card-gap: 10px;                        /* 묶음 카드 사이 */
+  --m-row-h: 46px;                           /* 한 줄 할 일 */
+  --m-row-h2: 62px;                          /* 메타 줄이 있는 할 일 */
+  --m-check: 18px;                           /* 체크박스(누르는 칸은 44) */
+  --m-fab: 56px;
+  --m-radius-sheet: 22px;                    /* iOS 26 시트 위 모서리 */
+  --m-radius-card: 14px;
+  --m-tap: 44px;                             /* 최소 누름 크기(HIG) */
+  --m-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif;
+  --m-text-large: 700 30px/36px var(--m-font);   /* 로그인·첫 실행 큰 제목 */
+  --m-text-title: 700 28px/34px var(--m-font);   /* 목록 큰 제목("오늘") */
+  --m-text-nav: 600 17px/22px var(--m-font);     /* 가운데 작은 제목(캘린더 월·설정·상세) */
+  --m-text-sheet-title: 600 17px/22px var(--m-font);
+  --m-text-detail-title: 600 20px/27px var(--m-font);
+  --m-text-body: 400 16px/22px var(--m-font);    /* 할 일 제목 */
+  --m-text-body-strong: 600 16px/22px var(--m-font);
+  --m-text-sub: 400 14px/20px var(--m-font);     /* 설정 값·보조 */
+  --m-text-meta: 400 12px/16px var(--m-font);    /* 날짜·리스트·태그 */
+  --m-text-group: 600 15px/20px var(--m-font);   /* 묶음 카드 머리 ("만료됨 1 ⌄") */
+  --m-text-tab: 500 10px/12px var(--m-font);
+  /* 면: 회색 바닥 위 흰 카드 [틱틱 iOS 목록·설정 공통] */
+  --m-page-bg: #f3f3f6;
+  --m-card-bg: var(--color-bg-app);
+  --m-sheet-bg: var(--color-bg-popover);
+  --m-glass: rgba(255,255,255,.82);          /* 둥근 머리 버튼·탭 알약 (유리) */
+  --m-glass-line: rgba(0,0,0,.06);
+  --m-glass-shadow: 0 4px 18px rgba(0,0,0,.10);
+  --m-drawer-bg: var(--color-bg-sidebar);
+  --m-drawer-sel: var(--color-accent-subtle);
+  --m-tab-icon: #3c3c43;
+  --m-tab-on: var(--color-accent);
+  --m-scrim: rgba(0,0,0,.30);
+  --m-shadow-sheet: 0 -6px 30px rgba(0,0,0,.12);
+  --m-shadow-fab: 0 6px 16px rgba(0,0,0,.22);
+  /* 스와이프 칸 색 [틱틱 도움말 캡처]: 왼쪽 밀기 = 이동(파랑)·삭제(빨강)·날짜(주황), 오른쪽 밀기 = 완료(초록)·고정(노랑) */
+  --m-swipe-move: #4e75f2; --m-swipe-del: #f0464a; --m-swipe-date: #ff9500;
+  --m-swipe-done: #1fc79a; --m-swipe-pin: #ffb300;
+  --m-overdue: var(--color-danger);
+  --m-highlight: var(--color-accent-subtle);  /* 자연어 인식 칠 */
+  /* 서랍 스마트 목록 아이콘 색 [sprout 원본 아이콘, 색 배치만 틱틱처럼 여러 색] */
+  --m-sl-today: #f0643a; --m-sl-tomorrow: #f29a2e; --m-sl-week: #e9b200; --m-sl-inbox: #e5534b; --m-sl-tags: #2bb3c0; --m-sl-filter: #6a7dd8;
+}
+/* 색 테마: 바닥·탭 알약에 견본색을 옅게 [sprout 해석 — 틱틱 모바일 색 테마 실측 없음, research 24 §11] */
+:root:not([data-theme="default"]):not([data-theme="dark"]) {
+  --m-page-bg: color-mix(in srgb, var(--color-bg-rail) 9%, #f3f3f6);
+  --m-drawer-sel: var(--color-bg-selected);
+}
+[data-theme="dark"] {
+  --m-page-bg: #0f0f0f;
+  --m-card-bg: #1c1c1c;
+  --m-glass: rgba(44,44,46,.82);
+  --m-glass-line: rgba(255,255,255,.08);
+  --m-glass-shadow: 0 4px 18px rgba(0,0,0,.5);
+  --m-tab-icon: #a0a0a5;
+  --m-scrim: rgba(0,0,0,.55);
+  --m-shadow-sheet: 0 -6px 30px rgba(0,0,0,.5);
+  --m-shadow-fab: 0 6px 16px rgba(0,0,0,.5);
+  --m-drawer-bg: #1a1a1a;
+  --m-drawer-sel: #2c2c2c;
+}
+[data-theme="dark"][data-theme-variant="black"] {
+  --m-page-bg: #000000;
+  --m-card-bg: #121212;
+  --m-glass: rgba(28,28,30,.85);
+  --m-drawer-bg: #0a0a0a;
+  --m-drawer-sel: #222222;
+}
+
+/* ── 3부: 시안 페이지 · 폰 틀 ── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body.m-doc { font: var(--m-text-body); background: #e6e7ea; color: #222; padding: 24px 24px 80px; -webkit-font-smoothing: antialiased; }
+[data-theme="dark"] body.m-doc { background: #0c0c0c; color: #ddd; }
+.m-toolbar { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 0 12px; background: inherit; }
+.m-toolbar h1 { font: 700 18px/24px var(--m-font); margin-right: auto; }
+.m-toolbar p { font: 400 12px/16px var(--m-font); opacity: .7; width: 100%; }
+.m-toolbar button, .m-toolbar select { font: 500 12px var(--m-font); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(128,128,128,.5); background: transparent; color: inherit; cursor: pointer; }
+.m-section { margin: 34px 0 10px; font: 700 15px/20px var(--m-font); }
+.m-section small { font-weight: 400; opacity: .7; margin-left: 8px; }
+.m-row-of-phones { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+.m-shot { display: flex; flex-direction: column; gap: 8px; width: calc(var(--m-w) + 22px); }
+.m-shot > .m-phone { margin: 14px 11px 12px; }
+.m-label { font: 600 12.5px/17px var(--m-font); display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.m-label .ref { font: 600 10.5px/14px var(--m-font); padding: 1px 6px; border-radius: 4px; background: rgba(128,128,128,.2); }
+.m-label .tt { font: 600 10.5px/14px var(--m-font); padding: 1px 6px; border-radius: 4px; background: #dfe6fb; color: #2c4fb8; }   /* [틱틱] */
+.m-label .sp { font: 600 10.5px/14px var(--m-font); padding: 1px 6px; border-radius: 4px; background: #def3e4; color: #1f7a3c; }   /* [sprout] */
+.m-label .tmp { font: 600 10.5px/14px var(--m-font); padding: 1px 6px; border-radius: 4px; background: #fbefd5; color: #8a5a00; }  /* [임시] */
+.m-note { font: 400 11.5px/16px var(--m-font); opacity: .78; }
+
+.m-phone { width: var(--m-w); height: var(--m-h); border-radius: 55px; padding: 0; position: relative; flex-shrink: 0;
+  box-shadow: 0 0 0 10px #1b1b1d, 0 0 0 11px #3a3a3c, 0 24px 60px rgba(0,0,0,.35); background: #000; }
+.m-phone.android { border-radius: 36px; }
+.m-screen { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; background: var(--color-bg-app);
+  color: var(--color-text-primary); font: var(--m-text-body); display: flex; flex-direction: column; }
+.m-island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 124px; height: 36px; border-radius: 20px; background: #000; z-index: 40; }
+.m-status { height: var(--m-safe-top); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 30px 0 52px; font: 600 16px/20px var(--m-font); position: relative; z-index: 30; }
+.m-status .r { display: flex; gap: 6px; align-items: center; }
+.m-status .bars { display: flex; gap: 2px; align-items: flex-end; height: 11px; }
+.m-status .bars i { width: 3px; background: currentColor; border-radius: 1px; }
+.m-status .bars i:nth-child(1){height:4px}.m-status .bars i:nth-child(2){height:6px}.m-status .bars i:nth-child(3){height:8.5px}.m-status .bars i:nth-child(4){height:11px}
+.m-status .bat { width: 25px; height: 12px; border: 1.5px solid currentColor; border-radius: 4px; position: relative; opacity: .9; }
+.m-status .bat::after { content: ""; position: absolute; inset: 1.5px; right: 5px; background: currentColor; border-radius: 1.5px; }
+.m-status.light { color: #fff; }
+.m-home { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: var(--color-text-primary); opacity: .85; z-index: 60; }
+.m-home.light { background: #fff; }
+.m-body { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+.m-scrim { position: absolute; inset: 0; background: var(--m-scrim); z-index: 20; }
+
+/* ── 4부: 머리 · 탭 바 · FAB ── */
+/* 머리 [틱틱 iOS]: 왼쪽 둥근 ☰(목록) 또는 ‹(상세), 오른쪽 둥근 ⋯. 큰 제목은 아래 줄(.m-title). 가운데 제목(.m-nav h2)은 캘린더·설정·시트에서 */
+.m-nav { height: var(--m-nav-h); flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 12px; position: relative; z-index: 5; }
+.m-nav h2 { font: var(--m-text-nav); flex: 1; min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-nav .grow { flex: 1; }
+.m-nav .act { font: 400 16px/22px var(--m-font); color: var(--color-accent); padding: 0 6px; white-space: nowrap; }
+.m-nav .act.strong { font-weight: 600; }
+.m-title { height: var(--m-title-h); flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 var(--m-gutter); font: var(--m-text-title); }
+.m-title small { font: var(--m-text-meta); color: var(--color-text-tertiary); margin-left: 2px; align-self: flex-end; padding-bottom: 8px; }
+.m-ib { width: 40px; height: 40px; display: grid; place-items: center; color: var(--color-text-primary); border-radius: 50%; flex-shrink: 0; position: relative; }
+.m-ib.glass { background: var(--m-glass); box-shadow: var(--m-glass-shadow); border: 0.5px solid var(--m-glass-line); backdrop-filter: blur(18px); }
+.m-ib.fill { background: var(--color-accent); color: #fff; }   /* 시트 오른쪽 위 ✓ */
+.m-ib.dim { color: var(--color-text-secondary); }
+.m-ib.acc { color: var(--color-accent); }
+.m-ib .badge { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--color-danger); }
+
+/* 탭 바 [틱틱 iOS 26]: 화면 아래 떠 있는 유리 알약, 아이콘만, 최대 5칸(넘치면 마지막이 ⋯ 더보기). 선택 = 강조색 채운 아이콘 */
+.m-tabbar { position: absolute; left: var(--m-tab-inset); right: var(--m-tab-inset); bottom: var(--m-tab-bottom); height: var(--m-tab-h); border-radius: 30px; display: flex; align-items: center; padding: 0 6px;
+  background: var(--m-glass); border: 0.5px solid var(--m-glass-line); box-shadow: var(--m-glass-shadow); backdrop-filter: blur(20px); z-index: 15; }
+.m-tabbar > span { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--m-tab-icon); position: relative; }
+.m-tabbar > span.on { color: var(--m-tab-on); }
+.m-tabbar > span b { font: var(--m-text-tab); display: none; }
+.m-tabbar.labeled > span b { display: block; }       /* [sprout 선택지] 글자 붙이기 */
+.m-tabbar > span .ic { width: 25px; height: 25px; }
+.m-tabbar .date-ic { width: 22px; height: 22px; border: 2px solid currentColor; border-radius: 6px; font: 700 10px/18px var(--m-font); text-align: center; }
+.m-tabbar > span.on .date-ic { background: currentColor; } .m-tabbar > span.on .date-ic i { color: #fff; font-style: normal; }
+.m-tabbar .date-ic i { font-style: normal; }
+.m-tabbar .xp { position: absolute; top: 2px; left: 50%; font: 700 11px/14px var(--m-font); color: var(--color-accent); transform: translateX(6px); }
+/* Android: 바닥에 붙은 평평한 막대 [틱틱 Android] */
+.m-tabbar.flat { left: 0; right: 0; bottom: 0; height: calc(64px + 16px); padding-bottom: 16px; border-radius: 0; box-shadow: none; border: 0; border-top: 0.5px solid var(--m-glass-line); background: var(--m-card-bg); }
+/* 떠 있는 + : 탭 알약 위 오른쪽 */
+.m-fab { position: absolute; right: 18px; bottom: calc(var(--m-tab-bottom) + var(--m-tab-h) + 14px); width: var(--m-fab); height: var(--m-fab); border-radius: 50%; background: var(--color-accent); color: #fff; display: grid; place-items: center; box-shadow: var(--m-shadow-fab); z-index: 14; }
+.m-fab .ic { width: 28px; height: 28px; }
+.m-fab.android { border-radius: 16px; bottom: calc(80px + 16px); }
+
+/* ── 5부: 목록 — 회색 바닥 위 묶음 카드 [틱틱 iOS] ── */
+.m-page { background: var(--m-page-bg); }
+.m-list { padding: 4px 0 170px; }
+.m-gcard { margin: 0 var(--m-card-inset) var(--m-card-gap); background: var(--m-card-bg); border-radius: var(--m-radius-card); overflow: hidden; }
+.m-group { height: 44px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font: var(--m-text-group); color: var(--color-text-primary); }
+.m-group .grow { flex: 1; }
+.m-group .n { color: var(--color-text-tertiary); font: 400 14px/20px var(--m-font); }
+.m-group .link { color: var(--color-accent); font: 500 14px/20px var(--m-font); margin-right: 6px; }
+.m-group .ic { width: 15px; height: 15px; color: var(--color-text-tertiary); }
+.m-group.collapsed .chev-ic { transform: rotate(-90deg); }
+.m-task { min-height: var(--m-row-h); display: flex; align-items: center; gap: 12px; padding: 0 14px; position: relative; background: var(--m-card-bg); }
+.m-task.sub-row { padding-left: 44px; }
+.m-task.two { min-height: var(--m-row-h2); align-items: flex-start; padding-top: 12px; padding-bottom: 10px; }
+.m-task.two .m-check { margin-top: 2px; }
+.m-task .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.m-task .t { font: var(--m-text-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-task .sub { display: flex; align-items: center; gap: 8px; font: var(--m-text-meta); color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; }
+.m-task .sub .ic { width: 12px; height: 12px; }
+.m-task .sub .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+.m-task .right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.m-task .when { font: var(--m-text-meta); color: var(--color-accent); white-space: nowrap; }
+.m-task .when.over { color: var(--m-overdue); }
+.m-task .when.gray { color: var(--color-text-tertiary); }
+.m-task .icons { display: flex; gap: 3px; color: var(--color-text-tertiary); }
+.m-task .icons .ic { width: 12px; height: 12px; }
+.m-task .more-ic { width: 14px; height: 14px; color: var(--color-text-quaternary); }
+.m-task.done .t { color: var(--color-text-tertiary); }
+.m-task.pressed { background: var(--color-bg-selected); }
+.m-task.flash { background: var(--color-accent-subtle); }
+.m-task.lifted { box-shadow: 0 10px 28px rgba(0,0,0,.2); border-radius: 12px; z-index: 3; transform: scale(1.03); }
+.m-check { width: var(--m-check); height: var(--m-check); border-radius: 4px; border: 1.5px solid var(--color-priority-none); flex-shrink: 0; display: grid; place-items: center; color: #fff; }
+.m-check.p3 { border-color: var(--color-priority-high);   background: color-mix(in srgb, var(--color-priority-high) 8%, transparent); }
+.m-check.p2 { border-color: var(--color-priority-medium); background: color-mix(in srgb, var(--color-priority-medium) 8%, transparent); }
+.m-check.p1 { border-color: var(--color-priority-low);    background: color-mix(in srgb, var(--color-priority-low) 8%, transparent); }
+.m-check.on { background: var(--color-text-quaternary); border-color: var(--color-text-quaternary); }
+.m-check.on::after { content: ""; width: 12px; height: 12px; background: #fff; -webkit-mask: var(--i-check) center/contain no-repeat; mask: var(--i-check) center/contain no-repeat; }
+.m-check.sel { border-radius: 50%; border-color: var(--color-text-quaternary); }               /* 여러 개 고르기 */
+.m-check.sel.on { background: var(--color-accent); border-color: var(--color-accent); }
+.m-check.round { border-radius: 50%; }
+.m-check.list-ic { border: 0; color: var(--color-text-tertiary); }
+.m-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 70px 40px 0; color: var(--color-text-tertiary); }
+.m-empty .art { width: 150px; height: 120px; margin-bottom: 10px; }
+.m-empty strong { font: 500 15px/21px var(--m-font); color: var(--color-text-primary); }
+.m-empty span { font: var(--m-text-meta); }
+
+/* 스와이프 뒤 버튼 */
+.m-swipe { position: relative; overflow: hidden; }
+.m-swipe .acts { position: absolute; top: 0; bottom: 0; display: flex; }
+.m-swipe .acts.right { right: 0; } .m-swipe .acts.left { left: 0; }
+.m-swipe .acts span { width: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #fff; font: 500 11px/14px var(--m-font); }
+.m-swipe .acts .ic { width: 22px; height: 22px; }
+
+/* ── 6부: 시트 · 칩 · 세그먼트 · 토글 · 버튼 · 입력 · 설정 칸 ── */
+.m-sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--m-sheet-bg); border-radius: var(--m-radius-sheet) var(--m-radius-sheet) 0 0; box-shadow: var(--m-shadow-sheet); z-index: 25; display: flex; flex-direction: column; border-top: 1px solid var(--color-border-popover); }
+.m-sheet.full { top: 10px; }
+.m-grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--color-text-quaternary); margin: 6px auto 4px; opacity: .7; flex-shrink: 0; }
+.m-sheet-head { height: 52px; display: flex; align-items: center; padding: 0 6px; flex-shrink: 0; }
+.m-sheet-head h3 { flex: 1; text-align: center; font: var(--m-text-sheet-title); }
+.m-chip { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 14px; background: var(--color-bg-input); color: var(--color-text-secondary); font: 500 13px/18px var(--m-font); white-space: nowrap; }
+.m-chip.acc { background: var(--color-accent-subtle); color: var(--color-accent); }
+.m-chip .ic { width: 14px; height: 14px; }
+.m-hl { background: var(--m-highlight); color: var(--color-accent); border-radius: 4px; padding: 0 2px; }
+.m-seg { display: flex; background: var(--color-seg-track); border-radius: 9px; padding: 2px; gap: 2px; }
+.m-seg span { flex: 1; text-align: center; font: 500 13px/28px var(--m-font); border-radius: 7px; color: var(--color-text-secondary); }
+.m-seg span.on { background: var(--color-seg-on); color: var(--color-text-primary); box-shadow: 0 1px 3px rgba(0,0,0,.14); }
+.m-toggle { width: 51px; height: 31px; border-radius: 16px; background: var(--color-text-quaternary); position: relative; flex-shrink: 0; }
+.m-toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
+.m-toggle.on { background: var(--color-accent); }
+.m-toggle.on::after { left: 22px; }
+.m-btn { height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; font: 600 16px/22px var(--m-font); background: var(--color-accent); color: #fff; width: 100%; }
+.m-btn.line { background: transparent; color: var(--color-text-primary); border: 1px solid var(--color-login-input-border); }
+.m-btn.soft { background: var(--color-bg-input); color: var(--color-text-primary); }
+.m-btn.ghost { background: transparent; color: var(--color-accent); height: 40px; }
+.m-btn.sm { height: 36px; width: auto; padding: 0 14px; font-size: 14px; border-radius: 10px; }
+.m-input { height: 50px; border-radius: 12px; background: var(--color-bg-input); display: flex; align-items: center; gap: 10px; padding: 0 14px; color: var(--color-text-tertiary); font: var(--m-text-body); border: 1px solid transparent; }
+.m-input.focus { border-color: var(--color-accent); color: var(--color-text-primary); background: var(--color-bg-app); }
+.m-input .ic { width: 18px; height: 18px; }
+.m-search { height: 36px; border-radius: 10px; background: var(--color-bg-input); display: flex; align-items: center; gap: 6px; padding: 0 10px; color: var(--color-text-tertiary); font: var(--m-text-sub); flex: 1; }
+.m-search .ic { width: 16px; height: 16px; }
+.m-grouped { background: var(--m-page-bg); }
+.m-cells { margin: 0 var(--m-gutter); background: var(--m-card-bg); border-radius: var(--m-radius-card); overflow: hidden; }
+.m-cells-title { font: 400 13px/18px var(--m-font); color: var(--color-text-tertiary); padding: 18px calc(var(--m-gutter) + 14px) 6px; }
+.m-cell { min-height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 14px; position: relative; font: var(--m-text-body); }
+.m-cell + .m-cell::before { content: ""; position: absolute; top: 0; left: 48px; right: 0; border-top: 0.5px solid var(--color-border-divider); }
+.m-cell.noicon + .m-cell::before, .m-cell.noicon::before { left: 14px; }
+.m-cell .lb { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-cell .v { font: var(--m-text-sub); color: var(--color-text-tertiary); white-space: nowrap; }
+.m-cell .v.acc { color: var(--color-accent); }
+.m-cell > .ic { color: var(--color-text-secondary); width: 22px; height: 22px; }
+.m-cell .chev { width: 16px; height: 16px; color: var(--color-text-quaternary); }
+.m-card { background: var(--color-bg-card); border-radius: var(--m-radius-card); border: 1px solid var(--color-border-divider); }
+.m-menu { position: absolute; background: var(--color-bg-popover); border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,.25); border: 1px solid var(--color-border-popover); overflow: hidden; z-index: 26; min-width: 230px; }
+.m-menu > div { height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 16px; font: 400 16px/22px var(--m-font); }
+.m-menu > div + div { border-top: 0.5px solid var(--color-border-divider); }
+.m-menu > div .ic { width: 20px; height: 20px; color: var(--color-text-secondary); margin-left: auto; }
+.m-menu > div.danger { color: var(--color-danger); } .m-menu > div.danger .ic { color: var(--color-danger); }
+.m-menu hr { border: 0; height: 8px; background: var(--color-border-divider); }
+.m-toast { position: absolute; left: 16px; right: 16px; bottom: calc(var(--m-tab-bottom) + var(--m-tab-h) + 14px); height: 48px; border-radius: 12px; background: #2b2b2e; color: #fff; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 16px; font: 400 14px/20px var(--m-font); z-index: 30; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+.m-toast .grow { flex: 1; }
+.m-toast b { color: #8fa6ff; font-weight: 600; padding: 0 10px; }
+.m-keyboard { flex-shrink: 0; height: 291px; background: #d1d3d9; padding: 8px 3px 0; display: flex; flex-direction: column; gap: 11px; position: relative; z-index: 26; }
+[data-theme="dark"] .m-keyboard { background: #2b2b2d; }
+.m-keyboard .kr { display: flex; gap: 6px; justify-content: center; }
+.m-keyboard .kr i { height: 42px; flex: 0 0 33px; border-radius: 5px; background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.3); font: 400 21px/42px var(--m-font); font-style: normal; text-align: center; color: #000; }
+[data-theme="dark"] .m-keyboard .kr i { background: #6b6b6e; color: #fff; box-shadow: none; }
+.m-keyboard .kr i.w { flex-basis: 44px; background: #abafb8; } [data-theme="dark"] .m-keyboard .kr i.w { background: #464648; }
+.m-keyboard .kr i.space { flex: 1 1 auto; font-size: 15px; }
+.m-keyboard .kr i.ret { flex-basis: 88px; font-size: 15px; background: #abafb8; } [data-theme="dark"] .m-keyboard .kr i.ret { background: #464648; }
+
+/* 리스트 서랍 [틱틱 iOS]: 왼쪽에서 화면 약 82%를 덮는 판. 위 = 아바타·이름·🔔·⚙, 스마트 목록 → 구분선 → 리스트(폴더) → 구분선 → 휴지통, 맨 아래 + 추가 · 관리 */
+.m-drawer { position: absolute; top: 0; bottom: 0; left: 0; width: 82%; background: var(--m-drawer-bg); z-index: 22; display: flex; flex-direction: column; box-shadow: 8px 0 30px rgba(0,0,0,.15); }
+.m-drawer .me { height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px; font: 600 16px/22px var(--m-font); flex-shrink: 0; }
+.m-drawer .me .av { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg,#9fd49b,#4caf6a); color: #fff; display: grid; place-items: center; font: 600 13px/1 var(--m-font); }
+.m-drawer .me .grow { flex: 1; }
+.m-drawer .items { flex: 1; overflow: hidden; padding: 4px 8px; }
+.m-dr { height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 10px; border-radius: 10px; font: var(--m-text-body); color: var(--color-text-primary); }
+.m-dr.on { background: var(--m-drawer-sel); }
+.m-dr .ic { width: 22px; height: 22px; }
+.m-dr .n { margin-left: auto; font: var(--m-text-meta); color: var(--color-text-tertiary); }
+.m-dr .chev { width: 14px; height: 14px; color: var(--color-text-quaternary); margin-left: auto; }
+.m-dr .n + .chev { margin-left: 4px; }
+.m-dr .emoji { width: 22px; text-align: center; font-size: 17px; }
+.m-dr .ldot { width: 22px; display: grid; place-items: center; } .m-dr .ldot i { width: 9px; height: 9px; border-radius: 50%; display: block; }
+.m-dr.child { padding-left: 44px; }
+.m-drawer hr { border: 0; border-top: 0.5px solid var(--color-border-divider); margin: 6px 10px; }
+.m-drawer .foot { height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 18px; color: var(--color-text-secondary); flex-shrink: 0; margin-bottom: var(--m-safe-bottom); }
+.m-drawer .foot .grow { flex: 1; }
+.m-lock { background: linear-gradient(165deg,#6d82b3 0%,#3b4a73 50%,#1b2238 100%); }
+.m-noti { margin: 0 10px; border-radius: 22px; background: rgba(245,245,245,.72); backdrop-filter: blur(24px); color: #111; padding: 12px 14px; display: flex; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.12); }
+.m-noti .app { width: 36px; height: 36px; border-radius: 9px; background: var(--color-accent); color: #fff; display: grid; place-items: center; flex-shrink: 0; }
+.m-noti .bd { flex: 1; min-width: 0; font: 400 14px/19px var(--m-font); }
+.m-noti .bd strong { display: block; font-weight: 600; }
+.m-noti .tm { font: 400 12px/16px var(--m-font); color: rgba(0,0,0,.45); }
+
+/* ── 7부: 아이콘 — 직접 그린 선 아이콘(Lucide 풍, 틱틱 원본 아님). currentColor로 칠한다 ── */
+.ic { display: inline-block; width: 22px; height: 22px; background: currentColor; flex-shrink: 0; vertical-align: middle;
+  -webkit-mask: var(--i) center / contain no-repeat; mask: var(--i) center / contain no-repeat; }
+.ic-sm { width: 16px; height: 16px; } .ic-lg { width: 26px; height: 26px; } .ic-xs { width: 13px; height: 13px; }
+:root {
+  --i-task: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%223.5%22%20width%3D%2217%22%20height%3D%2217%22%20rx%3D%223.5%22/%3E%3Cpath%20d%3D%22M8%2012.2l2.8%202.8L16.2%209.5%22/%3E%3C/svg%3E");
+  --i-square: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%224%22%20y%3D%224%22%20width%3D%2216%22%20height%3D%2216%22%20rx%3D%223%22/%3E%3C/svg%3E");
+  --i-grip: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%209h14M5%2015h14%22/%3E%3C/svg%3E");
+  --i-chev-ud: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8%209.5l4-4%204%204M8%2014.5l4%204%204-4%22/%3E%3C/svg%3E");
+  --i-layout: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%224%22%20width%3D%2217%22%20height%3D%2216%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%209.5h17M9.5%209.5V20%22/%3E%3C/svg%3E");
+  --i-cal-month: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M8%2014h.01M12%2014h.01M16%2014h.01M8%2017.5h.01M12%2017.5h.01%22/%3E%3C/svg%3E");
+  --i-cal-day: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M7.5%2014h9M7.5%2017h6%22/%3E%3C/svg%3E");
+  --i-cal-3: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M9.2%2010v10.5M14.8%2010v10.5%22/%3E%3C/svg%3E");
+  --i-agenda: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%205h3M4%2012h3M4%2019h3M10%205h10M10%2012h10M10%2019h10%22/%3E%3C/svg%3E");
+  --i-today-dot: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M8%203v4M16%203v4%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2213.5%22%20r%3D%222.2%22/%3E%3C/svg%3E");
+  --i-moon-plus: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M19%2014.5A7.5%207.5%200%201%201%209.5%205a6%206%200%200%200%209.5%209.5z%22/%3E%3C/svg%3E");
+  --i-next-week: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M9%2015h6M13%2013l2%202-2%202%22/%3E%3C/svg%3E");
+  --i-cal-x: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M10%2013l4%204M14%2013l-4%204%22/%3E%3C/svg%3E");
+  --i-wontdo: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%223.5%22%20width%3D%2217%22%20height%3D%2217%22%20rx%3D%223.5%22/%3E%3Cpath%20d%3D%22M9%209l6%206M15%209l-6%206%22/%3E%3C/svg%3E");
+  --i-flashlight: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8%203h8v4l-2%203v11h-4V10L8%207z%22/%3E%3C/svg%3E");
+  --i-camera: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%208h3l2-3h6l2%203h3v11H4z%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2213%22%20r%3D%223.5%22/%3E%3C/svg%3E");
+  --i-mail-plain: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225.5%22%20width%3D%2217%22%20height%3D%2213%22%20rx%3D%222%22/%3E%3C/svg%3E");
+  --i-msg: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%205h16v11H9l-5%204z%22/%3E%3C/svg%3E");
+  --i-note-app: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%225%22%20y%3D%223.5%22%20width%3D%2214%22%20height%3D%2217%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M8.5%208h7M8.5%2012h7M8.5%2016h4%22/%3E%3C/svg%3E");
+  --i-copy-link: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M10%2014a4%204%200%200%200%205.7%200l3-3a4%204%200%200%200-5.7-5.7l-1%201M14%2010a4%204%200%200%200-5.7%200l-3%203a4%204%200%200%200%205.7%205.7l1-1%22/%3E%3C/svg%3E");
+  --i-readlist: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6.5%203.5h11v17L12%2016.5l-5.5%204z%22/%3E%3Cpath%20d%3D%22M12%207v6M9%2010h6%22/%3E%3C/svg%3E");
+  --i-menu: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%206h16M4%2012h16M4%2018h16%22/%3E%3C/svg%3E");
+  --i-more: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%225%22%20cy%3D%2212%22%20r%3D%221.2%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%221.2%22/%3E%3Ccircle%20cx%3D%2219%22%20cy%3D%2212%22%20r%3D%221.2%22/%3E%3C/svg%3E");
+  --i-more-v: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%225%22%20r%3D%221.2%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%221.2%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2219%22%20r%3D%221.2%22/%3E%3C/svg%3E");
+  --i-plus: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%205v14M5%2012h14%22/%3E%3C/svg%3E");
+  --i-check: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2012.5l4.5%204.5L19%207.5%22/%3E%3C/svg%3E");
+  --i-x: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6%206l12%2012M18%206L6%2018%22/%3E%3C/svg%3E");
+  --i-chev-r: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M9%206l6%206-6%206%22/%3E%3C/svg%3E");
+  --i-chev-l: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M15%206l-6%206%206%206%22/%3E%3C/svg%3E");
+  --i-chev-d: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22/%3E%3C/svg%3E");
+  --i-chev-u: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6%2015l6-6%206%206%22/%3E%3C/svg%3E");
+  --i-calendar: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4%22/%3E%3C/svg%3E");
+  --i-cal-check: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M9%2015l2%202%204-4%22/%3E%3C/svg%3E");
+  --i-cal-today: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4%22/%3E%3Crect%20x%3D%228%22%20y%3D%2213%22%20width%3D%224%22%20height%3D%224%22%20rx%3D%221%22/%3E%3C/svg%3E");
+  --i-cal-7: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M10%2013.5h4.5l-3%204.5%22/%3E%3C/svg%3E");
+  --i-sun: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%224%22/%3E%3Cpath%20d%3D%22M12%202.5v2M12%2019.5v2M4.6%204.6L6%206M18%2018l1.4%201.4M2.5%2012h2M19.5%2012h2M4.6%2019.4L6%2018M18%206l1.4-1.4%22/%3E%3C/svg%3E");
+  --i-sunrise: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2018h16M7%2018a5%205%200%200%201%2010%200M12%204v4M5%2011l1.5%201M19%2011l-1.5%201M9%206l3-3%203%203%22/%3E%3C/svg%3E");
+  --i-moon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2014.5A8%208%200%201%201%209.5%204a6.5%206.5%200%200%200%2010.5%2010.5z%22/%3E%3C/svg%3E");
+  --i-inbox: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%2013.5l2.6-7.2A2%202%200%200%201%208%205h8a2%202%200%200%201%201.9%201.3l2.6%207.2V18a2%202%200%200%201-2%202h-13a2%202%200%200%201-2-2z%22/%3E%3Cpath%20d%3D%22M3.5%2013.5h4.5l1.5%202.5h5l1.5-2.5h4.5%22/%3E%3C/svg%3E");
+  --i-flag: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2021V4.5M5%204.5h11l-2%204%202%204H5%22/%3E%3C/svg%3E");
+  --i-tag: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%2012.2V4.5a1%201%200%200%201%201-1h7.7l8.3%208.3a1.5%201.5%200%200%201%200%202.1l-6.6%206.6a1.5%201.5%200%200%201-2.1%200z%22/%3E%3Ccircle%20cx%3D%228%22%20cy%3D%228%22%20r%3D%221.4%22/%3E%3C/svg%3E");
+  --i-hash: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%209h15M4%2015h15M10%203.5L8%2020.5M16%203.5l-2%2017%22/%3E%3C/svg%3E");
+  --i-folder: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%207a2%202%200%200%201%202-2h4l2%202.5h7a2%202%200%200%201%202%202V17a2%202%200%200%201-2%202h-13a2%202%200%200%201-2-2z%22/%3E%3C/svg%3E");
+  --i-list: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M9%206h11M9%2012h11M9%2018h11%22/%3E%3Ccircle%20cx%3D%224.5%22%20cy%3D%226%22%20r%3D%221%22/%3E%3Ccircle%20cx%3D%224.5%22%20cy%3D%2212%22%20r%3D%221%22/%3E%3Ccircle%20cx%3D%224.5%22%20cy%3D%2218%22%20r%3D%221%22/%3E%3C/svg%3E");
+  --i-clock: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%228.5%22/%3E%3Cpath%20d%3D%22M12%207.5V12l3%202%22/%3E%3C/svg%3E");
+  --i-bell: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6%2016V11a6%206%200%200%201%2012%200v5l1.5%202h-15z%22/%3E%3Cpath%20d%3D%22M10%2020.5a2%202%200%200%200%204%200%22/%3E%3C/svg%3E");
+  --i-repeat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M17%203l3%203-3%203%22/%3E%3Cpath%20d%3D%22M4%2011V9.5A3.5%203.5%200%200%201%207.5%206H20M7%2021l-3-3%203-3%22/%3E%3Cpath%20d%3D%22M20%2013v1.5a3.5%203.5%200%200%201-3.5%203.5H4%22/%3E%3C/svg%3E");
+  --i-search: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2211%22%20cy%3D%2211%22%20r%3D%226.5%22/%3E%3Cpath%20d%3D%22M20%2020l-4.3-4.3%22/%3E%3C/svg%3E");
+  --i-settings: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%223%22/%3E%3Cpath%20d%3D%22M19.4%2015a1.6%201.6%200%200%200%20.3%201.8l.1.1a2%202%200%201%201-2.8%202.8l-.1-.1a1.6%201.6%200%200%200-1.8-.3%201.6%201.6%200%200%200-1%201.5V21a2%202%200%201%201-4%200v-.1a1.6%201.6%200%200%200-1-1.5%201.6%201.6%200%200%200-1.8.3l-.1.1a2%202%200%201%201-2.8-2.8l.1-.1a1.6%201.6%200%200%200%20.3-1.8%201.6%201.6%200%200%200-1.5-1H3a2%202%200%201%201%200-4h.1a1.6%201.6%200%200%200%201.5-1%201.6%201.6%200%200%200-.3-1.8l-.1-.1a2%202%200%201%201%202.8-2.8l.1.1a1.6%201.6%200%200%200%201.8.3H9a1.6%201.6%200%200%200%201-1.5V3a2%202%200%201%201%204%200v.1a1.6%201.6%200%200%200%201%201.5%201.6%201.6%200%200%200%201.8-.3l.1-.1a2%202%200%201%201%202.8%202.8l-.1.1a1.6%201.6%200%200%200-.3%201.8V9a1.6%201.6%200%200%200%201.5%201H21a2%202%200%201%201%200%204h-.1a1.6%201.6%200%200%200-1.5%201z%22/%3E%3C/svg%3E");
+  --i-sprout: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%2021v-8%22/%3E%3Cpath%20d%3D%22M12%2013c0-4.5-3-7-8-7%200%204.5%203%207%208%207zM12%2011c0-3.8%202.6-6%207-6%200%203.8-2.6%206-7%206z%22/%3E%3C/svg%3E");
+  --i-send: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%2019V5M6%2011l6-6%206%206%22/%3E%3C/svg%3E");
+  --i-mic: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%229%22%20y%3D%223%22%20width%3D%226%22%20height%3D%2211%22%20rx%3D%223%22/%3E%3Cpath%20d%3D%22M5.5%2011a6.5%206.5%200%200%200%2013%200M12%2017.5V21%22/%3E%3C/svg%3E");
+  --i-trash: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%207h16M10%207V4.5h4V7M6%207l1%2013h10l1-13M10%2011v6M14%2011v6%22/%3E%3C/svg%3E");
+  --i-timer: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2213%22%20r%3D%227.5%22/%3E%3Cpath%20d%3D%22M12%209v4l2.5%201.5M9.5%202.5h5%22/%3E%3C/svg%3E");
+  --i-grid4: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%223.5%22%20width%3D%227%22%20height%3D%227%22%20rx%3D%221.5%22/%3E%3Crect%20x%3D%2213.5%22%20y%3D%223.5%22%20width%3D%227%22%20height%3D%227%22%20rx%3D%221.5%22/%3E%3Crect%20x%3D%223.5%22%20y%3D%2213.5%22%20width%3D%227%22%20height%3D%227%22%20rx%3D%221.5%22/%3E%3Crect%20x%3D%2213.5%22%20y%3D%2213.5%22%20width%3D%227%22%20height%3D%227%22%20rx%3D%221.5%22/%3E%3C/svg%3E");
+  --i-habit: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%228.5%22/%3E%3Cpath%20d%3D%22M8%2012.5l2.7%202.7L16%209.8%22/%3E%3C/svg%3E");
+  --i-sort: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M7%204v16M3.5%2016.5L7%2020l3.5-3.5M17%2020V4M13.5%207.5L17%204l3.5%203.5%22/%3E%3C/svg%3E");
+  --i-filter: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%205h16l-6%207.5V19l-4%201.5v-8z%22/%3E%3C/svg%3E");
+  --i-user: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%228%22%20r%3D%224%22/%3E%3Cpath%20d%3D%22M4.5%2020.5a7.5%207.5%200%200%201%2015%200%22/%3E%3C/svg%3E");
+  --i-lock: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%225%22%20y%3D%2210.5%22%20width%3D%2214%22%20height%3D%2210%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M8%2010.5V7.5a4%204%200%200%201%208%200v3%22/%3E%3C/svg%3E");
+  --i-mail: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225.5%22%20width%3D%2217%22%20height%3D%2213%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M4%207l8%206%208-6%22/%3E%3C/svg%3E");
+  --i-palette: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203.5a8.5%208.5%200%201%200%200%2017c1.2%200%201.7-.8%201.7-1.6%200-1.2-1-1.6-1-2.6%200-1%20.8-1.8%201.8-1.8H17a3.5%203.5%200%200%200%203.5-3.5c0-4.2-3.8-7.5-8.5-7.5z%22/%3E%3Ccircle%20cx%3D%227.5%22%20cy%3D%2211%22%20r%3D%221%22/%3E%3Ccircle%20cx%3D%2210%22%20cy%3D%227.2%22%20r%3D%221%22/%3E%3Ccircle%20cx%3D%2214.5%22%20cy%3D%227.2%22%20r%3D%221%22/%3E%3C/svg%3E");
+  --i-star: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203.5l2.6%205.3%205.9.9-4.2%204.1%201%205.8L12%2016.9l-5.3%202.7%201-5.8-4.2-4.1%205.9-.9z%22/%3E%3C/svg%3E");
+  --i-link: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M10%2014a4%204%200%200%200%205.7%200l3-3a4%204%200%200%200-5.7-5.7l-1%201M14%2010a4%204%200%200%200-5.7%200l-3%203a4%204%200%200%200%205.7%205.7l1-1%22/%3E%3C/svg%3E");
+  --i-share: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203.5V15M7.5%208L12%203.5%2016.5%208M5%2012v6.5a2%202%200%200%200%202%202h10a2%202%200%200%200%202-2V12%22/%3E%3C/svg%3E");
+  --i-note: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%204.5h14M5%209.5h14M5%2014.5h9M5%2019.5h6%22/%3E%3C/svg%3E");
+  --i-subtask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%204v11a3%203%200%200%200%203%203h3%22/%3E%3Crect%20x%3D%2211%22%20y%3D%2215%22%20width%3D%228%22%20height%3D%226%22%20rx%3D%221.5%22/%3E%3Cpath%20d%3D%22M5%208h6%22/%3E%3Crect%20x%3D%2211%22%20y%3D%225%22%20width%3D%228%22%20height%3D%226%22%20rx%3D%221.5%22/%3E%3C/svg%3E");
+  --i-pin: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M15%203.5l5.5%205.5-3%201.5-3.5%203.5.5%204-2%202-4-4-5%205M8%209.5l6.5%206.5M8.5%2010l-3.5-1.5%202-2%204%20.5%203.5-3.5z%22/%3E%3C/svg%3E");
+  --i-move: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%207a2%202%200%200%201%202-2h4l2%202.5h7a2%202%200%200%201%202%202V17a2%202%200%200%201-2%202h-13a2%202%200%200%201-2-2z%22/%3E%3Cpath%20d%3D%22M10%2013.5h6M13.5%2011l2.5%202.5-2.5%202.5%22/%3E%3C/svg%3E");
+  --i-copy: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%228.5%22%20y%3D%228.5%22%20width%3D%2212%22%20height%3D%2212%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M15.5%208.5V5.5a2%202%200%200%200-2-2h-8a2%202%200%200%200-2%202v8a2%202%200%200%200%202%202h3%22/%3E%3C/svg%3E");
+  --i-undo: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M9%2014L4%209l5-5%22/%3E%3Cpath%20d%3D%22M4%209h10.5a5.5%205.5%200%200%201%200%2011H11%22/%3E%3C/svg%3E");
+  --i-edit: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2020h4L19%209l-4-4L4%2016z%22/%3E%3Cpath%20d%3D%22M13.5%206.5l4%204%22/%3E%3C/svg%3E");
+  --i-sparkle: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203l1.9%205.1L19%2010l-5.1%201.9L12%2017l-1.9-5.1L5%2010l5.1-1.9z%22/%3E%3Cpath%20d%3D%22M19%2015.5l.8%202%202%20.8-2%20.8-.8%202-.8-2-2-.8%202-.8z%22/%3E%3C/svg%3E");
+  --i-kbd-down: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223%22%20y%3D%224%22%20width%3D%2218%22%20height%3D%2211%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M7%208h.01M11%208h.01M15%208h.01M8%2011.5h8M9%2018.5l3%202.5%203-2.5%22/%3E%3C/svg%3E");
+  --i-collect: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%2013.5l2.6-7.2A2%202%200%200%201%208%205h8a2%202%200%200%201%201.9%201.3l2.6%207.2V18a2%202%200%200%201-2%202h-13a2%202%200%200%201-2-2z%22/%3E%3Cpath%20d%3D%22M3.5%2013.5h4.5l1.5%202.5h5l1.5-2.5h4.5M12%203v7M9.5%207.5L12%2010l2.5-2.5%22/%3E%3C/svg%3E");
+  --i-monitor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223%22%20y%3D%224%22%20width%3D%2218%22%20height%3D%2212.5%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M8.5%2020.5h7M12%2016.5v4%22/%3E%3C/svg%3E");
+  --i-phone: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%226.5%22%20y%3D%222.5%22%20width%3D%2211%22%20height%3D%2219%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M11%2018.5h2%22/%3E%3C/svg%3E");
+  --i-eye: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M2.5%2012S6%205.5%2012%205.5%2021.5%2012%2021.5%2012%2018%2018.5%2012%2018.5%202.5%2012%202.5%2012z%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%223%22/%3E%3C/svg%3E");
+  --i-sliders: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%206h10M18%206h2M4%2012h4M12%2012h8M4%2018h12M20%2018h0%22/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%226%22%20r%3D%222%22/%3E%3Ccircle%20cx%3D%2210%22%20cy%3D%2212%22%20r%3D%222%22/%3E%3Ccircle%20cx%3D%2218%22%20cy%3D%2218%22%20r%3D%222%22/%3E%3C/svg%3E");
+  --i-text: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%206.5V4.5h14v2M12%204.5v15M9%2019.5h6%22/%3E%3C/svg%3E");
+  --i-volume: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%209.5h3.5L12%205.5v13l-4.5-4H4z%22/%3E%3Cpath%20d%3D%22M15.5%209a4%204%200%200%201%200%206M18%206.5a7.5%207.5%200%200%201%200%2011%22/%3E%3C/svg%3E");
+  --i-vibrate: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%227.5%22%20y%3D%224%22%20width%3D%229%22%20height%3D%2216%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M3.5%209v6M20.5%209v6%22/%3E%3C/svg%3E");
+  --i-widget: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%223.5%22%20width%3D%2217%22%20height%3D%2217%22%20rx%3D%224%22/%3E%3Cpath%20d%3D%22M3.5%2011h17M11%2011v9.5%22/%3E%3C/svg%3E");
+  --i-info: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%228.5%22/%3E%3Cpath%20d%3D%22M12%2011v5M12%208h.01%22/%3E%3C/svg%3E");
+  --i-logout: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M14.5%204.5H18a2%202%200%200%201%202%202v11a2%202%200%200%201-2%202h-3.5M10%2016.5L5.5%2012%2010%207.5M5.5%2012h10%22/%3E%3C/svg%3E");
+  --i-cloud: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M7%2018.5a4.5%204.5%200%200%201-.6-9%206%206%200%200%201%2011.4%201.6A3.8%203.8%200%200%201%2017.5%2018.5z%22/%3E%3C/svg%3E");
+  --i-cloud-off: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%203.5l17%2017M9.3%206.2A6%206%200%200%201%2017.8%2011a3.8%203.8%200%200%201%202.4%206M17%2018.5H7a4.5%204.5%200%200%201-1.7-8.7%22/%3E%3C/svg%3E");
+  --i-refresh: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2011.5A8%208%200%200%200%205.6%206.5L4%208.5M4%204v4.5h4.5M4%2012.5a8%208%200%200%200%2014.4%205l1.6-2M20%2020v-4.5h-4.5%22/%3E%3C/svg%3E");
+  --i-skip: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2012h12M13%208l4%204-4%204M20%205v14%22/%3E%3C/svg%3E");
+  --i-arrow-r: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2012h14M13%206l6%206-6%206%22/%3E%3C/svg%3E");
+  --i-chart: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2020V4M4%2020h16M8%2016v-4M12%2016V8M16%2016v-6%22/%3E%3C/svg%3E");
+  --i-apple: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M15.5%203.5c.2%201.6-1.2%203.4-2.9%203.3-.2-1.5%201.2-3.2%202.9-3.3zM17.7%2012.6c0-2%201.7-3%201.8-3-1-1.4-2.5-1.6-3-1.6-1.3-.1-2.5.8-3.2.8-.6%200-1.7-.7-2.8-.7-1.4%200-2.8.9-3.5%202.2-1.5%202.6-.4%206.5%201.1%208.6.7%201%201.5%202.2%202.6%202.1%201-.1%201.4-.7%202.7-.7%201.2%200%201.6.7%202.7.7%201.1%200%201.8-1%202.5-2.1.8-1.1%201.1-2.2%201.1-2.3%200%200-2-.8-2-3.4z%22/%3E%3C/svg%3E");
+  --i-globe: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%228.5%22/%3E%3Cpath%20d%3D%22M3.5%2012h17M12%203.5c2.5%202.7%202.5%2014.3%200%2017M12%203.5c-2.5%202.7-2.5%2014.3%200%2017%22/%3E%3C/svg%3E");
+  --i-leaf: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2019c0-8%205-13%2014.5-14C19%2014.5%2014%2019.5%206%2019.5%22/%3E%3Cpath%20d%3D%22M5%2019.5l7-7%22/%3E%3C/svg%3E");
+  --i-attach: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2011.5l-8%208a5%205%200%200%201-7-7l8.5-8.5a3.3%203.3%200%200%201%204.7%204.7l-8.5%208.5a1.7%201.7%200%200%201-2.4-2.4l7.8-7.8%22/%3E%3C/svg%3E");
+  --i-location: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%2021s-6.5-6-6.5-11a6.5%206.5%200%200%201%2013%200c0%205-6.5%2011-6.5%2011z%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2210%22%20r%3D%222.3%22/%3E%3C/svg%3E");
+  --i-bookmark: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6.5%203.5h11v17L12%2016.5l-5.5%204z%22/%3E%3C/svg%3E");
+  --i-wifi-off: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%203.5l17%2017M8.5%2016a5%205%200%200%201%207%200M5%2012.5a10%2010%200%200%201%204-2.3M14.5%2010.3a10%2010%200%200%201%204.5%202.2M2%209a14.5%2014.5%200%200%201%204.5-2.8M11%205.5A14.5%2014.5%200%200%201%2022%209M12%2019.5h.01%22/%3E%3C/svg%3E");
+  --i-eraser: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M7%2020.5h13M4.6%2015.4l9.8-9.8a2%202%200%200%201%202.8%200l2.2%202.2a2%202%200%200%201%200%202.8L11%2019H8.2z%22/%3E%3C/svg%3E");
+}
+.ic-task{--i:var(--i-task)}
+.ic-square{--i:var(--i-square)}
+.ic-grip{--i:var(--i-grip)}
+.ic-chev-ud{--i:var(--i-chev-ud)}
+.ic-layout{--i:var(--i-layout)}
+.ic-cal-month{--i:var(--i-cal-month)}
+.ic-cal-day{--i:var(--i-cal-day)}
+.ic-cal-3{--i:var(--i-cal-3)}
+.ic-agenda{--i:var(--i-agenda)}
+.ic-today-dot{--i:var(--i-today-dot)}
+.ic-moon-plus{--i:var(--i-moon-plus)}
+.ic-next-week{--i:var(--i-next-week)}
+.ic-cal-x{--i:var(--i-cal-x)}
+.ic-wontdo{--i:var(--i-wontdo)}
+.ic-flashlight{--i:var(--i-flashlight)}
+.ic-camera{--i:var(--i-camera)}
+.ic-mail-plain{--i:var(--i-mail-plain)}
+.ic-msg{--i:var(--i-msg)}
+.ic-note-app{--i:var(--i-note-app)}
+.ic-copy-link{--i:var(--i-copy-link)}
+.ic-readlist{--i:var(--i-readlist)}
+.ic-menu{--i:var(--i-menu)}
+.ic-more{--i:var(--i-more)}
+.ic-more-v{--i:var(--i-more-v)}
+.ic-plus{--i:var(--i-plus)}
+.ic-check{--i:var(--i-check)}
+.ic-x{--i:var(--i-x)}
+.ic-chev-r{--i:var(--i-chev-r)}
+.ic-chev-l{--i:var(--i-chev-l)}
+.ic-chev-d{--i:var(--i-chev-d)}
+.ic-chev-u{--i:var(--i-chev-u)}
+.ic-calendar{--i:var(--i-calendar)}
+.ic-cal-check{--i:var(--i-cal-check)}
+.ic-cal-today{--i:var(--i-cal-today)}
+.ic-cal-7{--i:var(--i-cal-7)}
+.ic-sun{--i:var(--i-sun)}
+.ic-sunrise{--i:var(--i-sunrise)}
+.ic-moon{--i:var(--i-moon)}
+.ic-inbox{--i:var(--i-inbox)}
+.ic-flag{--i:var(--i-flag)}
+.ic-tag{--i:var(--i-tag)}
+.ic-hash{--i:var(--i-hash)}
+.ic-folder{--i:var(--i-folder)}
+.ic-list{--i:var(--i-list)}
+.ic-clock{--i:var(--i-clock)}
+.ic-bell{--i:var(--i-bell)}
+.ic-repeat{--i:var(--i-repeat)}
+.ic-search{--i:var(--i-search)}
+.ic-settings{--i:var(--i-settings)}
+.ic-sprout{--i:var(--i-sprout)}
+.ic-send{--i:var(--i-send)}
+.ic-mic{--i:var(--i-mic)}
+.ic-trash{--i:var(--i-trash)}
+.ic-timer{--i:var(--i-timer)}
+.ic-grid4{--i:var(--i-grid4)}
+.ic-habit{--i:var(--i-habit)}
+.ic-sort{--i:var(--i-sort)}
+.ic-filter{--i:var(--i-filter)}
+.ic-user{--i:var(--i-user)}
+.ic-lock{--i:var(--i-lock)}
+.ic-mail{--i:var(--i-mail)}
+.ic-palette{--i:var(--i-palette)}
+.ic-star{--i:var(--i-star)}
+.ic-link{--i:var(--i-link)}
+.ic-share{--i:var(--i-share)}
+.ic-note{--i:var(--i-note)}
+.ic-subtask{--i:var(--i-subtask)}
+.ic-pin{--i:var(--i-pin)}
+.ic-move{--i:var(--i-move)}
+.ic-copy{--i:var(--i-copy)}
+.ic-undo{--i:var(--i-undo)}
+.ic-edit{--i:var(--i-edit)}
+.ic-sparkle{--i:var(--i-sparkle)}
+.ic-kbd-down{--i:var(--i-kbd-down)}
+.ic-collect{--i:var(--i-collect)}
+.ic-monitor{--i:var(--i-monitor)}
+.ic-phone{--i:var(--i-phone)}
+.ic-eye{--i:var(--i-eye)}
+.ic-sliders{--i:var(--i-sliders)}
+.ic-text{--i:var(--i-text)}
+.ic-volume{--i:var(--i-volume)}
+.ic-vibrate{--i:var(--i-vibrate)}
+.ic-widget{--i:var(--i-widget)}
+.ic-info{--i:var(--i-info)}
+.ic-logout{--i:var(--i-logout)}
+.ic-cloud{--i:var(--i-cloud)}
+.ic-cloud-off{--i:var(--i-cloud-off)}
+.ic-refresh{--i:var(--i-refresh)}
+.ic-skip{--i:var(--i-skip)}
+.ic-arrow-r{--i:var(--i-arrow-r)}
+.ic-chart{--i:var(--i-chart)}
+.ic-apple{--i:var(--i-apple)}
+.ic-globe{--i:var(--i-globe)}
+.ic-leaf{--i:var(--i-leaf)}
+.ic-attach{--i:var(--i-attach)}
+.ic-location{--i:var(--i-location)}
+.ic-bookmark{--i:var(--i-bookmark)}
+.ic-wifi-off{--i:var(--i-wifi-off)}
+.ic-eraser{--i:var(--i-eraser)}

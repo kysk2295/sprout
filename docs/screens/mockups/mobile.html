@@ -1,0 +1,2216 @@
+<!doctype html>
+<html lang="ko" data-theme="default">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sprout 모바일 시안 — 핵심 화면</title>
+<!-- 공용 뼈대: docs/screens/mockups/mobile-kit.css 내용을 그대로 복사(외부 파일을 읽지 않게). 뼈대를 고치면 mobile-kit.css를 고치고 여기에 다시 복사한다 -->
+<style>
+/* ════════════════════════════════════════════════════════════════════
+   sprout 모바일 시안 공용 뼈대 (mobile-kit.css) — v0.1 2026-10-04
+   - 모바일 시안(mobile.html, 성장·수집함·일기·AI 비서·작업 지도 시안)이 함께 쓴다.
+     시안 HTML은 외부 파일을 읽지 않게 이 파일 내용을 <style>에 그대로 복사해 넣는다.
+   - 1부: packages/tokens/tokens.css 전체 복사(테마 13종 + 트루 블랙). 바꾸지 말고 정본에서 다시 복사한다.
+   - 2부: 모바일 전용 크기·글자 토큰(--m-*) — 근거 research 24 §1, 값은 대부분 [임시] 추정.
+   - 3부: 페이지·폰 틀(393×852, 안전 영역 59/34)·상태 막대·홈 표시줄
+   - 4부: 머리·탭 바·떠 있는 + 버튼(FAB)  5부: 행·체크박스·묶음 머리
+   - 6부: 시트·칩·세그먼트·토글·버튼·입력·설정 칸  7부: 아이콘(마스크, currentColor)
+   쓰는 법:
+     <body class="m-doc">  (시안 문서 바탕 · 맨 위 .m-toolbar · 묶음 .m-section · 폰 줄 .m-row-of-phones > .m-shot(.m-label + .m-phone + .m-note))
+     <html data-theme="default|sky|…|dark" [data-theme-variant="black"]>
+     <div class="m-phone"><div class="m-screen m-page"> m-island · m-status · m-nav · m-title · m-body · m-fab · m-tabbar · m-home </div></div>
+     .m-page = 회색 바닥(목록·설정), 그 위 .m-gcard(묶음 카드) 안에 .m-group + .m-task. 시트 .m-sheet, 메뉴 .m-menu, 서랍 .m-drawer
+     상태 막대·탭 바·키보드는 mobile.html의 <script> 도우미가 채운다(data-time · nav.m-tabbar[data-on][data-tabs] · [data-kb]) — 같이 복사해 쓰면 된다
+     아이콘: <i class="ic ic-calendar"></i> (크기 .ic-sm 16 / 기본 22 / .ic-lg 26)
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── 1부: 디자인 토큰 (packages/tokens/tokens.css 복사) ── */
+/* sprout 디자인 토큰 — 정본: docs/screens/00-design-tokens.md (v1.1)
+   화면 코드에서는 이 변수만 쓴다. 테마는 [data-theme]에서 변수만 덮어쓴다.
+   테마 목록·대비 규칙: 00 §5. 다크 계열은 모두 data-theme="dark"이고, 변형은 data-theme-variant로 덮는다(00 §5.3).
+   [data-theme="default"]는 설정의 테마 견본처럼 문서 안 일부를 기본 테마로 되돌릴 때 쓴다. */
+:root, [data-theme="default"] {
+  /* 면 */
+  --color-bg-app: #ffffff;
+  --color-bg-rail: #f8f8f8;
+  --color-bg-sidebar: #ffffff;
+  --color-bg-input: #f8f8f9;
+  --color-bg-selected: #f1f1f1;
+  --color-bg-hover: #f5f5f5;
+  --color-bg-card: #fafafa;
+  --color-bg-settings-nav: #f8f8f8;
+  --color-bg-popover: #ffffff;
+  --color-overlay-scrim: rgba(0, 0, 0, 0.18);
+  /* 선 */
+  --color-border-divider: #f3f3f4;
+  --color-border-row: #f4f4f4;
+  --color-border-input-focus: var(--color-accent);
+  /* 글자 */
+  --color-text-primary: #191919;
+  --color-text-secondary: #7d7d7d;
+  --color-text-tertiary: #a3a4a7;
+  --color-text-quaternary: #b5b6b8;
+  --color-text-link: var(--color-accent);
+  --color-text-danger: #d44343;
+  --color-menu-icon: var(--color-text-secondary);
+  --color-border-popover: transparent;
+  --color-seg-track: #f3f3f3;
+  --color-seg-on: var(--color-bg-popover);
+  --color-dp-muted: var(--color-text-tertiary);
+  --color-dp-icon: var(--color-text-secondary);
+  --color-cal-other: var(--color-text-quaternary);
+  --color-login-bg: #f9f9f9;
+  --color-login-card: #ffffff;
+  --color-login-input-border: rgba(25, 25, 25, 0.1);
+  /* 강조·상태 */
+  --color-accent: #4e75f2;
+  --color-accent-subtle: #ecf0fd;
+  --color-danger: #d44343;
+  --color-search-highlight: #fbe38e;
+  /* 우선순위 */
+  --color-priority-high: #c53c31;
+  --color-priority-medium: #efab3e;
+  --color-priority-low: #4e75f2;
+  --color-priority-none: #8b8b8b;
+  /* 레일 (Default) */
+  --color-rail-icon: #a3a4a7;
+  --color-rail-icon-selected: var(--color-accent);
+  --color-rail-icon-selected-bg: transparent;
+  --color-rail-hover: var(--color-bg-hover);          /* 레일 버튼 호버 면 — 색 레일 테마는 레일색 위에서 보이게 덮는다 */
+  --color-rail-icon-hover: var(--color-rail-icon);
+
+  /* 글꼴 */
+  --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --text-title: 700 20px/26px var(--font-family);
+  --text-body: 400 14px/20px var(--font-family);
+  --text-body-strong: 600 14px/20px var(--font-family);
+  --text-meta: 400 11px/15px var(--font-family);
+  --text-caption: 500 11px/15px var(--font-family);
+  --text-small: 500 10.5px/14px var(--font-family);
+  --text-group: 600 12.5px/16px var(--font-family);
+  --text-menu: 400 12px/20px var(--font-family);
+  --text-detail-title: 700 19px/26px var(--font-family);
+  --text-detail-meta: 400 13px/18px var(--font-family);
+
+  /* 크기 (rem = 루트 15px 기준, 글자 크기 조절 시 함께 커진다) */
+  --size-rail-width: 55px;
+  --size-rail-top: 35px;                /* 아바타 위쪽(아바타 34, 중심 52) */
+  --size-rail-item-gap: 8px;            /* 아이콘 칸 40 + 8 = 간격 48, 첫 아이콘 중심 107 */
+  --size-sidebar-width: 261px;
+  --size-detail-width: 336px;
+  --size-list-min-width: 360px;
+  --size-header-height: 57px;           /* 목록·상세·캘린더 머리 (제목 중심 33) */
+  --size-header-pad-top: 9px;
+  --size-sidebar-top: 12px;             /* 첫 항목 위 (중심 32) */
+  --size-addbar-height: 38px;
+  --size-row-height: 40px;
+  --size-sidebar-item-height: 40px;
+  --size-checkbox: 14px;
+  --size-dot: 6px;
+  --size-icon-sm: 13px;
+  --size-icon-md: 18px;
+  --size-icon-rail: 20px;
+  --space-1: 4px;
+  --space-list-gutter: 21px;
+  --space-row-icon-gap: 8px;
+  --space-meta-gap: 6px;
+  --size-menu-item-height: 34px;
+
+  /* 모서리·그림자·움직임 */
+  --cal-fill: 60%;        /* 06 §14.1 라이트 실측(2026-10-04): 리스트 색 60%, 지난 항목 20% */
+  --cal-fill-past: 20%;
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  /* 00 v1.2 (2026-10-03): 실제 틱틱 앱(Mac) 실측값 — research 17 §9. v1.1의 영상 기반 1.18배 보정은 버렸다 */
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+  --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.16);
+  --motion-fast: 120ms ease-out;
+  --motion-base: 180ms ease-out;
+}
+
+[data-theme="sky"] {
+  --color-bg-rail: #6387f5;
+  --color-rail-icon: rgba(255, 255, 255, 0.72);
+  --color-rail-icon-selected: #6387f5;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-bg-sidebar: #f5f7ff;
+  --color-bg-app: #fbfcff;
+  --color-bg-selected: #e3eafe;
+  --color-bg-hover: #eef2fe;
+  --color-bg-input: #eff3f6;
+  --color-rail-hover: rgba(255, 255, 255, 0.14);
+  --color-rail-icon-hover: #ffffff;
+}
+
+/* 00 §5.1 색상 시리즈 — 틱틱 견본색을 레일에, 같은 색을 옅게 섞어 면에 쓴다.
+   강조색은 견본색을 어둡게 해 흰 바탕·선택 면에서 4.5:1 이상. 밝은 레일은 흰 아이콘이 3:1이 안 돼서 진한 같은 계열 아이콘을 쓴다 [sprout].
+   값은 대비를 계산해 정했다 — apps/desktop/tests/theme.test.ts가 지킨다. */
+[data-theme="turquoise"] {
+  --color-bg-rail: #5cd9af;
+  --color-rail-icon: #107352;
+  --color-rail-icon-selected: #117b58;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #107352;
+  --color-bg-sidebar: #f7fdfb;
+  --color-bg-settings-nav: #f7fdfb;
+  --color-bg-app: #fcfefd;
+  --color-bg-card: #f9fefc;
+  --color-bg-selected: #e5f9f2;
+  --color-bg-hover: #f0fcf8;
+  --color-bg-input: #f4fcf9;
+  --color-seg-track: #effbf7;
+  --color-accent: #117b58;
+  --color-accent-subtle: #e2efeb;
+}
+[data-theme="teal"] {
+  --color-bg-rail: #77c8c2;
+  --color-rail-icon: #1d6a64;
+  --color-rail-icon-selected: #237973;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #1d6a64;
+  --color-bg-sidebar: #f8fcfc;
+  --color-bg-settings-nav: #f8fcfc;
+  --color-bg-app: #fcfefe;
+  --color-bg-card: #fafdfd;
+  --color-bg-selected: #e9f6f5;
+  --color-bg-hover: #f3fafa;
+  --color-bg-input: #f5fbfb;
+  --color-seg-track: #f1faf9;
+  --color-accent: #237973;
+  --color-accent-subtle: #e5efee;
+}
+[data-theme="matcha"] {
+  --color-bg-rail: #acbf9f;
+  --color-rail-icon: #476631;
+  --color-rail-icon-selected: #55793d;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #476631;
+  --color-bg-sidebar: #fbfcfa;
+  --color-bg-settings-nav: #fbfcfa;
+  --color-bg-app: #fdfefd;
+  --color-bg-card: #fcfdfc;
+  --color-bg-selected: #f2f5f0;
+  --color-bg-hover: #f8f9f6;
+  --color-bg-input: #f9fbf8;
+  --color-seg-track: #f7f9f5;
+  --color-accent: #55793d;
+  --color-accent-subtle: #ebefe8;
+}
+[data-theme="sunshine"] {
+  --color-bg-rail: #f6bb77;
+  --color-rail-icon: #9c5300;
+  --color-rail-icon-selected: #ab5c00;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #9c5300;
+  --color-bg-sidebar: #fffcf8;
+  --color-bg-settings-nav: #fffcf8;
+  --color-bg-app: #fffefc;
+  --color-bg-card: #fffdfa;
+  --color-bg-selected: #fef4e9;
+  --color-bg-hover: #fef9f3;
+  --color-bg-input: #fefaf5;
+  --color-seg-track: #fef8f1;
+  --color-accent: #ab5c00;
+  --color-accent-subtle: #f5ebe0;
+}
+[data-theme="peach"] {
+  --color-bg-rail: #f589a3;
+  --color-rail-icon: #9c1c52;
+  --color-rail-icon-selected: #c4286a;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #9c1c52;
+  --color-bg-sidebar: #fff9fa;
+  --color-bg-settings-nav: #fff9fa;
+  --color-bg-app: #fffdfd;
+  --color-bg-card: #fffbfc;
+  --color-bg-selected: #fdecf0;
+  --color-bg-hover: #fef4f7;
+  --color-bg-input: #fef7f9;
+  --color-seg-track: #fef3f6;
+  --color-accent: #c4286a;
+  --color-accent-subtle: #fae6ed;
+}
+[data-theme="lilac"] {
+  --color-bg-rail: #b0a3d3;
+  --color-rail-icon: #5d40ad;
+  --color-rail-icon-selected: #775dbe;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.35);
+  --color-rail-icon-hover: #5d40ad;
+  --color-bg-sidebar: #fbfafd;
+  --color-bg-settings-nav: #fbfafd;
+  --color-bg-app: #fdfdfe;
+  --color-bg-card: #fcfcfd;
+  --color-bg-selected: #f2f0f8;
+  --color-bg-hover: #f8f7fb;
+  --color-bg-input: #f9f9fc;
+  --color-seg-track: #f7f6fb;
+  --color-accent: #775dbe;
+  --color-accent-subtle: #efecf7;
+}
+[data-theme="ebony"] {
+  --color-bg-rail: #a98a75;
+  --color-rail-icon: #ffffff;
+  --color-rail-icon-selected: #87634a;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(0, 0, 0, 0.12);
+  --color-rail-icon-hover: #ffffff;
+  --color-bg-sidebar: #fbf9f8;
+  --color-bg-settings-nav: #fbf9f8;
+  --color-bg-app: #fdfdfc;
+  --color-bg-card: #fcfbfa;
+  --color-bg-selected: #f1ece9;
+  --color-bg-hover: #f7f4f3;
+  --color-bg-input: #f9f7f5;
+  --color-seg-track: #f6f3f1;
+  --color-accent: #87634a;
+  --color-accent-subtle: #f1ece9;
+}
+[data-theme="navy"] {
+  --color-bg-rail: #2b3455;
+  --color-rail-icon: #d9dae0;
+  --color-rail-icon-selected: #2b3455;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.12);
+  --color-rail-icon-hover: #ffffff;
+  --color-bg-sidebar: #f9f9fa;
+  --color-bg-settings-nav: #f9f9fa;
+  --color-bg-app: #fdfdfd;
+  --color-bg-card: #fbfbfc;
+  --color-bg-selected: #ecedf0;
+  --color-bg-hover: #f5f5f7;
+  --color-bg-input: #f7f7f8;
+  --color-seg-track: #f3f4f6;
+  --color-accent: #2b3455;
+  --color-accent-subtle: #e6e7eb;
+}
+[data-theme="gray"] {
+  --color-bg-rail: #363b41;
+  --color-rail-icon: #dbdcdd;
+  --color-rail-icon-selected: #363b41;
+  --color-rail-icon-selected-bg: #ffffff;
+  --color-rail-hover: rgba(255, 255, 255, 0.12);
+  --color-rail-icon-hover: #ffffff;
+  --color-bg-sidebar: #f9fafa;
+  --color-bg-settings-nav: #f9fafa;
+  --color-bg-app: #fdfdfd;
+  --color-bg-card: #fbfbfb;
+  --color-bg-selected: #edeeee;
+  --color-bg-hover: #f5f5f6;
+  --color-bg-input: #f7f7f8;
+  --color-seg-track: #f4f4f5;
+  --color-accent: #363b41;
+  --color-accent-subtle: #e7e7e8;
+}
+
+[data-theme="dark"] {
+  /* 00 v1.2 다크: 실제 틱틱 다크 테마 화면에서 픽셀을 뽑은 값(research 18) */
+  color-scheme: dark; /* 스크롤 막대·기본 입력 요소도 어둡게 */
+  --color-bg-app: #1a1a1a;
+  --color-bg-sidebar: #1a1a1a;
+  --color-bg-rail: #212121;
+  --color-bg-popover: #212121;
+  --color-bg-selected: #2c2c2c;
+  --color-bg-hover: #242424;
+  --color-bg-input: #212121;
+  --color-bg-card: #252525;
+  --color-border-divider: #262626;
+  --color-border-row: #212121;
+  --color-text-primary: #f2f2f2;
+  --color-text-secondary: #cdcdcd;
+  --color-text-tertiary: #606060;
+  --color-text-quaternary: #474747;
+  --color-priority-none: #474747;
+  --color-accent: #545dfa;
+  --color-border-input-focus: #545dfa;
+  --color-rail-icon: #787878;
+  --color-rail-icon-selected: #ffffff;
+  --color-rail-icon-selected-bg: transparent;
+  --color-search-highlight: #dcbf77;
+  --color-accent-subtle: #262a52;
+  --color-menu-icon: #969696;
+  --color-border-popover: #2f2f2f;
+  --color-seg-track: #1a1a1a;
+  --color-seg-on: #282828;
+  --color-dp-muted: #757575;
+  --color-dp-icon: #afafaf;
+  --color-cal-other: #666666;
+  --color-login-bg: #1a1a1a;
+  --color-login-card: #212121;
+  --color-login-input-border: rgba(255, 255, 255, 0.1);
+  --cal-fill: 62%;
+  --cal-fill-past: 20%;
+  --cal-text: #ffffff;
+}
+
+/* 00 §5.2 트루 블랙 [sprout] — 다크 계열 변형. data-theme="dark"의 화면별 다크 규칙을 그대로 받고 면만 더 검게 덮는다 */
+[data-theme="dark"][data-theme-variant="black"] {
+  --color-bg-app: #000000;
+  --color-bg-sidebar: #000000;
+  --color-bg-rail: #0a0a0a;
+  --color-bg-popover: #161616;
+  --color-bg-selected: #222222;
+  --color-bg-hover: #141414;
+  --color-bg-input: #141414;
+  --color-bg-card: #111111;
+  --color-bg-settings-nav: #0d0d0d;
+  --color-border-divider: #1c1c1c;
+  --color-border-row: #141414;
+  --color-border-popover: #262626;
+  --color-seg-track: #0d0d0d;
+  --color-seg-on: #222222;
+  --color-login-bg: #000000;
+  --color-login-card: #141414;
+  /* 순검정 위에서 4.5:1을 넘기려고 다크 강조색(#545DFA)을 한 단계 밝혔다 — 흰 글자 대비도 4.5:1 유지 */
+  --color-accent: #5a62fa;
+  --color-border-input-focus: #5a62fa;
+  --color-accent-subtle: #1e2147;
+}
+
+/* ── 2부: 모바일 토큰 [임시 — research 24 §1, 틱틱 도움말 iOS 캡처(2025~26, iOS 26 모양)에서 비율로 잰 추정값] ── */
+:root {
+  --m-w: 393px; --m-h: 852px;                /* iPhone 15/16 Pro 논리 해상도 */
+  --m-safe-top: 59px; --m-safe-bottom: 34px; /* 다이내믹 아일랜드 기종 */
+  --m-nav-h: 52px;                           /* 머리 줄: 둥근 ☰ · 둥근 ⋯ (지름 40) */
+  --m-title-h: 48px;                         /* 그 아래 큰 제목 줄 */
+  --m-tab-h: 58px;                           /* 떠 있는 탭 알약 높이 [틱틱 iOS 26] */
+  --m-tab-inset: 16px;                       /* 알약 좌우 여백 */
+  --m-tab-bottom: 22px;                      /* 알약 아래 = 홈 표시줄 위 */
+  --m-gutter: 16px;                          /* 화면 좌우 여백(카드 없는 화면) */
+  --m-card-inset: 12px;                      /* 묶음 카드 좌우 여백 */
+  --m-card-gap: 10px;                        /* 묶음 카드 사이 */
+  --m-row-h: 46px;                           /* 한 줄 할 일 */
+  --m-row-h2: 62px;                          /* 메타 줄이 있는 할 일 */
+  --m-check: 18px;                           /* 체크박스(누르는 칸은 44) */
+  --m-fab: 56px;
+  --m-radius-sheet: 22px;                    /* iOS 26 시트 위 모서리 */
+  --m-radius-card: 14px;
+  --m-tap: 44px;                             /* 최소 누름 크기(HIG) */
+  --m-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif;
+  --m-text-large: 700 30px/36px var(--m-font);   /* 로그인·첫 실행 큰 제목 */
+  --m-text-title: 700 28px/34px var(--m-font);   /* 목록 큰 제목("오늘") */
+  --m-text-nav: 600 17px/22px var(--m-font);     /* 가운데 작은 제목(캘린더 월·설정·상세) */
+  --m-text-sheet-title: 600 17px/22px var(--m-font);
+  --m-text-detail-title: 600 20px/27px var(--m-font);
+  --m-text-body: 400 16px/22px var(--m-font);    /* 할 일 제목 */
+  --m-text-body-strong: 600 16px/22px var(--m-font);
+  --m-text-sub: 400 14px/20px var(--m-font);     /* 설정 값·보조 */
+  --m-text-meta: 400 12px/16px var(--m-font);    /* 날짜·리스트·태그 */
+  --m-text-group: 600 15px/20px var(--m-font);   /* 묶음 카드 머리 ("만료됨 1 ⌄") */
+  --m-text-tab: 500 10px/12px var(--m-font);
+  /* 면: 회색 바닥 위 흰 카드 [틱틱 iOS 목록·설정 공통] */
+  --m-page-bg: #f3f3f6;
+  --m-card-bg: var(--color-bg-app);
+  --m-sheet-bg: var(--color-bg-popover);
+  --m-glass: rgba(255,255,255,.82);          /* 둥근 머리 버튼·탭 알약 (유리) */
+  --m-glass-line: rgba(0,0,0,.06);
+  --m-glass-shadow: 0 4px 18px rgba(0,0,0,.10);
+  --m-drawer-bg: var(--color-bg-sidebar);
+  --m-drawer-sel: var(--color-accent-subtle);
+  --m-tab-icon: #3c3c43;
+  --m-tab-on: var(--color-accent);
+  --m-scrim: rgba(0,0,0,.30);
+  --m-shadow-sheet: 0 -6px 30px rgba(0,0,0,.12);
+  --m-shadow-fab: 0 6px 16px rgba(0,0,0,.22);
+  /* 스와이프 칸 색 [틱틱 도움말 캡처]: 왼쪽 밀기 = 이동(파랑)·삭제(빨강)·날짜(주황), 오른쪽 밀기 = 완료(초록)·고정(노랑) */
+  --m-swipe-move: #4e75f2; --m-swipe-del: #f0464a; --m-swipe-date: #ff9500;
+  --m-swipe-done: #1fc79a; --m-swipe-pin: #ffb300;
+  --m-overdue: var(--color-danger);
+  --m-highlight: var(--color-accent-subtle);  /* 자연어 인식 칠 */
+  /* 서랍 스마트 목록 아이콘 색 [sprout 원본 아이콘, 색 배치만 틱틱처럼 여러 색] */
+  --m-sl-today: #f0643a; --m-sl-tomorrow: #f29a2e; --m-sl-week: #e9b200; --m-sl-inbox: #e5534b; --m-sl-tags: #2bb3c0; --m-sl-filter: #6a7dd8;
+}
+/* 색 테마: 바닥·탭 알약에 견본색을 옅게 [sprout 해석 — 틱틱 모바일 색 테마 실측 없음, research 24 §11] */
+:root:not([data-theme="default"]):not([data-theme="dark"]) {
+  --m-page-bg: color-mix(in srgb, var(--color-bg-rail) 9%, #f3f3f6);
+  --m-drawer-sel: var(--color-bg-selected);
+}
+[data-theme="dark"] {
+  --m-page-bg: #0f0f0f;
+  --m-card-bg: #1c1c1c;
+  --m-glass: rgba(44,44,46,.82);
+  --m-glass-line: rgba(255,255,255,.08);
+  --m-glass-shadow: 0 4px 18px rgba(0,0,0,.5);
+  --m-tab-icon: #a0a0a5;
+  --m-scrim: rgba(0,0,0,.55);
+  --m-shadow-sheet: 0 -6px 30px rgba(0,0,0,.5);
+  --m-shadow-fab: 0 6px 16px rgba(0,0,0,.5);
+  --m-drawer-bg: #1a1a1a;
+  --m-drawer-sel: #2c2c2c;
+}
+[data-theme="dark"][data-theme-variant="black"] {
+  --m-page-bg: #000000;
+  --m-card-bg: #121212;
+  --m-glass: rgba(28,28,30,.85);
+  --m-drawer-bg: #0a0a0a;
+  --m-drawer-sel: #222222;
+}
+
+/* ── 3부: 시안 페이지 · 폰 틀 ── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body.m-doc { font: var(--m-text-body); background: #e6e7ea; color: #222; padding: 24px 24px 80px; -webkit-font-smoothing: antialiased; }
+[data-theme="dark"] body.m-doc { background: #0c0c0c; color: #ddd; }
+.m-toolbar { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 0 12px; background: inherit; }
+.m-toolbar h1 { font: 700 18px/24px var(--m-font); margin-right: auto; }
+.m-toolbar p { font: 400 12px/16px var(--m-font); opacity: .7; width: 100%; }
+.m-toolbar button, .m-toolbar select { font: 500 12px var(--m-font); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(128,128,128,.5); background: transparent; color: inherit; cursor: pointer; }
+.m-section { margin: 34px 0 10px; font: 700 15px/20px var(--m-font); }
+.m-section small { font-weight: 400; opacity: .7; margin-left: 8px; }
+.m-row-of-phones { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+.m-shot { display: flex; flex-direction: column; gap: 8px; width: calc(var(--m-w) + 22px); }
+.m-shot > .m-phone { margin: 14px 11px 12px; }
+.m-label { font: 600 12.5px/17px var(--m-font); display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.m-label .ref { font: 600 10.5px/14px var(--m-font); padding: 1px 6px; border-radius: 4px; background: rgba(128,128,128,.2); }
+.m-label .tt { font: 600 10.5px/14px var(--m-font); padding: 1px 6px; border-radius: 4px; background: #dfe6fb; color: #2c4fb8; }   /* [틱틱] */
+.m-label .sp { font: 600 10.5px/14px var(--m-font); padding: 1px 6px; border-radius: 4px; background: #def3e4; color: #1f7a3c; }   /* [sprout] */
+.m-label .tmp { font: 600 10.5px/14px var(--m-font); padding: 1px 6px; border-radius: 4px; background: #fbefd5; color: #8a5a00; }  /* [임시] */
+.m-note { font: 400 11.5px/16px var(--m-font); opacity: .78; }
+
+.m-phone { width: var(--m-w); height: var(--m-h); border-radius: 55px; padding: 0; position: relative; flex-shrink: 0;
+  box-shadow: 0 0 0 10px #1b1b1d, 0 0 0 11px #3a3a3c, 0 24px 60px rgba(0,0,0,.35); background: #000; }
+.m-phone.android { border-radius: 36px; }
+.m-screen { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; background: var(--color-bg-app);
+  color: var(--color-text-primary); font: var(--m-text-body); display: flex; flex-direction: column; }
+.m-island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 124px; height: 36px; border-radius: 20px; background: #000; z-index: 40; }
+.m-status { height: var(--m-safe-top); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 30px 0 52px; font: 600 16px/20px var(--m-font); position: relative; z-index: 30; }
+.m-status .r { display: flex; gap: 6px; align-items: center; }
+.m-status .bars { display: flex; gap: 2px; align-items: flex-end; height: 11px; }
+.m-status .bars i { width: 3px; background: currentColor; border-radius: 1px; }
+.m-status .bars i:nth-child(1){height:4px}.m-status .bars i:nth-child(2){height:6px}.m-status .bars i:nth-child(3){height:8.5px}.m-status .bars i:nth-child(4){height:11px}
+.m-status .bat { width: 25px; height: 12px; border: 1.5px solid currentColor; border-radius: 4px; position: relative; opacity: .9; }
+.m-status .bat::after { content: ""; position: absolute; inset: 1.5px; right: 5px; background: currentColor; border-radius: 1.5px; }
+.m-status.light { color: #fff; }
+.m-home { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: var(--color-text-primary); opacity: .85; z-index: 60; }
+.m-home.light { background: #fff; }
+.m-body { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+.m-scrim { position: absolute; inset: 0; background: var(--m-scrim); z-index: 20; }
+
+/* ── 4부: 머리 · 탭 바 · FAB ── */
+/* 머리 [틱틱 iOS]: 왼쪽 둥근 ☰(목록) 또는 ‹(상세), 오른쪽 둥근 ⋯. 큰 제목은 아래 줄(.m-title). 가운데 제목(.m-nav h2)은 캘린더·설정·시트에서 */
+.m-nav { height: var(--m-nav-h); flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 12px; position: relative; z-index: 5; }
+.m-nav h2 { font: var(--m-text-nav); flex: 1; min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-nav .grow { flex: 1; }
+.m-nav .act { font: 400 16px/22px var(--m-font); color: var(--color-accent); padding: 0 6px; white-space: nowrap; }
+.m-nav .act.strong { font-weight: 600; }
+.m-title { height: var(--m-title-h); flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 var(--m-gutter); font: var(--m-text-title); }
+.m-title small { font: var(--m-text-meta); color: var(--color-text-tertiary); margin-left: 2px; align-self: flex-end; padding-bottom: 8px; }
+.m-ib { width: 40px; height: 40px; display: grid; place-items: center; color: var(--color-text-primary); border-radius: 50%; flex-shrink: 0; position: relative; }
+.m-ib.glass { background: var(--m-glass); box-shadow: var(--m-glass-shadow); border: 0.5px solid var(--m-glass-line); backdrop-filter: blur(18px); }
+.m-ib.fill { background: var(--color-accent); color: #fff; }   /* 시트 오른쪽 위 ✓ */
+.m-ib.dim { color: var(--color-text-secondary); }
+.m-ib.acc { color: var(--color-accent); }
+.m-ib .badge { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--color-danger); }
+
+/* 탭 바 [틱틱 iOS 26]: 화면 아래 떠 있는 유리 알약, 아이콘만, 최대 5칸(넘치면 마지막이 ⋯ 더보기). 선택 = 강조색 채운 아이콘 */
+.m-tabbar { position: absolute; left: var(--m-tab-inset); right: var(--m-tab-inset); bottom: var(--m-tab-bottom); height: var(--m-tab-h); border-radius: 30px; display: flex; align-items: center; padding: 0 6px;
+  background: var(--m-glass); border: 0.5px solid var(--m-glass-line); box-shadow: var(--m-glass-shadow); backdrop-filter: blur(20px); z-index: 15; }
+.m-tabbar > span { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--m-tab-icon); position: relative; }
+.m-tabbar > span.on { color: var(--m-tab-on); }
+.m-tabbar > span b { font: var(--m-text-tab); display: none; }
+.m-tabbar.labeled > span b { display: block; }       /* [sprout 선택지] 글자 붙이기 */
+.m-tabbar > span .ic { width: 25px; height: 25px; }
+.m-tabbar .date-ic { width: 22px; height: 22px; border: 2px solid currentColor; border-radius: 6px; font: 700 10px/18px var(--m-font); text-align: center; }
+.m-tabbar > span.on .date-ic { background: currentColor; } .m-tabbar > span.on .date-ic i { color: #fff; font-style: normal; }
+.m-tabbar .date-ic i { font-style: normal; }
+.m-tabbar .xp { position: absolute; top: 2px; left: 50%; font: 700 11px/14px var(--m-font); color: var(--color-accent); transform: translateX(6px); }
+/* Android: 바닥에 붙은 평평한 막대 [틱틱 Android] */
+.m-tabbar.flat { left: 0; right: 0; bottom: 0; height: calc(64px + 16px); padding-bottom: 16px; border-radius: 0; box-shadow: none; border: 0; border-top: 0.5px solid var(--m-glass-line); background: var(--m-card-bg); }
+/* 떠 있는 + : 탭 알약 위 오른쪽 */
+.m-fab { position: absolute; right: 18px; bottom: calc(var(--m-tab-bottom) + var(--m-tab-h) + 14px); width: var(--m-fab); height: var(--m-fab); border-radius: 50%; background: var(--color-accent); color: #fff; display: grid; place-items: center; box-shadow: var(--m-shadow-fab); z-index: 14; }
+.m-fab .ic { width: 28px; height: 28px; }
+.m-fab.android { border-radius: 16px; bottom: calc(80px + 16px); }
+
+/* ── 5부: 목록 — 회색 바닥 위 묶음 카드 [틱틱 iOS] ── */
+.m-page { background: var(--m-page-bg); }
+.m-list { padding: 4px 0 170px; }
+.m-gcard { margin: 0 var(--m-card-inset) var(--m-card-gap); background: var(--m-card-bg); border-radius: var(--m-radius-card); overflow: hidden; }
+.m-group { height: 44px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font: var(--m-text-group); color: var(--color-text-primary); }
+.m-group .grow { flex: 1; }
+.m-group .n { color: var(--color-text-tertiary); font: 400 14px/20px var(--m-font); }
+.m-group .link { color: var(--color-accent); font: 500 14px/20px var(--m-font); margin-right: 6px; }
+.m-group .ic { width: 15px; height: 15px; color: var(--color-text-tertiary); }
+.m-group.collapsed .chev-ic { transform: rotate(-90deg); }
+.m-task { min-height: var(--m-row-h); display: flex; align-items: center; gap: 12px; padding: 0 14px; position: relative; background: var(--m-card-bg); }
+.m-task.sub-row { padding-left: 44px; }
+.m-task.two { min-height: var(--m-row-h2); align-items: flex-start; padding-top: 12px; padding-bottom: 10px; }
+.m-task.two .m-check { margin-top: 2px; }
+.m-task .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.m-task .t { font: var(--m-text-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-task .sub { display: flex; align-items: center; gap: 8px; font: var(--m-text-meta); color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; }
+.m-task .sub .ic { width: 12px; height: 12px; }
+.m-task .sub .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+.m-task .right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.m-task .when { font: var(--m-text-meta); color: var(--color-accent); white-space: nowrap; }
+.m-task .when.over { color: var(--m-overdue); }
+.m-task .when.gray { color: var(--color-text-tertiary); }
+.m-task .icons { display: flex; gap: 3px; color: var(--color-text-tertiary); }
+.m-task .icons .ic { width: 12px; height: 12px; }
+.m-task .more-ic { width: 14px; height: 14px; color: var(--color-text-quaternary); }
+.m-task.done .t { color: var(--color-text-tertiary); }
+.m-task.pressed { background: var(--color-bg-selected); }
+.m-task.flash { background: var(--color-accent-subtle); }
+.m-task.lifted { box-shadow: 0 10px 28px rgba(0,0,0,.2); border-radius: 12px; z-index: 3; transform: scale(1.03); }
+.m-check { width: var(--m-check); height: var(--m-check); border-radius: 4px; border: 1.5px solid var(--color-priority-none); flex-shrink: 0; display: grid; place-items: center; color: #fff; }
+.m-check.p3 { border-color: var(--color-priority-high);   background: color-mix(in srgb, var(--color-priority-high) 8%, transparent); }
+.m-check.p2 { border-color: var(--color-priority-medium); background: color-mix(in srgb, var(--color-priority-medium) 8%, transparent); }
+.m-check.p1 { border-color: var(--color-priority-low);    background: color-mix(in srgb, var(--color-priority-low) 8%, transparent); }
+.m-check.on { background: var(--color-text-quaternary); border-color: var(--color-text-quaternary); }
+.m-check.on::after { content: ""; width: 12px; height: 12px; background: #fff; -webkit-mask: var(--i-check) center/contain no-repeat; mask: var(--i-check) center/contain no-repeat; }
+.m-check.sel { border-radius: 50%; border-color: var(--color-text-quaternary); }               /* 여러 개 고르기 */
+.m-check.sel.on { background: var(--color-accent); border-color: var(--color-accent); }
+.m-check.round { border-radius: 50%; }
+.m-check.list-ic { border: 0; color: var(--color-text-tertiary); }
+.m-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 70px 40px 0; color: var(--color-text-tertiary); }
+.m-empty .art { width: 150px; height: 120px; margin-bottom: 10px; }
+.m-empty strong { font: 500 15px/21px var(--m-font); color: var(--color-text-primary); }
+.m-empty span { font: var(--m-text-meta); }
+
+/* 스와이프 뒤 버튼 */
+.m-swipe { position: relative; overflow: hidden; }
+.m-swipe .acts { position: absolute; top: 0; bottom: 0; display: flex; }
+.m-swipe .acts.right { right: 0; } .m-swipe .acts.left { left: 0; }
+.m-swipe .acts span { width: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #fff; font: 500 11px/14px var(--m-font); }
+.m-swipe .acts .ic { width: 22px; height: 22px; }
+
+/* ── 6부: 시트 · 칩 · 세그먼트 · 토글 · 버튼 · 입력 · 설정 칸 ── */
+.m-sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--m-sheet-bg); border-radius: var(--m-radius-sheet) var(--m-radius-sheet) 0 0; box-shadow: var(--m-shadow-sheet); z-index: 25; display: flex; flex-direction: column; border-top: 1px solid var(--color-border-popover); }
+.m-sheet.full { top: 10px; }
+.m-grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--color-text-quaternary); margin: 6px auto 4px; opacity: .7; flex-shrink: 0; }
+.m-sheet-head { height: 52px; display: flex; align-items: center; padding: 0 6px; flex-shrink: 0; }
+.m-sheet-head h3 { flex: 1; text-align: center; font: var(--m-text-sheet-title); }
+.m-chip { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 14px; background: var(--color-bg-input); color: var(--color-text-secondary); font: 500 13px/18px var(--m-font); white-space: nowrap; }
+.m-chip.acc { background: var(--color-accent-subtle); color: var(--color-accent); }
+.m-chip .ic { width: 14px; height: 14px; }
+.m-hl { background: var(--m-highlight); color: var(--color-accent); border-radius: 4px; padding: 0 2px; }
+.m-seg { display: flex; background: var(--color-seg-track); border-radius: 9px; padding: 2px; gap: 2px; }
+.m-seg span { flex: 1; text-align: center; font: 500 13px/28px var(--m-font); border-radius: 7px; color: var(--color-text-secondary); }
+.m-seg span.on { background: var(--color-seg-on); color: var(--color-text-primary); box-shadow: 0 1px 3px rgba(0,0,0,.14); }
+.m-toggle { width: 51px; height: 31px; border-radius: 16px; background: var(--color-text-quaternary); position: relative; flex-shrink: 0; }
+.m-toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
+.m-toggle.on { background: var(--color-accent); }
+.m-toggle.on::after { left: 22px; }
+.m-btn { height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; font: 600 16px/22px var(--m-font); background: var(--color-accent); color: #fff; width: 100%; }
+.m-btn.line { background: transparent; color: var(--color-text-primary); border: 1px solid var(--color-login-input-border); }
+.m-btn.soft { background: var(--color-bg-input); color: var(--color-text-primary); }
+.m-btn.ghost { background: transparent; color: var(--color-accent); height: 40px; }
+.m-btn.sm { height: 36px; width: auto; padding: 0 14px; font-size: 14px; border-radius: 10px; }
+.m-input { height: 50px; border-radius: 12px; background: var(--color-bg-input); display: flex; align-items: center; gap: 10px; padding: 0 14px; color: var(--color-text-tertiary); font: var(--m-text-body); border: 1px solid transparent; }
+.m-input.focus { border-color: var(--color-accent); color: var(--color-text-primary); background: var(--color-bg-app); }
+.m-input .ic { width: 18px; height: 18px; }
+.m-search { height: 36px; border-radius: 10px; background: var(--color-bg-input); display: flex; align-items: center; gap: 6px; padding: 0 10px; color: var(--color-text-tertiary); font: var(--m-text-sub); flex: 1; }
+.m-search .ic { width: 16px; height: 16px; }
+.m-grouped { background: var(--m-page-bg); }
+.m-cells { margin: 0 var(--m-gutter); background: var(--m-card-bg); border-radius: var(--m-radius-card); overflow: hidden; }
+.m-cells-title { font: 400 13px/18px var(--m-font); color: var(--color-text-tertiary); padding: 18px calc(var(--m-gutter) + 14px) 6px; }
+.m-cell { min-height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 14px; position: relative; font: var(--m-text-body); }
+.m-cell + .m-cell::before { content: ""; position: absolute; top: 0; left: 48px; right: 0; border-top: 0.5px solid var(--color-border-divider); }
+.m-cell.noicon + .m-cell::before, .m-cell.noicon::before { left: 14px; }
+.m-cell .lb { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-cell .v { font: var(--m-text-sub); color: var(--color-text-tertiary); white-space: nowrap; }
+.m-cell .v.acc { color: var(--color-accent); }
+.m-cell > .ic { color: var(--color-text-secondary); width: 22px; height: 22px; }
+.m-cell .chev { width: 16px; height: 16px; color: var(--color-text-quaternary); }
+.m-card { background: var(--color-bg-card); border-radius: var(--m-radius-card); border: 1px solid var(--color-border-divider); }
+.m-menu { position: absolute; background: var(--color-bg-popover); border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,.25); border: 1px solid var(--color-border-popover); overflow: hidden; z-index: 26; min-width: 230px; }
+.m-menu > div { height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 16px; font: 400 16px/22px var(--m-font); }
+.m-menu > div + div { border-top: 0.5px solid var(--color-border-divider); }
+.m-menu > div .ic { width: 20px; height: 20px; color: var(--color-text-secondary); margin-left: auto; }
+.m-menu > div.danger { color: var(--color-danger); } .m-menu > div.danger .ic { color: var(--color-danger); }
+.m-menu hr { border: 0; height: 8px; background: var(--color-border-divider); }
+.m-toast { position: absolute; left: 16px; right: 16px; bottom: calc(var(--m-tab-bottom) + var(--m-tab-h) + 14px); height: 48px; border-radius: 12px; background: #2b2b2e; color: #fff; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 16px; font: 400 14px/20px var(--m-font); z-index: 30; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+.m-toast .grow { flex: 1; }
+.m-toast b { color: #8fa6ff; font-weight: 600; padding: 0 10px; }
+.m-keyboard { flex-shrink: 0; height: 291px; background: #d1d3d9; padding: 8px 3px 0; display: flex; flex-direction: column; gap: 11px; position: relative; z-index: 26; }
+[data-theme="dark"] .m-keyboard { background: #2b2b2d; }
+.m-keyboard .kr { display: flex; gap: 6px; justify-content: center; }
+.m-keyboard .kr i { height: 42px; flex: 0 0 33px; border-radius: 5px; background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.3); font: 400 21px/42px var(--m-font); font-style: normal; text-align: center; color: #000; }
+[data-theme="dark"] .m-keyboard .kr i { background: #6b6b6e; color: #fff; box-shadow: none; }
+.m-keyboard .kr i.w { flex-basis: 44px; background: #abafb8; } [data-theme="dark"] .m-keyboard .kr i.w { background: #464648; }
+.m-keyboard .kr i.space { flex: 1 1 auto; font-size: 15px; }
+.m-keyboard .kr i.ret { flex-basis: 88px; font-size: 15px; background: #abafb8; } [data-theme="dark"] .m-keyboard .kr i.ret { background: #464648; }
+
+/* 리스트 서랍 [틱틱 iOS]: 왼쪽에서 화면 약 82%를 덮는 판. 위 = 아바타·이름·🔔·⚙, 스마트 목록 → 구분선 → 리스트(폴더) → 구분선 → 휴지통, 맨 아래 + 추가 · 관리 */
+.m-drawer { position: absolute; top: 0; bottom: 0; left: 0; width: 82%; background: var(--m-drawer-bg); z-index: 22; display: flex; flex-direction: column; box-shadow: 8px 0 30px rgba(0,0,0,.15); }
+.m-drawer .me { height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px; font: 600 16px/22px var(--m-font); flex-shrink: 0; }
+.m-drawer .me .av { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg,#9fd49b,#4caf6a); color: #fff; display: grid; place-items: center; font: 600 13px/1 var(--m-font); }
+.m-drawer .me .grow { flex: 1; }
+.m-drawer .items { flex: 1; overflow: hidden; padding: 4px 8px; }
+.m-dr { height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 10px; border-radius: 10px; font: var(--m-text-body); color: var(--color-text-primary); }
+.m-dr.on { background: var(--m-drawer-sel); }
+.m-dr .ic { width: 22px; height: 22px; }
+.m-dr .n { margin-left: auto; font: var(--m-text-meta); color: var(--color-text-tertiary); }
+.m-dr .chev { width: 14px; height: 14px; color: var(--color-text-quaternary); margin-left: auto; }
+.m-dr .n + .chev { margin-left: 4px; }
+.m-dr .emoji { width: 22px; text-align: center; font-size: 17px; }
+.m-dr .ldot { width: 22px; display: grid; place-items: center; } .m-dr .ldot i { width: 9px; height: 9px; border-radius: 50%; display: block; }
+.m-dr.child { padding-left: 44px; }
+.m-drawer hr { border: 0; border-top: 0.5px solid var(--color-border-divider); margin: 6px 10px; }
+.m-drawer .foot { height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 18px; color: var(--color-text-secondary); flex-shrink: 0; margin-bottom: var(--m-safe-bottom); }
+.m-drawer .foot .grow { flex: 1; }
+.m-lock { background: linear-gradient(165deg,#6d82b3 0%,#3b4a73 50%,#1b2238 100%); }
+.m-noti { margin: 0 10px; border-radius: 22px; background: rgba(245,245,245,.72); backdrop-filter: blur(24px); color: #111; padding: 12px 14px; display: flex; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.12); }
+.m-noti .app { width: 36px; height: 36px; border-radius: 9px; background: var(--color-accent); color: #fff; display: grid; place-items: center; flex-shrink: 0; }
+.m-noti .bd { flex: 1; min-width: 0; font: 400 14px/19px var(--m-font); }
+.m-noti .bd strong { display: block; font-weight: 600; }
+.m-noti .tm { font: 400 12px/16px var(--m-font); color: rgba(0,0,0,.45); }
+
+/* ── 7부: 아이콘 — 직접 그린 선 아이콘(Lucide 풍, 틱틱 원본 아님). currentColor로 칠한다 ── */
+.ic { display: inline-block; width: 22px; height: 22px; background: currentColor; flex-shrink: 0; vertical-align: middle;
+  -webkit-mask: var(--i) center / contain no-repeat; mask: var(--i) center / contain no-repeat; }
+.ic-sm { width: 16px; height: 16px; } .ic-lg { width: 26px; height: 26px; } .ic-xs { width: 13px; height: 13px; }
+:root {
+  --i-task: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%223.5%22%20width%3D%2217%22%20height%3D%2217%22%20rx%3D%223.5%22/%3E%3Cpath%20d%3D%22M8%2012.2l2.8%202.8L16.2%209.5%22/%3E%3C/svg%3E");
+  --i-square: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%224%22%20y%3D%224%22%20width%3D%2216%22%20height%3D%2216%22%20rx%3D%223%22/%3E%3C/svg%3E");
+  --i-grip: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%209h14M5%2015h14%22/%3E%3C/svg%3E");
+  --i-chev-ud: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8%209.5l4-4%204%204M8%2014.5l4%204%204-4%22/%3E%3C/svg%3E");
+  --i-layout: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%224%22%20width%3D%2217%22%20height%3D%2216%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%209.5h17M9.5%209.5V20%22/%3E%3C/svg%3E");
+  --i-cal-month: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M8%2014h.01M12%2014h.01M16%2014h.01M8%2017.5h.01M12%2017.5h.01%22/%3E%3C/svg%3E");
+  --i-cal-day: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M7.5%2014h9M7.5%2017h6%22/%3E%3C/svg%3E");
+  --i-cal-3: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M9.2%2010v10.5M14.8%2010v10.5%22/%3E%3C/svg%3E");
+  --i-agenda: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%205h3M4%2012h3M4%2019h3M10%205h10M10%2012h10M10%2019h10%22/%3E%3C/svg%3E");
+  --i-today-dot: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M8%203v4M16%203v4%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2213.5%22%20r%3D%222.2%22/%3E%3C/svg%3E");
+  --i-moon-plus: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M19%2014.5A7.5%207.5%200%201%201%209.5%205a6%206%200%200%200%209.5%209.5z%22/%3E%3C/svg%3E");
+  --i-next-week: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M9%2015h6M13%2013l2%202-2%202%22/%3E%3C/svg%3E");
+  --i-cal-x: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M10%2013l4%204M14%2013l-4%204%22/%3E%3C/svg%3E");
+  --i-wontdo: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%223.5%22%20width%3D%2217%22%20height%3D%2217%22%20rx%3D%223.5%22/%3E%3Cpath%20d%3D%22M9%209l6%206M15%209l-6%206%22/%3E%3C/svg%3E");
+  --i-flashlight: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8%203h8v4l-2%203v11h-4V10L8%207z%22/%3E%3C/svg%3E");
+  --i-camera: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%208h3l2-3h6l2%203h3v11H4z%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2213%22%20r%3D%223.5%22/%3E%3C/svg%3E");
+  --i-mail-plain: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225.5%22%20width%3D%2217%22%20height%3D%2213%22%20rx%3D%222%22/%3E%3C/svg%3E");
+  --i-msg: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%205h16v11H9l-5%204z%22/%3E%3C/svg%3E");
+  --i-note-app: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%225%22%20y%3D%223.5%22%20width%3D%2214%22%20height%3D%2217%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M8.5%208h7M8.5%2012h7M8.5%2016h4%22/%3E%3C/svg%3E");
+  --i-copy-link: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M10%2014a4%204%200%200%200%205.7%200l3-3a4%204%200%200%200-5.7-5.7l-1%201M14%2010a4%204%200%200%200-5.7%200l-3%203a4%204%200%200%200%205.7%205.7l1-1%22/%3E%3C/svg%3E");
+  --i-readlist: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6.5%203.5h11v17L12%2016.5l-5.5%204z%22/%3E%3Cpath%20d%3D%22M12%207v6M9%2010h6%22/%3E%3C/svg%3E");
+  --i-menu: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%206h16M4%2012h16M4%2018h16%22/%3E%3C/svg%3E");
+  --i-more: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%225%22%20cy%3D%2212%22%20r%3D%221.2%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%221.2%22/%3E%3Ccircle%20cx%3D%2219%22%20cy%3D%2212%22%20r%3D%221.2%22/%3E%3C/svg%3E");
+  --i-more-v: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%225%22%20r%3D%221.2%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%221.2%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2219%22%20r%3D%221.2%22/%3E%3C/svg%3E");
+  --i-plus: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%205v14M5%2012h14%22/%3E%3C/svg%3E");
+  --i-check: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2012.5l4.5%204.5L19%207.5%22/%3E%3C/svg%3E");
+  --i-x: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6%206l12%2012M18%206L6%2018%22/%3E%3C/svg%3E");
+  --i-chev-r: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M9%206l6%206-6%206%22/%3E%3C/svg%3E");
+  --i-chev-l: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M15%206l-6%206%206%206%22/%3E%3C/svg%3E");
+  --i-chev-d: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22/%3E%3C/svg%3E");
+  --i-chev-u: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6%2015l6-6%206%206%22/%3E%3C/svg%3E");
+  --i-calendar: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4%22/%3E%3C/svg%3E");
+  --i-cal-check: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M9%2015l2%202%204-4%22/%3E%3C/svg%3E");
+  --i-cal-today: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4%22/%3E%3Crect%20x%3D%228%22%20y%3D%2213%22%20width%3D%224%22%20height%3D%224%22%20rx%3D%221%22/%3E%3C/svg%3E");
+  --i-cal-7: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225%22%20width%3D%2217%22%20height%3D%2215.5%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M3.5%2010h17M8%203v4M16%203v4M10%2013.5h4.5l-3%204.5%22/%3E%3C/svg%3E");
+  --i-sun: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%224%22/%3E%3Cpath%20d%3D%22M12%202.5v2M12%2019.5v2M4.6%204.6L6%206M18%2018l1.4%201.4M2.5%2012h2M19.5%2012h2M4.6%2019.4L6%2018M18%206l1.4-1.4%22/%3E%3C/svg%3E");
+  --i-sunrise: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2018h16M7%2018a5%205%200%200%201%2010%200M12%204v4M5%2011l1.5%201M19%2011l-1.5%201M9%206l3-3%203%203%22/%3E%3C/svg%3E");
+  --i-moon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2014.5A8%208%200%201%201%209.5%204a6.5%206.5%200%200%200%2010.5%2010.5z%22/%3E%3C/svg%3E");
+  --i-inbox: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%2013.5l2.6-7.2A2%202%200%200%201%208%205h8a2%202%200%200%201%201.9%201.3l2.6%207.2V18a2%202%200%200%201-2%202h-13a2%202%200%200%201-2-2z%22/%3E%3Cpath%20d%3D%22M3.5%2013.5h4.5l1.5%202.5h5l1.5-2.5h4.5%22/%3E%3C/svg%3E");
+  --i-flag: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2021V4.5M5%204.5h11l-2%204%202%204H5%22/%3E%3C/svg%3E");
+  --i-tag: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%2012.2V4.5a1%201%200%200%201%201-1h7.7l8.3%208.3a1.5%201.5%200%200%201%200%202.1l-6.6%206.6a1.5%201.5%200%200%201-2.1%200z%22/%3E%3Ccircle%20cx%3D%228%22%20cy%3D%228%22%20r%3D%221.4%22/%3E%3C/svg%3E");
+  --i-hash: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%209h15M4%2015h15M10%203.5L8%2020.5M16%203.5l-2%2017%22/%3E%3C/svg%3E");
+  --i-folder: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%207a2%202%200%200%201%202-2h4l2%202.5h7a2%202%200%200%201%202%202V17a2%202%200%200%201-2%202h-13a2%202%200%200%201-2-2z%22/%3E%3C/svg%3E");
+  --i-list: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M9%206h11M9%2012h11M9%2018h11%22/%3E%3Ccircle%20cx%3D%224.5%22%20cy%3D%226%22%20r%3D%221%22/%3E%3Ccircle%20cx%3D%224.5%22%20cy%3D%2212%22%20r%3D%221%22/%3E%3Ccircle%20cx%3D%224.5%22%20cy%3D%2218%22%20r%3D%221%22/%3E%3C/svg%3E");
+  --i-clock: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%228.5%22/%3E%3Cpath%20d%3D%22M12%207.5V12l3%202%22/%3E%3C/svg%3E");
+  --i-bell: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6%2016V11a6%206%200%200%201%2012%200v5l1.5%202h-15z%22/%3E%3Cpath%20d%3D%22M10%2020.5a2%202%200%200%200%204%200%22/%3E%3C/svg%3E");
+  --i-repeat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M17%203l3%203-3%203%22/%3E%3Cpath%20d%3D%22M4%2011V9.5A3.5%203.5%200%200%201%207.5%206H20M7%2021l-3-3%203-3%22/%3E%3Cpath%20d%3D%22M20%2013v1.5a3.5%203.5%200%200%201-3.5%203.5H4%22/%3E%3C/svg%3E");
+  --i-search: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2211%22%20cy%3D%2211%22%20r%3D%226.5%22/%3E%3Cpath%20d%3D%22M20%2020l-4.3-4.3%22/%3E%3C/svg%3E");
+  --i-settings: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%223%22/%3E%3Cpath%20d%3D%22M19.4%2015a1.6%201.6%200%200%200%20.3%201.8l.1.1a2%202%200%201%201-2.8%202.8l-.1-.1a1.6%201.6%200%200%200-1.8-.3%201.6%201.6%200%200%200-1%201.5V21a2%202%200%201%201-4%200v-.1a1.6%201.6%200%200%200-1-1.5%201.6%201.6%200%200%200-1.8.3l-.1.1a2%202%200%201%201-2.8-2.8l.1-.1a1.6%201.6%200%200%200%20.3-1.8%201.6%201.6%200%200%200-1.5-1H3a2%202%200%201%201%200-4h.1a1.6%201.6%200%200%200%201.5-1%201.6%201.6%200%200%200-.3-1.8l-.1-.1a2%202%200%201%201%202.8-2.8l.1.1a1.6%201.6%200%200%200%201.8.3H9a1.6%201.6%200%200%200%201-1.5V3a2%202%200%201%201%204%200v.1a1.6%201.6%200%200%200%201%201.5%201.6%201.6%200%200%200%201.8-.3l.1-.1a2%202%200%201%201%202.8%202.8l-.1.1a1.6%201.6%200%200%200-.3%201.8V9a1.6%201.6%200%200%200%201.5%201H21a2%202%200%201%201%200%204h-.1a1.6%201.6%200%200%200-1.5%201z%22/%3E%3C/svg%3E");
+  --i-sprout: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%2021v-8%22/%3E%3Cpath%20d%3D%22M12%2013c0-4.5-3-7-8-7%200%204.5%203%207%208%207zM12%2011c0-3.8%202.6-6%207-6%200%203.8-2.6%206-7%206z%22/%3E%3C/svg%3E");
+  --i-send: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%2019V5M6%2011l6-6%206%206%22/%3E%3C/svg%3E");
+  --i-mic: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%229%22%20y%3D%223%22%20width%3D%226%22%20height%3D%2211%22%20rx%3D%223%22/%3E%3Cpath%20d%3D%22M5.5%2011a6.5%206.5%200%200%200%2013%200M12%2017.5V21%22/%3E%3C/svg%3E");
+  --i-trash: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%207h16M10%207V4.5h4V7M6%207l1%2013h10l1-13M10%2011v6M14%2011v6%22/%3E%3C/svg%3E");
+  --i-timer: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2213%22%20r%3D%227.5%22/%3E%3Cpath%20d%3D%22M12%209v4l2.5%201.5M9.5%202.5h5%22/%3E%3C/svg%3E");
+  --i-grid4: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%223.5%22%20width%3D%227%22%20height%3D%227%22%20rx%3D%221.5%22/%3E%3Crect%20x%3D%2213.5%22%20y%3D%223.5%22%20width%3D%227%22%20height%3D%227%22%20rx%3D%221.5%22/%3E%3Crect%20x%3D%223.5%22%20y%3D%2213.5%22%20width%3D%227%22%20height%3D%227%22%20rx%3D%221.5%22/%3E%3Crect%20x%3D%2213.5%22%20y%3D%2213.5%22%20width%3D%227%22%20height%3D%227%22%20rx%3D%221.5%22/%3E%3C/svg%3E");
+  --i-habit: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%228.5%22/%3E%3Cpath%20d%3D%22M8%2012.5l2.7%202.7L16%209.8%22/%3E%3C/svg%3E");
+  --i-sort: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M7%204v16M3.5%2016.5L7%2020l3.5-3.5M17%2020V4M13.5%207.5L17%204l3.5%203.5%22/%3E%3C/svg%3E");
+  --i-filter: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%205h16l-6%207.5V19l-4%201.5v-8z%22/%3E%3C/svg%3E");
+  --i-user: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%228%22%20r%3D%224%22/%3E%3Cpath%20d%3D%22M4.5%2020.5a7.5%207.5%200%200%201%2015%200%22/%3E%3C/svg%3E");
+  --i-lock: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%225%22%20y%3D%2210.5%22%20width%3D%2214%22%20height%3D%2210%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M8%2010.5V7.5a4%204%200%200%201%208%200v3%22/%3E%3C/svg%3E");
+  --i-mail: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%225.5%22%20width%3D%2217%22%20height%3D%2213%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M4%207l8%206%208-6%22/%3E%3C/svg%3E");
+  --i-palette: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203.5a8.5%208.5%200%201%200%200%2017c1.2%200%201.7-.8%201.7-1.6%200-1.2-1-1.6-1-2.6%200-1%20.8-1.8%201.8-1.8H17a3.5%203.5%200%200%200%203.5-3.5c0-4.2-3.8-7.5-8.5-7.5z%22/%3E%3Ccircle%20cx%3D%227.5%22%20cy%3D%2211%22%20r%3D%221%22/%3E%3Ccircle%20cx%3D%2210%22%20cy%3D%227.2%22%20r%3D%221%22/%3E%3Ccircle%20cx%3D%2214.5%22%20cy%3D%227.2%22%20r%3D%221%22/%3E%3C/svg%3E");
+  --i-star: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203.5l2.6%205.3%205.9.9-4.2%204.1%201%205.8L12%2016.9l-5.3%202.7%201-5.8-4.2-4.1%205.9-.9z%22/%3E%3C/svg%3E");
+  --i-link: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M10%2014a4%204%200%200%200%205.7%200l3-3a4%204%200%200%200-5.7-5.7l-1%201M14%2010a4%204%200%200%200-5.7%200l-3%203a4%204%200%200%200%205.7%205.7l1-1%22/%3E%3C/svg%3E");
+  --i-share: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203.5V15M7.5%208L12%203.5%2016.5%208M5%2012v6.5a2%202%200%200%200%202%202h10a2%202%200%200%200%202-2V12%22/%3E%3C/svg%3E");
+  --i-note: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%204.5h14M5%209.5h14M5%2014.5h9M5%2019.5h6%22/%3E%3C/svg%3E");
+  --i-subtask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%204v11a3%203%200%200%200%203%203h3%22/%3E%3Crect%20x%3D%2211%22%20y%3D%2215%22%20width%3D%228%22%20height%3D%226%22%20rx%3D%221.5%22/%3E%3Cpath%20d%3D%22M5%208h6%22/%3E%3Crect%20x%3D%2211%22%20y%3D%225%22%20width%3D%228%22%20height%3D%226%22%20rx%3D%221.5%22/%3E%3C/svg%3E");
+  --i-pin: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M15%203.5l5.5%205.5-3%201.5-3.5%203.5.5%204-2%202-4-4-5%205M8%209.5l6.5%206.5M8.5%2010l-3.5-1.5%202-2%204%20.5%203.5-3.5z%22/%3E%3C/svg%3E");
+  --i-move: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%207a2%202%200%200%201%202-2h4l2%202.5h7a2%202%200%200%201%202%202V17a2%202%200%200%201-2%202h-13a2%202%200%200%201-2-2z%22/%3E%3Cpath%20d%3D%22M10%2013.5h6M13.5%2011l2.5%202.5-2.5%202.5%22/%3E%3C/svg%3E");
+  --i-copy: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%228.5%22%20y%3D%228.5%22%20width%3D%2212%22%20height%3D%2212%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M15.5%208.5V5.5a2%202%200%200%200-2-2h-8a2%202%200%200%200-2%202v8a2%202%200%200%200%202%202h3%22/%3E%3C/svg%3E");
+  --i-undo: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M9%2014L4%209l5-5%22/%3E%3Cpath%20d%3D%22M4%209h10.5a5.5%205.5%200%200%201%200%2011H11%22/%3E%3C/svg%3E");
+  --i-edit: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2020h4L19%209l-4-4L4%2016z%22/%3E%3Cpath%20d%3D%22M13.5%206.5l4%204%22/%3E%3C/svg%3E");
+  --i-sparkle: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203l1.9%205.1L19%2010l-5.1%201.9L12%2017l-1.9-5.1L5%2010l5.1-1.9z%22/%3E%3Cpath%20d%3D%22M19%2015.5l.8%202%202%20.8-2%20.8-.8%202-.8-2-2-.8%202-.8z%22/%3E%3C/svg%3E");
+  --i-kbd-down: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223%22%20y%3D%224%22%20width%3D%2218%22%20height%3D%2211%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M7%208h.01M11%208h.01M15%208h.01M8%2011.5h8M9%2018.5l3%202.5%203-2.5%22/%3E%3C/svg%3E");
+  --i-collect: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%2013.5l2.6-7.2A2%202%200%200%201%208%205h8a2%202%200%200%201%201.9%201.3l2.6%207.2V18a2%202%200%200%201-2%202h-13a2%202%200%200%201-2-2z%22/%3E%3Cpath%20d%3D%22M3.5%2013.5h4.5l1.5%202.5h5l1.5-2.5h4.5M12%203v7M9.5%207.5L12%2010l2.5-2.5%22/%3E%3C/svg%3E");
+  --i-monitor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223%22%20y%3D%224%22%20width%3D%2218%22%20height%3D%2212.5%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M8.5%2020.5h7M12%2016.5v4%22/%3E%3C/svg%3E");
+  --i-phone: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%226.5%22%20y%3D%222.5%22%20width%3D%2211%22%20height%3D%2219%22%20rx%3D%222.5%22/%3E%3Cpath%20d%3D%22M11%2018.5h2%22/%3E%3C/svg%3E");
+  --i-eye: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M2.5%2012S6%205.5%2012%205.5%2021.5%2012%2021.5%2012%2018%2018.5%2012%2018.5%202.5%2012%202.5%2012z%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%223%22/%3E%3C/svg%3E");
+  --i-sliders: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%206h10M18%206h2M4%2012h4M12%2012h8M4%2018h12M20%2018h0%22/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%226%22%20r%3D%222%22/%3E%3Ccircle%20cx%3D%2210%22%20cy%3D%2212%22%20r%3D%222%22/%3E%3Ccircle%20cx%3D%2218%22%20cy%3D%2218%22%20r%3D%222%22/%3E%3C/svg%3E");
+  --i-text: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%206.5V4.5h14v2M12%204.5v15M9%2019.5h6%22/%3E%3C/svg%3E");
+  --i-volume: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%209.5h3.5L12%205.5v13l-4.5-4H4z%22/%3E%3Cpath%20d%3D%22M15.5%209a4%204%200%200%201%200%206M18%206.5a7.5%207.5%200%200%201%200%2011%22/%3E%3C/svg%3E");
+  --i-vibrate: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%227.5%22%20y%3D%224%22%20width%3D%229%22%20height%3D%2216%22%20rx%3D%222%22/%3E%3Cpath%20d%3D%22M3.5%209v6M20.5%209v6%22/%3E%3C/svg%3E");
+  --i-widget: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.5%22%20y%3D%223.5%22%20width%3D%2217%22%20height%3D%2217%22%20rx%3D%224%22/%3E%3Cpath%20d%3D%22M3.5%2011h17M11%2011v9.5%22/%3E%3C/svg%3E");
+  --i-info: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%228.5%22/%3E%3Cpath%20d%3D%22M12%2011v5M12%208h.01%22/%3E%3C/svg%3E");
+  --i-logout: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M14.5%204.5H18a2%202%200%200%201%202%202v11a2%202%200%200%201-2%202h-3.5M10%2016.5L5.5%2012%2010%207.5M5.5%2012h10%22/%3E%3C/svg%3E");
+  --i-cloud: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M7%2018.5a4.5%204.5%200%200%201-.6-9%206%206%200%200%201%2011.4%201.6A3.8%203.8%200%200%201%2017.5%2018.5z%22/%3E%3C/svg%3E");
+  --i-cloud-off: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%203.5l17%2017M9.3%206.2A6%206%200%200%201%2017.8%2011a3.8%203.8%200%200%201%202.4%206M17%2018.5H7a4.5%204.5%200%200%201-1.7-8.7%22/%3E%3C/svg%3E");
+  --i-refresh: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2011.5A8%208%200%200%200%205.6%206.5L4%208.5M4%204v4.5h4.5M4%2012.5a8%208%200%200%200%2014.4%205l1.6-2M20%2020v-4.5h-4.5%22/%3E%3C/svg%3E");
+  --i-skip: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2012h12M13%208l4%204-4%204M20%205v14%22/%3E%3C/svg%3E");
+  --i-arrow-r: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2012h14M13%206l6%206-6%206%22/%3E%3C/svg%3E");
+  --i-chart: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2020V4M4%2020h16M8%2016v-4M12%2016V8M16%2016v-6%22/%3E%3C/svg%3E");
+  --i-apple: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M15.5%203.5c.2%201.6-1.2%203.4-2.9%203.3-.2-1.5%201.2-3.2%202.9-3.3zM17.7%2012.6c0-2%201.7-3%201.8-3-1-1.4-2.5-1.6-3-1.6-1.3-.1-2.5.8-3.2.8-.6%200-1.7-.7-2.8-.7-1.4%200-2.8.9-3.5%202.2-1.5%202.6-.4%206.5%201.1%208.6.7%201%201.5%202.2%202.6%202.1%201-.1%201.4-.7%202.7-.7%201.2%200%201.6.7%202.7.7%201.1%200%201.8-1%202.5-2.1.8-1.1%201.1-2.2%201.1-2.3%200%200-2-.8-2-3.4z%22/%3E%3C/svg%3E");
+  --i-globe: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%228.5%22/%3E%3Cpath%20d%3D%22M3.5%2012h17M12%203.5c2.5%202.7%202.5%2014.3%200%2017M12%203.5c-2.5%202.7-2.5%2014.3%200%2017%22/%3E%3C/svg%3E");
+  --i-leaf: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2019c0-8%205-13%2014.5-14C19%2014.5%2014%2019.5%206%2019.5%22/%3E%3Cpath%20d%3D%22M5%2019.5l7-7%22/%3E%3C/svg%3E");
+  --i-attach: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2011.5l-8%208a5%205%200%200%201-7-7l8.5-8.5a3.3%203.3%200%200%201%204.7%204.7l-8.5%208.5a1.7%201.7%200%200%201-2.4-2.4l7.8-7.8%22/%3E%3C/svg%3E");
+  --i-location: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%2021s-6.5-6-6.5-11a6.5%206.5%200%200%201%2013%200c0%205-6.5%2011-6.5%2011z%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2210%22%20r%3D%222.3%22/%3E%3C/svg%3E");
+  --i-bookmark: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6.5%203.5h11v17L12%2016.5l-5.5%204z%22/%3E%3C/svg%3E");
+  --i-wifi-off: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3.5%203.5l17%2017M8.5%2016a5%205%200%200%201%207%200M5%2012.5a10%2010%200%200%201%204-2.3M14.5%2010.3a10%2010%200%200%201%204.5%202.2M2%209a14.5%2014.5%200%200%201%204.5-2.8M11%205.5A14.5%2014.5%200%200%201%2022%209M12%2019.5h.01%22/%3E%3C/svg%3E");
+  --i-eraser: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M7%2020.5h13M4.6%2015.4l9.8-9.8a2%202%200%200%201%202.8%200l2.2%202.2a2%202%200%200%201%200%202.8L11%2019H8.2z%22/%3E%3C/svg%3E");
+}
+.ic-task{--i:var(--i-task)}
+.ic-square{--i:var(--i-square)}
+.ic-grip{--i:var(--i-grip)}
+.ic-chev-ud{--i:var(--i-chev-ud)}
+.ic-layout{--i:var(--i-layout)}
+.ic-cal-month{--i:var(--i-cal-month)}
+.ic-cal-day{--i:var(--i-cal-day)}
+.ic-cal-3{--i:var(--i-cal-3)}
+.ic-agenda{--i:var(--i-agenda)}
+.ic-today-dot{--i:var(--i-today-dot)}
+.ic-moon-plus{--i:var(--i-moon-plus)}
+.ic-next-week{--i:var(--i-next-week)}
+.ic-cal-x{--i:var(--i-cal-x)}
+.ic-wontdo{--i:var(--i-wontdo)}
+.ic-flashlight{--i:var(--i-flashlight)}
+.ic-camera{--i:var(--i-camera)}
+.ic-mail-plain{--i:var(--i-mail-plain)}
+.ic-msg{--i:var(--i-msg)}
+.ic-note-app{--i:var(--i-note-app)}
+.ic-copy-link{--i:var(--i-copy-link)}
+.ic-readlist{--i:var(--i-readlist)}
+.ic-menu{--i:var(--i-menu)}
+.ic-more{--i:var(--i-more)}
+.ic-more-v{--i:var(--i-more-v)}
+.ic-plus{--i:var(--i-plus)}
+.ic-check{--i:var(--i-check)}
+.ic-x{--i:var(--i-x)}
+.ic-chev-r{--i:var(--i-chev-r)}
+.ic-chev-l{--i:var(--i-chev-l)}
+.ic-chev-d{--i:var(--i-chev-d)}
+.ic-chev-u{--i:var(--i-chev-u)}
+.ic-calendar{--i:var(--i-calendar)}
+.ic-cal-check{--i:var(--i-cal-check)}
+.ic-cal-today{--i:var(--i-cal-today)}
+.ic-cal-7{--i:var(--i-cal-7)}
+.ic-sun{--i:var(--i-sun)}
+.ic-sunrise{--i:var(--i-sunrise)}
+.ic-moon{--i:var(--i-moon)}
+.ic-inbox{--i:var(--i-inbox)}
+.ic-flag{--i:var(--i-flag)}
+.ic-tag{--i:var(--i-tag)}
+.ic-hash{--i:var(--i-hash)}
+.ic-folder{--i:var(--i-folder)}
+.ic-list{--i:var(--i-list)}
+.ic-clock{--i:var(--i-clock)}
+.ic-bell{--i:var(--i-bell)}
+.ic-repeat{--i:var(--i-repeat)}
+.ic-search{--i:var(--i-search)}
+.ic-settings{--i:var(--i-settings)}
+.ic-sprout{--i:var(--i-sprout)}
+.ic-send{--i:var(--i-send)}
+.ic-mic{--i:var(--i-mic)}
+.ic-trash{--i:var(--i-trash)}
+.ic-timer{--i:var(--i-timer)}
+.ic-grid4{--i:var(--i-grid4)}
+.ic-habit{--i:var(--i-habit)}
+.ic-sort{--i:var(--i-sort)}
+.ic-filter{--i:var(--i-filter)}
+.ic-user{--i:var(--i-user)}
+.ic-lock{--i:var(--i-lock)}
+.ic-mail{--i:var(--i-mail)}
+.ic-palette{--i:var(--i-palette)}
+.ic-star{--i:var(--i-star)}
+.ic-link{--i:var(--i-link)}
+.ic-share{--i:var(--i-share)}
+.ic-note{--i:var(--i-note)}
+.ic-subtask{--i:var(--i-subtask)}
+.ic-pin{--i:var(--i-pin)}
+.ic-move{--i:var(--i-move)}
+.ic-copy{--i:var(--i-copy)}
+.ic-undo{--i:var(--i-undo)}
+.ic-edit{--i:var(--i-edit)}
+.ic-sparkle{--i:var(--i-sparkle)}
+.ic-kbd-down{--i:var(--i-kbd-down)}
+.ic-collect{--i:var(--i-collect)}
+.ic-monitor{--i:var(--i-monitor)}
+.ic-phone{--i:var(--i-phone)}
+.ic-eye{--i:var(--i-eye)}
+.ic-sliders{--i:var(--i-sliders)}
+.ic-text{--i:var(--i-text)}
+.ic-volume{--i:var(--i-volume)}
+.ic-vibrate{--i:var(--i-vibrate)}
+.ic-widget{--i:var(--i-widget)}
+.ic-info{--i:var(--i-info)}
+.ic-logout{--i:var(--i-logout)}
+.ic-cloud{--i:var(--i-cloud)}
+.ic-cloud-off{--i:var(--i-cloud-off)}
+.ic-refresh{--i:var(--i-refresh)}
+.ic-skip{--i:var(--i-skip)}
+.ic-arrow-r{--i:var(--i-arrow-r)}
+.ic-chart{--i:var(--i-chart)}
+.ic-apple{--i:var(--i-apple)}
+.ic-globe{--i:var(--i-globe)}
+.ic-leaf{--i:var(--i-leaf)}
+.ic-attach{--i:var(--i-attach)}
+.ic-location{--i:var(--i-location)}
+.ic-bookmark{--i:var(--i-bookmark)}
+.ic-wifi-off{--i:var(--i-wifi-off)}
+.ic-eraser{--i:var(--i-eraser)}
+
+</style>
+<style>
+/* ── mobile.html 전용 (공용 뼈대에 없는 화면별 모양) ── */
+.legend{display:flex;gap:8px;flex-wrap:wrap;font:400 12px/16px var(--m-font);opacity:.85;margin-top:4px}
+.toc{font:400 12px/18px var(--m-font);opacity:.8;margin:4px 0 0}
+.toc a{color:inherit}
+/* 로그인 */
+.auth{flex:1;display:flex;flex-direction:column;padding:28px 24px 0;background:var(--color-login-bg)}
+.auth .logo{width:56px;height:56px;border-radius:16px;background:var(--color-accent);color:#fff;display:grid;place-items:center;margin-bottom:18px}
+.auth .logo .ic{width:32px;height:32px}
+.auth h1{font:var(--m-text-large);margin-bottom:6px}
+.auth p.lead{font:var(--m-text-sub);color:var(--color-text-secondary);margin-bottom:26px}
+.auth .stack{display:flex;flex-direction:column;gap:12px}
+.auth .m-input{background:var(--color-login-card);border-color:var(--color-login-input-border)}
+.auth .m-input.focus{border-color:var(--color-accent)}
+.auth .err{font:400 13px/18px var(--m-font);color:var(--color-danger);margin:-2px 2px 0}
+.auth .switch{text-align:center;font:400 14px/20px var(--m-font);color:var(--color-text-secondary);margin-top:18px}
+.auth .switch b{color:var(--color-accent);font-weight:500}
+.auth .terms{font:400 12px/17px var(--m-font);color:var(--color-text-tertiary);text-align:center;margin-top:auto;padding:0 10px 54px}
+.auth .terms u{color:var(--color-text-secondary)}
+.auth .or{display:flex;align-items:center;gap:10px;color:var(--color-text-quaternary);font:var(--m-text-meta);margin:18px 0 12px}
+.auth .or::before,.auth .or::after{content:"";flex:1;border-top:1px solid var(--color-border-divider)}
+.m-btn.dis{opacity:.45}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff}
+/* 첫 실행 */
+.welcome{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:10px 28px 0}
+.welcome .eggs{display:flex;gap:10px;margin:26px 0 22px}
+.welcome .egg{width:62px;height:76px;border-radius:50% 50% 46% 46%/58% 58% 42% 42%;background:var(--color-bg-input);border:1.5px dashed var(--color-text-quaternary);display:grid;place-items:center;color:var(--color-text-tertiary);font:600 18px/1 var(--m-font)}
+.welcome h1{font:700 24px/32px var(--m-font);margin-bottom:8px}
+.welcome p{font:var(--m-text-sub);color:var(--color-text-secondary)}
+.welcome .bul{align-self:stretch;text-align:left;margin:22px 0;display:flex;flex-direction:column;gap:12px}
+.welcome .bul div{display:flex;gap:12px;align-items:flex-start;font:var(--m-text-sub)}
+.welcome .bul .ic{color:var(--color-accent);width:20px;height:20px;margin-top:0}
+.welcome .btns{align-self:stretch;margin-top:auto;padding-bottom:54px;display:flex;flex-direction:column;gap:8px}
+.sync-pill{display:inline-flex;align-items:center;gap:6px;font:var(--m-text-meta);color:var(--color-text-secondary);background:var(--color-bg-input);border-radius:12px;padding:4px 10px}
+.sync-pill i.d{width:6px;height:6px;border-radius:50%;background:#3fb950}
+.survey-card{margin:0 var(--m-card-inset) var(--m-card-gap);background:var(--m-card-bg);border-radius:var(--m-radius-card);padding:14px;display:flex;gap:12px;align-items:center}
+.survey-card .egg{width:44px;height:54px;border-radius:50% 50% 46% 46%/58% 58% 42% 42%;background:var(--color-accent-subtle);display:grid;place-items:center;color:var(--color-accent);flex-shrink:0}
+.survey-card .tx{flex:1;font:var(--m-text-sub)}
+.survey-card .tx b{display:block;font:600 15px/20px var(--m-font)}
+.survey-card .tx span{color:var(--color-text-tertiary);font:var(--m-text-meta)}
+/* 서랍 아이콘 색 */
+.sl-today{color:var(--m-sl-today)}.sl-tom{color:var(--m-sl-tomorrow)}.sl-week{color:var(--m-sl-week)}.sl-inbox{color:var(--m-sl-inbox)}.sl-tags{color:var(--m-sl-tags)}.sl-filter{color:var(--m-sl-filter)}
+.under{position:absolute;inset:0;display:flex;flex-direction:column}
+/* 스와이프 */
+.sw-row{position:relative;height:var(--m-row-h);overflow:hidden;background:var(--m-card-bg)}
+.sw-row .m-task{position:absolute;inset:0}
+.sw-acts{position:absolute;top:0;bottom:0;display:flex}
+.sw-acts span{width:60px;display:grid;place-items:center;color:#fff}
+.sw-acts span .ic{width:22px;height:22px}
+.sw-acts.r{right:0}.sw-acts.l{left:0}
+.sw-full{position:absolute;inset:0;display:flex;align-items:center;padding:0 20px;color:#fff;gap:8px;font:600 14px/20px var(--m-font)}
+.callout{position:absolute;font:500 11px/15px var(--m-font);background:#ffd166;color:#222;padding:4px 8px;border-radius:6px;z-index:70;max-width:200px;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+/* 길게 누름 메뉴 */
+.lp-wrap{position:absolute;left:12px;right:12px;z-index:26}
+.lp-row{background:var(--m-card-bg);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.25);margin-bottom:10px}
+.lp-menu{background:var(--color-bg-popover);border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.25);overflow:hidden;width:270px;border:1px solid var(--color-border-popover)}
+.lp-menu .datebar{display:flex;justify-content:space-around;padding:12px 6px 10px;border-bottom:0.5px solid var(--color-border-divider)}
+.lp-menu .datebar span{display:flex;flex-direction:column;align-items:center;gap:4px;font:400 11px/14px var(--m-font);color:var(--color-text-secondary)}
+.lp-menu .datebar .ic{width:24px;height:24px;color:var(--color-text-primary)}
+.lp-menu .pribar{display:flex;justify-content:space-around;padding:10px 6px;border-bottom:0.5px solid var(--color-border-divider)}
+.lp-menu .pribar .ic{width:22px;height:22px}
+.lp-menu .it{height:44px;display:flex;align-items:center;padding:0 16px;font:400 16px/22px var(--m-font)}
+.lp-menu .it + .it{border-top:0.5px solid var(--color-border-divider)}
+.lp-menu .it .ic{margin-left:auto;width:20px;height:20px;color:var(--color-text-secondary)}
+.lp-menu .it.danger{color:var(--color-danger)}.lp-menu .it.danger .ic{color:var(--color-danger)}
+.blur-bg{filter:blur(6px);opacity:.7}
+/* 빠른 입력 */
+.qa{position:absolute;left:0;right:0;background:var(--m-sheet-bg);border-radius:var(--m-radius-sheet) var(--m-radius-sheet) 0 0;z-index:26;padding:16px 16px 8px;box-shadow:var(--m-shadow-sheet)}
+.qa .ti{font:var(--m-text-body);min-height:24px;color:var(--color-text-primary);word-break:keep-all}
+.qa .ti.ph{color:var(--color-text-quaternary)}
+.qa .ds{font:var(--m-text-sub);color:var(--color-text-quaternary);margin-top:4px}
+.qa .caret{display:inline-block;width:2px;height:19px;background:var(--color-accent);vertical-align:-3px;margin-left:1px}
+.qa .tb{display:flex;align-items:center;gap:2px;margin-top:12px;height:40px}
+.qa .tb .m-ib{width:38px;height:38px;color:var(--color-text-secondary)}
+.qa .tb .m-ib .ic{width:21px;height:21px}
+.qa .tb .grow{flex:1}
+.qa .tb .datechip{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:15px;border:1px solid var(--color-accent);color:var(--color-accent);font:500 13px/18px var(--m-font);margin-right:4px}
+.qa .tb .datechip .ic{width:15px;height:15px}
+.qa .send{width:34px;height:34px;border-radius:50%;background:var(--color-accent);color:#fff;display:grid;place-items:center}
+.qa .send.dis{opacity:.35}
+.qa .send .ic{width:18px;height:18px}
+.qa .chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.qa .chips .m-chip .x{width:12px;height:12px;opacity:.7}
+.suggest-bar{display:flex;gap:6px;padding:6px 10px;background:var(--color-bg-input);overflow:hidden;position:relative;z-index:26}
+.suggest-bar .m-chip{background:var(--m-card-bg)}
+.kb-wrap{position:absolute;left:0;right:0;bottom:0;z-index:26}
+.m-keyboard{height:auto;padding:6px 3px 0;gap:10px}
+.m-keyboard .kr{gap:5px}
+.m-keyboard .kr i{flex:0 0 32px;height:44px;line-height:44px;font-size:19px}
+.m-keyboard .kr i.w{flex-basis:44px;font-size:15px}
+.m-keyboard .kr i.space{flex:1 1 auto;font-size:15px}
+.m-keyboard .kr i.ret{flex-basis:90px;font-size:15px}
+.m-keyboard .kr i.ret.blue{background:var(--color-accent);color:#fff}
+.m-keyboard .krow-last{display:flex;justify-content:space-between;padding:6px 22px 28px;color:#555}
+[data-theme=dark] .m-keyboard .krow-last{color:#bbb}
+.m-keyboard .predict{display:flex;justify-content:space-around;font:400 15px/30px var(--m-font);color:#333;border-bottom:0.5px solid rgba(0,0,0,.1)}
+[data-theme=dark] .m-keyboard .predict{color:#ddd;border-color:rgba(255,255,255,.1)}
+/* 날짜 시트 */
+.ds-sheet{padding:0 14px}
+.ds-head{height:60px;display:flex;align-items:center;gap:8px}
+.ds-head .m-seg{width:150px;margin:0 auto}
+.ds-quick{display:flex;justify-content:space-between;padding:4px 6px 12px}
+.ds-quick span{display:flex;flex-direction:column;align-items:center;gap:4px;font:400 11px/14px var(--m-font);color:var(--color-text-secondary);width:62px}
+.ds-quick .ic{width:26px;height:26px;color:var(--color-text-primary)}
+.ds-quick span.on .ic{color:var(--color-accent)}
+.ds-quick span.on{color:var(--color-accent)}
+.cal-mini .mh{display:flex;align-items:center;justify-content:center;gap:14px;font:600 16px/22px var(--m-font);padding:4px 0 10px}
+.cal-mini .mh .ic{width:16px;height:16px;color:var(--color-text-tertiary)}
+.cal-mini .gr{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;row-gap:4px}
+.cal-mini .gr .wd{font:400 11px/16px var(--m-font);color:var(--color-text-tertiary);padding-bottom:4px}
+.cal-mini .gr span{font:400 15px/36px var(--m-font);height:36px;width:36px;margin:0 auto;border-radius:50%}
+.cal-mini .gr span.o{color:var(--color-cal-other)}
+.cal-mini .gr span.t{color:var(--color-accent);font-weight:600}
+.cal-mini .gr span.s{background:var(--color-accent);color:#fff;font-weight:600}
+.cal-mini .gr span.sun{color:var(--color-danger)}
+.ds-cells{background:var(--color-bg-input);border-radius:14px;margin-top:12px}
+[data-theme=dark] .ds-cells{background:#2a2a2a}
+.ds-cells .m-cell{min-height:46px}
+.ds-cells .m-cell .v{display:flex;align-items:center;gap:4px}
+.ds-cells .m-cell .v.acc{color:var(--color-accent)}
+.wheel{display:flex;justify-content:center;gap:4px;padding:6px 0;position:relative}
+.wheel::before{content:"";position:absolute;left:10px;right:10px;top:50%;height:36px;margin-top:-18px;background:var(--color-bg-selected);border-radius:9px}
+.wheel div{display:flex;flex-direction:column;align-items:center;position:relative;width:70px}
+.wheel span{font:400 19px/36px var(--m-font);color:var(--color-text-quaternary)}
+.wheel span.c{color:var(--color-text-primary);font-weight:500}
+/* 상세 */
+.dt-top{height:56px;display:flex;align-items:center;gap:8px;padding:0 12px 0 16px}
+.dt-top .lst{display:flex;align-items:center;gap:4px;font:400 15px/20px var(--m-font);color:var(--color-text-secondary)}
+.dt-top .lst .ic{width:14px;height:14px}
+.dt-top .grow{flex:1}
+.dt-date{display:flex;align-items:center;gap:10px;padding:2px 16px 0;font:400 15px/22px var(--m-font);color:var(--color-accent)}
+.dt-date.ph{color:var(--color-text-quaternary)}
+.dt-date .ic{width:15px;height:15px}
+.dt-title{font:var(--m-text-detail-title);padding:12px 16px 6px}
+.dt-body{font:var(--m-text-body);color:var(--color-text-secondary);padding:2px 16px;line-height:24px}
+.dt-ph{font:var(--m-text-body);color:var(--color-text-quaternary);padding:2px 16px}
+.dt-check{display:flex;align-items:center;gap:12px;height:42px;padding:0 16px;font:var(--m-text-body)}
+.dt-check .m-check{width:16px;height:16px;border-radius:4px}
+.dt-check .grip{margin-left:auto;width:16px;height:16px;color:var(--color-text-quaternary)}
+.dt-check.done span{color:var(--color-text-tertiary);text-decoration:line-through}
+.dt-tags{display:flex;gap:6px;padding:10px 16px}
+.dt-bottom{position:absolute;left:0;right:0;bottom:0;height:calc(50px + var(--m-safe-bottom));padding:0 10px var(--m-safe-bottom);display:flex;align-items:center;gap:4px;color:var(--color-text-secondary);border-top:0.5px solid var(--color-border-divider);background:var(--m-sheet-bg)}
+.dt-bottom .grow{flex:1}
+.dt-bottom .m-ib{width:40px;height:40px}
+.dt-sub{font:var(--m-text-meta);color:var(--color-text-tertiary);padding:10px 16px 4px}
+.more-sheet .bigrow{display:flex;justify-content:space-around;padding:8px 10px 16px}
+.more-sheet .bigrow span{display:flex;flex-direction:column;align-items:center;gap:6px;font:400 12px/16px var(--m-font);color:var(--color-text-secondary)}
+.more-sheet .bigrow b{width:54px;height:54px;border-radius:16px;background:var(--color-bg-input);display:grid;place-items:center}
+[data-theme=dark] .more-sheet .bigrow b{background:#2a2a2a}
+.more-sheet .bigrow .ic{width:24px;height:24px}
+/* 캘린더 */
+.cal-head{height:var(--m-nav-h);display:flex;align-items:center;gap:8px;padding:0 12px}
+.cal-head h2{flex:1;text-align:center;font:600 18px/24px var(--m-font)}
+.cal-wd{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font:400 11px/16px var(--m-font);color:var(--color-text-tertiary);padding:0 4px 4px}
+.cal-month{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:1fr;flex:1;padding:0 4px;min-height:0}
+.cal-month > div{border-top:0.5px solid var(--color-border-divider);padding:3px 1px 0;overflow:hidden;display:flex;flex-direction:column;gap:2px;min-width:0}
+.cal-month .d{font:500 12px/20px var(--m-font);text-align:center;width:22px;height:22px;margin:0 auto 1px;border-radius:50%}
+.cal-month .o .d{color:var(--color-cal-other)}
+.cal-month .t .d{background:var(--color-accent);color:#fff}
+.cal-month .sun .d{color:var(--color-danger)}
+.cal-month .ev{font:500 9.5px/13px var(--m-font);padding:0 3px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:clip;color:var(--color-text-primary);background:color-mix(in srgb,var(--ec) calc(var(--cal-fill) * .45),transparent)}
+.cal-month .ev.done{opacity:.5}
+.cal-month .more{font:400 9px/12px var(--m-font);color:var(--color-text-tertiary);text-align:center}
+.cal-day{flex:1;position:relative;overflow:hidden;min-height:0}
+.cal-day .hr{position:absolute;left:0;right:0;height:56px;border-top:0.5px solid var(--color-border-divider)}
+.cal-day .hr span{position:absolute;left:10px;top:-8px;font:400 11px/16px var(--m-font);color:var(--color-text-tertiary);background:var(--m-card-bg);padding-right:4px}
+.cal-day .blk{position:absolute;left:52px;right:12px;border-radius:6px;padding:4px 8px;font:500 13px/17px var(--m-font);color:var(--color-text-primary);background:color-mix(in srgb,var(--ec) calc(var(--cal-fill) * .45),transparent);border-left:3px solid var(--ec);overflow:hidden}
+.cal-day .blk small{display:block;font:400 11px/14px var(--m-font);color:var(--color-text-secondary)}
+.cal-day .now{position:absolute;left:46px;right:0;border-top:1.5px solid var(--color-danger);z-index:2}
+.cal-day .now::before{content:"";position:absolute;left:-4px;top:-4.5px;width:7px;height:7px;border-radius:50%;background:var(--color-danger)}
+.week-strip{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;padding:0 6px 8px}
+.week-strip span{display:flex;flex-direction:column;align-items:center;gap:2px;font:400 11px/14px var(--m-font);color:var(--color-text-tertiary)}
+.week-strip b{font:500 16px/32px var(--m-font);width:32px;height:32px;border-radius:50%;color:var(--color-text-primary)}
+.week-strip .on b{background:var(--color-accent);color:#fff}
+.week-strip i{width:4px;height:4px;border-radius:50%;background:var(--color-text-quaternary)}
+.allday{display:flex;gap:6px;align-items:center;padding:6px 12px;border-bottom:0.5px solid var(--color-border-divider);font:var(--m-text-meta);color:var(--color-text-tertiary)}
+.allday .chip{background:color-mix(in srgb,var(--ec) 25%,transparent);color:var(--color-text-primary);padding:2px 8px;border-radius:4px;font:500 12px/16px var(--m-font)}
+.view-pop{position:absolute;left:12px;top:110px;width:200px}
+/* 검색 */
+.srch-top{display:flex;align-items:center;gap:10px;padding:6px 12px 8px}
+.srch-top .m-search{height:40px;border-radius:20px}
+.srch-chips{display:flex;gap:8px;padding:2px 16px 12px}
+.srch-chips .m-chip{height:30px}
+.srch-chips .m-chip.on{background:var(--color-accent);color:#fff}
+.recent{padding:4px 16px}
+.recent .h{display:flex;justify-content:space-between;font:600 14px/20px var(--m-font);padding:8px 0}
+.recent .h span{font:400 13px/20px var(--m-font);color:var(--color-text-tertiary)}
+.recent .w{display:flex;flex-wrap:wrap;gap:8px}
+mark{background:var(--color-search-highlight);color:inherit;border-radius:2px;padding:0 1px}
+/* 설정 */
+.prof{margin:6px var(--m-card-inset) var(--m-card-gap);background:var(--m-card-bg);border-radius:var(--m-radius-card);padding:14px;display:flex;align-items:center;gap:12px}
+.prof .av{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#9fd49b,#4caf6a);color:#fff;display:grid;place-items:center;font:600 18px/1 var(--m-font)}
+.prof .tx{flex:1}
+.prof .tx b{display:block;font:600 17px/22px var(--m-font)}
+.prof .tx span{font:var(--m-text-meta);color:var(--color-text-tertiary)}
+.prof .lv{display:flex;gap:4px;margin-top:4px}
+.prof .lv i{font:600 10.5px/16px var(--m-font);font-style:normal;padding:0 6px;border-radius:8px;background:var(--color-accent-subtle);color:var(--color-accent)}
+.cells-wrap .m-cells{margin:0 var(--m-card-inset) var(--m-card-gap)}
+.cells-wrap .m-cells-title{padding:10px calc(var(--m-card-inset) + 14px) 6px}
+.si{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:#fff;flex-shrink:0}
+.si .ic{width:17px;height:17px}
+.m-cell .si + .lb{margin-left:0}
+.signout{text-align:center;color:var(--color-danger);font:400 16px/22px var(--m-font);padding:10px 0}
+.themes{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 10px;padding:14px}
+.themes .sw{display:flex;flex-direction:column;align-items:center;gap:6px;font:400 12px/16px var(--m-font);color:var(--color-text-secondary)}
+.themes .sw b{width:62px;height:96px;border-radius:12px;border:1px solid var(--color-border-divider);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.themes .sw b i{display:block}
+.themes .sw.on b{outline:2px solid var(--color-accent);outline-offset:2px}
+.themes .sw.on{color:var(--color-accent);font-weight:600}
+.themes .sw .ck{position:absolute;right:4px;bottom:4px;width:16px;height:16px;border-radius:50%;background:var(--color-accent);color:#fff;display:grid;place-items:center}
+.themes .sw .ck .ic{width:11px;height:11px}
+.tabcfg .m-cell .lb small{display:block;font:var(--m-text-meta);color:var(--color-text-tertiary)}
+.tabcfg .m-cell{min-height:58px}
+.dotbtn{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;flex-shrink:0}
+.dotbtn .ic{width:14px;height:14px}
+.grip{width:18px;height:18px;color:var(--color-text-quaternary)}
+/* 잠금 화면 */
+.lock-time{text-align:center;color:#fff;margin-top:8px}
+.lock-time .dt{font:600 18px/24px var(--m-font);opacity:.9}
+.lock-time .tm{font:700 92px/1 var(--m-font);letter-spacing:-2px;margin-top:2px}
+.lock-stack{position:absolute;left:0;right:0;bottom:120px;display:flex;flex-direction:column;gap:8px}
+.lock-foot{position:absolute;bottom:40px;left:46px;right:46px;display:flex;justify-content:space-between}
+.lock-foot span{width:50px;height:50px;border-radius:50%;background:rgba(0,0,0,.25);backdrop-filter:blur(10px);display:grid;place-items:center;color:#fff}
+.noti-acts{margin:0 10px;border-radius:16px;background:rgba(245,245,245,.85);backdrop-filter:blur(24px);overflow:hidden}
+.noti-acts div{height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font:400 16px/22px var(--m-font);color:#111}
+.noti-acts div + div{border-top:0.5px solid rgba(0,0,0,.12)}
+.noti-acts .ic{width:20px;height:20px}
+.and-noti{margin:0 10px;border-radius:24px;background:#f3f1f6;color:#1c1b1f;padding:14px 16px}
+.and-noti .h{display:flex;align-items:center;gap:6px;font:400 12px/16px var(--m-font);color:#555}
+.and-noti .h b{width:18px;height:18px;border-radius:50%;background:var(--color-accent);display:grid;place-items:center;color:#fff}
+.and-noti .h b .ic{width:11px;height:11px}
+.and-noti strong{display:block;font:500 15px/20px var(--m-font);margin-top:6px}
+.and-noti p{font:400 13px/18px var(--m-font);color:#444}
+.and-noti .acts{display:flex;gap:8px;margin-top:12px}
+.and-noti .acts span{font:500 13px/32px var(--m-font);padding:0 14px;border-radius:16px;background:#e5e0ee;color:#3a2f6b}
+/* 공유 시트 */
+.share-bg{position:absolute;inset:0;background:#fff;padding:0 0 0}
+[data-theme=dark] .share-bg{background:#000}
+.web-bar{height:44px;margin:0 12px;border-radius:12px;background:#f1f1f3;display:flex;align-items:center;justify-content:center;font:400 14px/20px var(--m-font);color:#333;gap:6px}
+[data-theme=dark] .web-bar{background:#1c1c1e;color:#ccc}
+.web-art{padding:18px 18px 0;font:400 15px/24px var(--m-font);color:#333}
+[data-theme=dark] .web-art{color:#ccc}
+.web-art h3{font:700 22px/30px var(--m-font);margin-bottom:10px;color:#111}
+[data-theme=dark] .web-art h3{color:#eee}
+.web-art .img{height:150px;border-radius:12px;background:linear-gradient(135deg,#cfd8ea,#9fb2d8);margin:12px 0}
+.share{position:absolute;left:0;right:0;bottom:0;top:250px;background:#f2f2f7;border-radius:22px 22px 0 0;z-index:25;padding:0 0 0}
+[data-theme=dark] .share{background:#1c1c1e;color:#eee}
+.share .prev{display:flex;gap:12px;align-items:center;padding:16px 16px 14px;border-bottom:0.5px solid rgba(0,0,0,.1)}
+.share .prev b{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#cfd8ea,#9fb2d8)}
+.share .prev div{flex:1;font:600 14px/19px var(--m-font)}
+.share .prev div span{display:block;font:400 12px/16px var(--m-font);color:#888}
+.share .prev .x{width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.07);display:grid;place-items:center;color:#777}
+.share .apps{display:flex;gap:14px;padding:18px 16px 14px;overflow:hidden}
+.share .apps span{display:flex;flex-direction:column;align-items:center;gap:6px;font:400 11px/14px var(--m-font);width:62px;flex-shrink:0;text-align:center}
+.share .apps b{width:60px;height:60px;border-radius:14px;display:grid;place-items:center;color:#fff}
+.share .apps b .ic{width:30px;height:30px}
+.share .apps span.hl b{box-shadow:0 0 0 3px var(--color-accent)}
+.share .acts{margin:0 16px;background:#fff;border-radius:12px;overflow:hidden}
+[data-theme=dark] .share .acts{background:#2c2c2e}
+.share .acts div{height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font:400 16px/22px var(--m-font)}
+.share .acts div + div{border-top:0.5px solid rgba(0,0,0,.1)}
+.share .acts .ic{width:20px;height:20px}
+.share .acts div.hl{background:var(--color-accent-subtle);color:var(--color-accent)}
+.sprout-app{background:linear-gradient(135deg,#7bd389,#3f9f5b)}
+/* 안드로이드 */
+.and-status{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font:500 14px/20px var(--m-font)}
+.and-cam{position:absolute;top:12px;left:50%;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#000;z-index:40}
+.and-bar{height:56px;display:flex;align-items:center;gap:6px;padding:0 6px;background:var(--m-card-bg)}
+.and-bar h2{flex:1;font:500 21px/28px var(--m-font)}
+.and-nav{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:108px;height:4px;border-radius:2px;background:var(--color-text-primary);opacity:.6;z-index:60}
+.and-group{display:flex;align-items:center;padding:12px 16px 6px;font:600 12px/16px var(--m-font);color:var(--color-text-secondary);letter-spacing:.3px}
+.and-group .grow{flex:1}
+.and-row{height:52px;display:flex;align-items:center;gap:14px;padding:0 16px;background:var(--m-card-bg)}
+.and-row .t{flex:1;font:var(--m-text-body)}
+.and-row .when{font:var(--m-text-meta);color:var(--color-accent)}
+.and-row .when.over{color:var(--m-overdue)}
+.cmp{width:100%;border-collapse:collapse;font:400 12px/17px var(--m-font);margin-top:6px}
+.cmp td,.cmp th{border:1px solid rgba(128,128,128,.3);padding:6px 8px;text-align:left;vertical-align:top}
+.cal-month .t.sun .d,.cal-month .t .d{color:#fff}
+
+</style>
+</head>
+<body class="m-doc">
+<div class="m-toolbar">
+  <h1>sprout 모바일 시안 — 핵심 화면</h1>
+  <label>테마 <select id="themeSel">
+    <option value="default">기본값</option><option value="sky">하늘</option><option value="turquoise">터쿼이즈</option><option value="matcha">말차</option><option value="peach">복숭아</option><option value="lilac">라일락</option><option value="navy">네이비</option><option value="dark">다크</option><option value="black">트루 블랙</option>
+  </select></label>
+  <button id="modeBtn">라이트 ↔ 다크</button>
+  <p>v0.1 · 2026-10-04 · iPhone 393×852(안전 영역 위 59·아래 34) · 근거 <b>research 24</b>(틱틱 도움말 iOS 캡처 = iOS 26 모양) · 명세 20·21·22 · 공용 뼈대 <code>mobile-kit.css</code>를 그대로 복사해 넣음(성장·수집함·일기·AI 비서·작업 지도 시안도 같은 뼈대).
+  <span class="legend"><span class="m-label"><span class="tt">틱틱</span> 틱틱과 같게</span><span class="m-label"><span class="sp">sprout</span> 우리가 정함</span><span class="m-label"><span class="tmp">임시</span> 실기기로 재야 함</span></span></p>
+  <p class="toc">A 시작(로그인·가입·첫 실행) · B 오늘 · C 서랍·리스트 · D 스와이프·길게 누름·여러 개 고르기 · E 빠른 입력·날짜 · F 상세 · G 캘린더 · H 검색 · I 설정·테마·탭 바 · J 알림 · K 공유로 수집함 · L Android</p>
+</div>
+
+<!-- ═════════ A. 시작 ═════════ -->
+<div class="m-section">A. 로그인 · 가입 · 첫 실행 <small>08 로그인 A안(먼저 로그인)을 휴대폰 배치로 · 20 §2</small></div>
+<div class="m-row-of-phones">
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">08 · 20 §2</span>로그인 — 기본 <span class="tt">틱틱 흐름</span><span class="sp">이메일만</span></div>
+  <div class="m-phone"><div class="m-screen" style="background:var(--color-login-bg)">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="auth">
+      <div class="logo"><i class="ic ic-sprout"></i></div>
+      <h1>로그인</h1>
+      <p class="lead">컴퓨터와 같은 계정으로 들어가면<br>할 일과 캐릭터가 그대로 이어져요.</p>
+      <div class="stack">
+        <div class="m-input focus"><i class="ic ic-mail"></i><span>yunseo@example.com</span></div>
+        <div class="m-input"><i class="ic ic-lock"></i><span>비밀번호</span></div>
+        <div class="m-btn" style="margin-top:4px">로그인</div>
+      </div>
+      <div class="switch">계정이 없으세요? <b>등록하기</b></div>
+      <div class="terms">구글·애플로 계속하기, 비밀번호 찾기는<br>준비되면 이 자리에 붙어요 (08 §3 [다음])</div>
+    </div>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">틱틱 앱 첫 화면은 "Apple로 계속 · Google로 계속 · 이메일로 가입/로그인" 버튼 묶음이다(research 24 §9). sprout는 아직 소셜 로그인이 없어 이메일 칸을 바로 보여 준다. 소셜이 붙으면 틱틱처럼 버튼 묶음 → 이메일 순서로 바꾼다.</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">08 §4</span>가입 — 오류 · 로딩 <span class="tt">문구</span></div>
+  <div class="m-phone"><div class="m-screen" style="background:var(--color-login-bg)">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-chev-l"></i></span><span class="grow"></span></div>
+    <div class="auth" style="padding-top:6px">
+      <h1>등록하기</h1>
+      <p class="lead">이메일과 비밀번호만 있으면 돼요.</p>
+      <div class="stack">
+        <div class="m-input" style="color:var(--color-text-primary)"><i class="ic ic-mail"></i><span>yunseo@example</span></div>
+        <div class="err">이메일 주소를 확인하세요</div>
+        <div class="m-input focus"><i class="ic ic-lock"></i><span>••••</span></div>
+        <div class="err" style="color:var(--color-text-tertiary)">비밀번호: 6-64자</div>
+        <div class="m-btn" style="margin-top:4px"><span class="spin"></span></div>
+      </div>
+      <div class="switch">이미 계정이 있으신가요? <b>로그인</b></div>
+      <div class="terms">가입함으로써 <u>이용 약관</u> 및 <u>개인정보 처리방침</u>에<br>동의하게 됩니다.</div>
+    </div>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">오류는 버튼 위 빨간 한 줄(08 §4 문구 그대로). 버튼 안 스피너 = 로딩, 입력 잠금. 키보드는 그리지 않았다(이메일 → 비밀번호 → 보내기 키 = 제출).</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">20 §2 · 10 §2.2 · 23 §3</span>첫 실행 — 성향 조사 권유 <span class="sp">sprout</span></div>
+  <div class="m-phone"><div class="m-screen">
+    <div class="m-island"></div><div class="m-status" data-time="9:42"></div>
+    <div class="m-nav"><span class="grow"></span><span class="act">나중에</span></div>
+    <div class="welcome">
+      <span class="sync-pill"><i class="d"></i>할 일 128개를 내려받았어요</span>
+      <div class="eggs"><div class="egg">?</div><div class="egg">?</div><div class="egg">?</div><div class="egg">?</div></div>
+      <h1>나와 닮은 친구를<br>찾아볼까요?</h1>
+      <p>질문 8개, 1분이면 끝나요.<br>답에 맞는 캐릭터를 함께 키우게 돼요.</p>
+      <div class="bul">
+        <div><i class="ic ic-check"></i><span>할 일을 끝내면 XP가 쌓이고 캐릭터가 자라요</span></div>
+        <div><i class="ic ic-check"></i><span>건너뛰어도 할 일 기능은 다 쓸 수 있어요</span></div>
+        <div><i class="ic ic-check"></i><span>컴퓨터에서 이미 했다면 이 화면은 안 나와요</span></div>
+      </div>
+      <div class="btns"><div class="m-btn">시작하기</div><div class="m-btn ghost">나중에 할게요</div></div>
+    </div>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">로그인 → 첫 동기화가 끝난 직후 한 번만, 계정에 <code>characters</code>가 없을 때. "나중에"면 오늘 목록 맨 위 카드(B-1)와 성장 탭에 남는다. 조사 화면 자체는 성장 시안(다른 에이전트) 몫.</p>
+</div>
+
+</div>
+<!-- ═════════ B. 오늘 ═════════ -->
+<div class="m-section">B. 오늘 <small>21 — 회색 바닥 위 묶음 카드(만료됨 · 오늘 · 완료), 둥근 ☰ · ⋯, 큰 제목, 떠 있는 탭 알약과 +</small></div>
+<div class="m-row-of-phones">
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">21 §2·§3</span>오늘 — 기본 <span class="tt">틱틱</span><span class="tmp">크기</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-title">오늘 <small>10월 4일 일요일</small></div>
+    <div class="m-body"><div class="m-list">
+      <div class="m-gcard">
+        <div class="m-group">만료됨<span class="grow"></span><span class="link">미루기</span><span class="n">2</span><i class="ic ic-chev-d"></i></div>
+        <div class="m-task"><span class="m-check p2"></span><div class="tx"><span class="t">주간 회의록 정리</span></div><div class="right"><span class="when over">어제</span></div></div>
+        <div class="m-task"><span class="m-check"></span><div class="tx"><span class="t">치과 예약 전화</span></div><div class="right"><span class="when over">10월 2일</span></div></div>
+      </div>
+      <div class="m-gcard">
+        <div class="m-group">오늘<span class="grow"></span><span class="n">4</span><i class="ic ic-chev-d"></i></div>
+        <div class="m-task two"><span class="m-check p3"></span><div class="tx"><span class="t">기획서 초안 보내기</span><span class="sub"><span><i class="dot" style="background:#4e75f2"></i>업무</span></span></div><div class="right"><span class="when">오후 3:00</span><span class="icons"><i class="ic ic-bell"></i></span></div></div>
+        <div class="m-task two"><span class="m-check"></span><div class="tx"><span class="t">장보기</span><span class="sub"><span><i class="dot" style="background:#e5534b"></i>개인</span><span><i class="ic ic-subtask"></i> 1/3</span></span></div><div class="right"><span class="when gray"></span><i class="ic ic-chev-r more-ic"></i></div></div>
+        <div class="m-task"><span class="m-check p1"></span><div class="tx"><span class="t">운동 30분</span></div><div class="right"><span class="icons"><i class="ic ic-repeat"></i></span></div></div>
+        <div class="m-task"><span class="m-check"></span><div class="tx"><span class="t">독서 20쪽</span></div></div>
+      </div>
+      <div class="m-gcard">
+        <div class="m-group">완료<span class="grow"></span><span class="n">1</span><i class="ic ic-chev-d"></i></div>
+        <div class="m-task done"><span class="m-check on"></span><div class="tx"><span class="t">아침 스트레칭</span></div></div>
+      </div>
+    </div></div>
+    <div class="m-fab"><i class="ic ic-plus"></i></div>
+    <nav class="m-tabbar" data-on="tasks"></nav>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">행 46, 체크 18(누르는 칸 44), 제목 16, 오른쪽 날짜 12 강조색(만료 빨강). 리스트 이름은 스마트 목록일 때만 아래 줄. 하위 할 일이 있으면 오른쪽 ›(누르면 펼침) — 틱틱 캡처 그대로. 완료 그룹은 취소선 없이 흐리게(02 §0).</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">21 §3 · §4.1</span>체크한 직후 — 토스트 · XP +1 <span class="tt">토스트</span><span class="sp">XP</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:43"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-title">오늘 <small>10월 4일 일요일</small></div>
+    <div class="m-body"><div class="m-list">
+      <div class="survey-card"><div class="egg"><i class="ic ic-sprout"></i></div><div class="tx"><b>나와 닮은 친구를 찾아볼까요?</b><span>1분 · 건너뛰어도 XP는 쌓여요</span></div><span class="m-btn sm">시작</span></div>
+      <div class="m-gcard">
+        <div class="m-group">만료됨<span class="grow"></span><span class="link">미루기</span><span class="n">2</span><i class="ic ic-chev-d"></i></div>
+        <div class="m-task"><span class="m-check p2"></span><div class="tx"><span class="t">주간 회의록 정리</span></div><div class="right"><span class="when over">어제</span></div></div>
+        <div class="m-task"><span class="m-check"></span><div class="tx"><span class="t">치과 예약 전화</span></div><div class="right"><span class="when over">10월 2일</span></div></div>
+      </div>
+      <div class="m-gcard">
+        <div class="m-group">오늘<span class="grow"></span><span class="n">3</span><i class="ic ic-chev-d"></i></div>
+        <div class="m-task"><span class="m-check p1"></span><div class="tx"><span class="t">운동 30분</span></div><div class="right"><span class="icons"><i class="ic ic-repeat"></i></span></div></div>
+        <div class="m-task"><span class="m-check"></span><div class="tx"><span class="t">독서 20쪽</span></div></div>
+        <div class="m-task two"><span class="m-check"></span><div class="tx"><span class="t">장보기</span><span class="sub"><span><i class="dot" style="background:#e5534b"></i>개인</span><span><i class="ic ic-subtask"></i> 1/3</span></span></div><div class="right"><i class="ic ic-chev-r more-ic"></i></div></div>
+      </div>
+      <div class="m-gcard">
+        <div class="m-group">완료<span class="grow"></span><span class="n">2</span><i class="ic ic-chev-d"></i></div>
+        <div class="m-task done flash"><span class="m-check on" style="background:var(--color-priority-high);border-color:var(--color-priority-high)"></span><div class="tx"><span class="t">기획서 초안 보내기</span></div></div>
+        <div class="m-task done"><span class="m-check on"></span><div class="tx"><span class="t">아침 스트레칭</span></div></div>
+      </div>
+    </div></div>
+    <div class="m-toast"><i class="ic ic-check ic-sm"></i><span class="grow">작업이 완료되었습니다.</span><b>되돌리기</b></div>
+    <nav class="m-tabbar" data-on="tasks" data-xp="1"></nav>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">체크 = 우선순위 색으로 채워진 뒤 바로 완료 그룹으로 이동. 토스트 2초, ⟲ 되돌리기. <b>성장 탭 아이콘 위 <code>+1</code></b>이 0.9초 떠올랐다 사라짐(21 §3). 맨 위는 "나중에"를 고른 사람에게만 보이는 성향 조사 카드(× 없이, 조사하면 사라짐) [sprout].</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">21 §3</span>빈 상태 / 모두 완료 <span class="tt">자리</span><span class="sp">그림·문구</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="21:10"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-title">오늘 <small>10월 4일 일요일</small></div>
+    <div class="m-body">
+      <div class="m-empty">
+        <svg class="art" viewBox="0 0 150 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="75" cy="108" rx="46" ry="6" fill="var(--color-bg-selected)"/>
+          <path d="M52 78h46l-6 28H58z" fill="var(--color-accent-subtle)" stroke="var(--color-accent)" stroke-width="2.5"/>
+          <path d="M48 72h54v8H48z" fill="var(--m-card-bg)" stroke="var(--color-accent)" stroke-width="2.5"/>
+          <path d="M75 72V44" stroke="#4caf6a" stroke-width="3"/>
+          <path d="M75 52c0-12-8-19-22-19 0 12 8 19 22 19z" fill="#bfe6c4" stroke="#4caf6a" stroke-width="2.5"/>
+          <path d="M75 47c0-10 7-16 19-16 0 10-7 16-19 16z" fill="#bfe6c4" stroke="#4caf6a" stroke-width="2.5"/>
+          <circle cx="68" cy="90" r="1.8" fill="var(--color-accent)"/><circle cx="82" cy="90" r="1.8" fill="var(--color-accent)"/>
+          <path d="M71 96c2.5 2 5.5 2 8 0" stroke="var(--color-accent)" stroke-width="2"/>
+          <path d="M112 30l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#f6c343"/><path d="M36 40l1.5 3.5 3.5 1.5-3.5 1.5-1.5 3.5-1.5-3.5-3.5-1.5 3.5-1.5z" fill="#f6c343"/>
+        </svg>
+        <strong>모두 완료했어요</strong>
+        <span>오늘 4개를 끝냈어요. 푹 쉬어요</span>
+      </div>
+      <div class="m-gcard" style="margin-top:28px">
+        <div class="m-group collapsed">완료<span class="grow"></span><span class="n">4</span><i class="ic ic-chev-d chev-ic"></i></div>
+      </div>
+    </div>
+    <div class="m-fab"><i class="ic ic-plus"></i></div>
+    <nav class="m-tabbar" data-on="tasks"></nav>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">틱틱은 그림 + "All tasks are completed / Take it easy". sprout는 직접 그린 새싹 화분 그림, 할 일이 처음부터 없으면 <b>"오늘 할 일이 없어요" / "+를 눌러 추가하세요"</b>(02 §12). 정식 그림은 지금 캐릭터 단계로 바꿀 수 있음 — 열린 결정 M7.</p>
+</div>
+
+</div>
+<!-- ═════════ C. 서랍 · 리스트 ═════════ -->
+<div class="m-section">C. 리스트 서랍 · 리스트 화면 <small>20 §2 — 틱틱은 ☰(또는 오른쪽으로 밀기)로 서랍</small></div>
+<div class="m-row-of-phones">
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">20 §2</span>리스트 서랍 <span class="tt">틱틱</span><span class="sp">아이콘 원본</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div>
+    <div class="under">
+      <div class="m-status" data-time="9:41"></div>
+      <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+      <div class="m-title">오늘</div>
+    </div>
+    <div class="m-scrim"></div>
+    <div class="m-drawer">
+      <div style="height:var(--m-safe-top)"></div>
+      <div class="me"><span class="av">윤</span><span class="grow">윤서</span><span class="m-ib dim"><i class="ic ic-bell"></i></span><span class="m-ib dim"><i class="ic ic-settings"></i></span></div>
+      <div class="items">
+        <div class="m-dr on"><i class="ic ic-cal-today sl-today"></i>오늘<span class="n">6</span></div>
+        <div class="m-dr"><i class="ic ic-sunrise sl-tom"></i>내일<span class="n">3</span></div>
+        <div class="m-dr"><i class="ic ic-cal-7 sl-week"></i>다음 7일<span class="n">11</span></div>
+        <div class="m-dr"><i class="ic ic-inbox sl-inbox"></i>기본함<span class="n">4</span></div>
+        <div class="m-dr"><i class="ic ic-tag sl-tags"></i>태그<i class="ic ic-chev-r chev"></i></div>
+        <hr>
+        <div class="m-dr"><span class="ldot"><i style="background:#4e75f2"></i></span>업무<span class="n">7</span></div>
+        <div class="m-dr"><span class="ldot"><i style="background:#e5534b"></i></span>개인<span class="n">5</span></div>
+        <div class="m-dr"><span class="ldot"><i style="background:#1fc79a"></i></span>운동<span class="n">2</span></div>
+        <div class="m-dr"><i class="ic ic-folder" style="color:var(--color-text-secondary)"></i>공부<span class="n">9</span><i class="ic ic-chev-d chev"></i></div>
+        <div class="m-dr child"><span class="ldot"><i style="background:#f29a2e"></i></span>영어<span class="n">4</span></div>
+        <div class="m-dr child"><span class="ldot"><i style="background:#775dbe"></i></span>자격증<span class="n">5</span></div>
+        <hr>
+        <div class="m-dr"><i class="ic ic-check" style="color:var(--color-text-secondary)"></i>완료</div>
+        <div class="m-dr"><i class="ic ic-trash" style="color:var(--color-text-secondary)"></i>휴지통</div>
+      </div>
+      <div class="foot"><i class="ic ic-plus"></i><span>추가</span><span class="grow"></span><i class="ic ic-sliders"></i></div>
+    </div>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">틱틱 순서: 계정 줄(아바타·이름·🔔·⚙) → 스마트 목록 → 구분선 → 리스트·폴더 → 구분선 → 휴지통 → 아래 "+ 추가"(리스트·필터·태그)와 관리 아이콘. 리스트 앞은 틱틱처럼 이모지도 되고, 없으면 색 점 [sprout 데스크톱과 같게]. 수집함·일기 등 sprout 탭은 서랍이 아니라 탭 바로 간다(I-3).</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">21 · 02</span>리스트 화면 — 섹션 · 하위 할 일 <span class="tt">틱틱</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-title"><span style="font-size:24px">💼</span>업무</div>
+    <div class="m-body"><div class="m-list">
+      <div class="m-gcard">
+        <div class="m-group">이번 주<span class="grow"></span><span class="n">4</span><i class="ic ic-chev-d"></i></div>
+        <div class="m-task"><span class="m-check p3"></span><div class="tx"><span class="t">기획서 초안 보내기</span></div><div class="right"><span class="when">오후 3:00</span><span class="icons"><i class="ic ic-bell"></i></span></div></div>
+        <div class="m-task"><span class="m-check p2"></span><div class="tx"><span class="t">고객 인터뷰 준비</span></div><div class="right"><span class="when">내일</span></div><i class="ic ic-chev-d more-ic"></i></div>
+        <div class="m-task sub-row"><span class="m-check"></span><div class="tx"><span class="t">질문지 10개</span></div><div class="right"><span class="when">내일</span></div></div>
+        <div class="m-task sub-row"><span class="m-check on"></span><div class="tx"><span class="t" style="color:var(--color-text-tertiary)">참가자 섭외</span></div></div>
+      </div>
+      <div class="m-gcard">
+        <div class="m-group">다음에<span class="grow"></span><span class="n">3</span><i class="ic ic-chev-d"></i></div>
+        <div class="m-task"><span class="m-check p1"></span><div class="tx"><span class="t">분기 회고 자료</span></div><div class="right"><span class="when">10월 12일</span></div></div>
+        <div class="m-task"><span class="m-check"></span><div class="tx"><span class="t">노트북 배터리 교체 문의</span></div></div>
+        <div class="m-task"><span class="m-check"></span><div class="tx"><span class="t">명함 다시 주문</span></div><div class="right"><span class="icons"><i class="ic ic-note"></i></span></div></div>
+      </div>
+      <div class="m-gcard">
+        <div class="m-group collapsed">완료<span class="grow"></span><span class="n">12</span><i class="ic ic-chev-d chev-ic"></i></div>
+      </div>
+    </div></div>
+    <div class="m-fab"><i class="ic ic-plus"></i></div>
+    <nav class="m-tabbar" data-on="tasks"></nav>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">섹션(데스크톱 02 §0 "섹션")이 그대로 묶음 카드. 하위 할 일은 한 칸 들여 부모 아래, 부모 오른쪽 ⌄로 접기. 리스트 안에서는 리스트 이름을 행에 다시 쓰지 않는다. 21의 "v1은 오늘만"(D5)을 넘는 화면 — 열린 결정 M1.</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">21 §4.1</span>목록 ⋯ 메뉴 <span class="tt">틱틱 항목</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-title"><span style="font-size:24px">💼</span>업무</div>
+    <div class="m-body"><div class="m-list">
+      <div class="m-gcard">
+        <div class="m-group">이번 주<span class="grow"></span><span class="n">4</span><i class="ic ic-chev-d"></i></div>
+        <div class="m-task"><span class="m-check p3"></span><div class="tx"><span class="t">기획서 초안 보내기</span></div><div class="right"><span class="when">오후 3:00</span></div></div>
+        <div class="m-task"><span class="m-check p2"></span><div class="tx"><span class="t">고객 인터뷰 준비</span></div><div class="right"><span class="when">내일</span></div></div>
+      </div>
+    </div></div>
+    <div class="m-menu" style="right:12px;top:108px;width:236px">
+      <div>리스트 편집<i class="ic ic-edit"></i></div>
+      <div>보기 · 목록/칸반<i class="ic ic-chev-r"></i></div>
+      <div>자세히 보기<i class="ic ic-note"></i></div>
+      <div>완료한 할 일 보기<i class="ic ic-check"></i></div>
+      <div>묶기 · 정렬<i class="ic ic-sort"></i></div>
+      <div>섹션 관리<i class="ic ic-list"></i></div>
+      <div>여러 개 고르기<i class="ic ic-task"></i></div>
+    </div>
+    <div class="m-fab"><i class="ic ic-plus"></i></div>
+    <nav class="m-tabbar" data-on="tasks"></nav>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">틱틱 iOS 메뉴: Edit · View › · Background · Show Details · Show Completed · Group &amp; Sort · Manage Section · Select · More ›. "배경(리스트 사진)"은 뺐다(research 04: 모바일 전용, v1 제외). 오늘(스마트 목록)에서는 "리스트 편집·섹션 관리"가 없다.</p>
+</div>
+
+</div>
+<!-- ═════════ D. 동작 ═════════ -->
+<div class="m-section">D. 스와이프 · 길게 누름 · 여러 개 고르기 <small>21 §4 — 틱틱 기본값과 칸 순서·색(도움말 캡처)</small></div>
+<div class="m-row-of-phones">
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">21 §4.2</span>스와이프 — 왼쪽 · 오른쪽 · 끝까지 <span class="tt">틱틱 기본값</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-title">오늘</div>
+    <div class="m-body"><div class="m-list">
+      <div class="m-gcard">
+        <div class="m-group">만료됨<span class="grow"></span><span class="link">미루기</span><span class="n">2</span><i class="ic ic-chev-d"></i></div>
+        <div class="sw-row">
+          <div class="sw-acts r"><span style="background:var(--m-swipe-move)"><i class="ic ic-move"></i></span><span style="background:var(--m-swipe-del)"><i class="ic ic-trash"></i></span><span style="background:var(--m-swipe-date)"><i class="ic ic-calendar"></i></span></div>
+          <div class="m-task" style="right:180px;left:-180px"><span class="m-check p2"></span><div class="tx"><span class="t">주간 회의록 정리</span></div><div class="right"><span class="when over">어제</span></div></div>
+        </div>
+        <div class="sw-row">
+          <div class="sw-acts l"><span style="background:var(--m-swipe-done)"><i class="ic ic-check"></i></span><span style="background:var(--m-swipe-pin)"><i class="ic ic-pin"></i></span></div>
+          <div class="m-task" style="left:120px;right:-120px"><span class="m-check"></span><div class="tx"><span class="t">치과 예약 전화</span></div><div class="right"><span class="when over">10월 2일</span></div></div>
+        </div>
+      </div>
+      <div class="m-gcard">
+        <div class="m-group">오늘<span class="grow"></span><span class="n">4</span><i class="ic ic-chev-d"></i></div>
+        <div class="sw-row">
+          <div class="sw-full" style="background:var(--m-swipe-done)"><i class="ic ic-check"></i>놓으면 완료</div>
+          <div class="m-task" style="left:250px;right:-250px"><span class="m-check p3"></span><div class="tx"><span class="t">기획서 초안 보내기</span></div></div>
+        </div>
+        <div class="m-task"><span class="m-check p1"></span><div class="tx"><span class="t">운동 30분</span></div><div class="right"><span class="icons"><i class="ic ic-repeat"></i></span></div></div>
+        <div class="m-task"><span class="m-check"></span><div class="tx"><span class="t">독서 20쪽</span></div></div>
+      </div>
+    </div></div>
+    <div class="callout" style="left:14px;top:505px">1행 ← 왼쪽으로 밀기: 이동 · 삭제 · 날짜</div>
+    <div class="callout" style="left:14px;top:535px">2행 → 오른쪽으로 밀기: 완료 · 고정</div>
+    <div class="callout" style="left:14px;top:565px">3행 → 행 폭 40% 넘게 밀면: 놓을 때 바로 완료</div>
+    <div class="m-fab"><i class="ic ic-plus"></i></div>
+    <nav class="m-tabbar" data-on="tasks"></nav>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">칸은 아이콘만, 폭 약 60 [틱틱 캡처]. 21 v0.1의 순서(이동·날짜·삭제)를 캡처 순서 <b>이동(파랑)·삭제(빨강)·날짜(주황)</b>로 고침 — 삭제가 가운데라 끝까지 밀어도 삭제되지 않는다. 오른쪽 = 완료(초록)·고정(노랑). 묶음 카드 안에서 밀리고 카드 모서리는 잘린다.</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">21 §4.1</span>길게 누름 — 빠른 메뉴 <span class="tt">자리</span><span class="tmp">항목</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="blur-bg" style="display:flex;flex-direction:column;flex:1">
+      <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+      <div class="m-title">오늘</div>
+      <div class="m-gcard" style="height:180px"></div><div class="m-gcard" style="height:220px"></div>
+    </div>
+    <div class="m-scrim" style="background:rgba(0,0,0,.12)"></div>
+    <div class="lp-wrap" style="top:210px">
+      <div class="lp-row"><div class="m-task" style="border-radius:14px"><span class="m-check p3"></span><div class="tx"><span class="t">기획서 초안 보내기</span></div><div class="right"><span class="when">오후 3:00</span></div></div></div>
+      <div class="lp-menu">
+        <div class="datebar">
+          <span><i class="ic ic-sun"></i>오늘</span><span><i class="ic ic-sunrise"></i>내일</span><span><i class="ic ic-next-week"></i>다음 주</span><span><i class="ic ic-calendar"></i>날짜…</span>
+        </div>
+        <div class="pribar">
+          <i class="ic ic-flag" style="color:var(--color-priority-high)"></i><i class="ic ic-flag" style="color:var(--color-priority-medium)"></i><i class="ic ic-flag" style="color:var(--color-priority-low)"></i><i class="ic ic-flag" style="color:var(--color-priority-none)"></i>
+        </div>
+        <div class="it">상단 고정<i class="ic ic-pin"></i></div>
+        <div class="it">이동<i class="ic ic-move"></i></div>
+        <div class="it">태그<i class="ic ic-tag"></i></div>
+        <div class="it danger">삭제<i class="ic ic-trash"></i></div>
+      </div>
+    </div>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">TidBITS: 길게 누르면 "날짜와 여러 속성"을 바꾼다. 날짜 줄(오늘·내일·다음 주·날짜 지정) · 우선순위 깃발 4개 · 고정·이동·태그 · 삭제 = 데스크톱 우클릭 메뉴(02 §0)를 모바일로 줄인 것. 길게 누른 채 움직이면 메뉴가 닫히고 <b>끌어서 순서 바꾸기</b>로 넘어간다[틱틱].</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">21 (신규)</span>여러 개 고르기 <span class="tt">틱틱 iOS</span><span class="tmp">v1 여부</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="act">모두 선택</span><h2 style="font:400 14px/20px var(--m-font);color:var(--color-text-secondary)">2개 선택</h2><span class="m-ib fill"><i class="ic ic-check"></i></span></div>
+    <div class="m-title">오늘</div>
+    <div class="m-body"><div class="m-list">
+      <div class="m-gcard">
+        <div class="m-group">만료됨<span class="grow"></span><span class="n">2</span><i class="ic ic-chev-d"></i></div>
+        <div class="m-task"><span class="m-check sel on"></span><div class="tx"><span class="t">주간 회의록 정리</span></div><div class="right"><span class="when over">어제</span></div></div>
+        <div class="m-task"><span class="m-check sel"></span><div class="tx"><span class="t">치과 예약 전화</span></div><div class="right"><span class="when over">10월 2일</span></div></div>
+      </div>
+      <div class="m-gcard">
+        <div class="m-group">오늘<span class="grow"></span><span class="n">4</span><i class="ic ic-chev-d"></i></div>
+        <div class="m-task" style="background:var(--color-accent-subtle)"><span class="m-check sel on"></span><div class="tx"><span class="t">기획서 초안 보내기</span></div><div class="right"><span class="when">오후 3:00</span></div></div>
+        <div class="m-task"><span class="m-check sel"></span><div class="tx"><span class="t">장보기</span></div></div>
+        <div class="m-task"><span class="m-check sel"></span><div class="tx"><span class="t">운동 30분</span></div></div>
+        <div class="m-task"><span class="m-check sel"></span><div class="tx"><span class="t">독서 20쪽</span></div></div>
+      </div>
+    </div></div>
+    <nav class="m-tabbar" style="left:90px;right:90px"><span><i class="ic ic-calendar"></i></span><span><i class="ic ic-move"></i></span><span style="color:var(--color-danger)"><i class="ic ic-trash"></i></span><span><i class="ic ic-more"></i></span></nav>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">⋯ → 여러 개 고르기. 체크박스 자리가 둥근 고르기 원으로, 아래 탭 알약 자리에 날짜·이동·삭제·⋯. Android는 "← 2개 선택" 머리 + 아래 막대. 21 v0.1에 없던 화면 → 열린 결정 M4(v1에 넣을지).</p>
+</div>
+
+</div>
+<!-- ═════════ E. 빠른 입력 · 날짜 ═════════ -->
+<div class="m-section">E. 빠른 입력 · 날짜 시트 <small>22 — + → 키보드 위 카드, 도구 막대 = 날짜·우선순위·태그·리스트·⋯ + 보내기 ↑</small></div>
+<div class="m-row-of-phones">
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">22 §2</span>빠른 입력 — 처음 <span class="tt">틱틱</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-title">오늘</div>
+    <div class="m-gcard" style="height:140px"></div>
+    <div class="m-scrim"></div>
+        <div class="kb-wrap">
+<div class="qa" style="position:relative;bottom:0;--x:336px">
+      <div class="ti ph"><span class="caret" style="margin:0 2px 0 0"></span>무엇을 할까요?</div>
+      <div class="ds">설명</div>
+      <div class="tb">
+        <span class="m-ib"><i class="ic ic-calendar"></i></span><span class="m-ib"><i class="ic ic-flag"></i></span><span class="m-ib"><i class="ic ic-tag"></i></span><span class="m-ib"><i class="ic ic-inbox"></i></span><span class="m-ib"><i class="ic ic-more"></i></span>
+        <span class="grow"></span><span class="send dis"><i class="ic ic-send"></i></span>
+      </div>
+    </div>
+<div class="m-keyboard" data-kb></div></div>
+  </div></div>
+  <p class="m-note">덮개 아래 목록이 흐려지고 카드가 키보드에 붙는다. 자리 표시는 틱틱 "What would you like to do?"를 옮긴 <b>무엇을 할까요?</b>, 오늘에서 열면 마감 = 오늘(종일) 기본. "설명" 줄은 항상 보인다(22 v0.1의 "≡로 열기"를 캡처대로 고침). ⋯ = 이미지·노트로 바꾸기·전체 화면·도구 막대 설정(순서 바꾸기).</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">22 §3.1·§3.2</span>자연어 하이라이트 · 칩 <span class="tt">하이라이트·날짜 칩</span><span class="sp">칩 줄</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-title">오늘</div>
+    <div class="m-gcard" style="height:140px"></div>
+    <div class="m-scrim"></div>
+        <div class="kb-wrap">
+<div class="qa" style="position:relative;bottom:0;--x:336px">
+      <div class="ti"><span class="m-hl">내일 3시</span> 기획 회의 <span class="m-hl">#업무</span> <span class="m-hl">!높음</span><span class="caret"></span></div>
+      <div class="ds">설명</div>
+      <div class="chips">
+        <span class="m-chip acc"><i class="ic ic-calendar"></i>내일 오후 3:00<i class="ic ic-x x"></i></span>
+        <span class="m-chip acc"><i class="ic ic-hash"></i>업무<i class="ic ic-x x"></i></span>
+        <span class="m-chip" style="color:var(--color-priority-high);background:color-mix(in srgb,var(--color-priority-high) 10%,transparent)"><i class="ic ic-flag"></i>높음<i class="ic ic-x x"></i></span>
+      </div>
+      <div class="tb">
+        <span class="datechip"><i class="ic ic-calendar"></i>내일, 15:00</span><span class="m-ib" style="color:var(--color-priority-high)"><i class="ic ic-flag"></i></span><span class="m-ib acc"><i class="ic ic-tag"></i></span><span class="m-ib"><i class="ic ic-inbox"></i></span>
+        <span class="grow"></span><span class="send"><i class="ic ic-send"></i></span>
+      </div>
+    </div>
+<div class="m-keyboard" data-kb="send"></div></div>
+  </div></div>
+  <p class="m-note">인식된 글자는 옅은 강조색 칠 [틱틱], 날짜 아이콘은 테두리 칩 <b>"내일, 15:00"</b>으로 바뀐다 [틱틱 캡처]. 아래 칩 줄(× = 인식 취소)은 sprout가 더한 것 — 틱틱은 칠한 글자를 눌러 취소. 칩 줄을 뺄지 열린 결정 M5. 인식 함수는 데스크톱과 같은 <code>recognize()</code>.</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">22 §3.3</span># 태그 제안 줄 <span class="tmp">모양</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-title">오늘</div>
+    <div class="m-scrim"></div>
+        <div class="kb-wrap">
+<div class="qa" style="position:relative;bottom:0;--x:378px">
+      <div class="ti">저녁 러닝 5km <span style="color:var(--color-accent)">#운</span><span class="caret"></span></div>
+      <div class="ds">설명</div>
+      <div class="tb">
+        <span class="m-ib"><i class="ic ic-calendar"></i></span><span class="m-ib"><i class="ic ic-flag"></i></span><span class="m-ib acc"><i class="ic ic-tag"></i></span><span class="m-ib"><i class="ic ic-inbox"></i></span><span class="m-ib"><i class="ic ic-more"></i></span>
+        <span class="grow"></span><span class="send"><i class="ic ic-send"></i></span>
+      </div>
+    </div>
+
+      <div class="suggest-bar"><span class="m-chip acc"><i class="ic ic-hash"></i>운동</span><span class="m-chip"><i class="ic ic-hash"></i>운동-기록</span><span class="m-chip"><i class="ic ic-plus"></i>새 태그 "운"</span></div>
+      <div class="m-keyboard" data-kb></div>
+    </div>
+  </div></div>
+  <p class="m-note"><code>#</code> <code>~</code> <code>!</code>를 치면 키보드 바로 위에 가로 제안 줄(데스크톱 드롭다운의 모바일판). 맞는 것 먼저, 끝에 "새 태그". 리스트(<code>~</code>)는 같은 줄에 색 점과 리스트 이름. 틱틱 모바일의 실제 모양은 실기기 확인 [임시].</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">22 §3.3 · 03</span>날짜 시트 — 날짜 <span class="tt">틱틱</span><span class="tmp">빠른 줄</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-title">오늘</div>
+    <div class="m-scrim"></div>
+    <div class="m-sheet" style="top:150px">
+      <div class="ds-sheet">
+        <div class="ds-head"><span class="m-ib glass"><i class="ic ic-x"></i></span><div class="m-seg"><span class="on">날짜</span><span>기간</span></div><span class="m-ib fill"><i class="ic ic-check"></i></span></div>
+        <div class="ds-quick"><span class="on"><i class="ic ic-sun"></i>오늘</span><span><i class="ic ic-sunrise"></i>내일</span><span><i class="ic ic-next-week"></i>다음 주 월</span><span><i class="ic ic-moon"></i>오늘 밤</span></div>
+        <div class="cal-mini">
+          <div class="mh"><i class="ic ic-chev-l"></i>2026년 10월<i class="ic ic-chev-r"></i></div>
+          <div class="gr" data-cal="2026-10" data-sel="4" data-today="4"></div>
+        </div>
+        <div class="ds-cells">
+          <div class="m-cell"><i class="ic ic-clock"></i><span class="lb">시간</span><span class="v">없음 <i class="ic ic-chev-ud ic-xs"></i></span></div>
+          <div class="m-cell"><i class="ic ic-bell"></i><span class="lb">알림</span><span class="v">없음 <i class="ic ic-chev-ud ic-xs"></i></span></div>
+          <div class="m-cell"><i class="ic ic-repeat"></i><span class="lb">반복</span><span class="v">없음 <i class="ic ic-chev-ud ic-xs"></i></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">틱틱 iOS: ✕ · <b>날짜/기간</b> 세그먼트 · 파란 ✓, 달력(오늘 = 강조색 원), 아래 카드 "시간 · 알림 · 반복"(값 + ⌃⌄). 빠른 줄(오늘·내일·다음 주 월·오늘 밤)은 데스크톱 03 그대로 — 최신 iOS 캡처엔 없고 길게 누름 메뉴에 있다. 남길지 M6. "기간"은 [다음].</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">03 §3 · 22 §3.3</span>날짜 시트 — 시간 휠 · 알림 고르기 <span class="tt">틱틱</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-title">오늘</div>
+    <div class="m-scrim"></div>
+    <div class="m-sheet" style="top:150px">
+      <div class="ds-sheet">
+        <div class="ds-head"><span class="m-ib glass"><i class="ic ic-x"></i></span><div class="m-seg"><span class="on">날짜</span><span>기간</span></div><span class="m-ib fill"><i class="ic ic-check"></i></span></div>
+        <div class="ds-cells" style="margin-top:0">
+          <div class="m-cell"><i class="ic ic-calendar"></i><span class="lb">날짜</span><span class="v acc">10월 5일 (월) · 내일</span></div>
+          <div class="m-cell"><i class="ic ic-clock"></i><span class="lb">시간</span><span class="v acc">오후 3:00 <i class="ic ic-x ic-xs"></i></span></div>
+        </div>
+        <div class="wheel"><div><span>&nbsp;</span><span>오전</span><span class="c">오후</span><span>&nbsp;</span><span>&nbsp;</span></div><div><span>1</span><span>2</span><span class="c">3</span><span>4</span><span>5</span></div><div><span>50</span><span>55</span><span class="c">00</span><span>05</span><span>10</span></div></div>
+        <div class="ds-cells">
+          <div class="m-cell"><i class="ic ic-bell"></i><span class="lb">알림</span><span class="v acc">정각에, 30분 전</span></div>
+          <div class="m-cell noicon" style="padding-left:48px"><span class="lb">정각에</span><i class="ic ic-check ic-sm" style="color:var(--color-accent)"></i></div>
+          <div class="m-cell noicon" style="padding-left:48px"><span class="lb">5분 전</span></div>
+          <div class="m-cell noicon" style="padding-left:48px"><span class="lb">30분 전</span><i class="ic ic-check ic-sm" style="color:var(--color-accent)"></i></div>
+          <div class="m-cell noicon" style="padding-left:48px"><span class="lb">1시간 전</span></div>
+          <div class="m-cell noicon" style="padding-left:48px"><span class="lb" style="color:var(--color-accent)">직접 설정…</span></div>
+          <div class="m-cell"><i class="ic ic-repeat"></i><span class="lb">반복</span><span class="v">없음 <i class="ic ic-chev-ud ic-xs"></i></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">시간을 누르면 iOS 휠(오전/오후 · 시 · 5분 단위), 알림은 여러 개 고르기(03 §3.2 표). 반복은 프리셋 메뉴(매일·매주 ○요일·매월 ○일·매년 · 평일)만, 직접 설정은 [다음](22 §3.3).</p>
+</div>
+
+</div>
+<!-- ═════════ F. 상세 ═════════ -->
+<div class="m-section">F. 할 일 상세 <small>21 §5 — 틱틱: 행을 누르면 아래에서 반쯤 올라오는 시트, 끌어 올리면 전체 화면</small></div>
+<div class="m-row-of-phones">
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">21 §5</span>상세 — 반 시트 <span class="tt">틱틱</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-title">오늘</div>
+    <div class="m-gcard"><div class="m-group">오늘<span class="grow"></span><span class="n">4</span></div>
+      <div class="m-task" style="background:var(--color-bg-selected)"><span class="m-check p3"></span><div class="tx"><span class="t">기획서 초안 보내기</span></div><div class="right"><span class="when">오후 3:00</span></div></div>
+      <div class="m-task"><span class="m-check"></span><div class="tx"><span class="t">장보기</span></div></div></div>
+    <div class="m-scrim"></div>
+    <div class="m-sheet" style="top:400px">
+      <div class="m-grabber"></div>
+      <div class="dt-top"><span class="lst"><span class="ldot" style="display:inline-grid"><i style="width:8px;height:8px;border-radius:50%;background:#4e75f2;display:block"></i></span>업무<i class="ic ic-chev-ud"></i></span><span class="grow"></span><span class="m-ib glass" style="color:var(--color-priority-high)"><i class="ic ic-flag"></i></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+      <div class="dt-date"><span class="m-check p3"></span>오늘, 오후 3:00 <i class="ic ic-bell"></i></div>
+      <div class="dt-title">기획서 초안 보내기</div>
+      <div class="dt-body">팀장님께 메일로. 3쪽 넘지 않게, 일정표 붙이기.</div>
+      <div class="dt-bottom"><span class="m-ib"><i class="ic ic-tag"></i></span><span class="m-ib"><i class="ic ic-list"></i></span><span class="m-ib"><i class="ic ic-subtask"></i></span><span class="grow"></span><span style="font:var(--m-text-meta);color:var(--color-text-tertiary);padding-right:6px">저장됨</span></div>
+    </div>
+  </div></div>
+  <p class="m-note">위: 리스트 이름 ⌃⌄(누르면 이동 시트) · 깃발(우선순위 메뉴) · ⋯. 다음 줄: 체크박스 + 날짜(강조색, 비면 "날짜와 알림" 회색) → 날짜 시트. 제목 20/600, 본문. 아래 도구: 태그 · 체크리스트로 바꾸기 · 하위 할 일 [틱틱 순서, 첨부는 v1 밖이라 뺌]. 바깥 누르기·아래로 끌기 = 닫힘(자동 저장).</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">21 §5</span>상세 — 전체 화면 · 체크리스트 · 하위 할 일 <span class="tt">틱틱</span><span class="tmp">편집 범위</span></div>
+  <div class="m-phone"><div class="m-screen" style="background:var(--m-sheet-bg)">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-chev-l"></i></span><span class="lst" style="display:flex;align-items:center;gap:4px;font:400 15px/20px var(--m-font);color:var(--color-text-secondary)">개인<i class="ic ic-chev-ud ic-xs"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-flag"></i></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="dt-date"><span class="m-check list-ic"><i class="ic ic-list ic-sm"></i></span>오늘 <i class="ic ic-repeat"></i></div>
+    <div class="dt-title">장보기</div>
+    <div class="dt-ph">설명</div>
+    <div class="dt-check done"><span class="m-check on"></span><span>우유</span><i class="ic ic-grip grip"></i></div>
+    <div class="dt-check"><span class="m-check"></span><span>계란 한 판</span><i class="ic ic-grip grip"></i></div>
+    <div class="dt-check"><span class="m-check"></span><span>양파</span><i class="ic ic-grip grip"></i></div>
+    <div class="dt-check" style="color:var(--color-text-quaternary)"><i class="ic ic-plus ic-sm"></i><span>항목 추가</span></div>
+    <div class="dt-tags"><span class="m-chip acc">#생활</span><span class="m-chip acc">#주말</span></div>
+    <div class="dt-sub">하위 할 일 1</div>
+    <div class="m-task" style="background:transparent"><span class="m-check p1"></span><div class="tx"><span class="t">장바구니 앱 쿠폰 확인</span></div><div class="right"><span class="when">오늘</span></div></div>
+    <div class="dt-bottom" style="padding-bottom:var(--m-safe-bottom)"><span class="m-ib acc"><i class="ic ic-tag"></i></span><span class="m-ib acc"><i class="ic ic-list"></i></span><span class="m-ib"><i class="ic ic-subtask"></i></span><span class="grow"></span></div>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">체크리스트 모드면 체크 아이콘이 목록 모양, 항목마다 오른쪽 끌기 손잡이 [틱틱 캡처]. 21 v0.1은 "체크리스트·하위 할 일·태그는 읽기만"이었는데 틱틱 모바일은 모두 여기서 고친다 → 열린 결정 M3(편집까지 넣을지).</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">21 §5</span>상세 ⋯ 메뉴 <span class="tt">틱틱 배치</span><span class="sp">항목 줄임</span></div>
+  <div class="m-phone"><div class="m-screen" style="background:var(--m-sheet-bg)">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-chev-l"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-flag"></i></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="dt-date"><span class="m-check p3"></span>오늘, 오후 3:00</div>
+    <div class="dt-title">기획서 초안 보내기</div>
+    <div class="m-scrim"></div>
+    <div class="m-sheet more-sheet" style="background:var(--m-page-bg)">
+      <div class="m-grabber"></div>
+      <div class="bigrow">
+        <span><b style="color:#f29a2e"><i class="ic ic-pin"></i></b>고정</span>
+        <span><b style="color:#1fc79a"><i class="ic ic-copy"></i></b>복사</span>
+        <span><b style="color:var(--color-accent)"><i class="ic ic-wontdo"></i></b>하지 않음</span>
+        <span><b style="color:var(--color-danger)"><i class="ic ic-trash"></i></b>삭제</span>
+      </div>
+      <div class="m-cells" style="margin-bottom:12px">
+        <div class="m-cell"><i class="ic ic-subtask"></i><span class="lb">하위 할 일 추가</span></div>
+        <div class="m-cell"><i class="ic ic-note-app"></i><span class="lb">노트로 바꾸기</span></div>
+        <div class="m-cell"><i class="ic ic-tag"></i><span class="lb">태그</span></div>
+        <div class="m-cell"><i class="ic ic-copy-link"></i><span class="lb">링크 복사</span></div>
+        <div class="m-cell"><i class="ic ic-sprout"></i><span class="lb">주간 목표에 연결</span><span class="v">[sprout]</span></div>
+      </div>
+      <div style="height:var(--m-safe-bottom)"></div>
+    </div>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">틱틱: 위 큰 아이콘 줄(고정·공유·하지 않음·삭제) + 아래 목록(하위 할 일 추가·상위 할 일 연결·집중 시작·노트로 바꾸기·첨부·태그·활동…), "편집"으로 순서를 바꾼다. sprout v1: 공유·집중·첨부·위치 알림·댓글 뺌. "주간 목표에 연결"은 10 성장의 KPI 연결 — 넣을지 M8.</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">21 §4.2 이동</span>리스트로 이동 · 우선순위 <span class="tt">틱틱</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-menu"></i></span><span class="grow"></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-title">오늘</div>
+    <div class="m-scrim"></div>
+    <div class="m-sheet" style="top:170px;background:var(--m-page-bg)">
+      <div class="m-sheet-head"><span class="m-ib glass"><i class="ic ic-x"></i></span><h3>이동</h3><span style="width:40px"></span></div>
+      <div style="padding:0 var(--m-card-inset) 10px"><div class="m-search" style="background:var(--m-card-bg)"><i class="ic ic-search"></i>검색</div></div>
+      <div class="m-cells" style="margin:0 var(--m-card-inset)">
+        <div class="m-cell"><i class="ic ic-inbox sl-inbox"></i><span class="lb">기본함</span></div>
+        <div class="m-cell"><span class="ldot" style="width:22px;display:grid;place-items:center"><i style="width:9px;height:9px;border-radius:50%;background:#4e75f2;display:block"></i></span><span class="lb">업무</span><i class="ic ic-check ic-sm" style="color:var(--color-accent)"></i></div>
+        <div class="m-cell"><span class="ldot" style="width:22px;display:grid;place-items:center"><i style="width:9px;height:9px;border-radius:50%;background:#e5534b;display:block"></i></span><span class="lb">개인</span></div>
+        <div class="m-cell"><span class="ldot" style="width:22px;display:grid;place-items:center"><i style="width:9px;height:9px;border-radius:50%;background:#1fc79a;display:block"></i></span><span class="lb">운동</span></div>
+        <div class="m-cell"><i class="ic ic-folder"></i><span class="lb">공부</span><i class="ic ic-chev-r chev"></i></div>
+        <div class="m-cell" style="color:var(--color-accent)"><i class="ic ic-plus" style="color:var(--color-accent)"></i><span class="lb">리스트 추가</span></div>
+      </div>
+    </div>
+    <div class="m-menu" style="right:24px;top:560px;width:200px;z-index:27">
+      <div><i class="ic ic-flag" style="color:var(--color-priority-high);margin:0"></i>높음</div>
+      <div><i class="ic ic-flag" style="color:var(--color-priority-medium);margin:0"></i>중간</div>
+      <div><i class="ic ic-flag" style="color:var(--color-priority-low);margin:0"></i>낮음</div>
+      <div><i class="ic ic-flag" style="color:var(--color-priority-none);margin:0"></i>없음<i class="ic ic-check"></i></div>
+    </div>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">이동 시트: ✕ · "이동" · 검색 칸 · 리스트(지금 것에 ✓) · "+ 리스트 추가" [틱틱 "Move to"]. 오른쪽 아래 작은 메뉴는 상세의 깃발을 눌렀을 때 우선순위 메뉴(두 장면을 한 틀에 겹쳐 그림).</p>
+</div>
+
+</div>
+<!-- ═════════ G. 캘린더 ═════════ -->
+<div class="m-section">G. 캘린더 <small>06 데스크톱 캘린더의 휴대폰판 — 틱틱: 왼쪽 위 보기 전환, 가운데 월, 오른쪽 오늘로 · ⋯</small></div>
+<div class="m-row-of-phones">
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">06 · 20 (신규)</span>캘린더 — 월 <span class="tt">틱틱</span><span class="tmp">v1 여부</span></div>
+  <div class="m-phone"><div class="m-screen" style="background:var(--m-card-bg)">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="cal-head"><span class="m-ib glass"><i class="ic ic-layout"></i></span><h2>10월</h2><span class="m-ib glass"><i class="ic ic-today-dot"></i></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="cal-wd"><span style="color:var(--color-danger)">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+    <div class="cal-month" data-month="2026-10" data-today="4"></div>
+    <div style="height:110px"></div>
+    <div class="m-fab"><i class="ic ic-plus"></i></div>
+    <nav class="m-tabbar" data-on="cal"></nav>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">칸 안에 리스트 색 옅은 띠 + 제목(잘림), 넘치면 "+2". 오늘 = 강조색 원. 날짜를 누르면 그날 목록이 아래로 펼쳐진다 [틱틱 월 보기, 실기기 확인 임시]. 위아래로 밀면 달이 바뀐다. 탭 아이콘은 오늘 날짜 숫자.</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">06</span>캘린더 — 일 · 보기 전환 <span class="tt">틱틱</span></div>
+  <div class="m-phone"><div class="m-screen" style="background:var(--m-card-bg)">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="cal-head"><span class="m-ib glass"><i class="ic ic-layout"></i></span><h2>10월</h2><span class="m-ib glass"><i class="ic ic-today-dot"></i></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="week-strip"><span>일<b>4</b><i></i></span><span>월<b>5</b><i></i></span><span>화<b>6</b></span><span>수<b>7</b><i></i></span><span>목<b>8</b></span><span>금<b>9</b></span><span>토<b>10</b></span></div>
+    <div class="allday"><span>종일</span><span class="chip" style="--ec:#e5534b">장보기</span><span class="chip" style="--ec:#1fc79a">운동 30분</span></div>
+    <div class="cal-day" data-day></div>
+    <div class="m-menu" style="left:12px;top:110px;width:190px">
+      <div><i class="ic ic-agenda" style="margin:0"></i>목록</div>
+      <div style="background:var(--color-bg-selected)"><i class="ic ic-cal-day" style="margin:0;color:var(--color-accent)"></i>일</div>
+      <div><i class="ic ic-cal-3" style="margin:0"></i>3일</div>
+      <div><i class="ic ic-calendar" style="margin:0"></i>주</div>
+      <div><i class="ic ic-cal-month" style="margin:0"></i>월</div>
+    </div>
+    <div class="m-fab"><i class="ic ic-plus"></i></div>
+    <nav class="m-tabbar" data-on="cal"></nav>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">위 주 줄(날짜 아래 점 = 할 일 있음), 종일 줄, 시간 칸(1시간 56). 빈 시간 길게 눌러 그 시각에 추가, 블록 끌어 옮기기 [틱틱]. 보기 전환: 목록·일·3일·주·월(틱틱은 연·주 목록·타임라인도). 지금 선 빨강.</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">06</span>캘린더 — 목록(일정) <span class="tt">틱틱 Agenda</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="cal-head"><span class="m-ib glass"><i class="ic ic-layout"></i></span><h2>10월</h2><span class="m-ib glass"><i class="ic ic-today-dot"></i></span><span class="m-ib glass"><i class="ic ic-more"></i></span></div>
+    <div class="m-body"><div class="m-list">
+      <div class="m-gcard">
+        <div class="m-group">오늘 · 10월 4일 일<span class="grow"></span><span class="n">3</span></div>
+        <div class="m-task"><span class="m-check p3"></span><div class="tx"><span class="t">기획서 초안 보내기</span></div><div class="right"><span class="when">오후 3:00</span></div></div>
+        <div class="m-task"><span class="m-check" style="border-color:#f29a2e;background:#f29a2e22;border-radius:50%"></span><div class="tx"><span class="t">가족 저녁</span><span class="sub">Google · 개인</span></div><div class="right"><span class="when gray">18:30–20:00</span></div></div>
+        <div class="m-task"><span class="m-check p1"></span><div class="tx"><span class="t">운동 30분</span></div><div class="right"><span class="icons"><i class="ic ic-repeat"></i></span></div></div>
+      </div>
+      <div class="m-gcard">
+        <div class="m-group">내일 · 10월 5일 월<span class="grow"></span><span class="n">2</span></div>
+        <div class="m-task"><span class="m-check p2"></span><div class="tx"><span class="t">고객 인터뷰 준비</span></div><div class="right"><span class="when">종일</span></div></div>
+        <div class="m-task"><span class="m-check"></span><div class="tx"><span class="t">팀 회의</span></div><div class="right"><span class="when">오전 10:00</span></div></div>
+      </div>
+      <div class="m-gcard">
+        <div class="m-group">10월 7일 수<span class="grow"></span><span class="n">1</span></div>
+        <div class="m-task"><span class="m-check"></span><div class="tx"><span class="t">치과</span></div><div class="right"><span class="when">오후 2:00</span></div></div>
+      </div>
+    </div></div>
+    <div class="m-fab"><i class="ic ic-plus"></i></div>
+    <nav class="m-tabbar" data-on="cal"></nav>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">날짜별 묶음 카드에 할 일 + 구독 일정(구글 캘린더 읽기, 16 — 체크 대신 색 원, 시간 범위 회색). 일정 행은 체크할 수 없고 누르면 읽기 시트.</p>
+</div>
+
+</div>
+
+<!-- ═════════ H. 검색 ═════════ -->
+<div class="m-section">H. 검색 <small>틱틱: 검색 탭(켤 때) 또는 목록을 아래로 당겨 검색 · 위 칸 + 종류 칩</small></div>
+<div class="m-row-of-phones">
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">20 (신규)</span>검색 — 처음 <span class="tt">틱틱</span></div>
+  <div class="m-phone"><div class="m-screen" style="background:var(--m-card-bg)">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="srch-top"><div class="m-search"><i class="ic ic-search"></i><span>검색</span></div><span class="m-ib glass"><i class="ic ic-x"></i></span></div>
+    <div class="srch-chips"><span class="m-chip on">할 일</span><span class="m-chip">태그</span><span class="m-chip">리스트</span><span class="m-chip">필터</span></div>
+    <div class="recent"><div class="h">최근 검색<span>지우기</span></div><div class="w"><span class="m-chip">회의록</span><span class="m-chip">치과</span><span class="m-chip">#운동</span></div></div>
+    <div class="m-empty" style="padding-top:60px">
+      <svg class="art" viewBox="0 0 150 120" fill="none" stroke-linecap="round"><circle cx="66" cy="54" r="30" fill="var(--color-accent-subtle)" stroke="var(--color-accent)" stroke-width="3"/><path d="M88 76l22 22" stroke="var(--color-accent)" stroke-width="6"/><path d="M66 66V50" stroke="#4caf6a" stroke-width="3"/><path d="M66 54c0-8-5-12-13-12 0 8 5 12 13 12zM66 51c0-7 4-10 11-10 0 7-4 10-11 10z" fill="#bfe6c4" stroke="#4caf6a" stroke-width="2"/></svg>
+      <strong>무엇을 찾을까요?</strong><span>제목·설명·체크 항목에서 찾아요</span>
+    </div>
+    <nav class="m-tabbar" data-on="search" data-tabs="tasks,cal,sprout,search,settings"></nav>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">틱틱: 검색 칸 + ✕, 칩 "할 일·태그·리스트·필터", 빈 그림 + "What do you want to search / Type keywords to search". 검색을 탭에 안 두면 목록을 아래로 당겨 연다 [틱틱]. 이 틀은 탭 바 설정에서 검색 탭을 켠 경우.</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">20 (신규)</span>검색 — 결과 <span class="tt">틱틱</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="srch-top"><div class="m-search" style="color:var(--color-text-primary);background:var(--m-card-bg)"><i class="ic ic-search"></i><span>회의<span class="caret" style="display:inline-block;width:2px;height:16px;background:var(--color-accent);vertical-align:-3px"></span></span></div><span class="m-ib glass"><i class="ic ic-x"></i></span></div>
+    <div class="srch-chips"><span class="m-chip on">할 일 4</span><span class="m-chip" style="background:var(--m-card-bg)">태그</span><span class="m-chip" style="background:var(--m-card-bg)">리스트</span></div>
+    <div class="m-list">
+      <div class="m-gcard">
+        <div class="m-group">할 일<span class="grow"></span><span class="n">3</span></div>
+        <div class="m-task two"><span class="m-check p2"></span><div class="tx"><span class="t">주간 <mark>회의</mark>록 정리</span><span class="sub"><span><i class="dot" style="background:#4e75f2"></i>업무</span></span></div><div class="right"><span class="when over">어제</span></div></div>
+        <div class="m-task two"><span class="m-check"></span><div class="tx"><span class="t">팀 <mark>회의</mark></span><span class="sub"><span><i class="dot" style="background:#4e75f2"></i>업무</span></span></div><div class="right"><span class="when">내일</span></div></div>
+        <div class="m-task two"><span class="m-check"></span><div class="tx"><span class="t">분기 회고 자료</span><span class="sub">…다음 <mark>회의</mark> 전에 숫자 확인…</span></div><div class="right"><span class="when">10월 12일</span></div></div>
+      </div>
+      <div class="m-gcard">
+        <div class="m-group">완료<span class="grow"></span><span class="n">1</span></div>
+        <div class="m-task done"><span class="m-check on"></span><div class="tx"><span class="t">킥오프 <mark>회의</mark> 준비</span></div><div class="right"><span class="when gray">9월 28일</span></div></div>
+      </div>
+    </div>
+    <div class="kb-wrap"><div class="m-keyboard" data-kb="search"></div></div>
+  </div></div>
+  <p class="m-note">맞는 글자는 검색 노랑(<code>--color-search-highlight</code>, 데스크톱과 같음). 설명에서 맞으면 아래 줄에 앞뒤 글. 완료는 아래 따로. 로컬 DB에서 바로 찾으므로 오프라인에서도 같다.</p>
+</div>
+
+</div>
+<!-- ═════════ I. 설정 ═════════ -->
+<div class="m-section">I. 설정 · 테마 · 탭 바 <small>20 §2 설정 탭 — 틱틱: 프로필 카드 → 색 아이콘 칸 묶음 → 로그아웃</small></div>
+<div class="m-row-of-phones">
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">20 §2</span>설정 <span class="tt">틱틱 배치</span><span class="sp">항목</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span style="width:40px"></span><h2>설정</h2><span style="width:40px"></span></div>
+    <div class="m-body cells-wrap">
+      <div class="prof"><span class="av">윤</span><div class="tx"><b>윤서</b><span>yunseo@example.com</span><div class="lv"><i>Lv 4</i><i>몰두하는 고양이</i></div></div><i class="ic ic-chev-r" style="width:16px;height:16px;color:var(--color-text-quaternary)"></i></div>
+      <div class="m-cells">
+        <div class="m-cell"><span class="si" style="background:#4e75f2"><i class="ic ic-grid4"></i></span><span class="lb">탭 바</span><i class="ic ic-chev-r chev"></i></div>
+        <div class="m-cell"><span class="si" style="background:#775dbe"><i class="ic ic-palette"></i></span><span class="lb">외관</span><span class="v">기본값</span><i class="ic ic-chev-r chev"></i></div>
+        <div class="m-cell"><span class="si" style="background:#e5534b"><i class="ic ic-bell"></i></span><span class="lb">소리와 알림</span><i class="ic ic-chev-r chev"></i></div>
+        <div class="m-cell"><span class="si" style="background:#f29a2e"><i class="ic ic-calendar"></i></span><span class="lb">날짜와 시간</span><i class="ic ic-chev-r chev"></i></div>
+        <div class="m-cell"><span class="si" style="background:#2bb3c0"><i class="ic ic-sliders"></i></span><span class="lb">일반</span><span class="v">스와이프 · 완료음</span><i class="ic ic-chev-r chev"></i></div>
+      </div>
+      <div class="m-cells">
+        <div class="m-cell"><span class="si" style="background:#4caf6a"><i class="ic ic-sprout"></i></span><span class="lb">성장</span><span class="v">성향 다시 조사</span><i class="ic ic-chev-r chev"></i></div>
+        <div class="m-cell"><span class="si" style="background:#6a7dd8"><i class="ic ic-sparkle"></i></span><span class="lb">AI 사용량</span><span class="v">이번 주 1/2</span><i class="ic ic-chev-r chev"></i></div>
+        <div class="m-cell"><span class="si" style="background:#8b8b8b"><i class="ic ic-refresh"></i></span><span class="lb">동기화</span><span class="v">방금 전</span><i class="ic ic-chev-r chev"></i></div>
+      </div>
+      <div class="m-cells">
+        <div class="m-cell"><span class="si" style="background:#8b8b8b"><i class="ic ic-info"></i></span><span class="lb">도움말 · 의견 보내기</span><i class="ic ic-chev-r chev"></i></div>
+        <div class="m-cell"><span class="si" style="background:#8b8b8b"><i class="ic ic-phone"></i></span><span class="lb">앱 정보</span><span class="v">v0.1.0</span><i class="ic ic-chev-r chev"></i></div>
+      </div>
+      <div class="signout">로그아웃</div>
+    </div>
+    <nav class="m-tabbar" data-on="settings" data-tabs="tasks,cal,sprout,collect,settings"></nav>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">틱틱 배치: 맨 위 프로필 카드(아바타·이름·레벨 배지) → 색 사각 아이콘 칸 묶음 → 빨간 "로그아웃". 틱틱의 레벨 배지 자리에 sprout 캐릭터 레벨·종을 둔다 [sprout]. 위젯·연동·팔로우 칸은 v1 밖.</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">00 §5 · 20 §3</span>외관 — 테마 고르기 <span class="tt">견본 격자</span><span class="sp">트루 블랙</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-chev-l"></i></span><h2>외관</h2><span style="width:40px"></span></div>
+    <div class="m-body cells-wrap">
+      <div class="m-cells"><div class="m-cell noicon"><span class="lb">시스템 다크 모드 따라가기</span><span class="m-toggle on"></span></div><div class="m-cell noicon"><span class="lb">다크일 때 테마</span><span class="v">다크</span><i class="ic ic-chev-r chev"></i></div></div>
+      <div class="m-cells-title">색상 시리즈</div>
+      <div class="m-cells"><div class="themes" data-themes></div></div>
+      <div class="m-cells-title">글자 · 아이콘</div>
+      <div class="m-cells"><div class="m-cell noicon"><span class="lb">글자 크기</span><span class="v">시스템 따라감</span><i class="ic ic-chev-r chev"></i></div><div class="m-cell noicon"><span class="lb">완료한 할 일 흐리게</span><span class="m-toggle on"></span></div></div>
+    </div>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">견본을 누르면 이 시안 전체 테마도 바뀐다(위 선택 상자와 같음). 견본 = 위 띠(견본색) + 아래 면. 틱틱 앱 아이콘 바꾸기는 v1 밖. 모바일 v1 테마 범위(20 §3은 기본·다크만) → 열린 결정 M2: 데스크톱 13종 전부를 그대로 쓰자는 제안.</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">20 §2 D4</span>탭 바 설정 <span class="tt">틱틱</span><span class="sp">탭 목록</span></div>
+  <div class="m-phone"><div class="m-screen m-page">
+    <div class="m-island"></div><div class="m-status" data-time="9:41"></div>
+    <div class="m-nav"><span class="m-ib glass"><i class="ic ic-chev-l"></i></span><h2>탭 바</h2><span style="width:40px"></span></div>
+    <div class="m-body cells-wrap tabcfg">
+      <div class="m-cells-title">켬 (끌어서 순서 바꾸기)</div>
+      <div class="m-cells">
+        <div class="m-cell"><span class="dotbtn" style="background:#bbb"><i class="ic ic-lock"></i></span><i class="ic ic-task"></i><span class="lb">할 일<small>리스트와 스마트 목록</small></span><i class="ic ic-grip grip"></i></div>
+        <div class="m-cell"><span class="dotbtn" style="background:var(--color-danger)"><i class="ic ic-x"></i></span><i class="ic ic-calendar"></i><span class="lb">캘린더<small>월·일·목록으로 일정 보기</small></span><i class="ic ic-grip grip"></i></div>
+        <div class="m-cell"><span class="dotbtn" style="background:var(--color-danger)"><i class="ic ic-x"></i></span><i class="ic ic-sprout"></i><span class="lb">성장<small>캐릭터·XP·주간 목표</small></span><i class="ic ic-grip grip"></i></div>
+        <div class="m-cell"><span class="dotbtn" style="background:var(--color-danger)"><i class="ic ic-x"></i></span><i class="ic ic-collect"></i><span class="lb">수집함<small>공유로 모은 것 보기</small></span><i class="ic ic-grip grip"></i></div>
+        <div class="m-cell"><span class="dotbtn" style="background:var(--color-danger)"><i class="ic ic-x"></i></span><i class="ic ic-settings"></i><span class="lb">설정</span><i class="ic ic-grip grip"></i></div>
+      </div>
+      <div class="m-cells-title">끔</div>
+      <div class="m-cells">
+        <div class="m-cell"><span class="dotbtn" style="background:#1fc79a"><i class="ic ic-plus"></i></span><i class="ic ic-search"></i><span class="lb">검색<small>끄면 목록을 아래로 당겨 검색</small></span><i class="ic ic-grip grip"></i></div>
+        <div class="m-cell"><span class="dotbtn" style="background:#1fc79a"><i class="ic ic-plus"></i></span><i class="ic ic-readlist"></i><span class="lb">일기</span><i class="ic ic-grip grip"></i></div>
+        <div class="m-cell"><span class="dotbtn" style="background:#1fc79a"><i class="ic ic-plus"></i></span><i class="ic ic-sparkle"></i><span class="lb">AI 비서</span><i class="ic ic-grip grip"></i></div>
+      </div>
+      <div class="m-cells"><div class="m-cell noicon"><span class="lb">탭 최대 개수</span><span class="v">5</span><i class="ic ic-chev-r chev"></i></div></div>
+    </div>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">틱틱: 켬/끔 두 묶음, 빨간 −/초록 +, 오른쪽 손잡이, "Max number of tabs 5"(넘치면 마지막이 ⋯ 더보기). 할 일 탭은 끌 수 없다. sprout 기본 탭 제안 = <b>할 일 · 캘린더 · 성장 · 수집함 · 설정</b> — 20 D4(3탭)를 바꾸는 열린 결정 M1. 일기·AI 비서·작업 지도 탭은 다른 시안이 정함.</p>
+</div>
+
+</div>
+
+<!-- ═════════ J. 알림 ═════════ -->
+<div class="m-section">J. 알림 <small>20 §4.4 로컬 알림 · research 20 §4 — iPhone은 펼쳐야 버튼, Android는 바로 버튼</small></div>
+<div class="m-row-of-phones">
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">20 §4.4</span>잠금 화면 알림 (iOS) <span class="tt">문구 구조</span></div>
+  <div class="m-phone"><div class="m-screen m-lock">
+    <div class="m-island"></div><div class="m-status light" data-time=""></div>
+    <div class="lock-time"><div class="dt">10월 4일 일요일</div><div class="tm">14:30</div></div>
+    <div class="lock-stack">
+      <div class="m-noti"><span class="app"><i class="ic ic-sprout"></i></span><div class="bd"><strong>기획서 초안 보내기</strong>오늘 오후 3:00 · 업무</div><span class="tm">지금</span></div>
+      <div class="m-noti" style="opacity:.92;transform:scale(.96);margin-top:-6px"><span class="app"><i class="ic ic-sprout"></i></span><div class="bd"><strong>sprout · 알림 2개</strong>운동 30분 · 독서 20쪽</div><span class="tm">1시간 전</span></div>
+    </div>
+    <div class="lock-foot"><span><i class="ic ic-flashlight"></i></span><span><i class="ic ic-camera"></i></span></div>
+    <div class="m-home light"></div>
+  </div></div>
+  <p class="m-note">제목 = 할 일 제목, 본문 = 마감 시각 · 리스트 [틱틱 "From TickTick"을 이 꼴로]. 같은 앱 알림은 iOS가 묶는다. 누르면 앱이 열리고 오늘 탭 + 그 할 일 상세(20 §2 딥 링크).</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">20 §4.4 · 09</span>알림 펼침 — 완료 · 다시 알림 <span class="tt">버튼</span><span class="tmp">스누즈 값</span></div>
+  <div class="m-phone"><div class="m-screen m-lock">
+    <div class="m-island"></div><div class="m-status light" data-time="14:30"></div>
+    <div style="position:absolute;inset:0;backdrop-filter:blur(18px);background:rgba(0,0,0,.25)"></div>
+    <div style="position:absolute;left:0;right:0;top:220px;display:flex;flex-direction:column;gap:10px;z-index:3">
+      <div class="m-noti"><span class="app"><i class="ic ic-sprout"></i></span><div class="bd"><strong>기획서 초안 보내기</strong>오늘 오후 3:00 · 업무<br><span style="color:rgba(0,0,0,.5)">팀장님께 메일로. 3쪽 넘지 않게…</span></div><span class="tm">지금</span></div>
+      <div class="noti-acts">
+        <div>완료 <i class="ic ic-check"></i></div>
+        <div>10분 뒤 다시 알림 <i class="ic ic-clock"></i></div>
+        <div>1시간 뒤 다시 알림 <i class="ic ic-clock"></i></div>
+        <div>내일 다시 알림 <i class="ic ic-sunrise"></i></div>
+      </div>
+    </div>
+    <div class="m-home light"></div>
+  </div></div>
+  <p class="m-note">길게 누르면 펼쳐지는 동작 버튼. 완료는 앱을 열지 않고 처리(XP도 휴대폰에서 바로 — 공용 규칙). 다시 알림 값 3개는 데스크톱 09 스누즈와 맞춘다 [임시 — 틱틱 앱 안 스누즈 시트는 15분·30분·1시간·3시간·내일·오늘 저녁·다음 시간·직접].</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">20 §4.4</span>Android 알림 <span class="tt">잠금에서 바로 버튼</span></div>
+  <div class="m-phone android"><div class="m-screen" style="background:linear-gradient(170deg,#3d5a80,#1d2b44)">
+    <div class="and-cam"></div>
+    <div class="and-status" style="color:#fff"><span>14:30</span><span style="display:flex;gap:6px;align-items:center"><i class="ic ic-wifi-off ic-sm" style="display:none"></i>▲ ■ 87%</span></div>
+    <div style="text-align:center;color:#fff;margin:30px 0 40px"><div style="font:300 80px/1 var(--m-font)">14:30</div><div style="font:400 15px/22px var(--m-font);opacity:.85">10월 4일 (일)</div></div>
+    <div class="and-noti">
+      <div class="h"><b><i class="ic ic-sprout"></i></b>sprout · 지금</div>
+      <strong>기획서 초안 보내기</strong>
+      <p>오늘 오후 3:00 · 업무</p>
+      <div class="acts"><span>완료</span><span>10분 뒤</span><span>1시간 뒤</span></div>
+    </div>
+    <div class="and-nav" style="background:#fff"></div>
+  </div></div>
+  <p class="m-note">Android는 잠금 화면에서도 버튼이 바로 보인다(research 20 §4). 상주 알림(오늘 목록 + +)은 [다음]. 알림 채널 이름 "할 일 알림" [임시].</p>
+</div>
+
+</div>
+<!-- ═════════ K. 공유 ═════════ -->
+<div class="m-section">K. 공유로 수집함 — 들어가는 곳만 <small>24 — 공유 시트에서 sprout를 고르는 순간까지. 그다음 카드 화면은 수집함 시안(다른 에이전트)</small></div>
+<div class="m-row-of-phones">
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">24 §2</span>iOS 공유 시트 → sprout <span class="tt">공유 확장</span><span class="sp">수집함으로</span></div>
+  <div class="m-phone"><div class="m-screen">
+    <div class="m-island"></div>
+    <div class="share-bg">
+      <div class="m-status" data-time="9:41"></div>
+      <div class="web-bar"><i class="ic ic-lock ic-xs"></i>brunch.co.kr</div>
+      <div class="web-art"><h3>일 잘하는 사람들의 주간 회고법</h3><div class="img"></div>매주 금요일 오후 30분, 지난 한 주를 돌아보는 습관이 쌓이면…</div>
+    </div>
+    <div class="m-scrim" style="background:rgba(0,0,0,.2)"></div>
+    <div class="share">
+      <div class="prev"><b></b><div>일 잘하는 사람들의 주간 회고법<span>brunch.co.kr</span></div><span class="x"><i class="ic ic-x ic-sm"></i></span></div>
+      <div class="apps">
+        <span><b style="background:#34c759"><i class="ic ic-msg"></i></b>메시지</span>
+        <span><b style="background:#3b82f6"><i class="ic ic-mail-plain"></i></b>메일</span>
+        <span class="hl"><b class="sprout-app"><i class="ic ic-sprout"></i></b>sprout</span>
+        <span><b style="background:#f5c542"><i class="ic ic-note-app"></i></b>메모</span>
+        <span><b style="background:#8e8e93"><i class="ic ic-more"></i></b>더 보기</span>
+      </div>
+      <div class="acts">
+        <div>복사<i class="ic ic-copy"></i></div>
+        <div class="hl">sprout 수집함에 넣기<i class="ic ic-collect"></i></div>
+        <div>읽기 목록에 추가<i class="ic ic-readlist"></i></div>
+      </div>
+    </div>
+    <div class="m-home"></div>
+  </div></div>
+  <p class="m-note">들어가는 곳 두 개: 앱 줄의 <b>sprout</b> 아이콘(공유 확장)과 동작 목록의 <b>"sprout 수집함에 넣기"</b>(같은 확장). 틱틱은 같은 자리에서 "할 일"로 받지만 sprout는 <b>수집함 항목</b>으로 받는다(24, PRD 출시 경로 7). 누른 뒤 뜨는 카드(메모·저장)는 수집함 시안 몫.</p>
+</div>
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">24 §2</span>Android 공유 → sprout <span class="tt">시스템 공유</span></div>
+  <div class="m-phone android"><div class="m-screen">
+    <div class="and-cam"></div>
+    <div class="share-bg" style="background:var(--m-card-bg)">
+      <div class="and-status"><span>9:41</span><span>▲ ■ 87%</span></div>
+      <div class="web-bar" style="border-radius:22px">brunch.co.kr</div>
+      <div class="web-art"><h3>일 잘하는 사람들의 주간 회고법</h3><div class="img"></div></div>
+    </div>
+    <div class="m-scrim" style="background:rgba(0,0,0,.3)"></div>
+    <div class="share" style="top:330px;background:#f3eff7;color:#1c1b1f">
+      <div class="m-grabber" style="background:#79747e"></div>
+      <div class="prev" style="border:0"><b></b><div>일 잘하는 사람들의 주간 회고법<span>https://brunch.co.kr/@…</span></div></div>
+      <div style="display:flex;gap:8px;padding:0 16px 10px"><span class="m-chip" style="background:#e8def8;color:#1d192b"><i class="ic ic-copy"></i>복사</span></div>
+      <div class="apps" style="flex-wrap:wrap;row-gap:14px">
+        <span class="hl"><b class="sprout-app" style="border-radius:50%"><i class="ic ic-sprout"></i></b>sprout<br>수집함</span>
+        <span><b style="background:#34c759;border-radius:50%"><i class="ic ic-msg"></i></b>메시지</span>
+        <span><b style="background:#ea4335;border-radius:50%"><i class="ic ic-mail-plain"></i></b>Gmail</span>
+        <span><b style="background:#f5c542;border-radius:50%"><i class="ic ic-note-app"></i></b>Keep</span>
+      </div>
+    </div>
+    <div class="and-nav"></div>
+  </div></div>
+  <p class="m-note">Android 공유 시트의 앱 칸 이름은 <b>"sprout 수집함"</b>(공유 대상 이름을 따로 달 수 있음). 고르면 sprout가 아래 시트로 뜨고(앱 전체를 열지 않음) 저장 뒤 원래 앱으로 돌아간다(24 §2).</p>
+</div>
+
+</div>
+
+<!-- ═════════ L. Android ═════════ -->
+<div class="m-section">L. Android 차이 <small>같은 코드(React Native), 플랫폼 관례만 다르게</small></div>
+<div class="m-row-of-phones">
+
+<div class="m-shot">
+  <div class="m-label"><span class="ref">20 §3</span>오늘 — Android <span class="tt">틱틱 Android</span><span class="tmp">세부</span></div>
+  <div class="m-phone android"><div class="m-screen m-page">
+    <div class="and-cam"></div>
+    <div class="and-status"><span>9:41</span><span>▲ ■ 87%</span></div>
+    <div class="and-bar" style="background:var(--m-page-bg)"><span class="m-ib"><i class="ic ic-menu"></i></span><h2>오늘</h2><span class="m-ib"><i class="ic ic-more-v"></i></span></div>
+    <div class="m-body"><div class="m-list" style="padding-top:6px">
+      <div class="m-gcard">
+        <div class="m-group">만료됨<span class="grow"></span><span class="link">미루기</span><span class="n">2</span><i class="ic ic-chev-d"></i></div>
+        <div class="m-task"><span class="m-check p2"></span><div class="tx"><span class="t">주간 회의록 정리</span></div><div class="right"><span class="when over">어제</span></div></div>
+        <div class="m-task"><span class="m-check"></span><div class="tx"><span class="t">치과 예약 전화</span></div><div class="right"><span class="when over">10월 2일</span></div></div>
+      </div>
+      <div class="m-gcard">
+        <div class="m-group">오늘<span class="grow"></span><span class="n">4</span><i class="ic ic-chev-d"></i></div>
+        <div class="m-task"><span class="m-check p3"></span><div class="tx"><span class="t">기획서 초안 보내기</span></div><div class="right"><span class="when">오후 3:00</span></div></div>
+        <div class="m-task"><span class="m-check"></span><div class="tx"><span class="t">장보기</span></div></div>
+        <div class="m-task"><span class="m-check p1"></span><div class="tx"><span class="t">운동 30분</span></div></div>
+        <div class="m-task"><span class="m-check"></span><div class="tx"><span class="t">독서 20쪽</span></div></div>
+      </div>
+    </div></div>
+    <div class="m-fab"><i class="ic ic-plus"></i></div>
+    <nav class="m-tabbar" data-on="tasks"></nav>
+    <div class="and-nav"></div>
+  </div></div>
+  <p class="m-note">다른 점만: 머리는 한 줄(☰ 제목 ⋮, 큰 제목 없음), 더보기 아이콘 ⋮(세로), 상태 막대·제스처 막대 Android 모양, 뒤로 = 시트 닫기 → 탭 첫 화면 → 나가기. 탭 알약·+·묶음 카드는 iOS와 같게 둔다 — 틱틱 Android 최신 모양 실측이 없어 [임시]. 바닥 막대형(<code>.m-tabbar.flat</code>)도 뼈대에 있다.</p>
+</div>
+
+<div class="m-shot" style="width:420px">
+  <div class="m-label">iOS ↔ Android 차이 표</div>
+  <table class="cmp">
+    <tr><th>부분</th><th>iOS</th><th>Android</th></tr>
+    <tr><td>머리</td><td>둥근 ☰ · ⋯ + 아래 큰 제목 28</td><td>한 줄 ☰ 제목 ⋮</td></tr>
+    <tr><td>더보기</td><td>⋯ 가로</td><td>⋮ 세로</td></tr>
+    <tr><td>상세 ⋯ 메뉴</td><td>아래 시트(큰 아이콘 줄 + 목록)</td><td>같음(틱틱 Android도 아래 시트)</td></tr>
+    <tr><td>여러 개 고르기</td><td>위 "모두 선택 · n개 선택 · ✓", 아래 알약</td><td>위 "← n개 선택", 아래 막대 + "모두 선택"</td></tr>
+    <tr><td>시간 고르기</td><td>휠</td><td>시계 다이얼/입력(머티리얼)</td></tr>
+    <tr><td>알림 버튼</td><td>길게 눌러 펼쳐야 보임</td><td>잠금 화면에서 바로</td></tr>
+    <tr><td>상주 알림</td><td>없음(Live Activity [다음])</td><td>오늘 목록 + + [다음]</td></tr>
+    <tr><td>공유</td><td>공유 확장(앱 줄 + 동작 줄)</td><td>공유 대상 "sprout 수집함"</td></tr>
+    <tr><td>뒤로</td><td>왼쪽 가장자리 밀기 / ‹</td><td>시스템 뒤로(시트 → 탭 → 나가기)</td></tr>
+    <tr><td>흔들림</td><td>완료 = 가벼운 충격</td><td>같음(기기마다 세기 다름)</td></tr>
+  </table>
+  <p class="m-note" style="margin-top:8px">근거: research 24 §12. Android는 도움말 캡처가 적어(일괄 편집·상세·알림 3장) 대부분 [임시].</p>
+</div>
+
+</div>
+
+<script>
+// 시안 전용 그리기 도우미 — 상태 막대 · 탭 바 · 키보드 · 달력 · 테마 견본
+document.querySelectorAll('[data-time]').forEach(el=>{
+  el.innerHTML=`<span>${el.dataset.time}</span><span class="r"><span class="bars"><i></i><i></i><i></i><i></i></span><i class="ic ic-sm" style="--i:var(--i-wifi-off);display:none"></i><svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 2.2c2.3 0 4.4.9 6 2.4l1.1-1.2A10.4 10.4 0 0 0 8 .6 10.4 10.4 0 0 0 .9 3.4L2 4.6a8.7 8.7 0 0 1 6-2.4zm0 3.4c1.4 0 2.6.5 3.6 1.4l1.1-1.2A6.9 6.9 0 0 0 8 4 6.9 6.9 0 0 0 3.3 5.8L4.4 7c1-.9 2.2-1.4 3.6-1.4zM8 9a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg><span class="bat"></span></span>`;
+  if(!el.dataset.time) el.firstElementChild.style.visibility='hidden';
+});
+const TAB={tasks:'<i class="ic ic-task"></i>',cal:'<span class="date-ic"><i>4</i></span>',sprout:'<i class="ic ic-sprout"></i>',collect:'<i class="ic ic-collect"></i>',search:'<i class="ic ic-search"></i>',settings:'<i class="ic ic-settings"></i>',more:'<i class="ic ic-more"></i>'};
+const NAME={tasks:'할 일',cal:'캘린더',sprout:'성장',collect:'수집함',search:'검색',settings:'설정',more:'더보기'};
+document.querySelectorAll('nav.m-tabbar[data-on]').forEach(n=>{
+  const tabs=(n.dataset.tabs||'tasks,cal,sprout,collect,settings').split(',');
+  n.innerHTML=tabs.map(k=>`<span class="${k===n.dataset.on?'on':''}" aria-label="${NAME[k]}">${TAB[k]}<b>${NAME[k]}</b>${k==='sprout'&&n.dataset.xp?'<em class="xp">+'+n.dataset.xp+'</em>':''}</span>`).join('');
+});
+document.querySelectorAll('[data-kb]').forEach(k=>{
+  const ret=k.dataset.kb==='send'?'<i class="ret blue">보내기</i>':k.dataset.kb==='search'?'<i class="ret blue">검색</i>':'<i class="ret">보내기</i>';
+  const row=s=>`<div class="kr">${s.split('').map(c=>`<i>${c}</i>`).join('')}</div>`;
+  k.innerHTML=`<div class="predict"><span>회의</span><span>회의록</span><span>회의실</span></div>`+row('ㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔ')+row('ㅁㄴㅇㄹㅎㅗㅓㅏㅣ')+
+   `<div class="kr"><i class="w">⇧</i>${'ㅋㅌㅊㅍㅠㅜㅡ'.split('').map(c=>`<i>${c}</i>`).join('')}<i class="w">⌫</i></div>`+
+   `<div class="kr"><i class="w">123</i><i class="w">☺</i><i class="space">스페이스</i>${ret}</div><div class="krow-last"><span>🌐</span><span>🎙</span></div>`;
+});
+// 작은 달력(날짜 시트)
+document.querySelectorAll('[data-cal]').forEach(g=>{
+  const [y,m]=g.dataset.cal.split('-').map(Number), first=new Date(y,m-1,1).getDay(), days=new Date(y,m,0).getDate(), prev=new Date(y,m-1,0).getDate();
+  let h='일월화수목금토'.split('').map((d,i)=>`<span class="wd" style="width:auto;height:auto;line-height:16px${i===0?';color:var(--color-danger)':''}">${d}</span>`).join('');
+  for(let i=first-1;i>=0;i--) h+=`<span class="o">${prev-i}</span>`;
+  for(let d=1;d<=days;d++){const c=[]; if(d==g.dataset.sel)c.push('s'); else if(d==g.dataset.today)c.push('t'); h+=`<span class="${c.join(' ')}">${d}</span>`;}
+  let n=1; while((first+days+n-1)%7) h+=`<span class="o">${n++}</span>`;
+  g.innerHTML=h;
+});
+// 월 보기
+const EV={1:[['#4e75f2','분기 계획']],2:[['#e5534b','치과 예약']],3:[['#e5534b','주간 회의록',1]],4:[['#4e75f2','기획서 초안'],['#e5534b','장보기'],['#1fc79a','운동 30분'],['#f29a2e','가족 저녁']],5:[['#4e75f2','팀 회의'],['#4e75f2','인터뷰 준비']],6:[['#1fc79a','운동']],7:[['#e5534b','치과']],8:[['#1fc79a','운동'],['#775dbe','자격증 강의']],9:[['#f29a2e','한글날']],12:[['#4e75f2','분기 회고']],13:[['#1fc79a','운동']],15:[['#775dbe','모의고사']],19:[['#4e75f2','출장']],20:[['#4e75f2','출장']],22:[['#e5534b','친구 생일']],27:[['#4e75f2','보고서 마감']],30:[['#f29a2e','여행 준비']]};
+document.querySelectorAll('[data-month]').forEach(g=>{
+  const [y,m]=g.dataset.month.split('-').map(Number), first=new Date(y,m-1,1).getDay(), days=new Date(y,m,0).getDate(), prev=new Date(y,m-1,0).getDate();
+  let h='';const cell=(d,cls,evs)=>{let e=(evs||[]).slice(0,3).map(([c,t,done])=>`<span class="ev${done?' done':''}" style="--ec:${c}">${t}</span>`).join(''); if(evs&&evs.length>3)e+=`<span class="more">+${evs.length-3}</span>`; return `<div class="${cls}"><span class="d">${d}</span>${e}</div>`};
+  for(let i=first-1;i>=0;i--) h+=cell(prev-i,'o');
+  for(let d=1;d<=days;d++){const dow=(first+d-1)%7; h+=cell(d,(d==g.dataset.today?'t':'')+(dow===0?' sun':''),EV[d]);}
+  let n=1; while((first+days+n-1)%7) h+=cell(n++,'o');
+  g.innerHTML=h;
+});
+// 일 보기
+document.querySelectorAll('[data-day]').forEach(g=>{
+  let h='';for(let i=0;i<10;i++){h+=`<div class="hr" style="top:${i*56+8}px"><span>${(9+i)>=12?'오후 '+((9+i)===12?12:9+i-12):'오전 '+(9+i)}시</span></div>`}
+  const b=(s,e,c,t,sub)=>`<div class="blk" style="--ec:${c};top:${8+(s-9)*56}px;height:${(e-s)*56-3}px">${t}<small>${sub}</small></div>`;
+  h+=b(10,11,'#4e75f2','팀 스탠드업','오전 10:00 – 11:00');
+  h+=b(13,14.5,'#775dbe','자격증 강의','오후 1:00 – 2:30');
+  h+=b(15,15.75,'#4e75f2','기획서 초안 보내기','오후 3:00');
+  h+=b(17,18,'#f29a2e','가족 저녁 (Google)','오후 6:30');
+  h+=`<div class="now" style="top:${8+(9.7-9)*56}px"></div>`;
+  g.innerHTML=h;
+});
+// 테마 견본
+const THEMES=[['default','기본값','#f8f8f8','#fff'],['sky','하늘','#6387f5','#fbfcff'],['turquoise','터쿼이즈','#5cd9af','#fcfefd'],['teal','틸','#77c8c2','#fcfefe'],['matcha','말차','#acbf9f','#fdfefd'],['sunshine','햇살','#f6bb77','#fffefc'],['peach','복숭아','#f589a3','#fffdfd'],['lilac','라일락','#b0a3d3','#fdfdfe'],['ebony','에보니','#a98a75','#fdfdfc'],['navy','네이비','#2b3455','#fdfdfd'],['gray','그레이','#363b41','#fdfdfd'],['dark','다크','#212121','#1a1a1a'],['black','트루 블랙','#0a0a0a','#000']];
+function drawSwatches(){document.querySelectorAll('[data-themes]').forEach(g=>{const cur=currentTheme();g.innerHTML=THEMES.map(([id,n,a,b])=>`<span class="sw${id===cur?' on':''}" data-pick="${id}"><b><i style="height:26px;background:${a}"></i><i style="flex:1;background:${b}"></i>${id===cur?'<em class="ck"><i class="ic ic-check"></i></em>':''}</b>${n}</span>`).join('');});}
+const root=document.documentElement, sel=document.getElementById('themeSel');
+let lastLight='default';
+function currentTheme(){return root.dataset.themeVariant==='black'?'black':root.dataset.theme}
+function apply(id){
+  if(id==='dark'||id==='black'){root.dataset.theme='dark'; if(id==='black')root.dataset.themeVariant='black'; else delete root.dataset.themeVariant;}
+  else{root.dataset.theme=id; delete root.dataset.themeVariant; lastLight=id;}
+  sel.value=id; drawSwatches();
+}
+sel.onchange=()=>apply(sel.value);
+document.getElementById('modeBtn').onclick=()=>apply(root.dataset.theme==='dark'?lastLight:'dark');
+document.addEventListener('click',e=>{const p=e.target.closest('[data-pick]'); if(p) apply(p.dataset.pick);});
+const q=new URLSearchParams(location.search).get('theme'); apply(q||'default');
+
+</script>
+</body>
+</html>
