@@ -126,9 +126,20 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
   const go = useCallback((n: number) => setCursor((c) => shiftCursor(view, c, n)), [view])
   const setView = (v: CalView) => { setOpts({ view: v }); setMenu(undefined) }
   const openTask = (it: CalItem, rect: Rect) => { const ext = extOf(it); if (ext) { setSelection([]); setPop({ kind: 'ext', ev: ext, rect }); return } setSelection([it.task.id]); setPop({ kind: 'task', id: it.task.id, rect }) }
+  // 06 §14.2: 항목 아이콘을 꺼도 ⌥(Option)을 누르고 있는 동안은 보인다(틱틱 데스크톱)
+  const [altHeld, setAltHeld] = useState(false)
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => setAltHeld(e.altKey)
+    const off = () => setAltHeld(false)
+    window.addEventListener('keydown', on)
+    window.addEventListener('keyup', on)
+    window.addEventListener('blur', off)
+    return () => { window.removeEventListener('keydown', on); window.removeEventListener('keyup', on); window.removeEventListener('blur', off) }
+  }, [])
   const handlers: CalHandlers = {
     selection,
     pending: pop?.kind === 'create' ? pop.draft : undefined,
+    showIcons: opts.icons !== 0 || altHeld,
     colorOf: (it) => extOf(it)?.color ?? colorOf(it.task, opts.color, tagColor),
     itemsById: (ids) => items.filter((i) => !i.virtual && !extOf(i) && ids.includes(i.task.id)),
     onSelect: (id, toggle) => id.startsWith('ext:') ? undefined : setSelection((s) => (toggle ? (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]) : [id])),
@@ -323,7 +334,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
       {pop?.kind === 'ext' && <ExtEventPopover ev={pop.ev} rect={pop.rect} onClose={() => setPop(undefined)} />}
       {pop?.kind === 'extmenu' && <ExtEventMenu ev={pop.ev} point={pop.point} onClose={() => setPop(undefined)} />}
       <CalendarConnectHost />
-      {optionsOpen && <ViewOptions opts={opts} onChange={setOpts} onClose={() => setOptionsOpen(false)} />}
+      {optionsOpen && <ViewOptions opts={opts} lists={lists} tags={tags} onChange={setOpts} onClose={() => setOptionsOpen(false)} />}
       {tasks.length === 0 && extEvents.length === 0 && view === 'month' && !filtered && <div className="cal__empty">이번 달 일정이 없어요</div>}
     </div>
   )

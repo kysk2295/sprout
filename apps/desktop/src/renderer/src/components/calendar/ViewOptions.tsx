@@ -2,12 +2,15 @@ import { ChevronLeft, ChevronRight, ChevronsUpDown, CircleHelp, X } from 'lucide
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { CalOptions, ColorBy, ItemStyle } from '../../lib/calendar'
+import { listLabel, type ListRow, type TagRow } from '../../data/types'
+import { run, update } from '../../data/mutations'
+import { ORG_COLORS } from '../../lib/orgColors'
 
 // 06 §8 옵션 보기(실측 research 17 §1): 색상 · 스타일 / 완료된 할일 보기 · 하위 할일 보기 · 반복 주기 표시
 const COLORS: [ColorBy, string][] = [['list', '목록'], ['tag', '태그'], ['priority', '우선순위']]
 const STYLES: [ItemStyle, string][] = [['simple', '간결한'], ['detailed', '상세한']]
 
-export function ViewOptions({ opts, onChange, onClose }: { opts: CalOptions; onChange: (p: Partial<CalOptions>) => void; onClose: () => void }) {
+export function ViewOptions({ opts, lists, tags, onChange, onClose }: { opts: CalOptions; lists: ListRow[]; tags: TagRow[]; onChange: (p: Partial<CalOptions>) => void; onClose: () => void }) {
   const [page, setPage] = useState<'main' | 'style'>('main')
   useEffect(() => {
     const key = (e: KeyboardEvent) => e.key === 'Escape' && (page === 'style' ? setPage('main') : onClose())
@@ -37,6 +40,12 @@ export function ViewOptions({ opts, onChange, onClose }: { opts: CalOptions; onC
                 <span className="vo__value">{STYLES.find(([v]) => v === opts.style)?.[1]}<ChevronRight /></span>
               </button>
             </div>
+            {opts.color !== 'priority' && (
+              <ColorCard
+                rows={opts.color === 'tag' ? tags.map((t) => ({ id: t.id, label: `#${t.name}`, color: t.color })) : lists.map((l) => ({ id: l.id, label: listLabel(l), color: l.color }))}
+                table={opts.color === 'tag' ? 'tags' : 'lists'}
+              />
+            )}
             <div className="modal__card">
               <Toggle label="완료된 할일 보기" on={!!opts.completed} onChange={(v) => onChange({ completed: v ? 1 : 0 })} />
               <Toggle label="하위 할일 보기" on={false} disabled onChange={() => {}} />
@@ -47,6 +56,10 @@ export function ViewOptions({ opts, onChange, onClose }: { opts: CalOptions; onC
           <>
             <div className="vo__title"><button className="vo__back" aria-label="뒤로" onClick={() => setPage('main')}><ChevronLeft /></button>스타일</div>
             <p className="vo__desc">"상세" 스타일을 선택하면, 작업을 표시된 체크박스를 클릭하여 빠르게 완료할 수 있습니다.</p>
+            <div className="modal__card vo__icons">
+              <Toggle label="항목 아이콘 표시" on={opts.icons !== 0} onChange={(v) => onChange({ icons: v ? 1 : 0 })} />
+            </div>
+            <p className="vo__desc">태스크는 체크박스, 구독 일정은 캘린더 아이콘으로 보입니다. 꺼 두어도 ⌥ 키를 누르고 있는 동안 보입니다.</p>
             <div className="vo__styles">
               {STYLES.map(([v, l]) => (
                 <button key={v} className={`vo__style${opts.style === v ? ' is-on' : ''}`} onClick={() => onChange({ style: v })}>
@@ -66,6 +79,32 @@ export function ViewOptions({ opts, onChange, onClose }: { opts: CalOptions; onC
       </div>
     </div>,
     document.body
+  )
+}
+
+/** 06 §14.2: 색상 기준이 목록·태그면 그 아래에서 리스트·태그 색을 바로 바꾼다(틱틱 도움말 Task Color) */
+function ColorCard({ rows, table }: { rows: { id: string; label: string; color: string | null }[]; table: 'lists' | 'tags' }) {
+  const [open, setOpen] = useState<string>()
+  if (!rows.length) return null
+  return (
+    <div className="modal__card vo__colors">
+      {rows.map((r) => (
+        <div key={r.id}>
+          <div className="vo__color-row">
+            <span className="vo__color-name">{r.label}</span>
+            <button className={`vo__color-dot${r.color ? '' : ' is-none'}`} style={{ background: r.color || undefined }} aria-label={`${r.label} 색 바꾸기`} aria-expanded={open === r.id} onClick={() => setOpen(open === r.id ? undefined : r.id)} />
+          </div>
+          {open === r.id && (
+            <div className="vo__palette" role="radiogroup" aria-label={`${r.label} 색`}>
+              {ORG_COLORS.map((c) => (
+                <button key={c || 'none'} role="radio" aria-checked={(r.color || '') === c} aria-label={c || '색상 없음'} className={(r.color || '') === c ? 'is-selected' : ''} style={{ background: c || 'transparent' }}
+                  onClick={() => { void run(update(table, r.id, { color: c || null })); setOpen(undefined) }}>{c ? '' : '∅'}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   )
 }
 

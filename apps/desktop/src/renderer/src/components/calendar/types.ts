@@ -8,6 +8,8 @@ export type Change = { id: string; start_at: string | null; due_at: string | nul
 export interface CalHandlers {
   selection: string[]
   pending?: Draft
+  /** 06 §14.2 항목 아이콘 표시(옵션 토글 또는 ⌥ 누르는 동안) */
+  showIcons?: boolean
   colorOf: (it: CalItem) => string
   itemsById: (ids: string[]) => CalItem[]
   onSelect: (id: string, toggle: boolean) => void

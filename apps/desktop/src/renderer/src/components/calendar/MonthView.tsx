@@ -3,6 +3,7 @@ import { addDays, datePart, daysBetween } from '@sprout/schema/time'
 import { packBars, type CalItem, type ItemStyle } from '../../lib/calendar'
 import { Item } from './TimeGrid'
 import type { CalHandlers, Rect } from './types'
+import { popoverOpen, quickCreateOpen } from './dismiss'
 
 // 06 §5 월 보기(실측 research 17): 필요한 주만큼 · 칸 날짜 · 막대 · "+N" · 여러 날 막대 · 오늘 칸 칠
 const LANE = 19 // 막대 16 + 간격 3
@@ -50,6 +51,7 @@ export function MonthView(p: Props) {
   }
   const start = (e: RPointerEvent, d: Drag) => {
     if (e.button !== 0) return
+    if (d.kind === 'create' ? popoverOpen() : quickCreateOpen()) return // 06 §14.2: 떠 있는 팝오버만 닫는다
     e.preventDefault()
     dragRef.current = d
     setDrag(d)

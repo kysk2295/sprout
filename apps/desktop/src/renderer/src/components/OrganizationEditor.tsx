@@ -10,8 +10,9 @@ import { MenuItem, Popover } from './Popover'
 import { saveOrganization, type FolderRow, type OrganizationItem, type OrganizationKind } from '../data/organization'
 import { joinEmoji, splitEmoji } from '../../../shared/emoji'
 import './EmojiPicker.css'
+import { ORG_COLORS } from '../lib/orgColors'
 
-const COLORS = ['', '#ff6467', '#ffb74d', '#ffd54f', '#d4e157', '#4ade80', '#60a5fa', '#818cf8', '#c084fc']
+const COLORS = ORG_COLORS
 const SMART: [string, string][] = [['all', '모든 작업'], ['none', '표시하지 않음']]
 
 /** 메뉴 팝오버 드롭다운 */

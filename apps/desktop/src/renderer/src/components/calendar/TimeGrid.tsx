@@ -5,6 +5,7 @@ import { hourLabel, isBarItem, layoutDay, minutesOfDay, packBars, shortRange, ty
 import { timeSelection } from '../../lib/calendarSelection'
 import { extOf } from '../../lib/calendarExt'
 import type { CalHandlers } from './types'
+import { popoverOpen, quickCreateOpen } from './dismiss'
 
 // 06 §4 주 보기 · 일 보기 (실측 research 17): 요일 줄 · 날짜 숫자 줄 · 종일 영역 · 시간 눈금 · 블록 · 현재 시각
 const GUTTER = 55
@@ -89,6 +90,7 @@ export function TimeGrid(p: Props) {
   const edgeTimer = useRef<number>(undefined)
   const start = (e: RPointerEvent, d: Drag) => {
     if (e.button !== 0) return
+    if (d.kind === 'create-time' || d.kind === 'create-allday' ? popoverOpen() : quickCreateOpen()) { e.stopPropagation(); return } // 06 §14.2
     e.preventDefault()
     e.stopPropagation()
     dragRef.current = d
@@ -330,9 +332,11 @@ export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandl
   const past = (item.end.includes('T') ? item.end : `${item.end}T23:59`) < nowF
   const hasRange = item.start !== item.end
   const timeText = item.start.includes('T') ? shortRange(item.start, item.end, hasRange && datePart(item.start) === datePart(item.end)) : ''
-  const detailed = p.itemStyle === 'detailed' && !ext
+  // 06 §14.2 항목 아이콘: 태스크 = 체크박스, 구독 일정 = 캘린더 아이콘("상세한" 스타일·토글·⌥ 누르는 동안)
+  const icons = p.itemStyle === 'detailed' || !!p.showIcons
+  const detailed = icons && !ext
   const editable = !item.virtual && !ext
-  const cls = ['cal-item', `is-${kind}`, done && 'is-done', (past || item.virtual || ext?.stale) && 'is-past', item.virtual && 'is-virtual', ext && 'is-ext', p.selection.includes(t.id) && 'is-selected', contLeft && 'cont-left', contRight && 'cont-right']
+  const cls = ['cal-item', `is-${kind}`, done && 'is-done', !done && (past || item.virtual || ext?.stale) && 'is-past', item.virtual && 'is-virtual', ext && 'is-ext', p.selection.includes(t.id) && 'is-selected', contLeft && 'cont-left', contRight && 'cont-right']
   const extDown = (e: RPointerEvent) => { e.stopPropagation(); if (e.button !== 0) return; e.preventDefault() }
   return (
     <div
@@ -350,6 +354,7 @@ export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandl
         {detailed && (
           <button
             className={`cal-item__check${done ? ' is-on' : ''}`}
+            disabled={item.virtual}
             aria-label={done ? '완료 취소' : '완료'}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); if (!item.virtual) p.onToggle(item) }}
@@ -357,7 +362,7 @@ export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandl
             {done && <Check strokeWidth={3} />}
           </button>
         )}
-        {ext ? <CalendarDays className="cal-item__icon" /> : t.repeat_rule && <Repeat className="cal-item__icon" />}
+        {ext ? icons && <CalendarDays className="cal-item__icon" /> : t.repeat_rule && <Repeat className="cal-item__icon" />}
         <span className="cal-item__title">{t.title || '제목 없음'}</span>
         {kind === 'bar' && timeText && <span className="cal-item__time">{timeText.replace(/-.*/, '')}</span>}
       </span>

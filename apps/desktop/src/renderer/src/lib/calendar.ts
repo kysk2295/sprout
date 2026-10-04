@@ -11,10 +11,12 @@ export interface CalOptions {
   style: ItemStyle
   completed: number
   repeats: number
+  /** 06 §14.2 항목 아이콘 표시(태스크 체크박스·구독 일정 아이콘). 저장값이 없으면 켬 */
+  icons: number
   lists: string[]
   tags: string[]
 }
-export const DEFAULT_OPTIONS: CalOptions = { view: 'week', color: 'list', style: 'simple', completed: 1, repeats: 0, lists: [], tags: [] }
+export const DEFAULT_OPTIONS: CalOptions = { view: 'week', color: 'list', style: 'simple', completed: 1, repeats: 0, icons: 1, lists: [], tags: [] }
 
 /** 캘린더에 그리는 한 항목. 반복 미래 회차는 virtual(원래 태스크 id = task.id) */
 export interface CalItem {
@@ -164,13 +166,15 @@ export const minutesOfDay = (f: string) => {
 
 // ── 색(06 §4.2) ──
 const PRIORITY_COLOR = ['#A6A7A9', '#4E75F2', '#EFAB3E', '#C53C31']
+/** 06 §14.2: 색 없는 리스트·태그는 테마 강조색(13개 테마를 따라 바뀐다) */
+export const FALLBACK_COLOR = 'var(--color-accent)'
 export function colorOf(t: TaskRow, by: ColorBy, tagColor: (id: string) => string | null | undefined): string {
   if (by === 'priority') return PRIORITY_COLOR[t.priority] ?? PRIORITY_COLOR[0]
   if (by === 'tag') {
     const first = t.tag_ids?.split(',')[0]
-    return (first && tagColor(first)) || '#4E75F2'
+    return (first && tagColor(first)) || FALLBACK_COLOR
   }
-  return t.list_color || '#4E75F2'
+  return t.list_color || FALLBACK_COLOR
 }
 
 // ── 시간 표기(06 §4.1) ──

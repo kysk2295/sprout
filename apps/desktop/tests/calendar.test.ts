@@ -1,6 +1,6 @@
 // 06 캘린더 계산 · 13 AI 비서 서버 경로(대기열 줄·느슨한 JSON) — 2026-10-04 E2E 점검에서 고친 것 포함
 import assert from 'node:assert/strict'
-import { hourLabel, itemsOf, layoutDay, rangeOf, shiftCursor, shortRange, titleOf } from '../src/renderer/src/lib/calendar'
+import { colorOf, DEFAULT_OPTIONS, FALLBACK_COLOR, hourLabel, itemsOf, layoutDay, rangeOf, shiftCursor, shortRange, titleOf } from '../src/renderer/src/lib/calendar'
 import { timeSelection } from '../src/renderer/src/lib/calendarSelection'
 import { scheduledDrop } from '../src/renderer/src/lib/calendarDrop'
 import { parseIntent, readChatStream } from '../src/shared/assistant'
@@ -17,6 +17,20 @@ assert.equal(shiftCursor('week', '2026-10-04', -1), '2026-09-27')
 assert.equal(titleOf('week', '2026-10-03'), '2026년 10월')
 assert.deepEqual([0, 11, 12, 13].map(hourLabel), ['0 AM', '11 AM', '12 PM', '1 PM'])
 assert.equal(shortRange('2026-10-04T11:00', '2026-10-04T12:15', true), '오전 11:00-오후 12:15')
+
+// ── 06 §14.2 (2026-10-05 사용자 피드백): 색 없는 리스트·태그 = 테마 강조색, 항목 아이콘 기본 켬 ──
+{
+  const t = { list_color: null, tag_ids: 'g1', priority: 2 } as unknown as TaskRow
+  assert.equal(colorOf(t, 'list', () => null), FALLBACK_COLOR)
+  assert.equal(FALLBACK_COLOR, 'var(--color-accent)')
+  assert.equal(colorOf({ ...t, list_color: '#ff6467' }, 'list', () => null), '#ff6467')
+  assert.equal(colorOf(t, 'tag', () => '#4ade80'), '#4ade80')
+  assert.equal(colorOf(t, 'tag', () => null), FALLBACK_COLOR)
+  assert.equal(colorOf(t, 'priority', () => null), '#EFAB3E')
+  assert.equal(DEFAULT_OPTIONS.icons, 1)
+  // 저장된 옵션(아이콘 값 없음)과 합치면 켬
+  assert.equal({ ...DEFAULT_OPTIONS, ...{ view: 'month', style: 'simple' } }.icons, 1)
+}
 
 // ── 만들기: 클릭 = 한 시각, 끌기 = 마지막 15분 칸 포함(방향 무관) ──
 assert.deepEqual(timeSelection('2026-10-06', 840, 840), { start_at: null, due_at: '2026-10-06T14:00' })

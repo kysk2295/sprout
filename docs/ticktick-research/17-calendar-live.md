@@ -86,3 +86,12 @@
 | 행 높이 | 40 | 44 |
 - 목록 화면도 이 실측으로 다시 맞출지는 사용자 결정 필요.
 - 실제 앱의 한국어 용어: 받은함 → **기본함**, 기한 지남 → **만료됨**, 집중 기록 → **전념 기록**, D-day → **디데이**.
+
+## 12. 색·완료 표시·항목 아이콘 — 공식 도움말 보강 (2026-10-05)
+사용자 피드백(월 보기에서 완료/미완료가 똑같아 보임, 막대가 전부 같은 색)으로 공식 도움말을 다시 확인했다.
+- **색은 리스트 색에서 온다. 리스트에 색이 없으면 색이 없다.** FAQ "Why do my tasks not have colors on the calendar view?" → "The colour that tasks are displayed on the calendar view is determined by the list they belong to. Please remember to set different colours for different lists." — [FAQ - Calendar](https://help.ticktick.com/articles/7063851189372190720)
+- **옵션 보기 › 색상에서 리스트·태그별 색을 바로 고친다.** "Tasks can be colored by List, Tag, or Priority. When selecting By List or By Tag, you can directly customize colors for each list/tag below. By Priority uses fixed priority colors." — [Calendar View Options](https://help.ticktick.com/articles/7055782085826445312) (2026-09-11 수정본)
+- **항목 아이콘 표시(Show Item Icons):** "In Style, toggle Show Item Icons to choose whether icons for tasks, subscribed calendars, habits, countdowns, and other items are shown." 데스크톱은 아이콘을 꺼도 "hold the Alt key (or Option on Mac) to temporarily display them. This helps you quickly distinguish different item types and complete tasks with a single click." — 같은 문서. 즉 **태스크와 구독 일정의 구분 = 종류 아이콘**(태스크 = 체크박스, 구독 일정 = 캘린더 아이콘), 색은 각각 리스트 색·캘린더 색.
+- "Show Completed"는 완료한 태스크·습관·**구독 일정**을 함께 보이고 숨긴다 — 같은 문서.
+- 2026 도움말의 스타일 이름은 Modern / Classic(우리 실측 한국어 앱은 간결한 / 상세한, §1). 아이콘 기본값(켬/끔)은 도움말에 없다 → [미확인].
+- 빠른 만들기 팝오버를 연 채 다른 빈 칸·바깥을 누를 때의 동작은 도움말에 없다. 06 §7.1 실측("제목을 쓴 채 바깥 클릭 = 저장, Esc = 취소")과 사용자 보고("다시 누르면 틱틱처럼 닫혀야 한다")를 따른다.
