@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createLocalJWKSet, decodeProtectedHeader, exportJWK, exportPKCS8, generateKeyPair, jwtVerify, SignJWT } from 'jose'
 import {
-  appleClientSecret, appleReturnPage, exchangeAppleCode, HandoffStore, memoryIdentityStore, parseAppleCallback, resolveSocialUser,
+  appleClientSecret, appleReturnPage, exchangeAppleCode, HandoffStore, memoryIdentityStore, NONCELESS_MAX_AGE_SEC, parseAppleCallback, ReplayGuard, resolveSocialUser,
   socialConfigFromEnv, SocialError, verifyAppleIdToken, verifyGoogleIdToken
 } from './social.ts'
 
@@ -20,7 +20,7 @@ const gopts = { clientIds: [G, 'other-client'], keys }
 const gtok = await sign({ email: 'Me@Gmail.com', email_verified: true, nonce: 'n-1' }, { iss: 'https://accounts.google.com', aud: G })
 const g = await verifyGoogleIdToken(gtok, { ...gopts, nonce: 'n-1' })
 assert.deepEqual(g, { provider: 'google', subject: 'sub-1', email: 'me@gmail.com', emailVerified: true, privateRelay: false })
-assert.equal((await verifyGoogleIdToken(await sign({ email: 'a@b.co', email_verified: true }, { iss: 'accounts.google.com', aud: G }), gopts)).email, 'a@b.co') // iss 두 형태
+assert.equal((await verifyGoogleIdToken(await sign({ email: 'a@b.co', email_verified: true, nonce: 'n-1' }, { iss: 'accounts.google.com', aud: G }), { ...gopts, nonce: 'n-1' })).email, 'a@b.co') // iss 두 형태
 await rejects401(verifyGoogleIdToken(gtok, { ...gopts, nonce: 'n-2' })) // nonce 다름
 await rejects401(verifyGoogleIdToken(await sign({}, { iss: 'https://accounts.google.com', aud: 'someone-else' }), gopts)) // 다른 앱의 토큰
 await rejects401(verifyGoogleIdToken(await sign({}, { iss: 'https://evil.example', aud: G }), gopts))
@@ -29,7 +29,40 @@ await rejects401(verifyGoogleIdToken(await sign({}, { iss: 'https://accounts.goo
 await rejects401(verifyGoogleIdToken('not-a-jwt', gopts))
 await rejects401(verifyGoogleIdToken(42, gopts))
 await assert.rejects(verifyGoogleIdToken(gtok, { clientIds: [], keys }), (e: any) => e.status === 503) // 설정 없음
-assert.equal((await verifyGoogleIdToken(await sign({ email: 'x@y.co', email_verified: false }, { iss: 'https://accounts.google.com', aud: G }), gopts)).emailVerified, false)
+assert.equal((await verifyGoogleIdToken(await sign({ email: 'x@y.co', email_verified: false, nonce: 'n' }, { iss: 'https://accounts.google.com', aud: G }), { ...gopts, nonce: 'n' })).emailVerified, false)
+
+// 모바일(20 §4.3): 기기 구글 로그인은 nonce를 넣지 못한다 → azp(iOS·Android 클라이언트) ≠ aud(웹 클라이언트) · 10분 안 · 한 번만
+{
+  const W = 'web-1.apps.googleusercontent.com'
+  const mopts = { clientIds: [G, W], keys }
+  const now = Math.floor(Date.now() / 1000)
+  const mob = (claims: Record<string, unknown> = {}) => sign({ email: 'm@gmail.com', email_verified: true, azp: 'ios-1.apps.googleusercontent.com', ...claims }, { iss: 'https://accounts.google.com', aud: W })
+  const replay = new ReplayGuard()
+  const t1 = await mob()
+  assert.equal((await verifyGoogleIdToken(t1, { ...mopts, replay })).email, 'm@gmail.com')
+  await rejects401(verifyGoogleIdToken(t1, { ...mopts, replay })) // 같은 토큰 두 번 → 거절(재사용)
+  assert.equal((await verifyGoogleIdToken(await mob({ jti: 'j-1' }), { ...mopts, replay })).subject, 'sub-1')
+  await rejects401(verifyGoogleIdToken(await mob({ jti: 'j-1' }), { ...mopts, replay })) // jti가 같으면 재사용
+  assert.equal((await verifyGoogleIdToken(await mob({ jti: 'j-2' }), { ...mopts, replay, nonce: null })).email, 'm@gmail.com') // nonce: null = 없음
+  // 데스크톱 토큰(azp = aud, nonce 있음)에서 nonce를 빼고 보내면 거절 — nonce 검사를 건너뛸 수 없다
+  await rejects401(verifyGoogleIdToken(gtok, { ...gopts, replay }))
+  await rejects401(verifyGoogleIdToken(await sign({ azp: G }, { iss: 'https://accounts.google.com', aud: G }), { ...gopts, replay }))
+  await rejects401(verifyGoogleIdToken(await sign({}, { iss: 'https://accounts.google.com', aud: W }), { ...mopts, replay })) // azp 없음
+  // 오래된 토큰(발급 10분 넘음) · 미래 발급 → 거절
+  await rejects401(verifyGoogleIdToken(await mob({ jti: 'j-3' }), { ...mopts, replay, nowSec: now + NONCELESS_MAX_AGE_SEC + 5 }))
+  await rejects401(verifyGoogleIdToken(await mob({ jti: 'j-4' }), { ...mopts, replay, nowSec: now - 300 }))
+  // nonce를 보냈으면 모바일 토큰이라도 nonce가 맞아야 한다
+  await rejects401(verifyGoogleIdToken(await mob({ jti: 'j-5' }), { ...mopts, replay, nonce: 'x' }))
+  assert.equal((await verifyGoogleIdToken(await mob({ jti: 'j-6', nonce: 'x' }), { ...mopts, replay, nonce: 'x' })).email, 'm@gmail.com')
+  // 기록은 토큰이 끝나면 지워지고, 가득 차면 가장 오래된 것부터 지운다
+  let clock = 0
+  const g2 = new ReplayGuard(2, () => clock)
+  assert.equal(g2.use('a', 10), true); assert.equal(g2.use('a', 10), false)
+  clock = 11_000; assert.equal(g2.use('a', 20), true)
+  assert.equal(g2.use('b', 20), true); assert.equal(g2.use('c', 20), true)
+  assert.equal(g2.use('b', 20), false); assert.equal(g2.use('a', 20), true)
+}
+
 
 // ── 애플 ──
 const A = 'com.sprout.signin'
@@ -87,10 +120,10 @@ assert.ok(!hs.has('1') && hs.has('4')) // 상한을 넘으면 오래된 것부�
 
 // ── client_secret · 코드 교환 ──
 const ec = await generateKeyPair('ES256', { extractable: true })
-const apple = { servicesId: A, redirectUri: 'https://api.example/auth/apple/callback', teamId: 'Z32F3Z65RD', keyId: 'KEY123', privateKey: await exportPKCS8(ec.privateKey) }
+const apple = { servicesId: A, redirectUri: 'https://api.example/auth/apple/callback', teamId: 'BU697KN34B', keyId: 'KEY123', privateKey: await exportPKCS8(ec.privateKey) }
 const secret = await appleClientSecret(apple)
 assert.equal(decodeProtectedHeader(secret).kid, 'KEY123')
-const { payload } = await jwtVerify(secret, ec.publicKey, { issuer: 'Z32F3Z65RD', audience: 'https://appleid.apple.com', subject: A })
+const { payload } = await jwtVerify(secret, ec.publicKey, { issuer: 'BU697KN34B', audience: 'https://appleid.apple.com', subject: A })
 assert.ok(payload.exp! - payload.iat! <= 300)
 let sent: URLSearchParams | undefined
 const fakeFetch = (async (_url: string, init: any) => { sent = init.body; return new Response(JSON.stringify({ id_token: await sign({}, { iss: 'https://appleid.apple.com', aud: A, sub: '001.apple' }) }), { status: 200 }) }) as unknown as typeof fetch
@@ -102,6 +135,6 @@ await assert.rejects(exchangeAppleCode(apple, 'bad', (async () => new Response('
 // ── 환경 변수 ──
 const cfg = socialConfigFromEnv({ GOOGLE_CLIENT_ID: 'a', GOOGLE_CLIENT_IDS: 'b, a', APPLE_SERVICES_ID: A, APPLE_KEY_ID: 'K', API_PUBLIC_URL: 'https://x.example/' })
 assert.deepEqual(cfg.googleClientIds, ['b', 'a'])
-assert.deepEqual(cfg.apple, { servicesId: A, redirectUri: 'https://x.example/auth/apple/callback', teamId: 'Z32F3Z65RD', keyId: 'K', privateKey: null })
+assert.deepEqual(cfg.apple, { servicesId: A, redirectUri: 'https://x.example/auth/apple/callback', teamId: 'BU697KN34B', keyId: 'K', privateKey: null })
 assert.equal(socialConfigFromEnv({}).apple, null)
 console.log('social: ok')

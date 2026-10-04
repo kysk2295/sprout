@@ -1,6 +1,9 @@
 // 소셜 로그인 (08 §3.1 · PRD §7.2 E): 구글 ID 토큰·애플 ID 토큰 검증 → 계정 찾기·연결·만들기.
 // - 구글: 데스크톱이 시스템 브라우저 + PKCE + 루프백으로 받은 ID 토큰을 POST /auth/google 로 보낸다.
 //   서버는 구글 공개키(JWKS)로 서명·iss·aud(우리 클라이언트 id)·만료·email_verified·nonce를 확인한다.
+//   모바일(20 §4.3)은 기기 구글 로그인(@react-native-google-signin 무료판)이라 nonce를 넣을 수 없다 → nonce 없이 보낸다.
+//   그때만: 토큰이 "네이티브 앱이 우리 서버(웹 클라이언트 id)용으로 받은 것"(azp ≠ aud)이고, 10분 안에 발급됐고, 한 번만 쓸 수 있다.
+//   데스크톱 토큰은 azp = aud라 nonce를 빼고 보내도 통과하지 못한다.
 // - 애플: 웹 흐름(response_mode=form_post)이라 돌아오는 주소가 https여야 한다 → API의 /auth/apple/callback 이 받아
 //   state 별로 잠깐(5분) 맡아 두고 sprout://auth/apple 로 앱을 깨운다. 앱은 POST /auth/apple {state, nonce}로 찾아간다.
 //   토큰은 URL에 싣지 않는다. 애플에는 nonce의 SHA-256만 보내므로, 원래 nonce를 아는 그 앱만 교환할 수 있다.
@@ -42,7 +45,7 @@ export function socialConfigFromEnv(env: Record<string, string | undefined> = pr
   return {
     googleClientIds,
     apple: servicesId
-      ? { servicesId, redirectUri: env.APPLE_REDIRECT_URI?.trim() || `${publicUrl}/auth/apple/callback`, teamId: env.APPLE_TEAM_ID?.trim() || 'Z32F3Z65RD', keyId: env.APPLE_KEY_ID?.trim() ?? '', privateKey }
+      ? { servicesId, redirectUri: env.APPLE_REDIRECT_URI?.trim() || `${publicUrl}/auth/apple/callback`, teamId: env.APPLE_TEAM_ID?.trim() || 'BU697KN34B', keyId: env.APPLE_KEY_ID?.trim() ?? '', privateKey }
       : null
   }
 }
@@ -70,10 +73,46 @@ async function verify(token: unknown, keys: KeySource, issuer: string[], audienc
   }
 }
 
-/** 구글 ID 토큰. nonce를 주면 토큰의 nonce와 같아야 한다 */
-export async function verifyGoogleIdToken(token: unknown, opts: { clientIds: string[]; keys: KeySource; nonce?: unknown }): Promise<VerifiedIdentity> {
+/** 한 번만 쓰는 토큰 기록(메모리). 키 = jti 또는 토큰 해시, 토큰이 끝나는 시각까지 기억한다 */
+export class ReplayGuard {
+  private seen = new Map<string, number>()
+  private max: number
+  private now: () => number
+  constructor(max = 20_000, now = () => Date.now()) { this.max = max; this.now = now }
+  /** 처음이면 기록하고 true, 이미 쓴 것이면 false */
+  use(key: string, expSec: number): boolean {
+    const t = this.now()
+    for (const [k, exp] of this.seen) if (exp * 1000 < t) this.seen.delete(k)
+    if (this.seen.has(key)) return false
+    if (this.seen.size >= this.max) this.seen.delete(this.seen.keys().next().value!)
+    this.seen.set(key, expSec)
+    return true
+  }
+}
+const googleReplay = new ReplayGuard()
+/** nonce 없는(모바일) 구글 토큰이 발급된 지 이만큼 안이어야 한다 */
+export const NONCELESS_MAX_AGE_SEC = 600
+
+/**
+ * 구글 ID 토큰. nonce를 주면 토큰의 nonce와 같아야 한다(데스크톱).
+ * nonce가 없으면(모바일 기기 로그인) azp ≠ aud · 10분 안 발급 · 한 번만 — 셋 다 맞아야 한다.
+ */
+export async function verifyGoogleIdToken(
+  token: unknown,
+  opts: { clientIds: string[]; keys: KeySource; nonce?: unknown; replay?: ReplayGuard; nowSec?: number }
+): Promise<VerifiedIdentity> {
   const p = await verify(token, opts.keys, ['https://accounts.google.com', 'accounts.google.com'], opts.clientIds)
-  if (opts.nonce !== undefined && (typeof opts.nonce !== 'string' || typeof p.nonce !== 'string' || !sameText(p.nonce, opts.nonce))) throw new SocialError('invalid token')
+  if (opts.nonce !== undefined && opts.nonce !== null) {
+    if (typeof opts.nonce !== 'string' || typeof p.nonce !== 'string' || !sameText(p.nonce, opts.nonce)) throw new SocialError('invalid token')
+  } else {
+    const aud = Array.isArray(p.aud) ? (p.aud.length === 1 ? p.aud[0] : undefined) : p.aud
+    const now = opts.nowSec ?? Math.floor(Date.now() / 1000)
+    const crossClient = typeof p.azp === 'string' && !!p.azp && typeof aud === 'string' && p.azp !== aud
+    const fresh = typeof p.iat === 'number' && p.iat <= now + 60 && now - p.iat <= NONCELESS_MAX_AGE_SEC
+    if (!crossClient || !fresh) throw new SocialError('invalid token')
+    const key = typeof p.jti === 'string' && p.jti ? `jti:${p.jti}` : `h:${sha256hex(token as string)}`
+    if (!(opts.replay ?? googleReplay).use(key, typeof p.exp === 'number' ? p.exp : now + 3600)) throw new SocialError('invalid token')
+  }
   const email = typeof p.email === 'string' ? p.email.trim().toLowerCase() : null
   return { provider: 'google', subject: p.sub!, email, emailVerified: truthy(p.email_verified), privateRelay: false }
 }
