@@ -3,7 +3,7 @@
 import { minutesToDuration, parseRule, stringifyRule } from '@sprout/schema/time'
 
 // ── 틱틱 응답 모양(공식 문서 정의 + 문서에 없지만 오면 쓰는 칸은 ?) ──
-export interface TTChecklistItem { id: string; title?: string; status?: number; completedTime?: string; isAllDay?: boolean; sortOrder?: number; startDate?: string; timeZone?: string }
+export interface TTChecklistItem { id: string; title?: string; status?: number; completedTime?: string | number; isAllDay?: boolean; sortOrder?: number; startDate?: string; timeZone?: string }
 export interface TTTask {
   id: string
   projectId?: string
@@ -19,7 +19,7 @@ export interface TTTask {
   repeatFrom?: string
   priority?: number
   status?: number
-  completedTime?: string
+  completedTime?: string | number
   sortOrder?: number
   items?: TTChecklistItem[]
   tags?: string[]
@@ -143,9 +143,12 @@ export const ttId = (scope: string, kind: 'list' | 'folder' | 'section' | 'tag' 
 export const isInboxProject = (projectId: string | undefined) => !projectId || projectId === 'inbox' || /^inbox\d*$/.test(projectId)
 
 // ── 시각 ──
-/** 틱틱 시각 문자열 → Date. `2019-11-13T03:00:00+0000`, `…00.000+0000`, `…Z` 모두 */
-export function parseTT(s: string | undefined | null): Date | null {
-  if (!s) return null
+/** 틱틱 시각 → Date. `2019-11-13T03:00:00+0000`, `…00.000+0000`, `…Z` 모두.
+ *  실제 응답에서 체크 항목 completedTime은 숫자(밀리초)로 온다(문서와 다름, 2026-10-05 실데이터) → 숫자도 받는다 */
+export function parseTT(s: string | number | undefined | null): Date | null {
+  if (s === undefined || s === null || s === '') return null
+  if (typeof s === 'number') { const d = new Date(s); return Number.isFinite(s) && !Number.isNaN(d.getTime()) ? d : null }
+  if (typeof s !== 'string') return null
   const m = s.trim().match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}(?::\d{2})?)(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/)
   if (!m) return null
   const zone = !m[4] || m[4] === 'Z' ? 'Z' : m[4].includes(':') ? m[4] : `${m[4].slice(0, 3)}:${m[4].slice(3)}`

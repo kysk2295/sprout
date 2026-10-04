@@ -19,6 +19,8 @@ Object.assign(globalThis,{localStorage:{getItem:(k:string)=>store.get(k)??null,s
 // ── 작은 함수들 ──
 assert.equal(parseTT('2019-11-13T03:00:00+0000')?.toISOString(), '2019-11-13T03:00:00.000Z')
 assert.equal(parseTT('2026-03-04T23:58:20.000+0000')?.toISOString(), '2026-03-04T23:58:20.000Z')
+assert.equal(parseTT(1759622400000)?.toISOString(), '2025-10-05T00:00:00.000Z', '실데이터: 체크 항목 completedTime은 밀리초 숫자')
+assert.equal(parseTT({} as never), null)
 assert.equal(parseTT('2026-10-05T09:00:00+09:00')?.toISOString(), '2026-10-05T00:00:00.000Z')
 assert.equal(parseTT('2026-10-05T00:00:00Z')?.toISOString(), '2026-10-05T00:00:00.000Z')
 assert.equal(parseTT('garbage'), null)
