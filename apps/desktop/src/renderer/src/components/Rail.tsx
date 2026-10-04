@@ -1,8 +1,8 @@
-import { Bell, CalendarDays, CircleCheckBig, CircleHelp, RefreshCw, Search, Sprout } from 'lucide-react'
+import { Bell, CalendarDays, CircleCheckBig, CircleHelp, RefreshCw, Search, Sprout, NotebookPen, Bot, Network, BookOpen, Gauge } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { authApi, type AuthState } from '../data/auth'
 
-export type RailView = 'tasks' | 'calendar' | 'growth'
+export type RailView = 'tasks' | 'calendar' | 'growth' | 'notes' | 'assistant' | 'map' | 'wiki' | 'usage'
 
 // 01-app-shell §3: 아바타 · 태스크 · 캘린더 · 성장 · 검색 / 동기화 · 알림 · 도움말
 export function Rail({ view, onView, onSearch, onSettings, onHelp, sync, email }: { view: RailView; onView: (v: RailView) => void; onSearch: () => void; onSettings: () => void; onHelp: () => void; sync?: AuthState['sync']; email?: string }) {
@@ -18,6 +18,11 @@ export function Rail({ view, onView, onSearch, onSettings, onHelp, sync, email }
       <RailButton label="태스크" active={view === 'tasks'} onClick={() => onView('tasks')} icon={<CircleCheckBig />} />
       <RailButton label="캘린더" active={view === 'calendar'} onClick={() => onView('calendar')} icon={<CalendarDays />} />
       <RailButton label="성장" active={view === 'growth'} onClick={() => onView('growth')} icon={<Sprout />} />
+      <RailButton label="AI 비서" active={view === 'assistant'} onClick={() => onView('assistant')} icon={<Bot />} />
+      <RailButton label="메모함" active={view === 'notes'} onClick={() => onView('notes')} icon={<NotebookPen />} />
+      <RailButton label="작업 지도" active={view === 'map'} onClick={() => onView('map')} icon={<Network />} />
+      <RailButton label="주제 위키" active={view === 'wiki'} onClick={() => onView('wiki')} icon={<BookOpen />} />
+      <RailButton label="AI 사용량" active={view === 'usage'} onClick={() => onView('usage')} icon={<Gauge />} />
       <RailButton label="검색" onClick={onSearch} icon={<Search />} />
       <div className="rail__spacer" />
       <RailButton label={syncLabel} className={`rail__sync${busy ? ' is-busy' : ''}${problem ? ' has-problem' : ''}`} onClick={() => void authApi()?.syncNow()} icon={<RefreshCw />} />
@@ -29,7 +34,7 @@ export function Rail({ view, onView, onSearch, onSettings, onHelp, sync, email }
 
 function RailButton({ label, icon, active, onClick, className }: { label: string; icon: ReactNode; active?: boolean; onClick?: () => void; className?: string }) {
   return (
-    <button className={`rail__btn${active ? ' is-active' : ''}${className ? ` ${className}` : ''}`} onClick={onClick} aria-label={label} data-tooltip={label}>
+    <button className={`rail__btn${active ? ' is-active' : ''}${className ? ` ${className}` : ''}`} onClick={onClick} aria-label={label} aria-current={active ? 'page' : undefined} data-tooltip={label}>
       {icon}
     </button>
   )

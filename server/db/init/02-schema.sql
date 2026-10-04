@@ -1,4 +1,14 @@
 -- 자동 생성: npm run server:schema (원본 packages/schema/src/index.ts). 직접 고치지 않는다.
+CREATE TABLE IF NOT EXISTS notes (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  content text,
+  task_id text
+);
+CREATE INDEX IF NOT EXISTS notes_owner_idx ON notes (owner_id);
+
 CREATE TABLE IF NOT EXISTS folders (
   id text PRIMARY KEY,
   owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -161,4 +171,4 @@ CREATE INDEX IF NOT EXISTS user_prefs_owner_idx ON user_prefs (owner_id);
 
 -- PowerSync는 이 publication으로 변경분을 읽는다
 DROP PUBLICATION IF EXISTS powersync;
-CREATE PUBLICATION powersync FOR TABLE folders, lists, tags, filters, sections, tasks, check_items, task_tags, reminders, view_settings, user_prefs;
+CREATE PUBLICATION powersync FOR TABLE notes, folders, lists, tags, filters, sections, tasks, check_items, task_tags, reminders, view_settings, user_prefs;

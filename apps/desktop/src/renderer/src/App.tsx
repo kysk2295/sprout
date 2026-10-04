@@ -1,3 +1,5 @@
+import { WorkspaceView, AssistantLauncher } from './components/WorkspaceViews'
+import { NotesView } from './components/NotesView'
 import { useEffect, useRef, useState } from 'react'
 import '@sprout/tokens/tokens.css'
 import './styles/app.css'
@@ -58,6 +60,7 @@ function ThemedMini({ signedIn }: { signedIn: boolean }) {
 }
 
 function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
+  const [assistantDraft,setAssistantDraft] = useLocalState('sprout.assistant.draft','')
   const [view, setView] = useLocalState<RailView>('sprout.view', 'tasks')
   const [selected, setSelected] = useLocalState('sprout.selected', 'smart:today')
   const [selection, setSelection] = useState<string[]>([])
@@ -174,13 +177,14 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   toggleRef.current = toggleSidebar
   return (
       <div className="app">
+        <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft}/>
         <ReminderCards onOpen={(id) => setSelection([id])} onComplete={(id) => void actions.complete([id])} />
         <Rail view={view} onView={setView} sync={sync} email={email} onSearch={()=>{setSearchQuery('');setOverlay('search')}} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} />
         {overlay==='command' && <CommandMenu commands={commands} onClose={()=>setOverlay(undefined)} onSearch={(q)=>{setSearchQuery(q);setOverlay('search')}}/>}
         {overlay==='search' && <SearchDialog initial={searchQuery} onClose={()=>setOverlay(undefined)} onPick={(r)=>{setView('tasks');if(r.kind==='task'){setSelected(r.list_id?`list:${r.list_id}`:'smart:all');setSelection([r.id])}else selectView(`${r.kind}:${r.id}`)}}/>}
         {overlay==='quick' && <QuickAdd lists={lists} tags={tags} inboxId={inboxId} onClose={()=>setOverlay(undefined)} onCreated={(id,listId)=>{setView('tasks');setSelected(`list:${listId}`);setSelection([id])}}/>}
         {(overlay==='settings'||overlay==='shortcuts') && <DesktopSettings initial={overlay==='shortcuts'?'shortcuts':'smart'} onClose={()=>setOverlay(undefined)}/> }
-        {view === 'calendar' ? (
+        {['assistant','map','wiki','usage','growth'].includes(view) ? <WorkspaceView view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft}/> : view === 'notes' ? <NotesView lists={lists} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : view === 'calendar' ? (
           <CalendarView lists={lists} tags={tags} inboxId={inboxId} actions={actions} />
         ) : (
           <>

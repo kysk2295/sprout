@@ -1,3 +1,4 @@
+import { saveNote, convertNote } from '../src/renderer/src/data/notes'
 import { timeSelection } from '../src/renderer/src/lib/calendarSelection'
 import { createCalendarTask } from '../src/renderer/src/data/calendarCreate'
 import assert from 'node:assert/strict'
@@ -70,5 +71,19 @@ db.run("CREATE TRIGGER reject_reminder BEFORE INSERT ON reminders BEGIN SELECT R
 await assert.rejects(()=>createCalendarTask('Must rollback',inbox,0,span),/test failure/)
 assert.equal(all("SELECT id FROM tasks WHERE title='Must rollback'").length,0)
 db.run('DROP TRIGGER reject_reminder')
+await assert.rejects(()=>saveNote('  '),/입력/)
+const memo=await saveNote('100%_ 메모\nhttps://example.com')
+await saveNote('수정된 메모\n원문 설명',memo)
+const converted=await convertNote(memo,{title:'메모에서 생성',listId:inbox,due:'2026-10-08T16:00',start:'2026-10-08T15:00'})
+assert.equal(all('SELECT content FROM tasks WHERE id=?',[converted])[0].content,'수정된 메모\n원문 설명')
+assert.equal(all('SELECT task_id FROM notes WHERE id=?',[memo])[0].task_id,converted)
+assert.equal(await convertNote(memo,{title:'중복',listId:inbox}),converted)
+assert.equal(all('SELECT id FROM tasks WHERE id=?',[converted]).length,1)
+const invalidNote=await saveNote('잘못된 기간')
+await assert.rejects(()=>convertNote(invalidNote,{title:'오류',listId:inbox,start:'2026-10-08T17:00',due:'2026-10-08T16:00'}),/종료/)
+db.run("CREATE TRIGGER reject_note_link BEFORE UPDATE OF task_id ON notes BEGIN SELECT RAISE(ABORT, 'note failure'); END")
+await assert.rejects(()=>convertNote(invalidNote,{title:'롤백',listId:inbox}),/note failure/)
+assert.equal(all('SELECT id FROM tasks WHERE id=?',['note-'+invalidNote]).length,0)
+db.run('DROP TRIGGER reject_note_link')
 db.close()
 console.log('desktop data and filter assertions passed')

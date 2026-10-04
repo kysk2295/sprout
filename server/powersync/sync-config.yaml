@@ -7,6 +7,7 @@ streams:
   user_data:
     auto_subscribe: true
     queries:
+      - SELECT * FROM notes WHERE owner_id = auth.user_id()
       - SELECT * FROM folders WHERE owner_id = auth.user_id()
       - SELECT * FROM lists WHERE owner_id = auth.user_id()
       - SELECT * FROM tags WHERE owner_id = auth.user_id()
