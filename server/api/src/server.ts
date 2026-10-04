@@ -3,13 +3,16 @@
 //   POST /auth/login   {email, password}      → 같음
 //   POST /auth/refresh {refresh_token}        → 새 토큰 한 쌍(리프레시 토큰은 매번 바뀐다)
 //   POST /auth/logout  {refresh_token}        → 그 세션 삭제
-//   GET  /auth/me      (Bearer)               → {user, has_data, has_password, providers}
+//   GET  /auth/me      (Bearer)               → {user, has_data, has_password, providers, identities:[{provider, email(가림)}]}
 //   DELETE /auth/account (Bearer) {password?} → 계정 삭제(다시 확인: 비밀번호 또는 10분 안에 로그인한 토큰) — account.ts
 //   로그인·가입·리프레시·구글·애플은 시도 제한(ratelimit.ts) → 429 + Retry-After
 //   GET  /auth/providers                      → 소셜 로그인 설정 여부 {google, apple:{services_id, redirect_uri}|null}
 //   POST /auth/google  {id_token, nonce}      → 같은 토큰 응답 + created (social.ts)
 //   POST /auth/apple/callback (애플 form_post) → state별로 5분 맡기고 sprout://auth/apple 로 돌려보냄
 //   POST /auth/apple   {state, nonce}         → 202 {pending} 또는 토큰 응답 + created
+//   POST /auth/link/google (Bearer) {id_token, nonce} · POST /auth/link/apple (Bearer) {state, nonce}
+//                                             → 로그인한 계정에 연결 {linked, identities:[{provider, email(가림)}]} (link.ts, 08 §3.1.1)
+//   DELETE /auth/link/google · /auth/link/apple (Bearer) → 연결 해제(로그인할 길이 없어지면 409)
 //   GET  /.well-known/jwks.json               → PowerSync가 토큰을 검증할 공개키
 //   POST /sync/upload  (Bearer) {batch}       → 기기 변경분을 한 트랜잭션으로 적용
 //   GET  /health
@@ -27,6 +30,7 @@ import {
   APPLE_JWKS_URL, exchangeAppleCode, GOOGLE_JWKS_URL, HandoffStore, appleReturnPage, parseAppleCallback, pgIdentityStore, remoteJwks,
   resolveSocialUser, socialConfigFromEnv, SocialError, STATE_RE, verifyAppleIdToken, verifyGoogleIdToken
 } from './social.ts'
+import { linkedView, linkIdentity, parseProvider, pgLinkStore, unlinkProvider } from './link.ts'
 import { aiConfigFromEnv, createAi, pgUsageStore } from './ai.ts'
 import { backendFromEnv } from './ai-backend.ts'
 import { TABLES } from '../../../packages/schema/src/index.ts'
@@ -101,6 +105,46 @@ const identities = pgIdentityStore((sql, params) => pool.query(sql, params))
 const googleKeys = remoteJwks(GOOGLE_JWKS_URL)
 const appleKeys = remoteJwks(APPLE_JWKS_URL)
 const appleHandoff = new HandoffStore()
+/** 애플 맡김 칸에서 state + 원래 nonce로 꺼내 검증한다. 아직 안 왔으면 null(202) — 로그인·연결 공용 */
+function appleVerify(req: IncomingMessage, state: unknown, nonce: unknown, extra: [string, Rule][] = []) {
+  if (!social.apple) throw new SocialError('provider not configured', 503)
+  if (typeof state !== 'string' || !STATE_RE.test(state)) throw new UploadError('bad request')
+  if (!appleHandoff.has(state)) return null
+  const apple = social.apple
+  return (then: (v: Awaited<ReturnType<typeof verifyAppleIdToken>>) => Promise<unknown>) => counted([[`social:ip:${ipOf(req)}`, limits.socialIp], ...extra], async () => {
+    const got = appleHandoff.take(state)!
+    if (got.error) throw new SocialError(got.error === 'cancelled' ? 'cancelled' : 'apple error', 400)
+    const verified = await verifyAppleIdToken(got.idToken, { servicesId: apple.servicesId, keys: appleKeys, rawNonce: nonce })
+    // .p8 키가 있으면 인가 코드를 애플에 한 번 더 확인한다(같은 사용자인지)
+    if (apple.privateKey && apple.keyId && got.code) {
+      const sub = await exchangeAppleCode({ ...apple, privateKey: apple.privateKey }, got.code)
+      if (sub !== verified.subject) throw new SocialError('invalid token')
+    }
+    return [200, await then(verified)] as [number, unknown]
+  })
+}
+async function withTx<T>(fn: (q: (sql: string, params?: unknown[]) => Promise<any>) => Promise<T>): Promise<T> {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const out = await fn((sql, params) => client.query(sql, params))
+    await client.query('COMMIT')
+    return out
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+// 08 §3.1.1 로그인 방법 연결: 로그인한 계정에 구글·애플 식별자를 붙인다(이메일이 달라도). 시도 제한은 소셜 로그인과 같은 IP 칸 + 사용자 칸
+const links = pgLinkStore((sql, params) => pool.query(sql, params), withTx)
+const linkKeys = (req: IncomingMessage, userId: string): [string, Rule][] => [[`social:ip:${ipOf(req)}`, limits.socialIp], [`link:user:${userId}`, limits.socialIp]]
+async function unlinkRoute(req: IncomingMessage, provider: string): Promise<[number, unknown]> {
+  const userId = await userFrom(req)
+  return counted([[`link:user:${userId}`, limits.socialIp]], async () => [200, await unlinkProvider(links, userId, parseProvider(provider))] as [number, unknown])
+}
+
 async function socialSignIn(verified: Awaited<ReturnType<typeof verifyGoogleIdToken>>) {
   const r = await resolveSocialUser(identities, verified)
   if (r.linked) console.log(`[social] ${verified.provider} 식별자를 기존 계정에 연결`)
@@ -171,23 +215,28 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
 
   // 앱이 state + 원래 nonce로 찾아간다. 아직 안 왔으면 202(앱이 2초마다 다시 묻는다 — 시도 제한에 세지 않음)
   'POST /auth/apple': async (req) => {
-    if (!social.apple) throw new SocialError('provider not configured', 503)
     const { state, nonce } = await readJson(req, 10_000)
-    if (typeof state !== 'string' || !STATE_RE.test(state)) throw new UploadError('bad request')
-    if (!appleHandoff.has(state)) return [202, { pending: true }]
-    const apple = social.apple
-    return counted([[`social:ip:${ipOf(req)}`, limits.socialIp]], async () => {
-      const got = appleHandoff.take(state)!
-      if (got.error) throw new SocialError(got.error === 'cancelled' ? 'cancelled' : 'apple error', 400)
-      const verified = await verifyAppleIdToken(got.idToken, { servicesId: apple.servicesId, keys: appleKeys, rawNonce: nonce })
-      // .p8 키가 있으면 인가 코드를 애플에 한 번 더 확인한다(같은 사용자인지)
-      if (apple.privateKey && apple.keyId && got.code) {
-        const sub = await exchangeAppleCode({ ...apple, privateKey: apple.privateKey }, got.code)
-        if (sub !== verified.subject) throw new SocialError('invalid token')
-      }
-      return [200, await socialSignIn(verified)] as [number, unknown]
+    const run = appleVerify(req, state, nonce)
+    return run ? run(socialSignIn) : [202, { pending: true }]
+  },
+
+  // 08 §3.1.1 로그인 방법 연결 — 로그인하지 않고, 지금 계정에 식별자만 붙인다
+  'POST /auth/link/google': async (req) => {
+    const userId = await userFrom(req)
+    return counted(linkKeys(req, userId), async () => {
+      const { id_token, nonce } = await readJson(req, 20_000)
+      const verified = await verifyGoogleIdToken(id_token, { clientIds: social.googleClientIds, keys: googleKeys, nonce })
+      return [200, await linkIdentity(links, userId, verified)] as [number, unknown]
     })
   },
+  'POST /auth/link/apple': async (req) => {
+    const userId = await userFrom(req)
+    const { state, nonce } = await readJson(req, 10_000)
+    const run = appleVerify(req, state, nonce, [[`link:user:${userId}`, limits.socialIp]])
+    return run ? run((v) => linkIdentity(links, userId, v)) : [202, { pending: true }]
+  },
+  'DELETE /auth/link/google': (req) => unlinkRoute(req, 'google'),
+  'DELETE /auth/link/apple': (req) => unlinkRoute(req, 'apple'),
 
   'POST /auth/refresh': async (req) => counted([[`refresh:ip:${ipOf(req)}`, limits.refreshIp]], async () => {
     const { refresh_token } = await readJson(req, 10_000)
@@ -213,9 +262,11 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
     // 서버에 이 사용자의 데이터가 이미 있으면, 새 기기는 로컬 시드를 지우고 내려받는다
     const d = await pool.query('SELECT EXISTS (SELECT 1 FROM lists WHERE owner_id = $1) AS has', [userId])
     // has_password·providers: 계정 삭제 화면이 비밀번호를 물을지, 구글·애플로 다시 로그인하게 할지 고른다(08 §7.1)
-    const p = await pool.query('SELECT DISTINCT provider FROM user_identities WHERE user_id = $1 ORDER BY provider', [userId])
+    // identities: 설정 › 계정 › 로그인 방법(08 §3.1.1) — 공급자와 가린 이메일
+    const p = await pool.query('SELECT provider, subject, email FROM user_identities WHERE user_id = $1 ORDER BY created_at', [userId])
     const { has_password, ...user } = u.rows[0]
-    return [200, { user, has_data: d.rows[0].has, has_password, providers: p.rows.map((x) => x.provider) }]
+    const providers = [...new Set(p.rows.map((x) => x.provider as string))].sort()
+    return [200, { user, has_data: d.rows[0].has, has_password, providers, identities: linkedView(p.rows) }]
   },
 
   // 08 §7.1 계정 삭제: 다시 확인(비밀번호 / 10분 안의 구글·애플 로그인) → 한 트랜잭션으로 삭제
@@ -227,23 +278,7 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
     const { password } = await readJson(req, 10_000)
     const key: [string, Rule] = [`delete:user:${claims.sub}`, limits.deleteUser]
     enforce(limiter, [key], '계정 삭제 확인')
-    await deleteAccount({
-      query: (sql, params) => pool.query(sql, params),
-      transaction: async (fn) => {
-        const client = await pool.connect()
-        try {
-          await client.query('BEGIN')
-          const out = await fn((sql, params) => client.query(sql, params))
-          await client.query('COMMIT')
-          return out
-        } catch (e) {
-          await client.query('ROLLBACK')
-          throw e
-        } finally {
-          client.release()
-        }
-      }
-    }, { userId: claims.sub, authTime: claims.authTime, password }, () => limiter.hit(...key))
+    await deleteAccount({ query: (sql, params) => pool.query(sql, params), transaction: withTx }, { userId: claims.sub, authTime: claims.authTime, password }, () => limiter.hit(...key))
     limiter.reset(key[0])
     return [200, { ok: true }]
   },
