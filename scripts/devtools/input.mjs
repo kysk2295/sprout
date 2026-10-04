@@ -1,6 +1,6 @@
 // 사용: node input.mjs click x y | rclick x y | key Escape | type 텍스트 | move x y
 const [cmd, a, b] = process.argv.slice(2)
-const targets = await (await fetch('http://127.0.0.1:9229/json')).json()
+const targets = await (await fetch(`http://127.0.0.1:${process.env.CDP_PORT ?? 9229}/json`)).json()
 const page = process.env.TARGET ? targets.find((t) => t.type === 'page' && t.url.includes(process.env.TARGET)) : (targets.find((t) => t.type === 'page' && !t.url.includes('window=')) ?? targets.find((t) => t.type === 'page'))
 const ws = new WebSocket(page.webSocketDebuggerUrl)
 await new Promise((r) => ws.addEventListener('open', r))

@@ -1,6 +1,6 @@
 // 사용: node shot.mjs out.png — Electron 렌더러 화면을 캡처
 import { writeFileSync } from 'node:fs'
-const targets = await (await fetch('http://127.0.0.1:9229/json')).json()
+const targets = await (await fetch(`http://127.0.0.1:${process.env.CDP_PORT ?? 9229}/json`)).json()
 const page = process.env.TARGET ? targets.find((t) => t.type === 'page' && t.url.includes(process.env.TARGET)) : (targets.find((t) => t.type === 'page' && !t.url.includes('window=')) ?? targets.find((t) => t.type === 'page'))
 const ws = new WebSocket(page.webSocketDebuggerUrl)
 await new Promise((r) => ws.addEventListener('open', r))

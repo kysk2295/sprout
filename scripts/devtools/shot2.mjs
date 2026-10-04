@@ -1,7 +1,7 @@
 // 사용: node shot2.mjs out.png [w h] — 뷰포트를 w×h로 맞추고 캡처
 import { writeFileSync } from 'node:fs'
 const [out, w = 1378, h = 884] = process.argv.slice(2)
-const targets = await (await fetch('http://127.0.0.1:9229/json')).json()
+const targets = await (await fetch(`http://127.0.0.1:${process.env.CDP_PORT ?? 9229}/json`)).json()
 const page = targets.find((t) => t.type === 'page')
 const ws = new WebSocket(page.webSocketDebuggerUrl)
 await new Promise((r) => ws.addEventListener('open', r))

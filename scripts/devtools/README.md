@@ -1,6 +1,6 @@
 # 개발용 화면 확인 도구 (Electron 원격 디버깅)
 
-앱을 `--remoteDebuggingPort 9229`로 띄운 뒤 쓴다. Node 22에서 실행(`. scripts/node22.sh`).
+앱을 `--remoteDebuggingPort 9229`로 띄운 뒤 쓴다. 다른 포트면 `CDP_PORT=9231 node cdp.mjs …`. 여러 앱을 동시에 띄울 땐 `SPROUT_PROFILE=이름`으로 데이터 폴더를 나눈다. Node 22에서 실행(`. scripts/node22.sh`).
 
 ```bash
 cd apps/desktop && . ../../scripts/node22.sh && npx electron-vite dev --remoteDebuggingPort 9229
