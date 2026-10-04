@@ -103,8 +103,11 @@ export const CRISIS_CARD = {
     { label: '정신건강위기상담', number: '1577-0199', note: '24시간' },
     { label: '긴급', number: '112 / 119', note: '위험할 때 바로' }
   ],
-  footer: '이야기 상대는 친구일 뿐 전문 상담이 아니에요. 지금은 위의 전문가와 꼭 이야기해 주세요.'
+  footer: '이야기 상대는 친구일 뿐 전문 상담이 아니에요. 지금은 위의 전문가와 꼭 이야기해 주세요.',
+  /** 15 §9.4 희망의 말(안전한 말하기: 도움받을 곳과 함께 희망을) */
+  hope: '지금 이 마음도 지나갈 수 있어요. 도움을 청하는 건 용기예요.'
 }
+// [임시] 1577-0199는 109 통합 뒤에도 운영하는지 출시 전 보건복지부 원문으로 다시 확인(research 28 §7)
 const SAFETY_MARK = '[[SAFETY]]'
 
 // ── 캐릭터 ──
@@ -266,7 +269,7 @@ export function dayRange(date: string): [string, string] {
   end.setDate(end.getDate() + 1)
   return [start.toISOString(), end.toISOString()]
 }
-export const DONE_SQL = 'SELECT id, title FROM tasks WHERE status = 1 AND deleted_at IS NULL AND completed_at >= ? AND completed_at < ? ORDER BY completed_at'
+export const DONE_SQL = 'SELECT id, title, completed_at FROM tasks WHERE status = 1 AND deleted_at IS NULL AND completed_at >= ? AND completed_at < ? ORDER BY completed_at'
 /** 그날 할 일로 받은 XP(완료·취소 순합) — "오늘 한 일 N개 · +N XP" 줄이라 목표 XP는 넣지 않는다 */
 export const XP_SQL = "SELECT COALESCE(SUM(amount), 0) AS xp FROM xp_events WHERE day = ? AND kind IN ('task', 'task_revoke')"
 
@@ -307,3 +310,67 @@ export function insightOf(entries: Pick<DiaryEntry, 'date' | 'mood'>[], doneByDa
   const top = MOODS.map((m) => ({ m, n: moods.filter((e) => e.mood === m.value).length })).sort((a, b) => b.n - a.n)[0]
   return `이번 달엔 ${top.m.emoji} ${top.m.label.replace(/어요$/, '던')} 날이 가장 많았어요`
 }
+
+// ── 15 §9 v1 디자인 계산(순수 함수) ──
+/** 주 시작 = 월요일(2026-10-04 사용자 결정). 머리 글자 순서 */
+export const WEEK_MON = ['월', '화', '수', '목', '금', '토', '일'] as const
+/** 월=0 … 일=6 */
+export const weekdayMon = (date: string) => (new Date(`${date}T00:00:00`).getDay() + 6) % 7
+/** 그 달 달력 칸(월요일 시작, 6주 = 42칸) */
+export function monthGrid(month: string): string[] {
+  const first = `${month}-01`
+  const start = addDays(first, -weekdayMon(first))
+  return Array.from({ length: 42 }, (_, i) => addDays(start, i))
+}
+/** 그 날이 든 주(월~일) 7날짜 — 이어 쓰기 카드 */
+export function weekOf(date: string): string[] {
+  const mon = addDays(date, -weekdayMon(date))
+  return Array.from({ length: 7 }, (_, i) => addDays(mon, i))
+}
+/** 가장 길게 이어진 날 수 */
+export function longestStreak(dates: Iterable<string>): number {
+  const sorted = [...new Set(dates)].sort()
+  let best = 0
+  let run = 0
+  let prev = ''
+  for (const d of sorted) {
+    run = prev && addDays(prev, 1) === d ? run + 1 : 1
+    best = Math.max(best, run)
+    prev = d
+  }
+  return best
+}
+/** 그 달 날짜별 기분(빈 날 null) — 기분 흐름 선 */
+export function moodTrend(entries: Pick<DiaryEntry, 'date' | 'mood'>[], month: string): { date: string; mood: number | null }[] {
+  const by = new Map(entries.map((e) => [e.date, e.mood]))
+  return monthGrid(month).filter((d) => d.slice(0, 7) === month).map((d) => ({ date: d, mood: by.get(d) ?? null }))
+}
+/** 평균 기분(반올림) — 3개 미만이면 null */
+export function averageMood(entries: Pick<DiaryEntry, 'mood'>[]): number | null {
+  const xs = entries.map((e) => e.mood).filter((m): m is number => !!m)
+  return xs.length >= 3 ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null
+}
+/** 기억에 남는 날: 기분 높은 순, 같으면 글이 긴 날. 나만 보기 날·글 없는 날은 뺀다(§9.6, 결정 ⑥) */
+export function highlightsOf(entries: Pick<DiaryEntry, 'date' | 'mood' | 'content' | 'private'>[], month: string, n = 3) {
+  return entries
+    .filter((e) => e.date.slice(0, 7) === month && !e.private && !!e.mood && !!(e.content ?? '').trim())
+    .sort((a, b) => (b.mood ?? 0) - (a.mood ?? 0) || (b.content ?? '').length - (a.content ?? '').length || b.date.localeCompare(a.date))
+    .slice(0, n)
+}
+/** 시간대(성장 무대 10 §3.2.2와 같은 경계) */
+export type DaySky = 'morning' | 'day' | 'evening' | 'night'
+export const skyOf = (hour: number): DaySky => (hour < 6 ? 'night' : hour < 11 ? 'morning' : hour < 17 ? 'day' : hour < 20 ? 'evening' : 'night')
+
+/** 곁자리 캐릭터 말풍선(§9.4) — 반말·짧게. 낮은 기분에는 웃는 말을 하지 않는다 */
+export type BuddyCue = { kind: 'open'; hour: number } | { kind: 'mood'; mood: number } | { kind: 'private' } | { kind: 'solo' } | { kind: 'first' }
+export function buddyLine(cue: BuddyCue): string {
+  switch (cue.kind) {
+    case 'open': return cue.hour >= 23 || cue.hour < 6 ? '늦게까지 고생했어' : '오늘 어땠어? 천천히 써 줘'
+    case 'mood': return cue.mood >= 4 ? '좋았구나!' : cue.mood === 3 ? '그런 날도 있지' : '곁에 있을게'
+    case 'private': return '안 볼게. 너만의 페이지야'
+    case 'solo': return '필요하면 불러 줘'
+    case 'first': return '첫 페이지를 같이 채워 볼까?'
+  }
+}
+/** 캐릭터가 기분에 반응하는 얼굴 — 낮은 기분엔 기본 얼굴(웃지 않음) */
+export const moodFaceOf = (mood: number): 'happy' | 'smile' | 'default' => (mood >= 4 ? 'happy' : mood === 3 ? 'smile' : 'default')

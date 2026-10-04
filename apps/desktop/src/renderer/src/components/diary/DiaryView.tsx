@@ -1,39 +1,55 @@
-import { ArrowUp, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Download, Lock, LockOpen, MessageCircle, MessageCircleOff, MoreHorizontal, Phone, Plus, Search, Sparkles, Trash2, X } from 'lucide-react'
+import { CalendarDays, Check, Download, Lock, LockOpen, MessageCircle, MessageCircleOff, MoreHorizontal, Search, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { addDays } from '@sprout/schema/time'
 import { useQuery } from '../../data/useQuery'
-import { useGrowth } from '../../data/growth'
-import { isUnavailable } from '../../data/ai'
+import { readMotionPref, useGrowth } from '../../data/growth'
 import {
-  buddyOf, buddyReply, CRISIS_CARD, dayRange, deleteEntry, DONE_SQL, getConsent, getMemory, insightOf, isSolo, isWritten, josa,
-  MESSAGES_BY_DATE_SQL, MOODS, moodOf, parseBuddyReply, promptFor, saveEntry, sendMessage, setConsent, setMemory, setPrivate, setSolo, streakOf,
-  summarizeEntry, takeNotice, taskFromChip, XP_SQL, type Buddy, type DiaryEntry, type DiaryMessage
+  buddyLine, buddyOf, dayRange, deleteEntry, DONE_SQL, getConsent, getMemory, isSolo, isWritten, josa, MOODS, moodFaceOf, moodOf, promptFor,
+  saveEntry, setConsent, setMemory, setPrivate, setSolo, skyOf, streakOf, summarizeEntry, XP_SQL, type Buddy, type DiaryEntry
 } from '../../data/diary'
 import { dayKey } from '../../lib/dates'
 import { CharacterArt } from '../growth/CharacterArt'
 import { Dialog } from '../Dialog'
 import { MenuItem, Popover } from '../Popover'
 import { useToast } from '../Toast'
+import { Companion, type CompanionMode, type Cue } from './Companion'
+import { dateLabel, dayName, hhmm, monthOf, parse, timeKo } from './dates'
+import { MoodFace, SkyIcon } from './MoodFace'
+import { Review } from './Review'
+import { EntryList, MiniCalendar, StreakCard } from './Side'
 import './diary.css'
 
-// 15 일기 v0.3 — 쓰기(왼쪽 300: 미니 달력 + 날짜 목록 / 오른쪽 편집 + 캐릭터와 이야기) · 돌아보기(월 기분 달력)
-const WEEK = ['일', '월', '화', '수', '목', '금', '토']
-const parse = (d: string) => new Date(`${d}T00:00:00`)
-const monthOf = (d: string) => d.slice(0, 7)
-const shiftMonth = (m: string, n: number) => { const d = new Date(`${m}-01T00:00:00`); d.setMonth(d.getMonth() + n); return dayKey(0, d).slice(0, 7) }
-const firstLine = (s: string | null) => (s ?? '').split('\n').map((l) => l.trim()).find(Boolean) ?? ''
-function dateLabel(d: string, today: string, long = false) {
-  const x = parse(d)
-  const year = d.slice(0, 4) === today.slice(0, 4) ? '' : `${x.getFullYear()}년 `
-  return `${year}${x.getMonth() + 1}월 ${x.getDate()}일 ${WEEK[x.getDay()]}${long ? '요일' : ''}`
+// 15 일기 v1 디자인(§9) — 왼쪽 260(이어 쓰기·미니 달력·목록) · 가운데 종이 페이지 · 오른쪽 곁자리 320(캐릭터와 이야기)
+// 동작·데이터·안전 규칙은 §3~§8 그대로. 폭 1180 미만이면 곁자리가 페이지 아래로, 760 미만이면 왼쪽이 접힌다.
+
+/** 움직임 줄이기 = OS 설정 또는 성장 화면의 스위치(읽기만, 10 §3.2.11) */
+function useReducedMotion() {
+  const query = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || readMotionPref()
+  const [reduced, setReduced] = useState(query)
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+    const on = () => setReduced(query())
+    mq?.addEventListener('change', on)
+    window.addEventListener('storage', on)
+    window.addEventListener('focus', on)
+    return () => { mq?.removeEventListener('change', on); window.removeEventListener('storage', on); window.removeEventListener('focus', on) }
+  }, [])
+  return reduced
 }
-/** 그 달 달력 칸(일요일 시작, 6주) */
-function monthCells(m: string) {
-  const first = parse(`${m}-01`)
-  const start = addDays(`${m}-01`, -first.getDay())
-  return Array.from({ length: 42 }, (_, i) => addDays(start, i))
+
+/** 다른 대화 상자(성향 조사·첫 실행 안내·레벨업 등)가 열려 있는지 — 동의 창은 그게 닫힌 뒤에 연다(§9.7) */
+const OTHER_DIALOG = '[role="dialog"]:not(.diary-dialog), .modal-scrim, .onb-scrim'
+function useOtherDialogOpen() {
+  const [open, setOpen] = useState(true) // 처음엔 막아 두고 잠깐 뒤에 본다(다른 창이 같은 순간 열리는 경우)
+  useEffect(() => {
+    const check = () => setOpen(!!document.querySelector(OTHER_DIALOG))
+    const t = window.setTimeout(check, 600)
+    const mo = new MutationObserver(() => window.setTimeout(check, 50))
+    mo.observe(document.body, { childList: true, subtree: true })
+    return () => { window.clearTimeout(t); mo.disconnect() }
+  }, [])
+  return open
 }
-const timeKo = (d: Date) => d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
 
 export function DiaryView({ onOpen }: { onOpen: (taskId: string) => void }) {
   const today = dayKey()
@@ -42,23 +58,30 @@ export function DiaryView({ onOpen }: { onOpen: (taskId: string) => void }) {
   const [consent, setConsentState] = useState(getConsent)
   const [memory, setMemoryState] = useState(getMemory)
   const [search, setSearch] = useState<string | null>(null)
-  const [narrow, setNarrow] = useState(false)
+  const [width, setWidth] = useState(1400)
   const [sideOpen, setSideOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  const prevDate = useRef(date)
   const { character, progress } = useGrowth()
   const buddy = buddyOf(character ?? undefined)
+  const reduced = useReducedMotion()
+  const otherDialog = useOtherDialogOpen()
   const entries = useQuery<DiaryEntry>('SELECT * FROM diary_entries ORDER BY date DESC')
   const byDate = useMemo(() => new Map((entries ?? []).map((e) => [e.date, e])), [entries])
   const writtenDates = useMemo(() => new Set((entries ?? []).filter(isWritten).map((e) => e.date)), [entries])
   const streak = streakOf(writtenDates, today)
+  const narrow = width < 760
+  const wide = width >= 1180
+  // 페이지 넘김 방향: 지난날 = 오른쪽에서, 앞날 = 왼쪽에서
+  const from = date < prevDate.current ? '8px' : date > prevDate.current ? '-8px' : '0px'
+  useEffect(() => { prevDate.current = date }, [date])
 
   const go = (d: string) => { if (d <= today) { setDate(d); setMode('write'); setSideOpen(false) } }
 
-  // 좁은 창: 왼쪽 목록을 접는다 [임시]
   useEffect(() => {
     const el = rootRef.current
     if (!el) return
-    const ro = new ResizeObserver(([e]) => setNarrow(e.contentRect.width < 760))
+    const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width))
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
@@ -91,44 +114,45 @@ export function DiaryView({ onOpen }: { onOpen: (taskId: string) => void }) {
   )
 
   return (
-    <div ref={rootRef} className={`diary${narrow ? ' is-narrow' : ''}`}>
+    <div ref={rootRef} className={`diary${narrow ? ' is-narrow' : ''}${wide ? ' is-wide' : ''}${reduced ? ' is-reduced' : ''}`}>
       {mode === 'review' ? (
         <main className="diary__review-pane">
           {head}
-          <Review entries={entries ?? []} byDate={byDate} today={today} streak={streak.days} initialMonth={monthOf(date)} onPick={go} />
+          <Review entries={entries ?? []} byDate={byDate} today={today} streak={streak.days} initialMonth={monthOf(date)} buddy={buddy} stage={progress.stage} onPick={go} />
         </main>
       ) : (
         <>
-          {(!narrow || sideOpen) && (
-            <aside className="diary__side">
-              {head}
-              {search !== null && (
-                <div className="addbar is-active diary__search">
-                  <div className="addbar__line">
-                    <Search className="addbar__icon" />
-                    <input className="addbar__input" autoFocus placeholder="일기 검색" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setSearch(null) }} />
-                    <button className="addbar__tool" aria-label="검색 닫기" onClick={() => setSearch(null)}><X /></button>
-                  </div>
+          <aside className={`diary__side${narrow ? (sideOpen ? ' is-open' : ' is-closed') : ''}`} aria-hidden={narrow && !sideOpen ? true : undefined}>
+            {head}
+            {search !== null && (
+              <div className="addbar is-active diary__search">
+                <div className="addbar__line">
+                  <Search className="addbar__icon" />
+                  <input className="addbar__input" autoFocus placeholder="일기 검색" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setSearch(null) }} />
+                  <button className="addbar__tool" aria-label="검색 닫기" onClick={() => setSearch(null)}><X /></button>
                 </div>
-              )}
-              {search === null && <MiniCalendar date={date} today={today} byDate={byDate} onPick={go} />}
-              <EntryList entries={entries} date={date} today={today} query={search ?? ''} onPick={go} />
-            </aside>
-          )}
+              </div>
+            )}
+            {search === null && <StreakCard streak={streak} byDate={byDate} today={today} />}
+            {search === null && <MiniCalendar date={date} today={today} byDate={byDate} onPick={go} />}
+            <EntryList entries={entries} date={date} today={today} query={search ?? ''} onPick={go} />
+          </aside>
           {narrow && sideOpen && <div className="diary__scrim" onClick={() => setSideOpen(false)} />}
-          {entries === undefined ? <section className="diary__editor" /> : (
+          {entries === undefined ? <section className="diary__editor"><div className="diary__desk"><div className="diary-page is-loading"><div className="diary-page__sky diary-sky--day" /><div className="diary-page__body"><i /><i /><i /></div></div></div></section> : (
             <Editor
               key={date}
               date={date}
               today={today}
               entry={byDate.get(date)}
-              empty={!writtenDates.size}
+              first={!writtenDates.size}
               buddy={buddy}
               stage={progress.stage}
               consent={consent}
               memory={memory}
-              streak={streak}
               narrow={narrow}
+              wide={wide}
+              reduced={reduced}
+              from={from}
               onSide={() => setSideOpen(true)}
               onConsent={(on) => { setConsent(on); setConsentState(on) }}
               onMemory={(on) => { setMemory(on); setMemoryState(on) }}
@@ -137,104 +161,41 @@ export function DiaryView({ onOpen }: { onOpen: (taskId: string) => void }) {
           )}
         </>
       )}
-      {consent === null && <ConsentDialog buddy={buddy} stage={progress.stage} onAnswer={(on) => { setConsent(on); setConsentState(on) }} />}
+      {consent === null && !otherDialog && <ConsentDialog buddy={buddy} stage={progress.stage} onAnswer={(on) => { setConsent(on); setConsentState(on) }} />}
     </div>
   )
 }
 
-// ── 왼쪽: 미니 달력(03 날짜 피커 달력) ──
-function MiniCalendar({ date, today, byDate, onPick }: { date: string; today: string; byDate: Map<string, DiaryEntry>; onPick: (d: string) => void }) {
-  const [month, setMonth] = useState(monthOf(date))
-  useEffect(() => setMonth(monthOf(date)), [date])
-  const m = parse(`${month}-01`)
-  return (
-    <div className="diary-cal">
-      <div className="diary-cal__head">
-        <span>{m.getFullYear()}년 {m.getMonth() + 1}월</span>
-        <span className="diary-cal__nav">
-          <button className="icon-btn" aria-label="이전 달" onClick={() => setMonth(shiftMonth(month, -1))}><ChevronLeft /></button>
-          <button className="icon-btn" aria-label="다음 달" disabled={month >= monthOf(today)} onClick={() => setMonth(shiftMonth(month, 1))}><ChevronRight /></button>
-        </span>
-      </div>
-      <div className="diary-cal__grid">
-        {WEEK.map((w) => <b key={w}>{w}</b>)}
-        {monthCells(month).map((d) => {
-          const e = byDate.get(d)
-          const mood = moodOf(e?.mood)
-          const cls = ['diary-cal__day', monthOf(d) !== month && 'is-other', d === date && 'is-selected', d === today && 'is-today', d > today && 'is-future', e && isWritten(e) && 'has-entry'].filter(Boolean).join(' ')
-          return (
-            <button key={d} className={cls} disabled={d > today} style={mood ? ({ '--mood': mood.color } as React.CSSProperties) : undefined} onClick={() => onPick(d)} aria-label={`${dateLabel(d, today)}${mood ? ` · ${mood.label}` : ''}`}>
-              {parse(d).getDate()}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ── 왼쪽: 날짜 목록(월 그룹) ──
-function EntryList({ entries, date, today, query, onPick }: { entries?: DiaryEntry[]; date: string; today: string; query: string; onPick: (d: string) => void }) {
-  const [closed, setClosed] = useState<Set<string>>(new Set())
-  const q = query.trim().toLowerCase()
-  const rows = (entries ?? []).filter(isWritten).filter((e) => !q || (e.content ?? '').toLowerCase().includes(q))
-  const groups = useMemo(() => {
-    const map = new Map<string, DiaryEntry[]>()
-    for (const e of rows) map.set(monthOf(e.date), [...(map.get(monthOf(e.date)) ?? []), e])
-    return [...map]
-  }, [rows])
-  if (!entries) return <div className="diary-list" />
-  if (!rows.length) return <div className="diary-list"><p className="diary-list__empty">{q ? `"${query}"와 맞는 일기가 없어요` : '아직 쓴 일기가 없어요'}</p></div>
-  return (
-    <div className="diary-list">
-      {groups.map(([m, items]) => {
-        const shut = closed.has(m) && !q
-        const md = parse(`${m}-01`)
-        return (
-          <section key={m}>
-            <div className="group__header diary-list__group" onClick={() => setClosed((c) => { const n = new Set(c); if (n.has(m)) n.delete(m); else n.add(m); return n })}>
-              <ChevronDown className={`group__chevron${shut ? ' is-collapsed' : ''}`} />
-              <span className="group__name">{m.slice(0, 4) === today.slice(0, 4) ? '' : `${md.getFullYear()}년 `}{md.getMonth() + 1}월</span>
-              <span className="group__count">{items.length}</span>
-            </div>
-            {!shut && items.map((e) => (
-              <button key={e.id} className={`diary-row${e.date === date ? ' is-selected' : ''}`} onClick={() => onPick(e.date)}>
-                <span className="diary-row__mood">{moodOf(e.mood)?.emoji ?? '📝'}</span>
-                <span className="diary-row__main">
-                  <span className="diary-row__date">{dateLabel(e.date, today)}{e.date === today ? ' · 오늘' : ''}{e.private ? <Lock className="diary-row__lock" aria-label="나만 보기" /> : null}</span>
-                  <span className="diary-row__preview">{firstLine(e.content) || moodOf(e.mood)?.label}</span>
-                </span>
-              </button>
-            ))}
-          </section>
-        )
-      })}
-    </div>
-  )
-}
-
-// ── 오른쪽: 편집 ──
+// ── 가운데 종이 페이지 + 곁자리 ──
 type EditorProps = {
-  date: string; today: string; entry?: DiaryEntry; empty: boolean; buddy: Buddy; stage: number; consent: boolean | null; memory: boolean
-  streak: { days: number; today: boolean }; narrow: boolean; onSide: () => void
+  date: string; today: string; entry?: DiaryEntry; first: boolean; buddy: Buddy; stage: number; consent: boolean | null; memory: boolean
+  narrow: boolean; wide: boolean; reduced: boolean; from: string; onSide: () => void
   onConsent: (on: boolean) => void; onMemory: (on: boolean) => void; onOpen: (id: string) => void
 }
-function Editor({ date, today, entry, empty, buddy, stage, consent, memory, streak, narrow, onSide, onConsent, onMemory, onOpen }: EditorProps) {
+function Editor({ date, today, entry, first, buddy, stage, consent, memory, narrow, wide, reduced, from, onSide, onConsent, onMemory, onOpen }: EditorProps) {
   const toast = useToast()
   const [content, setContent] = useState(entry?.content ?? '')
   const [savedAt, setSavedAt] = useState<Date | null>(entry ? new Date(entry.modified_at) : null)
   const [shift, setShift] = useState(0)
+  const [flip, setFlip] = useState(0)
   const [menu, setMenu] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [solo, setSoloState] = useState(() => isSolo(date))
+  const [cue, setCue] = useState<Cue>()
+  const [typing, setTyping] = useState(false)
+  const [pop, setPop] = useState<number>()
   const saved = useRef(entry?.content ?? '')
   const latest = useRef(content)
   const dirty = useRef(false)
   const timer = useRef<number>(undefined)
+  const typingTimer = useRef<number>(undefined)
   const textRef = useRef<HTMLTextAreaElement>(null)
   const moreRef = useRef<HTMLButtonElement>(null)
   const isPrivate = !!entry?.private
+  const isToday = date === today
   const name = buddy.name
+  const cueId = useRef(0)
+  const react = (c: Omit<Cue, 'id'>) => setCue({ ...c, id: ++cueId.current })
 
   const flush = () => {
     window.clearTimeout(timer.current)
@@ -249,10 +210,14 @@ function Editor({ date, today, entry, empty, buddy, stage, consent, memory, stre
     latest.current = v
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(flush, 600) // 02 상세와 같은 0.6초 자동 저장
+    setTyping(true)
+    window.clearTimeout(typingTimer.current)
+    typingTimer.current = window.setTimeout(() => setTyping(false), 2500)
   }
   // 떠날 때 저장하고, 오늘 쓴 게 있으면 기억하기 요약을 만든다
   useEffect(() => () => {
     flush()
+    window.clearTimeout(typingTimer.current)
     if (dirty.current) void summarizeEntry(date, AbortSignal.timeout(120_000)).catch(() => {})
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   // 다른 기기에서 바뀐 글: 지금 고치는 중이 아니면 받아 온다(마지막 저장이 이김)
@@ -266,10 +231,27 @@ function Editor({ date, today, entry, empty, buddy, stage, consent, memory, stre
     const el = textRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.max(el.scrollHeight, 120)}px`
+    el.style.height = `${Math.max(el.scrollHeight, 168)}px`
   }, [content])
+  // 빈 일기장을 처음 열면 캐릭터가 먼저
+  useEffect(() => { if (first && isToday) { const t = window.setTimeout(() => react({ line: buddyLine({ kind: 'first' }) }), 700); return () => window.clearTimeout(t) } }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const pickMood = (v: number) => { void saveEntry(date, { mood: entry?.mood === v ? null : v }).then(() => setSavedAt(new Date())) }
+  const pickMood = (v: number) => {
+    const next = entry?.mood === v ? null : v
+    void saveEntry(date, { mood: next }).then(() => setSavedAt(new Date()))
+    if (next) {
+      setPop(v)
+      if (!isPrivate) react({ line: buddyLine({ kind: 'mood', mood: v }), face: moodFaceOf(v), hop: v >= 4, heart: v <= 2 })
+    }
+  }
+  const moodKeys = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+    const items = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button')]
+    const i = items.indexOf(document.activeElement as HTMLButtonElement)
+    const n = Math.min(items.length - 1, Math.max(0, i + (e.key === 'ArrowRight' ? 1 : -1)))
+    e.preventDefault()
+    items[n]?.focus()
+  }
   const usePrompt = (p: string) => {
     const next = `Q. ${p}\n${latest.current}`
     change(next)
@@ -279,59 +261,109 @@ function Editor({ date, today, entry, empty, buddy, stage, consent, memory, stre
   const togglePrivate = async () => {
     await setPrivate(date, !isPrivate)
     toast.show(isPrivate ? `${josa(name, '와', '과')} 같이 읽어요` : `나만 보기로 바꿨어요. ${josa(name, '는', '은')} 이 날 일기를 읽지 않아요`)
+    if (!isPrivate) react({ line: buddyLine({ kind: 'private' }) })
   }
-  const toggleSolo = () => { setMenu(false); setSolo(date, !solo); setSoloState(!solo) }
-  const talkOn = consent === true && !isPrivate && !solo
+  const toggleSolo = () => {
+    setMenu(false); setSolo(date, !solo); setSoloState(!solo)
+    if (!solo) react({ line: buddyLine({ kind: 'solo' }) })
+  }
   const prompt = promptFor(date, shift)
+  const mood = moodOf(entry?.mood)
+  const sky = isToday ? skyOf(new Date().getHours()) : null
+  const companionMode: CompanionMode = consent !== true ? 'consent' : isPrivate ? 'private' : solo ? 'solo' : 'talk'
+  const { done, xp } = useDone(date)
+  const n = done?.length ?? 0
+  const doneLine = n === 0 ? '쉬어 가는 날도 필요해!' : n < 3 ? '조금씩이라도 해냈네. 잘했어!' : n < 6 ? '오늘 꽤 많이 해냈다!' : '와, 대단한 하루였어!'
+  const x = parse(date)
+
+  const companion = (
+    <Companion
+      date={date} content={content} buddy={buddy} stage={stage} memory={memory} mode={companionMode} inline={!wide}
+      reduced={reduced} typing={typing} cue={cue} doneLine={doneLine}
+      onActivity={() => { dirty.current = true }}
+      onConsent={() => onConsent(true)}
+      onPrivateOff={() => void togglePrivate()}
+      onSoloOff={toggleSolo}
+    />
+  )
 
   return (
     <section className="diary__editor">
       <header className="pane-header diary__ehead">
         {narrow && <button className="icon-btn" aria-label="달력 열기" onClick={onSide}><CalendarDays /></button>}
-        <h2 className="diary__etitle">{dateLabel(date, today, true)}</h2>
-        <span className="diary__saved">{savedAt ? `${timeKo(savedAt)} · 자동 저장됨` : ''}</span>
+        {narrow && <h2 className="diary__etitle">일기</h2>}
         <div className="pane-header__actions">
-          <button className={`icon-btn${isPrivate ? ' is-on' : ''}`} aria-pressed={isPrivate} aria-label="나만 보기" title={isPrivate ? '나만 보기 켜짐 — AI가 읽지 않아요' : '나만 보기'} onClick={() => void togglePrivate()}>{isPrivate ? <Lock /> : <LockOpen />}</button>
           <button ref={moreRef} className="icon-btn" aria-label="일기 메뉴" onClick={() => setMenu(true)}><MoreHorizontal /></button>
         </div>
       </header>
-      <div className="diary__body">
-        {empty && !content && (
-          <div className="diary__welcome"><CharacterArt species={buddy.species} stage={stage} size={56} mood="happy" /><span>오늘 하루를 한 줄로 남겨 볼까요?</span></div>
-        )}
-        <div className="diary-moods" role="radiogroup" aria-label="오늘 기분">
-          {MOODS.map((m) => (
-            <button key={m.value} role="radio" aria-checked={entry?.mood === m.value} aria-label={m.label} className={entry?.mood === m.value ? 'is-on' : ''} onClick={() => pickMood(m.value)}>{m.emoji}</button>
-          ))}
-          {entry?.mood ? <em>{moodOf(entry.mood)?.label}</em> : null}
+      <div className="diary__cols">
+        <div className="diary__desk">
+          <article className="diary-page" style={{ '--from': from } as React.CSSProperties} aria-label={`${dateLabel(date, today, true)} 일기`}>
+            <div className={`diary-page__sky ${sky ? `diary-sky--${sky}` : mood ? 'diary-sky--mood' : 'diary-sky--day is-past'}`} style={mood && !sky ? ({ '--mood': mood.color } as React.CSSProperties) : undefined}>
+              {sky && <span className="diary-page__sun"><SkyIcon sky={sky} /></span>}
+            </div>
+            <button
+              className={`diary-mark${isPrivate ? ' is-on' : ''}`}
+              aria-pressed={isPrivate}
+              aria-label="나만 보기"
+              title={isPrivate ? '나만 보기 켜짐 — AI가 읽지 않아요' : '나만 보기'}
+              onClick={() => void togglePrivate()}
+            >{isPrivate ? <Lock /> : <LockOpen />}</button>
+            <div className="diary-page__head">
+              <span className="diary-page__num">{x.getDate()}</span>
+              <span className="diary-page__md">
+                <b>{date.slice(0, 4) === today.slice(0, 4) ? '' : `${x.getFullYear()}년 `}{x.getMonth() + 1}월 · {dayName(date)}요일{isToday && <span className="diary-page__today">오늘</span>}</b>
+              </span>
+              <span className="diary-page__saved" key={savedAt?.getTime() ?? 0}>{savedAt && <><Check />{timeKo(savedAt)} · 저장됨</>}</span>
+            </div>
+            <div className="diary-page__body">
+              <div className="diary-lab">{isToday ? '오늘' : '이 날'} 기분</div>
+              <div className="diary-moods" role="radiogroup" aria-label={`${isToday ? '오늘' : '이 날'} 기분`} onKeyDown={moodKeys}>
+                {MOODS.map((m) => {
+                  const on = entry?.mood === m.value
+                  return (
+                    <button key={m.value} role="radio" aria-checked={on} aria-label={m.label} tabIndex={on || (!entry?.mood && m.value === 1) ? 0 : -1}
+                      className={`diary-mood${on ? ' is-on' : ''}${on && pop === m.value ? ' is-pop' : ''}`} style={{ '--mood': m.color } as React.CSSProperties} onClick={() => pickMood(m.value)}>
+                      <span className="diary-mood__ring"><MoodFace mood={m.value} /></span>
+                      <small>{m.label}</small>
+                    </button>
+                  )
+                })}
+              </div>
+              {!content.trim() && (
+                <div className={`diary-note${flip ? ' is-flip' : ''}`} key={flip}>
+                  <div className="diary-note__head"><CharacterArt species={buddy.species} stage={stage} size={18} mood="smile" />오늘의 질문</div>
+                  <div className="diary-note__q">{prompt}</div>
+                  <div className="diary-note__acts">
+                    <button onClick={() => usePrompt(prompt)}>이 질문으로 쓰기</button>
+                    <button onClick={() => { setShift((s) => s + 1); setFlip((f) => f + 1) }}>다른 질문 ↻</button>
+                  </div>
+                </div>
+              )}
+              <textarea
+                ref={textRef}
+                className="diary__text"
+                aria-label="일기"
+                placeholder={isToday ? '오늘 하루는 어땠나요?' : '이 날은 비어 있어요. 지금 써도 돼요'}
+                value={content}
+                onChange={(e) => change(e.target.value)}
+                onBlur={flush}
+              />
+              <DoneTimeline date={date} today={today} done={done} xp={xp} onOpen={onOpen} />
+            </div>
+          </article>
+          {!wide && companion}
         </div>
-        {!content.trim() && (
-          <div className="diary-prompt">
-            <Sparkles />
-            <button className="diary-prompt__text" onClick={() => usePrompt(prompt)} title="눌러서 일기에 넣기">{prompt}</button>
-            <button className="diary-prompt__next" onClick={() => setShift((s) => s + 1)}>다른 질문</button>
-          </div>
-        )}
-        <textarea
-          ref={textRef}
-          className="diary__text"
-          aria-label="일기"
-          placeholder="오늘 하루는 어땠나요?"
-          value={content}
-          onChange={(e) => change(e.target.value)}
-          onBlur={flush}
-        />
-        {consent === true ? <DoneStrip date={date} today={today} onOpen={onOpen} /> : <DoneCard date={date} today={today} buddy={buddy} stage={stage} onOpen={onOpen} />}
-        {talkOn && <Talk date={date} content={content} buddy={buddy} stage={stage} memory={memory} onActivity={() => { dirty.current = true }} />}
+        {wide && companion}
       </div>
       <footer className="diary__foot">
-        <span>{streak.days ? `🔥 ${streak.days}일 연속 기록${streak.today ? '' : ' · 오늘도 이어 가요'}` : '오늘부터 기록을 이어 가요'}</span>
-        <span className="diary__foot-sp" />
-        <span>
+        <span className="diary__foot-say">
           {consent !== true ? '일기는 나만 봐요'
             : isPrivate ? '🔒 나만 보기 — AI가 읽지 않아요'
-              : `${name}만 같이 읽어요 · 🔒 나만 보기로 바꾸면 AI가 읽지 않아요`}
+              : `${name}만 같이 읽어요`}
         </span>
+        <span className="diary__foot-sp" />
+        <button className="diary__foot-btn" onClick={() => void togglePrivate()}>{isPrivate ? <><Lock />나만 보기 끄기</> : <><LockOpen />나만 보기 켜기</>}</button>
       </footer>
       {menu && (
         <Popover anchor={moreRef.current} align="end" width={230} onClose={() => setMenu(false)} className="menu">
@@ -365,187 +397,58 @@ function Editor({ date, today, entry, empty, buddy, stage, consent, memory, stre
   )
 }
 
-// ── 오늘 한 일(자동, 저장하지 않음) ──
+// ── 오늘 한 일(자동, 저장하지 않음) — 세로 타임라인(§9.5) ──
+type Done = { id: string; title: string; completed_at: string }
 function useDone(date: string) {
   const range = useMemo(() => dayRange(date), [date])
-  const done = useQuery<{ id: string; title: string }>(DONE_SQL, range)
+  const done = useQuery<Done>(DONE_SQL, range)
   const xp = useQuery<{ xp: number }>(XP_SQL, [date])?.[0]?.xp ?? 0
   return { done, xp }
 }
-function DoneList({ done, onOpen }: { done: { id: string; title: string }[]; onOpen: (id: string) => void }) {
-  return (
-    <ul className="diary-done">
-      {done.map((t) => <li key={t.id}><button onClick={() => onOpen(t.id)}><Check />{t.title || '제목 없음'}</button></li>)}
-    </ul>
-  )
-}
-function DoneStrip({ date, today, onOpen }: { date: string; today: string; onOpen: (id: string) => void }) {
-  const { done, xp } = useDone(date)
+function DoneTimeline({ date, today, done, xp, onOpen }: { date: string; today: string; done?: Done[]; xp: number; onOpen: (id: string) => void }) {
   const [open, setOpen] = useState(false)
-  if (!done) return null
+  if (!done) return <div className="diary-done" />
   const word = date === today ? '오늘' : '이 날'
+  const shown = open ? done : done.slice(0, 3)
   return (
-    <div className="diary-strip-wrap">
-      <button className="diary-strip" onClick={() => setOpen((o) => !o)} aria-expanded={open} disabled={!done.length}>
-        <Check />
-        {done.length ? `${word} 한 일 ${done.length}개` : date === today ? '오늘 끝낸 할 일이 아직 없어요' : '이 날 끝낸 할 일이 없어요'}
+    <div className="diary-done">
+      <div className="diary-lab">
+        {word} 한 일{done.length ? ` ${done.length}개` : ''}
         {xp > 0 && <span className="diary-xp">+{xp} XP</span>}
-        <span className="diary-strip__sp" />
-        {done.length > 0 && <span className="diary-strip__more">{open ? '접기' : '할 일 보기'}</span>}
-      </button>
-      {open && <DoneList done={done} onOpen={onOpen} />}
-    </div>
-  )
-}
-/** AI를 꺼 둔 사람에게: 캐릭터 + 미리 준비한 한마디(v0.1 카드) */
-function DoneCard({ date, today, buddy, stage, onOpen }: { date: string; today: string; buddy: Buddy; stage: number; onOpen: (id: string) => void }) {
-  const { done, xp } = useDone(date)
-  if (!done) return null
-  const n = done.length
-  const line = n === 0 ? '쉬어 가는 날도 필요해!' : n < 3 ? '조금씩이라도 해냈네. 잘했어!' : n < 6 ? '오늘 꽤 많이 해냈다!' : '와, 대단한 하루였어!'
-  return (
-    <div className="diary-card">
-      <div className="diary-card__char"><CharacterArt species={buddy.species} stage={stage} size={56} mood="happy" /><span className="diary-card__bubble">{line}</span></div>
-      <div className="diary-card__body">
-        <h4><Check />{date === today ? '오늘' : '이 날'} 한 일 {n}개{xp > 0 && <span className="diary-xp">+{xp} XP</span>}</h4>
-        {n > 0 ? <DoneList done={done.slice(0, 6)} onOpen={onOpen} /> : <p className="diary-card__none">끝낸 할 일이 없어요</p>}
-        {n > 6 && <p className="diary-card__none">외 {n - 6}개</p>}
+        {done.length > 3 && <button className="diary-done__more" onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? '접기' : '할 일 보기'}</button>}
       </div>
+      {done.length ? (
+        <ul className="diary-tl">
+          {shown.map((t) => <li key={t.id}><time>{hhmm(t.completed_at)}</time><i /><button onClick={() => onOpen(t.id)}>{t.title || '제목 없음'}</button></li>)}
+          {!open && done.length > 3 && <li className="is-more"><time /><i /><button onClick={() => setOpen(true)}>＋ {done.length - 3}개 더</button></li>}
+        </ul>
+      ) : <p className="diary-none">{date === today ? '오늘 끝낸 할 일이 아직 없어요' : '이 날 끝낸 할 일이 없어요'}</p>}
     </div>
   )
 }
 
-// ── 캐릭터와 이야기(§3.1) ──
-const chipsMade = new Set<string>()
-let noticeShown: boolean | undefined
-function Talk({ date, content, buddy, stage, memory, onActivity }: { date: string; content: string; buddy: Buddy; stage: number; memory: boolean; onActivity: () => void }) {
-  const toast = useToast()
-  const messages = useQuery<DiaryMessage>(MESSAGES_BY_DATE_SQL, [date])
-  const [pending, setPending] = useState<string | null>(null)
-  const [error, setError] = useState<'down' | 'fail' | null>(null)
-  const [draft, setDraft] = useState('')
-  const [, bump] = useState(0)
-  const [notice] = useState(() => (noticeShown ??= takeNotice()))
-  const ctrl = useRef<AbortController>(undefined)
-  const endRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
-  const busy = pending !== null
-  const name = buddy.name
-  // 이미 만든 칩은 다시 열어도(앱을 껐다 켜도) "할 일에 넣었어요" — 같은 할 일을 두 번 만들지 않게
-  const chipTitles = useMemo(() => (messages ?? []).filter((m) => m.role === 'buddy').map((m) => parseBuddyReply(m.content).task).filter((t): t is string => !!t), [messages])
-  const madeTitles = useQuery<{ title: string }>(`SELECT title FROM tasks WHERE deleted_at IS NULL AND title IN (${chipTitles.map(() => '?').join(',') || "''"})`, chipTitles)
-  const made = (title: string) => (madeTitles ?? []).some((t) => t.title === title.trim().slice(0, 200))
-
-  const ask = async (fn: (signal: AbortSignal) => Promise<unknown>) => {
-    ctrl.current?.abort()
-    const c = new AbortController()
-    ctrl.current = c
-    setError(null); setPending('')
-    onActivity()
-    try { await fn(c.signal) } catch (e) {
-      if (!c.signal.aborted) setError(isUnavailable(e) ? 'down' : 'fail')
-    } finally { if (ctrl.current === c) setPending(null) }
-  }
-  const opts = (signal: AbortSignal) => ({ buddy, memoryOn: memory, signal, onDelta: (t: string) => setPending(t) })
-  useEffect(() => () => ctrl.current?.abort(), [])
-
-  // 첫 답: 저장(0.6초) 뒤 3초 동안 더 쓰지 않으면 캐릭터가 먼저 한 번
-  useEffect(() => {
-    if (!messages || messages.length || busy || error || content.trim().length < 10) return
-    const t = window.setTimeout(() => void ask((s) => buddyReply(date, opts(s))), 3600)
-    return () => window.clearTimeout(t)
-  }, [content, messages?.length, busy, error]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { endRef.current?.scrollIntoView({ block: 'nearest' }) }, [messages?.length, pending])
-
-  const send = () => {
-    const text = draft.trim()
-    if (!text || busy) return
-    setDraft('')
-    void ask((s) => sendMessage(date, text, opts(s)))
-  }
-  const makeTask = async (m: DiaryMessage, title: string) => {
-    try { await taskFromChip(title); chipsMade.add(m.id); bump((n) => n + 1); toast.show(`"${title}" 할 일을 기본함에 넣었어요`) } catch { toast.show('할 일을 만들지 못했어요. 다시 시도해 주세요.') }
-  }
-  if (!messages) return null
-  if (!messages.length && !busy && !error && content.trim().length < 10) return null // 일기를 쓰면 대화가 열린다
-
-  return (
-    <div className="diary-talk">
-      <div className="diary-talk__div">{josa(name, '와', '과')} 이야기</div>
-      <div className="diary-talk__list" aria-live="polite">
-        {messages.map((m) => {
-          if (m.role === 'me') return <div key={m.id} className="diary-msg diary-msg--me">{m.content}</div>
-          if (m.safety) return <CrisisCard key={m.id} />
-          const p = parseBuddyReply(m.content)
-          return (
-            <div key={m.id} className="diary-msg diary-msg--buddy">
-              <CharacterArt species={buddy.species} stage={stage} size={30} mood="happy" />
-              <div className="diary-msg__bubble">
-                {p.text}
-                {p.task && (chipsMade.has(m.id) || made(p.task)
-                  ? <span className="diary-chip is-done"><Check />할 일에 넣었어요</span>
-                  : <button className="diary-chip" onClick={() => void makeTask(m, p.task!)}><Plus />할 일로: {p.task}</button>)}
-              </div>
-            </div>
-          )
-        })}
-        {busy && (
-          <div className="diary-msg diary-msg--buddy">
-            <CharacterArt species={buddy.species} stage={stage} size={30} />
-            <div className="diary-msg__bubble">{pending || <span className="diary-typing"><i /><i /><i /></span>}</div>
-          </div>
-        )}
-        {error && (
-          <div className="diary-talk__error" role="status">
-            {error === 'down' ? `지금은 ${josa(name, '가', '이')} 쉬고 있어요. 일기는 그대로 저장돼요` : '답을 받지 못했어요.'}
-            <button onClick={() => void ask((s) => buddyReply(date, opts(s)))}>다시 시도</button>
-          </div>
-        )}
-        <div ref={endRef} />
-      </div>
-      <div className="diary-talk__in">
-        <textarea
-          ref={inputRef}
-          rows={1}
-          value={draft}
-          placeholder={`${name}에게 이야기하기…`}
-          aria-label={`${name}에게 이야기하기`}
-          onChange={(e) => { setDraft(e.target.value); const el = e.target; el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 96)}px` }}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send() } }}
-        />
-        {busy
-          ? <button className="diary-talk__send" aria-label="멈추기" onClick={() => { ctrl.current?.abort(); setPending(null) }}><X /></button>
-          : <button className="diary-talk__send" aria-label="보내기" disabled={!draft.trim()} onClick={send}><ArrowUp /></button>}
-      </div>
-      {notice && <p className="diary-talk__notice">{josa(name, '는', '은')} 친구처럼 들어 주지만 전문 상담은 아니에요</p>}
-    </div>
-  )
-}
-
-function CrisisCard() {
-  return (
-    <div className="diary-crisis" role="alert">
-      <strong>{CRISIS_CARD.title}</strong>
-      <ul>
-        {CRISIS_CARD.lines.map((l) => (
-          <li key={l.number}><Phone /><span>{l.label}</span><b>{l.number}</b><em>{l.note}</em></li>
-        ))}
-      </ul>
-      <p>{CRISIS_CARD.footer}</p>
-    </div>
-  )
-}
-
-// ── 처음 한 번 묻는 동의 ──
+// ── 처음 한 번 묻는 동의(§3.1 문구·동작 그대로, 모양 §9.7) ──
 function ConsentDialog({ buddy, stage, onAnswer }: { buddy: Buddy; stage: number; onAnswer: (on: boolean) => void }) {
   const name = buddy.name
   return (
     <Dialog label="일기 나누기" className="diary-dialog diary-consent" onClose={() => onAnswer(false)}>
-      <div className="diary-consent__art"><CharacterArt species={buddy.species} stage={stage} size={72} mood="happy" /></div>
+      <div className="diary-consent__art" aria-hidden="true">
+        <svg width="220" height="100" viewBox="0 0 220 100">
+          <ellipse cx="110" cy="92" rx="100" ry="8" fill="rgba(0,0,0,.06)" />
+          <path d="M30 84 L104 76 L104 26 L30 34Z" fill="var(--diary-paper)" stroke="var(--color-text-quaternary)" strokeWidth="1.5" />
+          <path d="M104 76 L178 84 L178 34 L104 26Z" fill="var(--diary-paper)" stroke="var(--color-text-quaternary)" strokeWidth="1.5" />
+          <path d="M42 46l50-6M42 56l50-6M42 66l36-4M116 40l50 6M116 50l50 6" stroke="var(--color-text-quaternary)" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M150 32 l0 22 l5 -4 l5 4 l0 -22" fill="var(--color-accent)" />
+        </svg>
+        <span className="diary-consent__char"><CharacterArt species={buddy.species} stage={stage} size={62} mood="happy" /></span>
+      </div>
       <h2>일기를 {josa(name, '와', '과')} 나눌까요?</h2>
-      <p>일기 글이 sprout AI(운영자의 Mac mini)에서 처리돼요. {josa(name, '가', '이')} 읽고 공감하며 이야기를 들어 줘요. 언제든 끌 수 있어요.</p>
-      <p className="diary-consent__small">🔒 나만 보기로 둔 날은 보내지 않아요. {josa(name, '는', '은')} 친구처럼 들어 주지만 전문 상담은 아니에요.</p>
+      <div className="diary-consent__facts">
+        <div><CloudIcon /><span>일기 글이 sprout AI(운영자의 Mac mini)에서 처리돼요. {josa(name, '가', '이')} 읽고 공감하며 이야기를 들어 줘요.</span></div>
+        <div><Lock /><span>나만 보기로 둔 날은 보내지 않아요.</span></div>
+        <div><Undo2 /><span>언제든 ⋯ 메뉴에서 끌 수 있어요.</span></div>
+      </div>
+      <p className="diary-consent__small">{josa(name, '는', '은')} 친구처럼 들어 주지만 전문 상담은 아니에요.</p>
       <div className="diary-dialog__actions">
         <button onClick={() => onAnswer(false)}>혼자 쓸게요</button>
         <button className="is-primary" data-autofocus onClick={() => onAnswer(true)}>나누기</button>
@@ -553,85 +456,6 @@ function ConsentDialog({ buddy, stage, onAnswer }: { buddy: Buddy; stage: number
     </Dialog>
   )
 }
-
-// ── 돌아보기(⑤-b) ──
-function Review({ entries, byDate, today, streak, initialMonth, onPick }: { entries: DiaryEntry[]; byDate: Map<string, DiaryEntry>; today: string; streak: number; initialMonth: string; onPick: (d: string) => void }) {
-  const [scale, setScale] = useState<'month' | 'year'>('month')
-  const [month, setMonth] = useState(initialMonth)
-  const year = month.slice(0, 4)
-  const range = useMemo(() => {
-    const from = scale === 'month' ? `${month}-01` : `${year}-01-01`
-    const to = scale === 'month' ? `${shiftMonth(month, 1)}-01` : `${Number(year) + 1}-01-01`
-    return [dayRange(from)[0], dayRange(to)[0]]
-  }, [scale, month, year])
-  const doneRows = useQuery<{ completed_at: string }>('SELECT completed_at FROM tasks WHERE status = 1 AND deleted_at IS NULL AND completed_at >= ? AND completed_at < ?', range)
-  const doneByDay = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const r of doneRows ?? []) { const d = dayKey(0, new Date(r.completed_at)); map.set(d, (map.get(d) ?? 0) + 1) }
-    return map
-  }, [doneRows])
-  const inMonth = entries.filter((e) => monthOf(e.date) === month && isWritten(e))
-  const counts = MOODS.map((m) => ({ m, n: inMonth.filter((e) => e.mood === m.value).length })).filter((x) => x.n)
-  const total = counts.reduce((s, x) => s + x.n, 0)
-  const m0 = parse(`${month}-01`)
-  const nav = (n: number) => setMonth(scale === 'month' ? shiftMonth(month, n) : `${Number(year) + n}-${month.slice(5)}`)
-  const canNext = scale === 'month' ? month < monthOf(today) : year < today.slice(0, 4)
-
-  return (
-    <div className="diary-review">
-      <div className="diary-review__bar">
-        <div className="seg" role="tablist" aria-label="돌아보기 단위">
-          <button role="tab" aria-selected={scale === 'month'} className={scale === 'month' ? 'is-on' : ''} onClick={() => setScale('month')}>월</button>
-          <button role="tab" aria-selected={scale === 'year'} className={scale === 'year' ? 'is-on' : ''} onClick={() => setScale('year')}>연</button>
-        </div>
-        <button className="icon-btn" aria-label="이전" onClick={() => nav(-1)}><ChevronLeft /></button>
-        <span className="diary-review__label">{scale === 'month' ? `${m0.getFullYear()}년 ${m0.getMonth() + 1}월` : `${year}년`}</span>
-        <button className="icon-btn" aria-label="다음" disabled={!canNext} onClick={() => nav(1)}><ChevronRight /></button>
-      </div>
-      {scale === 'year' ? (
-        <div className="diary-year">
-          {Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`).map((m) => (
-            <button key={m} className="diary-year__month" onClick={() => { setMonth(m); setScale('month') }} disabled={m > monthOf(today)}>
-              <span>{Number(m.slice(5))}월</span>
-              <span className="diary-year__grid">
-                {monthCells(m).map((d) => {
-                  const mood = monthOf(d) === m ? moodOf(byDate.get(d)?.mood) : undefined
-                  return <i key={d} className={monthOf(d) !== m ? 'is-blank' : ''} style={mood ? { background: mood.color } : undefined} />
-                })}
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="diary-review__wrap">
-          <div className="diary-review__grid">
-            {WEEK.map((w) => <b key={w}>{w}</b>)}
-            {monthCells(month).filter((d, i) => monthOf(d) === month || (i < 7 && d < `${month}-01`)).map((d) => {
-              if (monthOf(d) !== month) return <i key={d} className="is-blank" />
-              const e = byDate.get(d)
-              const mood = moodOf(e?.mood)
-              return (
-                <button key={d} className={`${d === today ? 'is-today' : ''}${d > today ? ' is-future' : ''}`} disabled={d > today} onClick={() => onPick(d)} aria-label={`${dateLabel(d, today)}${mood ? ` · ${mood.label}` : e && isWritten(e) ? ' · 일기 있음' : ''}`}>
-                  <em>{mood?.emoji ?? (e && isWritten(e) ? '📝' : '')}</em>{parse(d).getDate()}
-                </button>
-              )
-            })}
-          </div>
-          <div className="diary-review__stats">
-            <div className="diary-stat"><strong>{inMonth.length}일</strong><span>이번 달 기록{streak ? ` · 🔥 ${streak}일 연속` : ''}</span></div>
-            <div className="diary-stat">
-              <span>이번 달 기분</span>
-              {total ? (
-                <>
-                  <div className="diary-stat__bar">{counts.map(({ m, n }) => <i key={m.value} style={{ width: `${(n / total) * 100}%`, background: m.color }} />)}</div>
-                  <div className="diary-stat__legend">{counts.map(({ m, n }) => <span key={m.value}>{m.emoji} {n}</span>)}</div>
-                </>
-              ) : <p className="diary-stat__none">아직 고른 기분이 없어요</p>}
-            </div>
-            <div className="diary-stat"><strong className="diary-stat__title">한 줄 발견</strong><span>{insightOf(inMonth, doneByDay)}</span></div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+function CloudIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M7 18a4 4 0 0 1-.5-8A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z" /></svg>
 }

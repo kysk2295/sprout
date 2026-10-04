@@ -4,7 +4,8 @@ import initSqlJs from 'sql.js'
 import { TABLES } from '@sprout/schema'
 import {
   buildBuddyMessages, buddyReply, detectCrisis, entryId, insightOf, josa, parseBuddyReply, recentMemory, saveEntry, sendMessage,
-  setConsent, setMemory, setPrivate, streakOf, deleteEntry, taskFromChip
+  setConsent, setMemory, setPrivate, streakOf, deleteEntry, taskFromChip,
+  averageMood, buddyLine, CRISIS_CARD, DONE_SQL, highlightsOf, longestStreak, monthGrid, moodFaceOf, moodTrend, skyOf, WEEK_MON, weekdayMon, weekOf
 } from '../src/renderer/src/data/diary'
 import { insert, run } from '../src/renderer/src/data/mutations'
 const SQL = await initSqlJs()
@@ -121,4 +122,83 @@ assert.equal(insightOf([{ date: 'a', mood: 5 }, { date: 'b', mood: 5 }, { date: 
 // 2026-10-04 E2E: 서버 id는 모든 사용자가 같이 쓰는 키 → 로그인 사용자 id를 붙인다(없으면 예전 모양)
 assert.equal(entryId('2026-10-04', 'u-1'), 'diary-2026-10-04-u-1')
 assert.equal(entryId('2026-10-04'), 'diary-2026-10-04')
+
+// ── 15 §9 v1 디자인 계산 ──
+// 주 시작 = 월요일(2026-10-04 사용자 결정)
+assert.deepEqual([...WEEK_MON], ['월', '화', '수', '목', '금', '토', '일'])
+assert.equal(weekdayMon('2026-10-05'), 0) // 월
+assert.equal(weekdayMon('2026-10-04'), 6) // 일
+const grid = monthGrid('2026-10') // 10월 1일 = 목
+assert.equal(grid.length, 42)
+assert.equal(grid[0], '2026-09-28') // 월요일부터
+assert.equal(grid[3], '2026-10-01')
+assert.ok(grid.every((d, i) => weekdayMon(d) === i % 7))
+assert.equal(monthGrid('2026-06')[0], '2026-06-01') // 1일이 월요일이면 앞 칸 없음
+assert.deepEqual(weekOf('2026-10-04'), ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'])
+assert.equal(weekOf('2026-10-05')[0], '2026-10-05')
+// 가장 긴 연속(순서·중복·달 경계 무관)
+assert.equal(longestStreak([]), 0)
+assert.equal(longestStreak(['2026-10-03', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-02', '2026-10-09', '2026-10-10']), 4)
+assert.equal(longestStreak(['2026-02-28', '2026-03-01']), 2)
+// 기분 흐름: 그 달 날짜마다, 빈 날 null
+const trend = moodTrend([{ date: '2026-10-02', mood: 4 }, { date: '2026-09-30', mood: 1 }, { date: '2026-10-03', mood: null }], '2026-10')
+assert.equal(trend.length, 31)
+assert.deepEqual(trend.slice(0, 3), [{ date: '2026-10-01', mood: null }, { date: '2026-10-02', mood: 4 }, { date: '2026-10-03', mood: null }])
+assert.equal(averageMood([{ mood: 5 }, { mood: 4 }]), null) // 3개 미만
+assert.equal(averageMood([{ mood: 5 }, { mood: 4 }, { mood: 3 }, { mood: null }]), 4)
+// 기억에 남는 날: 나만 보기·글 없는 날·다른 달은 빼고, 기분 높은 순 → 글 긴 순
+const hl = highlightsOf([
+  { date: '2026-10-01', mood: 5, content: '짧음', private: 0 },
+  { date: '2026-10-02', mood: 5, content: '조금 더 긴 하루 이야기', private: 0 },
+  { date: '2026-10-03', mood: 5, content: '비밀 SECRET', private: 1 },
+  { date: '2026-10-04', mood: 3, content: '그저 그런 날', private: 0 },
+  { date: '2026-10-05', mood: 4, content: '', private: 0 },
+  { date: '2026-09-30', mood: 5, content: '지난달', private: 0 },
+  { date: '2026-10-06', mood: 2, content: '힘든 날', private: null }
+], '2026-10')
+assert.deepEqual(hl.map((e) => e.date), ['2026-10-02', '2026-10-01', '2026-10-04'])
+assert.ok(!JSON.stringify(hl).includes('SECRET'))
+// 시간대(성장 무대와 같은 경계)
+assert.deepEqual([0, 5, 6, 10, 11, 16, 17, 19, 20, 23].map(skyOf), ['night', 'night', 'morning', 'morning', 'day', 'day', 'evening', 'evening', 'night', 'night'])
+// 곁자리 말풍선: 낮은 기분엔 웃는 말·웃는 얼굴이 아니다
+assert.equal(buddyLine({ kind: 'mood', mood: 1 }), '곁에 있을게')
+assert.equal(buddyLine({ kind: 'mood', mood: 2 }), '곁에 있을게')
+assert.equal(buddyLine({ kind: 'mood', mood: 5 }), '좋았구나!')
+assert.equal(moodFaceOf(1), 'default')
+assert.equal(moodFaceOf(2), 'default')
+assert.equal(moodFaceOf(4), 'happy')
+assert.equal(buddyLine({ kind: 'private' }), '안 볼게. 너만의 페이지야')
+assert.equal(buddyLine({ kind: 'open', hour: 23 }), '늦게까지 고생했어')
+// 위기 카드: 109가 맨 위, 희망의 말이 함께
+assert.equal(CRISIS_CARD.lines[0].number, '109')
+assert.deepEqual(CRISIS_CARD.lines.map((l) => l.number), ['109', '1577-0199', '112 / 119'])
+assert.ok(CRISIS_CARD.hope.length > 0)
+// 오늘 한 일 타임라인은 완료 시각도 읽는다
+assert.ok(DONE_SQL.includes('completed_at FROM tasks'))
+
+// ── §9.9 종이 대비: 13개 테마 모두 본문 글자 / 종이 ≥ 4.5:1, 보조 글자 / 종이 ≥ 3.8:1 ──
+{
+  const { readFileSync } = await import('node:fs')
+  const { THEMES, themeAttrs } = await import('../src/renderer/src/data/theme')
+  const css = readFileSync('packages/tokens/tokens.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  const blocks = new Map<string, Record<string, string>>()
+  for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const vars: Record<string, string> = {}
+    for (const d of m[2].matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) vars[d[1]] = d[2].trim()
+    for (const sel of m[1].split(',')) blocks.set(sel.trim(), { ...blocks.get(sel.trim()), ...vars })
+  }
+  const hex = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16))
+  const mix = (a: number[], b: number[], t: number) => a.map((x, i) => x * t + b[i] * (1 - t))
+  const lum = (c: number[]) => { const [r, g, b] = c.map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }); return 0.2126 * r + 0.7152 * g + 0.0722 * b }
+  const ratio = (a: number[], b: number[]) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) }
+  for (const t of THEMES) {
+    const { theme, variant } = themeAttrs(t.id)
+    const v: Record<string, string> = { ...blocks.get(':root'), ...blocks.get(`[data-theme="${theme}"]`), ...(variant ? blocks.get(`[data-theme="${theme}"][data-theme-variant="${variant}"]`) : {}) }
+    const get = (n: string): string => { const r = v[n]; const ref = r?.match(/^var\((--[\w-]+)\)$/); return ref ? get(ref[1]) : r }
+    // diary.css의 --diary-paper와 같은 식
+    const paper = variant === 'black' ? hex('#0d0d0d') : theme === 'dark' ? mix(hex(get('--color-bg-card')), hex('#3a3226'), 0.94) : mix(hex(get('--color-bg-app')), hex('#f3e6cf'), 0.92)
+    assert.ok(ratio(hex(get('--color-text-primary')), paper) >= 4.5, `${t.id}: 본문 / 종이`)
+    assert.ok(ratio(hex(get('--color-text-secondary')), paper) >= 3.8, `${t.id}: 보조 / 종이 ${ratio(hex(get('--color-text-secondary')), paper).toFixed(2)}`)
+  }
+}
 console.log('diary tests passed')
