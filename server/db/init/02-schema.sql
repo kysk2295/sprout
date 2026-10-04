@@ -5,9 +5,48 @@ CREATE TABLE IF NOT EXISTS notes (
   created_at text,
   modified_at text,
   content text,
-  task_id text
+  task_id text,
+  kind text,
+  kind_source text,
+  ai_state text,
+  suggestion text,
+  url text,
+  link_title text,
+  seen_at text,
+  topic_id text,
+  source text,
+  captured_at text,
+  fingerprint text
 );
 CREATE INDEX IF NOT EXISTS notes_owner_idx ON notes (owner_id);
+CREATE INDEX IF NOT EXISTS notes_topic_idx ON notes (owner_id, topic_id);
+CREATE INDEX IF NOT EXISTS notes_fingerprint_idx ON notes (owner_id, fingerprint);
+
+CREATE TABLE IF NOT EXISTS wiki_topics (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  name text,
+  source text,
+  content text,
+  locked text,
+  version integer
+);
+CREATE INDEX IF NOT EXISTS wiki_topics_owner_idx ON wiki_topics (owner_id);
+
+CREATE TABLE IF NOT EXISTS wiki_versions (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  topic_id text,
+  version integer,
+  content text,
+  reason text
+);
+CREATE INDEX IF NOT EXISTS wiki_versions_owner_idx ON wiki_versions (owner_id);
+CREATE INDEX IF NOT EXISTS wiki_versions_topic_idx ON wiki_versions (owner_id, topic_id);
 
 CREATE TABLE IF NOT EXISTS folders (
   id text PRIMARY KEY,
@@ -227,6 +266,80 @@ CREATE TABLE IF NOT EXISTS weekly_reports (
 );
 CREATE INDEX IF NOT EXISTS weekly_reports_owner_idx ON weekly_reports (owner_id);
 
+CREATE TABLE IF NOT EXISTS map_areas (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  name text,
+  parent_id text,
+  sort_order double precision,
+  source text,
+  color text,
+  archived_at text
+);
+CREATE INDEX IF NOT EXISTS map_areas_owner_idx ON map_areas (owner_id);
+CREATE INDEX IF NOT EXISTS map_areas_parent_idx ON map_areas (owner_id, parent_id);
+
+CREATE TABLE IF NOT EXISTS task_areas (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  task_id text,
+  area_id text,
+  source text,
+  state text,
+  run_id text
+);
+CREATE INDEX IF NOT EXISTS task_areas_owner_idx ON task_areas (owner_id);
+CREATE INDEX IF NOT EXISTS task_areas_task_idx ON task_areas (owner_id, task_id);
+CREATE INDEX IF NOT EXISTS task_areas_area_idx ON task_areas (owner_id, area_id);
+
+CREATE TABLE IF NOT EXISTS map_links (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  kind text,
+  from_type text,
+  from_id text,
+  to_id text,
+  source text,
+  state text
+);
+CREATE INDEX IF NOT EXISTS map_links_owner_idx ON map_links (owner_id);
+CREATE INDEX IF NOT EXISTS map_links_from_idx ON map_links (owner_id, from_id);
+CREATE INDEX IF NOT EXISTS map_links_to_idx ON map_links (owner_id, to_id);
+
+CREATE TABLE IF NOT EXISTS diary_entries (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  date text,
+  mood integer,
+  content text,
+  prompt text,
+  private integer,
+  summary text
+);
+CREATE INDEX IF NOT EXISTS diary_entries_owner_idx ON diary_entries (owner_id);
+CREATE INDEX IF NOT EXISTS diary_entries_date_idx ON diary_entries (owner_id, date);
+
+CREATE TABLE IF NOT EXISTS diary_messages (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  entry_id text,
+  role text,
+  content text,
+  safety integer
+);
+CREATE INDEX IF NOT EXISTS diary_messages_owner_idx ON diary_messages (owner_id);
+CREATE INDEX IF NOT EXISTS diary_messages_entry_idx ON diary_messages (owner_id, entry_id);
+
 -- PowerSync는 이 publication으로 변경분을 읽는다
 DROP PUBLICATION IF EXISTS powersync;
-CREATE PUBLICATION powersync FOR TABLE notes, folders, lists, tags, filters, sections, tasks, check_items, task_tags, reminders, view_settings, user_prefs, xp_events, characters, kpis, weekly_reports;
+CREATE PUBLICATION powersync FOR TABLE notes, wiki_topics, wiki_versions, folders, lists, tags, filters, sections, tasks, check_items, task_tags, reminders, view_settings, user_prefs, xp_events, characters, kpis, weekly_reports, map_areas, task_areas, map_links, diary_entries, diary_messages;

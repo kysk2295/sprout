@@ -23,17 +23,13 @@
 | 일기 | **v0.3 확정(캐릭터 공감 대화, 방식 하나), 구현 전**. 시안 ⑤ | 15 |
 | 작업 지도 | 진입 화면만. **v1.2 확정(그래프 기본 + 보드, 선 3종, 자동 분류), 구현 전** | 14 |
 | AI 사용량(CodexBar) | **v2 구현 완료**(721826b). 실계정 조회 확인 | 10-ai-usage |
-| 서버(셀프호스트) | 이 Mac·Mac mini 둘 다 실행 중. **공개 주소(Cloudflare Tunnel) 없음** | server/README.md |
+| 서버(셀프호스트) | 이 Mac·Mac mini 둘 다 실행 중, 동기화 테이블 23개(작업 지도·일기·수집함 v3 칸 포함). **공개 주소(Cloudflare Tunnel) 없음** | server/README.md |
 
 시안(디자인 확정본): [docs/screens/mockups/new-tabs.html](docs/screens/mockups/new-tabs.html) — 브라우저로 열면 4개 탭 시안, 라이트/다크 전환.
 
 ## 2. 바로 다음 할 일 (순서대로)
 > ⚠️ 2026-10-04: 순서는 아직 확정 전이다. PRD §8 "출시 경로 점검"에 **공개 주소 → AI 프록시 → 성장 마무리 → 저장 칸 → 수집함 → 구글 읽기 → 모바일 → 일기·작업 지도** 제안과 범위 선택지(가/나/다)가 있다. 시작 전에 사용자와 순서·범위를 먼저 정한다. 아래 목록은 화면 작업 기준 순서.
-1. **서버 저장 칸 묶음 추가** — ⚠️ **사용자 승인 대기 중**(2026-10-04 설명함, 쉬운 말로 다시 설명 요청받음 → "새 정보를 저장할 칸이 없다"로 설명). 한 번에 넣을 것:
-   - 작업 지도: `map_areas`, `task_areas`, `map_links` ([14 §5](docs/screens/14-work-map.md))
-   - 일기: `diary_entries`, `diary_messages` ([15 §5](docs/screens/15-diary.md))
-   - 수집함: `notes` 칸 추가 + `wiki_topics`, `wiki_versions` ([11 v3-6](docs/screens/11-notes.md))
-   - 절차: `packages/schema/src/index.ts` → `npm run server:schema` → `server/db/migrations/2026100x-*.sql`(IF NOT EXISTS) → 이 Mac·Mac mini 서버 둘 다 적용(server/README.md). 승인 전에는 손대지 않는다.
+1. ~~서버 저장 칸 묶음 추가~~ — ✅ **완료(2026-10-05, 사용자 승인)**. `map_areas`·`task_areas`·`map_links`·`diary_entries`·`diary_messages`·`wiki_topics`·`wiki_versions` 새로, `notes`에 v3 칸 11개 추가. 마이그레이션 `server/db/migrations/20261005-map-diary-collect.sql`. 이 Mac·Mac mini 둘 다 적용(동기화 테이블 23개, 적용 전 Mac mini 백업 `~/sprout/server/backups/manual/before-20261005.sql`).
 2. **작업 지도 구현** ([14 v1.2](docs/screens/14-work-map.md)) — 그래프(기본, `@xyflow/react` + `@dagrejs/dagre`) + 보드, 선 3종(포함·순서·목표 연결), 새 할 일 자동 분류(5초 묶음), 진행 고리·집중 보기·주제 보관.
 3. **수집함 v3 구현** ([11 v3](docs/screens/11-notes.md)) — 이름 메모함→수집함, `수집·볼 것·위키`, AI 4갈래 분류(할 일은 제안만), 링크 제목 가져오기(메인 프로세스, 요약 없음), 카톡 내보내기 파일 가져오기(PC·모바일 형식 파서 + 중복 지문), LLM 위키 자동 반영.
 4. **일기 구현** ([15 v0.3](docs/screens/15-diary.md)) — 쓰기·돌아보기, 성장 캐릭터 대화(첫 답 공감+질문, 방식 고르기 없이 원하면 같이 정리), 동의·나만 보기, **위기 안전장치(109·1577-0199·112/119)**.
@@ -56,7 +52,7 @@
 | 위치 | 상태 | 포트(127.0.0.1) |
 |---|---|---|
 | 이 Mac (`server/`) | Docker Compose 실행 중. 데스크톱 앱 기본 연결 대상 | API 6060 · PowerSync **8089** · Postgres 55432 |
-| Mac mini (SSH 별칭 `macmini`, `~/sprout/server`) | 실행 중, 건강함. 16개 테이블 동기화, Ollama(qwen3.5:9b, bge-m3) API에서 접근 확인 | API 6060 · PowerSync 8080 · Postgres **55442** |
+| Mac mini (SSH 별칭 `macmini`, `~/sprout/server`) | 실행 중, 건강함. 23개 테이블 동기화, Ollama(qwen3.5:9b, bge-m3) API에서 접근 확인 | API 6060 · PowerSync 8080 · Postgres **55442** |
 - Mac mini 확인: `ssh macmini 'export PATH=/usr/local/bin:/opt/homebrew/bin:$PATH; cd ~/sprout/server && docker compose ps'`
 - Mac mini에 붙어 시험: `ssh -L 26060:127.0.0.1:6060 -L 28080:127.0.0.1:8080 macmini` 후 앱을 `SPROUT_API_URL=http://127.0.0.1:26060 SPROUT_SYNC_URL=http://127.0.0.1:28080`로.
 - Mac mini에는 다른 서비스도 있다(UniPort 18080, postgres 55432/54329, Ollama 11434, 다른 cloudflared 임시 터널). 건드리지 않는다.

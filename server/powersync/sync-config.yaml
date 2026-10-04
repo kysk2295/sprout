@@ -8,6 +8,8 @@ streams:
     auto_subscribe: true
     queries:
       - SELECT * FROM notes WHERE owner_id = auth.user_id()
+      - SELECT * FROM wiki_topics WHERE owner_id = auth.user_id()
+      - SELECT * FROM wiki_versions WHERE owner_id = auth.user_id()
       - SELECT * FROM folders WHERE owner_id = auth.user_id()
       - SELECT * FROM lists WHERE owner_id = auth.user_id()
       - SELECT * FROM tags WHERE owner_id = auth.user_id()
@@ -23,3 +25,8 @@ streams:
       - SELECT * FROM characters WHERE owner_id = auth.user_id()
       - SELECT * FROM kpis WHERE owner_id = auth.user_id()
       - SELECT * FROM weekly_reports WHERE owner_id = auth.user_id()
+      - SELECT * FROM map_areas WHERE owner_id = auth.user_id()
+      - SELECT * FROM task_areas WHERE owner_id = auth.user_id()
+      - SELECT * FROM map_links WHERE owner_id = auth.user_id()
+      - SELECT * FROM diary_entries WHERE owner_id = auth.user_id()
+      - SELECT * FROM diary_messages WHERE owner_id = auth.user_id()

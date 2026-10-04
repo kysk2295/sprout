@@ -9,7 +9,31 @@ export interface TableDef {
 const common = { owner_id: 'text', created_at: 'text', modified_at: 'text' } as const
 
 export const TABLES = {
-  notes: { columns: { ...common, content: 'text', task_id: 'text' } },
+  // 11 수집함 v3: kind 'memo'|'task'|'link'|'wiki'(없으면 memo), source 'app'|'kakao_import'|'kakao_channel'
+  notes: {
+    columns: {
+      ...common,
+      content: 'text',
+      task_id: 'text',
+      kind: 'text',
+      kind_source: 'text', // 'ai' | 'user'
+      ai_state: 'text', // 'pending' | 'done' | 'failed'
+      suggestion: 'text', // 할 일 제안 JSON
+      url: 'text',
+      link_title: 'text',
+      seen_at: 'text',
+      topic_id: 'text',
+      source: 'text',
+      captured_at: 'text', // 원래 보낸 시각(카톡 가져오기)
+      fingerprint: 'text' // 중복 막기
+    },
+    indexes: { topic: ['topic_id'], fingerprint: ['fingerprint'] }
+  },
+  wiki_topics: { columns: { ...common, name: 'text', source: 'text', content: 'text', locked: 'text', version: 'integer' } },
+  wiki_versions: {
+    columns: { ...common, topic_id: 'text', version: 'integer', content: 'text', reason: 'text' },
+    indexes: { topic: ['topic_id'] }
+  },
   folders: { columns: { ...common, name: 'text', sort_order: 'real' } },
   lists: {
     columns: {
@@ -71,7 +95,30 @@ export const TABLES = {
     columns: { ...common, week_start: 'text', title: 'text', target: 'integer', progress: 'integer', link_kind: 'text', link_id: 'text', status: 'text', source: 'text', achieved_at: 'text', sort_order: 'real' },
     indexes: { week: ['week_start'] }
   },
-  weekly_reports: { columns: { ...common, week_start: 'text', stats_json: 'text', text_json: 'text', xp_total: 'integer', seen_at: 'text' } }
+  weekly_reports: { columns: { ...common, week_start: 'text', stats_json: 'text', text_json: 'text', xp_total: 'integer', seen_at: 'text' } },
+  // 14 작업 지도: parent_id 없음 = 영역, 있음 = 세부 주제. source 'ai'|'user' — user면 AI가 덮어쓰지 않는다
+  map_areas: {
+    columns: { ...common, name: 'text', parent_id: 'text', sort_order: 'real', source: 'text', color: 'text', archived_at: 'text' },
+    indexes: { parent: ['parent_id'] }
+  },
+  task_areas: {
+    columns: { ...common, task_id: 'text', area_id: 'text', source: 'text', state: 'text', run_id: 'text' }, // id = task_id, state 'ok'|'review'
+    indexes: { task: ['task_id'], area: ['area_id'] }
+  },
+  map_links: {
+    // kind 'sequence'|'goal', from_type 'task'|'kpi', state 'suggested'|'accepted'|'dismissed'
+    columns: { ...common, kind: 'text', from_type: 'text', from_id: 'text', to_id: 'text', source: 'text', state: 'text' },
+    indexes: { from: ['from_id'], to: ['to_id'] }
+  },
+  // 15 일기: id = 'diary-<날짜>'(사용자당 하루 1개)
+  diary_entries: {
+    columns: { ...common, date: 'text', mood: 'integer', content: 'text', prompt: 'text', private: 'integer', summary: 'text' },
+    indexes: { date: ['date'] }
+  },
+  diary_messages: {
+    columns: { ...common, entry_id: 'text', role: 'text', content: 'text', safety: 'integer' }, // role 'me'|'buddy'
+    indexes: { entry: ['entry_id'] }
+  }
 } satisfies Record<string, TableDef>
 
 export type TableName = keyof typeof TABLES
