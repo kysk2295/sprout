@@ -9,6 +9,7 @@ export interface TableDef {
 const common = { owner_id: 'text', created_at: 'text', modified_at: 'text' } as const
 
 export const TABLES = {
+  notes: { columns: { ...common, content: 'text', task_id: 'text' } },
   folders: { columns: { ...common, name: 'text', sort_order: 'real' } },
   lists: {
     columns: {

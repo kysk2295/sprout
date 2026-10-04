@@ -844,3 +844,23 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .group__more:hover { background: var(--color-bg-hover); }
 .group__more svg { width: 15px; height: 15px; }
 .group__rename { font: var(--text-group); color: var(--color-text-primary); border: 0; outline: 0; border-bottom: 1.5px solid var(--color-accent); background: transparent; padding: 0; width: 180px; user-select: text; }
+
+/* ── 09 메뉴바 미니 창 (340×560 [임시]) ── */
+html:has(.mini), html:has(.mini) body { background: transparent; }
+.mini { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--color-bg-app); border-radius: 10px; overflow: hidden; border: 1px solid var(--color-border-popover, transparent); box-sizing: border-box; }
+.mini__head { height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 12px; }
+.mini__view { display: flex; align-items: center; gap: 4px; font: 600 16px/22px var(--font-family); color: var(--color-text-primary); padding: 2px 6px; margin-left: -6px; border-radius: var(--radius-sm); }
+.mini__view:hover { background: var(--color-bg-hover); }
+.mini__view svg { width: 14px; height: 14px; color: var(--color-text-tertiary); }
+.mini__add { margin: 0 12px 6px; height: 38px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: var(--radius-md); background: var(--color-bg-input); border: 1px solid transparent; }
+.mini__add:focus-within { border: 1.5px solid var(--color-border-input-focus); background: var(--color-bg-app); }
+.mini__list { flex: 1; overflow-y: auto; padding: 0 8px 8px 0; }
+.mini__group { height: 30px; display: flex; align-items: center; gap: 4px; padding-left: 12px; font: var(--text-group); color: var(--color-text-primary); }
+.mini__group span { font: var(--text-small); color: var(--color-text-tertiary); }
+.mini__row { padding-left: 12px; }
+.mini__title { flex: 1; min-width: 0; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: var(--text-body); color: var(--color-text-primary); }
+.mini__empty, .mini--empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+.mini__empty { height: 100%; }
+.mini__empty-title { margin: 0; font: var(--text-body-strong); color: var(--color-text-secondary); }
+.mini__empty-hint { margin: 0; font: var(--text-meta); color: var(--color-text-tertiary); }
+.mini__main-btn { margin-top: 10px; height: 32px; padding: 0 14px; border-radius: var(--radius-md); background: var(--color-accent); color: #fff; font: var(--text-meta); }

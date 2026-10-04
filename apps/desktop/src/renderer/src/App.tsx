@@ -18,6 +18,7 @@ import { useLocalState, usePreferences } from './data/preferences'
 import { CommandMenu, SearchDialog, QuickAdd, type Command } from './components/DesktopEntry'
 import { useAuth, type AuthState } from './data/auth'
 import { LoginScreen } from './components/LoginScreen'
+import { MiniWindow } from './components/MiniWindow'
 import { DesktopSettings } from './components/DesktopSettings'
 
 const SIDEBAR = { def: 261, min: 200, max: 400 } // 실측 261
@@ -29,6 +30,7 @@ const NARROW_BELOW = 900
 export function App() {
   const auth = useAuth()
   if (new URLSearchParams(location.search).get('window') === 'settings') return <DesktopSettings onClose={() => window.close()} />
+  if (new URLSearchParams(location.search).get('window') === 'mini') return auth.state ? <ThemedMini signedIn={!!auth.state.user} /> : null
   // 08 §2 A안: 데스크톱은 로그아웃 상태면 로그인 화면이 먼저 (웹 미리보기는 서버가 없어 건너뛴다)
   if (auth.enabled && !auth.state) return null
   if (auth.enabled && !auth.state?.user) return <ThemedLogin />
@@ -39,12 +41,20 @@ export function App() {
   )
 }
 
-function ThemedLogin() {
+/** 설정의 테마(시스템 다크 따르기 포함)를 문서에 적용 — 로그인 화면·미니 창용 */
+function useApplyTheme() {
   const prefs = usePreferences()
   const [systemDark, setSystemDark] = useState(matchMedia('(prefers-color-scheme: dark)').matches)
   useEffect(() => { const m = matchMedia('(prefers-color-scheme: dark)'); const change = () => setSystemDark(m.matches); m.addEventListener('change', change); return () => m.removeEventListener('change', change) }, [])
   useEffect(() => { document.documentElement.dataset.theme = prefs.followDark && systemDark ? 'dark' : prefs.theme }, [prefs.theme, prefs.followDark, systemDark])
+}
+function ThemedLogin() {
+  useApplyTheme()
   return <LoginScreen />
+}
+function ThemedMini({ signedIn }: { signedIn: boolean }) {
+  useApplyTheme()
+  return <ToastProvider><MiniWindow signedIn={signedIn} /></ToastProvider>
 }
 
 function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
@@ -119,7 +129,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   useEffect(() => {
     const r = window.sprout?.reminders
     if (!r) return
-    const offOpen = r.onOpen((id) => setSelection([id]))
+    const offOpen = r.onOpen((id) => { setView('tasks'); setSelection([id]) }) // 알림·미니 창에서 열기
     const offDone = r.onComplete((id) => void actions.complete([id]))
     return () => { offOpen(); offDone() }
   }, [actions])

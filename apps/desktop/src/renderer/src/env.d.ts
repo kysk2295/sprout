@@ -11,6 +11,7 @@ declare global {
       db: DbApi
       desktop?: import('../../preload').SproutDesktopApi
       auth?: import('../../preload').SproutAuthApi
+      mini?: import('../../preload').SproutMiniApi
       reminders?: import('../../preload').SproutRemindersApi
     }
   }

@@ -40,8 +40,18 @@ const authApi = {
   onState: (cb: (s: AuthState) => void) => on('auth:state', cb)
 }
 
+const miniApi = {
+  toggle: () => ipcRenderer.send('mini:toggle'),
+  hide: () => ipcRenderer.send('mini:hide'),
+  openTask: (taskId: string) => ipcRenderer.send('mini:open-task', taskId),
+  showMain: () => ipcRenderer.send('mini:show-main'),
+  quit: () => ipcRenderer.send('mini:quit'),
+  onShown: (cb: () => void) => on('mini:shown', cb)
+}
+
 const desktopApi = { openSettings: () => ipcRenderer.send('desktop:settings'), onQuickAdd: (cb: () => void) => on('desktop:quick-add', cb) }
-contextBridge.exposeInMainWorld('sprout', { platform: process.platform, db: dbApi, reminders: remindersApi, desktop: desktopApi, auth: authApi })
+contextBridge.exposeInMainWorld('sprout', { platform: process.platform, db: dbApi, reminders: remindersApi, desktop: desktopApi, auth: authApi, mini: miniApi })
+export type SproutMiniApi = typeof miniApi
 export type SproutAuthApi = typeof authApi
 export type SproutDesktopApi = typeof desktopApi
 export type SproutDbApi = typeof dbApi

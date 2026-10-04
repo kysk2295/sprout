@@ -5,6 +5,7 @@ import { registerDbIpc } from './ipc'
 import { ensureSeed } from './seed'
 import { startReminders } from './reminders'
 import { isSignedIn, startSync } from './sync'
+import { hasTray, startMini } from './mini'
 
 // 01-app-shell §2 창: 최소 800×560, Mac은 제목 표시줄을 숨기고 신호등이 레일 위에 놓인다.
 let mainWindow: BrowserWindow | undefined
@@ -66,6 +67,14 @@ app.whenReady().then(async () => {
   ipcMain.on('desktop:settings', openSettings)
   createWindow()
   startReminders(getWindow)
+  // 09 메뉴바 미니 창 + 메인 창 단축키(⇧⌘E). 메인 창을 닫아도 메뉴 막대에 남는다
+  const showMain = async () => { const win = await getWindow(); if (win.isMinimized()) win.restore(); win.show(); win.focus(); return win }
+  startMini(async (taskId) => { const win = await showMain(); win.webContents.send('reminder:open', taskId) }, () => void showMain())
+  globalShortcut.register(process.platform === 'darwin' ? 'Shift+Command+E' : 'Alt+Shift+E', () => {
+    const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined
+    if (win?.isVisible() && win.isFocused()) win.hide()
+    else void showMain()
+  })
   const shortcut = process.platform === 'darwin' ? 'Control+Shift+A' : 'Alt+Shift+A'
   if (!globalShortcut.register(shortcut, async () => { const win = await getWindow(); if(win.isMinimized())win.restore();win.show();win.focus();win.webContents.send('desktop:quick-add') })) console.warn('[shortcuts] Quick add shortcut unavailable')
   app.on('activate', () => {
@@ -74,7 +83,8 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  // 트레이가 있으면(Windows) 창을 다 닫아도 계속 돈다. Mac은 원래 메뉴 막대·Dock에 남는다
+  if (process.platform !== 'darwin' && !hasTray()) app.quit()
 })
 
 app.on('before-quit', () => {
