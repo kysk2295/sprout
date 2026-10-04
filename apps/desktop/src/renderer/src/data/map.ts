@@ -12,7 +12,7 @@ import { splitEmoji } from '../../../shared/emoji'
 
 // ── 행 모양 ──
 export type MapLink = { id: string; kind: 'sequence' | 'goal'; from_type: 'task' | 'kpi'; from_id: string; to_id: string; source: string; state: 'suggested' | 'accepted' | 'dismissed'; created_at?: string | null }
-export type MapTask = { id: string; title: string; status: number; due_at: string | null; start_at: string | null; priority: number; list_id: string | null; completed_at: string | null; created_at: string | null }
+export type MapTask = { id: string; title: string; status: number; due_at: string | null; start_at: string | null; priority: number; list_id: string | null; completed_at: string | null; created_at: string | null; parent_id?: string | null }
 export type MapGoal = { id: string; title: string; target: number; progress: number; status: string; week_start: string; achieved_at: string | null; source: string; sort_order: number }
 export type MapFolder = { id: string; name: string; sort_order: number }
 export type MapList = { id: string; name: string; emoji: string | null; color: string | null; folder_id: string | null; kind: string; sort_order: number; archived_at?: string | null }
@@ -115,11 +115,12 @@ export function filterTasks(tasks: MapTask[], f: MapFilter, today = dayKey()): M
 }
 
 // ── 그래프 배치(dagre) ──
-export const SIZE = { root: { w: 120, h: 28 }, group: { w: 180, h: 40 }, list: { w: 140, h: 34 }, task: { w: 170, h1: 40, h2: 56 }, goal: { h: 30 }, memo: { w: 140, h: 40 }, indent: 12, gap: 8, under: 16, memoGap: 24 }
-export type LayoutNode = { id: string; kind: 'root' | 'folder' | 'list' | 'task' | 'goal' | 'anchor' | 'lane' | 'memo'; x: number; y: number; w: number; h: number; ref?: string; group?: string; level?: 1 | 2 }
+export const SIZE = { root: { w: 120, h: 28 }, group: { w: 180, h: 40 }, goalGroup: { w: 280, h: 52 }, list: { w: 140, h: 34 }, task: { w: 170, h1: 40, h2: 56 }, goal: { h: 30, hPath: 46 }, memo: { w: 140, h: 40 }, indent: 12, gap: 8, under: 16, memoGap: 24 }
+/** goalgroup·nogoal = 31 목표로 묶기의 1층(목표 노드 · 목표 없는 할 일) */
+export type LayoutNode = { id: string; kind: 'root' | 'folder' | 'list' | 'task' | 'goal' | 'goalgroup' | 'nogoal' | 'anchor' | 'lane' | 'memo'; x: number; y: number; w: number; h: number; ref?: string; group?: string; level?: 1 | 2; sub?: number }
 export type LayoutEdge = { id: string; kind: 'contain' | 'stem' | 'seq' | 'goal' | 'memo'; source: string; target: string; link?: MapLink }
 /** 끌어 놓는 자리: 리스트(할 일을 놓음) · 폴더(리스트를 놓음) */
-export type LayoutZone = { kind: 'list' | 'folder'; id: string; x: number; y: number; w: number; h: number }
+export type LayoutZone = { kind: 'list' | 'folder' | 'goal'; id: string; x: number; y: number; w: number; h: number }
 export type LayoutInput = {
   tree: MapTree
   links: MapLink[]
@@ -127,6 +128,22 @@ export type LayoutInput = {
   collapsed: Record<string, boolean>
   memos?: { id: string; title: string; task_id: string }[]
   hasDate: (taskId: string) => boolean
+  /** 31 목표로 묶기: 있으면 tree 대신 목표 → 리스트 → 할 일로 배치(목표 줄은 그리지 않는다) */
+  goalTree?: { sections: ({ kind: 'goal'; id: string; lists: ListGroup[] } | { kind: 'nogoal'; id: 'nogoal'; lists: ListGroup[] })[] }
+  /** 목표 노드 아래 남은 길 글자가 있는 목표(목표 줄 노드 높이) */
+  pathGoals?: Set<string>
+}
+/** 하위 할 일 깊이(부모가 같은 열에 있을 때만, 최대 3) — 순서는 mapGrouping.nestTasks가 맞춘다 */
+function nestDepth(tasks: MapTask[]): Map<string, number> {
+  const byId = new Map(tasks.map((t) => [t.id, t]))
+  const out = new Map<string, number>()
+  for (const t of tasks) {
+    let d = 0
+    let cur = t
+    while (cur.parent_id && byId.has(cur.parent_id) && d < 3) { d++; cur = byId.get(cur.parent_id)! }
+    if (d) out.set(t.id, d)
+  }
+  return out
 }
 const taskH = (input: LayoutInput, id: string) => (input.hasDate(id) ? SIZE.task.h2 : SIZE.task.h1)
 /** 할 일 노드가 300개를 넘으면 폴더 안 리스트를 기본으로 접는다(14 §0.5) */
@@ -146,23 +163,32 @@ export function layoutMap(input: LayoutInput): { nodes: LayoutNode[]; edges: Lay
   for (const m of input.memos ?? []) memoOf.set(m.task_id, [...(memoOf.get(m.task_id) ?? []), m])
   type Col = { id: string; group: string; head?: MapList; listId: string; tasks: MapTask[]; w: number; h: number }
   const cols: Col[] = []
+  const subOf = new Map<string, number>() // 하위 할 일 들여쓰기 깊이(31 §4.3: 부모 노드 아래 12씩)
   const colSize = (tasks: MapTask[], head: boolean) => {
     const memo = tasks.some((t) => memoOf.has(t.id))
-    const w = SIZE.indent + SIZE.task.w + (memo ? SIZE.memoGap + SIZE.memo.w : 0)
+    for (const [id, d] of nestDepth(tasks)) subOf.set(id, d)
+    const deep = Math.max(0, ...tasks.map((t) => subOf.get(t.id) ?? 0))
+    const w = SIZE.indent + deep * SIZE.indent + SIZE.task.w + (memo ? SIZE.memoGap + SIZE.memo.w : 0)
     const stack = tasks.reduce((n, t) => n + taskH(input, t.id) + SIZE.gap, 0)
     return { w: Math.max(w, SIZE.list.w), h: (head ? SIZE.list.h : 0) + (tasks.length ? SIZE.under + stack - SIZE.gap : 0) }
   }
-  g.setNode('root', { width: SIZE.root.w, height: SIZE.root.h })
-  const tops = input.tree.groups.map((grp) => ({ id: `${grp.kind}:${grp.id}`, grp }))
+  g.setNode('root', { width: input.goalTree ? 260 : SIZE.root.w, height: SIZE.root.h })
+  // 1층: 리스트 묶기 = 폴더·폴더 밖 리스트, 목표 묶기 = 목표·목표 없음
+  type Top = { id: string; kind: 'folder' | 'list' | 'goalgroup' | 'nogoal'; ref: string; tasks?: MapTask[]; lists?: ListGroup[] }
+  const tops: Top[] = input.goalTree
+    ? input.goalTree.sections.map((s) => (s.kind === 'goal' ? { id: `goal:${s.id}`, kind: 'goalgroup' as const, ref: s.id, lists: s.lists } : { id: 'nogoal', kind: 'nogoal' as const, ref: 'nogoal', lists: s.lists }))
+    : input.tree.groups.map((grp) => (grp.kind === 'list' ? { id: `list:${grp.id}`, kind: 'list' as const, ref: grp.id, tasks: grp.tasks } : { id: `folder:${grp.id}`, kind: 'folder' as const, ref: grp.id, lists: grp.lists }))
   for (const t of tops) {
-    g.setNode(t.id, { width: SIZE.group.w, height: SIZE.group.h })
+    const big = t.kind === 'goalgroup' || t.kind === 'nogoal'
+    g.setNode(t.id, { width: big ? SIZE.goalGroup.w : SIZE.group.w, height: big ? SIZE.goalGroup.h : SIZE.group.h })
     g.setEdge('root', t.id)
-    if (isCollapsed(input.collapsed, t.id, false)) continue
-    if (t.grp.kind === 'list') {
-      if (t.grp.tasks.length) cols.push({ id: `col:${t.id}`, group: t.id, listId: t.grp.id, tasks: t.grp.tasks, ...colSize(t.grp.tasks, false) })
+    // 목표 없는 할 일은 처음 접힘(31 §3.2)
+    if (input.collapsed[t.id] ?? t.kind === 'nogoal') continue
+    if (t.kind === 'list') {
+      if (t.tasks!.length) cols.push({ id: `col:${t.id}`, group: t.id, listId: t.ref, tasks: t.tasks!, ...colSize(t.tasks!, false) })
     } else {
-      for (const l of t.grp.lists) {
-        const lid = `list:${l.list.id}`
+      for (const l of t.lists!) {
+        const lid = t.kind === 'folder' ? `list:${l.list.id}` : `${t.id}/list:${l.list.id}`
         const shown = isCollapsed(input.collapsed, lid, auto, true) ? [] : l.tasks
         cols.push({ id: lid, group: t.id, head: l.list, listId: l.list.id, tasks: shown, ...colSize(shown, true) })
       }
@@ -200,13 +226,13 @@ export function layoutMap(input: LayoutInput): { nodes: LayoutNode[]; edges: Lay
   const colBoxes = new Map(cols.map((c) => [c.id, { ...box(c.id), y: colTop + (c.head ? 0 : SIZE.under) }]))
   for (const t of tops) {
     const b = box(t.id)
-    nodes.push({ id: t.id, kind: t.grp.kind, ref: t.grp.id, level: 1, ...b })
+    nodes.push({ id: t.id, kind: t.kind, ref: t.ref, level: 1, ...b })
     edges.push({ id: `e:root:${t.id}`, kind: 'contain', source: 'root', target: t.id })
     // 놓는 자리: 위 노드 + 그 열들을 감싼 상자
     const mine = cols.filter((c) => c.group === t.id).map((c) => colBoxes.get(c.id)!)
     const x0 = Math.min(b.x, ...mine.map((m) => m.x)), x1 = Math.max(b.x + b.w, ...mine.map((m) => m.x + m.w))
     const y1 = Math.max(b.y + b.h, ...mine.map((m) => m.y + m.h))
-    zones.push({ kind: t.grp.kind, id: t.grp.id, x: x0 - 8, y: b.y - 4, w: x1 - x0 + 16, h: y1 - b.y + 12 })
+    zones.push({ kind: t.kind === 'goalgroup' || t.kind === 'nogoal' ? 'goal' : t.kind, id: t.ref, x: x0 - 8, y: b.y - 4, w: x1 - x0 + 16, h: y1 - b.y + 12 })
   }
   for (const c of cols) {
     const b = colBoxes.get(c.id)!
@@ -226,7 +252,8 @@ export function layoutMap(input: LayoutInput): { nodes: LayoutNode[]; edges: Lay
     }
     for (const t of c.tasks) {
       const h = taskH(input, t.id)
-      nodes.push({ id: `task:${t.id}`, kind: 'task', ref: t.id, group: c.group, x: b.x + SIZE.indent, y, w: SIZE.task.w, h })
+      const sub = subOf.get(t.id) ?? 0
+      nodes.push({ id: `task:${t.id}`, kind: 'task', ref: t.id, group: c.group, x: b.x + SIZE.indent + sub * SIZE.indent, y, w: SIZE.task.w, h, ...(sub ? { sub } : {}) })
       edges.push({ id: `e:${stemFrom}:${t.id}`, kind: 'stem', source: stemFrom, target: `task:${t.id}` })
       for (const m of memoOf.get(t.id) ?? []) {
         nodes.push({ id: `memo:${m.id}`, kind: 'memo', ref: m.id, x: b.x + SIZE.indent + SIZE.task.w + SIZE.memoGap, y, w: SIZE.memo.w, h: SIZE.memo.h })
@@ -242,19 +269,19 @@ export function layoutMap(input: LayoutInput): { nodes: LayoutNode[]; edges: Lay
     if (l.kind === 'sequence' && shown.has(l.from_id)) edges.push({ id: `link:${l.id}`, kind: 'seq', source: `task:${l.from_id}`, target: `task:${l.to_id}`, link: l })
   }
   // 목표 줄: 맨 아래 가로줄. 연결된 할 일들의 가운데 아래에 놓고 겹치면 오른쪽으로 민다
-  if (input.goals.length) {
+  if (input.goals.length && !input.goalTree) {
     const bottom = Math.max(...nodes.map((n) => n.y + n.h)) + 56
     nodes.push({ id: 'lane', kind: 'lane', x: 20, y: bottom - 22, w: 240, h: 16 })
     const center = new Map(nodes.filter((n) => n.kind === 'task').map((n) => [n.ref!, n.x + n.w / 2]))
     const placed = input.goals.map((goal, i) => {
       const xs = input.links.filter((l) => l.kind === 'goal' && l.from_id === goal.id && l.state !== 'dismissed' && center.has(l.to_id)).map((l) => center.get(l.to_id)!)
-      const w = Math.min(220, Math.max(120, [...goal.title].length * 12 + 44))
+      const w = input.pathGoals?.has(goal.id) ? 220 : Math.min(220, Math.max(120, [...goal.title].length * 12 + 44))
       return { goal, w, want: xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length - w / 2 : Infinity, i }
     }).sort((a, b) => a.want - b.want || a.i - b.i)
     let gx = 20
     for (const p of placed) {
       const x = Math.max(gx, Number.isFinite(p.want) ? p.want : gx)
-      nodes.push({ id: `goal:${p.goal.id}`, kind: 'goal', ref: p.goal.id, x, y: bottom, w: p.w, h: SIZE.goal.h })
+      nodes.push({ id: `goal:${p.goal.id}`, kind: 'goal', ref: p.goal.id, x, y: bottom, w: p.w, h: input.pathGoals?.has(p.goal.id) ? SIZE.goal.hPath : SIZE.goal.h })
       gx = x + p.w + 16
     }
     for (const l of input.links) {

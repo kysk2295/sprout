@@ -1,6 +1,10 @@
 // 14 §2~§4 보드 보기 v2.0 — 틱틱 칸반 모양(열 폭 258, 간격 16): 열 = 폴더(안에 리스트 그룹) 또는 폴더 밖 리스트, 카드 = 할 일.
 // 끌어서: 할 일 → 다른 리스트(list_id) · 리스트 → 다른 폴더/순서 · 폴더 열 → 폴더 순서
 import { ChevronDown, ChevronRight, FolderPlus, MoreHorizontal, Plus, Sparkles } from 'lucide-react'
+import { XP } from '@sprout/schema/growth'
+import { addGoal, thisWeek } from '../../data/growth'
+import type { GoalSection, NoGoalSection } from '../../data/mapGrouping'
+import { GoalHead, GoalMenu, renameGoal } from './GoalBits'
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
 import { SUGGEST } from '../../data/listSuggest'
 import { folderView, listTitle, type ListGroup, type MapFolder, type MapGroup, type MapList, type MapTask } from '../../data/map'
@@ -11,9 +15,9 @@ import { CardMenu, FolderIcon, FolderMenu, ListIcon, ListMenu, NameInput, TaskCa
 const TASK = 'application/x-sprout-task'
 const LIST = 'application/x-sprout-list'
 const FOLDER = 'application/x-sprout-folder'
-type Drop = { kind: 'list' | 'folder' | 'listHead' | 'folderHead'; id: string } | null
+type Drop = { kind: 'list' | 'folder' | 'listHead' | 'folderHead' | 'goal'; id: string } | null
 
-export function MapBoard({ data, actions, onReorderFolders }: { data: MapData; actions: MapActions; onReorderFolders: (ids: string[]) => void }) {
+export function MapBoard({ data, actions, onReorderFolders, reveal, say, onGrowth }: { data: MapData; actions: MapActions; onReorderFolders: (ids: string[]) => void; reveal?: { id: string; n: number }; say: (text: string) => void; onGrowth?: () => void }) {
   const [fold, setFold] = useStored<Record<string, boolean>>('boardFold', {})
   const [menu, setMenu] = useState<{ kind: 'folder'; folder: MapFolder; anchor: HTMLElement } | { kind: 'list'; list: MapList; anchor: HTMLElement } | { kind: 'card'; task: MapTask; point: { x: number; y: number } }>()
   const [adding, setAdding] = useState<string | null>(null) // 리스트 + → 입력 카드
@@ -21,9 +25,25 @@ export function MapBoard({ data, actions, onReorderFolders }: { data: MapData; a
   const [drag, setDrag] = useState<string | null>(null)
   const [over, setOver] = useState<Drop>(null)
   const board = useRef<HTMLDivElement>(null)
+  const [goalMenu, setGoalMenu] = useState<{ goal: GoalSection['goal']; point: { x: number; y: number } }>()
+  const [newGoal, setNewGoal] = useState(false)
+  const grouped = data.grouped
+  const groups = grouped.by === 'list' ? grouped.tree.groups : data.tree.groups
+
+  // 지금 띠 알약 클릭 → 그 카드로 스크롤(접힌 그룹이면 펼친다)
+  useEffect(() => {
+    if (!reveal) return
+    const el = board.current?.querySelector(`[data-task="${reveal.id}"]`)
+    if (el) { el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); return }
+    const t = data.byId.get(reveal.id)
+    if (t?.list_id && fold[t.list_id]) setFold((f) => ({ ...f, [t.list_id!]: false }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reveal])
 
   // 열 순서대로 보이는 카드 — 키보드 이동(←→ 열, ↑↓ 카드)
-  const columns: { id: string; tasks: MapTask[] }[] = data.tree.groups.map((g) => ({ id: g.id, tasks: g.kind === 'list' ? g.tasks : g.lists.flatMap((l) => (fold[l.list.id] ? [] : l.tasks)) }))
+  const columns: { id: string; tasks: MapTask[] }[] = grouped.by === 'goal'
+    ? grouped.tree.sections.map((s) => ({ id: s.id, tasks: s.lists.flatMap((l) => (fold[`${s.id}/${l.list.id}`] ? [] : l.tasks)) }))
+    : groups.map((g) => ({ id: g.id, tasks: g.kind === 'list' ? g.tasks : g.lists.flatMap((l) => (fold[l.list.id] ? [] : l.tasks)) }))
   const onKey = (e: KeyboardEvent) => {
     if ((e.target as HTMLElement).closest('input,textarea')) return
     const ci = columns.findIndex((c) => c.tasks.some((t) => t.id === actions.selected))
@@ -44,7 +64,7 @@ export function MapBoard({ data, actions, onReorderFolders }: { data: MapData; a
   }
 
   const accepts = (d: NonNullable<Drop>, types: readonly string[]) =>
-    (types.includes(TASK) && d.kind === 'list') ||
+    (types.includes(TASK) && (d.kind === 'list' || d.kind === 'goal')) ||
     (types.includes(LIST) && (d.kind === 'folder' || d.kind === 'listHead')) ||
     (types.includes(FOLDER) && d.kind === 'folderHead')
   const target = (d: NonNullable<Drop>) => ({
@@ -63,6 +83,10 @@ export function MapBoard({ data, actions, onReorderFolders }: { data: MapData; a
       const taskId = e.dataTransfer.getData(TASK)
       const listId = e.dataTransfer.getData(LIST)
       const folderId = e.dataTransfer.getData(FOLDER)
+      if (taskId && d.kind === 'goal') {
+        const cur = grouped.by === 'goal' ? grouped.tree.sections.find((s) => s.lists.some((l) => l.tasks.some((t) => t.id === taskId)))?.id : undefined
+        if (cur !== d.id) void actions.linkGoal(taskId, d.id === 'nogoal' ? null : d.id)
+      }
       if (taskId && d.kind === 'list') {
         const t = data.byId.get(taskId)
         if (t && t.list_id !== d.id) void actions.moveTask(taskId, d.id)
@@ -159,9 +183,54 @@ export function MapBoard({ data, actions, onReorderFolders }: { data: MapData; a
     )
   }
 
+  /** 31 §3.2 목표 묶기 보드: 열 = 목표(머리: 체크 · 🎯 이름 · 진행 · 보상) → 열 안 그룹 = 리스트 → 카드. 마지막 열 `목표 없음` */
+  const goalColumn = (s: GoalSection | NoGoalSection) => {
+    const key = (lid: string) => `${s.id}/${lid}`
+    return (
+      <section key={s.id} className={`map-col map-col--goal${isOver('goal', s.id) ? ' is-over' : ''}${s.kind === 'nogoal' ? ' map-col--none' : ''}`} {...target({ kind: 'goal', id: s.id })}>
+        {s.kind === 'goal'
+          ? <header className={`map-col__head map-goal-head${s.goal.status === 'achieved' ? ' is-achieved' : ''}`} onContextMenu={(e) => { e.preventDefault(); setGoalMenu({ goal: s.goal, point: { x: e.clientX, y: e.clientY } }) }}
+              onDoubleClick={() => actions.setEditing(`goal:${s.id}`)}>
+              <GoalHead goal={s.goal} data={data} editing={actions.editing === `goal:${s.id}`} onRename={async (v) => { const ok = await renameGoal(s.goal, v); if (ok) actions.setEditing(null); return ok }} onCancel={() => actions.setEditing(null)} />
+            </header>
+          : <header className="map-col__head"><span className="map-col__name">목표 없음</span><span className="map-col__count">{s.count}</span></header>}
+        <div className="map-col__body">
+          {s.lists.map((l) => (
+            <div key={l.list.id} className="map-group">
+              <div className="map-group__head" onClick={() => setFold((f) => ({ ...f, [key(l.list.id)]: !f[key(l.list.id)] }))}>
+                {fold[key(l.list.id)] ? <ChevronRight /> : <ChevronDown />}
+                <ListIcon list={l.list} />
+                <span className="map-group__name">{listTitle(l.list)}</span>
+                <span className="map-group__count">{l.count}</span>
+              </div>
+              {!fold[key(l.list.id)] && l.tasks.map(card)}
+            </div>
+          ))}
+          {!s.lists.length && <p className="map-col__empty">{s.kind === 'goal' ? '할 일 카드를 끌어 놓으면 이 목표에 연결돼요' : '모든 할 일이 목표에 연결돼 있어요'}</p>}
+        </div>
+      </section>
+    )
+  }
+
+  if (grouped.by === 'goal') {
+    const full = data.goals.length >= XP.goalsPerWeek
+    return (
+      <div className="map-board" ref={board} tabIndex={0} onKeyDown={onKey}>
+        {grouped.tree.sections.map(goalColumn)}
+        <div className="map-board__new">
+          {newGoal
+            ? <NameInput placeholder="이번 주에 하고 싶은 일" onSave={async (v) => { if (!v.trim()) return false; const r = await addGoal(data.goalWeek, v, 'manual'); if (r === 'full') say(`목표는 한 주 ${XP.goalsPerWeek}개까지예요`); setNewGoal(false); return true }} onCancel={() => setNewGoal(false)} />
+            : <span className="map-tip" data-tip={full ? `목표는 한 주 ${XP.goalsPerWeek}개까지예요` : undefined}><button className="map-newcol" disabled={full} onClick={() => setNewGoal(true)}><Plus />{data.goalWeek === thisWeek() ? '이번 주 목표' : '다음 주 목표'}</button></span>}
+        </div>
+        {menu?.kind === 'card' && <CardMenu task={menu.task} data={data} actions={actions} point={menu.point} onClose={() => setMenu(undefined)} />}
+        {goalMenu && <GoalMenu goal={goalMenu.goal} point={goalMenu.point} onClose={() => setGoalMenu(undefined)} say={say} onGrowth={onGrowth} onRename={() => actions.setEditing(`goal:${goalMenu.goal.id}`)} />}
+      </div>
+    )
+  }
+
   return (
     <div className="map-board" ref={board} tabIndex={0} onKeyDown={onKey}>
-      {data.tree.groups.map((g) => (g.kind === 'list' ? listColumn(g) : folderColumn(g)))}
+      {groups.map((g) => (g.kind === 'list' ? listColumn(g) : folderColumn(g)))}
       <div className="map-board__new">
         <button className="map-newcol" onClick={() => actions.editList()}><Plus />새로운 리스트</button>
         {newFolder

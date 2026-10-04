@@ -5,7 +5,7 @@ import { serverAccess } from './sync'
 
 // AI 경로(PRD AI 사용 원칙): 기본 = sprout API의 AI 프록시(/ai/<용도>, 로그인 토큰, 서버 대기열·상한).
 // SPROUT_AI_SSH=1이면 오너 개발용으로 예전처럼 SSH → Mac mini Ollama에 바로 붙는다.
-const PURPOSES: AiPurpose[] = ['assistant', 'classify', 'map', 'diary', 'kpi-draft', 'weekly-report']
+const PURPOSES: AiPurpose[] = ['assistant', 'classify', 'map', 'diary', 'kpi-draft', 'weekly-report', 'breakdown']
 const UNAVAILABLE = '지금은 AI를 쓸 수 없어요. 잠시 뒤 다시 시도해 주세요.'
 
 async function server(path: string, init: RequestInit & { signal?: AbortSignal } = {}) {
@@ -22,7 +22,7 @@ async function server(path: string, init: RequestInit & { signal?: AbortSignal }
     const json = await res.json().catch(() => null)
     let message = typeof json?.error === 'string' ? json.error : res.status >= 500 ? UNAVAILABLE : 'AI 요청을 처리하지 못했어요. 다시 시도해 주세요.'
     // 13 §6 상한(429): "잠시 뒤 다시 시도해 주세요. (오늘 남은 요청 N회)" + 다시 시도는 Retry-After 뒤에
-    if (res.status === 429 && json?.code !== 'weekly') {
+    if (res.status === 429 && json?.code !== 'weekly' && json?.code !== 'daily') {
       const left = await remainingToday().catch(() => undefined)
       if (left !== undefined) message += ` (오늘 남은 요청 ${left}회)`
     }

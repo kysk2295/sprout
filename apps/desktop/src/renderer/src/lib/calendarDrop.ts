@@ -5,6 +5,8 @@ export interface CalendarDrop { day:string;minute?:number }
 export function calendarDropAt(x:number,y:number):CalendarDrop|null {
  const el=document.elementFromPoint(x,y)?.closest<HTMLElement>('[data-cal-day]')
  if(!el?.dataset.calDay)return null
+ // 31 §2.5 타임라인 일 배율: 가로로 놓인 하루 칸(data-minute-width = 1분 폭 px) — 놓은 시각부터 1시간
+ if(el.dataset.minuteWidth){const m=(x-el.getBoundingClientRect().left)/Number(el.dataset.minuteWidth);return {day:el.dataset.calDay,minute:Math.max(0,Math.min(1425,Math.floor(m/15)*15))}}
  if(!el.dataset.hourHeight)return {day:el.dataset.calDay}
  const offset=y-el.getBoundingClientRect().top
  const h=Number(el.dataset.hourHeight)

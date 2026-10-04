@@ -1,5 +1,5 @@
 /** 서버 AI 프록시 경로(/ai/<용도>) — 용도별로 상한을 센다 */
-export type AiPurpose='assistant'|'classify'|'map'|'diary'|'kpi-draft'|'weekly-report'
+export type AiPurpose='assistant'|'classify'|'map'|'diary'|'kpi-draft'|'weekly-report'|'breakdown'
 export interface ChatInput {model:string;messages:{role:'system'|'user'|'assistant';content:string}[];format?:Record<string,unknown>;purpose?:AiPurpose}
 export interface Intent {action:'create'|'query'|'stats'|'reply';message:string;title:string;listId:string;start:string;due:string;from:string;to:string;keyword:string;status:'all'|'open'|'completed';repeat:string}
 const fields=['message','title','listId','start','due','from','to','keyword','repeat'] as const

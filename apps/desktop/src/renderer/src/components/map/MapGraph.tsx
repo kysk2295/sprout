@@ -6,7 +6,8 @@ import {
 } from '@xyflow/react'
 import { Check, Maximize2, Minus, Plus, Sparkles, X } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { autoCollapse, folderView, highlightSet, isCollapsed, layoutMap, listTitle, zoneAt, type LayoutEdge, type LayoutNode, type MapFolder, type MapGoal, type MapList, type MapTask } from '../../data/map'
+import { autoCollapse, folderView, highlightSet, isCollapsed, layoutMap, listTitle, zoneAt, type LayoutEdge, type LayoutNode, type MapFolder, type MapGoal, type MapList, type MapTask, type MapTree } from '../../data/map'
+import { goalPathText, GoalHead, GoalMenu, renameGoal, toggleGoal } from './GoalBits'
 import { SUGGEST } from '../../data/listSuggest'
 import { CardMenu, FolderIcon, FolderMenu, ListIcon, ListMenu, NameInput, Ring, TaskCard, twoLine, type MapActions } from './parts'
 import { useStored, type LinkRow, type MapData } from './useMapData'
@@ -31,14 +32,54 @@ type Ctx = {
   taskOf: Map<string, MapTask>
   hidden: Map<string, number>
   listCount: Map<string, number>
+  /** 31 v3: 지금 집중으로 흐린 묶음 노드 · 끌어 놓을 목표 노드 */
+  quiet: Set<string>
+  dropGoal: string | null
 }
 const GraphCtx = createContext<Ctx>(null as never)
 type N = Node<{ l: LayoutNode }>
-const dim = (ctx: Ctx, id: string) => (ctx.hl && !ctx.hl.has(id) ? ' is-dim' : '')
+const dim = (ctx: Ctx, id: string) => (ctx.hl && !ctx.hl.has(id) ? ' is-dim' : '') + (ctx.quiet.has(id) ? ' is-quiet' : '')
+/** 2026-10-05 → `10월 5일–11일`(달이 바뀌면 `9월 29일–10월 5일`) */
+export function weekRange(ws: string) {
+  const a = new Date(`${ws}T00:00`)
+  const b = new Date(a); b.setDate(b.getDate() + 6)
+  return `${a.getMonth() + 1}월 ${a.getDate()}일–${a.getMonth() === b.getMonth() ? '' : `${b.getMonth() + 1}월 `}${b.getDate()}일`
+}
 
 function RootNode({ id }: NodeProps<N>) {
   const ctx = useContext(GraphCtx)
-  return <div className={`map-node map-node--root${dim(ctx, id)}`}>나의 할 일<Handle type="source" position={Position.Bottom} isConnectable={false} /></div>
+  const goal = ctx.data.grouped.by === 'goal'
+  return <div className={`map-node map-node--root${goal ? ' map-node--root-goal' : ''}${dim(ctx, id)}`}>{goal ? `🌱 이번 주 목표 · ${weekRange(ctx.data.goalWeek)}` : '나의 할 일'}<Handle type="source" position={Position.Bottom} isConnectable={false} /></div>
+}
+/** 31 §3.2 목표 노드(목표 묶기 1층): 체크 · 🎯 제목 · 남은 길 · 진행 고리 · 보상 */
+function GoalGroupNode({ id, data: { l } }: NodeProps<N>) {
+  const ctx = useContext(GraphCtx)
+  const g = ctx.goalOf.get(l.ref!)
+  const folded = ctx.hidden.has(id)
+  if (!g) return null
+  return (
+    <div className={`map-node map-node--goalgroup${g.status === 'achieved' ? ' is-achieved' : ''}${ctx.dropGoal === g.id ? ' is-drop' : ''}${dim(ctx, id)}`}>
+      <Handle type="target" position={Position.Top} isConnectable={false} />
+      <GoalHead goal={g} data={ctx.data} editing={ctx.actions.editing === id} onRename={async (v) => { const ok = await renameGoal(g, v); if (ok) ctx.actions.setEditing(null); return ok }} onCancel={() => ctx.actions.setEditing(null)} />
+      {(ctx.hidden.get(id) ?? 0) > 0 || !folded ? <button className="map-fold nodrag" onClick={(e) => { e.stopPropagation(); ctx.toggle(id) }} title={folded ? '펼치기' : '접기'}>{folded ? `+${ctx.hidden.get(id) ?? 0}` : '−'}</button> : null}
+      <Handle type="source" position={Position.Bottom} isConnectable={false} />
+    </div>
+  )
+}
+/** 목표 없는 할 일 N(처음 접힘) */
+function NoGoalNode({ id }: NodeProps<N>) {
+  const ctx = useContext(GraphCtx)
+  const folded = ctx.hidden.has(id)
+  const sec = ctx.data.grouped.by === 'goal' ? ctx.data.grouped.tree.sections.find((s) => s.kind === 'nogoal') : undefined
+  return (
+    <div className={`map-node map-node--nogoal${ctx.dropGoal === 'nogoal' ? ' is-drop' : ''}${dim(ctx, id)}`}>
+      <Handle type="target" position={Position.Top} isConnectable={false} />
+      <span className="map-node__name">목표 없는 할 일</span>
+      <span className="map-node__count">{sec?.count ?? 0}</span>
+      <button className="map-fold nodrag" onClick={(e) => { e.stopPropagation(); ctx.toggle(id) }} title={folded ? '펼치기' : '접기'}>{folded ? `+${ctx.hidden.get(id) ?? 0}` : '−'}</button>
+      <Handle type="source" position={Position.Bottom} isConnectable={false} />
+    </div>
+  )
 }
 function FolderNode({ id, data: { l } }: NodeProps<N>) {
   const ctx = useContext(GraphCtx)
@@ -107,7 +148,7 @@ function TaskNode({ id, data: { l } }: NodeProps<N>) {
   const task = ctx.taskOf.get(l.ref!)
   if (!task) return null
   return (
-    <div className={`map-node--task${dim(ctx, id)}`}>
+    <div className={`map-node--task${dim(ctx, id)}${ctx.hl?.has(id) && ctx.hl.size > 1 ? ' is-hl' : ''}`}>
       <Handle id="stem" type="target" position={Position.Left} isConnectable={false} />
       <Handle id="in" type="target" position={Position.Top} isConnectable={false} />
       <TaskCard task={task} data={ctx.data} actions={ctx.actions} variant="graph" />
@@ -121,10 +162,12 @@ function GoalNode({ id, data: { l } }: NodeProps<N>) {
   const ctx = useContext(GraphCtx)
   const g = ctx.goalOf.get(l.ref!)
   if (!g) return null
+  const path = goalPathText(g, ctx.data)
   return (
-    <div className={`map-node map-node--goal${g.status === 'achieved' ? ' is-achieved' : ''}${dim(ctx, id)}`} title={g.status === 'achieved' ? '달성한 목표' : '손잡이를 끌어 할 일에 놓으면 목표 연결'}>
+    <div className={`map-node map-node--goal${path ? ' has-path' : ''}${g.status === 'achieved' ? ' is-achieved' : ''}${dim(ctx, id)}`} title={g.status === 'achieved' ? '달성한 목표' : '손잡이를 끌어 할 일에 놓으면 목표 연결 · 누르면 남은 길'}>
       <Handle id="out" type="source" position={Position.Top} className="map-handle--goal-out" />
       <span className="map-node__name">🎯 {g.title}</span>
+      {path && <span className="map-goal__path">{path}</span>}
     </div>
   )
 }
@@ -136,7 +179,7 @@ function MemoNode({ data: { l } }: NodeProps<N>) {
   const m = ctx.data.memos.find((x) => x.id === l.ref)
   return <div className="map-node--memo"><Handle type="source" position={Position.Left} isConnectable={false} />{m?.title}</div>
 }
-const nodeTypes = { root: RootNode, folder: FolderNode, list: ListNode, anchor: AnchorNode, task: TaskNode, goal: GoalNode, lane: LaneNode, memo: MemoNode }
+const nodeTypes = { root: RootNode, folder: FolderNode, list: ListNode, anchor: AnchorNode, task: TaskNode, goal: GoalNode, goalgroup: GoalGroupNode, nogoal: NoGoalNode, lane: LaneNode, memo: MemoNode }
 
 /** 줄기선: 주제 왼쪽 아래에서 내려와 할 일 왼쪽으로 꺾인다 */
 function StemEdge({ sourceX, sourceY, targetX, targetY, style, className }: EdgeProps & { className?: string }) {
@@ -176,30 +219,71 @@ function LinkEdge({ id, source, target, sourceX, sourceY, targetX, targetY, sour
 }
 const edgeTypes = { stem: StemEdge, link: LinkEdge }
 
-type Props = { data: MapData; actions: MapActions; links: LinkActions; onBlank: () => void }
+type Props = { data: MapData; actions: MapActions; links: LinkActions; onBlank: () => void; reveal?: { id: string; n: number }; say: (text: string) => void; onGrowth?: () => void }
 export function MapGraph(props: Props) {
   return <ReactFlowProvider><Graph {...props} /></ReactFlowProvider>
 }
 
-function Graph({ data, actions, links, onBlank }: Props) {
+function Graph({ data, actions, links, onBlank, reveal, say, onGrowth }: Props) {
   const flow = useReactFlow()
   const [collapsed, setCollapsed] = useStored<Record<string, boolean>>('collapsed', {})
   const [viewport, setViewport] = useStored<Viewport | { none: true }>('viewport', { none: true })
   const [hlId, setHlId] = useState<string | null>(null)
   const [edgeSel, setEdgeSel] = useState<string | null>(null)
   const [menu, setMenu] = useState<{ node: LayoutNode; point: { x: number; y: number } } | { edge: LinkRow; point: { x: number; y: number } }>()
+  const [dropGoal, setDropGoal] = useState<string | null>(null)
   const wrap = useRef<HTMLDivElement>(null)
+  const goalMode = data.grouped.by === 'goal'
+  const tree: MapTree = data.grouped.by === 'list' ? data.grouped.tree : data.tree
+
+  // 31 §1.2 지금 집중: 지금 할 일이 없는 묶음은 자동으로 접는다(접힘 기억은 건드리지 않음)
+  const { quiet, focusFold } = useMemo(() => {
+    const q = new Set<string>()
+    const f: Record<string, boolean> = {}
+    if (!actions.focusNow) return { quiet: q, focusFold: f }
+    const hasNow = (ts: MapTask[]) => ts.some((t) => data.state.get(t.id) === 'now')
+    const mark = (key: string, ts: MapTask[]) => { if (!hasNow(ts)) { q.add(key); f[key] = true } }
+    if (data.grouped.by === 'goal') {
+      for (const s of data.grouped.tree.sections) {
+        const key = s.kind === 'goal' ? `goal:${s.id}` : 'nogoal'
+        mark(key, s.lists.flatMap((l) => l.tasks))
+        for (const l of s.lists) mark(`${key}/list:${l.list.id}`, l.tasks)
+      }
+    } else {
+      for (const g of tree.groups) {
+        if (g.kind === 'list') mark(`list:${g.id}`, g.tasks)
+        else { mark(`folder:${g.id}`, g.lists.flatMap((l) => l.tasks)); for (const l of g.lists) mark(`list:${l.list.id}`, l.tasks) }
+      }
+    }
+    return { quiet: q, focusFold: f }
+  }, [actions.focusNow, data, tree])
+  const shownCollapsed = useMemo(() => ({ ...collapsed, ...focusFold }), [collapsed, focusFold])
 
   const layout = useMemo(() => layoutMap({
-    tree: data.tree, links: data.links, goals: data.goals, collapsed, memos: data.memos,
-    hasDate: (id) => { const t = data.byId.get(id); return !!t && twoLine(t, data) }
-  }), [data, collapsed])
+    tree, links: data.links, goals: goalMode ? [] : data.goals, collapsed: shownCollapsed, memos: data.memos,
+    hasDate: (id) => { const t = data.byId.get(id); return !!t && twoLine(t, data) },
+    goalTree: data.grouped.by === 'goal' ? data.grouped.tree : undefined,
+    pathGoals: new Set(data.goals.filter((g) => data.goalLinks.has(g.id)).map((g) => g.id))
+  }), [data, shownCollapsed, tree, goalMode])
   // 접힌 노드의 +N(숨은 할 일 수)
-  const auto = useMemo(() => autoCollapse(data.tree), [data.tree])
+  const auto = useMemo(() => autoCollapse(tree), [tree])
   const { hidden, listCount } = useMemo(() => {
     const m = new Map<string, number>()
     const lc = new Map<string, number>()
-    for (const g of data.tree.groups) {
+    const collapsed = shownCollapsed
+    if (data.grouped.by === 'goal') {
+      for (const s of data.grouped.tree.sections) {
+        const key = s.kind === 'goal' ? `goal:${s.id}` : 'nogoal'
+        const n = s.lists.reduce((k, l) => k + l.tasks.length, 0)
+        if (collapsed[key] ?? s.kind === 'nogoal') m.set(key, n)
+        for (const l of s.lists) {
+          lc.set(l.list.id, (lc.get(l.list.id) ?? 0) + l.tasks.length)
+          if (isCollapsed(collapsed, `${key}/list:${l.list.id}`, auto, true)) m.set(`${key}/list:${l.list.id}`, l.tasks.length)
+        }
+      }
+      return { hidden: m, listCount: lc }
+    }
+    for (const g of tree.groups) {
       const key = `${g.kind}:${g.id}`
       if (g.kind === 'list') {
         lc.set(g.id, g.tasks.length)
@@ -213,18 +297,26 @@ function Graph({ data, actions, links, onBlank }: Props) {
       }
     }
     return { hidden: m, listCount: lc }
-  }, [data.tree, collapsed, auto])
+  }, [data.grouped, tree, shownCollapsed, auto])
   // 폴더 안 리스트는 자동 접기 대상(2층) — 노드 id만으로는 층을 몰라서 지금 보이는 상태를 뒤집는다
   const toggle = useCallback((id: string) => setCollapsed((c) => ({ ...c, [id]: !(c[id] ?? hidden.has(id)) })), [setCollapsed, hidden])
 
-  const hl = useMemo(() => (hlId ? highlightSet(layout.edges, hlId) : null), [hlId, layout])
+  // 목표 노드를 누르면 남은 길(가장 긴 사슬)만 강조(31 §1.2), 그 밖은 뿌리까지의 길
+  const hl = useMemo(() => {
+    if (!hlId) return null
+    if (hlId.startsWith('goal:')) {
+      const p = data.paths.get(hlId.slice(5))
+      return new Set([hlId, ...(p?.chain ?? []).map((t) => `task:${t}`)])
+    }
+    return highlightSet(layout.edges, hlId)
+  }, [hlId, layout, data.paths])
   const [nodes, setNodes] = useState<N[]>([])
   const inboxId = useMemo(() => new Set(data.lists.filter((x) => x.kind === 'inbox').map((x) => x.id)), [data.lists])
   const baseNodes = useMemo<N[]>(() => layout.nodes.map((l) => ({
     id: l.id, type: l.kind, position: { x: l.x, y: l.y }, data: { l }, width: l.w, height: l.h,
-    draggable: l.kind === 'task' || (l.kind === 'list' && !inboxId.has(l.ref!)), selectable: l.kind !== 'lane' && l.kind !== 'anchor', connectable: l.kind === 'task' || l.kind === 'goal',
+    draggable: l.kind === 'task' || (l.kind === 'list' && !inboxId.has(l.ref!) && !goalMode), selectable: l.kind !== 'lane' && l.kind !== 'anchor', connectable: l.kind === 'task' || l.kind === 'goal',
     className: `map-rf map-rf--${l.kind}`
-  })), [layout, inboxId])
+  })), [layout, inboxId, goalMode])
   useEffect(() => setNodes(baseNodes), [baseNodes])
 
   const edges = useMemo<Edge[]>(() => layout.edges.map((e: LayoutEdge) => {
@@ -240,9 +332,33 @@ function Graph({ data, actions, links, onBlank }: Props) {
   }), [layout, hl, edgeSel])
 
   const ctx: Ctx = useMemo(() => ({
-    data, actions, links, hl, collapsed, toggle, hidden, listCount,
+    data, actions, links, hl, collapsed: shownCollapsed, toggle, hidden, listCount, quiet, dropGoal,
     listOf: new Map(data.lists.map((x) => [x.id, x])), folderOf: new Map(data.folders.map((f) => [f.id, f])), goalOf: new Map(data.goals.map((g) => [g.id, g])), taskOf: data.byId
-  }), [data, actions, links, hl, collapsed, toggle, hidden, listCount])
+  }), [data, actions, links, hl, shownCollapsed, toggle, hidden, listCount, quiet, dropGoal])
+
+  // 지금 띠 알약 클릭 → 그 노드로 0.25초 이동(접혀 있으면 펼친다)
+  const pending = useRef<string | null>(null)
+  useEffect(() => {
+    if (!reveal) return
+    const n = layout.nodes.find((x) => x.id === `task:${reveal.id}`)
+    if (n) { setHlId(null); void flow.setCenter(n.x + n.w / 2, n.y + n.h / 2, { zoom: Math.max(flow.getZoom(), 0.8), duration: 250 }); pending.current = null; return }
+    if (pending.current === reveal.id) return
+    pending.current = reveal.id
+    const t = data.byId.get(reveal.id)
+    if (!t) return
+    const open: Record<string, boolean> = {}
+    if (data.grouped.by === 'goal') {
+      for (const s of data.grouped.tree.sections) {
+        const key = s.kind === 'goal' ? `goal:${s.id}` : 'nogoal'
+        for (const l of s.lists) if (l.tasks.some((x) => x.id === t.id)) { open[key] = false; open[`${key}/list:${l.list.id}`] = false }
+      }
+    } else {
+      const l = data.lists.find((x) => x.id === t.list_id)
+      if (l) { open[`list:${l.id}`] = false; if (l.folder_id) open[`folder:${l.folder_id}`] = false }
+    }
+    setCollapsed((c) => ({ ...c, ...open }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reveal, layout])
 
   // 집중 보기: 영역을 두 번 누르면 그 영역만 화면에 맞춤. Esc · ⤢ = 전체
   // 전체 맞춤(⤢·Esc): 다 들어가게, 단 0.5배 아래로는 줄이지 않는다. 처음 열 때는 글자를 읽을 수 있게 0.8배에서 멈춘다.
@@ -267,6 +383,8 @@ function Graph({ data, actions, links, onBlank }: Props) {
     const key = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).closest?.('input,textarea,[contenteditable]') || document.querySelector('.popover,[aria-modal="true"]')) return
       if (e.key === 'Escape') { setHlId(null); setEdgeSel(null); fitAll() }
+      // 목표 노드에서 Space = 달성 표시(31 §3.3)
+      if (e.key === ' ' && hlId?.startsWith('goal:')) { const g = data.goals.find((x) => x.id === hlId.slice(5)); if (g) { e.preventDefault(); void toggleGoal(g) } }
       if ((e.key === 'Delete' || e.key === 'Backspace') && edgeSel) {
         const l = layout.edges.find((x) => x.id === edgeSel)?.link
         if (l) { links.drop(l.id, l.state); setEdgeSel(null) }
@@ -276,7 +394,7 @@ function Graph({ data, actions, links, onBlank }: Props) {
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
-  }, [edgeSel, layout, links, flow, fitAll])
+  }, [edgeSel, layout, links, flow, fitAll, hlId, data.goals])
 
   // 처음(기억한 배율이 없을 때)은 전체 맞춤
   const first = useRef(true)
@@ -292,7 +410,14 @@ function Graph({ data, actions, links, onBlank }: Props) {
     const l = node.data.l
     const pt = 'changedTouches' in e ? e.changedTouches[0] : e
     const p = flow.screenToFlowPosition({ x: pt.clientX, y: pt.clientY })
+    setDropGoal(null)
     if (l.kind === 'task') {
+      // 목표 묶기: 다른 목표(또는 목표 없음) 묶음에 놓으면 목표 선을 옮긴다(31 §3.3)
+      if (goalMode) {
+        const gz = zoneAt(layout.zones, 'goal', p)
+        const curGoal = sectionOf(l.group)
+        if (gz && gz.id !== curGoal) { void actions.linkGoal(l.ref!, gz.id === 'nogoal' ? null : gz.id); return }
+      }
       const zone = zoneAt(layout.zones, 'list', p)
       const cur = data.byId.get(l.ref!)?.list_id
       if (zone && zone.id !== cur) { void actions.moveTask(l.ref!, zone.id); return }
@@ -306,6 +431,14 @@ function Graph({ data, actions, links, onBlank }: Props) {
       if (list && onRoot && list.folder_id) { void actions.moveList(list.id, null); return }
     }
     setNodes(baseNodes)
+  }
+  const sectionOf = (group?: string) => (!group ? null : group === 'nogoal' ? 'nogoal' : group.startsWith('goal:') ? group.slice(5) : null)
+  const onDrag = (e: MouseEvent | TouchEvent, node: N) => {
+    if (!goalMode || node.data.l.kind !== 'task') return
+    const pt = 'changedTouches' in e ? e.changedTouches[0] : e
+    const gz = zoneAt(layout.zones, 'goal', flow.screenToFlowPosition({ x: pt.clientX, y: pt.clientY }))
+    const next = gz && gz.id !== sectionOf(node.data.l.group) ? gz.id : null
+    if (next !== dropGoal) setDropGoal(next)
   }
   // 손잡이를 끌어 할 일에 놓기: 할 일 → 할 일 = 순서, 목표 → 할 일 = 목표 연결
   const onConnectEnd: OnConnectEnd = (e, state) => {
@@ -340,16 +473,17 @@ function Graph({ data, actions, links, onBlank }: Props) {
             setHlId(n.id)
             if (n.type === 'task') actions.open(n.data.l.ref!)
           }}
-          onNodeDoubleClick={(_, n) => { if (n.type === 'folder' || (n.type === 'list' && n.data.l.level === 1)) focusArea(n.id) }}
+          onNodeDoubleClick={(_, n) => { if (n.type === 'folder' || n.type === 'goalgroup' || n.type === 'nogoal' || (n.type === 'list' && n.data.l.level === 1)) focusArea(n.id) }}
           onNodeContextMenu={(e, n) => {
             e.preventDefault()
             const l = n.data.l
-            if (l.kind === 'folder' || l.kind === 'list' || l.kind === 'task') setMenu({ node: l, point: { x: e.clientX, y: e.clientY } })
+            if (l.kind === 'folder' || l.kind === 'list' || l.kind === 'task' || l.kind === 'goal' || l.kind === 'goalgroup') setMenu({ node: l, point: { x: e.clientX, y: e.clientY } })
           }}
           onEdgeClick={(_, e) => { if (e.type === 'link') { setEdgeSel(e.id); setHlId(null) } }}
           onEdgeContextMenu={(ev, e) => { if (e.type === 'link') { ev.preventDefault(); setEdgeSel(e.id); setMenu({ edge: (e.data as { link: LinkRow }).link, point: { x: ev.clientX, y: ev.clientY } }) } }}
           onPaneClick={() => { setHlId(null); setEdgeSel(null); onBlank() }}
           onNodeDragStop={onDragStop}
+          onNodeDrag={onDrag}
           onConnectEnd={onConnectEnd}
           isValidConnection={(c) => c.target !== c.source && c.target.startsWith('task:')}
           onMoveEnd={(_, vp) => setViewport(vp)}
@@ -379,6 +513,12 @@ function Graph({ data, actions, links, onBlank }: Props) {
       {menu && 'node' in menu && menu.node.kind === 'folder' && (() => { const f = ctx.folderOf.get(menu.node.ref!); return f && <FolderMenu folder={f} data={data} actions={actions} point={menu.point} onClose={() => setMenu(undefined)} /> })()}
       {menu && 'node' in menu && menu.node.kind === 'list' && (() => { const x = ctx.listOf.get(menu.node.ref!); return x && <ListMenu list={x} data={data} actions={actions} point={menu.point} onClose={() => setMenu(undefined)} /> })()}
       {menu && 'node' in menu && menu.node.kind === 'task' && (() => { const t = data.byId.get(menu.node.ref!); return t && <CardMenu task={t} data={data} actions={actions} point={menu.point} onClose={() => setMenu(undefined)} /> })()}
+      {menu && 'node' in menu && (menu.node.kind === 'goal' || menu.node.kind === 'goalgroup') && (() => {
+        const g = ctx.goalOf.get(menu.node.ref!)
+        const nodeId = menu.node.id
+        return g && <GoalMenu goal={g} point={menu.point} onClose={() => setMenu(undefined)} say={say} onGrowth={onGrowth}
+          onRename={() => { if (menu.node.kind === 'goalgroup') actions.setEditing(nodeId); else say('목표 이름은 목표로 묶기나 성장 탭에서 바꿀 수 있어요') }} />
+      })()}
       {menu && 'edge' in menu && (
         <Popover point={menu.point} onClose={() => setMenu(undefined)} width={170} className="menu">
           {menu.edge.state === 'suggested' && <MenuItem icon={<Check />} label="연결 받아들이기" onClick={() => { setMenu(undefined); links.accept(menu.edge.id) }} />}

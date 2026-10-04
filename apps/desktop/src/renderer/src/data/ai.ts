@@ -19,7 +19,7 @@ export async function pickModel(signal?: AbortSignal): Promise<string> {
 
 let seq = 0
 /** 한 번 묻고 전체 답을 받는다. signal로 멈춘다 */
-export async function aiChat(input: Omit<ChatInput, 'model'> & { model?: string }, signal: AbortSignal, onDelta?: (text: string) => void): Promise<string> {
+export async function aiChat(input: Omit<ChatInput, 'model'> & { model?: string }, signal: AbortSignal, onDelta?: (text: string) => void, onQueue?: (position: number) => void): Promise<string> {
   const full: ChatInput = { ...input, model: input.model ?? (await pickModel(signal)) }
   signal.throwIfAborted()
   const api = window.sprout?.assistant
@@ -27,7 +27,12 @@ export async function aiChat(input: Omit<ChatInput, 'model'> & { model?: string 
   const id = `bg-${Date.now().toString(36)}-${seq++}`
   const cancel = () => api.cancel(id)
   signal.addEventListener('abort', cancel, { once: true })
-  const off = onDelta ? api.onDelta((e) => { if (e.id === id) onDelta(e.text) }) : undefined
+  // 서버 대기열 위치는 같은 통로로 text 없이 온다(main/assistant.ts — queue = 앞에 있는 요청 수)
+  const off = onDelta || onQueue ? api.onDelta((e: { id: string; text: string; queue?: number }) => {
+    if (e.id !== id) return
+    if (typeof e.queue === 'number') onQueue?.(e.queue)
+    else onDelta?.(e.text)
+  }) : undefined
   try { return await api.chat(id, full) } finally { off?.(); signal.removeEventListener('abort', cancel) }
 }
 

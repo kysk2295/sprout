@@ -1,4 +1,5 @@
 import { grantTaskXp, revokeTaskXp } from '../data/growth'
+import { countLinkedGoals } from '../data/mapGoals'
 import { useMemo } from 'react'
 import { planComplete, planReopen } from '@sprout/schema/taskCore'
 import { useToast } from '../components/Toast'
@@ -61,8 +62,11 @@ export function useTaskActions() {
         const restorePlain = await snapshot(open, ['status', 'completed_at'])
         await run(...plan.stmts)
         void grantTaskXp(ids) // 10 성장: 완료 +1 XP(하루 10까지)
+        const counted = [...open, ...repIds]
+        void countLinkedGoals(counted, 1) // 31 D3: 목표 선으로 연결된 횟수 목표 +1
         toast.show('작업이 완료되었습니다.', async () => {
           void revokeTaskXp(ids)
+          void countLinkedGoals(counted, -1)
           await restoreRep()
           await restorePlain()
           await run(...checks.map((c) => update('check_items', c.id as string, { done: c.done, completed_at: c.completed_at })))
@@ -75,6 +79,7 @@ export function useTaskActions() {
         const plan = await planReopen(db, ids, { today: dayKey() })
         await run(...plan.stmts)
         void revokeTaskXp(plan.xpIds) // 같은 날 취소면 XP 되돌림
+        void countLinkedGoals(ids, -1) // 31 D3: 연결된 횟수 목표 −1
         if (plan.records.length) await deleteTasksHard(plan.records)
       },
       async wontDo(ids: string[], on: boolean) {

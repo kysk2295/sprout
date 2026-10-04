@@ -1,5 +1,5 @@
 // 14 작업 지도 v2.0 — 그래프·보드가 같이 쓰는 부품: 할 일 카드(시안 ③ 칸반 카드), 진행 고리, 이름 입력칸, 폴더·리스트·카드 메뉴, 리스트·폴더 아이콘
-import { Check, ExternalLink, Folder, FolderInput, FolderMinus, FolderOutput, ListPlus, Pencil, Sparkles, SquarePen, Trash2 } from 'lucide-react'
+import { Check, ExternalLink, Folder, FolderInput, FolderMinus, FolderOutput, ListPlus, Pencil, Sparkles, SquarePen, Target, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent } from 'react'
 import { rowDateLabel, dayKey } from '../../lib/dates'
 import { checkboxColor } from '../../lib/priority'
@@ -32,6 +32,13 @@ export type MapActions = {
   checking: Set<string>
   selected: string | null
   flash: Set<string>
+  // 31 v3
+  /** `지금` 집중(⚡ · N): 지금이 아닌 할 일을 흐리게 */
+  focusNow: boolean
+  /** ✦ AI로 쪼개기 창 */
+  breakdown: (taskId: string) => void
+  /** 목표에 연결(옮기기). null = 목표 없음 */
+  linkGoal: (taskId: string, goalId: string | null) => Promise<void>
 }
 
 /** 리스트 아이콘: 고른 이모지 · 기본함 📥 · 없으면 ≡ */
@@ -54,7 +61,11 @@ export function TaskCard({ task, data, actions, variant, draggable, onDragStart,
   const date = rowDateLabel(task, dayKey())
   const wait = data.wait.get(task.id) ?? 0
   const done = task.status === 1 || actions.checking.has(task.id)
-  const cls = ['map-card', `map-card--${variant}`, done && 'is-done', actions.selected === task.id && 'is-selected', actions.flash.has(task.id) && 'is-flash', twoLine(task, data) && 'is-two']
+  // 31 §1.2 상태: 지금(왼쪽 강조색 줄) · 막힘(.45) · 나중(날짜 글자 3차) · 지금 집중이면 지금이 아닌 것 .3
+  const st = data.state.get(task.id)
+  const multi = data.goalCount.get(task.id) ?? 0
+  const cls = ['map-card', `map-card--${variant}`, done && 'is-done', actions.selected === task.id && 'is-selected', actions.flash.has(task.id) && 'is-flash', twoLine(task, data) && 'is-two',
+    !done && st && `is-${st}`, actions.focusNow && !done && st !== 'now' && 'is-faded']
   return (
     <div
       className={cls.filter(Boolean).join(' ')}
@@ -80,7 +91,7 @@ export function TaskCard({ task, data, actions, variant, draggable, onDragStart,
           <div className="map-card__meta">
             {date && <span className={`map-card__date is-${date.tone}`}>{date.label}</span>}
             {wait > 0 && <span className="map-chip" title="앞선 할 일이 아직 안 끝났어요">{variant === 'board' ? '⛓ ' : ''}먼저 {wait}</span>}
-            {data.goalOf.has(task.id) && <span className="map-chip">🎯 목표</span>}
+            {data.goalOf.has(task.id) && <span className="map-chip">{multi > 1 ? `🎯${multi}` : '🎯 목표'}</span>}
             {data.suggested.has(task.id) && <span className="nodrag"><SuggestChip taskId={task.id} variant="card" /></span>}
           </div>
         )}
@@ -196,6 +207,17 @@ export function CardMenu({ task, data, actions, point, onClose }: MenuProps & { 
           ))}
         </div>
       </SubMenu>
+      {data.goals.length > 0 && (
+        <SubMenu icon={<Target />} label="목표에 연결" width={220}>
+          {data.goals.map((g) => {
+            const on = data.links.some((l) => l.kind === 'goal' && l.state === 'accepted' && l.from_id === g.id && l.to_id === task.id)
+            return <MenuItem key={g.id} label={`🎯 ${g.title}`} active={on} onClick={done(() => actions.linkGoal(task.id, g.id))} />
+          })}
+          <div className="menu__divider" />
+          <MenuItem label="목표 없음" disabled={!data.goalOf.has(task.id)} onClick={done(() => actions.linkGoal(task.id, null))} />
+        </SubMenu>
+      )}
+      <MenuItem icon={<Sparkles />} label="AI로 쪼개기" disabled={task.status !== 0 || subDepth(task, data) >= 3} onClick={done(() => actions.breakdown(task.id))} />
       <div className="menu__divider" />
       <MenuItem icon={<ExternalLink />} label="열기" onClick={done(() => actions.open(task.id))} />
       <MenuItem icon={<Check />} label="완료" disabled={task.status !== 0} onClick={done(() => actions.complete(task.id))} />
@@ -203,4 +225,12 @@ export function CardMenu({ task, data, actions, point, onClose }: MenuProps & { 
       <MenuItem icon={<Trash2 />} label="삭제" danger onClick={done(() => actions.trash(task.id))} />
     </Popover>
   )
+}
+
+/** 하위 할 일 깊이(부모를 따라 올라간 수) — 3단계 아래는 쪼개기 비활성(31 §4.1) */
+export function subDepth(task: MapTask, data: MapData): number {
+  let d = 0
+  let cur: MapTask | undefined = task
+  while (cur?.parent_id && d < 5) { d++; cur = data.byId.get(cur.parent_id) }
+  return d
 }
