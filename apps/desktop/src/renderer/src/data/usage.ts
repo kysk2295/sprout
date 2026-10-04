@@ -2,7 +2,7 @@ import type { UsageProvider, UsageSnapshot, UsageLogin } from '../../../shared/u
 export async function readUsage(provider:UsageProvider,force=false):Promise<UsageSnapshot>{
  if(window.sprout?.usage)return window.sprout.usage.read(provider,force)
  const res=await fetch(`/api/usage/?provider=${provider}&force=${force?1:0}`,{signal:AbortSignal.timeout(100000)})
- if(!res.ok)throw new Error('사용량을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.')
+ if(!res.ok||!res.headers.get('content-type')?.includes('json'))throw new Error('사용량을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.')
  return res.json()
 }
 async function loginRequest(path:string,body:object):Promise<UsageLogin>{
@@ -14,3 +14,6 @@ export const usageLoginStatus=(id:string)=>window.sprout?.usage?window.sprout.us
 export const cancelUsageLogin=(id:string)=>window.sprout?.usage?window.sprout.usage.cancelLogin(id):loginRequest('/cancel',{id})
 
 export const submitUsageLoginCode=(id:string,code:string)=>window.sprout?.usage?window.sprout.usage.submitLoginCode(id,code):loginRequest('/code',{id,code})
+
+/** 10 v2 §4: 데스크톱 API가 있거나(일렉트론) 웹 미리보기 서버(/api/usage 중계)일 때만 조회한다 */
+export const usageAvailable=()=>!!window.sprout?.usage||!window.sprout
