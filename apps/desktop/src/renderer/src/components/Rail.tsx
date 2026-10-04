@@ -1,11 +1,11 @@
-import { Bell, CalendarDays, CircleCheckBig, CircleHelp, RefreshCw, Search, Sprout, NotebookPen, Bot, Network, Gauge, BookHeart } from 'lucide-react'
+import { Bell, CalendarDays, CircleCheckBig, CircleHelp, RefreshCw, Sprout, NotebookPen, Bot, Network, Gauge, BookHeart } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { authApi, type AuthState } from '../data/auth'
 
 export type RailView = 'tasks' | 'calendar' | 'growth' | 'notes' | 'watch' | 'wiki' | 'diary' | 'assistant' | 'map' | 'usage'
 
-// 01-app-shell §3: 아바타 · 태스크 · 캘린더 · 성장 · 검색 / 동기화 · 알림 · 도움말
-export function Rail({ view, onView, onSearch, onSettings, onHelp, sync, email }: { view: RailView; onView: (v: RailView) => void; onSearch: () => void; onSettings: () => void; onHelp: () => void; sync?: AuthState['sync']; email?: string }) {
+// 01-app-shell §3: 아바타 · 태스크 · 캘린더 · 성장 · … / 동기화 · 알림 · 도움말 (검색 버튼은 2026-10-05 뺌 — ⌘F로 연다)
+export function Rail({ view, onView, onSettings, onHelp, sync, email }: { view: RailView; onView: (v: RailView) => void; onSettings: () => void; onHelp: () => void; sync?: AuthState['sync']; email?: string }) {
   // 08 §6: 동기화 중이면 회전, 끊김·오류면 빨간 점, 누르면 바로 다시 동기화
   const busy = !!sync && (sync.uploading || sync.downloading)
   const problem = !!sync && (!sync.connected || !!sync.error)
@@ -23,7 +23,6 @@ export function Rail({ view, onView, onSearch, onSettings, onHelp, sync, email }
       <RailButton label="일기" active={view === 'diary'} onClick={() => onView('diary')} icon={<BookHeart />} />
       <RailButton label="작업 지도" active={view === 'map'} onClick={() => onView('map')} icon={<Network />} />
       <RailButton label="AI 사용량" active={view === 'usage'} onClick={() => onView('usage')} icon={<Gauge />} />
-      <RailButton label="검색" onClick={onSearch} icon={<Search />} />
       <div className="rail__spacer" />
       <RailButton label={syncLabel} className={`rail__sync${busy ? ' is-busy' : ''}${problem ? ' has-problem' : ''}`} onClick={() => void authApi()?.syncNow()} icon={<RefreshCw />} />
       <RailButton label="알림" icon={<Bell />} />
