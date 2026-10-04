@@ -1,20 +1,20 @@
 # 25 · 맥 위젯 (macOS WidgetKit) — 오늘 할 일 · 캐릭터
 
-- 상태: **초안 v0.1** (2026-10-04) — 사용자 확인 전. **코드 없음.** 확인받은 뒤 §9 스파이크부터 시작한다.
+- 상태: **확정 v1.0** (2026-10-04) — 사용자가 §0 제안을 그대로 확정("제안대로"). 구현 메모는 §14.
 - 근거: PRD §7.2 F(2026-10-05 결정: "오늘 할 일 보기·체크 + 캐릭터·XP", Swift 위젯 확장 + App Group 파일), [09 메뉴바 미니 창](09-menubar.md)(가장 가까운 기존 기능), [10 성장](10-growth.md)(캐릭터·레벨·XP), [02 목록](02-task-list.md)(행 모양·날짜 표기), [00 토큰 §5](00-design-tokens.md)(테마 13개)
 - 틱틱 조사: [research 23 맥 위젯](../ticktick-research/23-mac-widgets.md), [research 20 §5](../ticktick-research/20-mobile.md)
 - 표기: **[틱틱]** 확인된 틱틱 동작 · **[sprout]** 새 설계 · **[임시]** 확인 전 값 · **[다음]** 이번 범위 밖
 
-## 0. 사용자가 정할 것 (먼저 읽어 주세요)
-| # | 질문 | 제안 | 왜 |
+## 0. 결정 (2026-10-04 사용자 확정 — "제안대로")
+| # | 질문 | **확정** | 왜 |
 |---|---|---|---|
-| D1 | **위젯을 몇 가지 만들까?** | **2가지**: ① "오늘 할 일"(작게·중간·크게) ② "캐릭터"(작게 = 캐릭터·XP만, 중간 = 캐릭터 + 오늘 할 일 3개 체크) | ①은 틱틱 Tasks 위젯과 같다. ②는 틱틱에 없는 sprout 고유 위젯. 중간 크기에 할 일을 같이 두면 "체크 → 캐릭터 자람"을 한 위젯에서 본다 |
-| D2 | "오늘 할 일" 위젯에서 **다른 목록(내일·다음 7일·기본함·리스트)도 고를 수 있게?** | **v1은 오늘만**(만료됨 포함). 목록 고르기는 [다음] | 틱틱은 "리스트 하나 고르기"가 있다. 하지만 고르기를 넣으면 앱이 모든 목록을 위젯에 미리 넘겨야 해서 일이 두 배다. 오늘만으로 먼저 내보내고 나중에 붙인다 |
-| D3 | **위젯 색은?** | **밝기·어둡기는 맥 시스템 설정을 따르고**, 강조색(머리 글자·시각·XP 막대)만 sprout에서 고른 테마 색 | 위젯은 바탕화면에 앱과 따로 떠 있어서 시스템을 따르는 게 자연스럽다. 강조색은 내 테마와 이어지게 |
-| D4 | **sprout이 꺼져 있을 때 위젯에서 체크하면?** | 위젯에는 바로 체크 표시, 실제 완료·XP는 **sprout이 다시 켜질 때 반영**. 그래서 설정에 **"맥 로그인할 때 sprout 열기"를 넣고 기본으로 켠다** | 위젯은 혼자 DB를 고칠 수 없다(XP 규칙이 앱에 있음). sprout은 원래 메뉴 막대에 늘 떠 있으니 대부분은 바로 반영된다 |
-| D5 | **앱 고유 이름(번들 ID)을 지금 정하기** — 예 `com.kysk2295.sprout` | **지금 정한다**(제품 이름이 바뀌어도 이 값은 그대로 둘 수 있다) | 위젯과 앱이 같이 쓰는 저장 칸 이름이 이 값에서 나온다. 배포 뒤에 바꾸면 위젯 데이터 칸이 바뀌어 기존 사용자 위젯이 비게 된다 |
-| D6 | **언제 Developer ID 인증서를 만들까?** | 개발은 지금 있는 **개발용 인증서(Apple Development)로 이 Mac에서** 먼저. 남에게 나눠 줄 때 **Developer ID + 공증**(§10) | 개발용 인증서로도 이 Mac에서는 위젯·체크·딥 링크가 다 된다. 다른 Mac에 설치하려면 Developer ID가 꼭 있어야 한다 |
-| D7 | **지원 macOS 버전** | 위젯은 **macOS 14(Sonoma) 이상**. 13 이하에서는 위젯만 안 보이고 앱은 그대로 | 체크 가능한(대화형) 위젯이 macOS 14부터다 [틱틱도 14부터] |
+| D1 | 위젯을 몇 가지 만들까? | **2가지**: ① "오늘 할 일"(작게·중간·크게) ② "캐릭터"(작게 = 캐릭터·XP만, 중간 = 캐릭터 + 오늘 할 일 3개 체크) | ①은 틱틱 Tasks 위젯과 같다. ②는 틱틱에 없는 sprout 고유 위젯. 중간 크기에 할 일을 같이 두면 "체크 → 캐릭터 자람"을 한 위젯에서 본다 |
+| D2 | "오늘 할 일" 위젯에서 다른 목록도 고를 수 있게? | **v1은 오늘만**(만료됨 포함). 목록 고르기는 [다음] | 고르기를 넣으면 앱이 모든 목록을 위젯에 미리 넘겨야 해서 일이 두 배다 |
+| D3 | 위젯 색은? | **밝기·어둡기는 맥 시스템 설정을 따르고**, 강조색(머리 글자·시각·XP 막대)만 sprout 테마 색 | 위젯은 바탕화면에 앱과 따로 떠 있어서 시스템을 따르는 게 자연스럽다 |
+| D4 | sprout이 꺼져 있을 때 위젯에서 체크하면? | 위젯에는 바로 체크 표시, 실제 완료·XP는 **sprout이 다시 켜질 때 반영**. **"로그인할 때 sprout 열기"를 기본으로 켠다** | 위젯은 혼자 DB를 고칠 수 없다(XP 규칙이 앱에 있음) |
+| D5 | 앱 고유 이름(번들 ID) | **`app.sprout.desktop`** (이미 `apps/desktop/electron-builder.yml`에 있음). 위젯은 `app.sprout.desktop.widget` | 저장 칸 이름이 이 값에서 나온다. 배포 뒤에 바꾸면 기존 위젯이 빈다 |
+| D6 | 인증서 | **지금은 개발용(Apple Development)으로 이 Mac에서**, 남에게 나눠 줄 때 Developer ID + 공증(§10) | 개발용으로도 이 Mac에서는 위젯·체크·딥 링크가 다 된다 |
+| D7 | 지원 macOS 버전 | 위젯은 **macOS 14(Sonoma) 이상**. 13 이하에서는 위젯만 안 보이고 앱은 그대로 | 체크 가능한(대화형) 위젯이 macOS 14부터다 [틱틱도 14부터] |
 
 ## 1. 틱틱 기준 자료
 | 주제 | 자료 | 한계 |
@@ -176,14 +176,14 @@
  └─ Contents/PlugIns/SproutWidget.appex ── 위젯 확장(Swift, 샌드박스) ── 저장 파일 읽기, 체크를 대기열에 쓰기
                          ▲                                   │
                          └──── App Group 저장 칸 ◀───────────┘
-        ~/Library/Group Containers/Z32F3Z65RD.<번들ID>/widget/
+        ~/Library/Group Containers/BU697KN34B.app.sprout.desktop/widget/
           snapshot.json  · art/*.png  · actions/*.json
 ```
 - 위젯 확장은 DB도 네트워크도 만지지 않는다. **앱이 쓴 파일을 읽어 그리고, 체크는 파일 한 장으로 앱에 넘긴다.** XP 규칙·반복 규칙은 앱 한 곳에만 있다.
 
 ### 8.2 저장 칸(App Group)
-- 이름: **`Z32F3Z65RD.<번들ID>`** (예 `Z32F3Z65RD.com.kysk2295.sprout`, D5). `group.` 으로 시작하는 iOS식 이름은 쓰지 않는다 — macOS 15부터 저장 칸이 보호되어, App Store 밖 앱은 **팀 ID로 시작하는 이름**이어야 확인 창 없이 쓸 수 있다(그렇지 않으면 "다른 앱의 데이터에 접근하려고 합니다" 창이 뜨고 위젯 확장은 아예 거부된다).
-- 그래서 **Electron 앱도 같은 팀(Z32F3Z65RD)으로 서명하고, 앱 권한(entitlements)에 같은 저장 칸 이름**(`com.apple.security.application-groups`)을 넣어야 한다. 팀 ID로 시작하는 이름은 프로비저닝 프로파일 없이 쓸 수 있다.
+- 이름: **`BU697KN34B.app.sprout.desktop`** (팀 ID + 번들 ID, D5). ⚠ 처음 초안의 `Z32F3Z65RD`는 인증서 이름 괄호 안 값(개인 식별자)이라 팀 ID가 아니다 — 실제 팀 ID는 인증서 OU `BU697KN34B`(개인 팀)다(2026-10-04 `security find-certificate`로 확인). `group.` 으로 시작하는 iOS식 이름은 쓰지 않는다 — macOS 15부터 저장 칸이 보호되어, App Store 밖 앱은 **팀 ID로 시작하는 이름**이어야 확인 창 없이 쓸 수 있다(그렇지 않으면 "다른 앱의 데이터에 접근하려고 합니다" 창이 뜨고 위젯 확장은 아예 거부된다).
+- 그래서 **Electron 앱도 같은 팀(BU697KN34B)으로 서명하고, 앱 권한(entitlements)에 같은 저장 칸 이름**(`com.apple.security.application-groups`)을 넣어야 한다. 팀 ID로 시작하는 이름은 프로비저닝 프로파일 없이 쓸 수 있다.
 - 메인 프로세스는 샌드박스가 아니므로 경로를 직접 만든다: `path.join(os.homedir(), 'Library/Group Containers', GROUP_ID, 'widget')`. 위젯 쪽은 `FileManager.containerURL(forSecurityApplicationGroupIdentifier:)`.
 - **개발 실행(`electron-vite dev`)에서는 위젯 연동을 끈다** — 개발 실행 앱은 Electron 기본 서명이라 권한이 없고, macOS 15+에서 저장 칸 확인 창이 뜬다. 위젯 확인은 패키징한 앱으로만 한다(`SPROUT_WIDGET=1`이면 개발 실행에서도 켜기 [임시]).
 
@@ -290,8 +290,8 @@ apps/desktop/src/shared/taskCore.ts       # 완료·XP 정상 경로(렌더러�
 - 오늘 목록 쿼리(`renderer/data/views.ts`의 오늘 범위·정렬)와 날짜 문구(02 표기)도 메인에서 써야 하므로 `src/shared/`로 옮긴다(미니 창과 같은 결과를 보장).
 
 ### 8.10 패키징이 지켜야 할 것 (electron-builder 설정을 만드는 다른 작업에 넘김)
-1. `appId` = D5에서 정한 번들 ID, 팀 `Z32F3Z65RD`로 서명. 같은 값이 저장 칸 이름에 들어간다.
-2. 앱 권한 파일(`mac.entitlements`)에 `com.apple.security.application-groups = ["Z32F3Z65RD.<번들ID>"]` + Electron 하드닝 런타임에 필요한 권한(`com.apple.security.cs.allow-jit` 등). 앱 본체는 샌드박스를 켜지 않는다.
+1. `appId` = D5에서 정한 번들 ID, 팀 `BU697KN34B`로 서명. 같은 값이 저장 칸 이름에 들어간다.
+2. 앱 권한 파일(`mac.entitlements`)에 `com.apple.security.application-groups = ["BU697KN34B.app.sprout.desktop"]` + Electron 하드닝 런타임에 필요한 권한(`com.apple.security.cs.allow-jit` 등). 앱 본체는 샌드박스를 켜지 않는다.
 3. `SproutWidget.appex`를 **`Contents/PlugIns/SproutWidget.appex`**에 넣는다(`extraFiles` 또는 `afterPack` 훅). `native/widget/build.sh`가 먼저 돌아 appex가 있어야 한다.
 4. `widget_bridge.node`는 asar 밖(`asarUnpack`)에 두고 서명 대상에 포함.
 5. **서명 순서 = 안쪽부터 바깥으로**: 네이티브 모듈·Frameworks·Helper 앱 → **appex(자기 권한 파일: `com.apple.security.app-sandbox = true`, `application-groups` 같은 값)** → 마지막에 앱 본체. `--deep` 서명 금지(appex 권한이 앱 권한으로 덮인다). `@electron/osx-sign`의 파일별 옵션으로 appex에만 다른 권한 파일을 준다. 모두 하드닝 런타임 + 타임스탬프.
@@ -326,24 +326,72 @@ apps/desktop/src/shared/taskCore.ts       # 완료·XP 정상 경로(렌더러�
 | 스키마 변경 | **없음** (서버·PowerSync 손대지 않음) |
 
 ## 12. 완료 기준 (틱틱 위젯과 나란히 놓고 확인)
-- [ ] 패키징한 sprout을 한 번 열면 위젯 갤러리에 "오늘 할 일"(작게·중간·크게)과 "캐릭터"(작게·중간)가 보이고, 미리보기는 예시 데이터다(내 할 일 제목이 갤러리에 안 보인다).
-- [ ] 오늘 할 일 위젯의 항목·순서·날짜 문구가 메뉴바 미니 창 "오늘"과 같다. 만료됨은 빨간 날짜, 오늘 시각은 강조색.
+- 표시: [x] 확인 · [~] 앱 쪽은 확인, 실제 바탕화면 위젯에서 사용자 확인 남음(§14.4) · [ ] 아직
+- [~] 패키징한 sprout을 한 번 열면 위젯 갤러리에 "오늘 할 일"(작게·중간·크게)과 "캐릭터"(작게·중간)가 보이고, 미리보기는 예시 데이터다(내 할 일 제목이 갤러리에 안 보인다).
+- [x] 오늘 할 일 위젯의 항목·순서·날짜 문구가 메뉴바 미니 창 "오늘"과 같다. 만료됨은 빨간 날짜, 오늘 시각은 강조색.
 - [ ] 틱틱 Tasks 위젯과 나란히 두고 머리("오늘 N"·`+`), 행(체크박스·제목·시각), 들여쓰기, 넘침 "+N개 더"가 같은 인상이다(사용자 Mac에서 틱틱 위젯 갤러리 확인 후).
 - [ ] 앱에서 할 일을 추가·완료·날짜 변경하면 10초 안에 위젯이 바뀐다. 다른 기기에서 동기화된 변경도 같다.
-- [ ] 위젯 체크 → 앱을 열지 않고 완료된다. 반복 할 일은 다음 회차가 생기고, XP +1이 쌓이며(하루 11번째부터 없음), 캐릭터 위젯 XP 막대가 오른다. 같은 할 일을 앱에서 다시 체크해도 XP가 두 번 쌓이지 않는다.
+- [~] 위젯 체크 → 앱을 열지 않고 완료된다. 반복 할 일은 다음 회차가 생기고, XP +1이 쌓이며(하루 11번째부터 없음), 캐릭터 위젯 XP 막대가 오른다. 같은 할 일을 앱에서 다시 체크해도 XP가 두 번 쌓이지 않는다.
 - [ ] 메인 창을 닫고 메뉴 막대만 있어도 위젯 체크가 반영된다.
-- [ ] 앱을 끈 채 체크 → 위젯에 체크 표시가 남고, 앱을 켜면 반영되어 행이 빠진다. 60초 넘으면 "sprout을 열면 반영돼요".
+- [~] 앱을 끈 채 체크 → 위젯에 체크 표시가 남고, 앱을 켜면 반영되어 행이 빠진다. 60초 넘으면 "sprout을 열면 반영돼요".
 - [ ] 반영 대기 행을 다시 누르면 완료가 취소되고 XP도 되돌아간다.
-- [ ] 행 제목 → 앱 메인 창에서 그 할 일 상세가 열린다. `+` → 빠른 추가. 머리·작게·"+N개 더" → 오늘 목록. 캐릭터 → 성장 화면. 앱이 꺼져 있어도 같다.
+- [~] 행 제목 → 앱 메인 창에서 그 할 일 상세가 열린다. `+` → 빠른 추가. 머리·작게·"+N개 더" → 오늘 목록. 캐릭터 → 성장 화면. 앱이 꺼져 있어도 같다.
 - [ ] 자정이 지나면 새 날 목록으로 바뀐다. 앱이 꺼져 있으면 "sprout을 열면 오늘 목록으로 바뀌어요".
 - [ ] 시스템 밝게/어둡게를 바꾸면 위젯 면이 바뀌고, 강조색은 내 테마(밝게)·다크 테마(어둡게)의 강조색이다. 13개 테마를 하나씩 바꿔 위젯 강조색이 따라온다.
 - [ ] 바탕화면 흐린 모드·macOS 26 착색 모드에서 글자·체크박스·XP 막대가 읽힌다.
-- [ ] 로그아웃하면 위젯이 바로 "로그인이 필요해요"가 되고 저장 칸에 할 일 제목이 남지 않는다(파일 확인).
+- [x] 로그아웃하면 위젯이 바로 "로그인이 필요해요"가 되고 저장 칸에 할 일 제목이 남지 않는다(파일 확인).
 - [ ] 빈 상태·처음·오류·불러오는 중 화면이 Xcode 미리보기와 실제 위젯에서 표대로 보인다.
-- [ ] `codesign --verify --strict`, `spctl -a -vv`(Developer ID 빌드), `pluginkit`에 위젯이 등록된다. macOS 15+에서 저장 칸 확인 창이 뜨지 않는다.
+- [~] `codesign --verify --strict`, `spctl -a -vv`(Developer ID 빌드), `pluginkit`에 위젯이 등록된다. macOS 15+에서 저장 칸 확인 창이 뜨지 않는다.
 - [ ] macOS 13 이하에서 앱이 정상 실행된다(위젯만 없음).
 
 ## 13. 열린 질문
 1. 틱틱 14+ 대화형 위젯의 실제 행 높이·체크박스 크기·완료 직후 모양(research 23 §7) — 사용자 Mac 갤러리로 확인.
 2. 오늘 시각이 지난 할 일을 만료(빨강)로 볼지 — 02·09 구현 규칙을 그대로 따른다(위젯은 `overdueAt`만 받는다).
 3. macOS가 백그라운드 앱의 위젯 새로 고침을 하루 몇 번까지 받아 주는지 — S1에서 실측하고 §7 "10초 간격"을 고친다.
+
+## 14. 구현 메모 (2026-10-04, v1.0)
+### 14.1 만든 것
+| 위치 | 내용 |
+|---|---|
+| `packages/schema/src/taskCore.ts` (+ `taskCore.test.ts`) | 완료·완료 취소·반복 다음 회차·완료 기록·체크 항목 초기화·할 일 XP(하루 10)·회수를 **DB 읽기 인터페이스만 받아 SQL 문 목록을 돌려주는 순수 함수**로 옮김. 렌더러 `lib/taskActions.ts`(`complete`·`reopen`)와 `data/growth.ts`(`grantTaskXp`·`revokeTaskXp`)는 export·동작 그대로 이것을 부른다. 메인 프로세스(위젯)와 나중 모바일이 같이 쓴다. §8.9의 `src/shared/taskCore.ts` 대신 `@sprout/schema/taskCore`(모바일도 써야 해서) |
+| `apps/desktop/src/main/widgetSnapshot.ts` | §8.3 저장 파일 만들기(순수 함수) + 대기열 파일 검사. 오늘 목록은 렌더러 `openTasksSql('smart:today')`·`rowDateLabel`을 그대로 써서 미니 창과 같은 결과. §8.9의 `src/shared/widgetContract.ts` 자리 |
+| `apps/desktop/src/main/widget.ts` | 저장 파일 쓰기(표 변경 0.8초 모음, 내용 바뀔 때만), 새로 고침(10초 간격), 자정+5초·잠자기 깸·시작·로그인 상태 변화, 대기열 감시(FSEvents + 1분 안전망), 로그아웃 정리, 로그인 항목 기본 켬 |
+| `apps/desktop/src/main/widgetArt.ts` | 캐릭터 그림 굽기: `CharacterArt`를 `react-dom/server`로 SVG 글자로 만들고 offscreen 창에서 192×192 PNG로 캡처. 조합마다 한 장 캐시 |
+| `apps/desktop/native/widget/` | `SproutWidget.xcodeproj`(타깃 1개, 폴더 동기화 그룹), `SproutWidget/*.swift`(위젯 2종·AppIntent·계약), `Bridge/WidgetBridge.swift`(새로 고침 모듈), `fixtures/snapshot.v1.json`, `build.sh` |
+| `main/index.ts` | `sprout://quick-add`(⌃⇧A와 같은 빠른 추가), `sprout://growth`, `sprout://today` 처리 + `startWidget`·`ensureLoginItemDefault` 등록 |
+| `main/sync.ts` | 로그아웃 때 `clearWidget()` 한 줄 |
+
+### 14.2 설계에서 바뀐 점
+- **App Group 이름 = `BU697KN34B.app.sprout.desktop`** (§8.2 위 경고). 같은 값이 네 곳: `src/main/widget.ts`, `native/widget/SproutWidget/Snapshot.swift`·`SproutWidget.entitlements`, `build/entitlements.mac.plist`. Developer ID(유료 팀)로 바꿀 때 팀 ID가 달라지면 네 곳을 같이 바꾼다(`build.sh`는 `SPROUT_TEAM_ID`로 받음). **배포 뒤에는 바꾸면 안 된다**(D5와 같은 이유).
+- **새로 고침 = §8.6 A안, 단 C 껍데기 없이 Swift 하나로**: `WidgetBridge.swift`가 `@_cdecl("napi_register_module_v1")`로 Node-API 등록 함수를 직접 내보낸다(브리징 헤더로 `node_api.h`만 가져옴). `swiftc` 한 줄로 `widget_bridge.node`가 나와 node-gyp·binding.gyp가 필요 없다. N-API는 ABI 고정이라 Node 22 헤더로 빌드해 Electron 37에서 그대로 로드됨(패키지 앱 로그에 로드 실패 경고 없음 확인). B안(별도 CLI)은 번들 정체가 불확실해서 쓰지 않았다.
+- **위젯 확장 서명**: Xcode 자동 서명은 끄고(`CODE_SIGNING_ALLOWED=NO`) `build.sh`가 `codesign --entitlements`로 직접 서명한다 — 개인 팀이라 프로비저닝 프로파일이 없어서. 팀 ID 접두 App Group은 macOS에서 프로파일 없이 동작.
+- **`npm run dist:mac`이 키체인의 Apple Development 인증서로 서명**하도록 바뀜(`build/dist-mac-local.mjs`). ad-hoc이면 App Group이 검증되지 않아 macOS 15+에서 "다른 앱의 데이터" 확인 창/거부가 난다. `SPROUT_ADHOC=1`이면 예전처럼 ad-hoc.
+- **켜지는 조건**: 패키지 앱 + 기본 프로필만. `SPROUT_PROFILE`로 띄운 시험 앱은 저장 칸(기기에 하나)을 덮어쓰지 않게 꺼진다. `SPROUT_WIDGET=1`이면 강제로 켬(시험용), `0`이면 끔. 개발 실행도 꺼짐(§8.2와 같음).
+- **오늘 순서는 앱 정렬 그대로**: 같은 날이면 종일 할 일이 시각 있는 할 일보다 앞(`due_at` 문자열 정렬 — 미니 창·목록과 같다). 미니 창은 하위 할 일을 안 보이지만 위젯은 §3.2대로 부모 바로 아래 한 단계(직속 자식만)를 넣는다. 머리 개수는 보이는 항목 전체 수(하위 포함).
+- `overdueAt`은 늘 null — 앱 규칙(02·09)이 날짜로만 만료를 본다(§13-2 답).
+- `prefs.clock24h`는 false 고정 — 앱에 12/24시간 설정이 아직 없다("오전 8:00").
+- 반영 대기 행 다시 누르기 = 위젯이 대기 파일을 지운다(앱에 갈 필요 없음). 앱은 `uncomplete` 항목도 받는다(반복이면 가장 최근 완료 기록을 되돌림, 같은 날 XP 회수).
+- **`sprout://today`·`sprout://growth` 이동은 임시 방식**: 렌더러에 "보기 이동" IPC가 없어(소유 범위 밖) 메인이 `localStorage`의 `sprout.view`·`sprout.selected`를 바꾸고, 값이 달라졌을 때만 창을 다시 불러온다(한 번 깜빡임). 렌더러에 `desktop:navigate` 수신을 넣으면 바꾼다 [다음].
+- 메인이 반영한 XP의 "+1" 표시(`growth:xp` IPC)는 아직 없음 — 렌더러 수신이 없어서. 데이터는 PowerSync 감시로 화면에 바로 반영된다 [다음].
+- 로그인 항목: 패키지 앱(기본 프로필) 첫 실행 때 한 번 `openAtLogin: true`(표시 파일 `userData/login-item-default`). 사용자가 시스템 설정에서 끄면 다시 켜지 않는다. 설정 화면 토글은 [다음](설정 › 일반에 "로그인할 때 sprout 열기" 요청).
+- 대기열 주인 확인: 이 기기 DB에 있고 지워지지 않은 할 일만 받는다(로그아웃하면 DB를 비우므로 = 로그인한 내 계정). 로그아웃 상태·7일 넘은 항목·이미 반영한 id는 버린다. id·taskId는 `[A-Za-z0-9_-]`만 허용.
+
+### 14.3 확인한 것 (2026-10-04, 패키지 앱 `SPROUT_PROFILE=e2e-widget SPROUT_WIDGET=1`, 로컬 서버, 시험 계정 `e2e-widget-<시각>@sprout.test`)
+- `npm run widget:build && npm run dist:mac` → `Contents/PlugIns/SproutWidget.appex`(팀 BU697KN34B, 샌드박스 + App Group, `Metadata.appintents` 포함), `Contents/Resources/widget_bridge.node`, `codesign --verify --deep --strict` 통과, `pluginkit -m -p com.apple.widgetkit-extension`에 `app.sprout.desktop.widget` 등록.
+- 앱이 저장 칸에 확인 창 없이 `snapshot.json`을 씀. 로그아웃 형태 → 가입 뒤 로그인 형태. 할 일 5개(만료 1·종일·하위·반복·시각) → 순서·날짜 문구·depth·반복 표시 맞음. 캐릭터 PNG(`art/cat-1-default@2x.png`, `egg@2x.png`) 구워짐.
+- 대기열: 완료 파일 2장(일반·반복) + 깨진 파일 1장 → 일반 완료, 반복은 완료 기록 + 다음 회차(10월 5일), XP +2, 기분 happy로 그림 새로 구움, 깨진 파일은 `actions/bad/`로, `appliedActions`에 id.
+- **앱을 끈 채** 대기열 파일을 두고 켬 → 시작하자마자 반영(완료 + XP).
+- 딥 링크(`open sprout://…`): `growth` → 성장 화면, `today` → 할 일 › 오늘, `task/<id>` → 그 할 일 상세, `quick-add` → 빠른 추가 창.
+- 로그아웃 → 저장 파일이 로그아웃 형태로, `art/`·대기열 비움, 할 일 제목이 저장 칸에 남지 않음.
+- 위젯 화면: SwiftUI `ImageRenderer`로 실제 저장 파일을 그려 작게·중간·크게·캐릭터 작게·중간 × 라이트·다크를 눈으로 확인(반영 대기 행·"sprout을 열면 반영돼요" 포함).
+- 시험 앱 종료, 로그인 항목에 sprout 없음(프로필 실행은 등록 안 함), 시험 데이터 저장 칸 삭제.
+
+### 14.4 사용자가 직접 확인할 것 (스크립트로 위젯을 바탕화면에 놓을 수 없음)
+1. `. scripts/node22.sh && npm run widget:build && npm run dist:mac`
+2. `apps/desktop/release/mac-arm64/sprout.app`을 **응용 프로그램 폴더로 복사**해 한 번 열고 로그인(기본 프로필 — 위젯이 켜지는 조건).
+3. 바탕화면 빈 곳 **우클릭 → "위젯 편집…"** → 왼쪽 목록에서 **sprout** → "오늘 할 일"(작게·중간·크게)과 "캐릭터"(작게·중간)를 바탕화면이나 알림 센터로 끌어 놓기. 갤러리 미리보기는 예시 데이터여야 한다.
+4. 위젯 행 체크박스 누르기 → 바로 체크 표시 → 몇 초 안에 행이 빠지고 캐릭터 위젯 "오늘 XP"가 오른다. 앱 사이드바 XP도 같이.
+5. 행 제목·`+`·머리 "오늘"·캐릭터를 눌러 각각 할 일 상세·빠른 추가·오늘·성장이 열리는지.
+6. 시스템 설정 › 일반 › 로그인 항목에 sprout이 켜져 있는지(첫 실행 때 켜짐).
+7. 확인 창("다른 앱의 데이터에 접근")이 뜨면 서명이 어긋난 것 — `codesign -dvv`로 앱·위젯 팀 ID가 둘 다 BU697KN34B인지 본다.
+

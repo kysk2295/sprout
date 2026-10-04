@@ -14,6 +14,7 @@ import { isSignedIn, startSync } from './sync'
 import { hasTray, startMini } from './mini'
 
 // 01-app-shell §2 창: 최소 800×560, Mac은 제목 표시줄을 숨기고 신호등이 레일 위에 놓인다.
+import { ensureLoginItemDefault, startWidget } from './widget'
 let mainWindow: BrowserWindow | undefined
 let settingsWindow: BrowserWindow | undefined
 function openSettings() {
@@ -73,6 +74,14 @@ async function openLink(url: string) {
 }
 app.on('open-url', (e, url) => { e.preventDefault(); void openLink(url) }) // 첫 실행 링크도 받게 whenReady 전에 등록
 app.on('second-instance', (_e, argv) => { void openLink(argv.find((a) => a.startsWith('sprout://')) ?? 'sprout://') })
+  else if (/^sprout:\/\/quick-add\/?$/.test(url)) win.webContents.send('desktop:quick-add') // 25 위젯 `+` = ⌃⇧A와 같은 빠른 추가
+  else if (/^sprout:\/\/growth\/?$/.test(url)) await showView(win, 'growth') // 25 캐릭터 위젯
+  else if (/^sprout:\/\/today\/?$/.test(url)) await showView(win, 'tasks', 'smart:today') // 25 오늘 할 일 위젯 머리·"+N개 더"
+}
+/** 레일 보기 전환: 렌더러에 이동 IPC가 아직 없어 화면이 기억하는 값(localStorage)을 바꾸고, 바뀌었으면 다시 불러온다 */
+async function showView(win: BrowserWindow, view: string, selected?: string) {
+  const js = `(()=>{let c=false;const set=(k,v)=>{if(localStorage.getItem(k)!==v){localStorage.setItem(k,v);c=true}};set('sprout.view',${JSON.stringify(JSON.stringify(view))});${selected ? `set('sprout.selected',${JSON.stringify(JSON.stringify(selected))});` : ''}return c})()`
+  if (await win.webContents.executeJavaScript(js).catch(() => false)) win.webContents.reload()
 if (!process.defaultApp) app.setAsDefaultProtocolClient('sprout') // 개발 실행(electron .)은 등록하지 않는다
 
 /** 알림을 눌렀을 때: 창이 없으면 새로 열고 화면이 뜰 때까지 기다린다 */
@@ -116,6 +125,8 @@ app.whenReady().then(async () => {
     if (win?.isVisible() && win.isFocused()) win.hide()
     else void showMain()
   })
+  startWidget({ isSignedIn }) // 25 맥 위젯: 저장 파일·체크 대기열·새로 고침
+  ensureLoginItemDefault() // 25 D4: 로그인할 때 sprout 열기(기본 켬)
   const shortcut = process.platform === 'darwin' ? 'Control+Shift+A' : 'Alt+Shift+A'
   if (!globalShortcut.register(shortcut, async () => { const win = await getWindow(); if(win.isMinimized())win.restore();win.show();win.focus();win.webContents.send('desktop:quick-add') })) console.warn('[shortcuts] Quick add shortcut unavailable')
   app.on('activate', () => {

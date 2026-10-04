@@ -20,6 +20,7 @@
     "server:schema": "node --experimental-strip-types --no-warnings server/scripts/gen-sql.ts",
     "test:api": "npm test -w @sprout/api",
     "dist:mac": "npm run dist:mac -w @sprout/desktop",
-    "dist:mac:release": "npm run dist:mac:release -w @sprout/desktop"
+    "dist:mac:release": "npm run dist:mac:release -w @sprout/desktop",
+    "widget:build": "npm run widget:build -w @sprout/desktop"
   }
 }

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { addDays } from '@sprout/schema/time'
 import {
-  aiLeft, canGrantTaskXp, kpiEarnsXp, parseGoalDraft, parseReportText, progressFromEvents, readTextJson, SPECIES, weekHasActivity, weekLabel, weeklyStats, XP, xpEventId, xpToNext,
+  aiLeft, kpiEarnsXp, parseGoalDraft, parseReportText, progressFromEvents, readTextJson, SPECIES, weekHasActivity, weekLabel, weeklyStats, XP, xpEventId, xpToNext,
   type GoalDraft, type ReportTextJson, type Species, type WeeklyStats, type WeekTask
 } from '@sprout/schema/growth'
+import { planGrantTaskXp, planRevokeTaskXp } from '@sprout/schema/taskCore'
 import { askGrowthAi } from './growth-ai'
 import { getDb } from './db'
 import { insert, run, update, uuid } from './mutations'
@@ -46,33 +47,15 @@ export async function assignCharacter(species: Species, typeCode: string, answer
 export const renameCharacter = async (name: string) => run(update('characters', (await ensureCharacter()).id, { name }))
 
 // ── 할 일 XP (10 §6) ──
-/** 완료한 할 일마다 +1, 하루 10까지. 같은 할 일은 하루 한 번 */
+/** 완료한 할 일마다 +1, 하루 10까지. 같은 할 일은 하루 한 번 (규칙: @sprout/schema/taskCore — 위젯 체크도 같은 경로) */
 export async function grantTaskXp(taskIds: string[]) {
-  const db = await getDb()
-  const day = dayKey()
-  const today = await db.getAll<{ id: string; kind: string; amount: number }>('SELECT id, kind, amount FROM xp_events WHERE day = ?', [day])
-  const stmts: Stmt[] = []
-  for (const id of taskIds) {
-    const eid = xpEventId.task(id, day)
-    if (today.some((e) => e.id === eid)) continue
-    if (!canGrantTaskXp(today)) break
-    stmts.push(insert('xp_events', { id: eid, kind: 'task', amount: XP.task, ref_id: id, day }))
-    today.push({ id: eid, kind: 'task', amount: XP.task })
-  }
+  const { stmts, granted } = await planGrantTaskXp(await getDb(), taskIds, { today: dayKey() })
   await run(...stmts)
-  announce(stmts.length * XP.task)
+  announce(granted)
 }
 /** 같은 날 완료를 취소하면 그날 받은 XP를 되돌린다(다음 날 취소는 되돌리지 않는다) */
 export async function revokeTaskXp(taskIds: string[]) {
-  const db = await getDb()
-  const day = dayKey()
-  const stmts: Stmt[] = []
-  for (const id of taskIds) {
-    const got = await db.get('SELECT 1 FROM xp_events WHERE id = ?', [xpEventId.task(id, day)])
-    const rid = xpEventId.taskRevoke(id, day)
-    if (got && !(await db.get('SELECT 1 FROM xp_events WHERE id = ?', [rid]))) stmts.push(insert('xp_events', { id: rid, kind: 'task_revoke', amount: -XP.task, ref_id: id, day }))
-  }
-  await run(...stmts)
+  await run(...(await planRevokeTaskXp(await getDb(), taskIds, { today: dayKey() })))
 }
 
 // ── 주간 목표 (10 §4) ──

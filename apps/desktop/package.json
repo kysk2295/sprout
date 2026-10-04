@@ -11,8 +11,9 @@
     "preview": "electron-vite preview",
     "web": "vite --config vite.web.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "dist:mac": "electron-vite build && electron-builder --mac --publish never -c.mac.identity=- -c.mac.hardenedRuntime=false -c.mac.notarize=false",
-    "dist:mac:release": "electron-vite build && node build/dist-mac-release.mjs"
+    "dist:mac": "electron-vite build && node build/dist-mac-local.mjs",
+    "dist:mac:release": "electron-vite build && node build/dist-mac-release.mjs",
+    "widget:build": "sh native/widget/build.sh"
   },
   "dependencies": {
     "@powersync/node": "^1.1.1",

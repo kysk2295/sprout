@@ -1,0 +1,25 @@
+{
+ "schema": 1,
+ "generatedAt": "2026-10-04T09:12:03+09:00",
+ "day": "2026-10-04",
+ "account": { "signedIn": true },
+ "prefs": { "clock24h": false },
+ "theme": { "accentLight": "#4E75F2", "accentDark": "#545DFA" },
+ "today": {
+  "count": 7,
+  "tasks": [
+   { "id": "00000000-0000-4000-8000-000000000001", "title": "보고서 제출", "priority": 2, "depth": 0, "label": "10월 2일", "labelTone": "danger", "overdueAt": null, "repeat": false },
+   { "id": "00000000-0000-4000-8000-000000000002", "title": "아침 스트레칭", "priority": 1, "depth": 0, "label": "오전 8:00", "labelTone": "accent", "overdueAt": null, "repeat": true },
+   { "id": "00000000-0000-4000-8000-000000000003", "title": "기획서 초안 쓰기", "priority": 3, "depth": 0, "label": "오전 9:30", "labelTone": "accent", "overdueAt": null, "repeat": false },
+   { "id": "00000000-0000-4000-8000-000000000004", "title": "자료 조사", "priority": 0, "depth": 1, "label": null, "labelTone": "accent", "overdueAt": null, "repeat": false },
+   { "id": "00000000-0000-4000-8000-000000000005", "title": "독서 30분", "priority": 0, "depth": 0, "label": "오늘", "labelTone": "accent", "overdueAt": null, "repeat": false },
+   { "id": "00000000-0000-4000-8000-000000000006", "title": "점심 약속", "priority": 0, "depth": 0, "label": "오후 12:30", "labelTone": "accent", "overdueAt": null, "repeat": false },
+   { "id": "00000000-0000-4000-8000-000000000007", "title": "메일 답장", "priority": 1, "depth": 0, "label": "오늘", "labelTone": "accent", "overdueAt": null, "repeat": false }
+  ]
+ },
+ "growth": {
+  "hasCharacter": true, "name": "미미", "species": "cat", "level": 4, "stage": 2, "stageName": "꼬마",
+  "xpInto": 20, "xpToNext": 100, "todayTaskXp": 3, "todayTaskXpCap": 10, "mood": "happy", "art": "art/cat-2-happy@2x.png"
+ },
+ "appliedActions": []
+}

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  위젯 확장 entitlements(25 §8.8·§8.10). 위젯 확장은 샌드박스 필수. 네트워크 권한은 주지 않는다.
+  App Group = 팀 ID + 앱 번들 ID. 팀 ID는 서명 인증서의 OU(지금 개발 인증서: BU697KN34B).
+  build.sh가 SPROUT_TEAM_ID로 이 값을 바꿔 서명한다. 같은 값: apps/desktop/build/entitlements.mac.plist, src/main/widget.ts
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>BU697KN34B.app.sprout.desktop</string>
+	</array>
+</dict>
+</plist>

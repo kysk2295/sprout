@@ -1,6 +1,6 @@
 import { grantTaskXp, revokeTaskXp } from '../data/growth'
 import { useMemo } from 'react'
-import { addDays, datePart, daysBetween, nextOccurrence, parseRule, stringifyRule } from '@sprout/schema/time'
+import { planComplete, planReopen } from '@sprout/schema/taskCore'
 import { useToast } from '../components/Toast'
 import { getDb, type Row, type Stmt } from '../data/db'
 import {
@@ -51,47 +51,15 @@ export function useTaskActions() {
       async complete(ids: string[]) {
         if (!ids.length) return
         const db = await getDb()
-        const rows = await db.getAll<Row>(`SELECT * FROM tasks WHERE id IN (${marks(ids.length)}) AND status = 0`, ids)
-        const repeating = rows.filter((r) => r.repeat_rule && r.due_at)
-        const plainTop = rows.filter((r) => !repeating.includes(r)).map((r) => r.id as string)
-        const all = await withDescendants(plainTop)
-        const open = all.length ? (await db.getAll<{ id: string }>(`SELECT id FROM tasks WHERE status = 0 AND id IN (${marks(all.length)})`, all)).map((r) => r.id) : []
+        // 완료 규칙(하위 함께·반복 다음 회차·완료 기록·체크 항목 초기화)은 @sprout/schema/taskCore 한 곳에 있다(25 §8.5 — 위젯 체크도 같은 경로)
+        const plan = await planComplete(db, ids, { today: dayKey() })
+        const { open, repeating: repIds, checks, created } = plan
         playCompleteSound()
-        const repIds = repeating.map((r) => r.id as string)
         // 10 §3.2: 앱 어디서 끝내든 성장 캐릭터가 반응하게 알린다(하루 XP 상한을 넘겨도)
         if (open.length || repIds.length) window.dispatchEvent(new CustomEvent('sprout:task-done', { detail: { ids: [...open, ...repIds] } }))
         const restoreRep = await snapshot(repIds, [...DATE_FIELDS, 'status', 'completed_at'])
         const restorePlain = await snapshot(open, ['status', 'completed_at'])
-        const checks = repIds.length ? await db.getAll<Row>(`SELECT id, done, completed_at FROM check_items WHERE task_id IN (${marks(repIds.length)})`, repIds) : []
-        const created: string[] = []
-        const stmts: Stmt[] = open.map((id) => update('tasks', id, { status: 1, completed_at: now() }))
-        for (const t of repeating) {
-          const rule = parseRule(t.repeat_rule as string)!
-          const start = (t.start_at ?? t.due_at) as string
-          const mode = t.repeat_from === 'completion' ? 'completion' : 'due'
-          const next = nextOccurrence(rule, mode === 'completion' ? dayKey() : datePart(start), mode)
-          if (!next) {
-            // 마지막 회차: 반복 없이 끝난다
-            stmts.push(update('tasks', t.id as string, { status: 1, completed_at: now() }))
-            continue
-          }
-          // 이번 회차 → 완료 기록 태스크(03 §8: 제목·본문·우선순위·리스트·태그 복사, 알림·반복 없음)
-          const rec = uuid()
-          created.push(rec)
-          stmts.push(insert('tasks', {
-            id: rec, list_id: t.list_id, parent_id: t.parent_id, title: t.title, content: t.content, content_mode: 'text', status: 1, priority: t.priority,
-            start_at: t.start_at, due_at: t.due_at, is_all_day: t.is_all_day, time_zone: t.time_zone, repeat_origin_id: t.id, sort_order: t.sort_order, completed_at: now()
-          }))
-          for (const tag of await db.getAll<{ tag_id: string }>('SELECT tag_id FROM task_tags WHERE task_id = ?', [t.id])) stmts.push(insert('task_tags', { id: uuid(), task_id: rec, tag_id: tag.tag_id }))
-          // 원래 태스크 → 다음 회차(시각·기간 유지), 남은 횟수 1 줄임, 체크 항목 초기화
-          const shift = daysBetween(datePart(start), next)
-          const nextRule = rule.count ? stringifyRule({ ...rule, count: rule.count - 1 }) : t.repeat_rule
-          stmts.push(update('tasks', t.id as string, {
-            start_at: t.start_at ? addDays(t.start_at as string, shift) : null, due_at: addDays(t.due_at as string, shift), repeat_rule: nextRule
-          }))
-          checks.filter((c) => c.done).forEach((c) => stmts.push(update('check_items', c.id as string, { done: 0, completed_at: null })))
-        }
-        await run(...stmts)
+        await run(...plan.stmts)
         void grantTaskXp(ids) // 10 성장: 완료 +1 XP(하루 10까지)
         toast.show('작업이 완료되었습니다.', async () => {
           void revokeTaskXp(ids)
@@ -104,21 +72,10 @@ export function useTaskActions() {
       /** 완료 취소. 반복의 완료 기록이면 기록을 지우고 원래 태스크를 그 회차로 되돌린다(03 §8) */
       async reopen(ids: string[]) {
         const db = await getDb()
-        const rows = await db.getAll<Row>(`SELECT id, repeat_origin_id, start_at, due_at FROM tasks WHERE id IN (${marks(ids.length)})`, ids)
-        const records = rows.filter((r) => r.repeat_origin_id)
-        const plain = rows.filter((r) => !r.repeat_origin_id).map((r) => r.id as string)
-        const stmts: Stmt[] = plain.map((id) => update('tasks', id, { status: 0, completed_at: null }))
-        for (const rec of records) {
-          const origin = await db.get<Row>('SELECT id, start_at, due_at, repeat_rule FROM tasks WHERE id = ?', [rec.repeat_origin_id])
-          if (origin?.due_at && origin.repeat_rule) {
-            const rule = parseRule(origin.repeat_rule as string)
-            const back = moveToDate(origin as Span, datePart((rec.start_at ?? rec.due_at) as string))
-            stmts.push(update('tasks', origin.id as string, { ...back, repeat_rule: rule?.count ? stringifyRule({ ...rule, count: rule.count + 1 }) : origin.repeat_rule }))
-          }
-        }
-        await run(...stmts)
-        void revokeTaskXp([...ids, ...records.map((r) => r.repeat_origin_id as string)]) // 같은 날 취소면 XP 되돌림
-        if (records.length) await deleteTasksHard(records.map((r) => r.id as string))
+        const plan = await planReopen(db, ids, { today: dayKey() })
+        await run(...plan.stmts)
+        void revokeTaskXp(plan.xpIds) // 같은 날 취소면 XP 되돌림
+        if (plan.records.length) await deleteTasksHard(plan.records)
       },
       async wontDo(ids: string[], on: boolean) {
         await undoable(ids, ['status', 'completed_at'], () => updateTasks(ids, on ? { status: 2, completed_at: now() } : { status: 0, completed_at: null }), on ? '하지 않음으로 표시했어요' : undefined)

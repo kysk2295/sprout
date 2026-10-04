@@ -13,13 +13,14 @@
   <true/>
 
   <!--
-    [예정] macOS 위젯(WidgetKit, docs/screens/25-mac-widget.md)과 데이터 공유용 App Group.
-    위젯 확장을 넣을 때 주석을 풀고 TEAMID를 실제 팀 ID(10자리)로 바꾼다. 팀 ID 접두 형식이면
-    Developer ID 배포에서 프로비저닝 프로파일 없이 쓸 수 있다. 위젯 .appex 쪽 entitlements에도 같은 값을 넣는다.
+    macOS 위젯(WidgetKit, docs/screens/25-mac-widget.md §8.2)과 데이터를 나누는 App Group.
+    이름 = 팀 ID + 번들 ID. 팀 ID는 서명 인증서의 OU(지금 개발 인증서 BU697KN34B — 인증서 이름 괄호 안 값 Z32F3Z65RD는 팀 ID가 아니다).
+    팀 ID 접두 형식이라 프로비저닝 프로파일 없이 쓴다. 같은 값: src/main/widget.ts, native/widget/SproutWidget/SproutWidget.entitlements.
+    Developer ID로 바꿀 때 팀 ID가 다르면 네 곳을 같이 바꾼다(packaging.md §4).
+  -->
   <key>com.apple.security.application-groups</key>
   <array>
-    <string>TEAMID.app.sprout.desktop</string>
+    <string>BU697KN34B.app.sprout.desktop</string>
   </array>
-  -->
 </dict>
 </plist>
