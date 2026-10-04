@@ -96,6 +96,9 @@ assert.deepEqual(parseGoalDraft('{"goals":[{"title":"운동","target":3},{"title
 assert.deepEqual(parseGoalDraft('{"goals":[{"title":"a","target":99},{"title":" A 10번 ","target":1}]}'), [{ title: 'a 10번', target: 10 }])
 assert.throws(() => parseGoalDraft('{"goals":[{"title":"","target":1}]}'), /형식/)
 assert.throws(() => parseGoalDraft('{"goals":"x"}'), /형식/)
+// 작은 모델이 목록만 답해도 받는다(실측)
+assert.deepEqual(parseGoalDraft('[{"title":"기획서 수정하기"},{"target":3,"title":"운동"}]'), [{ title: '기획서 수정하기', target: 1 }, { title: '운동 3번', target: 3 }])
+assert.throws(() => parseGoalDraft('[]'), /형식/)
 
 // ── 주 2회 한도 기록 ──
 assert.deepEqual(aiLeft(readTextJson(null)), { report: true, draft: true })

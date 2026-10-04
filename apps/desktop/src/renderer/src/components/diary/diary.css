@@ -123,7 +123,7 @@
 .diary-crisis li em { font-style: normal; font: var(--text-meta); color: var(--color-text-tertiary); }
 .diary-crisis p { margin: 0; font: var(--text-meta); color: var(--color-text-secondary); }
 
-.diary__foot { height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 28px; border-top: 1px solid var(--color-border-divider); font: 400 11px/15px var(--font-family); color: var(--color-text-tertiary); flex-shrink: 0; white-space: nowrap; overflow: hidden; }
+.diary__foot { height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 76px 0 28px; /* 오른쪽 아래 떠 있는 AI 비서 버튼에 글이 가리지 않게 */ border-top: 1px solid var(--color-border-divider); font: 400 11px/15px var(--font-family); color: var(--color-text-tertiary); flex-shrink: 0; white-space: nowrap; overflow: hidden; }
 .diary__foot > span:last-child { overflow: hidden; text-overflow: ellipsis; }
 .diary__foot-sp { flex: 1; }
 

@@ -2,7 +2,7 @@ import { ChevronLeft, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { QUESTIONS, scoreSurvey, SPECIES, speciesFrom, type Pick2, type Species } from '@sprout/schema/growth'
-import { assignCharacter } from '../../data/growth'
+import { assignCharacter, useGrowth } from '../../data/growth'
 import { CharacterArt } from './CharacterArt'
 
 // 10 §2.2 일하는 스타일 조사: 시작 → 8문항(+동점 문항) → 결과·이름 짓기
@@ -27,6 +27,9 @@ export function SurveyDialog({ onClose }: { onClose: () => void }) {
     return [...MAIN, ...extra]
   }, [answers, score])
   const species = speciesFrom(score)
+  // 이미 캐릭터가 있으면 "다시 조사"(10 §2.2: 종류는 바뀔 수 있고 레벨·XP는 그대로)
+  const current = useGrowth().character
+  const again = !!current?.species
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -40,7 +43,8 @@ export function SurveyDialog({ onClose }: { onClose: () => void }) {
     setAnswers(next)
     const s = scoreSurvey(next)
     const allMain = MAIN.every((x) => next[x.id])
-    if (allMain && speciesFrom(s)) { setName(SPECIES[speciesFrom(s)!].name.split(' ').pop() ?? ''); setStep('result'); return }
+    // 다시 조사면 지어 둔 이름을 그대로 채운다(덮어쓰지 않게)
+    if (allMain && speciesFrom(s)) { setName(current?.name?.trim() || (SPECIES[speciesFrom(s)!].name.split(' ').pop() ?? '')); setStep('result'); return }
     setI(i + 1)
   }
 
@@ -52,8 +56,10 @@ export function SurveyDialog({ onClose }: { onClose: () => void }) {
         {step === 'intro' && (
           <div className="survey__intro">
             <div className="survey__lineup">{(['turtle', 'squirrel', 'cat', 'otter'] as Species[]).map((s) => <CharacterArt key={s} species={s} size={64} />)}</div>
-            <h2>나와 닮은 친구를 찾아볼까요?</h2>
-            <p>할 일을 다루는 방식에 대한 질문 8개에 답하면, 나와 닮은 친구가 알에서 깨어나요. 그 친구는 내가 할 일을 끝낼 때마다 자라요.</p>
+            <h2>{again ? '성향을 다시 알아볼까요?' : '나와 닮은 친구를 찾아볼까요?'}</h2>
+            <p>{again
+              ? '질문 8개에 다시 답하면 캐릭터 종류가 바뀔 수 있어요. 지금까지 쌓은 레벨과 XP는 그대로 이어져요.'
+              : '할 일을 다루는 방식에 대한 질문 8개에 답하면, 나와 닮은 친구가 알에서 깨어나요. 그 친구는 내가 할 일을 끝낼 때마다 자라요.'}</p>
             <button className="survey__primary" onClick={() => setStep('quiz')}>시작하기</button>
             <button className="survey__link" onClick={onClose}>나중에</button>
           </div>
@@ -62,8 +68,8 @@ export function SurveyDialog({ onClose }: { onClose: () => void }) {
           <div className="survey__quiz">
             <div className="survey__top">
               <button className="icon-btn" aria-label="이전" disabled={i === 0} onClick={() => setI(i - 1)}><ChevronLeft /></button>
-              <div className="survey__progress"><span style={{ width: `${((i) / MAIN.length) * 100}%` }} /></div>
-              <span className="survey__count">{Math.min(i + 1, queue.length)}/{MAIN.length}</span>
+              <div className="survey__progress"><span style={{ width: `${(i / queue.length) * 100}%` }} /></div>
+              <span className="survey__count">{Math.min(i + 1, queue.length)}/{queue.length}</span>
             </div>
             <h2 className="survey__q">{q.text}</h2>
             <div className="survey__choices">
@@ -79,8 +85,8 @@ export function SurveyDialog({ onClose }: { onClose: () => void }) {
             <h2>{SPECIES[species].name}형</h2>
             <ul className="survey__desc">{DESC[species].map((d) => <li key={d}>{d}</li>)}</ul>
             <div className="survey__axes">
-              <Axis left="계획" right="즉흥" ratio={score.plan.ratioA} />
-              <Axis left="몰입" right="멀티" ratio={score.focus.ratioA} />
+              <Axis left="계획" right="즉흥" ratio={score.plan.ratioA} leanA={score.plan.leanA} />
+              <Axis left="몰입" right="멀티" ratio={score.focus.ratioA} leanA={score.focus.leanA} />
             </div>
             <label className="survey__name">이름을 지어 주세요<input value={name} maxLength={12} onChange={(e) => setName(e.target.value)} /></label>
             <button className="survey__primary" disabled={!name.trim()} onClick={async () => {
@@ -96,13 +102,15 @@ export function SurveyDialog({ onClose }: { onClose: () => void }) {
   )
 }
 
-function Axis({ left, right, ratio }: { left: string; right: string; ratio: number }) {
+// 동점(50%)이면 동점 문항으로 정한 쪽을 굵게 — 결과 유형과 어긋나 보이지 않게
+function Axis({ left, right, ratio, leanA }: { left: string; right: string; ratio: number; leanA: boolean | null }) {
   const pct = Math.round(ratio * 100)
+  const strongA = leanA ?? pct >= 50
   return (
     <div className="survey__axis">
-      <span className={pct >= 50 ? 'is-strong' : ''}>{left} {pct}%</span>
+      <span className={strongA ? 'is-strong' : ''}>{left} {pct}%</span>
       <div className="survey__axisbar"><span style={{ width: `${pct}%` }} /></div>
-      <span className={pct < 50 ? 'is-strong' : ''}>{right} {100 - pct}%</span>
+      <span className={!strongA ? 'is-strong' : ''}>{right} {100 - pct}%</span>
     </div>
   )
 }

@@ -46,3 +46,8 @@
 .report-goal__carry:hover:not(:disabled) { background: var(--color-accent-subtle); }
 .report-goal__carry:disabled { color: var(--color-text-tertiary); cursor: default; }
 .report-goal__carried { font: var(--text-meta); color: var(--color-text-tertiary); }
+
+/* 10 §2.4 레벨업 화면: 이번에 받은 XP 내역 */
+.levelup__gained { list-style: none; margin: 14px 0 0; padding: 10px 14px; border-radius: 8px; background: var(--color-bg-hover); text-align: left; }
+.levelup__gained li { display: flex; justify-content: space-between; font: var(--text-meta); color: var(--color-text-secondary); padding: 2px 0; }
+.levelup__gained b { color: var(--color-accent); font-weight: 600; }

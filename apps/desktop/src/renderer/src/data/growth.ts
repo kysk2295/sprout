@@ -93,7 +93,26 @@ async function addGoalRow(week: string, title: string, target: number, source: s
   await run(insert('kpis', { id: uuid(), week_start: week, title, target, progress: 0, link_kind: 'none', link_id: null, status: 'active', source, achieved_at: null, sort_order: Date.now() }))
   return 'ok'
 }
-export const removeGoal = (id: string) => run({ sql: 'DELETE FROM kpis WHERE id = ?', params: [id] })
+/** 목표 삭제. 그 목표로 받은 XP는 되돌린다 — 안 그러면 "적고·이루고·지우기"로 주 3개 상한을 넘겨 XP를 벌 수 있다.
+ *  모두 달성 보너스는 남은 목표가 2개 미만이거나 다 이룬 상태가 아니게 되면 되돌린다 */
+export async function removeGoal(id: string) {
+  const db = await getDb()
+  const goal = await db.get<{ week_start: string }>('SELECT week_start FROM kpis WHERE id = ?', [id])
+  const stmts: Stmt[] = [{ sql: 'DELETE FROM kpis WHERE id = ?', params: [id] }]
+  if (goal) {
+    const day = dayKey()
+    if ((await netOf(id)) > 0) stmts.push(insert('xp_events', { id: xpEventId.kpi(id, await seqOf(id)), kind: 'kpi_revoke', amount: -XP.kpi, ref_id: id, day }))
+    const bonusRef = `bonus:${goal.week_start}`
+    if ((await netOf(bonusRef)) > 0) {
+      const rest = await db.getAll<{ status: string }>('SELECT status FROM kpis WHERE week_start = ? AND id != ?', [goal.week_start, id])
+      if (rest.length < 2 || rest.some((g) => g.status !== 'achieved')) {
+        const character = await ensureCharacter()
+        stmts.push(insert('xp_events', { id: `${xpEventId.kpiAll(character.id, goal.week_start)}:${await seqOf(bonusRef)}`, kind: 'kpi_all', amount: -XP.kpiAll, ref_id: bonusRef, day }))
+      }
+    }
+  }
+  await run(...stmts)
+}
 
 /** 그 목표로 받은 XP 합계(지급·되돌림) */
 const netOf = async (ref: string) => (await (await getDb()).get<{ n: number | null }>('SELECT sum(amount) n FROM xp_events WHERE ref_id = ?', [ref]))?.n ?? 0
@@ -110,8 +129,12 @@ export async function setGoalProgress(goal: GoalRow, progress: number) {
   const bonusRef = `bonus:${goal.week_start}`
   let gained = 0
   if (reached && goal.status !== 'achieved') {
-    // 이번 주에 먼저 이룬 목표 수(이 목표 제외)로 XP 대상인지 본다
-    const before = (await db.get<{ n: number }>("SELECT count(*) n FROM kpis WHERE week_start = ? AND status = 'achieved' AND id != ?", [goal.week_start, goal.id]))?.n ?? 0
+    // 이번 주에 지금 XP를 갖고 있는 목표 수(이 목표 제외)로 XP 대상인지 본다 — "달성 수"로 세면
+    // 4·5번째를 이룬 뒤 앞 목표를 취소했다 다시 이룰 때 XP 받는 목표가 3개 아래로 줄어든다
+    const before = (await db.get<{ n: number }>(
+      'SELECT count(*) n FROM (SELECT k.id FROM kpis k JOIN xp_events x ON x.ref_id = k.id WHERE k.week_start = ? AND k.id != ? GROUP BY k.id HAVING sum(x.amount) > 0)',
+      [goal.week_start, goal.id]
+    ))?.n ?? 0
     if (kpiEarnsXp(before) && (await netOf(goal.id)) <= 0) {
       stmts.push(insert('xp_events', { id: xpEventId.kpi(goal.id, await seqOf(goal.id)), kind: 'kpi', amount: XP.kpi, ref_id: goal.id, day }))
       gained += XP.kpi
@@ -197,14 +220,18 @@ const speciesInfo = async () => {
 }
 const clip = (titles: string[], n: number) => titles.slice(0, n).map((t) => t.slice(0, 60))
 
+/** 서버 AI 프록시의 주간 상한 오류(server/api ai.ts MESSAGES.weekly) */
+export const isWeeklyCap = (e: unknown) => /이번 주에는 이미 사용/.test(e instanceof Error ? e.message : String(e))
+
 /** 공통: 부르고, 결과를 검사해 저장한다. 연결 실패는 시도로 치지 않는다 */
 async function callAi<T>(kind: 'weekly_report' | 'kpi_draft', payload: unknown, signal: AbortSignal, parse: (raw: string) => T): Promise<{ result: AiResult; value?: T }> {
   let raw: string
   try {
     raw = await askGrowthAi(kind, payload, signal)
   } catch (e) {
-    // 서버 프록시가 생기면 429 = 이번 주 한도(시도로 친다). 그 밖은 연결 문제로 보고 다음에 다시
-    return { result: /429|한도/.test(e instanceof Error ? e.message : String(e)) ? 'capped' : 'unavailable' }
+    // 서버 프록시의 주간 상한(429 weekly: "이번 주에는 이미 사용했어요…")만 시도로 친다.
+    // 하루 상한·잦은 요청·대기열·연결 실패는 잠깐 문제라 다음 실행 때 다시 한다
+    return { result: isWeeklyCap(e) ? 'capped' : 'unavailable' }
   }
   try { return { result: 'ok', value: parse(raw) } } catch { return { result: 'invalid' } }
 }

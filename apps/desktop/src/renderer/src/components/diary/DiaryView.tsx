@@ -6,7 +6,7 @@ import { useGrowth } from '../../data/growth'
 import { isUnavailable } from '../../data/ai'
 import {
   buddyOf, buddyReply, CRISIS_CARD, dayRange, deleteEntry, DONE_SQL, getConsent, getMemory, insightOf, isSolo, isWritten, josa,
-  MOODS, moodOf, parseBuddyReply, promptFor, saveEntry, sendMessage, setConsent, setMemory, setPrivate, setSolo, streakOf,
+  MESSAGES_BY_DATE_SQL, MOODS, moodOf, parseBuddyReply, promptFor, saveEntry, sendMessage, setConsent, setMemory, setPrivate, setSolo, streakOf,
   summarizeEntry, takeNotice, taskFromChip, XP_SQL, type Buddy, type DiaryEntry, type DiaryMessage
 } from '../../data/diary'
 import { dayKey } from '../../lib/dates'
@@ -420,7 +420,7 @@ const chipsMade = new Set<string>()
 let noticeShown: boolean | undefined
 function Talk({ date, content, buddy, stage, memory, onActivity }: { date: string; content: string; buddy: Buddy; stage: number; memory: boolean; onActivity: () => void }) {
   const toast = useToast()
-  const messages = useQuery<DiaryMessage>('SELECT * FROM diary_messages WHERE entry_id = ? ORDER BY created_at, id', [`diary-${date}`])
+  const messages = useQuery<DiaryMessage>(MESSAGES_BY_DATE_SQL, [date])
   const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState<'down' | 'fail' | null>(null)
   const [draft, setDraft] = useState('')
@@ -431,6 +431,10 @@ function Talk({ date, content, buddy, stage, memory, onActivity }: { date: strin
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const busy = pending !== null
   const name = buddy.name
+  // 이미 만든 칩은 다시 열어도(앱을 껐다 켜도) "할 일에 넣었어요" — 같은 할 일을 두 번 만들지 않게
+  const chipTitles = useMemo(() => (messages ?? []).filter((m) => m.role === 'buddy').map((m) => parseBuddyReply(m.content).task).filter((t): t is string => !!t), [messages])
+  const madeTitles = useQuery<{ title: string }>(`SELECT title FROM tasks WHERE deleted_at IS NULL AND title IN (${chipTitles.map(() => '?').join(',') || "''"})`, chipTitles)
+  const made = (title: string) => (madeTitles ?? []).some((t) => t.title === title.trim().slice(0, 200))
 
   const ask = async (fn: (signal: AbortSignal) => Promise<unknown>) => {
     ctrl.current?.abort()
@@ -479,7 +483,7 @@ function Talk({ date, content, buddy, stage, memory, onActivity }: { date: strin
               <CharacterArt species={buddy.species} stage={stage} size={30} mood="happy" />
               <div className="diary-msg__bubble">
                 {p.text}
-                {p.task && (chipsMade.has(m.id)
+                {p.task && (chipsMade.has(m.id) || made(p.task)
                   ? <span className="diary-chip is-done"><Check />할 일에 넣었어요</span>
                   : <button className="diary-chip" onClick={() => void makeTask(m, p.task!)}><Plus />할 일로: {p.task}</button>)}
               </div>

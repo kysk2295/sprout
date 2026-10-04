@@ -5,7 +5,7 @@ import { TABLES } from '@sprout/schema'
 import { addDays } from '@sprout/schema/time'
 import { readTextJson, type WeeklyStats } from '@sprout/schema/growth'
 import {
-  addGoal, carryMissed, closeWeek, dismissDraft, draftGoals, ensureCharacter, runWeeklyClose, setGoalProgress, thisWeek, writeReportText, type GoalRow
+  addGoal, carryMissed, closeWeek, dismissDraft, draftGoals, ensureCharacter, isWeeklyCap, removeGoal, runWeeklyClose, setGoalProgress, thisWeek, writeReportText, type GoalRow
 } from '../src/renderer/src/data/growth'
 import { insert, run } from '../src/renderer/src/data/mutations'
 import { dayKey } from '../src/renderer/src/lib/dates'
@@ -142,4 +142,27 @@ assert.equal(all('SELECT count(*) n FROM weekly_reports')[0].n, reports)
 // 빈 주는 리포트를 만들지 않는다
 assert.equal(await closeWeek(addDays(W, -70)), null)
 assert.equal(dayKey().length, 10)
+// 2026-10-04 E2E: 서버 주간 상한(429 "이번 주에는 이미 사용했어요…")만 시도로 친다. 하루 상한·대기열은 다음에 다시
+assert.equal(isWeeklyCap(new Error("Error invoking remote method 'assistant:chat': Error: 이번 주에는 이미 사용했어요. 다음 주 월요일에 다시 쓸 수 있어요.")), true)
+assert.equal(isWeeklyCap(new Error('오늘 AI 사용 한도를 다 썼어요. 내일 다시 시도해 주세요.')), false)
+assert.equal(isWeeklyCap(new Error('지금은 AI를 쓰는 사람이 많아요. 잠시 뒤 다시 시도해 주세요.')), false)
+
+// 2026-10-04 E2E: 목표 XP 3개 상한은 "XP를 가진 목표" 수로 센다 + 지운 목표의 XP는 되돌린다
+{
+  const NW = addDays(thisWeek(), 21) // 다른 시험과 겹치지 않는 주
+  for (const t of ['가', '나', '다', '라']) await addGoal(NW, t)
+  const goalsOf = () => all('SELECT id, week_start, title, target, progress, status, source, achieved_at, sort_order FROM kpis WHERE week_start = ? ORDER BY sort_order', [NW]) as unknown as GoalRow[]
+  const net = (id: string) => (all('SELECT sum(amount) n FROM xp_events WHERE ref_id = ?', [id])[0].n as number | null) ?? 0
+  for (const t of ['가', '나', '다', '라']) await setGoalProgress(goalsOf().find((g) => g.title === t)!, 1)
+  const byT = (t: string) => goalsOf().find((g) => g.title === t)!
+  assert.deepEqual(['가', '나', '다', '라'].map((t) => net(byT(t).id)), [30, 30, 30, 0])
+  await setGoalProgress(byT('가'), 0) // 취소 → XP 되돌림
+  await setGoalProgress(byT('가'), 1) // 다시 이룸: XP 가진 목표가 2개라 다시 받는다(예전: 달성 수 3이라 못 받음)
+  assert.equal(net(byT('가').id), 30)
+  const nId = byT('나').id
+  const before = xpSum()
+  await removeGoal(nId) // 지우면 그 목표 XP를 되돌린다(적고·이루고·지우기로 상한 넘기 방지)
+  assert.equal(net(nId), 0)
+  assert.equal(xpSum(), before - 30)
+}
 console.log('growth: ok')

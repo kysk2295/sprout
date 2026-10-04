@@ -13,7 +13,18 @@ export type DiaryEntry = {
 export type DiaryMessage = { id: string; entry_id: string; role: 'me' | 'buddy'; content: string; safety: number | null; created_at: string }
 export type Buddy = { name: string; species: Species | null }
 
-export const entryId = (date: string) => `diary-${date}`
+/** 일기 id: 날짜 + 사용자 id로 결정적(두 기기에서 같은 날 써도 한 행). 서버 id는 모든 사용자가 같이 쓰는 키라
+ *  `diary-<날짜>`만으로는 다른 사용자와 겹쳐 서버가 업로드를 조용히 버렸다(2026-10-04 E2E) → 사용자 id를 붙인다.
+ *  로그인 없는 웹 미리보기·시험은 예전 모양(`diary-<날짜>`) */
+export const entryId = (date: string, owner?: string | null) => (owner ? `diary-${date}-${owner}` : `diary-${date}`)
+const ownerId = async () => {
+  try { return (await window.sprout?.auth?.state())?.user?.id ?? null } catch { return null }
+}
+const ENTRY_BY_DATE = 'SELECT * FROM diary_entries WHERE date = ? ORDER BY created_at, id LIMIT 1'
+/** 그날 일기 행(로컬 DB에는 내 행만 있다) */
+export const findEntry = async (date: string) => (await getDb()).get<DiaryEntry>(ENTRY_BY_DATE, [date])
+/** 그날 대화 — 일기 행 id를 몰라도 날짜로 찾는다 */
+export const MESSAGES_BY_DATE_SQL = 'SELECT m.* FROM diary_messages m JOIN diary_entries e ON e.id = m.entry_id WHERE e.date = ? ORDER BY m.created_at, m.id'
 
 // ── 기분 5단계(§3). 색은 미니 달력 점·돌아보기 막대가 같이 쓴다 ──
 export const MOODS = [
@@ -29,25 +40,28 @@ export const moodOf = (v: number | null | undefined) => MOODS.find((m) => m.valu
 type Patch = Partial<Pick<DiaryEntry, 'mood' | 'content' | 'prompt' | 'private' | 'summary'>>
 /** 그날 일기를 만들거나 고친다. id가 날짜로 정해져 두 기기에서 써도 한 행으로 모인다 */
 export async function saveEntry(date: string, patch: Patch) {
-  const id = entryId(date)
-  const row = await (await getDb()).get<{ id: string }>('SELECT id FROM diary_entries WHERE id = ?', [id])
-  await run(row ? update('diary_entries', id, patch) : insert('diary_entries', { id, date, mood: null, content: '', prompt: null, private: 0, summary: null, ...patch }))
+  const row = await findEntry(date)
+  if (row) { await run(update('diary_entries', row.id, patch)); return row.id }
+  const id = entryId(date, await ownerId())
+  await run(insert('diary_entries', { id, date, mood: null, content: '', prompt: null, private: 0, summary: null, ...patch }))
+  return id
 }
 /** 나만 보기를 켜면 기억하기 요약도 지운다(AI에게 간 적 없는 날로) */
 export const setPrivate = (date: string, on: boolean) => saveEntry(date, on ? { private: 1, summary: null } : { private: 0 })
 
 export async function deleteEntry(date: string) {
-  const id = entryId(date)
+  const id = (await findEntry(date))?.id
+  if (!id) return
   const msgs = await (await getDb()).getAll<{ id: string }>('SELECT id FROM diary_messages WHERE entry_id = ?', [id])
   await run(...msgs.map((m) => remove('diary_messages', m.id)), remove('diary_entries', id))
 }
 
 async function addMessage(date: string, role: 'me' | 'buddy', content: string, safety = 0) {
-  await saveEntry(date, {}) // 대화만 있어도 그날 행이 있어야 한다
+  const entryRef = await saveEntry(date, {}) // 대화만 있어도 그날 행이 있어야 한다
   // 같은 밀리초에 두 개가 들어가도 순서가 지켜지게 조금씩 뒤로
   const at = new Date(Math.max(Date.now(), lastAt + 1))
   lastAt = at.getTime()
-  await run(insert('diary_messages', { id: uuid(), entry_id: entryId(date), role, content, safety, created_at: at.toISOString(), modified_at: now() }))
+  await run(insert('diary_messages', { id: uuid(), entry_id: entryRef, role, content, safety, created_at: at.toISOString(), modified_at: now() }))
 }
 let lastAt = 0
 
@@ -177,7 +191,7 @@ type ReplyOpts = { buddy: Buddy; memoryOn: boolean; signal: AbortSignal; onDelta
 /** 캐릭터가 한 번 답한다. 마지막 내 말(없으면 일기 글)을 먼저 위기 검사하고, 걸리면 AI를 부르지 않는다 */
 export async function buddyReply(date: string, opts: ReplyOpts): Promise<ReplyResult> {
   const db = await getDb()
-  const entry = await db.get<DiaryEntry>('SELECT * FROM diary_entries WHERE id = ?', [entryId(date)])
+  const entry = await db.get<DiaryEntry>(ENTRY_BY_DATE, [date])
   if (!entry || entry.private || getConsent() !== true) return 'blocked'
   const messages = await db.getAll<DiaryMessage>('SELECT * FROM diary_messages WHERE entry_id = ? ORDER BY created_at, id', [entry.id])
   const lastMine = [...messages].reverse().find((m) => m.role === 'me')
@@ -220,7 +234,7 @@ export async function sendMessage(date: string, text: string, opts: ReplyOpts): 
 /** 기억하기용 짧은 요약 — 기억하기를 켠 사람의, 나만 보기가 아닌 날만 */
 export async function summarizeEntry(date: string, signal: AbortSignal) {
   const db = await getDb()
-  const entry = await db.get<DiaryEntry>('SELECT * FROM diary_entries WHERE id = ?', [entryId(date)])
+  const entry = await db.get<DiaryEntry>(ENTRY_BY_DATE, [date])
   if (!entry || entry.private || getConsent() !== true || !getMemory() || !(entry.content ?? '').trim()) return
   const messages = await db.getAll<DiaryMessage>('SELECT role, content, safety FROM diary_messages WHERE entry_id = ? AND COALESCE(safety, 0) = 0 ORDER BY created_at, id', [entry.id])
   const talk = messages.filter((m) => m.role === 'me').map((m) => clip(m.content, 300)).join('\n')
@@ -253,7 +267,8 @@ export function dayRange(date: string): [string, string] {
   return [start.toISOString(), end.toISOString()]
 }
 export const DONE_SQL = 'SELECT id, title FROM tasks WHERE status = 1 AND deleted_at IS NULL AND completed_at >= ? AND completed_at < ? ORDER BY completed_at'
-export const XP_SQL = 'SELECT COALESCE(SUM(amount), 0) AS xp FROM xp_events WHERE day = ?'
+/** 그날 할 일로 받은 XP(완료·취소 순합) — "오늘 한 일 N개 · +N XP" 줄이라 목표 XP는 넣지 않는다 */
+export const XP_SQL = "SELECT COALESCE(SUM(amount), 0) AS xp FROM xp_events WHERE day = ? AND kind IN ('task', 'task_revoke')"
 
 // ── 연속 기록·질문·한 줄 발견 ──
 const written = (e: Pick<DiaryEntry, 'mood' | 'content'>) => !!e.mood || !!(e.content ?? '').trim()

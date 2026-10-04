@@ -25,7 +25,8 @@ export function GrowthView({ onSurvey }: { onSurvey: () => void }) {
   const nextName = next !== null ? STAGES.find((s) => s.stage === progress.stage + 1)?.name : null
   const today = dayKey()
   const week = thisWeek()
-  const weekDone = useQuery<{ n: number }>("SELECT count(*) n FROM tasks WHERE status = 1 AND deleted_at IS NULL AND completed_at >= ?", [`${week}T00:00`])?.[0]?.n ?? 0
+  // completed_at은 UTC ISO — 로컬 주 시작 자정을 UTC로 바꿔 비교한다(한국 시각 새벽 완료가 빠지지 않게)
+  const weekDone = useQuery<{ n: number }>("SELECT count(*) n FROM tasks WHERE status = 1 AND deleted_at IS NULL AND completed_at >= ?", [new Date(`${week}T00:00`).toISOString()])?.[0]?.n ?? 0
   const goalCounts = useQuery<{ done: number; total: number }>("SELECT sum(status = 'achieved') done, count(*) total FROM kpis WHERE week_start = ?", [week])?.[0]
   const stats: RoomStats = useMemo(() => {
     const todayEv = events.filter((e) => e.day === today)
@@ -102,7 +103,8 @@ function GoalsCard() {
   const [tab, setTab] = useState<'this' | 'next'>('this')
   const week = tab === 'this' ? thisWeek() : nextWeek()
   const goals = useQuery<GoalRow>('SELECT id, week_start, title, target, progress, status, source, achieved_at, sort_order FROM kpis WHERE week_start = ? ORDER BY sort_order', [week]) ?? []
-  const [full, setFull] = useState(false)
+  // 한 주 5개가 차면 입력 줄이 막히고 안내 문구로 바뀐다(10 §4.1)
+  const full = goals.length >= XP.goalsPerWeek
   const [rowMenu, setRowMenu] = useState<{ goal: GoalRow; anchor: HTMLElement }>()
   const [cheer, setCheer] = useState<string>()
   // 10 §4.3 AI 초안: 회색 제안 줄 — 누르면 입력 줄에 넣어 고친 뒤 확정, +는 그대로 추가, ×는 숨김
@@ -111,7 +113,7 @@ function GoalsCard() {
   const [pending, setPending] = useState<string>()
   const key = (t: string) => t.replace(/\s+/g, '').toLowerCase()
   const drafts = goals.length >= XP.goalsPerWeek ? [] : draft.items.filter((d) => !goals.some((g) => key(g.title) === key(d.title)))
-  const acceptDraft = async (title: string) => { if ((await addGoal(week, title, 'ai')) === 'full') setFull(true) }
+  const acceptDraft = async (title: string) => { await addGoal(week, title, 'ai') }
   const editDraft = (title: string) => {
     const el = inputRef.current
     if (!el) return
@@ -125,8 +127,11 @@ function GoalsCard() {
     await setGoalProgress(g, n)
     if (!before && n >= g.target) { setCheer(g.id); window.setTimeout(() => setCheer((c) => (c === g.id ? undefined : c)), 1300) }
   }
-  // XP는 그 주에 먼저 이룬 3개까지
-  const xpIds = useMemo(() => new Set(goals.filter((g) => g.status === 'achieved').sort((a, b) => (a.achieved_at ?? '').localeCompare(b.achieved_at ?? '')).slice(0, XP.kpiXpLimit).map((g) => g.id)), [goals])
+  // XP는 그 주 3개까지 — 실제로 XP를 갖고 있는 목표(원장 순합 > 0)에만 "+30"을 붙인다
+  const earned = useQuery<{ ref_id: string }>(
+    "SELECT x.ref_id FROM xp_events x JOIN kpis k ON k.id = x.ref_id WHERE k.week_start = ? GROUP BY x.ref_id HAVING sum(x.amount) > 0", [week]
+  )
+  const xpIds = useMemo(() => new Set((earned ?? []).map((e) => e.ref_id)), [earned])
   const done = goals.filter((g) => g.status === 'achieved').length
   return (
     <section className="growth-card">
@@ -189,7 +194,7 @@ function GoalsCard() {
           ref={inputRef}
           className="addbar__input"
           placeholder={full ? `${tab === 'this' ? '이번' : '다음'} 주는 ${XP.goalsPerWeek}개까지 적을 수 있어요` : `${tab === 'this' ? '이번' : '다음'} 주에 하고 싶은 일 추가`}
-          disabled={goals.length >= XP.goalsPerWeek}
+          disabled={full}
           onKeyDown={async (e) => {
             if (e.nativeEvent.isComposing || e.key !== 'Enter') return
             const v = e.currentTarget.value.trim()
@@ -197,7 +202,6 @@ function GoalsCard() {
             const input = e.currentTarget
             // AI 제안을 고쳐 넣은 것이면 source 'ai', 그 제안 줄은 숨긴다
             const r = await addGoal(week, v, pending ? 'ai' : 'manual')
-            setFull(r === 'full')
             if (r === 'ok') {
               input.value = ''
               if (pending) { void dismissDraft(draft.reportWeek, pending); setPending(undefined) }
@@ -221,7 +225,9 @@ function XpCard({ events }: { events: XpRow[] }) {
   const today = dayKey()
   const titles = useQuery<{ id: string; title: string }>(`SELECT id, title FROM tasks WHERE id IN (${mine.map(() => '?').join(',') || "''"}) UNION ALL SELECT id, title FROM kpis WHERE id IN (${mine.map(() => '?').join(',') || "''"})`, [...mine.map((e) => e.ref_id), ...mine.map((e) => e.ref_id)]) ?? []
   const name = (id: string) => titles.find((t) => t.id === id)?.title ?? ''
-  const label = (e: XpRow) => e.kind === 'task' ? `할 일 완료 · ${name(e.ref_id)}` : e.kind === 'task_revoke' ? `완료 취소 · ${name(e.ref_id)}` : e.kind === 'kpi' ? `목표 달성 · ${name(e.ref_id)}` : e.kind === 'kpi_revoke' ? `목표 취소 · ${name(e.ref_id)}` : e.amount > 0 ? '이번 주 목표 모두 달성' : '모두 달성 취소'
+  // 지운 할 일·목표는 제목 없이 종류만
+  const of = (what: string, id: string) => (name(id) ? `${what} · ${name(id)}` : what)
+  const label = (e: XpRow) => e.kind === 'task' ? of('할 일 완료', e.ref_id) : e.kind === 'task_revoke' ? of('완료 취소', e.ref_id) : e.kind === 'kpi' ? of('목표 달성', e.ref_id) : e.kind === 'kpi_revoke' ? of('목표 취소', e.ref_id) : e.amount > 0 ? '이번 주 목표 모두 달성' : '모두 달성 취소'
   return (
     <section className="growth-card">
       <div className="growth-card__head"><h3 className="growth-card__title">이번 주 XP</h3><span className="growth-card__meta">{total >= 0 ? '+' : ''}{total}</span></div>

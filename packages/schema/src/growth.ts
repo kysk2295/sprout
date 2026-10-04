@@ -222,10 +222,12 @@ export const DRAFT_FORMAT = {
   additionalProperties: false
 }
 const BAD = 'AI 응답 형식을 확인할 수 없어요.'
-const parseJson = (raw: string): Record<string, unknown> => {
+const parseAny = (raw: string): unknown => {
   const cleaned = raw.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/, '$1')
-  let data: unknown
-  try { data = JSON.parse(cleaned) } catch { throw new Error(BAD) }
+  try { return JSON.parse(cleaned) } catch { throw new Error(BAD) }
+}
+const parseJson = (raw: string): Record<string, unknown> => {
+  const data = parseAny(raw)
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error(BAD)
   return data as Record<string, unknown>
 }
@@ -243,12 +245,14 @@ export function parseReportText(raw: string): ReportText {
 
 /** 초안 검사: 제목 1~40자, 횟수 1~10, 이미 있는 목표·서로 겹치는 것은 뺀다. 남는 게 없으면 throw */
 export function parseGoalDraft(raw: string, existing: string[] = []): GoalDraft[] {
-  const d = parseJson(raw)
-  if (!Array.isArray(d.goals)) throw new Error(BAD)
+  // 작은 모델은 형식을 줘도 {goals:[…]} 대신 목록만([{title,…}]) 답하기도 한다(2026-10-04 실측) → 둘 다 받는다
+  const data = parseAny(raw)
+  const list = Array.isArray(data) ? data : data && typeof data === 'object' ? (data as Record<string, unknown>).goals : undefined
+  if (!Array.isArray(list)) throw new Error(BAD)
   const key = (s: string) => s.replace(/\s+/g, '').toLowerCase()
   const seen = new Set(existing.map(key))
   const out: GoalDraft[] = []
-  for (const g of d.goals as unknown[]) {
+  for (const g of list as unknown[]) {
     if (!g || typeof g !== 'object') continue
     const o = g as Record<string, unknown>
     let title = line(o.title, 40)
