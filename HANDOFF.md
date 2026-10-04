@@ -2,6 +2,15 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-05 밤 요약 (가장 최신 — 아래 표보다 우선)
+- **서버:** 무료 구성 확정 — Mac mini가 서버, 공개 주소 **Tailscale Funnel** `https://macmini.tail425c97.ts.net`(API) · `:8443`(PowerSync). 앱 기본 주소가 이것. 앱 AI는 전부 서버 프록시(/ai/*) 경유(`SPROUT_AI_SSH=1`이면 예전 SSH). 서버가 format 있을 때 JSON 모양을 지시문에 적음(qwen3.5+think:false는 format 무시).
+- **사용자 계정:** `qa-ui@sprout.test`(Mac mini). 틱틱 데이터 1,633개 가져옴(API 키 `sprout`). 작업 지도 AI 정리는 느림(309개 중 일부, Mac mini 한 줄 처리).
+- **새로 들어간 것(전부 커밋, 푸시 안 함):** 수집함 v3·작업 지도·일기 v0.3·성장 v3(캐릭터 중심)·테마 13종·틱틱 가져오기(17)·캘린더 연동 구글+Apple(16)·구글/애플 로그인 코드(08 §3.1, **서버 미적용**)·첫 실행 안내(18)·맥 위젯(25)·패키징(dmg, docs/release/packaging.md)·모바일 앱 기반(apps/mobile, Expo)·주 시작 월요일 통일·추가 바도 날짜 문구 제거.
+- **승인/사용자 대기:** ① 소셜 로그인 서버 변경(`server/db/migrations/20261006-identities.sql` + compose env) ② 일기 재디자인 구현("제안대로" 대기, 시안 `mockups/diary-v1.html`) ③ Google Cloud OAuth 클라이언트(로그인·캘린더 공용) ④ Apple Sign in(Services ID·.p8) ⑤ Developer ID 인증서(배포 서명·공증) ⑥ 이메일 인증(계정 선점 위험, 출시 전 필수).
+- **진행 중(에이전트):** 모바일 빠른 입력·날짜·알림 / 모바일 성장 탭 / 모바일 공유 확장.
+- **작은 남은 일:** 위젯 요청 3개(설정 "로그인할 때 열기" 스위치, `desktop:navigate` IPC, 위젯 체크 때 사이드바 +1), app.css 옛 성장 규칙 정리(10 §3.2 보고 목록), theme·dates·views·PowerSync 스키마를 packages/schema로(모바일이 복사해 씀), 수집함 노트 분류 실패 12개 재시도, e2e 시험 계정 정리, 1577-0199 운영 여부 확인.
+- **주의:** 팀 ID는 `BU697KN34B`(인증서 괄호 안 Z32F3Z65RD 아님). 같은 데이터 폴더로 앱 두 개 금지(이제 단일 인스턴스 잠금). E2E는 `SPROUT_PROFILE` + 다른 CDP 포트, 9229는 사용자 앱.
+
 ## 0. 사용자와 일하는 규칙 (꼭 지킬 것)
 - **답은 항상 한국어로.** 짧은 상태 보고도 한국어.
 - **화면 명세 먼저, 코드는 그다음.** 명세를 사용자에게 확인받고 개발한다. 구현하다 달라지면 명세부터 고친다.
