@@ -67,13 +67,18 @@ export function registerAssistant() {
     const key = `${event.sender.id}:${id}`
     if (requests.has(key)) throw new Error('중복 요청')
     const abort = new AbortController(); requests.set(key, abort)
+    // 창이 닫히거나 새로 불러와지면 그 요청은 아무도 받지 않는다 → 서버 호출도 멈춰 상한(주 1회 등)을 날리지 않게
+    const drop = () => abort.abort()
+    const navigate = (_e: unknown, _url: string, inPlace: boolean, mainFrame: boolean) => { if (mainFrame && !inPlace) drop() } // 같은 문서 안 이동(#)은 무시
+    event.sender.once('destroyed', drop)
+    event.sender.on('did-start-navigation', navigate)
     // 서버 대기열을 기다리는 시간까지 넉넉히(서버 대기 180초 + 생성 120초)
     const timer = setTimeout(() => abort.abort(), remote ? 120000 : 320000)
     const send = (payload: { id: string; text: string; queue?: number }) => { if (!event.sender.isDestroyed()) event.sender.send('assistant:delta', payload) }
     // 대기열 위치는 같은 통로로 text 없이 보낸다(queue = 앞에 있는 요청 수, 0이면 내 차례) — 13 §6
     try { return await ai.chat(input, abort.signal, (text) => send({ id, text }), (queue) => send({ id, text: '', queue })) }
     catch (e) { if (abort.signal.aborted && !cancelled.has(key)) throw new Error('AI 응답이 너무 오래 걸려요. 다시 시도해 주세요.'); throw e }
-    finally { clearTimeout(timer); requests.delete(key); cancelled.delete(key) }
+    finally { clearTimeout(timer); requests.delete(key); cancelled.delete(key); if (!event.sender.isDestroyed()) { event.sender.off('destroyed', drop); event.sender.off('did-start-navigation', navigate) } }
   })
   ipcMain.on('assistant:cancel', (event, id: string) => { const key = `${event.sender.id}:${id}`; const r = requests.get(key); if (r) { cancelled.add(key); r.abort() } })
 }
