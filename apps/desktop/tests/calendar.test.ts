@@ -6,10 +6,12 @@ import { scheduledDrop } from '../src/renderer/src/lib/calendarDrop'
 import { parseIntent, readChatStream } from '../src/shared/assistant'
 import type { TaskRow } from '../src/renderer/src/data/types'
 
-// ── 범위: 일요일 시작, 월 보기는 필요한 주만큼 ──
-assert.deepEqual(rangeOf('week', '2026-10-07').days, ['2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10'])
-assert.equal(rangeOf('month', '2026-10-15').days.length, 35) // 2026-10: 9/27 ~ 10/31, 5주
-assert.equal(rangeOf('month', '2026-08-01').days.length, 42) // 2026-08: 7/26 ~ 9/5, 6주
+// ── 범위: 월요일 시작(2026-10-05 사용자 결정), 월 보기는 필요한 주만큼 ──
+assert.deepEqual(rangeOf('week', '2026-10-07').days, ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10', '2026-10-11'])
+assert.deepEqual(rangeOf('week', '2026-10-11').days[0], '2026-10-05', '일요일은 그 주의 마지막 날')
+assert.equal(rangeOf('month', '2026-10-15').days[0], '2026-09-28')
+assert.equal(rangeOf('month', '2026-10-15').days.length, 35) // 2026-10: 9/28 ~ 11/1, 5주
+assert.equal(rangeOf('month', '2026-08-01').days.length, 42) // 2026-08: 7/27 ~ 9/6, 6주
 assert.equal(shiftCursor('month', '2026-01-31', 1), '2026-02-01')
 assert.equal(shiftCursor('week', '2026-10-04', -1), '2026-09-27')
 assert.equal(titleOf('week', '2026-10-03'), '2026년 10월')

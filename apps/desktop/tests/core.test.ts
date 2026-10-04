@@ -19,10 +19,10 @@ const now = new Date('2026-10-04T10:00:00')
 const lists = [{ id: 'l-work', name: '업무' }, { id: 'l-inbox', name: '기본함' }]
 const tags = [{ id: 't-imp', name: '중요' }]
 
-// 추가 바(keepDate): 날짜 문구는 제목에 남고 기호 토큰은 빠진다(02 §0)
+// 추가 바·빠른 추가 모두 날짜 문구와 기호 토큰을 제목에서 뺀다(02 §0, 2026-10-05 사용자 결정 "틱틱처럼")
 {
-  const r = parseAdd('내일 오후 3시 회의 #중요 #회의록 !높음 ~업무', lists, tags, { keepDate: true, now })
-  assert.equal(r.title, '내일 오후 3시 회의')
+  const r = parseAdd('내일 오후 3시 회의 #중요 #회의록 !높음 ~업무', lists, tags, { keepDate: false, now })
+  assert.equal(r.title, '회의')
   assert.equal(r.due_at, '2026-10-05T15:00')
   assert.equal(r.priority, 3)
   assert.equal(r.list_id, 'l-work')

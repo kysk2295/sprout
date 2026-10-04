@@ -27,7 +27,7 @@ export interface CalItem {
 }
 
 // ── 범위 ──
-export const weekStart = (d: string) => addDays(d, -toDate(d).getDay()) // 일요일 시작(실측 research 17 §2)
+export const weekStart = (d: string) => addDays(d, -((toDate(d).getDay() + 6) % 7)) // 월요일 시작(2026-10-05 사용자 결정 — 틱틱 실측 기본은 일요일, research 17 §2)
 export function rangeOf(view: CalView, cursor: string): { from: string; to: string; days: string[] } {
   if (view === 'day') return { from: cursor, to: cursor, days: [cursor] }
   if (view === 'week') {

@@ -23,7 +23,7 @@ type Props = {
 type Panel = 'time' | 'reminder' | 'reminder-custom' | 'repeat' | 'repeat-custom' | null
 
 export const EMPTY_SCHEDULE: Schedule = { start_at: null, due_at: null, is_all_day: 1, repeat_rule: null, repeat_from: null, reminders: [] }
-const WEEK = ['일', '월', '화', '수', '목', '금', '토'] // 주 시작 = 일요일(실측 research 17 §2)
+const WEEK = ['월', '화', '수', '목', '금', '토', '일'] // 주 시작 = 월요일(2026-10-05 사용자 결정, 앱 전체 통일)
 const SLOTS = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`)
 
 export function DatePicker({ initial, anchor, point, variant = 'full', onSave, onClose }: Props) {
@@ -192,7 +192,7 @@ function Row({ icon, label, value, onOpen, onClear }: { icon: ReactNode; label: 
 /** 6주 고정 달력(03 §3). selected 여러 개 가능(특정 날짜 반복) */
 export function MonthGrid({ month, onMonth, today, selected, onPick, compact, range = [] }: { month: string; onMonth: (m: string) => void; today: string; selected: string[]; onPick: (d: string) => void; compact?: boolean; range?: string[] }) {
   const first = toDate(`${month}-01`)
-  const lead = first.getDay()
+  const lead = (first.getDay() + 6) % 7 // 월요일 시작
   const days = Array.from({ length: 42 }, (_, i) => addDays(`${month}-01`, i - lead))
   const shift = (n: number) => {
     const d = new Date(first)

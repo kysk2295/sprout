@@ -735,7 +735,7 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
   const [schedule, setSchedule] = useState<Schedule>()
   const [priority, setPriority] = useState(0)
   const [pop, setPop] = useState<'date' | 'priority'>()
-  const parsed = useMemo(() => parseAdd(raw, lists.map((l) => ({ id: l.id, name: l.kind === 'inbox' ? '기본함' : l.name })), tags, { keepDate: true }), [raw, lists, tags])
+  const parsed = useMemo(() => parseAdd(raw, lists.map((l) => ({ id: l.id, name: l.kind === 'inbox' ? '기본함' : l.name })), tags, { keepDate: false }), [raw, lists, tags]) // 날짜 문구도 제목에서 뺀다(빠른 추가와 같게, 2026-10-05 사용자 결정)
   const p = recognition ? parsed : undefined
   const inferred: Schedule | undefined = p?.due_at
     ? { ...EMPTY_SCHEDULE, due_at: p.due_at, is_all_day: p.due_at.includes('T') ? 0 : 1, repeat_rule: p.repeat_rule, repeat_from: p.repeat_rule ? 'due' : null, reminders: p.due_at.includes('T') ? ['-PT0M'] : [] }

@@ -51,7 +51,7 @@
 | 빠른 선택 4개 | 오늘(해) · 내일(해 뜨는 모양) · 다음 주(📅+7) · 달 모양 | [틱틱] 아이콘. 달 모양의 뜻은 **[임시] "오늘 밤 20:00"** |
 | 빠른 선택 동작 | 누르면 날짜가 정해지고 **바로 닫힌다**(OK 없이) | [임시] |
 | 머리 | "Dec 2025" (`text.body-strong`) + 오른쪽 `‹ ○ ›` (○ = 이번 달로) | [틱틱] |
-| 요일 | 설정의 주 시작 요일(기본 **일요일** — 실제 앱 실측 research 17). `text.caption` `color.text.tertiary` | [틱틱] |
+| 요일 | 주 시작 = **월요일**(2026-10-05 사용자 결정으로 앱 전체 통일. 틱틱 실측 기본은 일요일 — research 17). `text.caption` `color.text.tertiary` | [틱틱] |
 | 날짜 칸 | 32×32px, 원형. 오늘 = `color.accent.subtle` 원 + `color.accent` 글자. 선택 = `color.accent` 채움 + 흰 글자. 다른 달 = `color.text.quaternary` | [틱틱] |
 | 6주 고정 | 달력 높이가 달마다 바뀌지 않게 항상 6줄 | [틱틱] (Dec 2025 캡처가 6줄) |
 | Time / Reminder / Repeat 행 | 높이 36px, 왼쪽 아이콘 + 이름, 오른쪽에 값(설정됐으면 `color.accent` 글자 + ×) 또는 `›` | [틱틱] 값 표시는 iOS 캡처 |

@@ -36,7 +36,7 @@ export function WeekChart({ events }: { events: XpRow[] }) {
         <div key={d} className="weekchart__col" onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(undefined)}>
           {hover === i && <span className="weekchart__tip">{totals[i]} XP</span>}
           <div className="weekchart__track"><span className={`weekchart__bar${d === today ? ' is-today' : ''}${d > today ? ' is-future' : ''}`} style={{ height: `${(totals[i] / max) * 100}%`, animationDelay: `${i * 40}ms` }} /></div>
-          <span className={`weekchart__day${d === today ? ' is-today' : ''}`}>{['일', '월', '화', '수', '목', '금', '토'][i]}</span>
+          <span className={`weekchart__day${d === today ? ' is-today' : ''}`}>{'일월화수목금토'[new Date(`${d}T00:00`).getDay()]}</span>
         </div>
       ))}
     </div>

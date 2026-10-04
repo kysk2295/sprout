@@ -31,7 +31,7 @@ function appGroupOf(iso: string, today: string) {
   const day = localDay(iso)
   if (day === today) return 'today'
   if (day === dayKey(-1)) return 'yesterday'
-  const weekStart = dayKey(-new Date().getDay()) // 주 시작 = 일요일(캘린더와 같다)
+  const weekStart = dayKey(-((new Date().getDay() + 6) % 7)) // 주 시작 = 월요일(앱 전체 통일, 2026-10-05)
   return day >= weekStart ? 'week' : 'older'
 }
 const isKakao = (n: CollectItem) => n.source === 'kakao_import' || n.source === 'kakao_channel'
