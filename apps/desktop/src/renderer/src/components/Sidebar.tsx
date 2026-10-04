@@ -1,3 +1,4 @@
+import { SidebarCharacter } from './growth/GrowthBits'
 import { FilterEditor } from './FilterEditor'
 import type { FilterRow } from '../data/filters'
 import { remove, run } from '../data/mutations'
@@ -14,7 +15,7 @@ import { Dialog } from './Dialog'
 import { OrganizationEditor } from './OrganizationEditor'
 const OPEN='t.status=0 AND t.deleted_at IS NULL AND t.parent_id IS NULL'
 type Menu={kind:OrganizationKind;item:OrganizationItem;point:{x:number;y:number}}
-export function Sidebar({selected,onSelect,lists,tags}:{selected:string;onSelect:(id:string)=>void;lists:ListRow[];tags:TagRow[]}){
+export function Sidebar({selected,onSelect,lists,tags,onGrowth}:{selected:string;onSelect:(id:string)=>void;lists:ListRow[];tags:TagRow[];onGrowth?:()=>void}){
  const filters=useQuery<FilterRow>('SELECT id,name,emoji,rule_json FROM filters ORDER BY sort_order')??[]
  const [filterEditor,setFilterEditor]=useState<{item?:FilterRow}>()
  const [filterMenu,setFilterMenu]=useState<{item:FilterRow;point:{x:number;y:number}}>()
@@ -80,5 +81,6 @@ export function Sidebar({selected,onSelect,lists,tags}:{selected:string;onSelect
  </Popover>}
  {editor&&<OrganizationEditor {...editor} folders={folders} tags={allTags} onClose={()=>setEditor(undefined)} onSaved={id=>{setCollapsed(s=>s.filter(x=>x!=='lists'&&x!=='tags'));onSelect(`${editor.kind}:${id}`)}}/>}
  {deleting&&<Dialog label={deleting.kind==='folder'?'폴더 해제':'삭제 확인'} className="organization-dialog" onClose={()=>{if(!busy)setDeleting(undefined)}}><h2>{deleting.item.name}</h2><p>{deleting.kind==='list'?'목록의 할 일을 휴지통으로 옮깁니다. 목록은 보관 목록에서 복원할 수 있어요.':deleting.kind==='tag'?'태그 연결을 삭제합니다. 할 일은 그대로 유지됩니다.':'폴더를 해제합니다. 안의 리스트는 유지됩니다.'}</p><footer><button disabled={busy} onClick={()=>setDeleting(undefined)}>취소</button><button disabled={busy} onClick={async()=>{setBusy(true);try{await deleteOrganization(deleting.kind,deleting.item.id);if(selected===`${deleting.kind}:${deleting.item.id}`)onSelect('smart:inbox');setDeleting(undefined)}catch(e){setError(String(e))}finally{setBusy(false)}}}>확인</button></footer></Dialog>}
+ {onGrowth&&<SidebarCharacter onOpen={onGrowth}/>}
  </aside>
 }

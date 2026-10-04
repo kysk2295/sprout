@@ -11,13 +11,15 @@ export type XpEvent = { id: string; kind: XpKind; amount: number; ref_id: string
 export const xpEventId = {
   task: (taskId: string, day: string) => `task:${taskId}:${day}`,
   taskRevoke: (taskId: string, day: string) => `task-revoke:${taskId}:${day}`,
-  kpi: (kpiId: string) => `kpi:${kpiId}`,
-  kpiRevoke: (kpiId: string, n: number) => `kpi-revoke:${kpiId}:${n}`,
-  kpiAll: (weekStart: string) => `kpi-all:${weekStart}`
+  /** 목표 XP는 달성·취소를 오갈 수 있어 순번을 붙인다(0 = 첫 지급) */
+  kpi: (kpiId: string, seq = 0) => (seq ? `kpi:${kpiId}:${seq}` : `kpi:${kpiId}`),
+  // 주 단위 사건은 사용자마다 겹치지 않게 캐릭터 id(uuid)를 붙인다(서버는 남의 행을 덮어쓰지 않는다)
+  kpiAll: (characterId: string, weekStart: string) => `kpi-all:${characterId}:${weekStart}`,
+  report: (characterId: string, weekStart: string) => `report:${characterId}:${weekStart}`
 }
 
 /** 오늘 할 일로 받은 XP(되돌림 반영)가 상한 아래면 +1을 줄 수 있다 */
-export function canGrantTaskXp(eventsOfDay: Pick<XpEvent, 'kind' | 'amount'>[]): boolean {
+export function canGrantTaskXp(eventsOfDay: { kind: string; amount: number }[]): boolean {
   const got = eventsOfDay.filter((e) => e.kind === 'task' || e.kind === 'task_revoke').reduce((sum, e) => sum + e.amount, 0)
   return got < XP.taskDailyCap
 }

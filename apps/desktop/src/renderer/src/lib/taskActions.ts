@@ -1,3 +1,4 @@
+import { grantTaskXp, revokeTaskXp } from '../data/growth'
 import { useMemo } from 'react'
 import { addDays, datePart, daysBetween, nextOccurrence, parseRule, stringifyRule } from '@sprout/schema/time'
 import { useToast } from '../components/Toast'
@@ -89,7 +90,9 @@ export function useTaskActions() {
           checks.filter((c) => c.done).forEach((c) => stmts.push(update('check_items', c.id as string, { done: 0, completed_at: null })))
         }
         await run(...stmts)
+        void grantTaskXp(ids) // 10 성장: 완료 +1 XP(하루 10까지)
         toast.show('작업이 완료되었습니다.', async () => {
+          void revokeTaskXp(ids)
           await restoreRep()
           await restorePlain()
           await run(...checks.map((c) => update('check_items', c.id as string, { done: c.done, completed_at: c.completed_at })))
@@ -112,6 +115,7 @@ export function useTaskActions() {
           }
         }
         await run(...stmts)
+        void revokeTaskXp([...ids, ...records.map((r) => r.repeat_origin_id as string)]) // 같은 날 취소면 XP 되돌림
         if (records.length) await deleteTasksHard(records.map((r) => r.id as string))
       },
       async wontDo(ids: string[], on: boolean) {

@@ -63,7 +63,15 @@ export const TABLES = {
     columns: { ...common, view_key: 'text', group_by: 'text', sort_by: 'text', sort_dir: 'text', show_completed: 'integer', show_details: 'integer', options_json: 'text' },
     indexes: { key: ['view_key'] }
   },
-  user_prefs: { columns: { ...common, smart_list_visibility: 'text', theme: 'text', follow_system_dark: 'integer', week_start: 'integer' } }
+  user_prefs: { columns: { ...common, smart_list_visibility: 'text', theme: 'text', follow_system_dark: 'integer', week_start: 'integer' } },
+  // 10 성장: XP 원장(레벨은 계산), 캐릭터, 주간 목표, 주간 리포트
+  xp_events: { columns: { ...common, kind: 'text', amount: 'integer', ref_id: 'text', day: 'text' }, indexes: { day: ['day'] } },
+  characters: { columns: { ...common, name: 'text', species: 'text', type_code: 'text', answers_json: 'text', assessed_at: 'text' } },
+  kpis: {
+    columns: { ...common, week_start: 'text', title: 'text', target: 'integer', progress: 'integer', link_kind: 'text', link_id: 'text', status: 'text', source: 'text', achieved_at: 'text', sort_order: 'real' },
+    indexes: { week: ['week_start'] }
+  },
+  weekly_reports: { columns: { ...common, week_start: 'text', stats_json: 'text', text_json: 'text', xp_total: 'integer', seen_at: 'text' } }
 } satisfies Record<string, TableDef>
 
 export type TableName = keyof typeof TABLES

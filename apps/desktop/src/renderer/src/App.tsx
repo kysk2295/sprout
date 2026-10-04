@@ -1,5 +1,9 @@
 import { WorkspaceView, AssistantLauncher } from './components/WorkspaceViews'
 import { NotesView } from './components/NotesView'
+import { GrowthView } from './components/growth/GrowthView'
+import { SurveyDialog } from './components/growth/SurveyDialog'
+import { LevelUpWatcher } from './components/growth/GrowthBits'
+import { ensureCharacter } from './data/growth'
 import { useEffect, useRef, useState } from 'react'
 import '@sprout/tokens/tokens.css'
 import './styles/app.css'
@@ -64,6 +68,15 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   const [view, setView] = useLocalState<RailView>('sprout.view', 'tasks')
   const [selected, setSelected] = useLocalState('sprout.selected', 'smart:today')
   const [selection, setSelection] = useState<string[]>([])
+  // 10 §2.2: 첫 로그인 뒤 한 번 성향 조사를 권한다(나중에 눌러도 성장 화면에 남는다)
+  const [survey, setSurvey] = useState(false)
+  useEffect(() => {
+    void ensureCharacter().then((c) => {
+      let prompted = false
+      try { prompted = localStorage.getItem('sprout.survey.prompted') === '1' } catch { /* */ }
+      if (!c.species && !prompted) setSurvey(true)
+    })
+  }, [])
   const actions = useTaskActions()
   const [sidebarW, setSidebarW] = useLocalState('sprout.sidebar.width', SIDEBAR.def)
   const [detailW, setDetailW] = useLocalState('sprout.detail.width', DETAIL.def)
@@ -177,6 +190,8 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   toggleRef.current = toggleSidebar
   return (
       <div className="app">
+        {survey && <SurveyDialog onClose={() => { setSurvey(false); try { localStorage.setItem('sprout.survey.prompted', '1') } catch { /* */ } }} />}
+        <LevelUpWatcher />
         <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft}/>
         <ReminderCards onOpen={(id) => setSelection([id])} onComplete={(id) => void actions.complete([id])} />
         <Rail view={view} onView={setView} sync={sync} email={email} onSearch={()=>{setSearchQuery('');setOverlay('search')}} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} />
@@ -184,13 +199,13 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
         {overlay==='search' && <SearchDialog initial={searchQuery} onClose={()=>setOverlay(undefined)} onPick={(r)=>{setView('tasks');if(r.kind==='task'){setSelected(r.list_id?`list:${r.list_id}`:'smart:all');setSelection([r.id])}else selectView(`${r.kind}:${r.id}`)}}/>}
         {overlay==='quick' && <QuickAdd lists={lists} tags={tags} inboxId={inboxId} onClose={()=>setOverlay(undefined)} onCreated={(id,listId)=>{setView('tasks');setSelected(`list:${listId}`);setSelection([id])}}/>}
         {(overlay==='settings'||overlay==='shortcuts') && <DesktopSettings initial={overlay==='shortcuts'?'shortcuts':'smart'} onClose={()=>setOverlay(undefined)}/> }
-        {['assistant','map','wiki','usage','growth'].includes(view) ? <WorkspaceView view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft}/> : view === 'notes' ? <NotesView lists={lists} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : view === 'calendar' ? (
+        {view === 'growth' ? <GrowthView onSurvey={() => setSurvey(true)} /> : ['assistant','map','wiki','usage'].includes(view) ? <WorkspaceView view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft}/> : view === 'notes' ? <NotesView lists={lists} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : view === 'calendar' ? (
           <CalendarView lists={lists} tags={tags} inboxId={inboxId} actions={actions} />
         ) : (
           <>
         {showSidebar && (
           <div className={`app__sidebar${narrow ? ' is-overlay' : ''}`} style={{ width: sidebarW }}>
-            <Sidebar selected={selected} onSelect={selectView} lists={lists} tags={tags} />
+            <Sidebar selected={selected} onSelect={selectView} lists={lists} tags={tags} onGrowth={() => setView('growth')} />
             <Resizer side="right" width={sidebarW} min={SIDEBAR.min} max={SIDEBAR.max} defaultWidth={SIDEBAR.def} onChange={setSidebarW} />
           </div>
         )}

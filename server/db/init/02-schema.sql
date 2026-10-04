@@ -169,6 +169,64 @@ CREATE TABLE IF NOT EXISTS user_prefs (
 );
 CREATE INDEX IF NOT EXISTS user_prefs_owner_idx ON user_prefs (owner_id);
 
+CREATE TABLE IF NOT EXISTS xp_events (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  kind text,
+  amount integer,
+  ref_id text,
+  day text
+);
+CREATE INDEX IF NOT EXISTS xp_events_owner_idx ON xp_events (owner_id);
+CREATE INDEX IF NOT EXISTS xp_events_day_idx ON xp_events (owner_id, day);
+
+CREATE TABLE IF NOT EXISTS characters (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  name text,
+  species text,
+  type_code text,
+  answers_json text,
+  assessed_at text
+);
+CREATE INDEX IF NOT EXISTS characters_owner_idx ON characters (owner_id);
+
+CREATE TABLE IF NOT EXISTS kpis (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  week_start text,
+  title text,
+  target integer,
+  progress integer,
+  link_kind text,
+  link_id text,
+  status text,
+  source text,
+  achieved_at text,
+  sort_order double precision
+);
+CREATE INDEX IF NOT EXISTS kpis_owner_idx ON kpis (owner_id);
+CREATE INDEX IF NOT EXISTS kpis_week_idx ON kpis (owner_id, week_start);
+
+CREATE TABLE IF NOT EXISTS weekly_reports (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  week_start text,
+  stats_json text,
+  text_json text,
+  xp_total integer,
+  seen_at text
+);
+CREATE INDEX IF NOT EXISTS weekly_reports_owner_idx ON weekly_reports (owner_id);
+
 -- PowerSync는 이 publication으로 변경분을 읽는다
 DROP PUBLICATION IF EXISTS powersync;
-CREATE PUBLICATION powersync FOR TABLE notes, folders, lists, tags, filters, sections, tasks, check_items, task_tags, reminders, view_settings, user_prefs;
+CREATE PUBLICATION powersync FOR TABLE notes, folders, lists, tags, filters, sections, tasks, check_items, task_tags, reminders, view_settings, user_prefs, xp_events, characters, kpis, weekly_reports;

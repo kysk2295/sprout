@@ -87,7 +87,7 @@
 | **성장 화면**(레일 4번) | 큰 캐릭터 + 레벨 + XP 막대 (§3) |
 | **사이드바 맨 아래** | 작은 카드(높이 56): 캐릭터 36 · "Lv 4 고양이" · XP 막대 · 숫자 "120/100" 없이 막대만 [임시]. 누르면 성장 화면 |
 | **메뉴바 미니 창**(09) 머리 오른쪽 | 캐릭터 24 + "Lv 4" |
-| 레일 성장 아이콘 | XP가 들어오면 아이콘 위에 작은 "+1"이 떠올랐다 사라진다(0.8초) |
+| 사이드바 캐릭터 카드 | XP가 들어오면 카드 위에 작은 "+1"이 떠올랐다 사라지고(0.9초) 캐릭터가 잠깐 웃는다 (레일 아이콘 대신 — 2026-10-04 구현에서 정함) |
 - 할 일 완료 토스트("작업이 완료되었습니다.")는 틱틱 그대로 두고 XP 문구를 넣지 않는다. XP는 위 작은 표시로만 알린다(틱틱 체감 유지).
 
 ### 2.4 레벨업 · 진화 순간
@@ -167,24 +167,24 @@
 ## 7. 데이터
 | 테이블(동기화) | 칸 | 비고 |
 |---|---|---|
-| `xp_events` | id, owner_id, kind(`task`·`task_revoke`·`kpi`·`kpi_revoke`·`kpi_all`), amount, ref_id, day, created_at | **id를 사건에서 만든다**(`task:<taskId>:<day>`, `kpi:<kpiId>`) → 두 기기가 같은 완료로 XP를 이중 지급하지 않는다(같은 id로 합쳐짐) |
-| `character` | id, owner_id, name, species(`turtle`·`squirrel`·`cat`·`otter`), type_code(예 `plan-deep`), answers_json, assessed_at, created_at | 레벨·단계는 저장하지 않고 계산. 다시 조사하면 species·type만 바뀐다 |
+| `xp_events` | id, owner_id, kind(`task`·`task_revoke`·`kpi`·`kpi_revoke`·`kpi_all`), amount, ref_id, day, created_at | **id를 사건에서 만든다**(`task:<taskId>:<day>`, `kpi:<kpiId>`, 주 단위는 `kpi-all:<캐릭터 id>:<주>` — 사용자끼리 겹치지 않게) → 두 기기가 같은 완료로 XP를 이중 지급하지 않는다(같은 id로 합쳐짐) |
+| `characters` (Postgres 예약어 피함) | id, owner_id, name, species(`turtle`·`squirrel`·`cat`·`otter`), type_code(예 `plan-deep`), answers_json, assessed_at, created_at | 레벨·단계는 저장하지 않고 계산. 다시 조사하면 species·type만 바뀐다 |
 | `kpis` (주간 목표) | id, owner_id, week_start, title, target(기본 1), progress(직접 센 수), link_kind(`none`·`task`·`tag`·`list`), link_id, status(`active`·`achieved`·`missed`), source(`manual`·`ai`), achieved_at, sort_order | 연결이 있으면 진행은 계산, 없으면 progress. 다음 주에 적은 목표는 week_start가 다음 주 |
-| `weekly_reports` | id(`<owner>:<week_start>`), owner_id, week_start, stats_json, text_json, xp_total, seen_at | 숫자(stats)는 앱이 계산해 저장, 문장(text)은 AI |
+| `weekly_reports` | id(`report:<캐릭터 id>:<week_start>`), owner_id, week_start, stats_json, text_json, xp_total, seen_at | 숫자(stats)는 앱이 계산해 저장, 문장(text)은 AI |
 | 서버 `ai_usage` | user_id, week_start, kind, used_at | **주 2회 상한을 서버가 강제**(KPI 초안 1 · 리포트 1). 동기화하지 않는다 |
 - 스키마는 `@sprout/schema` 한 곳에서 바꾸고 `npm run server:schema`로 서버 SQL·동기화 규칙을 다시 만든다(노트 세션과 같은 규칙).
 - 서버 API(Node, 서버에서만 AI 호출): `POST /ai/kpi-draft`, `POST /ai/weekly-report`. 한도를 넘으면 429 → 화면은 §3 "AI 한도" 상태.
 - **AI에 보내는 것 — 결정: 할 일 제목까지** (2026-10-04): 이번 주 완료·미완료 할 일 제목 + 태그·리스트 이름 + 앱이 계산한 숫자. 할 일 제목이 서버의 AI 공급자에게 간다는 점을 **개인정보 처리방침과 KPI 카드 아래 한 줄 안내**("주간 KPI·리포트를 만들 때 이번 주 할 일 제목을 AI에 보내요")로 알린다. 로컬 AI 비서(노트 설계)와 달리 이건 클라우드 호출이다. 메모(notes)는 보내지 않는다.
 
 ## 8. 완료 기준
-- [ ] 첫 로그인 뒤 성향 조사(8문항)를 하면 유형에 맞는 캐릭터가 배정되고 이름을 지을 수 있다. 건너뛰어도 할 일은 다 쓸 수 있고 XP는 쌓인다.
-- [ ] 할 일을 끝내면 사이드바 캐릭터 카드 XP 막대가 자라고 레일에 "+1"이 뜬다. 하루 11번째부터는 XP가 없다.
-- [ ] 같은 날 완료 취소하면 XP가 돌아가고, 레벨은 내려가지 않는다.
+- [x] 첫 로그인 뒤 성향 조사(8문항)를 하면 유형에 맞는 캐릭터가 배정되고 이름을 지을 수 있다. 건너뛰어도 할 일은 다 쓸 수 있고 XP는 쌓인다.
+- [x] 할 일을 끝내면 사이드바 캐릭터 카드 XP 막대가 자라고 "+1"이 뜬다. 하루 11번째부터는 XP가 없다(로직 테스트).
+- [x] 같은 날 완료 취소하면 XP가 돌아가고, 레벨은 내려가지 않는다.
 - [ ] 두 기기에서 같은 할 일을 완료해도 XP는 한 번만 쌓인다.
-- [ ] 이번 주·다음 주 탭에 날짜 없는 목표("논문 하나 읽기", "운동 3번")를 적고, 체크·횟수로 이룰 수 있다. 다음 주에 적은 목표는 주가 바뀌면 이번 주 목표가 된다.
+- [x] 이번 주·다음 주 탭에 날짜 없는 목표("논문 하나 읽기", "운동 3번")를 적고, 체크·횟수로 이룰 수 있다. 다음 주에 적은 목표는 주가 바뀌면 이번 주 목표가 된다.
 - [ ] 목표 XP는 한 주 3개까지만 들어온다. AI 제안 줄은 눌러야 목표가 된다.
 - [ ] 목표에서 "일정 잡기"로 할 일을 만들면, 그 할 일을 완료할 때 목표 진행이 오른다.
-- [ ] KPI를 달성하는 순간 +30 XP가 들어오고, 레벨이 오르면 레벨업 화면, 단계가 바뀌면 진화 화면이 나온다. 같은 주에 취소로 목표 아래가 되면 XP가 되돌아간다.
+- [x] KPI를 달성하는 순간 +30 XP가 들어오고, 레벨이 오르면 레벨업 화면, 단계가 바뀌면 진화 화면이 나온다. 같은 주에 취소로 목표 아래가 되면 XP가 되돌아간다. (진화 화면은 Lv3 도달 때 확인 필요)
 - [ ] 주간 리포트가 오른쪽 칸에 쌓이고, 숫자는 앱 계산과 같다.
 - [ ] 서버가 AI 호출을 주 2회로 막는다(3번째는 429).
 - [ ] 라이트·다크에서 틱틱 디자인 언어(카드·그룹 머리·강조색·간격)와 어긋나지 않는다.

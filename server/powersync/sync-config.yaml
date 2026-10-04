@@ -19,3 +19,7 @@ streams:
       - SELECT * FROM reminders WHERE owner_id = auth.user_id()
       - SELECT * FROM view_settings WHERE owner_id = auth.user_id()
       - SELECT * FROM user_prefs WHERE owner_id = auth.user_id()
+      - SELECT * FROM xp_events WHERE owner_id = auth.user_id()
+      - SELECT * FROM characters WHERE owner_id = auth.user_id()
+      - SELECT * FROM kpis WHERE owner_id = auth.user_id()
+      - SELECT * FROM weekly_reports WHERE owner_id = auth.user_id()
