@@ -1,231 +1,246 @@
-// 14 작업 지도: 고리 거부 · AI 출력 검증 · 직접 옮긴 것 보호 · 합치기/삭제 → 미분류 · 되돌리기 스냅숏
+// 14 작업 지도 v2.0 + 30 §B 리스트 하나로: 폴더 › 리스트 › 할 일 나무·배치, 리스트 옮기기·순서, 순서 선 고리 검사,
+// AI 리스트 제안 검증(기존 리스트 재사용·중복 이름 방지)·무시 기억·자동 이동 조건·새 주제 감지, 기본함 정리 승인 트랜잭션·되돌리기,
+// 그리고 task_areas에는 아무것도 쓰지 않는다.
 import assert from 'node:assert/strict'
 import initSqlJs from 'sql.js'
 import { TABLES } from '@sprout/schema'
 import { createTask, run } from '../src/renderer/src/data/mutations'
 import {
-  wouldCycle, planClassification, parseAiJson, planStmts, cleanName, buildTree, layoutMap, highlightSet, filterTasks,
-  createAreaStmts, renameAreaStmts, placeTaskStmts, mergeAreaStmts, deleteAreaStmts, pruneEmptyAiStmts,
-  takeSnapshot, restoreStmts, readMap, connect, acceptLink, dropLink, classifyTasks, reorganize, undoReorganize,
-  type MapArea, type TaskArea, type MapLink, type MapTask
+  wouldCycle, cleanName, buildMapTree, layoutMap, highlightSet, zoneAt, moveListStmts, reorderFoldersStmts, renameFolderStmts, renameListStmts,
+  createFolderStmts, connect, acceptLink, dropLink, folderView, treeTaskCount, type MapFolder, type MapList, type MapTask, type MapLink
 } from '../src/renderer/src/data/map'
+import {
+  validateItems, parseAiJson, buildProposals, mergeProposals, applyProposalStmts, undoProposalStmts, shouldAutoMove, topicCandidates, chipFor,
+  suggestStore, askAi, proposeStructure, applyProposals, undoApply, acceptSuggestions, cleanListName, nameKey, type SuggestList, type Suggestion
+} from '../src/renderer/src/data/listSuggest'
 const SQL = await initSqlJs()
 const db = new SQL.Database()
 for (const [name, def] of Object.entries(TABLES)) db.run(`CREATE TABLE ${name} (id TEXT PRIMARY KEY, ${Object.keys(def.columns).join(', ')})`)
 const all = (sql:string, params:unknown[]=[]) => {const s=db.prepare(sql);s.bind(params as never);const r:Record<string,unknown>[]=[];while(s.step())r.push(s.getAsObject());s.free();return r}
 const store = new Map<string,string>()
 Object.assign(globalThis,{localStorage:{getItem:(k:string)=>store.get(k)??null,setItem:(k:string,v:string)=>store.set(k,v),removeItem:(k:string)=>store.delete(k)},window:{sprout:{db:{getAll:async(sql:string,p?:unknown[])=>all(sql,p),get:async(sql:string,p?:unknown[])=>all(sql,p)[0]??null,transaction:async(stmts:{sql:string;params?:unknown[]}[])=>{db.run('BEGIN');try{for(const s of stmts)db.run(s.sql,s.params as never);db.run('COMMIT')}catch(e){db.run('ROLLBACK');throw e}}}}}})
-const tick = () => new Promise((r) => setTimeout(r, 5))
 
-// ── 고리 검사 ──
+// ── 고리 검사(순서 선은 그대로) ──
 const seq = (from_id:string,to_id:string,state:MapLink['state']='accepted') => ({kind:'sequence' as const,from_id,to_id,state})
 assert.equal(wouldCycle([], 'a', 'a'), true)
-assert.equal(wouldCycle([seq('a','b')], 'b', 'a'), true)
 assert.equal(wouldCycle([seq('a','b'),seq('b','c')], 'c', 'a'), true)
 assert.equal(wouldCycle([seq('a','b'),seq('b','c')], 'a', 'c'), false)
 assert.equal(wouldCycle([seq('a','b','dismissed')], 'b', 'a'), false, '무시한 제안은 고리로 셈하지 않는다')
-assert.equal(wouldCycle([{kind:'goal',from_id:'a',to_id:'b',state:'accepted'}], 'b', 'a'), false)
 
 // ── 이름 규칙 ──
-assert.equal(cleanName('  학교  과제 '), '학교 과제')
+assert.equal(cleanName('  대학교  과제 '), '대학교 과제')
 assert.equal(cleanName(''), null)
-assert.equal(cleanName('가'.repeat(21)), null)
-assert.equal(cleanName('가'.repeat(20)), '가'.repeat(20))
+assert.equal(cleanListName('🏫 대학교'), '대학교', 'AI가 이름에 이모지를 붙여도 뗀다')
+assert.equal(cleanListName('가'.repeat(21)), null)
+assert.equal(nameKey('🏫 대 학교'), nameKey('대학교'))
+assert.deepEqual(folderView('🥺Me'), { emoji: '🥺', name: 'Me' })
+assert.deepEqual(folderView('Work'), { emoji: null, name: 'Work' })
 
-// ── AI 출력 검증 ──
-let n = 0
-const id = () => `n${++n}`
-const area = (id:string,name:string,parent_id:string|null=null,source='ai'):MapArea => ({id,name,parent_id,sort_order:1,source,color:null,archived_at:null})
+// ── 폴더 › 리스트 › 할 일 나무 ──
+const L = (id:string,name:string,o:Partial<MapList>={}):MapList => ({id,name,emoji:null,color:null,folder_id:null,kind:'normal',sort_order:1,archived_at:null,...o})
+const T = (id:string,list_id:string|null,o:Partial<MapTask>={}):MapTask => ({id,title:id,status:0,due_at:null,start_at:null,priority:0,list_id,completed_at:null,created_at:null,...o})
+const folders:MapFolder[] = [{id:'f2',name:'🎓Study',sort_order:2},{id:'f1',name:'Work',sort_order:1},{id:'f3',name:'빈 폴더',sort_order:3}]
+const lists:MapList[] = [L('in','Inbox',{kind:'inbox',sort_order:0}),L('a','대학교',{folder_id:'f2',sort_order:2}),L('b','운동',{sort_order:5}),L('c','회사',{folder_id:'f1'}),L('z','보관',{archived_at:'2026-01-01'}),L('o','고아',{folder_id:'gone',sort_order:3})]
 {
-  const ctx = {
-    tasks:new Map([['t1','A'],['t2','B'],['t3','C'],['t4','D'],['t5','E']]),
-    goals:new Map([['g1','K']]),
-    areas:[area('school','학교'),area('os','운영체제','school')],
-    taskAreas:[{id:'E',task_id:'E',area_id:'os',source:'user',state:'ok',run_id:null}] as TaskArea[],
-    links:[{id:'x',kind:'sequence',from_type:'task',from_id:'C',to_id:'D',source:'ai',state:'dismissed'}] as MapLink[]
-  }
-  const plan = planClassification({
-    items:[
-      {id:'t1',area:' 학교 ',topic:'운영체제',confidence:0.9}, // 이미 있는 영역·주제(공백 무시)
-      {id:'t2',area:'회사',topic:'결제 리뉴얼',confidence:0.8}, // 새 영역 + 새 주제
-      {id:'t3',area:'개인',topic:'',confidence:0.3}, // 확신 낮음 → 미분류·확인 필요
-      {id:'t4',area:'가'.repeat(25),topic:'',confidence:0.9}, // 이름이 너무 김 → 확인 필요
-      {id:'t5',area:'학교',topic:'',confidence:0.9}, // 직접 옮긴 할 일 → 건드리지 않음
-      {id:'zz',area:'학교',topic:'',confidence:0.9}, // 없는 id → 버림
-      {id:'t1',area:'회사',topic:'',confidence:0.9} // 같은 할 일 두 번 → 처음 것만
-    ],
-    sequences:[{before:'t1',after:'t2'},{before:'t2',after:'t1'},{before:'t3',after:'t4'},{before:'t1',after:'t1'},{before:'t1',after:'nope'}],
-    goals:[{goal:'g1',task:'t2'},{goal:'g9',task:'t1'}]
-  }, ctx, id)
-  assert.deepEqual(plan.assign.map(a=>[a.task_id,a.area_id,a.state]), [['A','os','ok'],['B',plan.areas[1].id,'ok'],['C',null,'review'],['D',null,'review']])
-  assert.deepEqual(plan.areas.map(a=>[a.name,a.parent_id]), [['회사',null],['결제 리뉴얼',plan.areas[0].id]])
-  // 순서 제안: A→B만(반대 방향·무시했던 C→D·자기 자신·없는 id 거부)
-  assert.deepEqual(plan.links.map(l=>[l.kind,l.from_id,l.to_id]), [['sequence','A','B'],['goal','K','B']])
-  // 저장: 직접 옮긴 행은 계획에 있어도 쓰지 않는다
-  const stmts = planStmts({...plan,assign:[...plan.assign,{task_id:'E',area_id:'school',state:'ok'}]}, ctx.taskAreas, 'run1')
-  assert.equal(stmts.some(s=>s.params?.includes('E') && /task_areas/.test(s.sql)), false)
-}
-{
-  // 영역은 8개까지: 넘으면 확인 필요로
-  const areas = Array.from({length:8},(_,i)=>area(`a${i}`,`영역${i}`))
-  const plan = planClassification({items:[{id:'t1',area:'새 영역',topic:'',confidence:1},{id:'t2',area:'영역3',topic:'x',confidence:1}]}, {tasks:new Map([['t1','A'],['t2','B']]),goals:new Map(),areas,taskAreas:[],links:[]}, id)
-  assert.deepEqual(plan.assign.map(a=>[a.area_id,a.state]), [[null,'review'],[plan.areas[0].id,'ok']])
-  // 주제도 영역당 8개까지: 넘으면 영역 바로 아래로
-  const topics = Array.from({length:8},(_,i)=>area(`p${i}`,`주제${i}`,'a3'))
-  const p2 = planClassification({items:[{id:'t1',area:'영역3',topic:'아홉째',confidence:1}]}, {tasks:new Map([['t1','A']]),goals:new Map(),areas:[...areas,...topics],taskAreas:[],links:[]}, id)
-  assert.deepEqual(p2.assign.map(a=>a.area_id), ['a3'])
-  assert.equal(p2.areas.length, 0)
-  // 작은 모델이 입력 모양(tasks[])으로 답하거나 확신을 빠뜨려도 받는다(빠뜨림 = 보통 0.7)
-  const loose = planClassification(parseAiJson('```json\n{"tasks":[{"id":"t1","area":"영역3","topic":""}]}\n```'), {tasks:new Map([['t1','A']]),goals:new Map(),areas,taskAreas:[],links:[]}, id)
-  assert.deepEqual(loose.assign.map(a=>[a.area_id,a.state]), [['a3','ok']])
-  // 서버가 스키마를 강제하지 못할 때(Ollama think=false): 맨 배열 = items, 앞뒤 설명 글은 걷어 낸다. JSON이 없으면 던진다
-  assert.deepEqual(parseAiJson('[{"id":"t1","area":"영역3"}]').items, [{id:'t1',area:'영역3'}])
-  assert.deepEqual(parseAiJson('분류 결과:\n{"items":[{"id":"t1","area":"영역3"}]} 끝').items, [{id:'t1',area:'영역3'}])
-  assert.throws(()=>parseAiJson('모르겠어요'))
-  // 엉뚱한 모양은 무시
-  assert.deepEqual(planClassification({items:'x' as never,sequences:null as never}, {tasks:new Map(),goals:new Map(),areas:[],taskAreas:[],links:[]}).assign, [])
+  const tree = buildMapTree(folders, lists, [T('t1','a'),T('t2','in'),T('t3',null),T('t4','z'),T('t5','b',{status:1}),T('t6','c')])
+  assert.deepEqual(tree.groups.map(g=>`${g.kind}:${g.id}`), ['list:in','list:o','list:b','folder:f1','folder:f2','folder:f3'], '기본함 → 폴더 밖 리스트 → 폴더(사이드바 순서), 없는 폴더의 리스트는 밖으로')
+  const inbox = tree.groups[0]
+  assert.ok(inbox.kind==='list' && inbox.tasks.map(t=>t.id).join()==='t2,t3', '리스트 없는 할 일은 기본함')
+  assert.equal(treeTaskCount(tree), 5, '보관한 리스트의 할 일은 빠진다')
+  const study = tree.groups.find(g=>g.id==='f2')!
+  assert.ok(study.kind==='folder' && study.lists[0].list.id==='a' && study.count===1)
+  assert.ok(tree.groups.find(g=>g.id==='b')!.count===0, '완료는 개수에서 뺀다')
+  // 범위: 고른 리스트 — 그 리스트만, 빈 폴더 숨김
+  const only = buildMapTree(folders, lists, [T('t1','a')], {only:['a']})
+  assert.deepEqual(only.groups.map(g=>g.id), ['f2'])
+  // 배치: 뿌리 → 폴더·폴더 밖 리스트(1층) → 폴더 안 리스트(2층) → 할 일
+  const lay = layoutMap({tree, links:[], goals:[], collapsed:{}, hasDate:()=>false})
+  const node = (id:string) => lay.nodes.find(n=>n.id===id)!
+  assert.equal(node('folder:f2').level, 1)
+  assert.equal(node('list:b').level, 1)
+  assert.equal(node('list:a').level, 2)
+  assert.ok(node('task:t1').y > node('list:a').y && node('list:a').y > node('folder:f2').y && node('folder:f2').y > node('root').y)
+  assert.ok(node('anchor:list:in'), '폴더 밖 리스트 할 일은 닻에서 줄기선')
+  // 놓는 자리: 할 일 → 리스트, 리스트 → 폴더
+  const t1 = node('task:t1')
+  assert.equal(zoneAt(lay.zones, 'list', {x:t1.x+5,y:t1.y+5})?.id, 'a')
+  assert.equal(zoneAt(lay.zones, 'folder', {x:t1.x+5,y:t1.y+5})?.id, 'f2')
+  const t2 = node('task:t2')
+  assert.equal(zoneAt(lay.zones, 'list', {x:t2.x+5,y:t2.y+5})?.id, 'in', '폴더 밖 리스트도 할 일을 받는다')
+  assert.ok(highlightSet(lay.edges, 'task:t1').has('folder:f2'))
+  // 접기: 폴더 접으면 그 안 리스트·할 일이 빠진다
+  const folded = layoutMap({tree, links:[], goals:[], collapsed:{'folder:f2':true}, hasDate:()=>false})
+  assert.equal(folded.nodes.some(n=>n.id==='task:t1'), false)
 }
 
-// ── 나무·배치·강조 ──
-const task = (id:string,extra:Partial<MapTask>={}):MapTask => ({id,title:id,status:0,due_at:null,start_at:null,priority:0,list_id:'L',completed_at:null,created_at:null,...extra})
+// ── 리스트 옮기기 · 순서 ──
 {
-  const areas = [area('s','학교'),area('os','운영체제','s'),area('old','지난 학기','s')]
-  areas[2].archived_at = '2026-01-01'
-  const rows:TaskArea[] = [{id:'1',task_id:'1',area_id:'os',source:'ai',state:'ok',run_id:null},{id:'2',task_id:'2',area_id:'s',source:'user',state:'ok',run_id:null},{id:'3',task_id:'3',area_id:'gone',source:'ai',state:'ok',run_id:null},{id:'4',task_id:'4',area_id:'old',source:'ai',state:'ok',run_id:null}]
-  const tree = buildTree(areas, rows, [task('1'),task('2'),task('3'),task('4'),task('5')])
-  assert.deepEqual(tree.areas[0].topics.map(t=>t.tasks.map(x=>x.id)), [['1']])
-  assert.deepEqual(tree.areas[0].direct.map(t=>t.id), ['2'])
-  assert.deepEqual(tree.unclassified.map(t=>t.id), ['3','5'], '없어진 칸·행 없음 → 미분류, 보관 주제는 숨김')
-  assert.equal(buildTree(areas, rows, [task('4')], {showArchived:true}).areas[0].topics.length, 2)
-  const links:MapLink[] = [{id:'l',kind:'sequence',from_type:'task',from_id:'1',to_id:'2',source:'user',state:'accepted'}]
-  const g = layoutMap({tree,links,goals:[{id:'K',title:'목표',target:1,progress:0,status:'active',week_start:'',achieved_at:null,source:'manual',sort_order:0}],collapsed:{},hasDate:()=>false})
-  const node = (id:string) => g.nodes.find(x=>x.id===id)!
-  assert.ok(node('root').y < node('area:s').y && node('area:s').y < node('topic:os').y && node('topic:os').y < node('task:1').y, '위 → 아래 층')
-  assert.equal(node('task:1').x, node('topic:os').x + 12, '주제 아래 세로로 쌓고 왼쪽 줄기선')
-  assert.ok(g.edges.some(e=>e.kind==='seq' && e.source==='task:1' && e.target==='task:2'))
-  assert.ok(node('goal:K').y > node('task:1').y, '목표 줄은 맨 아래')
-  const hl = highlightSet(g.edges, 'topic:os')
-  assert.ok(hl.has('area:s') && hl.has('root') && hl.has('task:1') && !hl.has('task:2'))
-  // 접기
-  const folded = layoutMap({tree,links:[],goals:[],collapsed:{'area:s':true},hasDate:()=>false})
-  assert.equal(folded.nodes.some(x=>x.id==='topic:os'), false)
+  const ls = [L('in','in',{kind:'inbox'}),L('a','A',{folder_id:'f1',sort_order:1}),L('b','B',{folder_id:'f1',sort_order:2}),L('c','C',{sort_order:9})]
+  const st = moveListStmts(ls, 'c', 'f1', 'b')
+  // a(1) · b(2) 사이에 c를 b 앞에 → a 그대로, c = 2 + 폴더, b = 3
+  assert.equal(st.length, 2)
+  assert.ok(st.some(x=>x.params?.at(-1)==='c' && /folder_id/.test(x.sql) && x.params.includes(2) && x.params.includes('f1')))
+  assert.ok(st.some(x=>x.params?.at(-1)==='b' && x.params.includes(3)))
+  assert.deepEqual(moveListStmts(ls, 'in', 'f1'), [], '기본함은 옮기지 않는다')
+  assert.deepEqual(moveListStmts(ls, 'zz', 'f1'), [])
+  assert.equal(reorderFoldersStmts([{id:'x',name:'x',sort_order:1},{id:'y',name:'y',sort_order:2}], ['y','x']).length, 2)
+  assert.equal(reorderFoldersStmts([{id:'x',name:'x',sort_order:1}], ['x']).length, 0, '그대로면 쓰지 않는다')
+  assert.equal(renameListStmts(L('in','in',{kind:'inbox'}), '새 이름'), null, '기본함 이름은 못 바꾼다')
 }
+// DB에서: 폴더 만들기 → 리스트 넣기(앞에) → 이름 바꾸기(이모지 아이콘 유지)
+await run({sql:"INSERT INTO lists (id,name,kind,sort_order,folder_id,emoji,archived_at) VALUES ('inbox','Inbox','inbox',0,NULL,NULL,NULL),('l1','대학교','normal',1,NULL,'🏫',NULL),('l2','운동','normal',2,NULL,NULL,NULL),('l3','옛 리스트','normal',3,NULL,NULL,'2026-01-01')"})
+const nf = createFolderStmts([], '🎓공부')!
+await run(...nf.stmts)
+const dbLists = () => all('SELECT id,name,emoji,color,folder_id,kind,sort_order,archived_at FROM lists') as unknown as MapList[]
+await run(...moveListStmts(dbLists(), 'l2', nf.id))
+await run(...moveListStmts(dbLists(), 'l1', nf.id, 'l2'))
+assert.deepEqual(all('SELECT id FROM lists WHERE folder_id=? ORDER BY sort_order',[nf.id]).map(r=>r.id), ['l1','l2'])
+await run(...renameFolderStmts({id:nf.id,name:'🎓공부',sort_order:1}, '스터디')!)
+assert.equal(all('SELECT name FROM folders WHERE id=?',[nf.id])[0].name, '🎓스터디', '폴더 이름을 바꿔도 아이콘(앞 이모지)은 그대로')
+await run(...moveListStmts(dbLists(), 'l2', null))
+assert.equal(all("SELECT folder_id FROM lists WHERE id='l2'")[0].folder_id, null)
+
+// ── AI 답 검증 ──
+const SL = (id:string,name:string,o:Partial<SuggestList>={}):SuggestList => ({id,name,emoji:null,kind:'normal',archived_at:null,...o})
+const sl = [SL('in','Inbox',{kind:'inbox'}),SL('u','대학교',{emoji:'🏫'}),SL('w','운동'),SL('old','옛 리스트',{archived_at:'x'})]
 {
-  // 기간: 이번 주 = 이번 주 날짜 + 날짜 없음 + 이번 주 완료
-  const today = '2026-10-07' // 수요일, 주 시작 10-04(일)
-  const f = {period:'week' as const,showDone:false,showNoDate:true,lists:null}
-  const ts = [task('in',{due_at:'2026-10-08'}),task('next',{due_at:'2026-10-12'}),task('none'),task('done',{status:1,completed_at:new Date('2026-10-05T10:00').toISOString()}),task('old',{status:1,completed_at:new Date('2026-09-01T10:00').toISOString()})]
-  assert.deepEqual(filterTasks(ts, f, today).map(t=>t.id), ['in','none','done'])
-  assert.deepEqual(filterTasks(ts, {...f,period:'all'}, today).map(t=>t.id), ['in','next','none'])
-  assert.deepEqual(filterTasks(ts, {...f,period:'all',showDone:true}, today).map(t=>t.id), ['in','next','none','done','old'])
-  assert.deepEqual(filterTasks(ts, {...f,showNoDate:false}, today).map(t=>t.id), ['in'])
+  const tk = new Map([['t1','A'],['t2','B'],['t3','C'],['t4','D'],['t5','E'],['t6','F'],['t7','G']])
+  const lk = new Map([['l1','u'],['l2','w'],['l9','in'],['l8','old']])
+  const out = parseAiJson('```json\n' + JSON.stringify({items:[
+    {id:'t1',list:'l1',new:'',emoji:'',sure:'high'}, // 있는 리스트, 확실
+    {id:'t2',list:'',new:'🏫 대학교',emoji:'🎒',sure:'low'}, // 새 이름이 있는 리스트와 같음 → 그 리스트 다시 씀
+    {id:'t3',list:'',new:'자격증',emoji:'📜',sure:'high'}, // 새 리스트 제안 — 확실해도 자동 이동 대상 아님
+    {id:'t4',list:'l9',new:'',emoji:'',sure:'high'}, // 기본함은 고를 수 없음
+    {id:'t5',list:'l8',new:'',emoji:'',sure:'high'}, // 보관한 리스트는 고를 수 없음
+    {id:'zz',list:'l1',new:'',emoji:'',sure:'high'}, // 없는 할 일
+    {id:'t1',list:'l2',new:'',emoji:'',sure:'high'}, // 같은 할 일 두 번 → 처음 것만
+    {id:'t6',list:'',new:'가'.repeat(30),emoji:'x',sure:'low'}, // 이름 규칙 위반 → 제안 없음
+    {id:'t7',list:'운동',new:'',emoji:'',sure:'high'} // 키 대신 이름으로 답해도 받는다
+  ]}) + '\n```')
+  const r = validateItems(out, tk, lk, sl)
+  const by = new Map(r.map(x=>[x.taskId,x]))
+  assert.deepEqual(by.get('A'), {taskId:'A',listId:'u',newName:null,emoji:null,sure:true})
+  assert.deepEqual(by.get('B'), {taskId:'B',listId:'u',newName:null,emoji:null,sure:false}, '중복 리스트를 만들지 않는다')
+  assert.deepEqual(by.get('C'), {taskId:'C',listId:null,newName:'자격증',emoji:'📜',sure:false})
+  assert.equal(by.get('D')!.listId, null)
+  assert.equal(by.get('E')!.listId, null)
+  assert.equal(by.get('F')!.newName, null)
+  assert.equal(by.get('G')!.listId, 'w')
+  assert.equal(r.length, 7)
+  assert.deepEqual(parseAiJson('설명: [{"id":"t1","list":"l1"}] 끝').items?.length, 1, '맨 배열·설명 글 섞임도 받는다')
 }
 
-// ── DB: 직접 관리(AI 없이) ──
-const L = 'list1'
-const t1 = await createTask({title:'운영체제 과제',list_id:L})
-const t2 = await createTask({title:'기획서 초안',list_id:L})
-const t3 = await createTask({title:'기획서 검토',list_id:L})
-let m = await readMap()
-const school = createAreaStmts(m.areas, '학교')!
-await run(...school.stmts)
-m = await readMap()
-assert.equal(createAreaStmts(m.areas, '   '), null)
-const os = createAreaStmts(m.areas, '운영체제', school.id)!
-await run(...os.stmts)
-const work = createAreaStmts((await readMap()).areas, '회사')!
-await run(...work.stmts)
-m = await readMap()
-assert.notEqual(m.areas.find(a=>a.id===work.id)!.color, m.areas.find(a=>a.id===school.id)!.color, '영역마다 다른 색')
-await run(...placeTaskStmts(m.taskAreas, t1, os.id))
-await run(...placeTaskStmts((await readMap()).taskAreas, t2, work.id))
-m = await readMap()
-assert.equal(m.taskAreas.find(r=>r.task_id===t1)!.source, 'user')
-assert.equal(renameAreaStmts(school.id, '가'.repeat(21)), null)
-await run(...renameAreaStmts(work.id, '인턴 · 회사')!)
-assert.equal(all('SELECT name, source FROM map_areas WHERE id=?',[work.id])[0].name, '인턴 · 회사')
-// 합치기: 회사 → 학교. 할 일이 따라간다
-await run(...mergeAreaStmts((await readMap()).areas, (await readMap()).taskAreas, work.id, school.id))
-m = await readMap()
-assert.equal(m.areas.some(a=>a.id===work.id), false)
-assert.equal(m.taskAreas.find(r=>r.task_id===t2)!.area_id, school.id)
-// 같은 이름 주제는 하나로
-const a2 = createAreaStmts(m.areas, '대학')!
-await run(...a2.stmts)
-const os2 = createAreaStmts((await readMap()).areas, '운영체제', a2.id)!
-await run(...os2.stmts)
-await run(...placeTaskStmts((await readMap()).taskAreas, t3, os2.id))
-m = await readMap()
-await run(...mergeAreaStmts(m.areas, m.taskAreas, a2.id, school.id))
-m = await readMap()
-assert.equal(m.taskAreas.find(r=>r.task_id===t3)!.area_id, os.id)
-assert.equal(m.areas.filter(a=>a.parent_id===school.id).length, 1)
-// 주제 삭제 → 영역 바로 아래, 영역 삭제 → 미분류(할 일은 그대로)
-await run(...deleteAreaStmts(m.areas, m.taskAreas, os.id))
-m = await readMap()
-assert.equal(m.taskAreas.find(r=>r.task_id===t1)!.area_id, school.id)
-await run(...deleteAreaStmts(m.areas, m.taskAreas, school.id))
-m = await readMap()
-assert.equal(m.areas.length, 0)
-assert.deepEqual(m.taskAreas.map(r=>r.area_id), [null,null,null])
-assert.equal(all('SELECT count(*) n FROM tasks WHERE deleted_at IS NULL')[0].n, 3)
+// ── 기본함 정리 묶기 ──
+{
+  const S = (taskId:string, listId:string|null, newName:string|null, emoji:string|null=null):Suggestion => ({taskId,listId,newName,emoji,sure:false})
+  const ps = buildProposals([S('a','u',null),S('b',null,'자격증','📜'),S('c',null,' 자격 증',null),S('d',null,'혼자'),S('e',null,'운동'),S('f',null,null),S('b',null,'자격증')], sl)
+  assert.deepEqual(ps.map(p=>[p.key,p.listId,p.name,p.taskIds.join()]), [['new:자격증',null,'자격증','b,c'],['list:u','u','대학교','a'],['list:w','w','운동','e']], '같은 새 이름은 하나로, 있는 리스트 이름이면 그 리스트, 1개뿐인 새 주제는 기본함에')
+  assert.equal(ps[0].emoji, '📜')
+  const many = buildProposals(Array.from({length:12},(_,i)=>[S(`x${i}a`,null,`주제${i}`),S(`x${i}b`,null,`주제${i}`)]).flat(), sl)
+  assert.equal(many.length, 8, '많아도 8개까지')
+  const merged = mergeProposals(ps, 'list:w', 'new:자격증')
+  assert.deepEqual(merged.map(p=>p.key), ['new:자격증','list:u'])
+  assert.deepEqual(merged[0].taskIds, ['b','c','e'])
+}
 
-// ── 연결선 ──
-assert.equal(await connect('sequence', t2, t3), 'ok')
-assert.equal(await connect('sequence', t3, t2), 'cycle')
-assert.equal(await connect('sequence', t2, t3), 'exists')
-await run({sql:"INSERT INTO map_links (id, kind, from_type, from_id, to_id, source, state) VALUES ('sg','sequence','task',?,?,'ai','suggested')",params:[t3,t1]})
+// ── 승인 쓰기 계획: 한 트랜잭션 · 이름 중복 방지 · 기본함에 있는 것만 ──
+{
+  let n = 0
+  const tasks = [{id:'a',title:'a',list_id:'in'},{id:'b',title:'b',list_id:'in'},{id:'c',title:'c',list_id:'w'},{id:'d',title:'d',list_id:'in'},{id:'e',title:'e',list_id:'in'}]
+  const r = applyProposalStmts([
+    {key:'1',listId:null,name:'자격증',emoji:'📜',taskIds:['a','c'],on:true}, // c는 이미 다른 리스트 → 옮기지 않음
+    {key:'2',listId:null,name:' 자격증 ',emoji:null,taskIds:['b'],on:true}, // 고친 이름이 앞과 같음 → 하나만 만든다
+    {key:'3',listId:null,name:'🏫대학교',emoji:null,taskIds:['d'],on:true}, // 있는 리스트 이름 → 다시 씀
+    {key:'4',listId:null,name:'끈 것',emoji:null,taskIds:['e'],on:false} // 체크 해제 → 기본함에 남음
+  ], sl, tasks, 'in', {newId:()=>`new${++n}`, at:'2026-10-05T00:00:00.000Z', sortBase:100})
+  assert.deepEqual(r.snapshot.created, ['new1'])
+  assert.deepEqual(r.snapshot.moves, [{taskId:'a',to:'new1'},{taskId:'b',to:'new1'},{taskId:'d',to:'u'}])
+  assert.equal(r.stmts.filter(s=>/INSERT INTO lists/.test(s.sql)).length, 1)
+  // 되돌리기: 그 뒤 다른 곳으로 옮긴 할 일은 그대로, 만든 리스트는 비면 지우고 다른 할 일이 들어갔으면 남김
+  const later = [{id:'a',title:'a',list_id:'new1'},{id:'b',title:'b',list_id:'w'},{id:'d',title:'d',list_id:'u'}]
+  const u = undoProposalStmts(r.snapshot, later)
+  assert.equal(u.filter(s=>/UPDATE tasks/.test(s.sql)).length, 2)
+  assert.ok(u.some(s=>/DELETE FROM lists/.test(s.sql)))
+  const u2 = undoProposalStmts(r.snapshot, [...later, {id:'x',title:'x',list_id:'new1'}])
+  assert.equal(u2.some(s=>/DELETE FROM lists/.test(s.sql)), false, '내가 넣은 할 일이 있으면 리스트를 남긴다')
+}
+
+// ── 자동 이동 조건 · 새 주제 감지 · 무시 기억 ──
+{
+  const since = '2026-10-05T00:00:00.000Z'
+  const x:Suggestion = {taskId:'A',listId:'u',newName:null,emoji:null,sure:true}
+  const task = {id:'A',title:'과제',list_id:'in',created_at:'2026-10-05T01:00:00.000Z'}
+  const o = {enabled:true,dismissed:{},since}
+  assert.equal(shouldAutoMove(x, task, 'in', o), true)
+  assert.equal(shouldAutoMove({...x,sure:false}, task, 'in', o), false, '애매하면 제안만')
+  assert.equal(shouldAutoMove(x, {...task,list_id:'w'}, 'in', o), false, '이미 다른 리스트에 있으면 절대 옮기지 않는다')
+  assert.equal(shouldAutoMove(x, {...task,created_at:'2026-10-04T00:00:00.000Z'}, 'in', o), false, '쌓여 있던 기본함 할 일은 자동 이동 안 함')
+  assert.equal(shouldAutoMove(x, task, 'in', {...o,enabled:false}), false, '설정을 끄면 제안만')
+  assert.equal(shouldAutoMove(x, task, 'in', {...o,dismissed:{A:true}}), false)
+  suggestStore.reset()
+  suggestStore.put([x, ...['B','C','D','E','F'].map(id=>({taskId:id,listId:null,newName:id==='F'?'🏅 자격증':'자격증',emoji:'📜',sure:false}))])
+  assert.equal(chipFor(suggestStore.get(), 'A', sl)?.id, 'u')
+  assert.equal(chipFor(suggestStore.get(), 'B', sl), null, '새 이름 제안은 칩이 아니라 새 주제 카드로')
+  assert.deepEqual(topicCandidates(suggestStore.get(), ['B','C','D','E','F'], sl).map(t=>[t.name,t.taskIds.length]), [['자격증',5]])
+  assert.equal(topicCandidates(suggestStore.get(), ['B','C','D','E'], sl).length, 0, '5개 미만이면 묻지 않는다')
+  suggestStore.dismiss(['A'])
+  assert.equal(chipFor(suggestStore.get(), 'A', sl), null, '무시하면 다시 제안하지 않는다')
+  suggestStore.dismissTopic('자격증')
+  assert.equal(topicCandidates(suggestStore.get(), ['B','C','D','E','F'], sl).length, 0)
+  assert.ok(store.get('sprout.listSuggest.v1'), '기기에만 저장')
+  suggestStore.reset()
+}
+
+// ── DB: 기본함 정리(묶음 요청) → 승인 → 되돌리기, task_areas는 쓰지 않는다 ──
+const inboxIds:string[] = []
+for (let i = 0; i < 45; i++) inboxIds.push(await createTask({title: i < 30 ? `정보처리기사 ${i}` : `과제 ${i}`, list_id:'inbox'}))
+const mine = await createTask({title:'이미 리스트에 있음', list_id:'l2'})
+let calls = 0
+const chat = (async (input:{messages:{content:string}[]}) => {
+  calls++
+  const p = JSON.parse(input.messages[1].content) as {lists:{id:string;name:string}[];tasks:{id:string;title:string}[]}
+  assert.ok(p.tasks.length <= 40, '40개씩 묶어 묻는다')
+  assert.equal(p.lists.some(l=>l.name==='Inbox'||l.name==='옛 리스트'), false, '기본함·보관 리스트는 보내지 않는다')
+  assert.equal(p.tasks.some(t=>t.title==='이미 리스트에 있음'), false, '다른 리스트의 할 일은 보내지 않는다')
+  const uni = p.lists.find(l=>l.name==='대학교')!.id
+  return JSON.stringify({items:p.tasks.map(t=>t.title.startsWith('과제') ? {id:t.id,list:uni,new:'',emoji:'',sure:'low'} : {id:t.id,list:'',new:'자격증',emoji:'📜',sure:'low'})})
+}) as never
+const prop = await proposeStructure({signal:new AbortController().signal, chat})
+assert.equal(calls, 2); assert.equal(prop.total, 45)
+assert.deepEqual(prop.proposals.map(p=>[p.name,p.listId,p.taskIds.length]), [['자격증',null,30],['대학교','l1',15]])
+assert.equal(all('SELECT count(*) n FROM lists')[0].n, 4, '제안만 — 승인 전에는 리스트를 만들지 않는다')
+assert.equal(all("SELECT count(*) n FROM tasks WHERE list_id='inbox'")[0].n, 45, '제안만 — 승인 전에는 옮기지 않는다')
+const applied = await applyProposals(prop.proposals)
+assert.deepEqual(applied, {created:1, moved:45})
+assert.equal(all("SELECT count(*) n FROM tasks WHERE list_id='inbox'")[0].n, 0)
+assert.equal(all("SELECT list_id FROM tasks WHERE id=?",[mine])[0].list_id, 'l2')
+assert.equal(all("SELECT name, emoji FROM lists WHERE name='자격증'")[0].emoji, '📜')
+assert.equal(await undoApply(), true)
+assert.equal(all("SELECT count(*) n FROM tasks WHERE list_id='inbox'")[0].n, 45, '전체 되돌리기')
+assert.equal(all("SELECT count(*) n FROM lists WHERE name='자격증'")[0].n, 0, '만든 리스트도 지운다')
+assert.equal(await undoApply(), false)
+// 제안 받아들이기(칩): 기본함에 있는 것만, 되돌리기
+const acc = await acceptSuggestions([{taskId:inboxIds[0],listId:'l1'},{taskId:mine,listId:'l1'},{taskId:inboxIds[1],listId:'l3'}])
+assert.equal(acc.moved, 1, '다른 리스트 할 일·보관 리스트로는 옮기지 않는다')
+assert.equal(all('SELECT list_id FROM tasks WHERE id=?',[inboxIds[0]])[0].list_id, 'l1')
+await acc.undo()
+assert.equal(all('SELECT list_id FROM tasks WHERE id=?',[inboxIds[0]])[0].list_id, 'inbox')
+// AI를 못 쓰면 던지고 아무것도 쓰지 않는다
+await assert.rejects(()=>askAi([{id:inboxIds[0],title:'x'}], sl, {signal:new AbortController().signal, chat:(async()=>{throw new Error('connect ECONNREFUSED')}) as never}))
+assert.equal(all('SELECT count(*) n FROM task_areas')[0].n, 0, '영역 분류 표(task_areas)에는 쓰지 않는다')
+assert.equal(all('SELECT count(*) n FROM map_areas')[0].n, 0)
+
+// ── 연결선(map_links) ──
+const [s1, s2, s3] = inboxIds
+assert.equal(await connect('sequence', s1, s2), 'ok')
+assert.equal(await connect('sequence', s2, s1), 'cycle')
+assert.equal(await connect('sequence', s1, s2), 'exists')
+await run({sql:"INSERT INTO map_links (id, kind, from_type, from_id, to_id, source, state) VALUES ('sg','sequence','task',?,?,'ai','suggested')",params:[s2,s3]})
 assert.equal(await acceptLink('sg'), 'ok')
-await run({sql:"INSERT INTO map_links (id, kind, from_type, from_id, to_id, source, state) VALUES ('bad','sequence','task',?,?,'ai','suggested')",params:[t1,t2]})
+await run({sql:"INSERT INTO map_links (id, kind, from_type, from_id, to_id, source, state) VALUES ('bad','sequence','task',?,?,'ai','suggested')",params:[s3,s1]})
 assert.equal(await acceptLink('bad'), 'cycle')
 await dropLink('bad','suggested')
-assert.equal(all("SELECT state FROM map_links WHERE id='bad'")[0].state, 'dismissed', '무시는 남겨 다시 제안하지 않음')
+assert.equal(all("SELECT state FROM map_links WHERE id='bad'")[0].state, 'dismissed')
 await dropLink('sg','accepted')
 assert.equal(all("SELECT count(*) n FROM map_links WHERE id='sg'")[0].n, 0)
-
-// ── AI 분류 + 직접 옮긴 것 보호 + ✦ 되돌리기 ──
-// 사용자 영역 하나(이름 지음)와 직접 옮긴 할 일 하나
-const mine = createAreaStmts((await readMap()).areas, '개인')!
-await run(...mine.stmts)
-await run(...placeTaskStmts((await readMap()).taskAreas, t1, mine.id))
-const fake = (answer:object) => async (input:{messages:{content:string}[]}) => {
-  const payload = JSON.parse(input.messages[1].content)
-  assert.ok(payload.tasks.every((t:{title:string})=>t.title!=='운영체제 과제'), '직접 옮긴 할 일은 AI에 보내지 않는다')
-  return JSON.stringify(answer)
-}
-await run({sql:'DELETE FROM map_links'})
-await tick()
-const res = await reorganize({signal:new AbortController().signal, chat:fake({items:[{id:'t1',area:'학교',topic:'졸업 프로젝트',confidence:0.9},{id:'t2',area:'학교',topic:'졸업 프로젝트',confidence:0.9}],sequences:[{before:'t1',after:'t2'}],goals:[]}) as never})
-assert.equal(res.total, 2)
-m = await readMap()
-const grad = m.areas.find(a=>a.name==='졸업 프로젝트')!
-assert.equal(m.taskAreas.find(r=>r.task_id===t2)!.area_id, grad.id)
-assert.equal(m.taskAreas.find(r=>r.task_id===t1)!.area_id, mine.id, '직접 옮긴 카드는 그대로')
-assert.equal(m.areas.find(a=>a.id===mine.id)!.name, '개인', '사용자 영역 이름은 그대로')
-assert.ok(m.links.some(l=>l.state==='suggested' && l.source==='ai'))
-// 정리 뒤 사용자가 옮긴 카드는 되돌려도 그대로
-await tick()
-await run(...placeTaskStmts(m.taskAreas, t3, mine.id))
-assert.equal(await undoReorganize(), true)
-m = await readMap()
-assert.equal(m.areas.some(a=>a.name==='졸업 프로젝트'||a.name==='학교'), false, 'AI가 만든 영역은 사라진다')
-assert.equal(m.taskAreas.find(r=>r.task_id===t2)!.area_id, null, '정리 전 미분류로')
-assert.equal(m.taskAreas.find(r=>r.task_id===t3)!.area_id, mine.id, '정리 뒤 직접 옮긴 것은 남는다')
-assert.equal(m.links.some(l=>l.state==='suggested' && l.source==='ai'), false)
-assert.equal(await undoReorganize(), false, '되돌리기는 마지막 1회')
-// 스냅숏 순수 함수: 새 AI 영역 지움, 사용자가 만든 새 영역은 남김
-{
-  const snap = takeSnapshot([area('u','개인',null,'user')], [], 'r', '2026-10-04T00:00:00.000Z')
-  const later = '2026-10-05T00:00:00.000Z'
-  const st = restoreStmts(snap, [area('u','개인',null,'user'),{...area('ai1','학교'),created_at:later},{...area('u2','새로',null,'user'),created_at:later}], [{id:'x',task_id:'x',area_id:'ai1',source:'ai',state:'ok',run_id:'r',modified_at:later}], [])
-  assert.ok(st.some(s=>/DELETE FROM map_areas/.test(s.sql) && s.params?.[0]==='ai1'))
-  assert.equal(st.some(s=>/DELETE FROM map_areas/.test(s.sql) && s.params?.[0]==='u2'), false)
-  assert.ok(st.some(s=>/UPDATE task_areas/.test(s.sql) && s.params?.[0]===null))
-}
-// AI를 못 쓰면 던지고 아무것도 쓰지 않는다(호출하는 쪽이 미분류로 두고 재시도)
-const before = all('SELECT count(*) n FROM task_areas')[0].n
-await assert.rejects(()=>classifyTasks([t2], {signal:new AbortController().signal, runId:'r', chat:(async()=>{throw new Error('connect ECONNREFUSED')}) as never}))
-assert.equal(all('SELECT count(*) n FROM task_areas')[0].n, before)
-// 비어 있는 AI 영역 정리
-assert.equal(pruneEmptyAiStmts([area('e','빈 영역'),area('u','개인',null,'user')], []).length, 1)
 console.log('map.test ok')

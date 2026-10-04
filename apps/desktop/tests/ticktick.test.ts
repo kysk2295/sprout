@@ -287,18 +287,20 @@ const more: TTBundle = { ...bundle, data: { ...bundle.data, '6226ff9877acee87727
 const res3 = await applyImport((await previewImport(more)).plan)
 assert.equal(res3.inserted.tasks, 1); assert.deepEqual(res3.openTaskIds, [`tt-${scope}-task-a9`])
 
-// ── 작업 지도 AI 정리: 가져온 미완료 할 일만, 되돌리기 스냅숏 남김 ──
+// ── 가져온 기본함 할 일에만 AI 리스트 제안(30 §B): 아무것도 옮기지 않고 영역 분류 표도 쓰지 않는다 ──
 const open = await importedOpenTaskIds(scope)
 assert.equal(open.length, 12)
 let sent = 0
 const chat = (async (input: { messages: { content: string }[] }) => {
-  const payload = JSON.parse(input.messages[1].content) as { tasks: { id: string }[] }
+  const payload = JSON.parse(input.messages[1].content) as { tasks: { id: string }[]; lists: { id: string }[] }
   sent += payload.tasks.length
-  return JSON.stringify({ items: payload.tasks.map((t) => ({ id: t.id, area: '생활', topic: '', confidence: 0.9 })), sequences: [], goals: [] })
+  return JSON.stringify({ items: payload.tasks.map((t) => ({ id: t.id, list: payload.lists[0]?.id ?? '', new: '', emoji: '', sure: 'low' })) })
 }) as never
+const inboxOpen = all("SELECT count(*) AS n FROM tasks t JOIN lists l ON l.id = t.list_id WHERE l.kind = 'inbox' AND t.status = 0 AND t.deleted_at IS NULL AND t.parent_id IS NULL AND t.id LIKE ?", [`tt-${scope}-task-%`])[0].n as number
+const before = all('SELECT id, list_id FROM tasks ORDER BY id')
 const org = await organizeImported(open, { signal: new AbortController().signal, chat })
-assert.equal(org.total, 12); assert.equal(sent, 12)
-assert.equal(all("SELECT count(*) AS n FROM task_areas WHERE area_id IS NOT NULL")[0].n, 12)
-assert.ok(store.get('sprout.map.undo'), '정리 전 상태 보관')
+assert.ok(inboxOpen > 0); assert.equal(org.total, inboxOpen); assert.equal(sent, inboxOpen, '기본함에 있는 가져온 할 일만 묻는다')
+assert.deepEqual(all('SELECT id, list_id FROM tasks ORDER BY id'), before, '제안만 — 옮기지 않는다')
+assert.equal(all('SELECT count(*) AS n FROM task_areas')[0].n, 0)
 
 console.log('ticktick.test.ts ok')

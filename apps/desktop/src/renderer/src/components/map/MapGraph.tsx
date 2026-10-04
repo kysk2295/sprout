@@ -1,13 +1,14 @@
-// 14 §0 그래프 보기(기본) — 뿌리 → 영역 → 세부 주제 → 할 일을 위→아래로(dagre), 선 3종(포함·순서·목표 연결)
+// 14 §0 그래프 보기(기본) v2.0 — 뿌리 → 폴더·리스트 → 폴더 안 리스트 → 할 일을 위→아래로(dagre), 선 3종(포함·순서·목표 연결)
 import '@xyflow/react/dist/style.css'
 import {
   Background, BackgroundVariant, BaseEdge, EdgeLabelRenderer, Handle, MiniMap, Position, ReactFlow, ReactFlowProvider, getBezierPath, useInternalNode, useReactFlow,
   type Edge, type EdgeProps, type Node, type NodeProps, type OnConnectEnd, type Viewport
 } from '@xyflow/react'
-import { Check, Maximize2, Minus, Plus, X } from 'lucide-react'
+import { Check, Maximize2, Minus, Plus, Sparkles, X } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { autoCollapse, highlightSet, isCollapsed, layoutMap, UNCLASSIFIED, type LayoutEdge, type LayoutNode, type MapArea, type MapGoal, type MapTask } from '../../data/map'
-import { AreaMenu, CardMenu, NameInput, Ring, TaskCard, TopicMenu, twoLine, type MapActions } from './parts'
+import { autoCollapse, folderView, highlightSet, isCollapsed, layoutMap, listTitle, zoneAt, type LayoutEdge, type LayoutNode, type MapFolder, type MapGoal, type MapList, type MapTask } from '../../data/map'
+import { SUGGEST } from '../../data/listSuggest'
+import { CardMenu, FolderIcon, FolderMenu, ListIcon, ListMenu, NameInput, Ring, TaskCard, twoLine, type MapActions } from './parts'
 import { useStored, type LinkRow, type MapData } from './useMapData'
 import { MenuItem, Popover } from '../Popover'
 import { Unlink } from 'lucide-react'
@@ -24,11 +25,12 @@ type Ctx = {
   hl: Set<string> | null
   collapsed: Record<string, boolean>
   toggle: (id: string) => void
-  areaOf: Map<string, MapArea>
+  listOf: Map<string, MapList>
+  folderOf: Map<string, MapFolder>
   goalOf: Map<string, MapGoal>
   taskOf: Map<string, MapTask>
   hidden: Map<string, number>
-  topicCount: Map<string, number>
+  listCount: Map<string, number>
 }
 const GraphCtx = createContext<Ctx>(null as never)
 type N = Node<{ l: LayoutNode }>
@@ -38,42 +40,61 @@ function RootNode({ id }: NodeProps<N>) {
   const ctx = useContext(GraphCtx)
   return <div className={`map-node map-node--root${dim(ctx, id)}`}>나의 할 일<Handle type="source" position={Position.Bottom} isConnectable={false} /></div>
 }
-function AreaNode({ id, data: { l } }: NodeProps<N>) {
+function FolderNode({ id, data: { l } }: NodeProps<N>) {
   const ctx = useContext(GraphCtx)
-  const area = l.ref ? ctx.areaOf.get(l.ref) : undefined
-  const group = ctx.data.tree.areas.find((g) => g.area.id === l.ref)
-  const count = group ? group.count : ctx.data.tree.unclassified.filter((t) => t.status === 0).length
+  const folder = ctx.folderOf.get(l.ref!)
+  const group = ctx.data.tree.groups.find((g) => g.kind === 'folder' && g.id === l.ref)
   const folded = ctx.hidden.has(id)
+  if (!folder) return null
   return (
-    <div className={`map-node map-node--area${l.ref ? '' : ' is-none'}${dim(ctx, id)}`}>
+    <div className={`map-node map-node--area${dim(ctx, id)}`}>
       <Handle type="target" position={Position.Top} isConnectable={false} />
-      <span className="map-dot" style={{ background: area?.color ?? 'var(--color-text-quaternary)' }} />
-      {area && ctx.actions.editing === area.id
-        ? <NameInput initial={area.name} onSave={(v) => ctx.actions.rename(area.id, v)} onCancel={() => ctx.actions.setEditing(null)} />
-        : <span className="map-node__name">{area?.name ?? '미분류'}</span>}
-      <span className="map-node__count">{count}</span>
+      <FolderIcon name={folder.name} />
+      {ctx.actions.editing === id
+        ? <NameInput initial={folderView(folder.name).name} onSave={(v) => ctx.actions.renameFolder(folder, v)} onCancel={() => ctx.actions.setEditing(null)} />
+        : <span className="map-node__name">{folderView(folder.name).name}</span>}
+      <span className="map-node__count">{group?.count ?? 0}</span>
       <button className="map-fold nodrag" onClick={(e) => { e.stopPropagation(); ctx.toggle(id) }} title={folded ? '펼치기' : '접기'}>{folded ? `+${ctx.hidden.get(id) ?? 0}` : '−'}</button>
       <Handle type="source" position={Position.Bottom} isConnectable={false} />
     </div>
   )
 }
-function TopicNode({ id, data: { l } }: NodeProps<N>) {
+/** 리스트 노드: 폴더 밖(1층) = 폴더 노드 크기 + 개수, 폴더 안(2층) = 진행 고리 + 완료/전체 */
+function ListNode({ id, data: { l } }: NodeProps<N>) {
   const ctx = useContext(GraphCtx)
-  const topic = ctx.areaOf.get(l.ref!)!
-  const p = ctx.data.progress.get(l.ref!) ?? { done: 0, total: 0 }
+  const list = ctx.listOf.get(l.ref!)
   const folded = ctx.hidden.has(id)
-  if (!topic) return null
+  if (!list) return null
+  const name = ctx.actions.editing === id
+    ? <NameInput initial={list.name} onSave={(v) => ctx.actions.renameList(list, v)} onCancel={() => ctx.actions.setEditing(null)} />
+    : <span className="map-node__name">{listTitle(list)}</span>
+  const n = ctx.listCount.get(list.id) ?? 0
+  const fold = n > 0 && <button className="map-fold nodrag" onClick={(e) => { e.stopPropagation(); ctx.toggle(id) }} title={folded ? '펼치기' : '접기'}>{folded ? `+${ctx.hidden.get(id) ?? 0}` : '−'}</button>
+  if (l.level === 1) {
+    const group = ctx.data.tree.groups.find((g) => g.kind === 'list' && g.id === list.id)
+    const inbox = list.kind === 'inbox'
+    return (
+      <div className={`map-node map-node--area${dim(ctx, id)}`}>
+        <Handle type="target" position={Position.Top} isConnectable={false} />
+        <ListIcon list={list} />
+        {name}
+        {list.color && <span className="map-dot" style={{ background: list.color }} />}
+        <span className="map-node__count">{group?.count ?? 0}</span>
+        {inbox && (group?.count ?? 0) > SUGGEST.inboxCard && <button className="map-fold map-fold--ai nodrag" title="기본함 정리 — AI가 리스트를 제안해요" aria-label="기본함 정리" onClick={(e) => { e.stopPropagation(); ctx.actions.organize() }}><Sparkles /></button>}
+        {fold}
+        <Handle type="source" position={Position.Bottom} isConnectable={false} />
+      </div>
+    )
+  }
+  const p = ctx.data.progress.get(list.id) ?? { done: 0, total: 0 }
   return (
-    <div className={`map-node map-node--topic${topic.archived_at ? ' is-archived' : ''}${dim(ctx, id)}`} title={topic.archived_at ? '보관한 주제' : undefined}>
+    <div className={`map-node map-node--topic${dim(ctx, id)}`}>
       <Handle type="target" position={Position.Top} isConnectable={false} />
       <Ring done={p.done} total={p.total} />
-      {ctx.actions.editing === topic.id
-        ? <NameInput initial={topic.name} onSave={(v) => ctx.actions.rename(topic.id, v)} onCancel={() => ctx.actions.setEditing(null)} />
-        : <span className="map-node__name">{topic.name}</span>}
+      <ListIcon list={list} />
+      {name}
       <span className="map-node__prog">{p.done}/{p.total}</span>
-      {(ctx.topicCount.get(topic.id) ?? 0) > 0 && (
-        <button className="map-fold nodrag" onClick={(e) => { e.stopPropagation(); ctx.toggle(id) }} title={folded ? '펼치기' : '접기'}>{folded ? `+${ctx.hidden.get(id)}` : '−'}</button>
-      )}
+      {fold}
       <Handle id="stem" type="source" position={Position.Bottom} isConnectable={false} className="map-handle--stem" />
     </div>
   )
@@ -115,7 +136,7 @@ function MemoNode({ data: { l } }: NodeProps<N>) {
   const m = ctx.data.memos.find((x) => x.id === l.ref)
   return <div className="map-node--memo"><Handle type="source" position={Position.Left} isConnectable={false} />{m?.title}</div>
 }
-const nodeTypes = { root: RootNode, area: AreaNode, topic: TopicNode, anchor: AnchorNode, task: TaskNode, goal: GoalNode, lane: LaneNode, memo: MemoNode }
+const nodeTypes = { root: RootNode, folder: FolderNode, list: ListNode, anchor: AnchorNode, task: TaskNode, goal: GoalNode, lane: LaneNode, memo: MemoNode }
 
 /** 줄기선: 주제 왼쪽 아래에서 내려와 할 일 왼쪽으로 꺾인다 */
 function StemEdge({ sourceX, sourceY, targetX, targetY, style, className }: EdgeProps & { className?: string }) {
@@ -167,7 +188,6 @@ function Graph({ data, actions, links, onBlank }: Props) {
   const [hlId, setHlId] = useState<string | null>(null)
   const [edgeSel, setEdgeSel] = useState<string | null>(null)
   const [menu, setMenu] = useState<{ node: LayoutNode; point: { x: number; y: number } } | { edge: LinkRow; point: { x: number; y: number } }>()
-  const [addingTopic, setAddingTopic] = useState<{ id: string; point: { x: number; y: number } } | null>(null)
   const wrap = useRef<HTMLDivElement>(null)
 
   const layout = useMemo(() => layoutMap({
@@ -176,29 +196,35 @@ function Graph({ data, actions, links, onBlank }: Props) {
   }), [data, collapsed])
   // 접힌 노드의 +N(숨은 할 일 수)
   const auto = useMemo(() => autoCollapse(data.tree), [data.tree])
-  const { hidden, topicCount } = useMemo(() => {
+  const { hidden, listCount } = useMemo(() => {
     const m = new Map<string, number>()
-    const tc = new Map<string, number>()
-    for (const g of data.tree.areas) {
-      const n = g.direct.length + g.topics.reduce((s, t) => s + t.tasks.length, 0)
-      if (isCollapsed({ collapsed }, `area:${g.area.id}`, auto)) m.set(`area:${g.area.id}`, n)
-      for (const t of g.topics) {
-        tc.set(t.topic.id, t.tasks.length)
-        if (isCollapsed({ collapsed }, `topic:${t.topic.id}`, auto)) m.set(`topic:${t.topic.id}`, t.tasks.length)
+    const lc = new Map<string, number>()
+    for (const g of data.tree.groups) {
+      const key = `${g.kind}:${g.id}`
+      if (g.kind === 'list') {
+        lc.set(g.id, g.tasks.length)
+        if (isCollapsed(collapsed, key, auto)) m.set(key, g.tasks.length)
+        continue
+      }
+      if (isCollapsed(collapsed, key, auto)) m.set(key, g.lists.reduce((n, l) => n + l.tasks.length, 0))
+      for (const l of g.lists) {
+        lc.set(l.list.id, l.tasks.length)
+        if (isCollapsed(collapsed, `list:${l.list.id}`, auto, true)) m.set(`list:${l.list.id}`, l.tasks.length)
       }
     }
-    if (collapsed[UNCLASSIFIED]) m.set(UNCLASSIFIED, data.tree.unclassified.length)
-    return { hidden: m, topicCount: tc }
+    return { hidden: m, listCount: lc }
   }, [data.tree, collapsed, auto])
-  const toggle = useCallback((id: string) => setCollapsed((c) => ({ ...c, [id]: !isCollapsed({ collapsed: c }, id, auto) })), [setCollapsed, auto])
+  // 폴더 안 리스트는 자동 접기 대상(2층) — 노드 id만으로는 층을 몰라서 지금 보이는 상태를 뒤집는다
+  const toggle = useCallback((id: string) => setCollapsed((c) => ({ ...c, [id]: !(c[id] ?? hidden.has(id)) })), [setCollapsed, hidden])
 
   const hl = useMemo(() => (hlId ? highlightSet(layout.edges, hlId) : null), [hlId, layout])
   const [nodes, setNodes] = useState<N[]>([])
+  const inboxId = useMemo(() => new Set(data.lists.filter((x) => x.kind === 'inbox').map((x) => x.id)), [data.lists])
   const baseNodes = useMemo<N[]>(() => layout.nodes.map((l) => ({
     id: l.id, type: l.kind, position: { x: l.x, y: l.y }, data: { l }, width: l.w, height: l.h,
-    draggable: l.kind === 'task', selectable: l.kind !== 'lane' && l.kind !== 'anchor', connectable: l.kind === 'task' || l.kind === 'goal',
+    draggable: l.kind === 'task' || (l.kind === 'list' && !inboxId.has(l.ref!)), selectable: l.kind !== 'lane' && l.kind !== 'anchor', connectable: l.kind === 'task' || l.kind === 'goal',
     className: `map-rf map-rf--${l.kind}`
-  })), [layout])
+  })), [layout, inboxId])
   useEffect(() => setNodes(baseNodes), [baseNodes])
 
   const edges = useMemo<Edge[]>(() => layout.edges.map((e: LayoutEdge) => {
@@ -214,9 +240,9 @@ function Graph({ data, actions, links, onBlank }: Props) {
   }), [layout, hl, edgeSel])
 
   const ctx: Ctx = useMemo(() => ({
-    data, actions, links, hl, collapsed, toggle, hidden, topicCount,
-    areaOf: new Map(data.areas.map((a) => [a.id, a])), goalOf: new Map(data.goals.map((g) => [g.id, g])), taskOf: data.byId
-  }), [data, actions, links, hl, collapsed, toggle, hidden, topicCount])
+    data, actions, links, hl, collapsed, toggle, hidden, listCount,
+    listOf: new Map(data.lists.map((x) => [x.id, x])), folderOf: new Map(data.folders.map((f) => [f.id, f])), goalOf: new Map(data.goals.map((g) => [g.id, g])), taskOf: data.byId
+  }), [data, actions, links, hl, collapsed, toggle, hidden, listCount])
 
   // 집중 보기: 영역을 두 번 누르면 그 영역만 화면에 맞춤. Esc · ⤢ = 전체
   // 전체 맞춤(⤢·Esc): 다 들어가게, 단 0.5배 아래로는 줄이지 않는다. 처음 열 때는 글자를 읽을 수 있게 0.8배에서 멈춘다.
@@ -261,15 +287,25 @@ function Graph({ data, actions, links, onBlank }: Props) {
     window.setTimeout(() => fitAll(0.8, 0, 'zoom' in viewport ? Math.min(2, Math.max(0.25, viewport.zoom)) : undefined), 30)
   }, [baseNodes, viewport, fitAll])
 
-  // 끌어 옮기기: 놓은 자리의 주제 열·영역으로. 아니면 제자리로
+  // 끌어 옮기기: 할 일 → 놓은 자리의 리스트(list_id), 리스트 → 놓은 자리의 폴더(뿌리에 놓으면 폴더 밖). 아니면 제자리로
   const onDragStop = (e: MouseEvent | TouchEvent, node: N) => {
     const l = node.data.l
     const pt = 'changedTouches' in e ? e.changedTouches[0] : e
     const p = flow.screenToFlowPosition({ x: pt.clientX, y: pt.clientY })
-    const zone = layout.zones.filter((z) => p.x >= z.x && p.x <= z.x + z.w && p.y >= z.y && p.y <= z.y + z.h).sort((a, b) => a.w * a.h - b.w * b.h)[0]
-    const current = data.rowOf.get(l.ref!)?.area_id ?? null
-    if (zone && zone.areaId !== current) void actions.place(l.ref!, zone.areaId)
-    else setNodes(baseNodes)
+    if (l.kind === 'task') {
+      const zone = zoneAt(layout.zones, 'list', p)
+      const cur = data.byId.get(l.ref!)?.list_id
+      if (zone && zone.id !== cur) { void actions.moveTask(l.ref!, zone.id); return }
+    }
+    if (l.kind === 'list') {
+      const list = data.lists.find((x) => x.id === l.ref)
+      const root = layout.nodes.find((n) => n.kind === 'root')!
+      const onRoot = p.x >= root.x - 20 && p.x <= root.x + root.w + 20 && p.y >= root.y - 20 && p.y <= root.y + root.h + 20
+      const zone = zoneAt(layout.zones, 'folder', p)
+      if (list && zone && zone.id !== list.folder_id) { void actions.moveList(list.id, zone.id); return }
+      if (list && onRoot && list.folder_id) { void actions.moveList(list.id, null); return }
+    }
+    setNodes(baseNodes)
   }
   // 손잡이를 끌어 할 일에 놓기: 할 일 → 할 일 = 순서, 목표 → 할 일 = 목표 연결
   const onConnectEnd: OnConnectEnd = (e, state) => {
@@ -304,11 +340,11 @@ function Graph({ data, actions, links, onBlank }: Props) {
             setHlId(n.id)
             if (n.type === 'task') actions.open(n.data.l.ref!)
           }}
-          onNodeDoubleClick={(_, n) => { if (n.type === 'area') focusArea(n.id) }}
+          onNodeDoubleClick={(_, n) => { if (n.type === 'folder' || (n.type === 'list' && n.data.l.level === 1)) focusArea(n.id) }}
           onNodeContextMenu={(e, n) => {
             e.preventDefault()
             const l = n.data.l
-            if ((l.kind === 'area' && l.ref) || l.kind === 'topic' || l.kind === 'task') setMenu({ node: l, point: { x: e.clientX, y: e.clientY } })
+            if (l.kind === 'folder' || l.kind === 'list' || l.kind === 'task') setMenu({ node: l, point: { x: e.clientX, y: e.clientY } })
           }}
           onEdgeClick={(_, e) => { if (e.type === 'link') { setEdgeSel(e.id); setHlId(null) } }}
           onEdgeContextMenu={(ev, e) => { if (e.type === 'link') { ev.preventDefault(); setEdgeSel(e.id); setMenu({ edge: (e.data as { link: LinkRow }).link, point: { x: ev.clientX, y: ev.clientY } }) } }}
@@ -340,18 +376,13 @@ function Graph({ data, actions, links, onBlank }: Props) {
           <button aria-label="전체 보기" title="전체 보기 (Esc)" onClick={() => { setHlId(null); fitAll() }}><Maximize2 /></button>
         </div>
       </div>
-      {menu && 'node' in menu && menu.node.kind === 'area' && (() => { const a = ctx.areaOf.get(menu.node.ref!); return a && <AreaMenu area={a} data={data} actions={actions} point={menu.point} onClose={() => setMenu(undefined)} onAddTopic={() => setAddingTopic({ id: a.id, point: menu.point })} /> })()}
-      {menu && 'node' in menu && menu.node.kind === 'topic' && (() => { const a = ctx.areaOf.get(menu.node.ref!); return a && <TopicMenu topic={a} data={data} actions={actions} point={menu.point} onClose={() => setMenu(undefined)} /> })()}
+      {menu && 'node' in menu && menu.node.kind === 'folder' && (() => { const f = ctx.folderOf.get(menu.node.ref!); return f && <FolderMenu folder={f} data={data} actions={actions} point={menu.point} onClose={() => setMenu(undefined)} /> })()}
+      {menu && 'node' in menu && menu.node.kind === 'list' && (() => { const x = ctx.listOf.get(menu.node.ref!); return x && <ListMenu list={x} data={data} actions={actions} point={menu.point} onClose={() => setMenu(undefined)} /> })()}
       {menu && 'node' in menu && menu.node.kind === 'task' && (() => { const t = data.byId.get(menu.node.ref!); return t && <CardMenu task={t} data={data} actions={actions} point={menu.point} onClose={() => setMenu(undefined)} /> })()}
       {menu && 'edge' in menu && (
         <Popover point={menu.point} onClose={() => setMenu(undefined)} width={170} className="menu">
           {menu.edge.state === 'suggested' && <MenuItem icon={<Check />} label="연결 받아들이기" onClick={() => { setMenu(undefined); links.accept(menu.edge.id) }} />}
           <MenuItem icon={<Unlink />} label={menu.edge.state === 'suggested' ? '무시' : '연결 끊기'} onClick={() => { setMenu(undefined); links.drop(menu.edge.id, menu.edge.state); setEdgeSel(null) }} />
-        </Popover>
-      )}
-      {addingTopic && (
-        <Popover point={addingTopic.point} onClose={() => setAddingTopic(null)} width={220} className="map-pop-input">
-          <NameInput placeholder="세부 주제 이름" onSave={async (v) => { const ok = !!(await actions.createArea(v, addingTopic.id)); if (ok) setAddingTopic(null); return ok }} onCancel={() => setAddingTopic(null)} />
         </Popover>
       )}
     </GraphCtx.Provider>

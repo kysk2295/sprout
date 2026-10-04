@@ -14,6 +14,8 @@ import { MenuItem, Popover } from './Popover'
 import { Dialog } from './Dialog'
 import { OrganizationEditor } from './OrganizationEditor'
 import { ExtSidebarSection } from './calendars/ExtSidebar'
+import { splitEmoji } from '../../../shared/emoji'
+import './EmojiPicker.css'
 const OPEN='t.status=0 AND t.deleted_at IS NULL AND t.parent_id IS NULL'
 type Menu={kind:OrganizationKind;item:OrganizationItem;point:{x:number;y:number}}
 export function Sidebar({selected,onSelect,lists,tags,onGrowth}:{selected:string;onSelect:(id:string)=>void;lists:ListRow[];tags:TagRow[];onGrowth?:()=>void}){
@@ -61,7 +63,7 @@ export function Sidebar({selected,onSelect,lists,tags,onGrowth}:{selected:string
   {visible('next7',smart?.next7_c??0)&&item('smart:next7','다음 7일',<CalendarRange/>,smart?.next7_c)}
   {inbox&&item('smart:inbox','기본함',<Inbox/>,countOf(inbox.id))}<div className="sidebar__divider"/>
   {section('lists','리스트')}
-  {!collapsed.includes('lists')&&<>{normals.filter(l=>l.pinned||!l.folder_id||!folders.some(f=>f.id===l.folder_id)).map(listItem)}{folders.map(f=><div key={f.id}><div className="sidebar-folder" onContextMenu={e=>context('folder',f,e)}><button aria-label={`${f.name} 펼침`} aria-expanded={!collapsed.includes(f.id)} onClick={()=>toggle(f.id)}><ChevronDown size={13} style={{transform:collapsed.includes(f.id)?'rotate(-90deg)':undefined}}/></button>{item(`folder:${f.id}`,f.name,<Folder/>,normals.filter(l=>l.folder_id===f.id).reduce((n,l)=>n+countOf(l.id),0),null,{kind:'folder',item:f})}</div>{!collapsed.includes(f.id)&&<div className="sidebar-folder-children">{normals.filter(l=>l.folder_id===f.id&&!l.pinned).map(listItem)}</div>}</div>)}
+  {!collapsed.includes('lists')&&<>{normals.filter(l=>l.pinned||!l.folder_id||!folders.some(f=>f.id===l.folder_id)).map(listItem)}{folders.map(f=><div key={f.id}><div className="sidebar-folder" onContextMenu={e=>context('folder',f,e)}><button aria-label={`${f.name} 펼침`} aria-expanded={!collapsed.includes(f.id)} onClick={()=>toggle(f.id)}><ChevronDown size={13} style={{transform:collapsed.includes(f.id)?'rotate(-90deg)':undefined}}/></button>{item(`folder:${f.id}`,splitEmoji(f.name).name,splitEmoji(f.name).emoji?<span className="sidebar__emoji sidebar__emoji--folder">{splitEmoji(f.name).emoji}</span>:<Folder/>,normals.filter(l=>l.folder_id===f.id).reduce((n,l)=>n+countOf(l.id),0),null,{kind:'folder',item:f})}</div>{!collapsed.includes(f.id)&&<div className="sidebar-folder-children">{normals.filter(l=>l.folder_id===f.id&&!l.pinned).map(listItem)}</div>}</div>)}
   {archived.length>0&&<><button className="sidebar-archive" onClick={()=>toggle('archive')}><Archive size={16}/>보관 목록</button>{collapsed.includes('archive')&&archived.map(l=><div className="sidebar-archive-item" key={l.id}><button onClick={()=>onSelect(`list:${l.id}`)}>{l.name}</button><button onClick={()=>void perform(()=>archiveList(l.id,false))}>복원</button></div>)}</>}
   </>}
   {visible('filters',filters.length)&&<>{section('filters','필터',()=>setFilterEditor({}))}{!collapsed.includes('filters')&&filters.map(f=><div className="filter-sidebar-row" key={f.id} onContextMenu={e=>{e.preventDefault();setFilterMenu({item:f,point:{x:e.clientX,y:e.clientY}})}}>{item(`filter:${f.id}`,f.name,f.emoji||<ListFilter/>)}<button className="filter-row-menu" aria-label={`${f.name} 필터 메뉴`} onClick={e=>setFilterMenu({item:f,point:{x:e.clientX,y:e.clientY}})}><MoreHorizontal size={14}/></button></div>)}</>}

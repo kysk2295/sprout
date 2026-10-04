@@ -29,6 +29,7 @@ import type { Schedule } from '../lib/taskActions'
 import { INDENT, TaskRowView } from './TaskRow'
 import { useToast } from './Toast'
 import { FoldRow, OverdueCard, useFoldSetting, YesterdayBand } from './overdue/OverdueBits'
+import { InboxSuggestCard } from './listSuggest/ListSuggest'
 import { isFolded } from '../data/overdue'
 
 // 02-task-list §3~§12: 머리 · 추가 바 · 그룹 · 행 · 선택/키보드 · 끌어 놓기 · 우클릭 메뉴 · 완료 영역 · 빈 상태
@@ -594,8 +595,9 @@ export function TaskListView(props: Props) {
         />
       )}
       <div className="list__scroll" ref={scrollRef} onPointerDown={startBox}>
-        {empty && (
+        {view === 'smart:inbox' && <InboxSuggestCard />}{/* 30 §B 기본함 정리·AI 제안 카드 */}
         {view === 'smart:today' && <YesterdayBand today={today} onMove={(ids) => void actions.moveDates(ids, today, `어제 못 한 ${ids.length}개를 오늘로 옮겼어요`)} />}
+        {empty && (
           view === 'smart:today' ? <EmptyState title="오늘 할 일이 없어요" hint="입력창을 눌러 추가하세요" />
             : archive ? <EmptyState title={view === 'smart:trash' ? '휴지통이 비어 있어요' : '태스크가 없어요'} />
               : <EmptyState title="할 일이 없어요" hint="입력창을 눌러 추가하세요" />
@@ -629,11 +631,11 @@ export function TaskListView(props: Props) {
                 )}
               </div>
             )}
-            {g.rows.map(renderRow)}
-          </section>
             {g.id === 'overdue' && (view === 'smart:today' || view === 'smart:all') && !collapsedGroups.has(g.id) && <OverdueCard today={today} />}
-        ))}
+            {g.rows.map(renderRow)}
             {g.id === 'overdue' && !!g.folded && !collapsedGroups.has(g.id) && <FoldRow count={g.folded} />}
+          </section>
+        ))}
         {showDone && doneTasks.length > 0 && (
           <section className="group done">
             <div className="group__header done__header" onClick={() => toggleGroup('done')}>

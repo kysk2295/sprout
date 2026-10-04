@@ -116,7 +116,7 @@
 /* ── 메뉴 부품 ── */
 .map-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--color-text-quaternary); flex-shrink: 0; }
 .menu__icon .map-dot { margin: 0 3px; }
-.map-indent { display: inline-block; width: 12px; }
+.map-indent { display: inline-flex; padding-left: 12px; }
 .map-move-list { max-height: 320px; overflow-y: auto; }
 .map-check { width: 14px; height: 14px; color: var(--color-accent); margin-left: auto; }
 
@@ -215,3 +215,18 @@
 }
 /* 점 격자(시안 ③-b): SVG 속성에는 CSS 변수가 안 먹어서 색은 CSS로 */
 .map-canvas .map-dots .react-flow__background-pattern.dots { fill: var(--color-text-quaternary); opacity: .5; }
+
+/* v2.0 폴더 › 리스트 — 아이콘(이모지·≡·폴더 그림), AI 제안 카드 자리, 빈 폴더, 이동 메뉴 폴더 머리 */
+.map-icon { display: inline-grid; place-items: center; width: 16px; height: 16px; flex: 0 0 auto; font-size: 13px; line-height: 1; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", var(--font-family); color: var(--color-text-tertiary); }
+.map-icon__glyph { font-family: var(--font-family); font-size: 14px; }
+.map-icon__svg { width: 14px; height: 14px; }
+.map-suggest { flex-shrink: 0; margin: 0 21px; }
+.map-suggest:empty { display: none; }
+.map-suggest .ls-card { margin-bottom: 6px; }
+.map-col__empty { margin: 8px 4px; font: var(--text-meta); color: var(--color-text-tertiary); }
+.map-col__btn--ai { color: var(--color-accent); }
+.map-fold--ai { color: var(--color-accent); display: grid; place-items: center; }
+.map-fold--ai svg { width: 12px; height: 12px; }
+.map-move-list__folder { display: flex; align-items: center; gap: 6px; padding: 6px 8px 2px; font: var(--text-meta); color: var(--color-text-tertiary); }
+.map-board__new { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.map-card .ls-chip--card { margin-left: 2px; }

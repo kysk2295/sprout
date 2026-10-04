@@ -1,14 +1,16 @@
-// 14 작업 지도 v1.2 — 머리(그래프·보드 · 기간 · ✦ · 거름틀 · ⋯), 알림 띠, 그래프/보드, 상세 패널(02와 같은 컴포넌트)
-import { Check, Filter, HelpCircle, MoreHorizontal, Network, Sparkles, Square, Trash2, Unlock, X } from 'lucide-react'
+// 14 작업 지도 v2.0 — 머리(그래프·보드 · 기간 · ✦ 기본함 정리 · 거름틀 · ⋯), AI 제안 카드, 그래프/보드, 상세 패널(02와 같은 컴포넌트).
+// 내 폴더 › 리스트 › 할 일을 틱틱처럼 직접 고친다. AI는 기본함 할 일에 대한 제안만(30 §B).
+import { Check, Filter, FolderPlus, HelpCircle, ListPlus, MoreHorizontal, Network, RotateCcw, Sparkles, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { localModels } from '../../../../shared/assistant'
-import { isUnavailable } from '../../data/ai'
 import { setGoalProgress, type GoalRow } from '../../data/growth'
+import { loadApplySnapshot, undoApply } from '../../data/listSuggest'
 import {
-  acceptLink, clearAiClassification, connect, createAreaStmts, deleteAreaStmts, dropLink, mergeAreaStmts, placeTaskStmts,
-  readMap, releaseUserPlacements, renameAreaStmts, reorganize, undoReorganize, type MapArea
+  acceptLink, connect, createFolderStmts, dropLink, folderView, moveListStmts, readLinks, renameFolderStmts, renameListStmts, reorderFoldersStmts, type MapFolder, type MapList
 } from '../../data/map'
-import { createTask, run, update } from '../../data/mutations'
+import { getDb } from '../../data/db'
+import { createTask, run } from '../../data/mutations'
+import { deleteOrganization, type OrganizationItem } from '../../data/organization'
 import { useQuery } from '../../data/useQuery'
 import type { ListRow, TagRow } from '../../data/types'
 import { listLabel } from '../../data/types'
@@ -16,6 +18,8 @@ import { useTaskActions } from '../../lib/taskActions'
 import { eulReul } from '../../lib/josa'
 import { DetailPane } from '../DetailPane'
 import { Dialog } from '../Dialog'
+import { InboxSuggestCard, openInboxOrganize } from '../listSuggest/ListSuggest'
+import { OrganizationEditor } from '../OrganizationEditor'
 import { MenuItem, Popover, SubMenu } from '../Popover'
 import { Resizer } from '../Resizer'
 import { useToast } from '../Toast'
@@ -26,11 +30,8 @@ import { DEFAULT_OPTIONS, useMapData, useStored, useStoredValue, type MapOptions
 import './map.css'
 
 const DETAIL = { def: 298, min: 260, max: 560 }
-type Banner = { kind: 'done'; count: number; runId: string; stopped?: boolean } | { kind: 'running'; done: number; total: number }
 type Notice = { id: number; text: string; action?: { label: string; run: () => void }; sticky?: boolean }
-// ✦ 다시 정리는 화면을 떠나도 계속 돈다 → 진행 띠·멈추기를 화면 밖(모듈)에 둬서 돌아와도 보이게(안 그러면 ✦를 또 눌러 겹쳐 돌고 되돌리기 기준이 바뀐다)
-const organizing: { banner?: Banner; stop?: AbortController; subs: Set<(b: Banner | undefined) => void> } = { subs: new Set() }
-const setOrganizing = (b: Banner | undefined) => { organizing.banner = b; organizing.subs.forEach((f) => f(b)) }
+type Confirm = { kind: 'list'; list: MapList } | { kind: 'folder'; folder: MapFolder }
 
 export function WorkMapView({ lists, onTasks }: { lists: ListRow[]; onOpen: (taskId: string) => void; onTasks: () => void }) {
   const toast = useToast()
@@ -43,20 +44,15 @@ export function WorkMapView({ lists, onTasks }: { lists: ListRow[]; onOpen: (tas
   const [detailW, setDetailW] = useState(DETAIL.def)
   const [editing, setEditing] = useState<string | null>(null)
   const [checking, setChecking] = useState<Set<string>>(new Set())
-  const [banner, setBannerState] = useState<Banner | undefined>(organizing.banner)
-  useEffect(() => { organizing.subs.add(setBannerState); return () => { organizing.subs.delete(setBannerState) } }, [])
-  const setBanner = setOrganizing
-  const [flash, setFlash] = useState<Set<string>>(new Set())
-  const [confirm, setConfirm] = useState<MapArea>()
+  const [flash] = useState<Set<string>>(new Set())
+  const [confirm, setConfirm] = useState<Confirm>()
+  const [editor, setEditor] = useState<{ kind: 'list' | 'folder'; item?: OrganizationItem; folderId?: string }>()
   const [pop, setPop] = useState<{ kind: 'filter' | 'more'; anchor: HTMLElement }>()
   const [help, setHelp] = useState(false)
   const [notice, setNotice] = useState<Notice>()
   const [aiOk, setAiOk] = useState<boolean | null>(null)
-  const [skipIntro, setSkipIntro] = useState(false)
-  const [newAreaKey, setNewAreaKey] = useState(0)
-  const stop = { get current() { return organizing.stop }, set current(c: AbortController | undefined) { organizing.stop = c } }
 
-  // AI를 쓸 수 있는지(맥미니 Ollama) — 처음·앱 포커스 때 확인
+  // AI를 쓸 수 있는지(서버 프록시 → Mac mini) — 처음·앱 포커스 때 확인. 없어도 지도는 그대로 쓴다(제안만 안 나옴)
   useEffect(() => {
     let alive = true
     const probe = async () => {
@@ -77,11 +73,6 @@ export function WorkMapView({ lists, onTasks }: { lists: ListRow[]; onOpen: (tas
     return () => window.clearTimeout(t)
   }, [notice])
 
-  const changed = useMemo(() => {
-    if (banner?.kind !== 'done') return new Set<string>()
-    return new Set(data.taskAreas.filter((r) => r.run_id === banner.runId).map((r) => r.task_id))
-  }, [banner, data.taskAreas])
-
   const actions: MapActions = useMemo(() => ({
     open: (id) => setSelected(id),
     complete: (id) => {
@@ -91,7 +82,7 @@ export function WorkMapView({ lists, onTasks }: { lists: ListRow[]; onOpen: (tas
         await taskActions.complete([id])
         setChecking((s) => { const n = new Set(s); n.delete(id); return n })
         // 앞 할 일을 끝내면 뒤 할 일 안내
-        const { links } = await readMap()
+        const links = await readLinks()
         const next = links.filter((l) => l.kind === 'sequence' && l.state === 'accepted' && l.from_id === id)
         for (const l of next) {
           const others = links.filter((x) => x.kind === 'sequence' && x.state === 'accepted' && x.to_id === l.to_id && x.from_id !== id)
@@ -101,42 +92,50 @@ export function WorkMapView({ lists, onTasks }: { lists: ListRow[]; onOpen: (tas
         }
       }, 400)
     },
-    place: async (taskId, areaId) => { await run(...placeTaskStmts(data.taskAreas, taskId, areaId)) },
-    createArea: async (name, parentId = null) => {
-      const r = createAreaStmts(data.areas, name, parentId)
-      if (!r) return null
-      await run(...r.stmts)
-      setSkipIntro(true)
-      return r.id
+    moveTask: async (taskId, listId) => {
+      const l = data.lists.find((x) => x.id === listId)
+      if (l) await taskActions.move([taskId], l)
     },
-    rename: async (id, name) => {
-      const s = renameAreaStmts(id, name)
+    moveList: async (listId, folderId, beforeId) => {
+      const stmts = moveListStmts(data.lists, listId, folderId, beforeId)
+      if (!stmts.length) return
+      await run(...stmts)
+      const l = data.lists.find((x) => x.id === listId)
+      const f = folderId ? data.folders.find((x) => x.id === folderId) : undefined
+      if (l && (l.folder_id ?? null) !== folderId) {
+        const back = async () => { const ls = await (await getDb()).getAll<MapList>('SELECT id, name, emoji, color, folder_id, kind, sort_order, archived_at FROM lists'); await run(...moveListStmts(ls, listId, l.folder_id ?? null)) }
+        toast.show(f ? `'${l.name}' 리스트를 ${folderView(f.name).name} 폴더로 옮겼어요` : `'${l.name}' 리스트를 폴더 밖으로 옮겼어요`, back)
+      }
+    },
+    renameList: async (list, name) => {
+      const s = renameListStmts(list, name)
       if (!s) return false
       await run(...s)
       setEditing(null)
       return true
     },
-    merge: async (fromId, intoId) => {
-      const from = data.areas.find((a) => a.id === fromId)
-      const into = data.areas.find((a) => a.id === intoId)
-      await run(...mergeAreaStmts(data.areas, data.taskAreas, fromId, intoId))
-      if (from && into) toast.show(`'${from.name}'${eulReul(from.name).slice(from.name.length)} '${into.name}'에 합쳤어요`)
+    renameFolder: async (folder, name) => {
+      const s = renameFolderStmts(folder, name)
+      if (!s) return false
+      await run(...s)
+      setEditing(null)
+      return true
     },
-    remove: (area) => {
-      if (!area.parent_id) { setConfirm(area); return }
-      void run(...deleteAreaStmts(data.areas, data.taskAreas, area.id)).then(() => toast.show('주제를 지웠어요. 할 일은 영역 바로 아래로 옮겼어요'))
+    createFolder: async (name) => {
+      const r = createFolderStmts(data.folders, name)
+      if (!r) return false
+      await run(...r.stmts)
+      return true
     },
-    archive: async (id, on) => { await run(update('map_areas', id, { archived_at: on ? new Date().toISOString() : null })); if (on) toast.show('주제를 보관했어요. 거름틀에서 다시 볼 수 있어요') },
-    addTask: async (areaId, title) => {
-      const list = lists.find((l) => l.kind === 'inbox') ?? lists[0]
-      if (!list) return
-      const id = await createTask({ title, list_id: list.id })
-      const { taskAreas } = await readMap()
-      await run(...placeTaskStmts(taskAreas, id, areaId))
-    },
+    editList: (list, folderId) => setEditor({ kind: 'list', item: list ? { ...list } : undefined, folderId: folderId ?? undefined }),
+    editFolder: (folder) => setEditor({ kind: 'folder', item: folder ? { ...folder } : undefined }),
+    removeList: (list) => setConfirm({ kind: 'list', list }),
+    ungroup: (folder) => setConfirm({ kind: 'folder', folder }),
+    addTask: async (listId, title) => { await createTask({ title, list_id: listId }) },
     trash: (id) => taskActions.trash([id]).then(() => { if (selected === id) setSelected(null) }),
-    editing, setEditing, checking, selected, changed, flash
-  }), [data, taskActions, lists, toast, say, editing, checking, selected, changed, flash])
+    organize: openInboxOrganize,
+    editing, setEditing, checking, selected, flash
+  }), [data, taskActions, toast, say, editing, checking, selected, flash])
 
   const linkActions: LinkActions = useMemo(() => ({
     connect: (kind, from, to) => void connect(kind, from, to).then((r) => { if (r === 'cycle') toast.show('순서가 돌고 돌아서 이을 수 없어요') }),
@@ -159,36 +158,10 @@ export function WorkMapView({ lists, onTasks }: { lists: ListRow[]; onOpen: (tas
     }
   }, [data.goals, data.links, skipGoals, notice, say])
 
-  // ✦ AI로 다시 정리
-  const organize = async () => {
-    if (banner?.kind === 'running') return
-    const ctrl = new AbortController()
-    stop.current = ctrl
-    setBanner({ kind: 'running', done: 0, total: 0 })
-    try {
-      const r = await reorganize({ signal: ctrl.signal, onProgress: (done, total) => setBanner({ kind: 'running', done, total }) })
-      setBanner({ kind: 'done', count: r.count, runId: r.runId, stopped: ctrl.signal.aborted })
-      setSkipIntro(true)
-    } catch (e) {
-      if (ctrl.signal.aborted) { setBanner(undefined); return }
-      setBanner(undefined)
-      if (isUnavailable(e)) { setAiOk(false); toast.show('지금은 AI를 쓸 수 없어요. 직접 영역을 만들어 정리할 수 있어요.') }
-      else toast.show('AI 정리에 실패했어요. 잠시 뒤 다시 시도해 주세요.')
-    }
-  }
-  const undo = async () => {
-    setBanner(undefined)
-    if (await undoReorganize()) toast.show('정리 전으로 되돌렸어요')
-  }
-  const showChanged = () => {
-    setFlash(new Set(changed))
-    window.setTimeout(() => setFlash(new Set()), 2000)
-  }
-
-  const aiTitle = aiOk === false ? '지금은 AI를 쓸 수 없어요. 직접 영역을 만들어 정리할 수 있어요.' : 'AI로 다시 정리'
-  const firstRun = data.loaded && !skipIntro && data.areas.length === 0 && data.allOpen > 0
-  const noTasks = data.loaded && data.allOpen === 0 && data.tasks.length === 0 && data.areas.length === 0
+  const aiTitle = aiOk === false ? '지금은 AI를 쓸 수 없어요. 리스트는 직접 만들어 옮길 수 있어요.' : '기본함 정리 — AI가 리스트를 제안해요'
+  const noTasks = data.loaded && data.allOpen === 0 && data.tasks.length === 0 && data.lists.filter((l) => l.kind !== 'inbox' && !l.archived_at).length === 0
   const setOpt = <K extends keyof MapOptions>(k: K, v: MapOptions[K]) => setOpts((o) => ({ ...o, [k]: v }))
+  const undoSnap = pop?.kind === 'more' ? loadApplySnapshot() : null
 
   return (
     <main className="workspace map">
@@ -208,46 +181,28 @@ export function WorkMapView({ lists, onTasks }: { lists: ListRow[]; onOpen: (tas
             </span>
           )}
           <span className="map-tip" data-tip={aiTitle}>
-            <button className={`icon-btn${banner?.kind === 'running' ? ' is-spinning' : ''}`} aria-label={aiTitle} disabled={aiOk === false || banner?.kind === 'running'} onClick={() => void organize()}><Sparkles /></button>
+            <button className="icon-btn" aria-label={aiTitle} disabled={aiOk === false} onClick={openInboxOrganize}><Sparkles /></button>
           </span>
           <button className="icon-btn" aria-label="보기 옵션" onClick={(e) => setPop({ kind: 'filter', anchor: e.currentTarget })}><Filter /></button>
           <button className="icon-btn" aria-label="더 보기" onClick={(e) => setPop({ kind: 'more', anchor: e.currentTarget })}><MoreHorizontal /></button>
         </header>
 
-        {banner?.kind === 'running' && (
-          <div className="map-banner"><Sparkles className="map-banner__icon" />{banner.total ? `할 일 ${banner.total}개를 정리하는 중…` : '정리할 할 일을 모으는 중…'}{banner.total > 0 && <span className="map-banner__meta">{banner.done}/{banner.total}</span>}
-            <span className="map-banner__acts"><button className="map-btn" onClick={() => stop.current?.abort()}><Square />멈추기</button></span></div>
-        )}
-        {banner?.kind === 'done' && (
-          <div className="map-banner"><Sparkles className="map-banner__icon" />{banner.stopped ? `멈췄어요. 할 일 ${banner.count}개까지 분류했어요.` : `할 일 ${banner.count}개를 분류했어요.`} 직접 옮긴 항목은 그대로 뒀어요.
-            <span className="map-banner__acts">
-              <button className="map-btn map-btn--text" onClick={showChanged} disabled={!changed.size}>바뀐 것 보기</button>
-              <button className="map-btn" onClick={() => void undo()}>되돌리기</button>
-              <button className="icon-btn map-banner__close" aria-label="닫기" onClick={() => setBanner(undefined)}><X /></button>
-            </span>
-          </div>
-        )}
+        <div className="map-suggest"><InboxSuggestCard compact /></div>
 
         {!data.loaded ? <div className="map-fill" /> : noTasks ? (
           <div className="map-empty">
             <Network className="map-empty__icon" />
             <p className="map-empty__title">정리할 할 일이 없어요</p>
-            <div className="map-empty__acts"><button className="map-btn" onClick={onTasks}>할 일 목록 열기</button></div>
-          </div>
-        ) : firstRun ? (
-          <div className="map-empty">
-            <Network className="map-empty__icon" />
-            <p className="map-empty__title">할 일을 영역별로 한눈에 보여 드려요</p>
-            <p className="map-empty__hint">학교·회사·개인처럼 AI가 나눠 드리고, 직접 고칠 수도 있어요</p>
+            <p className="map-empty__hint">리스트를 만들고 할 일을 넣으면 폴더 › 리스트 › 할 일이 지도로 보여요</p>
             <div className="map-empty__acts">
-              <span className="map-tip" data-tip={aiOk === false ? aiTitle : undefined}><button className="map-btn map-btn--primary" disabled={aiOk === false || banner?.kind === 'running'} onClick={() => void organize()}>AI로 정리하기</button></span>
-              <button className="map-btn" onClick={() => { setSkipIntro(true); setView('board'); setNewAreaKey((k) => k + 1) }}>직접 영역 만들기</button>
+              <button className="map-btn map-btn--primary" onClick={() => actions.editList()}>새 리스트</button>
+              <button className="map-btn" onClick={onTasks}>할 일 목록 열기</button>
             </div>
           </div>
         ) : view === 'graph' ? (
           <MapGraph data={data} actions={actions} links={linkActions} onBlank={() => setEditing(null)} />
         ) : (
-          <MapBoard key={newAreaKey} data={data} actions={actions} autoNewArea={newAreaKey > 0} onReorder={(ids) => void run(...ids.map((id, i) => update('map_areas', id, { sort_order: i + 1 })))} />
+          <MapBoard data={data} actions={actions} onReorderFolders={(ids) => void run(...reorderFoldersStmts(data.folders, ids))} />
         )}
 
         {notice && (
@@ -270,7 +225,6 @@ export function WorkMapView({ lists, onTasks }: { lists: ListRow[]; onOpen: (tas
         <Popover anchor={pop.anchor} align="end" width={230} onClose={() => setPop(undefined)} className="menu">
           <MenuItem label="완료한 항목 보이기" onClick={() => setOpt('showDone', !opts.showDone)} trail={opts.showDone ? <Check className="map-check" /> : undefined} />
           <MenuItem label="날짜 없는 항목 보이기" onClick={() => setOpt('showNoDate', !opts.showNoDate)} trail={opts.showNoDate ? <Check className="map-check" /> : undefined} />
-          <MenuItem label="보관한 주제 보이기" onClick={() => setOpt('showArchived', !opts.showArchived)} trail={opts.showArchived ? <Check className="map-check" /> : undefined} />
           {view === 'graph' && <MenuItem label="메모 보이기" onClick={() => setOpt('showMemos', !opts.showMemos)} trail={opts.showMemos ? <Check className="map-check" /> : undefined} />}
           <div className="menu__divider" />
           <MenuItem label="범위: 모든 리스트" onClick={() => setOpt('lists', null)} trail={!opts.lists ? <Check className="map-check" /> : undefined} />
@@ -288,19 +242,29 @@ export function WorkMapView({ lists, onTasks }: { lists: ListRow[]; onOpen: (tas
       )}
       {pop?.kind === 'more' && (
         <Popover anchor={pop.anchor} align="end" width={230} onClose={() => setPop(undefined)} className="menu">
-          <MenuItem icon={<Trash2 />} label="AI 분류 모두 지우기" onClick={() => { setPop(undefined); void clearAiClassification().then(() => toast.show('AI 분류를 지웠어요. 직접 옮긴 것은 남겨 뒀어요')) }} />
-          <MenuItem icon={<Unlock />} label="직접 옮긴 것도 AI에 맡기기" onClick={() => { setPop(undefined); void releaseUserPlacements().then(() => toast.show('다음 정리부터 AI가 함께 정리해요')) }} />
+          <MenuItem icon={<ListPlus />} label="새 리스트" onClick={() => { setPop(undefined); actions.editList() }} />
+          <MenuItem icon={<FolderPlus />} label="새 폴더" onClick={() => { setPop(undefined); actions.editFolder() }} />
+          <div className="menu__divider" />
+          <MenuItem icon={<Sparkles />} label="기본함 정리" disabled={aiOk === false} onClick={() => { setPop(undefined); openInboxOrganize() }} />
+          <MenuItem icon={<RotateCcw />} label="기본함 정리 되돌리기" disabled={!undoSnap} onClick={() => { setPop(undefined); void undoApply().then((ok) => toast.show(ok ? '기본함 정리를 되돌렸어요' : '되돌릴 정리가 없어요')) }} />
           <div className="menu__divider" />
           <MenuItem icon={<HelpCircle />} label="작업 지도 도움말" onClick={() => { setPop(undefined); setHelp(true) }} />
         </Popover>
       )}
+      {editor && <OrganizationEditor kind={editor.kind} item={editor.item} folderId={editor.folderId} folders={data.folders} onClose={() => setEditor(undefined)} onSaved={() => setEditor(undefined)} />}
       {confirm && (
-        <Dialog label="영역 삭제" className="map-dialog" onClose={() => setConfirm(undefined)}>
-          <h2>'{confirm.name}' 영역을 삭제할까요?</h2>
-          <p>안의 세부 주제도 함께 지워져요. 할 일은 지우지 않고 미분류로 옮겨요.</p>
+        <Dialog label={confirm.kind === 'list' ? '리스트 삭제' : '폴더 해제'} className="map-dialog" onClose={() => setConfirm(undefined)}>
+          <h2>{confirm.kind === 'list' ? `'${confirm.list.name}' 리스트를 삭제할까요?` : `'${folderView(confirm.folder.name).name}' 폴더를 해제할까요?`}</h2>
+          <p>{confirm.kind === 'list' ? '리스트의 할 일을 휴지통으로 옮겨요. 리스트는 보관 목록에서 복원할 수 있어요.' : '폴더만 없어지고 안의 리스트는 그대로 남아요.'}</p>
           <footer>
             <button className="map-btn" onClick={() => setConfirm(undefined)}>취소</button>
-            <button className="map-btn map-btn--danger" data-autofocus onClick={() => { const a = confirm; setConfirm(undefined); void run(...deleteAreaStmts(data.areas, data.taskAreas, a.id)).then(() => toast.show('영역을 삭제했어요. 할 일은 미분류로 옮겼어요')) }}>삭제</button>
+            <button className="map-btn map-btn--danger" data-autofocus onClick={() => {
+              const c = confirm
+              setConfirm(undefined)
+              void (c.kind === 'list' ? deleteOrganization('list', c.list.id) : deleteOrganization('folder', c.folder.id))
+                .then(() => toast.show(c.kind === 'list' ? '리스트를 삭제했어요' : '폴더를 해제했어요'))
+                .catch((e) => toast.show(String(e instanceof Error ? e.message : e)))
+            }}>{confirm.kind === 'list' ? '삭제' : '해제'}</button>
           </footer>
         </Dialog>
       )}
@@ -308,11 +272,11 @@ export function WorkMapView({ lists, onTasks }: { lists: ListRow[]; onOpen: (tas
         <Dialog label="작업 지도 도움말" className="map-dialog" onClose={() => setHelp(false)}>
           <h2>작업 지도 도움말</h2>
           <ul>
-            <li>새 할 일은 AI가 영역 › 세부 주제로 자동으로 나눠요. 애매하면 미분류에 두고 '확인 필요'를 붙여요.</li>
-            <li>카드를 끌어 다른 영역·주제로 옮기면 📌 직접 옮긴 항목이 되고, AI가 다시 정리해도 그대로예요.</li>
-            <li>그래프에서 할 일 아래 점을 끌어 다른 할 일에 놓으면 '먼저 해야 함' 선이 생겨요. 선을 누르고 Delete = 끊기.</li>
-            <li>목표(🎯) 위의 점을 끌어 할 일에 놓으면 목표 연결. 연결된 할 일을 다 끝내면 달성을 제안해요.</li>
-            <li>영역을 두 번 누르면 그 영역만 크게 봐요. Esc = 전체.</li>
+            <li>내 폴더 › 리스트 › 할 일을 한눈에 봐요. 사이드바의 리스트와 같은 것이에요.</li>
+            <li>할 일 카드를 다른 리스트로 끌면 그 리스트로 옮겨져요. 리스트를 폴더에 끌어 넣거나 뿌리(나의 할 일)에 놓으면 폴더 밖으로 나와요.</li>
+            <li>이름을 두 번 누르면 바로 고칠 수 있어요. ⋯ 메뉴에서 편집(아이콘·색)·폴더로 옮기기·삭제.</li>
+            <li>✦ 기본함 정리: AI가 기본함 할 일을 보고 리스트를 제안해요. 확인하고 [이대로 만들기]를 눌러야 만들어져요.</li>
+            <li>그래프에서 할 일 아래 점을 끌어 다른 할 일에 놓으면 '먼저 해야 함' 선, 목표(🎯) 위 점을 끌어 할 일에 놓으면 목표 연결.</li>
           </ul>
           <footer><button className="map-btn map-btn--primary" data-autofocus onClick={() => setHelp(false)}>확인</button></footer>
         </Dialog>

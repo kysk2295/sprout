@@ -3,6 +3,7 @@ import type { MouseEvent, PointerEvent } from 'react'
 import type { TagRow, TaskRow } from '../data/types'
 import { rowDateLabel } from '../lib/dates'
 import { checkboxColor } from '../lib/priority'
+import { SuggestChip } from './listSuggest/ListSuggest'
 
 // 02 §6 행: 손잡이 · 체크박스 · 제목 · 펼침 · 메타(태그·리스트·⟲·날짜) · 호버 `...`
 export const INDENT = 24
@@ -90,6 +91,7 @@ export function TaskRowView(p: Props) {
         </button>
       )}
       <span className="row__meta">
+        {task.list_kind === 'inbox' && task.status === 0 && !task.deleted_at && !task.parent_id && <SuggestChip taskId={task.id} />}
         {rowTags.map((t) => (
           <span key={t.id} className="tag-pill" style={{ ['--tag-color' as string]: t.color ?? 'var(--color-priority-none)' }}>{t.name}</span>
         ))}

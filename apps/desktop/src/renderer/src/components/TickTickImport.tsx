@@ -5,6 +5,7 @@ import { Dialog } from './Dialog'
 import type { TTBundle, TTConnectInput, TTProgress, TTResult, TTStatus } from '../../../shared/ticktick'
 import { applyImport, importedOpenTaskIds, organizeImported, previewImport, type ImportResult, type Preview } from '../data/ticktickImport'
 import './TickTickImport.css'
+import { OverdueImportButton } from './overdue/OverdueBits' // 19 §3.1 가져온 만료가 많으면 정리
 
 /** preload가 window.sprout.ticktick으로 내놓는 것(17 §7) */
 export interface SproutTickTickApi {
@@ -117,7 +118,7 @@ export function TickTickImport({ onClose, onOpenMap, onOpenCalendar }: Props) {
       setStep({ s: 'organized', count: r.count, total: r.total, result, preview, stopped: ctrl.signal.aborted })
     } catch (e) {
       if (ctrl.signal.aborted) setStep({ s: 'organized', count: 0, total: ids.length, result, preview, stopped: true })
-      else setStep({ s: 'error', error: `AI 정리를 못 했어요 — 지금은 AI를 쓸 수 없어요. 가져온 할 일은 그대로 있고, 작업 지도의 ✦ 다시 정리로 나중에 할 수 있어요. (${e instanceof Error ? e.message : String(e)})` })
+      else setStep({ s: 'error', error: `AI 정리를 못 했어요 — 지금은 AI를 쓸 수 없어요. 가져온 할 일은 그대로 있고, 기본함 정리로 나중에 할 수 있어요. (${e instanceof Error ? e.message : String(e)})` })
     } finally { abort.current = undefined }
   }
   const cancel = () => {
@@ -164,8 +165,8 @@ export function TickTickImport({ onClose, onOpenMap, onOpenCalendar }: Props) {
         {step.s === 'importing' && <Progress label={`가져오고 있어요 (${n(step.done)}/${n(step.total)}줄)`} value={step.done / Math.max(1, step.total)} />}
 
         {(step.s === 'done' || step.s === 'organizing' || step.s === 'organized') && <ResultBody result={step.result} preview={step.preview} />}
-        {step.s === 'organizing' && <Progress label={`작업 지도에 나누고 있어요 (${n(step.done)}/${n(step.total)})`} value={step.done / Math.max(1, step.total)} />}
-        {step.s === 'organized' && <p className="tt-import__note">{step.stopped ? '멈췄어요. ' : ''}할 일 {n(step.count)}개를 작업 지도 영역에 나눴어요{step.total - step.count > 0 ? ` · 나머지 ${n(step.total - step.count)}개는 미분류로 남았어요` : ''}. 작업 지도의 ⋯ › 되돌리기로 정리 전으로 돌릴 수 있어요.</p>}
+        {step.s === 'organizing' && <Progress label={`기본함 할 일에 리스트 제안을 붙이는 중 (${n(step.done)}/${n(step.total)})`} value={step.done / Math.max(1, step.total)} />}
+        {step.s === 'organized' && <p className="tt-import__note">{step.stopped ? '멈췄어요. ' : ''}기본함 할 일 {n(step.count)}개에 리스트 제안을 붙였어요. 아무것도 옮기지 않았어요 — 기본함이나 작업 지도에서 확인하고 옮기세요.</p>}
 
         {step.s === 'error' && <p className="form-error" role="alert">{step.error}</p>}
       </div>
@@ -180,9 +181,10 @@ export function TickTickImport({ onClose, onOpenMap, onOpenCalendar }: Props) {
         </>}
         {(step.s === 'waiting' || step.s === 'fetching' || step.s === 'organizing') && <><span className="tt-import__spacer" /><button type="button" onClick={cancel}>{step.s === 'organizing' ? '멈추기' : '취소'}</button></>}
         {(step.s === 'done' || step.s === 'organized') && <>
-          {step.s === 'done' && <button type="button" className="entry-primary" data-autofocus disabled={!step.result.openTaskIds.length && !step.result.skipped} onClick={() => void organize(step.result, step.preview)}>작업 지도에서 AI로 정리하기</button>}
+          {step.s === 'done' && <button type="button" className="entry-primary" data-autofocus disabled={!step.result.openTaskIds.length && !step.result.skipped} onClick={() => void organize(step.result, step.preview)}>기본함 할 일에 AI 리스트 제안 받기</button>}
           {step.s === 'organized' && onOpenMap && <button type="button" className="entry-primary" data-autofocus onClick={() => { onOpenMap(); onClose() }}>작업 지도 보기</button>}
           {onOpenCalendar && <button type="button" onClick={() => { onOpenCalendar(); onClose() }}>캘린더에서 보기</button>}
+          <OverdueImportButton onOpen={onClose} />
           <span className="tt-import__spacer" />
           <button type="button" onClick={onClose}>닫기</button>
         </>}
@@ -230,6 +232,6 @@ function ResultBody({ result, preview }: { result: ImportResult; preview: Previe
     </dl>
     {result.notesPending > 0 && <p className="tt-import__caption">수집함 노트 {n(result.notesPending)}개는 AI가 차례로 메모·할 일·볼 것으로 나눠요.</p>}
     {result.datedNew > 0 && <p className="tt-import__caption">날짜 있는 할 일 {n(result.datedNew)}개가 캘린더에 보여요.</p>}
-    {preview.plan.stats.open > 0 && <p className="tt-import__caption">작업 지도 정리는 직접 눌러야 시작해요. 정리 전 상태가 보관돼서 되돌릴 수 있어요.</p>}
+    {preview.plan.stats.open > 0 && <p className="tt-import__caption">AI 리스트 제안은 직접 눌러야 시작하고, 제안만 해요(승인해야 옮겨요).</p>}
   </>
 }

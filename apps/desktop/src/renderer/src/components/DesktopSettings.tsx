@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
-import { CircleUser, Keyboard, ListFilter, Palette, Plug, X } from 'lucide-react'
+import { ListSuggestSettings } from './listSuggest/ListSuggest'
+import { CircleUser, Keyboard, ListChecks, ListFilter, Palette, Plug, X } from 'lucide-react'
+import { OverdueSettings } from './overdue/OverdueBits'
 import { authApi, deleteErrorText, deleteMode, deleteReady, DELETE_WORD, providerLabel, useAuth, type DeleteMode } from '../data/auth'
+import { LINK_NAME, linkErrorText, loginMethodRows, linkToast, unlinkToast, type LinkedIdentity, type LinkProvider } from '../data/auth'
 import './account-delete.css'
 import { savePreferences, usePreferences, type Visibility } from '../data/preferences'
 import { Dialog } from './Dialog'
@@ -27,12 +30,13 @@ export function DesktopSettings({ onClose, initial = authApi() ? 'account' : 'sm
   return <Dialog label="설정" className="settings-dialog" onClose={onClose}>
     <nav className="settings-nav" aria-label="설정 항목">
       <button className="icon-btn" aria-label="설정 닫기" onClick={onClose}><X /></button><h2>설정</h2>
-      {([...(authApi() ? [['account','계정',CircleUser]] as const : []),['smart','스마트 목록',ListFilter],['appearance','외관',Palette],['integrations','연동',Plug],['shortcuts','단축키',Keyboard]] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><Icon />{label}</button>)}
+      {([...(authApi() ? [['account','계정',CircleUser]] as const : []),['smart','스마트 목록',ListFilter],['tasks','할 일',ListChecks],['appearance','외관',Palette],['integrations','연동',Plug],['shortcuts','단축키',Keyboard]] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><Icon />{label}</button>)}
     </nav>
     <section className="settings-content">
       {error && <p role="alert" className="form-error">{error}</p>}
       {tab === 'account' && <AccountPane />}
       {tab === 'smart' && <><h2>스마트 목록</h2><div className="settings-card">{SMART.map(([id,label]) => <label className="settings-row" key={id}><span>{label}</span><select aria-label={`${label} 표시`} disabled={id === 'inbox' || !prefs.ready} value={id === 'inbox' ? 'show' : prefs.visibility[id] ?? 'show'} onChange={(e) => void save({smart_list_visibility: JSON.stringify({...prefs.visibility,[id]:e.target.value as Visibility})})}><option value="show">보이기</option><option value="hide">숨기기</option><option value="auto">비어있지 않으면 표시</option></select></label>)}</div></>}
+      {tab === 'tasks' && <><OverdueSettings /><ListSuggestSettings /></>}
       {tab === 'appearance' && <><h2>테마</h2><ThemePicker save={save} /></>}
       {tab === 'integrations' && <IntegrationsPane />}
       {tab === 'shortcuts' && <><h2>단축키</h2><div className="settings-card">{SHORTCUTS.map(([label,key]) => <div className="settings-row" key={label}><span>{label}</span><kbd>{window.sprout?.platform === 'win32' ? key.replaceAll('⌘','Ctrl+') : key}</kbd></div>)}</div></>}
@@ -58,6 +62,7 @@ function AccountPane() {
       <span className="account__sync">{status}</span>
       <button className="account__logout" disabled={busy} onClick={() => setConfirm(true)}>로그아웃</button>
     </div>
+    <LoginMethods email={state.user?.email ?? ''} />
     <DeleteAccount />
     {confirm && <Dialog label="로그아웃" className="organization-dialog" onClose={() => { if (!busy) setConfirm(false) }}>
       <h2>로그아웃할까요?</h2>
@@ -127,4 +132,57 @@ function DeleteAccount() {
       <button type="submit" className="account-delete__btn account-delete__btn--danger" disabled={!ready}>계정 삭제</button>
     </footer>
   </form>
+}
+
+/** 08 §3.1.1 로그인 방법(틱틱 설정 › 계정 "Google · Apple — 연결"): 이메일 ✓ · Google [연결]/연결됨 [연결 해제] · Apple */
+function LoginMethods({ email }: { email: string }) {
+  const api = authApi()
+  const [info, setInfo] = useState<{ hasPassword: boolean; identities: LinkedIdentity[] } | null>(null)
+  const [available, setAvailable] = useState<{ google: boolean; apple: boolean | null }>({ google: false, apple: null })
+  const [busy, setBusy] = useState<LinkProvider | null>(null)
+  const [unlinking, setUnlinking] = useState(false)
+  const [confirm, setConfirm] = useState<LinkProvider | null>(null)
+  const [error, setError] = useState('')
+  const [toast, setToast] = useState('')
+  const load = async () => {
+    if (!api?.loginMethods) return
+    setError('')
+    const [r, st] = await Promise.all([api.loginMethods(), api.socialStatus().catch(() => ({ google: false, apple: null }))])
+    setAvailable({ google: st.google, apple: st.apple })
+    if (r.ok) setInfo({ hasPassword: r.hasPassword, identities: r.identities })
+    else setError(linkErrorText(r) ?? '')
+  }
+  useEffect(() => { void load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!toast) return; const t = window.setTimeout(() => setToast(''), 3500); return () => window.clearTimeout(t) }, [toast])
+  if (!api?.loginMethods) return null
+  const run = async (p: LinkProvider, unlink: boolean) => {
+    setBusy(p); setUnlinking(unlink); setError(''); setConfirm(null)
+    const r = unlink ? await api.unlink(p) : await api.link(p)
+    setBusy(null)
+    if (!r.ok) { const t = linkErrorText(r); if (t) setError(t); return }
+    setInfo((i) => i && { ...i, identities: r.identities })
+    setToast(unlink ? unlinkToast(p) : linkToast(p))
+  }
+  const rows = info ? loginMethodRows({ ...info, available }) : []
+  const meta = { font: 'var(--text-meta)', color: 'var(--color-text-tertiary)' } as const
+  return <>
+    <h3 style={{ font: 'var(--text-body-strong)', margin: '8px 0 8px' }}>로그인 방법</h3>
+    <div className="settings-card" aria-busy={!info && !error}>
+      <div className="settings-row"><span>이메일</span><span style={meta}>{email} {info ? (info.hasPassword ? '✓ 비밀번호 있음' : '비밀번호 없음') : ''}</span></div>
+      {!info && !error && <div className="settings-row"><span style={meta}>확인하는 중…</span></div>}
+      {rows.map((m) => <div className="settings-row" key={m.provider}>
+        <span>{LINK_NAME[m.provider]}</span>
+        {busy === m.provider ? (unlinking ? <span style={meta}>해제하는 중…</span> : <span style={meta}>브라우저에서 계속하는 중… <button type="button" className="account-delete__link" style={{ padding: '2px 6px' }} onClick={() => void api.socialCancel()}>취소</button></span>)
+          : confirm === m.provider ? <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}><span style={meta}>연결을 해제할까요?</span>
+            <button type="button" className="account-delete__btn" onClick={() => setConfirm(null)}>취소</button>
+            <button type="button" className="account-delete__btn account-delete__btn--danger" onClick={() => void run(m.provider, true)}>연결 해제</button></span>
+          : m.linked ? <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}><span style={meta}>연결됨{m.email ? ` · ${m.email}` : ''}</span>
+            <button type="button" className="account-delete__btn" disabled={!!busy || !m.canUnlink} title={m.canUnlink ? undefined : '하나뿐인 로그인 방법이라 해제할 수 없어요'} onClick={() => setConfirm(m.provider)}>연결 해제</button></span>
+          : m.ready ? <button type="button" className="account-delete__btn" disabled={!!busy} onClick={() => void run(m.provider, false)}>연결</button>
+          : <span style={meta}>준비 중</span>}
+      </div>)}
+    </div>
+    {error && <p role="alert" className="account-delete__error" style={{ margin: '-12px 0 16px' }}>{error}{!info && <> <button type="button" className="account-delete__link" style={{ padding: '2px 6px' }} onClick={() => void load()}>다시 시도</button></>}</p>}
+    {toast && <div className="toast" role="status"><span>{toast}</span></div>}
+  </>
 }

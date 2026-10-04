@@ -1,6 +1,7 @@
 // 17 틱틱에서 가져오기: 틱틱 공식 Open API 응답(JSON) → sprout 행. 순수 함수만 둔다(메인·화면·시험이 같이 쓴다).
 // 근거: docs/ticktick-research/21-ticktick-open-api.md, 매핑 표는 docs/screens/17-ticktick-import.md §6
 import { minutesToDuration, parseRule, stringifyRule } from '@sprout/schema/time'
+import { splitEmoji } from './emoji'
 
 // ── 틱틱 응답 모양(공식 문서 정의 + 문서에 없지만 오면 쓰는 칸은 ?) ──
 export interface TTChecklistItem { id: string; title?: string; status?: number; completedTime?: string | number; isAllDay?: boolean; sortOrder?: number; startDate?: string; timeZone?: string }
@@ -244,13 +245,8 @@ export function mapReminder(trigger: string, allDay: boolean): string | null {
   return minutesToDuration(min)
 }
 
-// ── 리스트 이름 앞 이모지 ──
-const EMOJI_HEAD = /^((?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|‍(?:\p{Extended_Pictographic})|\p{Emoji_Modifier}|\p{Regional_Indicator})*)\s*/u
-export function splitEmoji(name: string): { emoji: string | null; name: string } {
-  const m = name.match(EMOJI_HEAD)
-  if (!m || !name.slice(m[0].length).trim()) return { emoji: null, name: name.trim() }
-  return { emoji: m[1], name: name.slice(m[0].length).trim() }
-}
+// ── 리스트 이름 앞 이모지: 폴더 아이콘 표시와 같은 함수(shared/emoji) ──
+export { splitEmoji }
 const COLOR = /^#[0-9a-f]{6}$/i
 const color = (c: string | undefined) => (c && COLOR.test(c) ? c.toUpperCase() : null)
 

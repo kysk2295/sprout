@@ -10,6 +10,7 @@ import { listLabel, type CheckItemRow, type ListRow, type TagRow, type TaskRow }
 import { dayKey, detailDateLabel, rowDateLabel } from '../lib/dates'
 import { checkboxColor, flagColor } from '../lib/priority'
 import type { TaskActions } from '../lib/taskActions'
+import { SuggestChip } from './listSuggest/ListSuggest'
 import { ListPickerBody, PriorityRow, TagPickerBody } from './Pickers'
 import { MenuItem, Popover } from './Popover'
 import { DatePicker } from './DatePicker'
@@ -147,6 +148,7 @@ function DetailBody({ task, lists, tags, actions, onSelect, onClose }: Omit<Prop
         )}
         <Subtasks task={task} onSelect={onSelect} actions={actions} adding={addingSub} setAdding={setAddingSub} />
       </div>
+      {task.list_kind === 'inbox' && task.status === 0 && !task.deleted_at && !task.parent_id && <div className="ls-detail"><SuggestChip taskId={task.id} variant="detail" /></div>}
       <footer className="detail__footer">
         <button ref={listRef} className="detail__list" onClick={() => setMenu(menu === 'list' ? undefined : 'list')}>
           <SquareArrowRight />

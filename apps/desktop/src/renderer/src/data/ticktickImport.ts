@@ -1,9 +1,9 @@
-// 17 틱틱에서 가져오기 — 화면 쪽 데이터: 매핑 계획 만들기 · 이미 가져온 것 세기 · 묶음으로 쓰기 · 가져온 할 일만 작업 지도 AI 정리
+// 17 틱틱에서 가져오기 — 화면 쪽 데이터: 매핑 계획 만들기 · 이미 가져온 것 세기 · 묶음으로 쓰기 · 가져온 기본함 할 일에 AI 리스트 제안(30 §B)
 // 다시 가져와도 겹치지 않는다: 모든 행 id가 틱틱 id에서 정해지고(tt-<사용자>-<종류>-<틱틱 id>), 이미 있는 id는 건너뛴다(sprout에서 고친 내용을 덮어쓰지 않는다).
 import { planImport, shortHash, type ImportPlan, type MapContext, type TTBundle } from '../../../shared/ticktick'
 import { itemRow } from './collect'
 import { getDb, type Stmt } from './db'
-import { classifierBaseline, classifyTasks, LIMITS, pruneEmptyAiStmts, readMap, saveSnapshot, serial, takeSnapshot } from './map'
+import { askAi, readSuggestContext, serial, suggestBaseline, suggestStore, SUGGEST } from './listSuggest'
 import { insert, now, run, uuid } from './mutations'
 
 const TABLE_ORDER = ['folders', 'lists', 'sections', 'tags', 'tasks', 'check_items', 'task_tags', 'reminders'] as const
@@ -24,8 +24,8 @@ export async function buildContext(at = now()): Promise<MapContext> {
   if (!inbox) throw new Error('기본함을 찾지 못했어요. 앱을 다시 열어 주세요.')
   const tags = await db.getAll<{ id: string; name: string }>('SELECT id, name FROM tags')
   const max = async (table: string) => (await db.get<{ m: number | null }>(`SELECT max(sort_order) AS m FROM ${table}`))?.m ?? 0
-  // 만든 시각이 없는 행은 작업 지도 자동 분류 기준 시각보다 앞으로 — 가져온 수천 개가 5초마다 AI로 가지 않게(정리는 [AI로 정리하기]로)
-  const base = Date.parse(classifierBaseline())
+  // 만든 시각이 없는 행은 새 할 일 자동 분류 기준 시각보다 앞으로 — 가져온 수천 개가 5초마다 AI로 가지 않게(정리는 기본함 정리로)
+  const base = Date.parse(suggestBaseline())
   const fallback = new Date(Math.min(Number.isFinite(base) ? base - 1000 : Date.parse(at), Date.parse(at))).toISOString()
   return {
     scope: await importScope(),
@@ -108,24 +108,25 @@ export async function importedOpenTaskIds(scope?: string): Promise<string[]> {
   return rows.map((r) => r.id)
 }
 
-/** 가져온 할 일만 작업 지도 AI로 나눈다(14 ✦ 다시 정리와 같은 방식: 정리 전 상태 보관 → 되돌리기 가능, 직접 옮긴 것은 건드리지 않음) */
-export async function organizeImported(taskIds: string[], opts: { signal: AbortSignal; onProgress?: (done: number, total: number) => void; chat?: Parameters<typeof classifyTasks>[1]['chat'] }): Promise<{ runId: string; count: number; total: number }> {
+/**
+ * 가져온 할 일 중 기본함에 있는 것만 AI 리스트 제안을 받는다(30 §B — 이미 리스트가 있는 할 일은 건드리지 않고, 아무것도 옮기지 않는다).
+ * 결과는 기본함 칩·기본함 정리 카드로 보인다. count = 이미 있는 리스트 제안이 붙은 수
+ */
+export async function organizeImported(taskIds: string[], opts: { signal: AbortSignal; onProgress?: (done: number, total: number) => void; chat?: Parameters<typeof askAi>[2]['chat'] }): Promise<{ runId: string; count: number; total: number }> {
   return serial(async () => {
-    const before = await readMap()
-    const runId = uuid()
-    saveSnapshot(takeSnapshot(before.areas, before.taskAreas, runId))
-    const user = new Set(before.taskAreas.filter((r) => r.source === 'user').map((r) => r.task_id))
-    const ids = taskIds.filter((id) => !user.has(id))
+    const { lists, tasks } = await readSuggestContext()
+    const want = new Set(taskIds)
+    const s = suggestStore.get()
+    const todo = tasks.filter((t) => want.has(t.id) && !s.dismissed[t.id])
     let count = 0
-    opts.onProgress?.(0, ids.length)
-    for (let i = 0; i < ids.length; i += LIMITS.batch) {
+    opts.onProgress?.(0, todo.length)
+    for (let i = 0; i < todo.length; i += SUGGEST.structureBatch) {
       if (opts.signal.aborted) break
-      const r = await classifyTasks(ids.slice(i, i + LIMITS.batch), { signal: opts.signal, runId, chat: opts.chat })
-      count += r.assigned.length + r.review
-      opts.onProgress?.(Math.min(ids.length, i + LIMITS.batch), ids.length)
+      const part = await askAi(todo.slice(i, i + SUGGEST.structureBatch), lists, { signal: opts.signal, chat: opts.chat, structure: true })
+      suggestStore.put(part)
+      count += part.filter((x) => x.listId).length
+      opts.onProgress?.(Math.min(todo.length, i + SUGGEST.structureBatch), todo.length)
     }
-    const after = await readMap()
-    await run(...pruneEmptyAiStmts(after.areas, after.taskAreas))
-    return { runId, count, total: ids.length }
+    return { runId: uuid(), count, total: todo.length }
   })
 }

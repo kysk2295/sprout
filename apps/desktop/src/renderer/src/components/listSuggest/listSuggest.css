@@ -1,0 +1,69 @@
+/* 30 §B.3 AI 리스트 제안 — 칩(AI 제안은 점선 테두리 + ✦, 14 점선 제안 선과 같은 말투) · 기본함 카드 · 정리 창 */
+.ls-chip { display: inline-flex; align-items: center; gap: 2px; height: 20px; padding: 0 2px 0 6px; border: 1px dashed var(--color-accent); border-radius: 10px; color: var(--color-accent); font: var(--text-meta); font-size: 11.5px; white-space: nowrap; max-width: 220px; flex: 0 1 auto; }
+.ls-chip__spark { width: 11px; height: 11px; flex: 0 0 auto; }
+.ls-chip__go { color: inherit; overflow: hidden; text-overflow: ellipsis; padding: 0 2px; }
+.ls-chip__go:hover { text-decoration: underline; }
+.ls-chip__x { width: 16px; height: 16px; display: grid; place-items: center; border-radius: 8px; color: var(--color-text-tertiary); flex: 0 0 auto; }
+.ls-chip__x:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.ls-chip__x svg { width: 11px; height: 11px; }
+.ls-chip--detail { height: 24px; font-size: 12px; padding-left: 8px; border-radius: 12px; max-width: 100%; }
+.ls-chip--card { height: 18px; font-size: 11px; max-width: 150px; }
+
+.ls-card { display: flex; align-items: center; gap: 10px; margin: 4px 0 8px; padding: 8px 10px 8px 12px; border: 1px dashed var(--color-accent); border-radius: 8px; background: var(--color-accent-subtle); color: var(--color-text-primary); font: var(--text-body); }
+.ls-card.is-compact { margin: 0; }
+.ls-card__icon { width: 15px; height: 15px; color: var(--color-accent); flex: 0 0 auto; }
+.ls-card__text { flex: 1; min-width: 0; }
+.ls-card__meta { color: var(--color-text-tertiary); font: var(--text-meta); }
+.ls-card__acts { display: flex; gap: 6px; flex: 0 0 auto; }
+@media (max-width: 720px) { .ls-card { flex-wrap: wrap; } .ls-card__acts { width: 100%; justify-content: flex-end; } }
+
+.ls-btn { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 4px; border: 1px solid var(--color-border-divider); color: var(--color-text-primary); font: var(--text-meta); background: transparent; white-space: nowrap; }
+.ls-btn:hover:not(:disabled) { background: var(--color-bg-hover); }
+.ls-btn:disabled { opacity: 0.45; }
+.ls-btn svg { width: 12px; height: 12px; }
+.ls-btn--primary { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+.ls-btn--primary:hover:not(:disabled) { background: var(--color-accent); filter: brightness(1.08); }
+
+.ls-dialog { width: 520px; max-width: calc(100vw - 32px); max-height: min(680px, calc(100vh - 140px)); padding: 20px 24px; display: flex; flex-direction: column; }
+.ls-dialog--wide { width: 640px; }
+.ls-dialog__head { display: flex; align-items: center; justify-content: space-between; }
+.ls-dialog__head h2 { margin: 0; font: var(--text-body-strong); display: flex; align-items: center; gap: 6px; }
+.ls-dialog__spark { width: 16px; height: 16px; color: var(--color-accent); }
+.ls-dialog__hint { margin: 8px 0 12px; font: var(--text-meta); color: var(--color-text-secondary); }
+.ls-dialog__foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.ls-dialog__sum { flex: 1; font: var(--text-meta); color: var(--color-text-tertiary); }
+.ls-empty { margin: 24px 0; text-align: center; font: var(--text-meta); color: var(--color-text-tertiary); }
+.ls-progress { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; background: var(--color-bg-input); font: var(--text-meta); color: var(--color-text-secondary); }
+.ls-progress progress { flex: 1; height: 4px; accent-color: var(--color-accent); }
+.ls-progress.is-error { color: var(--color-text-danger); }
+
+.ls-props { overflow-y: auto; min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
+.ls-prop { display: flex; align-items: flex-start; gap: 10px; padding: 10px; border: 1px solid var(--color-border-divider); border-radius: 8px; }
+.ls-prop.is-off { opacity: 0.5; }
+.ls-prop__check { margin-top: 9px; accent-color: var(--color-accent); }
+.ls-prop__emoji { width: 32px; height: 32px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 6px; border: 1px solid var(--color-border-divider); font-size: 18px; color: var(--color-text-secondary); font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
+.ls-prop__emoji:disabled { border-color: transparent; opacity: 1; }
+.ls-prop__main { flex: 1; min-width: 0; }
+.ls-prop__line { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.ls-prop__name { font: var(--text-body-strong); }
+.ls-prop__input { flex: 1; min-width: 0; height: 28px; padding: 0 8px; border: 1px solid var(--color-border-divider); border-radius: 4px; background: var(--color-bg-input); color: var(--color-text-primary); font: var(--text-body); }
+.ls-prop__input:focus { outline: none; border-color: var(--color-border-input-focus); }
+.ls-prop__input.is-dup { border-color: var(--color-text-danger); }
+.ls-tag { flex: 0 0 auto; font-size: 10.5px; padding: 1px 6px; border-radius: 8px; border: 1px dashed var(--color-accent); color: var(--color-accent); }
+.ls-tag.is-existing { border-style: solid; border-color: var(--color-border-divider); color: var(--color-text-tertiary); }
+.ls-prop__count { margin-left: auto; font: var(--text-meta); color: var(--color-text-tertiary); flex: 0 0 auto; }
+.ls-prop__more { width: 24px; height: 24px; }
+.ls-prop__more svg { width: 14px; height: 14px; }
+.ls-prop__examples { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.ls-prop__examples span { font: var(--text-meta); color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ls-prop__examples span::before { content: '· '; color: var(--color-text-quaternary); }
+
+.ls-review { overflow-y: auto; min-height: 0; flex: 1; }
+.ls-review__row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--color-border-divider); }
+.ls-review__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--text-body); }
+.ls-review__to { flex: 0 0 auto; font: var(--text-meta); color: var(--color-accent); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ls-set { margin-top: 12px; }
+.ls-set__hint { display: block; margin-top: 2px; font: var(--text-meta); color: var(--color-text-tertiary); }
+.ls-detail { padding: 6px 16px 2px; display: flex; }
+.ls-detail:empty { display: none; }
