@@ -34,6 +34,8 @@ const remindersApi = {
 
 type AuthState = { user: { id: string; email: string } | null; newAccount?: boolean; notice?: 'account-deleted'; sync: { connected: boolean; uploading: boolean; downloading: boolean; lastSyncedAt: string | null; error: string | null } }
 type AuthResult = { ok: true; state: AuthState } | { ok: false; error: string }
+type LinkedIdentity = { provider: 'google' | 'apple'; email: string | null }
+type LinkFail = { ok: false; error: string; code: string }
 const authApi = {
   state: () => ipcRenderer.invoke('auth:state') as Promise<AuthState>,
   login: (email: string, password: string) => ipcRenderer.invoke('auth:login', email, password) as Promise<AuthResult>,
@@ -49,7 +51,11 @@ const authApi = {
   account: () => ipcRenderer.invoke('auth:account') as Promise<{ ok: true; hasPassword: boolean; providers: string[] } | { ok: false; error: string }>,
   reauthBegin: () => ipcRenderer.invoke('auth:reauth-begin') as Promise<void>,
   reauthEnd: () => ipcRenderer.invoke('auth:reauth-end') as Promise<void>,
-  deleteAccount: (password?: string) => ipcRenderer.invoke('auth:delete-account', password) as Promise<{ ok: true } | { ok: false; error: string; status: number }>
+  deleteAccount: (password?: string) => ipcRenderer.invoke('auth:delete-account', password) as Promise<{ ok: true } | { ok: false; error: string; status: number }>,
+  // 08 §3.1.1 로그인 방법 연결(설정 › 계정): 브라우저 흐름은 로그인과 같고, 토큰은 메인 프로세스에만
+  loginMethods: () => ipcRenderer.invoke('auth:login-methods') as Promise<{ ok: true; hasPassword: boolean; identities: LinkedIdentity[] } | LinkFail>,
+  link: (provider: 'google' | 'apple') => ipcRenderer.invoke('auth:link', provider) as Promise<{ ok: true; linked: boolean; identities: LinkedIdentity[] } | LinkFail>,
+  unlink: (provider: 'google' | 'apple') => ipcRenderer.invoke('auth:unlink', provider) as Promise<{ ok: true; linked: boolean; identities: LinkedIdentity[] } | LinkFail>
 }
 
 const miniApi = {

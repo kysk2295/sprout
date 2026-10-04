@@ -5,13 +5,17 @@
 //   앱은 POST /auth/apple {state, nonce}를 2초마다 묻고(딥 링크가 오면 바로), 끝나면 이메일 로그인과 같은 길(signInWithTokens)을 탄다.
 //   애플에는 nonce의 SHA-256만 보낸다 → 원래 nonce는 이 프로세스 메모리에만 있다. 개발 실행(sprout:// 미등록)에서도 폴링으로 끝난다.
 // - 토큰·코드는 화면(렌더러)에 넘기지 않는다.
+// - 08 §3.1.1 로그인 방법 연결: 같은 브라우저 흐름으로 받은 토큰을 지금 세션(Bearer)으로 /auth/link/* 에 보낸다(로그인하지 않음).
 import { ipcMain, shell } from 'electron'
 import { createHash, randomBytes } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
-import { apiBase, signInWithTokens, type AuthState } from './sync'
+import { apiBase, serverAccess, signInWithTokens, type AuthState } from './sync'
 
 export type SocialProvider = 'google' | 'apple'
 export type SocialResult = { ok: true; state: AuthState } | { ok: false; error: string; code: string }
+export type LinkedIdentity = { provider: SocialProvider; email: string | null } // email은 서버가 가린 것(qa***@gmail.com)
+export type LoginMethods = { ok: true; hasPassword: boolean; identities: LinkedIdentity[] } | { ok: false; error: string; code: string }
+export type LinkResult = { ok: true; linked: boolean; identities: LinkedIdentity[] } | { ok: false; error: string; code: string }
 export type SocialStatus = { google: boolean; apple: boolean | null; waiting: SocialProvider | null } // apple null = 서버에 물어보지 못함
 
 const GOOGLE_AUTH = 'https://accounts.google.com/o/oauth2/v2/auth'
@@ -39,7 +43,8 @@ const MSG: Record<string, string> = {
   rejected: '로그인을 확인하지 못했어요. 다시 시도하세요.',
   rate: '잠시 뒤 다시 시도하세요',
   network: '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요',
-  port: '로그인용 포트를 열지 못했어요. 다시 시도하세요.'
+  port: '로그인용 포트를 열지 못했어요. 다시 시도하세요.',
+  unauthorized: '로그인이 만료됐어요. 다시 로그인한 뒤 시도하세요'
 }
 const fail = (code: string) => new SocialFail(code, MSG[code] ?? MSG.rejected)
 
@@ -53,10 +58,13 @@ function fromServer(status: number, error: string): SocialFail {
   return fail('rejected')
 }
 
-async function post(path: string, body: unknown): Promise<{ status: number; json: any }> {
+async function post(path: string, body: unknown, token?: string, method = 'POST'): Promise<{ status: number; json: any }> {
   let res: Response
   try {
-    res = await fetch(`${apiBase()}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(20_000) })
+    res = await fetch(`${apiBase()}${path}`, {
+      method, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(20_000)
+    })
   } catch { throw fail('network') }
   return { status: res.status, json: await res.json().catch(() => ({})) }
 }
@@ -144,6 +152,11 @@ async function appleConfig(): Promise<{ services_id: string; redirect_uri: strin
 }
 
 async function signInApple(): Promise<AuthState> {
+  return signInWithTokens(await appleFlow((state, nonce) => post('/auth/apple', { state, nonce })))
+}
+
+/** 애플 브라우저 흐름 → 서버 맡김 칸을 exchange로 물어 200 응답 본문을 돌려준다(로그인·연결 공용) */
+async function appleFlow(exchange: (state: string, nonce: string) => Promise<{ status: number; json: any }>): Promise<any> {
   const cfg = await appleConfig()
   if (!cfg) throw fail('no_apple')
   const state = b64url(randomBytes(32))
@@ -168,12 +181,59 @@ async function signInApple(): Promise<AuthState> {
       if (cancelled) throw fail('cancelled')
       if (Date.now() > until) throw fail('timeout')
       let r: { status: number; json: any }
-      try { r = await post('/auth/apple', { state, nonce }) } catch { continue } // 잠깐 끊겨도 계속 묻는다
+      try { r = await exchange(state, nonce) } catch { continue } // 잠깐 끊겨도 계속 묻는다
       if (r.status === 202) continue
-      if (r.status !== 200) throw fromServer(r.status, String(r.json.error ?? ''))
-      return await signInWithTokens(r.json)
+      if (r.status !== 200) throw linkFail(r) ?? fromServer(r.status, String(r.json.error ?? ''))
+      return r.json
     }
   } finally { pending = undefined }
+}
+
+// ── 08 §3.1.1 로그인 방법 연결 ──
+/** 연결 전용 서버 오류: 409(남의 계정·이미 다른 계정·마지막 방법)는 서버 한국어 문구 그대로, 401은 로그인 만료 */
+function linkFail(r: { status: number; json: any }): SocialFail | null {
+  if (r.status === 409 && typeof r.json.error === 'string') return new SocialFail('conflict', r.json.error)
+  if (r.status === 401 && /unauthorized/.test(String(r.json.error ?? ''))) return fail('unauthorized')
+  if (r.status === 429 && typeof r.json.error === 'string') return new SocialFail('rate', r.json.error)
+  return null
+}
+async function sessionToken(): Promise<string> {
+  const { token } = await serverAccess()
+  if (!token) throw fail('unauthorized')
+  return token
+}
+const toIdentities = (json: any): LinkedIdentity[] =>
+  (Array.isArray(json?.identities) ? json.identities : [])
+    .filter((x: any) => x && (x.provider === 'google' || x.provider === 'apple'))
+    .map((x: any) => ({ provider: x.provider, email: typeof x.email === 'string' ? x.email : null }))
+
+async function linkGoogle(): Promise<LinkResult> {
+  await sessionToken() // 로그인 안 했으면 브라우저를 열지 않는다
+  const { idToken, nonce } = await googleIdToken()
+  const r = await post('/auth/link/google', { id_token: idToken, nonce }, await sessionToken()) // 브라우저에 오래 있었으면 새 토큰
+  if (r.status !== 200) throw linkFail(r) ?? (r.status === 503 ? fail('no_google') : fromServer(r.status, String(r.json.error ?? '')))
+  return { ok: true, linked: !!r.json.linked, identities: toIdentities(r.json) }
+}
+async function linkApple(): Promise<LinkResult> {
+  await sessionToken()
+  const json = await appleFlow(async (state, nonce) => post('/auth/link/apple', { state, nonce }, await sessionToken()))
+  return { ok: true, linked: !!json.linked, identities: toIdentities(json) }
+}
+async function unlink(provider: SocialProvider): Promise<LinkResult> {
+  const r = await post(`/auth/link/${provider}`, undefined, await sessionToken(), 'DELETE')
+  if (r.status !== 200) throw linkFail(r) ?? fromServer(r.status, String(r.json.error ?? ''))
+  return { ok: true, linked: false, identities: toIdentities(r.json) }
+}
+async function loginMethods(): Promise<LoginMethods> {
+  const res = await fetch(`${apiBase()}/auth/me`, { headers: { authorization: `Bearer ${await sessionToken()}` }, signal: AbortSignal.timeout(15_000) }).catch(() => { throw fail('network') })
+  const json = (await res.json().catch(() => ({}))) as any
+  if (!res.ok) throw linkFail({ status: res.status, json }) ?? fail('network')
+  return { ok: true, hasPassword: json.has_password !== false, identities: toIdentities(json) }
+}
+const asFail = (e: unknown) => {
+  const f = e instanceof SocialFail ? e : fail('rejected')
+  if (!(e instanceof SocialFail)) console.warn('[social] 연결 실패:', e)
+  return { ok: false as const, error: f.message, code: f.code }
 }
 
 /** index.ts openLink가 sprout://auth/… 를 넘긴다 */
@@ -202,4 +262,11 @@ export function registerSocialAuth() {
     }
   })
   ipcMain.handle('auth:social-cancel', () => { pending?.cancel() })
+  // 08 §3.1.1 설정 › 계정 › 로그인 방법
+  ipcMain.handle('auth:login-methods', async (): Promise<LoginMethods> => { try { return await loginMethods() } catch (e) { return asFail(e) } })
+  ipcMain.handle('auth:link', async (_e, provider: SocialProvider): Promise<LinkResult> => {
+    if (pending) return { ok: false, error: MSG.busy, code: 'busy' }
+    try { return provider === 'apple' ? await linkApple() : await linkGoogle() } catch (e) { return asFail(e) }
+  })
+  ipcMain.handle('auth:unlink', async (_e, provider: SocialProvider): Promise<LinkResult> => { try { return await unlink(provider) } catch (e) { return asFail(e) } })
 }

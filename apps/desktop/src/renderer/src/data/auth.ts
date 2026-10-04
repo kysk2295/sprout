@@ -56,3 +56,39 @@ export function deleteErrorText(error: string, status: number, providers: string
   if (status === 401 || /unauthorized/.test(error)) return '로그인이 만료됐어요. 다시 로그인한 뒤 시도하세요'
   return '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요'
 }
+
+// ── 08 §3.1.1 로그인 방법 연결(설정 › 계정, 틱틱 "Google · Apple — 연결") ──
+export type LinkProvider = 'google' | 'apple'
+export type LinkedIdentity = { provider: LinkProvider; email: string | null }
+export const LINK_NAME: Record<LinkProvider, string> = { google: 'Google', apple: 'Apple' }
+export const linkToast = (p: LinkProvider) =>
+  p === 'google' ? "구글 계정을 연결했어요 — 다음부터 'Google로 계속하기'로 들어올 수 있어요" : "Apple 계정을 연결했어요 — 다음부터 'Apple로 계속하기'로 들어올 수 있어요"
+export const unlinkToast = (p: LinkProvider) => `${LINK_NAME[p]} 연결을 해제했어요`
+
+export type MethodRow = {
+  provider: LinkProvider
+  linked: boolean
+  email: string | null      // 서버가 가린 이메일
+  ready: boolean            // 앱·서버에 설정이 있어 연결할 수 있나(없으면 "준비 중")
+  canUnlink: boolean        // 떼어도 로그인할 길이 남나(비밀번호 또는 다른 공급자)
+}
+
+/** 계정 탭 "로그인 방법" 줄(구글 → 애플). available: socialStatus(apple null = 서버에 묻지 못함 → 준비 중) */
+export function loginMethodRows(i: { hasPassword: boolean; identities: LinkedIdentity[]; available: { google: boolean; apple: boolean | null } }): MethodRow[] {
+  return (['google', 'apple'] as const).map((provider) => {
+    const mine = i.identities.find((x) => x.provider === provider)
+    return {
+      provider,
+      linked: !!mine,
+      email: mine?.email ?? null,
+      ready: !!i.available[provider],
+      canUnlink: !!mine && (i.hasPassword || i.identities.some((x) => x.provider !== provider))
+    }
+  })
+}
+
+/** 연결·해제 실패 → 줄 아래 빨간 한 줄. 취소는 표시하지 않는다(null) */
+export function linkErrorText(r: { error: string; code: string }): string | null {
+  if (r.code === 'cancelled') return null
+  return r.error || '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요'
+}
