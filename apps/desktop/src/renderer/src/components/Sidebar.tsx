@@ -8,7 +8,7 @@ import { TodayIcon } from '../icons/TodayIcon'
 import { useQuery } from '../data/useQuery'
 import { useLocalState, usePreferences } from '../data/preferences'
 import { archiveList, deleteOrganization, pinOrganization, type FolderRow, type OrganizationItem, type OrganizationKind } from '../data/organization'
-import type { ListRow, TagRow } from '../data/types'
+import { listView, type ListRow, type TagRow } from '../data/types'
 import { dayKey } from '../lib/dates'
 import { MenuItem, Popover } from './Popover'
 import { Dialog } from './Dialog'
@@ -52,7 +52,7 @@ export function Sidebar({selected,onSelect,lists,tags,onGrowth}:{selected:string
   <span className="sidebar__icon">{icon}</span><span className="sidebar__label">{label}</span><span className="sidebar__trail">{color&&<span className="sidebar__dot" style={{background:color}}/>}{count>0&&<span className="sidebar__count">{count}</span>}</span>{org&&<button className="sidebar__more" aria-label={`${label} 메뉴`} onClick={e=>context(org.kind,org.item,e)}><MoreHorizontal/></button>}
  </div>
  const section=(key:string,label:string,add?:()=>void)=><div className="sidebar__section"><button className="sidebar-section-toggle" onClick={()=>toggle(key)} aria-expanded={!collapsed.includes(key)}>{label}<ChevronDown size={12} style={{transform:collapsed.includes(key)?'rotate(-90deg)':undefined}}/></button><span className="sidebar__section-actions">{key==='lists'?<button aria-label="리스트 또는 폴더 추가" onClick={e=>setAddMenu(e.currentTarget)}><Plus/></button>:add&&<button aria-label={`${label} 추가`} onClick={add}><Plus/></button>}</span></div>
- const listItem=(l:OrganizationItem)=>item(`list:${l.id}`,l.name,l.emoji?<span className="sidebar__emoji">{l.emoji}</span>:<span className="sidebar__glyph">≡</span>,countOf(l.id),l.color,{kind:'list',item:l})
+ const listItem=(l:OrganizationItem)=>{const v=listView(l);return item(`list:${l.id}`,v.name,v.emoji?<span className="sidebar__emoji">{v.emoji}</span>:<span className="sidebar__glyph">≡</span>,countOf(l.id),l.color,{kind:'list',item:l})}
  const normals=allLists.filter(l=>l.kind!=='inbox'&&!l.archived_at)
  const archived=allLists.filter(l=>l.archived_at)
  const perform=async(fn:()=>Promise<unknown>)=>{setMenu(undefined);try{await fn();setError('')}catch(e){setError(String(e))}}

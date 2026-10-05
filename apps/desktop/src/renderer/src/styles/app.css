@@ -26,17 +26,19 @@ svg { flex-shrink: 0; }
 .sidebar__item { height: var(--size-sidebar-item-height); flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 10px 0 11px; border-radius: var(--radius-md); position: relative; }
 .sidebar__item:hover { background: var(--color-bg-hover); }
 .sidebar__item.is-active { background: var(--color-bg-selected); }
-.sidebar__icon { width: var(--size-icon-md); height: var(--size-icon-md); display: grid; place-items: center; color: var(--color-text-secondary); }
+.sidebar__icon { flex-shrink: 0; width: var(--size-icon-md); height: var(--size-icon-md); display: grid; place-items: center; color: var(--color-text-secondary); }
 .sidebar__icon svg { width: var(--size-icon-md); height: var(--size-icon-md); stroke-width: 1.6; }
 .sidebar__emoji { font-size: 15px; line-height: 1; }
 .sidebar__label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sidebar__trail { display: flex; align-items: center; gap: 10px; }
+.sidebar__trail { flex-shrink: 0; display: flex; align-items: center; gap: 10px; }
 .sidebar__dot { width: var(--size-dot); height: var(--size-dot); border-radius: var(--radius-full); }
 .sidebar__count { font: var(--text-small); color: var(--color-text-tertiary); min-width: 14px; text-align: right; }
 .sidebar__more { display: none; position: absolute; right: 8px; width: 24px; height: 24px; place-items: center; border-radius: var(--radius-sm); color: var(--color-text-tertiary); }
 .sidebar__more svg { width: 16px; height: 16px; }
-.sidebar__item:hover .sidebar__more { display: grid; background: inherit; }
-.sidebar__item:hover .sidebar__trail:has(+ .sidebar__more) { visibility: hidden; }
+/* ⋯는 마우스를 올렸을 때(또는 키보드 포커스)만 개수·색 점 자리에 — 개수·색 점은 빼고, 긴 이름은 ⋯ 앞에서 말줄임(겹침 방지) */
+.sidebar__item:is(:hover, :focus-visible, :has(.sidebar__more:focus-visible)) .sidebar__more { display: grid; background: inherit; }
+.sidebar__item:is(:hover, :focus-visible, :has(.sidebar__more:focus-visible)):has(> .sidebar__more) { padding-right: 36px; }
+.sidebar__item:is(:hover, :focus-visible, :has(.sidebar__more:focus-visible)) .sidebar__trail:has(+ .sidebar__more) { display: none; }
 .sidebar__divider { height: 1px; flex-shrink: 0; background: var(--color-border-divider); margin: 16px 4px 15px; }
 .sidebar__section { height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 11px; font: var(--text-caption); color: var(--color-text-quaternary); }
 .sidebar__section-actions { display: none; gap: 4px; }
@@ -660,7 +662,9 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .vo__close:hover { background: var(--color-bg-hover); }
 .vo__close svg { width: 14px; height: 14px; }
 .vo__title { position: relative; text-align: center; font: 700 16px var(--font-family); margin: 2px 0 18px; }
-.vo__back { position: absolute; left: -12px; top: -3px; width: 26px; height: 26px; display: grid; place-items: center; color: var(--color-text-secondary); }
+/* 하위 화면(스타일): 닫기(왼쪽 위, 06 §8 실측)는 그대로 두고 뒤로 ‹를 그 오른쪽에 — 예전엔 제목 안 절대 위치라 닫기와 겹쳤다 */
+.vo__back { position: absolute; left: 36px; top: 8px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; color: var(--color-text-secondary); }
+.vo__back:hover { background: var(--color-bg-hover); }
 .vo__back svg { width: 17px; height: 17px; }
 .vo__label { display: inline-flex; align-items: center; gap: 6px; }
 .vo__help { width: 14px; height: 14px; color: var(--color-text-tertiary); }
@@ -744,7 +748,6 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .sidebar-archive-item {display:flex;justify-content:space-between;padding:8px 20px;gap:8px; }.sidebar-archive-item button {background:none;border:0;color:var(--color-text-secondary);cursor:pointer;text-align:left; }
 .sidebar-hint {margin:8px 16px;font:var(--text-caption);color:var(--color-text-tertiary); }
 .sidebar__section:focus-within .sidebar__section-actions { display:flex; }
-.sidebar__item:focus-within .sidebar__more { display:grid; }
 .arrange-panel { width:300px; min-width:240px; flex-shrink:0; border-left:1px solid var(--color-border-divider); display:flex; flex-direction:column; background:var(--color-bg-app); }
 .arrange-panel header {display:flex;align-items:center;justify-content:space-between;padding:12px 16px;height:57px;box-sizing:border-box; }.arrange-panel h2 {font:var(--text-body-strong); }.arrange-tabs {display:flex;padding:8px;gap:4px; }.arrange-tabs button {flex:1;padding:6px;background:transparent;border:0;color:var(--color-text-secondary);border-radius:4px;cursor:pointer; }.arrange-tabs button.is-active {background:var(--color-seg-on);color:var(--color-text-primary); }.arrange-panel>select {margin:8px 16px;padding:6px;background:var(--color-bg-input);border:0;color:var(--color-text-secondary); }.arrange-scroll {overflow:auto;padding:8px 12px; }.arrange-scroll h3 {font:var(--text-caption);color:var(--color-text-secondary);margin:14px 0 8px; }.arrange-task {border-left:3px solid;min-height:30px;padding:6px 8px;margin:4px 0;background:var(--color-bg-hover);font:var(--text-meta);cursor:grab;user-select:none; }
 /* 2026-10-04 Mac 실측: 배치 224px, 색 막대 18px */

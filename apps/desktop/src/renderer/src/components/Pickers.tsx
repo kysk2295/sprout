@@ -1,7 +1,7 @@
 import { Check, Flag, Plus, Search } from 'lucide-react'
 import { ensureTags } from '../data/organization'
 import { useState } from 'react'
-import type { ListRow, TagRow } from '../data/types'
+import { listView, type ListRow, type TagRow } from '../data/types'
 import { PRIORITIES } from '../lib/priority'
 import { MenuItem } from './Popover'
 
@@ -21,8 +21,8 @@ export function ListPickerBody({ lists, current, onPick }: { lists: ListRow[]; c
         {shown.map((l) => (
           <MenuItem
             key={l.id}
-            icon={<span className="sidebar__emoji">{l.kind === 'inbox' ? '📥' : (l.emoji ?? '≡')}</span>}
-            label={l.kind === 'inbox' ? '기본함' : l.name}
+            icon={<span className="sidebar__emoji">{l.kind === 'inbox' ? '📥' : (listView(l).emoji ?? '≡')}</span>}
+            label={l.kind === 'inbox' ? '기본함' : listView(l).name}
             active={l.id === current}
             onClick={() => onPick(l)}
           />

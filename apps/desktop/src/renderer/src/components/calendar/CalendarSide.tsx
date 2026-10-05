@@ -1,7 +1,7 @@
 import { Check, ChevronLeft, ChevronRight, Circle } from 'lucide-react'
 import { useState } from 'react'
 import { addDays, toDate } from '@sprout/schema/time'
-import type { ListRow, TagRow } from '../../data/types'
+import { listView, type ListRow, type TagRow } from '../../data/types'
 import { weekStart } from '../../lib/calendar'
 import { dayKey } from '../../lib/dates'
 import { ExtPanelFilter } from '../calendars/ExtPanelFilter'
@@ -74,7 +74,7 @@ export function CalendarSide(p: Props) {
         <Row label="전체" on={all} round onClick={() => p.onFilter([], [])} accent={all} />
         <Group label="리스트" open={open.lists} onOpen={() => setOpen((o) => ({ ...o, lists: !o.lists }))} on={allLists} onCheck={() => p.onFilter(allLists ? [] : p.lists.map((l) => l.id), p.filterTags)} />
         {open.lists && p.lists.map((l) => (
-          <Row key={l.id} indent icon={l.kind === 'inbox' ? '📥' : (l.emoji ?? '≡')} label={l.kind === 'inbox' ? '기본함' : l.name} on={p.filterLists.includes(l.id)} onClick={() => p.onFilter(toggle(p.filterLists, l.id), p.filterTags)} />
+          <Row key={l.id} indent icon={l.kind === 'inbox' ? '📥' : (listView(l).emoji ?? '≡')} label={l.kind === 'inbox' ? '기본함' : listView(l).name} on={p.filterLists.includes(l.id)} onClick={() => p.onFilter(toggle(p.filterLists, l.id), p.filterTags)} />
         ))}
         <Group label="태그" open={open.tags} onOpen={() => setOpen((o) => ({ ...o, tags: !o.tags }))} on={allTags} onCheck={() => p.onFilter(p.filterLists, allTags ? [] : p.tags.map((t) => t.id))} />
         {open.tags && p.tags.map((t) => (

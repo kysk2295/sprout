@@ -54,7 +54,8 @@ export function ViewOptions({ opts, lists, tags, onChange, onClose }: { opts: Ca
           </>
         ) : (
           <>
-            <div className="vo__title"><button className="vo__back" aria-label="뒤로" onClick={() => setPage('main')}><ChevronLeft /></button>스타일</div>
+            <button className="vo__back" aria-label="뒤로" onClick={() => setPage('main')}><ChevronLeft /></button>
+            <div className="vo__title">스타일</div>
             <p className="vo__desc">"상세" 스타일을 선택하면, 작업을 표시된 체크박스를 클릭하여 빠르게 완료할 수 있습니다.</p>
             <div className="vo__subhead">항목 아이콘 표시</div>
             <div className="modal__card vo__icons">

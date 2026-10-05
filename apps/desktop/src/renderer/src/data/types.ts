@@ -1,3 +1,4 @@
+import { splitEmoji } from '../../../shared/emoji'
 export interface TaskRow {
   id: string
   list_id: string | null
@@ -49,6 +50,9 @@ export interface CheckItemRow {
   done: number
   sort_order: number
 }
+/** 리스트 아이콘·이름(30 §A.4): 이모지 칸이 비었는데 이름이 이모지로 시작하면(`💰가계부`) 그 이모지를 아이콘으로 쓰고 이름에서 뗀다 — ≡ + 💰가계부 두 아이콘 겹침 방지 */
+export const listView = (l: { name: string | null; emoji?: string | null }): { emoji: string | null; name: string } =>
+  l.emoji ? { emoji: l.emoji, name: l.name ?? '' } : splitEmoji(l.name ?? '')
 export const listLabel = (l: { kind: string | null; name: string | null; emoji?: string | null }) =>
   l.kind === 'inbox' ? '기본함' : `${l.emoji ? `${l.emoji} ` : ''}${l.name ?? ''}`
 
