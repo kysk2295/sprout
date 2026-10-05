@@ -31,6 +31,9 @@ import { useToast } from './Toast'
 import { FoldRow, OverdueCard, useFoldSetting, YesterdayBand } from './overdue/OverdueBits'
 import { InboxSuggestCard } from './listSuggest/ListSuggest'
 import { isFolded } from '../data/overdue'
+import { useExtEvents, type ExtEvent } from '../data/calendars'
+import { extTimeGroup, smartExtRange, sortExt } from '../lib/calendarExt'
+import { ExtListRow } from './calendars/ExtListRow'
 
 // 02-task-list §3~§12: 머리 · 추가 바 · 그룹 · 행 · 선택/키보드 · 끌어 놓기 · 우클릭 메뉴 · 완료 영역 · 빈 상태
 type Props = {
@@ -95,6 +98,18 @@ export function TaskListView(props: Props) {
   const showDone = !archive && settings.show_completed === 1
   const doneQ = useMemo(() => (showDone ? doneTasksSql(view, today) : { sql: 'SELECT 1 WHERE 0', params: [] }), [showDone, view, today])
   const doneTasks = useQuery<TaskRow>(doneQ.sql, doneQ.params) ?? []
+  // 06 §14.3.1: 오늘·내일·다음 7일에는 구독 캘린더 일정도 읽기 전용 행으로 함께 보인다(틱틱 "Today, Next 7 Days")
+  const extRange = smartExtRange(view, today)
+  const extAll = useExtEvents(extRange?.from ?? today, extRange?.to ?? today)
+  const extEvents = useMemo(() => (extRange ? sortExt(extAll) : []), [extRange?.from, extRange?.to, extAll]) // eslint-disable-line react-hooks/exhaustive-deps
+  const extByGroup = useMemo(() => {
+    const m = new Map<string, ExtEvent[]>()
+    for (const e of extEvents) {
+      const id = settings.group_by === 'time' ? extTimeGroup(e, today) : 'ext'
+      m.set(id, [...(m.get(id) ?? []), e])
+    }
+    return m
+  }, [extEvents, settings.group_by, today])
 
   // ── 화면 상태 ──
   const [collapsedGroups, toggleGroup] = useLocalSet(`sprout.collapsed.groups.${view}`)
@@ -132,9 +147,10 @@ export function TaskListView(props: Props) {
     const g = archive ? grouping('none', lists, today) : grouping(settings.group_by, lists, today, tags, sections)
     const out: Group[] = []
     const push = (id: string, name: string, rs: TaskRow[], keep = false, folded = 0) => {
-      if (!rs.length && !keep && !folded) return
+      const ext = archive ? 0 : extByGroup.get(id)?.length ?? 0 // 06 §14.3.1 그 날짜의 일정만 있어도 그룹을 만들고 개수에 센다
+      if (!rs.length && !keep && !folded && !ext) return
       const all = flattenTree(rs, kids, id, new Set())
-      out.push({ id, name, rows: collapsedGroups.has(id) ? [] : flattenTree(rs, kids, id, collapsedTasks), count: all.length + folded, folded })
+      out.push({ id, name, rows: collapsedGroups.has(id) ? [] : flattenTree(rs, kids, id, collapsedTasks), count: all.length + folded + ext, folded })
     }
     if (!archive) push(PINNED_GROUP.id, PINNED_GROUP.name, roots.filter((r) => r.pinned_at))
     for (const d of g.defs) {
@@ -147,7 +163,7 @@ export function TaskListView(props: Props) {
     // 만료됨 머리 "미루기"는 접힌 것·접힌 묶음까지 만료 전부를 옮긴다(19 §2)
     const overdueIds = settings.group_by === 'time' && !archive ? roots.filter((r) => !r.pinned_at && g.of(r) === 'overdue').map((r) => r.id) : []
     return { groups: out, flat: out.flatMap((x) => x.rows), overdueIds }
-  }, [tasks, archive, settings.group_by, lists, tags, sections, today, collapsedGroups, collapsedTasks, fold])
+  }, [tasks, archive, settings.group_by, lists, tags, sections, today, collapsedGroups, collapsedTasks, fold, extByGroup])
   const groupOf = useMemo(() => {
     const g = grouping(settings.group_by, lists, today, tags, sections)
     return (t: TaskRow) => (t.pinned_at ? PINNED_GROUP.id : g.of(t))
@@ -470,8 +486,8 @@ export function TaskListView(props: Props) {
     window.addEventListener('pointerup', up)
   }
 
-  const empty = tasks && tasks.length === 0 && (!showDone || doneTasks.length === 0)
-  const allDone = tasks && tasks.length === 0 && showDone && doneTasks.length > 0
+  const empty = tasks && tasks.length === 0 && (!showDone || doneTasks.length === 0) && extEvents.length === 0
+  const allDone = tasks && tasks.length === 0 && showDone && doneTasks.length > 0 && extEvents.length === 0
   const menuTasks = menu ? (menu.ids.map((id) => byId.get(id)).filter(Boolean) as TaskRow[]) : []
   const dragTitle = drag ? (drag.ids.length > 1 ? `${drag.ids.length}개 태스크` : (byId.get(drag.ids[0])?.title ?? '')) : ''
 
@@ -632,10 +648,21 @@ export function TaskListView(props: Props) {
               </div>
             )}
             {g.id === 'overdue' && (view === 'smart:today' || view === 'smart:all') && !collapsedGroups.has(g.id) && <OverdueCard today={today} />}
+            {!collapsedGroups.has(g.id) && extByGroup.get(g.id)?.map((e) => <ExtListRow key={e.key} ev={e} today={today} />)}
             {g.rows.map(renderRow)}
             {g.id === 'overdue' && !!g.folded && !collapsedGroups.has(g.id) && <FoldRow count={g.folded} />}
           </section>
         ))}
+        {!!extByGroup.get('ext')?.length && (
+          <section className="group">
+            <div className="group__header" onClick={() => toggleGroup('ext')}>
+              <ChevronDown className={`group__chevron${collapsedGroups.has('ext') ? ' is-collapsed' : ''}`} />
+              <span className="group__name">구독 캘린더</span>
+              <span className="group__count">{extByGroup.get('ext')!.length}</span>
+            </div>
+            {!collapsedGroups.has('ext') && extByGroup.get('ext')!.map((e) => <ExtListRow key={e.key} ev={e} today={today} />)}
+          </section>
+        )}
         {showDone && doneTasks.length > 0 && (
           <section className="group done">
             <div className="group__header done__header" onClick={() => toggleGroup('done')}>

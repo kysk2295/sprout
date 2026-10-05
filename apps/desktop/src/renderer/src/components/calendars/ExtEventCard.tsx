@@ -33,9 +33,9 @@ export function ExtEventCard({ ev }: { ev: ExtEvent }) {
   )
 }
 
-export function ExtEventPopover({ ev, rect, onClose }: { ev: ExtEvent; rect: Rect; onClose: () => void }) {
+export function ExtEventPopover({ ev, rect, onClose, placement = 'side' }: { ev: ExtEvent; rect: Rect; onClose: () => void; placement?: 'side' | 'below' }) {
   return (
-    <Popover rect={rect} placement="side" width={400} className="task-pop ext-pop" onClose={onClose}>
+    <Popover rect={rect} placement={placement} width={400} className="task-pop ext-pop" onClose={onClose}>
       <ExtEventCard ev={ev} />
     </Popover>
   )

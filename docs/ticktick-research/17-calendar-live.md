@@ -95,3 +95,44 @@
 - "Show Completed"는 완료한 태스크·습관·**구독 일정**을 함께 보이고 숨긴다 — 같은 문서.
 - 2026 도움말의 스타일 이름은 Modern / Classic(우리 실측 한국어 앱은 간결한 / 상세한, §1). 아이콘 기본값(켬/끔)은 도움말에 없다 → [미확인].
 - 빠른 만들기 팝오버를 연 채 다른 빈 칸·바깥을 누를 때의 동작은 도움말에 없다. 06 §7.1 실측("제목을 쓴 채 바깥 클릭 = 저장, Esc = 취소")과 사용자 보고("다시 누르면 틱틱처럼 닫혀야 한다")를 따른다.
+
+## 13. 일정(구독 캘린더) vs 할 일 — 틱틱은 어떻게 나누나 (2026-10-05)
+사용자 피드백 "일정이랑 할 일을 틱틱처럼 구분해서 보여줘야지"로 공식 도움말(2026-09 수정본 전문)과 이미 받아 둔 도움말 그림을 다시 확인했다. 도움말 본문은 페이지 안 `__NEXT_DATA__`에 96개 문서가 통째로 들어 있어 이번에는 글자 그대로 읽었다.
+
+### 13.1 개념 — 틱틱의 "일정"은 구독 캘린더 항목뿐이다
+| 사실 | 근거 |
+|---|---|
+| 틱틱이 스스로 만드는 항목은 **전부 할 일(태스크)**이다. 캘린더 보기에서 날짜 칸·시간 칸을 눌러 만드는 것도 태스크다: "Tasks can be added by clicking on the date grid of the calendar view. … click on a place on the timeline to add a task" | [FAQ - Calendar](https://help.ticktick.com/articles/7063851189372190720) |
+| **"일정(event)"은 구독한 외부 캘린더(구글·iCloud·Outlook·Exchange·CalDAV·URL·로컬)에서 온 항목**이다. 구글 FAQ: 구독은 "Synchronize as calendar events", 통합은 "Synchronize as tasks" — 같은 구글 일정도 연결 방식에 따라 일정 또는 태스크가 된다 | [Google Calendar](https://help.ticktick.com/articles/7055781593733922816) FAQ, [Calendar Subscriptions](https://help.ticktick.com/articles/7055781614550253568) |
+| 일정을 **만드는 곳**은 사이드바 "Subscribed Calendars" 목록의 입력창(데스크톱 "+ Add agenda to "<계정>"", 모바일 `+`). 만든 일정은 그 캘린더로 양방향 동기화된다(구글·iCloud) | Google Calendar(데스크톱 탭), [iCloud Calendar](https://help.ticktick.com/articles/7209479055807086592) "Click on the "+" icon to add events", 그림 `_help/google-calendar-922816/09·10` |
+| 캘린더 보기의 빠른 만들기에 "태스크/일정" 고르기가 있다는 근거는 **도움말·영상 어디에도 없다** → [미확인]. 우리 실측(§7)의 빠른 만들기 팝오버에도 고르기가 없었다 | §7, FAQ - Calendar |
+| **캘린더 계정을 하나도 연결하지 않으면 일정은 없다** — 캘린더에 보이는 것은 모두 할 일(체크박스)이다. 사용자가 틱틱에서 보던 일정은 구독 캘린더(구글 또는 맥 로컬 캘린더)에서 온 것으로 본다 | 위 사실들의 귀결 |
+| 그 밖에 캘린더에 함께 보이는 종류: 습관, 집중 기록, 디데이(Countdown), 노트. 각각 따로 켜고 끈다 | [Calendar View Options](https://help.ticktick.com/articles/7055782085826445312) "Other View Options" |
+
+### 13.2 캘린더 보기에서 보이는 차이 (그림 `_help/calendar-view-options-445312/07·08·09·13`, `_help/agenda-view-stringing-tasks-by-time-365120/01`)
+| 항목 | 할 일 | 일정(구독) | 근거 |
+|---|---|---|---|
+| 막대·블록 모양 | 같은 모양 — "Modern" = 옅은 채움 + 왼쪽 진한 줄, "Classic" = 진한 채움(줄 없음). 스타일 미리 보기 그림에 **"Task"(파랑)와 "Event"(노랑) 블록이 같은 모양으로 나란히** 있다 | 같음 | 08·09 Style 그림 |
+| 앞 아이콘 | **빈 체크박스**(회색 테두리 둥근 사각, 글자 크기). 누르면 완료 | **캘린더 아이콘**(같은 크기·같은 회색, 체크박스 자리). 누를 수 없다 | 09 미리 보기 확대, Show Item Icons 설명 |
+| 색 | 색상 기준(목록·태그·우선순위)의 색 | 그 캘린더 색. 색상 기준과 상관없음 | Color 문단 "Task Color"는 태스크만 다룬다 |
+| 아이콘 켜고 끄기 | 스타일 › **Show Item Icons** 하위 화면에 종류별 토글: **Task · Calendar · Note · Habit · Focus Record · Countdown**. 설명 "Icons can be shown or hidden by type to help you quickly distinguish content. When Task is enabled, you can quickly complete tasks by tapping the checkbox, **which automatically hides when space is limited**." | (같은 화면 Calendar 토글) | 08 Style·Show Item Icons 그림(모바일 2026) |
+| 아이콘 끈 상태(데스크톱) | Alt/Option을 누르는 동안 잠깐 보인다 — "quickly distinguish different item types and complete tasks with a single click" | 같음 | Calendar View Options 데스크톱 탭 |
+| 완료 | 체크된 체크박스 + 막대·글자 옅게, **취소선 없음**(월 보기 그림의 "Start project 10:00 AM") | 일정은 완료가 없다. 지난 일정은 "Show Completed"에 함께 묶인다("completed tasks, habits, and subscribed calendar events") | agenda 01 그림, Other View Options |
+| 시각 표시(월 보기·종일 줄) | 시각 있는 할 일 = 막대 오른쪽 "10:00 AM", 종일 할 일 = 시각 없음 | 같음 | agenda 01 그림 |
+| 끌기·길이 바꾸기 | 됨 | 틱틱은 양방향이라 됨(구글·iCloud) — sprout v1은 읽기 전용이라 안 됨(16 §3.1) | Google Calendar "add, modify, and delete" |
+- 주 보기 구성(도움말): 종일 줄 = "unassigned time" 태스크·종일·여러 날 태스크, 세로 시간 축 = 시각 있는 태스크 — 일정도 같은 규칙으로 놓인다([Week View](https://help.ticktick.com/articles/7055782149730861056)).
+
+### 13.3 목록(스마트 리스트)에서
+| 사실 | 근거 |
+|---|---|
+| 구독 일정은 **"오늘", "다음 7일" 스마트 리스트와 캘린더 보기에** 함께 보인다: "These calendar events will also be intelligently displayed in the "Today", "Next 7 Days" smart lists, and calendar view." | Google Calendar(모바일 탭) |
+| 캘린더마다 표시 범위를 고른다: **Show / Show only in calendar / Hide**(로컬 캘린더, 맥). "캘린더에서만"을 고르면 스마트 리스트에는 안 나온다 | [Local Calendar](https://help.ticktick.com/articles/7209482814528421888) |
+| 목록 행 모양(구독 캘린더 목록 그림): 체크박스 자리에 **회색 캘린더 아이콘**, 제목, 오른쪽에 날짜(강조색 "Today"/"May 15", 알림이 있으면 ⏰). 모바일은 행 왼쪽에 캘린더 색 세로 줄 | `_help/google-calendar-922816/04·09·10` |
+| "내일" 스마트 리스트에도 나오는지, 오늘 목록에서 할 일과 섞이는 순서는 도움말에 없다 → [미확인] | — |
+| 사이드바 스마트 리스트 개수에 일정이 들어가는지 → [미확인](모바일 그림의 Today 2는 태스크·일정 구분 불가) | 04 그림 |
+
+### 13.4 sprout에 주는 결론
+1. 사용자 데이터(구독 캘린더 없음)에서는 틱틱도 모든 항목이 할 일이다 → **구분이 보이려면 구글·Apple 캘린더를 연결**해야 한다(16 명세, 이미 구현).
+2. 화면 규칙은 이미 맞는 것: 같은 모양, 할 일 = 체크박스 / 일정 = 캘린더 아이콘, 일정 = 캘린더 색, 일정은 체크·끌기 없음, 완료 취소선 없음.
+3. 틱틱에 있고 sprout에 없던 것: ① 아이콘을 **종류별로**(할 일·캘린더) 켜고 끄기 ② 일정 아이콘이 체크박스와 **같은 자리·같은 크기·회색** ③ 좁으면 체크박스 자동 숨김 ④ **오늘·다음 7일 목록에 일정 표시** ⑤ 캘린더별 "캘린더에서만 보이기". → 06 §14.3에 반영.
+4. 틱틱식 "일정 만들기"는 구독 캘린더에 쓰기(양방향)다 — 자체 일정 테이블이 아니다. sprout v1은 읽기 전용이라 제안으로만 남긴다(06 §14.4).

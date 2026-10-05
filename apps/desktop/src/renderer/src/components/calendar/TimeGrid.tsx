@@ -332,9 +332,11 @@ export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandl
   const past = (item.end.includes('T') ? item.end : `${item.end}T23:59`) < nowF
   const hasRange = item.start !== item.end
   const timeText = item.start.includes('T') ? shortRange(item.start, item.end, hasRange && datePart(item.start) === datePart(item.end)) : ''
-  // 06 §14.2 항목 아이콘: 태스크 = 체크박스, 구독 일정 = 캘린더 아이콘("상세한" 스타일·토글·⌥ 누르는 동안)
-  const icons = p.itemStyle === 'detailed' || !!p.showIcons
-  const detailed = icons && !ext
+  // 06 §14.2·§14.3 항목 아이콘(종류별): 할 일 = 체크박스, 구독 일정 = 같은 자리·같은 크기의 회색 캘린더 아이콘
+  // ("상세한" 스타일은 늘, 아니면 종류별 토글·⌥ 누르는 동안)
+  const detailedStyle = p.itemStyle === 'detailed'
+  const detailed = !ext && (detailedStyle || !!p.showIcons)
+  const calIcon = !!ext && (detailedStyle || !!p.showCalIcons)
   const editable = !item.virtual && !ext
   const cls = ['cal-item', `is-${kind}`, done && 'is-done', !done && (past || item.virtual || ext?.stale) && 'is-past', item.virtual && 'is-virtual', ext && 'is-ext', p.selection.includes(t.id) && 'is-selected', contLeft && 'cont-left', contRight && 'cont-right']
   const extDown = (e: RPointerEvent) => { e.stopPropagation(); if (e.button !== 0) return; e.preventDefault() }
@@ -362,7 +364,8 @@ export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandl
             {done && <Check strokeWidth={3} />}
           </button>
         )}
-        {ext ? icons && <CalendarDays className="cal-item__icon" /> : t.repeat_rule && <Repeat className="cal-item__icon" />}
+        {calIcon && <CalendarDays className="cal-item__kind" aria-hidden />}
+        {!ext && t.repeat_rule && <Repeat className="cal-item__icon" />}
         <span className="cal-item__title">{t.title || '제목 없음'}</span>
         {kind === 'bar' && timeText && <span className="cal-item__time">{timeText.replace(/-.*/, '')}</span>}
       </span>

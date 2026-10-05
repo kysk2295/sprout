@@ -140,6 +140,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
     selection,
     pending: pop?.kind === 'create' ? pop.draft : undefined,
     showIcons: opts.icons !== 0 || altHeld,
+    showCalIcons: opts.calIcons !== 0 || altHeld,
     colorOf: (it) => extOf(it)?.color ?? colorOf(it.task, opts.color, tagColor),
     itemsById: (ids) => items.filter((i) => !i.virtual && !extOf(i) && ids.includes(i.task.id)),
     onSelect: (id, toggle) => id.startsWith('ext:') ? undefined : setSelection((s) => (toggle ? (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]) : [id])),

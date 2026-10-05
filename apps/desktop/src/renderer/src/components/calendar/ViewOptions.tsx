@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, ChevronsUpDown, CircleHelp, X } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, ChevronsUpDown, CircleHelp, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { CalOptions, ColorBy, ItemStyle } from '../../lib/calendar'
@@ -56,18 +56,20 @@ export function ViewOptions({ opts, lists, tags, onChange, onClose }: { opts: Ca
           <>
             <div className="vo__title"><button className="vo__back" aria-label="뒤로" onClick={() => setPage('main')}><ChevronLeft /></button>스타일</div>
             <p className="vo__desc">"상세" 스타일을 선택하면, 작업을 표시된 체크박스를 클릭하여 빠르게 완료할 수 있습니다.</p>
+            <div className="vo__subhead">항목 아이콘 표시</div>
             <div className="modal__card vo__icons">
-              <Toggle label="항목 아이콘 표시" on={opts.icons !== 0} onChange={(v) => onChange({ icons: v ? 1 : 0 })} />
+              <Toggle label="할 일" on={opts.icons !== 0} onChange={(v) => onChange({ icons: v ? 1 : 0 })} />
+              <Toggle label="캘린더" on={opts.calIcons !== 0} onChange={(v) => onChange({ calIcons: v ? 1 : 0 })} />
             </div>
-            <p className="vo__desc">태스크는 체크박스, 구독 일정은 캘린더 아이콘으로 보입니다. 꺼 두어도 ⌥ 키를 누르고 있는 동안 보입니다.</p>
+            <p className="vo__desc">종류별로 아이콘을 켜고 끄면 할 일과 일정을 한눈에 나눌 수 있어요. 할 일 체크박스를 누르면 바로 완료되고, 자리가 좁으면 아이콘은 숨겨져요. 꺼 두어도 ⌥ 키를 누르고 있는 동안 보입니다.</p>
             <div className="vo__styles">
               {STYLES.map(([v, l]) => (
                 <button key={v} className={`vo__style${opts.style === v ? ' is-on' : ''}`} onClick={() => onChange({ style: v })}>
                   <span className="vo__sample">
                     <span className="vo__times"><i>9:00</i><i>10:00</i><i>11:00</i></span>
                     <span className="vo__blocks">
-                      <span className="vo__block is-a">{v === 'detailed' && <b className="vo__cb" />}과제<small>9:00 - 10:00</small></span>
-                      <span className="vo__block is-b">{v === 'detailed' && <b className="vo__cb" />}이벤트<small>10:00 - 11:00</small></span>
+                      <span className="vo__block is-a">{(v === 'detailed' || opts.icons !== 0) && <b className="vo__cb" />}할 일<small>9:00 - 10:00</small></span>
+                      <span className="vo__block is-b">{(v === 'detailed' || opts.calIcons !== 0) && <CalendarDays className="vo__cal" aria-hidden />}일정<small>10:00 - 11:00</small></span>
                     </span>
                   </span>
                   <span className="vo__style-name">{l}</span>

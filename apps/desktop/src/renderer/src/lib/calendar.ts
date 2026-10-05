@@ -13,10 +13,12 @@ export interface CalOptions {
   repeats: number
   /** 06 §14.2 항목 아이콘 표시(태스크 체크박스·구독 일정 아이콘). 저장값이 없으면 켬 */
   icons: number
+  /** 06 §14.3 구독 일정 아이콘(캘린더 아이콘) 표시 — 틱틱 Show Item Icons › Calendar. 저장값이 없으면 켬 */
+  calIcons: number
   lists: string[]
   tags: string[]
 }
-export const DEFAULT_OPTIONS: CalOptions = { view: 'week', color: 'list', style: 'simple', completed: 1, repeats: 0, icons: 1, lists: [], tags: [] }
+export const DEFAULT_OPTIONS: CalOptions = { view: 'week', color: 'list', style: 'simple', completed: 1, repeats: 0, icons: 1, calIcons: 1, lists: [], tags: [] }
 
 /** 캘린더에 그리는 한 항목. 반복 미래 회차는 virtual(원래 태스크 id = task.id) */
 export interface CalItem {

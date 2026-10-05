@@ -96,3 +96,12 @@
 .ext-row__date.is-today { color: var(--color-accent); }
 .ext-agenda__detail { overflow-y: auto; }
 .ext-agenda__empty { flex: 1; display: grid; place-items: center; }
+/* 06 §14.3.1 스마트 리스트 안의 일정 행 — 할 일 행(02 §6)과 같은 높이·아이콘 자리·구분선 */
+.ext-row.is-in-list { height: var(--size-row-height); gap: var(--space-row-icon-gap); padding: 0 4px 0 12px; }
+.ext-row.is-in-list::after { content: ''; position: absolute; left: calc(12px + var(--size-checkbox) + var(--space-row-icon-gap)); right: 0; bottom: 0; height: 1px; background: var(--color-border-row); }
+.ext-row.is-in-list:hover::after, .ext-row.is-in-list.is-selected::after { opacity: 0; }
+.ext-row.is-in-list .ext-row__icon { width: var(--size-checkbox); height: var(--size-checkbox); stroke-width: 1.6; }
+.ext-row.is-in-list .row__date { font: var(--text-meta); flex-shrink: 0; }
+.ext-row.is-in-list .row__date:not(.is-today):not(.is-overdue) { color: var(--color-text-tertiary); }
+.ext-row.is-in-list.is-stale .ext-row__title { color: var(--color-text-tertiary); }
+.ext-row.is-in-list.is-stale { opacity: 1; }

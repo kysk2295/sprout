@@ -4,6 +4,8 @@ import { colorOf, DEFAULT_OPTIONS, FALLBACK_COLOR, hourLabel, itemsOf, layoutDay
 import { timeSelection } from '../src/renderer/src/lib/calendarSelection'
 import { scheduledDrop } from '../src/renderer/src/lib/calendarDrop'
 import { parseIntent, readChatStream } from '../src/shared/assistant'
+import { extSpan, extTimeGroup, smartExtRange, sortExt } from '../src/renderer/src/lib/calendarExt'
+import { rowDateLabel } from '../src/renderer/src/lib/dates'
 import type { TaskRow } from '../src/renderer/src/data/types'
 
 // ── 범위: 월요일 시작(2026-10-05 사용자 결정), 월 보기는 필요한 주만큼 ──
@@ -63,5 +65,25 @@ assert.equal(loose.keyword, ''); assert.equal(loose.repeat, ''); assert.equal(lo
 assert.equal(parseIntent('답: {"action":"reply","message":"몇 시로 할까요?"} 끝').status, 'all')
 assert.throws(() => parseIntent('[{"date":"2026-09-28","events":[]}]'), /형식/)
 assert.throws(() => parseIntent('{"action":"delete"}'), /형식/)
+
+// ── 06 §14.3 일정·할 일 구분: 종류별 아이콘 기본 켬, 오늘·내일·다음 7일 목록의 일정 ──
+{
+  assert.equal(DEFAULT_OPTIONS.calIcons, 1)
+  const today = '2026-10-05'
+  assert.deepEqual(smartExtRange('smart:today', today), { from: today, to: today })
+  assert.deepEqual(smartExtRange('smart:tomorrow', today), { from: '2026-10-06', to: '2026-10-06' })
+  assert.deepEqual(smartExtRange('smart:next7', today), { from: today, to: '2026-10-11' })
+  assert.equal(smartExtRange('smart:inbox', today), null)
+  assert.equal(smartExtRange('list:abc', today), null)
+  assert.equal(extTimeGroup({ start: '2026-10-03' }, today), 'today', '이미 시작한 여러 날 일정은 오늘')
+  assert.equal(extTimeGroup({ start: '2026-10-05T09:00' }, today), 'today')
+  assert.equal(extTimeGroup({ start: '2026-10-06T09:00' }, today), 'tomorrow')
+  assert.equal(extTimeGroup({ start: '2026-10-11' }, today), 'next7')
+  assert.equal(extTimeGroup({ start: '2026-10-12' }, today), 'later')
+  const ev = (start: string, allDay: boolean, title = 'x') => ({ start, allDay, title })
+  assert.deepEqual(sortExt([ev('2026-10-05T14:00', false, 'b'), ev('2026-10-05', true, 'a'), ev('2026-10-05T09:00', false, 'c')]).map((e) => e.title), ['a', 'c', 'b'], '종일 먼저, 그다음 시작 시각')
+  assert.equal(rowDateLabel(extSpan({ start: '2026-10-05', end: '2026-10-05' }), today)?.label, '오늘')
+  assert.equal(rowDateLabel(extSpan({ start: '2026-10-06', end: '2026-10-06' }), today)?.label, '내일')
+}
 
 console.log('calendar tests ok')
