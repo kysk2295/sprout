@@ -25,7 +25,7 @@ UniPort (Representative: Ko Yunseo; "we") operates Kkumteul (꿈틀; desktop and
 | Generated — AI | **Counts only**: requests, failures, tokens and processing time per AI feature per day | When you use AI |
 | Optional — push (Android) | App-generated device ID, Firebase push token, platform, app version, time zone, locale, notification settings, last seen time | When you allow notifications |
 
-- Stored **only on your device**, never sent to our server: sign-in tokens (device secure storage), events read from Google Calendar / macOS Calendar and their connection tokens, AI assistant chat history, Mac widget data, tokens for importing from other services.
+- Stored **only on your device**, never sent to our server: sign-in tokens (device secure storage), events read from Google Calendar / macOS Calendar (events created elsewhere) and their connection tokens, AI assistant chat history, Mac widget data, tokens for importing from other services.
 - **IP addresses** are used only in server memory for sign-in rate limiting (at most 24 hours, cleared on restart). We **do not keep access logs**. Tailscale, which relays connections to our server, can see connection metadata such as IP address and time while relaying (Sections 5 and 6).
 - We do not collect sensitive information or national ID numbers. You may choose to write about health or mood in your journal — please write only what you are comfortable storing.
 - If you enter other people's names or import a messenger chat export, that text is stored as your content. Please include only what is necessary.
@@ -62,7 +62,7 @@ Our server and AI run on **a computer owned by the operator in the Republic of K
 
 - To keep task titles out of notifications, turn on **Settings › Sounds & Notifications › Hide titles in notifications**. Titles and list names are then not included in notification data at all. You can also disable notifications; reminders already scheduled on your device still work.
 - iOS currently uses on-device notifications only (no server push).
-- **Google/Apple sign-in** and **Google Calendar** are connections you make directly with those companies. We receive only the sign-in result (ID and email); Google Calendar events stay on your device.
+- **Google/Apple sign-in** and **Google Calendar** are connections you make directly with those companies. We receive only the sign-in result (ID and email); events read from Google Calendar stay on your device. Events you create or edit in Kkumteul are saved and synced as Kkumteul events and are also saved to the Google or Apple calendar you chose.
 
 ## 7. AI and your data
 1. All AI features run on **an AI model hosted on the operator's own computer**. Your text is **not sent to third-party AI providers** (such as OpenAI, Google or Anthropic).
@@ -73,7 +73,7 @@ Our server and AI run on **a computer owned by the operator in the Republic of K
 6. We do not use your data to train AI models.
 
 ### Google API Services — Limited Use
-Kkumteul's use of information received from Google APIs adheres to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), including the Limited Use requirements. Google Calendar data (read-only) is used only to display your events in the app on your device; it is not sent to our server, not used for AI, not used for advertising, and not transferred to anyone.
+Kkumteul's use of information received from Google APIs adheres to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), including the Limited Use requirements. Google Calendar data is used only to display your events in the app on your device and to save events you create or edit in Kkumteul to your own Google Calendar. Events received from Google Calendar are not sent to our server (events you create in Kkumteul are synced as Kkumteul events), not used for AI, not used for advertising, and not transferred to anyone.
 
 ## 8. Deletion
 - When you delete your account in the app, your account, all content, sessions, Google/Apple links, push device info and AI usage counts are deleted **immediately in one step** and removed from your other devices. Copies in backups are deleted after 14 days.

@@ -99,7 +99,7 @@ ${tries([['막대를 다른 날짜로 끌기', 'Drag a bar to another day'], ['�
 ${proof(shot(T, 'calendar', '공휴일이 표시된 월간 캘린더', 'Month view with public holidays', { dark: 'calendar-dark', w: 1600, h: 1000 }), `<h3 class="proof-h">${T('일 · 주 · 월, 끌어서 옮기기', 'Day, week and month, drag to reschedule')}</h3>${ticks([
   ['한국 공휴일 · 대체공휴일 내장 — 인터넷 없이도 표시', 'Korean public holidays built in, even offline'],
   ['일요일 · 공휴일은 빨강, 토요일은 파랑', 'Sundays and holidays in red, Saturdays in blue'],
-  ['Google 캘린더 · 맥 캘린더 일정도 함께 보기', 'See Google Calendar and Mac calendar events too'],
+  ['Google 캘린더 · 맥 캘린더 일정도 함께 보고 고치기', 'See and edit Google Calendar and Mac calendar events too'],
   ['음력 · 주 번호 표시 선택', 'Optional lunar dates and week numbers']
 ])}`)}
 </div>

@@ -37,7 +37,7 @@
 |---|---|---|---|
 | 할 일 | `tasks`(제목·내용·날짜·반복·우선순위·완료/삭제 시각), `check_items`, `reminders`(트리거), `task_tags` | 핵심 기능 | 휴지통 = `deleted_at`(소프트 삭제). 휴지통에서 영구 삭제하면 행이 지워짐. **휴지통 자동 비우기 기간 [확인 필요]** |
 | 정리 | `lists`(이름·이모지·색·설명), `folders`, `sections`, `tags`(이름·종류 person/project/place/topic·별칭·설명), `filters`, `view_settings`, `relations` | 정리·관계 위키 | `tags.kind='person'`이면 **사용자가 적은 타인 이름**이 들어갈 수 있음 |
-| 일정 | `events`(제목·메모·시작/끝·장소·반복·알림) | 꿈틀 자체 일정 | 외부 캘린더(구글·Apple)와 다름 — 아래 §2 |
+| 일정 | `events`(제목·메모·시작/끝·장소·반복·알림, 연결된 일정이면 `ext_provider`·`ext_account`(이메일 해시)·`ext_calendar`(캘린더 id 해시)·`ext_id`·`ext_etag`·`ext_updated`·`ext_hash`·`ext_error`) | 꿈틀 자체 일정 + 꿈틀에서 만들어 구글·Apple 캘린더에도 저장한 일정(16 §12.0) | 외부 캘린더에서 직접 만든 일정은 여기 없음(기기 캐시) — 아래 §2 |
 | 수집함·위키 | `notes`(내용·URL·링크 제목·출처 app/kakao_import/kakao_channel·AI 분류 상태·제안), `wiki_topics`, `wiki_versions` | 메모·링크 모으기, 주제 위키 | 카카오톡 대화 내보내기 파일을 가져오면 그 메시지 원문이 들어감 — **대화 상대의 메시지·이름이 섞일 수 있음 [확인 필요: 작성자 필터 여부]** |
 | 일기 | `diary_entries`(날짜·기분 1~5·본문·질문·나만 보기·AI 요약), `diary_messages`(role me/buddy, 내용, safety) | 일기·AI 대화 | **종단 간 암호화 아님 — 운영자가 DB에서 읽을 수 있음 [갭]**(PRD·`docs/screens/15-diary.md:73`가 출시 전 검토로 남김). 기분·심리 내용은 민감할 수 있음 |
 | 성장 | `xp_events`, `characters`(이름·종류·성향 검사 답 `answers_json`), `kpis`, `weekly_reports`(통계·AI 리포트 글) | 성장 루프 | |
@@ -107,8 +107,8 @@
 | 동기화 데이터 로컬 사본 | 전부 | 앱 SQLite(PowerSync) | 로그아웃하면 지움(`sync.ts`, 모바일 `auth.ts`) |
 | 로그인 정보(리프레시 토큰) | 데스크톱 | `userData/auth.bin` — Electron `safeStorage`(macOS 키체인·Windows DPAPI) | |
 | 로그인 정보·기기 id | 모바일 | `expo-secure-store`(iOS 키체인·Android Keystore) | 공유 확장은 접근 토큰만 읽음 |
-| 구글 캘린더 일정·토큰 | 데스크톱 | 캐시 SQLite(`ext_accounts/ext_calendars/ext_events`: 제목·설명·장소·시각·링크), 토큰은 `safeStorage`. 범위 `calendar.calendarlist.readonly`, `calendar.events.readonly` | 서버·AI로 보내지 않음(`docs/screens/16-google-calendar.md`). **Google 앱 검증(민감 범위) + 처리방침의 "제한적 사용" 문장 필요** |
-| Apple(맥) 캘린더 일정 | 데스크톱 macOS | EventKit 도우미 → 같은 캐시 | 읽기 전용, 이 Mac에만(`electron-builder.yml` 권한 문구) |
+| 구글 캘린더 일정·토큰 | 데스크톱 | 캐시 SQLite(`ext_accounts/ext_calendars/ext_events`: 제목·설명·장소·시각·링크), 토큰은 `safeStorage`. 범위 `calendar.calendarlist.readonly`, `calendar.events`(읽기·쓰기 — 이용자가 꿈틀에서 만들거나 고친 일정을 그 이용자의 구글 캘린더에 씀) | 다른 곳에서 만든 일정은 서버·AI로 보내지 않음, 꿈틀에서 만든 일정만 `events`로 동기화(`docs/screens/16-google-calendar.md` §12). **Google 앱 검증(민감 범위) + 처리방침의 "제한적 사용" 문장 필요** |
+| Apple(맥) 캘린더 일정 | 데스크톱 macOS | EventKit 도우미 → 같은 캐시 | 읽기·쓰기(쓸 수 있는 캘린더, 이용자 조작일 때만). 다른 곳에서 만든 일정은 이 Mac에만, 꿈틀에서 만든 일정은 `events`로 동기화(`electron-builder.yml` 권한 문구) |
 | AI 비서 대화 기록 | 데스크톱·모바일 | 계정별 기기 파일, 최근 100개 | 요청할 때는 최근 몇 턴이 AI로 감(원문 비저장) |
 | 맥 위젯 스냅샷 | macOS | `~/Library/Group Containers/<팀ID>.app.sprout.desktop/widget/snapshot.json`(할 일 제목 등) | 로그아웃 때 정리(`widget.ts`) |
 | 공유 확장 대기열 | iOS | App Group `group.app.sprout.mobile` 파일 | 본 앱이 가져가면 지움 |
