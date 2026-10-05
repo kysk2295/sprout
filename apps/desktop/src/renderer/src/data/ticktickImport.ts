@@ -4,7 +4,7 @@ import { planImport, shortHash, type ImportPlan, type MapContext, type TTBundle 
 import { itemRow } from './collect'
 import { getDb, type Stmt } from './db'
 import { askAi, readSuggestContext, serial, suggestBaseline, suggestStore, SUGGEST } from './listSuggest'
-import { insert, now, run, uuid } from './mutations'
+import { insert, now, run, taskListId, uuid } from './mutations'
 
 const TABLE_ORDER = ['folders', 'lists', 'sections', 'tags', 'tasks', 'check_items', 'task_tags', 'reminders'] as const
 type PlanTable = (typeof TABLE_ORDER)[number]
@@ -20,8 +20,7 @@ export async function importScope(): Promise<string> {
 
 export async function buildContext(at = now()): Promise<MapContext> {
   const db = await getDb()
-  const inbox = await db.get<{ id: string }>("SELECT id FROM lists WHERE kind = 'inbox' ORDER BY created_at LIMIT 1")
-  if (!inbox) throw new Error('기본함을 찾지 못했어요. 앱을 다시 열어 주세요.')
+  const inbox = { id: await taskListId(null) } // 기본함(가장 오래된 것, 없으면 만든다 — 02 §14.1)
   const tags = await db.getAll<{ id: string; name: string }>('SELECT id, name FROM tags')
   const max = async (table: string) => (await db.get<{ m: number | null }>(`SELECT max(sort_order) AS m FROM ${table}`))?.m ?? 0
   // 만든 시각이 없는 행은 새 할 일 자동 분류 기준 시각보다 앞으로 — 가져온 수천 개가 5초마다 AI로 가지 않게(정리는 기본함 정리로)

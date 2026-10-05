@@ -648,7 +648,7 @@ export function TaskListView(props: Props) {
         </Popover>
       )}
       {pageView && <PageHeader view={pageView} lists={lists} open={pageOpen} forced={pageOpen} onOpen={setPageOpen} filter={tagFilter} onFilter={setTagFilter} narrow={narrowList} />}
-      {!archive && (inboxId || view.startsWith('list:')) && (
+      {!archive && (
         <AddBar
           placeholder={view.startsWith('tag:') ? `"#${tags.find((t) => t.id === view.slice(4))?.name ?? ''}"에 할 일 추가` : addbarPlaceholder(view)}
           lists={lists}
@@ -657,7 +657,9 @@ export function TaskListView(props: Props) {
             const defaults = newTaskDefaults(view, inboxId ?? '')
             // 33 §6.3-4: 기본함으로 가는 새 할 일에 [[리스트]] 하나만 있으면 그 리스트로(토스트 ⟲)
             const target = !extra?.list_id && defaults.list_id === inboxId ? extra?.moveTo : undefined
+            // 기본함이 아직 없어도 run이 만든다(02 §14.1). 그래도 실패하면 알리고 입력을 남긴다(throw → AddBar가 비우지 않음)
             const id = await createTask({ title, ...defaults, ...(extra?.list_id ? { list_id: extra.list_id } : target ? { list_id: target } : {}), priority })
+              .catch((e) => { toast.show('할 일을 저장하지 못했어요. 다시 시도해 주세요.'); throw e })
             if (target) {
               const l = lists.find((x) => x.id === target)
               const n = l?.name ?? ''

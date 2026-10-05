@@ -141,10 +141,8 @@ export async function summarizeEntry(date: string, signal: AbortSignal) {
 }
 /** 할 일로 칩 → 기본함 */
 export async function taskFromChip(title: string): Promise<string> {
-  const inbox = await db.getOptional<{ id: string }>("SELECT id FROM lists WHERE kind = 'inbox' ORDER BY created_at LIMIT 1")
-  if (!inbox) throw new Error('기본함을 찾지 못했어요')
   const t = chipTitle(title)
   const same = await db.getOptional<{ id: string }>('SELECT id FROM tasks WHERE deleted_at IS NULL AND title = ? LIMIT 1', [t])
   if (same) return same.id
-  return createTask({ title: t, list_id: inbox.id })
+  return createTask({ title: t, list_id: '' }) // 빈 리스트 = 기본함(없으면 만든다, 02 §14.1)
 }

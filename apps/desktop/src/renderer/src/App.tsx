@@ -108,7 +108,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   const [overlay, setOverlay] = useState<'command' | 'search' | 'quick' | 'settings' | 'shortcuts'>()
   const [searchQuery, setSearchQuery] = useState('')
   useEffect(() => { const m = matchMedia('(prefers-color-scheme: dark)'); const change = () => setSystemDark(m.matches); m.addEventListener('change', change); return () => m.removeEventListener('change', change) }, [])
-  const lists = useQuery<ListRow>('SELECT id, name, emoji, color, kind, sort_order FROM lists WHERE archived_at IS NULL ORDER BY sort_order') ?? []
+  const lists = useQuery<ListRow>('SELECT id, name, emoji, color, kind, sort_order FROM lists WHERE archived_at IS NULL ORDER BY sort_order, created_at, id') ?? []
   // 기본함은 사이드바에서 스마트 목록으로 보이므로 list:<기본함 id> 대신 smart:inbox로(선택 표시가 맞게)
   const listView = (listId: string) => (listId === inboxId ? 'smart:inbox' : `list:${listId}`)
   const openTask = (id: string) => { setView('tasks'); setSelected('smart:all'); setSelection([id]) }
@@ -119,6 +119,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   const folder = useQuery<{name:string}>('SELECT name FROM folders WHERE id = ?', [selected.startsWith('folder:') ? selected.slice(7) : ''])?.[0]
   const selectedFilter = useQuery<{name:string}>('SELECT name FROM filters WHERE id=?',[selected.startsWith('filter:')?selected.slice(7):''])?.[0]
   const selectedList = useQuery<ListRow>('SELECT id,name,emoji,color,kind,sort_order FROM lists WHERE id=?',[selected.startsWith('list:')?selected.slice(5):''])?.[0]
+  // 기본함은 언제나 하나 있다(02 §14.1). 혹시 둘이면 가장 오래된 것(위 쿼리가 sort_order·created_at 순) — 없으면 할 일을 만들 때 만든다(mutations run)
   const inboxId = lists.find((l) => l.kind === 'inbox')?.id
 
   useEffect(() => {

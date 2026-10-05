@@ -86,7 +86,7 @@ export function QuickAdd({ lists,tags,inboxId,onClose,onCreated }: {lists:ListRo
   const p=priority??(recognition?parsed.priority:undefined)??0
   const title=recognition?parsed.title:raw.trim()
   const submit=async()=>{
-    if(saving.current||!title||!listId)return
+    if(saving.current||!title)return
     saving.current=true;setBusy(true);setError('')
     try{
       const id=uuid()
@@ -95,7 +95,8 @@ export function QuickAdd({ lists,tags,inboxId,onClose,onCreated }: {lists:ListRo
       await run(insert('tasks',{id,title,list_id:listId,content:'',content_mode:'text',status:0,priority:p,start_at:s.start_at,due_at:s.due_at,is_all_day:s.is_all_day,time_zone:'floating',repeat_rule:s.repeat_rule,repeat_from:s.repeat_from,sort_order:-Date.now()}),
         ...tagIds.map((tag_id)=>insert('task_tags',{id:uuid(),task_id:id,tag_id})),
         ...s.reminders.map((trigger)=>insert('reminders',{id:uuid(),task_id:id,trigger})))
-      onClose();onCreated(id,listId)
+      const real=listId||(await (await getDb()).get<{list_id:string}>('SELECT list_id FROM tasks WHERE id=?',[id]))?.list_id||''
+      onClose();onCreated(id,real)
       if(moveTo&&listId===moveTo&&inboxId){const l=lists.find(x=>x.id===moveTo);const n=l?.name??'';toast.show(`'${n}'${ro(n).slice(n.length)} 옮겼어요`,()=>run(update('tasks',id,{list_id:inboxId,section_id:null})))}
     }catch{setError('저장하지 못했어요. 입력 내용은 유지됩니다. 다시 시도해 주세요.')}
     finally{saving.current=false;setBusy(false)}

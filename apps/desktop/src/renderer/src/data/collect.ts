@@ -1,7 +1,7 @@
 // 11 수집함 v3: 수집 항목(notes)·위키(wiki_topics·wiki_versions) 읽기·쓰기
 import { firstUrl, isBareLink, type Classified, type CollectKind, type KakaoMessage, type WikiSection } from '../../../shared/collect'
 import { getDb, type Stmt } from './db'
-import { insert, now, remove, run, update, uuid } from './mutations'
+import { insert, now, remove, run, taskListId, update, uuid } from './mutations'
 import { convertNote, type Note } from './notes'
 import { eulReul, eunNeun, ro } from '../lib/josa'
 /** 따옴표 이름 + 받침에 맞는 조사: '핵심 정리'는 · '개요'를 */
@@ -82,8 +82,7 @@ export const setSeen = (id: string, seen: boolean) => run(update('notes', id, { 
 /** `등록` 한 번 = v2 전환과 같은 경로(결정적 id, 중복 생성 없음) */
 export async function registerSuggestion(item: CollectItem, lists: { id: string; kind: string }[]) {
   const s = suggestionOf(item)
-  const listId = (s?.listId && lists.some((l) => l.id === s.listId) ? s.listId : lists.find((l) => l.kind === 'inbox')?.id) ?? lists[0]?.id
-  if (!listId) throw new Error('리스트를 선택해 주세요.')
+  const listId = (s?.listId && lists.some((l) => l.id === s.listId) ? s.listId : lists.find((l) => l.kind === 'inbox')?.id) ?? await taskListId(null) // 기본함이 없으면 만든다(02 §14.1)
   const title = s?.title?.trim() || item.content.split('\n')[0].slice(0, 200)
   return convertNote(item.id, { title, listId, due: s?.due || undefined, start: s?.start || undefined })
 }

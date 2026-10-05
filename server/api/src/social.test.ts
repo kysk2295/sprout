@@ -88,6 +88,8 @@ assert.deepEqual(r, { user: { id: 'pw', email: 'me@gmail.com' }, created: false,
 r = await resolveSocialUser(store, a)
 assert.equal(r.created, true) // 가림 이메일 → 새 계정(비밀번호 없음)
 assert.equal(store.users.get(r.user.id)!.password, false)
+assert.equal(store.inboxes.get(r.user.id), `inbox-${r.user.id}`) // 새 계정은 기본함과 함께 만든다(defaultInbox.ts)
+assert.equal(store.inboxes.has('pw'), false) // 기존 계정에 연결할 때는 만들지 않는다(그 계정은 이미 있다)
 const appleUser = r.user.id
 r = await resolveSocialUser(store, a2) // 이메일 없는 다음 로그인 → 같은 계정
 assert.equal(r.user.id, appleUser)

@@ -7,8 +7,9 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { UpdateType, type AbstractPowerSyncDatabase, type PowerSyncBackendConnector } from '@powersync/node'
 import { LOCAL_OWNER, TABLES } from '@sprout/schema'
+import { planAdoptInbox } from '@sprout/schema/inbox'
 import { db } from './db'
-import { ensureSeed } from './seed'
+import { ensureSeed, ensureSignedInInbox } from './seed'
 import { forgetTickTick } from './ticktick'
 import { forgetCalendars } from './calendars'
 import { clearWidget } from './widget'
@@ -143,6 +144,9 @@ async function adopt(s: Session) {
         await tx.execute("DELETE FROM user_prefs WHERE id = 'prefs-local'")
       }
       for (const t of Object.keys(TABLES)) await tx.execute(`UPDATE ${t} SET owner_id = ? WHERE owner_id = ? OR owner_id IS NULL`, [s.user.id, LOCAL_OWNER])
+      // 서버는 계정을 만들 때 기본함 inbox-<id>를 이미 만들었다 → 로컬 기본함(무작위 id)을 그 id로 옮겨 올린다(기본함이 둘이 되지 않게, 02 §14.1)
+      const plan = await planAdoptInbox({ getAll: (sql, p = []) => tx.getAll(sql, p), get: (sql, p = []) => tx.getOptional(sql, p) }, s.user.id, s.user.id)
+      for (const st of plan) await tx.execute(st.sql, st.params ?? [])
     })
   }
 }
@@ -173,8 +177,25 @@ export async function signInWithTokens(r: TokenResponse & { created?: boolean },
   await adopt(s)
   save(s)
   await db.connect(connector)
+  watchInbox(s.user.id)
   broadcast()
   return state()
+}
+
+// 08 §8.1 기본함 안전망: 로그인한 기기는 첫 동기화가 끝난 뒤에도 기본함이 없으면 inbox-<userId>로 만든다
+// (서버가 계정을 만들 때 만들지만, 예전 서버·손상된 데이터에서도 할 일을 넣을 곳이 있게). 로그아웃하면 그만둔다
+let inboxWatch: AbortController | undefined
+function watchInbox(userId: string) {
+  inboxWatch?.abort()
+  const ctl = new AbortController()
+  inboxWatch = ctl
+  void db.waitForFirstSync(ctl.signal)
+    .then(async () => {
+      if (ctl.signal.aborted || session?.user.id !== userId) return
+      const made = await ensureSignedInInbox(userId)
+      if (made) console.log('[sync] 첫 동기화 뒤 기본함이 없어 만들었어요')
+    })
+    .catch((e) => { if (!ctl.signal.aborted) console.warn('[sync] 기본함 확인 실패:', e) })
 }
 
 export const isSignedIn = () => !!session
@@ -184,7 +205,7 @@ export const serverAccess = async () => ({ url: API_URL, token: await freshToken
 export async function startSync() {
   session = load()
   db.registerListener({ statusChanged: () => broadcast() })
-  if (session) void db.connect(connector)
+  if (session) { void db.connect(connector); watchInbox(session.user.id) }
 
   ipcMain.handle('auth:state', () => state())
   ipcMain.handle('auth:login', async (_e, email: string, password: string) => {
@@ -234,6 +255,8 @@ export async function startSync() {
 
 /** 로그아웃·계정 삭제 공통: 이 기기의 내 데이터를 지우고 처음 상태로(다음 사람에게 보이지 않게) */
 async function wipeLocal() {
+  inboxWatch?.abort()
+  inboxWatch = undefined
   await db.disconnectAndClear()
   save(undefined)
   reauth = undefined

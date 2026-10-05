@@ -1,12 +1,14 @@
 import { LOCAL_OWNER } from './index'
+import { inboxRow } from './inbox'
 
 // 첫 실행 데이터. 기본함은 항상 만든다(01-app-shell §4.1). withDemo면 틱틱 8.0 캡처와 같은 구성의 예시 데이터를 더한다.
 // 앱(메인 프로세스)과 브라우저 미리보기가 같은 문장을 실행한다.
 export type Stmt = { sql: string; params: unknown[] }
 
-export function seedStatements(withDemo: boolean, now = new Date()): Stmt[] {
+// opts.inboxId·ownerId: 로그인한 휴대폰 새 계정은 서버와 같은 기본함 id(inbox-<userId>, inbox.ts)로 만든다(둘이 되지 않게)
+export function seedStatements(withDemo: boolean, now = new Date(), opts: { inboxId?: string; ownerId?: string } = {}): Stmt[] {
   const iso = now.toISOString()
-  const base = { owner_id: LOCAL_OWNER, created_at: iso, modified_at: iso }
+  const base = { owner_id: opts.ownerId ?? LOCAL_OWNER, created_at: iso, modified_at: iso }
   const out: Stmt[] = []
   const id = () => globalThis.crypto.randomUUID()
   const day = (offset: number) => {
@@ -19,8 +21,8 @@ export function seedStatements(withDemo: boolean, now = new Date()): Stmt[] {
     out.push({ sql: `INSERT INTO ${table} (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`, params: Object.values(row) })
   }
 
-  const inboxId = id()
-  insert('lists', { id: inboxId, ...base, name: '기본함', kind: 'inbox', sort_order: 0, pinned: 0, show_in_smart: 'all' })
+  const inboxId = opts.inboxId ?? id()
+  insert('lists', inboxRow(inboxId, base.owner_id, iso))
   if (!withDemo) return out
 
   const list = (name: string, emoji: string, color: string | null, order: number) => {

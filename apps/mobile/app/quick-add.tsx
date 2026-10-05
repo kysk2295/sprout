@@ -78,7 +78,7 @@ export default function QuickAdd() {
   const trigger: Trigger | null = activeTrigger(text, cursor)
   const sugg = trigger ? suggestions(trigger, tags, lists) : []
   const list = lists.find((l) => l.id === input.list_id)
-  const canSend = !!input.title && !!inbox
+  const canSend = !!input.title // 기본함이 아직 없어도 보낸다 — createTask가 기본함을 만든다(02 §14.1)
 
   const close = () => { Keyboard.dismiss(); router.back() }
   const send = async () => {
@@ -86,7 +86,7 @@ export default function QuickAdd() {
     try {
       await createTask(input)
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-      const msg = addedToast(view, input.due_at, input.start_at, today, list?.kind === 'inbox' ? '기본함' : list?.name)
+      const msg = addedToast(view, input.due_at, input.start_at, today, !list || list.kind === 'inbox' ? '기본함' : list.name)
       if (msg) setFlash({ msg, id: Date.now() })
       setText(''); setDesc(''); setCursor(0); setIgnored([]); setManual(null); setPriority(null); setListId(null)
       titleRef.current?.focus()

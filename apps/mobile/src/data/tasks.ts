@@ -4,7 +4,8 @@
 import * as Haptics from 'expo-haptics'
 import { deleteStmt, insertStmt, planComplete, planGrantTaskXp, planReopenWithXp, updateStmt, type Stmt } from '@sprout/schema/taskCore'
 import { dayKey, moveToDate } from '../lib/dates'
-import { currentUserId } from './auth'
+import { ensureInbox } from '@sprout/schema/inbox'
+import { currentUserId, signedInUserId } from './auth'
 import { coreDb, db, run } from './db'
 import { taskDone, xpGained } from './events'
 
@@ -137,6 +138,11 @@ export async function duplicateTask(id: string): Promise<string | null> {
   return nid
 }
 
+/** 기본함 id(둘이면 가장 오래된 것). 없으면 만든다 */
+export async function defaultListId(): Promise<string> {
+  return (await ensureInbox(coreDb, run, { userId: signedInUserId(), ownerId: currentUserId() })).id
+}
+
 /** 새 할 일(빠른 입력): 그룹 맨 위(02 §4). 날짜 시트 값(기간·반복 기준·알림)과 설명도 한 트랜잭션에(22 §5) */
 export async function createTask(input: {
   title: string; list_id: string; due_at?: string | null; priority?: number; tag_ids?: string[]; repeat_rule?: string | null; parent_id?: string | null
@@ -144,9 +150,11 @@ export async function createTask(input: {
 }) {
   const id = uuid()
   const due = input.due_at ?? null
+  // 02 §14.1: 리스트가 비었으면 기본함(없으면 만든다 — 로그인했으면 inbox-<userId>). 실패하면 throw → 화면이 알린다
+  const listId = input.list_id || (await defaultListId())
   const stmts: Stmt[] = [
     insert('tasks', {
-      id, list_id: input.list_id, parent_id: input.parent_id ?? null, title: input.title, content: input.content ?? '', content_mode: 'text', status: 0,
+      id, list_id: listId, parent_id: input.parent_id ?? null, title: input.title, content: input.content ?? '', content_mode: 'text', status: 0,
       priority: input.priority ?? 0, start_at: due ? (input.start_at ?? null) : null, due_at: due, is_all_day: due && due.includes('T') ? 0 : 1, time_zone: 'floating',
       repeat_rule: input.repeat_rule ?? null, repeat_from: input.repeat_rule ? (input.repeat_from ?? 'due') : null, sort_order: -Date.now()
     })

@@ -9,6 +9,7 @@ import { dayKey, rowDateLabel } from '../lib/dates'
 import { checkboxColor } from '../lib/priority'
 import { useTaskActions } from '../lib/taskActions'
 import { MenuItem, Popover } from './Popover'
+import { useToast } from './Toast'
 import { displayTitle } from '@sprout/schema/wikiLink' // 33 §6.6 메뉴바는 괄호 뺀 글
 
 // 09 메뉴바 미니 창: 목록 전환 · 추가 바 · 할 일(체크·누르면 메인 창에서 열기)
@@ -29,8 +30,9 @@ export function MiniWindow({ signedIn }: { signedIn: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const actions = useTaskActions()
   const today = dayKey()
-  const lists = useQuery<ListRow>('SELECT id, name, emoji, color, kind, sort_order FROM lists WHERE archived_at IS NULL ORDER BY sort_order') ?? []
+  const lists = useQuery<ListRow>('SELECT id, name, emoji, color, kind, sort_order FROM lists WHERE archived_at IS NULL ORDER BY sort_order, created_at, id') ?? []
   const inboxId = lists.find((l) => l.kind === 'inbox')?.id
+  const toast = useToast()
   const settings = useMemo(() => defaultSettings(view), [view])
   const q = useMemo(() => openTasksSql(view, settings, today), [view, settings, today])
   const tasks = useQuery<TaskRow>(q.sql, q.params)
@@ -86,11 +88,13 @@ export function MiniWindow({ signedIn }: { signedIn: boolean }) {
           className="addbar__input"
           placeholder={addbarPlaceholder(view)}
           onKeyDown={async (e) => {
-            if (e.nativeEvent.isComposing || e.key !== 'Enter' || !inboxId) return
+            if (e.nativeEvent.isComposing || e.key !== 'Enter') return
             const title = e.currentTarget.value.trim()
             if (!title) return
-            e.currentTarget.value = ''
-            await createTask({ title, ...newTaskDefaults(view, inboxId) })
+            const input = e.currentTarget
+            input.value = ''
+            // 기본함이 아직 없어도 만든다(list_id가 비면 run이 기본함으로). 그래도 실패하면 입력을 되돌리고 알린다
+            try { await createTask({ title, ...newTaskDefaults(view, inboxId ?? '') }) } catch { input.value = title; toast.show('할 일을 저장하지 못했어요. 다시 시도해 주세요.') }
           }}
         />
       </div>

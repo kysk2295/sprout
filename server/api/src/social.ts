@@ -11,6 +11,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { createRemoteJWKSet, decodeJwt, importPKCS8, jwtVerify, SignJWT, type JWTPayload } from 'jose'
+import { createUserWithInbox, inboxIdFor } from './defaultInbox.ts'
 
 export type Provider = 'google' | 'apple'
 export type VerifiedIdentity = { provider: Provider; subject: string; email: string | null; emailVerified: boolean; privateRelay: boolean }
@@ -214,7 +215,7 @@ export type UserRow = { id: string; email: string }
 export interface IdentityStore {
   findByIdentity(provider: Provider, subject: string): Promise<UserRow | null>
   findUserByEmail(email: string): Promise<UserRow | null>
-  /** 같은 이메일이 동시에 만들어지면 null */
+  /** 사용자와 기본함(lists kind='inbox', id inbox-<id>)을 함께 만든다. 같은 이메일이 동시에 만들어지면 null */
   createUser(email: string): Promise<UserRow | null>
   link(userId: string, id: VerifiedIdentity): Promise<void>
 }
@@ -249,8 +250,8 @@ export function pgIdentityStore(q: Q): IdentityStore {
       return r.rows[0] ?? null
     },
     async createUser(email) {
-      const r = await q('INSERT INTO users (email, password_hash) VALUES ($1, NULL) ON CONFLICT (email) DO NOTHING RETURNING id, email', [email])
-      return r.rows[0] ?? null
+      // 사용자 + 기본함(inbox-<id>)을 한 문으로(defaultInbox.ts — 모든 계정에 기본함)
+      return createUserWithInbox(q, email, null)
     },
     async link(userId, id) {
       await q('INSERT INTO user_identities (user_id, provider, subject, email) VALUES ($1, $2, $3, $4) ON CONFLICT (provider, subject) DO NOTHING', [userId, id.provider, id.subject, id.email])
@@ -258,13 +259,15 @@ export function pgIdentityStore(q: Q): IdentityStore {
   }
 }
 
-export function memoryIdentityStore(): IdentityStore & { users: Map<string, UserRow & { password: boolean }>; identities: { userId: string; provider: Provider; subject: string; email: string | null }[] } {
+export function memoryIdentityStore(): IdentityStore & { users: Map<string, UserRow & { password: boolean }>; identities: { userId: string; provider: Provider; subject: string; email: string | null }[]; inboxes: Map<string, string> } {
   const users = new Map<string, UserRow & { password: boolean }>()
+  const inboxes = new Map<string, string>() // 사용자 id → 기본함 id
   const identities: { userId: string; provider: Provider; subject: string; email: string | null }[] = []
   let n = 0
   return {
     users,
     identities,
+    inboxes,
     async findByIdentity(provider, subject) {
       const i = identities.find((x) => x.provider === provider && x.subject === subject)
       const u = i && users.get(i.userId)
@@ -278,6 +281,7 @@ export function memoryIdentityStore(): IdentityStore & { users: Map<string, User
       for (const u of users.values()) if (u.email === email) return null
       const id = `u${++n}`
       users.set(id, { id, email, password: false })
+      inboxes.set(id, inboxIdFor(id))
       return { id, email }
     },
     async link(userId, id) {

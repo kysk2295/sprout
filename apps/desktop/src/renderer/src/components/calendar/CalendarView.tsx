@@ -347,8 +347,8 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
           <DetailPane taskId={pop.id} lists={lists} tags={tags} actions={actions} onSelect={(id) => setPop({ ...pop, id })} onClose={() => setPop(undefined)} />
         </Popover>
       )}
-      {pop?.kind === 'create' && inboxId && (
-        <QuickCreate key={`${pop.draft.start_at}:${pop.draft.due_at}:${pop.rect.left}:${pop.rect.top}`} draft={pop.draft} rect={pop.rect} lists={lists} defaultListId={defaultList ?? inboxId} myColor={opts.myColor} onClose={() => setPop(current=>current===pop?undefined:current)} onCreated={(id) => setSelection([id])} onCreatedEvent={(id) => setSelection([`${EV_PREFIX}${id}`])} />
+      {pop?.kind === 'create' && (
+        <QuickCreate key={`${pop.draft.start_at}:${pop.draft.due_at}:${pop.rect.left}:${pop.rect.top}`} draft={pop.draft} rect={pop.rect} lists={lists} defaultListId={defaultList ?? inboxId ?? ''} myColor={opts.myColor} onClose={() => setPop(current=>current===pop?undefined:current)} onCreated={(id) => setSelection([id])} onCreatedEvent={(id) => setSelection([`${EV_PREFIX}${id}`])} />
       )}
       {pop?.kind === 'more' && (
         <Popover rect={pop.rect} placement="side" width={260} className="menu day-pop" onClose={() => setPop(undefined)}>

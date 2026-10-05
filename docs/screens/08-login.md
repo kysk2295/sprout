@@ -193,7 +193,14 @@
 | 로그아웃 | `POST /auth/logout`, 로컬 DB 비움 |
 | 로그인 방법(§3.1.1) | `GET /auth/me`의 `has_password`·`identities` → `POST /auth/link/{google,apple}` · `DELETE /auth/link/{google,apple}`. IPC `auth:login-methods`·`auth:link`·`auth:unlink`(취소는 `auth:social-cancel`) |
 | 계정 삭제(§7.1) | `GET /auth/me`의 `has_password`·`providers`로 확인 방법을 고름 → `DELETE /auth/account {password?}` → 로그아웃과 같은 로컬 정리. IPC `auth:account`·`auth:reauth-begin`·`auth:reauth-end`·`auth:delete-account` |
+| 기본함(§8.1) | 가입·구글·애플 새 계정 = `users` + `lists`(기본함 `inbox-<id>`)를 한 문으로. `GET /auth/me`의 `has_data`는 이 자동 기본함만 있으면 false |
 - 비밀번호 규칙: 틱틱과 같이 **6-64자** (지금 서버는 8자 이상 → 6-64로 맞춘다).
+
+### 8.1 계정을 만들면 기본함도 만든다 [sprout 규칙 — 2026-10-05 사용자 결정 "기본함은 있어야지. 이걸 디폴트로 해줘"]
+- **계정을 만드는 모든 길**(이메일 가입 `POST /auth/signup`, 구글·애플 첫 로그인 `POST /auth/google`·`/auth/apple`의 새 계정)은 사용자 행과 기본함 행(`lists`: id `inbox-<userId>`, name "기본함", kind `inbox`, sort_order 0, show_in_smart `all`)을 **한 SQL 문(CTE)**으로 만든다 — 하나만 생기는 일이 없다(`server/api/src/defaultInbox.ts`). 기존 계정에 구글·애플을 연결할 때는 만들지 않는다.
+- 로그인·리프레시로 토큰을 줄 때마다 기본함이 하나도 없으면 같은 id로 채운다(예전 계정 자가 치유, 이미 있으면 아무것도 안 함). 배포 때 `server/db/migrations/20261009-default-inbox.sql`로 기존 계정을 한 번에 채운다(다시 돌려도 안전).
+- 첫 로그인 규칙(§8 표 "첫 로그인")과 맞춤: `has_data`는 **자동 기본함 하나만 있는 계정을 "데이터 없음"**으로 본다(리스트가 그것뿐이고 할 일·노트·일정이 없음). 그래서 로그인 전 쓰던 기기는 그대로 로컬 데이터를 올리고, 올리기 전에 로컬 기본함(무작위 id)을 `inbox-<userId>`로 옮긴다(할 일·섹션의 list_id도 같이) → 기본함은 하나. 휴대폰 새 계정은 처음부터 `inbox-<userId>`로 만든다.
+- 앱 안전망과 둘 이상일 때의 규칙은 [02 §14.1](02-task-list.md).
 
 ## 9. 완료 기준 (틱틱 웹과 나란히)
 - [x] 카드 크기·모서리, 입력칸·버튼 290×40·모서리 10·간격 14가 틱틱과 같다.
@@ -212,5 +219,6 @@
 - [ ] (§7.1) 다른 기기(로그인해 둔 두 번째 앱)에서 데이터가 사라지고 로그인 화면으로 간다.
 - [ ] (§3.1.1) 설정 › 계정에 "로그인 방법" 카드: 이메일 ✓ 비밀번호 있음 · Google [연결] · Apple 준비 중. 다크·라이트.
 - [ ] (§3.1.1) `qa-ui@sprout.test`로 로그인한 채 Google [연결] → 브라우저에서 다른 이메일의 구글 계정 선택 → "연결됨 · 가린 이메일" + 토스트. 로그아웃 → "Google로 계속하기" → **qa-ui 계정 데이터**가 보인다(새 계정·18 안내 없음).
+- [ ] (§8.1) 이메일 가입·구글 새 계정 직후 서버 `lists`에 `inbox-<id>` 기본함이 하나 있고, 앱 사이드바에 기본함이 하나 보인다. 로그인 전 할 일이 있던 기기로 가입해도 기본함은 하나, 할 일은 그 안에.
 - [ ] (§3.1.1) 다른 sprout 계정에 붙은 구글로 연결하면 "이미 다른 sprout 계정에 연결된 구글 계정이에요". 브라우저 취소는 표시 없음, 진행 중 [취소]가 된다.
 - [ ] (§3.1.1) [연결 해제] → 줄 안 확인 → 해제 + 토스트. 구글로만 가입한 계정의 마지막 방법은 해제 버튼이 흐리다(서버도 409).

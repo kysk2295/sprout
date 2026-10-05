@@ -8,8 +8,9 @@ import * as SecureStore from 'expo-secure-store'
 import { useSyncExternalStore } from 'react'
 import { UpdateType, type AbstractPowerSyncDatabase, type PowerSyncBackendConnector } from '@powersync/react-native'
 import { seedStatements } from '@sprout/schema/seed'
+import { ensureInbox, inboxIdFor } from '@sprout/schema/inbox'
 import { API_URL, SYNC_URL } from '../config'
-import { CONNECT_OPTIONS, db, run } from './db'
+import { CONNECT_OPTIONS, coreDb, db, run } from './db'
 import { deviceId } from './device'
 import { GoogleSignInError, googleIdToken } from './google'
 
@@ -32,6 +33,8 @@ const subscribe = (l: () => void) => { listeners.add(l); return () => listeners.
 export const useAuth = () => useSyncExternalStore(subscribe, () => snapshot)
 /** 지금 로그인한 사용자 id(로컬에 새로 쓰는 행의 owner_id — 서버는 어차피 토큰 사용자로 강제한다) */
 export const currentUserId = () => session?.user.id ?? 'local'
+/** 로그인했으면 사용자 id, 아니면 null(기본함 id inbox-<userId>를 정할 때) */
+export const signedInUserId = () => session?.user.id ?? null
 
 // ── 저장 ──
 async function save(s: Session | undefined) {
@@ -136,9 +139,23 @@ async function adopt(s: Session) {
   const me = await api<{ has_data: boolean }>('/auth/me', { token: s.access_token })
   await db.disconnectAndClear()
   if (!me.has_data) {
-    await run(seedStatements(false))
-    await db.execute('UPDATE lists SET owner_id = ?', [s.user.id])
+    // 서버는 계정을 만들 때 기본함 inbox-<id>를 만든다 → 같은 id로 만들어야 둘이 되지 않는다(02 §14.1)
+    await run(seedStatements(false, new Date(), { inboxId: inboxIdFor(s.user.id), ownerId: s.user.id }))
   }
+}
+
+// 08 §8.1 기본함 안전망: 첫 동기화가 끝난 뒤에도 기본함이 없으면 inbox-<userId>로 만든다(예전 서버·손상된 데이터에서도 넣을 곳이 있게)
+let inboxWatch: AbortController | undefined
+function watchInbox(userId: string) {
+  inboxWatch?.abort()
+  const ctl = new AbortController()
+  inboxWatch = ctl
+  void db.waitForFirstSync(ctl.signal)
+    .then(async () => {
+      if (ctl.signal.aborted || session?.user.id !== userId) return
+      await ensureInbox(coreDb, run, { userId, ownerId: userId })
+    })
+    .catch((e) => { if (!ctl.signal.aborted) console.warn('[sync] 기본함 확인 실패:', e) })
 }
 
 /** 서버 토큰 응답 → 첫 로그인 규칙 → 저장 → 동기화(이메일·구글 공용) */
@@ -149,6 +166,7 @@ async function signInWithTokens(r: TokenResponse) {
   status = 'signedIn'
   emit()
   void db.connect(connector, CONNECT_OPTIONS)
+  watchInbox(s.user.id)
 }
 async function signIn(path: '/auth/login' | '/auth/signup', email: string, password: string) {
   await signInWithTokens(await api<TokenResponse>(path, { body: { email: email.trim(), password } }))
@@ -230,6 +248,8 @@ export function socialErrorText(e: unknown): string | null {
 }
 
 async function signOutLocal() {
+  inboxWatch?.abort()
+  inboxWatch = undefined
   await db.disconnectAndClear()
   await save(undefined)
   status = 'signedOut'
@@ -259,7 +279,7 @@ export function startAuth() {
     session = await load()
     status = session ? 'signedIn' : 'signedOut'
     emit()
-    if (session) void db.connect(connector, CONNECT_OPTIONS)
+    if (session) { void db.connect(connector, CONNECT_OPTIONS); watchInbox(session.user.id) }
   })()
   return started
 }

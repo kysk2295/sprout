@@ -5,6 +5,7 @@ import { insertStmt } from '@sprout/schema/taskCore'
 import { fetch as streamFetch } from 'expo/fetch'
 import { currentUserId, serverAccess } from '../data/auth'
 import { db, run } from '../data/db'
+import { defaultListId } from '../data/tasks'
 import {
   buildChatInput, interpret, parseStreamLine, querySql, queryResult, replyPreview, splitLines,
   type AssistantProgress, type AssistantResult, type Intent, type ListLite, type TaskLite
@@ -105,8 +106,9 @@ async function executeIntent(intent: Intent, id: string): Promise<AssistantResul
   if (intent.action === 'reply') return { text: intent.message || '등록할 일정이나 조회할 기간을 알려 주세요.' }
   if (intent.action === 'create') {
     if (!intent.title.trim()) throw new Error('등록할 제목을 알려 주세요.')
-    const lists = await db.getAll<ListLite & { kind: string | null }>('SELECT id, name, kind FROM lists WHERE archived_at IS NULL')
-    const list = lists.find((l) => l.id === intent.listId) || (!intent.listId ? lists.find((l) => l.kind === 'inbox') : undefined)
+    const lists = await db.getAll<ListLite & { kind: string | null }>("SELECT id, name, kind FROM lists WHERE archived_at IS NULL ORDER BY kind = 'inbox' DESC, CASE WHEN kind = 'inbox' THEN created_at END, sort_order")
+    // 목록을 고르지 않았으면 기본함(02 §14.1 — 없으면 만든다. 둘이면 가장 오래된 것)
+    const list = lists.find((l) => l.id === intent.listId) || (!intent.listId ? (lists.find((l) => l.kind === 'inbox') ?? { id: await defaultListId(), name: '기본함', kind: 'inbox' }) : undefined)
     if (!list) throw new Error('저장할 목록을 확인해 주세요.')
     const stamp = new Date().toISOString()
     await run([insertStmt('tasks', { owner_id: currentUserId(), id, title: intent.title.trim(), list_id: list.id, content: '', content_mode: 'text', status: 0, priority: 0, sort_order: -Date.now(), start_at: intent.start || null, due_at: intent.due || null, is_all_day: intent.due.includes('T') ? 0 : 1, time_zone: 'floating', repeat_rule: intent.repeat || null, repeat_from: 'due' }, stamp)])

@@ -1,5 +1,7 @@
 import { LOCAL_OWNER } from '@sprout/schema'
-import { getDb, type Row, type Stmt } from './db'
+import { resolveListId } from '@sprout/schema/inbox'
+import { authApi } from './auth'
+import { getDb, type DbApi, type Row, type Stmt } from './db'
 
 // 쓰기는 모두 로컬 DB에 바로 기록한다(저장 버튼 없음 — 02 §13.4). M3부터 PowerSync가 서버로 올린다.
 export const now = () => new Date().toISOString()
@@ -17,7 +19,43 @@ export function update(table: string, id: string, patch: Record<string, unknown>
   return { sql: `UPDATE ${table} SET ${cols.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`, params: [...Object.values(full), id] }
 }
 export const remove = (table: string, id: string): Stmt => ({ sql: `DELETE FROM ${table} WHERE id = ?`, params: [id] })
-export const run = async (...stmts: Stmt[]) => (stmts.length ? (await getDb()).transaction(stmts) : undefined)
+export const run = async (...stmts: Stmt[]) => {
+  if (!stmts.length) return
+  const db = await getDb()
+  return db.transaction(await withTaskLists(db, stmts))
+}
+
+// ── 기본함 안전망(02 §14.1, 2026-10-05 사용자 결정) ──
+// 새 할 일은 조용히 사라지면 안 된다: list_id가 비었으면 기본함으로 넣는다. 기본함도 없으면 만든다
+// (로그인했으면 inbox-<userId> — 서버·다른 기기와 같은 id라 둘이 되지 않는다). 그래도 실패하면 throw → 화면이 오류를 띄운다.
+const TASK_INSERT = /^INSERT INTO tasks \(([^)]*)\) VALUES \(([?,\s]*)\)$/
+const colsOf = (m: RegExpMatchArray) => m[1].split(',').map((c) => c.trim())
+export async function inboxCtx() {
+  const user = await authApi()?.state().then((s) => s.user).catch(() => null)
+  return { userId: user?.id ?? null, ownerId: LOCAL_OWNER }
+}
+/** 할 일을 넣을 리스트 id: 있으면 그대로, 없거나 비었으면 기본함(없으면 만듦) */
+export async function taskListId(listId?: string | null): Promise<string> {
+  const db = await getDb()
+  return resolveListId(db, (st) => db.transaction(st), listId, await inboxCtx())
+}
+async function withTaskLists(db: DbApi, stmts: Stmt[]): Promise<Stmt[]> {
+  // 비어 있는 list_id만 채운다(없는 리스트 id는 건드리지 않는다 — 같은 묶음·동기화 중인 리스트일 수 있다)
+  let fallback: string | undefined
+  const out: Stmt[] = []
+  for (const s of stmts) {
+    const m = s.sql.match(TASK_INSERT)
+    if (!m) { out.push(s); continue }
+    const cols = colsOf(m)
+    const at = cols.indexOf('list_id')
+    const value = at >= 0 ? s.params?.[at] : undefined
+    if (typeof value === 'string' && value) { out.push(s); continue }
+    fallback ??= await resolveListId(db, (st) => db.transaction(st), null, await inboxCtx())
+    if (at >= 0) out.push({ sql: s.sql, params: (s.params ?? []).map((v, j) => (j === at ? fallback : v)) })
+    else out.push({ sql: `INSERT INTO tasks (${[...cols, 'list_id'].join(',')}) VALUES (${marks(cols.length + 1)})`, params: [...(s.params ?? []), fallback] })
+  }
+  return out
+}
 
 /** ids와 그 하위 태스크 전부(02 §6: 부모와 함께 완료·삭제·이동) */
 export async function withDescendants(ids: string[]): Promise<string[]> {
@@ -38,7 +76,7 @@ export async function snapshot(ids: string[], fields: string[]): Promise<() => P
   return () => run(...rows.map(({ id, ...rest }) => update('tasks', id as string, rest)))
 }
 
-export async function createTask(input: { title: string; list_id: string; due_at?: string | null; priority?: number; tag_id?: string; parent_id?: string | null; sort_order?: number }) {
+export async function createTask(input: { title: string; list_id?: string | null; due_at?: string | null; priority?: number; tag_id?: string; parent_id?: string | null; sort_order?: number }) {
   const id = uuid()
   const due = input.due_at ?? null
   const stmts = [

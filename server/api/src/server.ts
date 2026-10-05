@@ -38,6 +38,7 @@ import { pgPushStore } from './push-store.ts'
 import { createFcmSender, fcmConfigFromEnv } from './fcm.ts'
 import { backendFromEnv } from './ai-backend.ts'
 import { TABLES } from '../../../packages/schema/src/index.ts'
+import { createUserWithInbox, ensureDefaultInbox, hasData } from './defaultInbox.ts'
 
 const PORT = Number(process.env.API_PORT ?? 6060)
 const ISSUER = process.env.API_ISSUER ?? 'sprout-api'
@@ -103,6 +104,8 @@ async function counted<T>(checks: [string, Rule][], fn: () => Promise<T>, what?:
 
 /** fresh: 비밀번호·구글·애플로 막 로그인함 → 접근 토큰에 auth_time(계정 삭제 재확인용). 리프레시는 false */
 async function issue(userId: string, email: string, created = false, fresh = true) {
+  // 기본함이 없는 예전 계정도 로그인·리프레시 때 채운다(있으면 아무것도 안 함). 실패해도 로그인은 막지 않는다
+  await ensureDefaultInbox((sql, params) => pool.query(sql, params), userId).catch((e) => console.error('[inbox] ensure', (e as Error).message))
   const refresh = newRefreshToken()
   await pool.query(`INSERT INTO sessions (user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval '${REFRESH_DAYS} days')`, [userId, hashToken(refresh)])
   const access = await signAccessToken(keys, userId, ISSUER, ACCESS_TTL, fresh ? Math.floor(Date.now() / 1000) : undefined)
@@ -178,9 +181,10 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
     if (!validEmail(email)) throw new UploadError('invalid email')
     if (!validPassword(password)) throw new UploadError('password must be 6-64 characters')
     const normalized = email.trim().toLowerCase()
-    const r = await pool.query('INSERT INTO users (email, password_hash) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING RETURNING id', [normalized, await hashPassword(password)])
-    if (!r.rowCount) throw new UploadError('email already registered', 409)
-    return [201, await issue(r.rows[0].id, normalized, true)]
+    // 사용자 + 기본함(inbox-<id>)을 한 문으로 만든다(defaultInbox.ts — 모든 계정에 기본함)
+    const made = await createUserWithInbox((sql, params) => pool.query(sql, params), normalized, await hashPassword(password))
+    if (!made) throw new UploadError('email already registered', 409)
+    return [201, await issue(made.id, normalized, true)]
   },
 
   'POST /auth/login': async (req) => {
@@ -274,13 +278,14 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
     const u = await pool.query('SELECT id, email, password_hash IS NOT NULL AS has_password FROM users WHERE id = $1', [userId])
     if (!u.rowCount) throw new UploadError('unauthorized', 401)
     // 서버에 이 사용자의 데이터가 이미 있으면, 새 기기는 로컬 시드를 지우고 내려받는다
-    const d = await pool.query('SELECT EXISTS (SELECT 1 FROM lists WHERE owner_id = $1) AS has', [userId])
+    // 계정을 만들 때 생긴 빈 기본함(inbox-<id>)만 있으면 "데이터 없음" → 첫 기기가 로컬 데이터를 올린다(defaultInbox.ts)
+    const has = await hasData((sql, params) => pool.query(sql, params), userId)
     // has_password·providers: 계정 삭제 화면이 비밀번호를 물을지, 구글·애플로 다시 로그인하게 할지 고른다(08 §7.1)
     // identities: 설정 › 계정 › 로그인 방법(08 §3.1.1) — 공급자와 가린 이메일
     const p = await pool.query('SELECT provider, subject, email FROM user_identities WHERE user_id = $1 ORDER BY created_at', [userId])
     const { has_password, ...user } = u.rows[0]
     const providers = [...new Set(p.rows.map((x) => x.provider as string))].sort()
-    return [200, { user, has_data: d.rows[0].has, has_password, providers, identities: linkedView(p.rows) }]
+    return [200, { user, has_data: has, has_password, providers, identities: linkedView(p.rows) }]
   },
 
   // 08 §7.1 계정 삭제: 다시 확인(비밀번호 / 10분 안의 구글·애플 로그인) → 한 트랜잭션으로 삭제

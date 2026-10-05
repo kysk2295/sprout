@@ -4,7 +4,7 @@ import { SPECIES, type Species } from '@sprout/schema/growth'
 import type { ChatInput } from '../../../shared/assistant'
 import { aiChat } from './ai'
 import { getDb } from './db'
-import { createTask, insert, now, remove, run, update, uuid } from './mutations'
+import { createTask, insert, now, remove, run, taskListId, update, uuid } from './mutations'
 
 export type DiaryEntry = {
   id: string; date: string; mood: number | null; content: string | null; prompt: string | null
@@ -217,9 +217,8 @@ export async function summarizeEntry(date: string, signal: AbortSignal) {
 
 /** 할 일로 칩 → 기본함에 새 할 일 */
 export async function taskFromChip(title: string) {
-  const inbox = await (await getDb()).get<{ id: string }>("SELECT id FROM lists WHERE kind = 'inbox' ORDER BY created_at LIMIT 1")
-  if (!inbox) throw new Error('기본함을 찾지 못했어요')
-  return createTask({ title: title.trim().slice(0, 200), list_id: inbox.id })
+  // 기본함(가장 오래된 것). 없으면 만든다(02 §14.1)
+  return createTask({ title: title.trim().slice(0, 200), list_id: await taskListId(null) })
 }
 
 // ── 오늘 한 일(읽기만) ──

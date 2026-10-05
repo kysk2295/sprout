@@ -6,7 +6,7 @@ import type { FolderRow, ListRow, SectionRow } from './views'
 export interface TagRow { id: string; name: string; color: string | null }
 
 export function useLists(): ListRow[] {
-  return useQuery<ListRow>("SELECT id, name, emoji, color, kind, folder_id, sort_order FROM lists WHERE archived_at IS NULL ORDER BY kind = 'inbox' DESC, sort_order, name").data
+  return useQuery<ListRow>("SELECT id, name, emoji, color, kind, folder_id, sort_order FROM lists WHERE archived_at IS NULL ORDER BY kind = 'inbox' DESC, CASE WHEN kind = 'inbox' THEN created_at END, sort_order, name").data // 기본함이 둘이면 가장 오래된 것이 먼저(02 §14.1)
 }
 export function useFolders(): FolderRow[] {
   return useQuery<FolderRow>('SELECT id, name, sort_order FROM folders ORDER BY sort_order, name').data

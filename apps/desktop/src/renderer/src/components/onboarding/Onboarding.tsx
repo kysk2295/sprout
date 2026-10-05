@@ -6,8 +6,7 @@ import {
   type CalendarAvailability, type CalendarProvider, type OnboardingState, type Step
 } from '../../data/onboarding'
 import { ensureCharacter, useGrowth } from '../../data/growth'
-import { createTask } from '../../data/mutations'
-import { getDb } from '../../data/db'
+import { createTask, taskListId } from '../../data/mutations'
 import { dayKey } from '../../lib/dates'
 import { CharacterArt } from '../growth/CharacterArt'
 import { SurveyDialog } from '../growth/SurveyDialog'
@@ -194,9 +193,7 @@ function FirstTaskStep({ ready, onFinish }: { ready: boolean; onFinish: (made: b
     const t = title.trim()
     if (!t || !ready) return
     try {
-      const inbox = await (await getDb()).get<{ id: string }>("SELECT id FROM lists WHERE kind = 'inbox' ORDER BY created_at LIMIT 1")
-      if (!inbox) throw new Error('no inbox')
-      await createTask({ title: t, list_id: inbox.id, due_at: dayKey() })
+      await createTask({ title: t, list_id: await taskListId(null), due_at: dayKey() }) // 기본함(없으면 만든다, 02 §14.1)
       setMade((m) => [...m, t])
       setTitle('')
       setError('')
