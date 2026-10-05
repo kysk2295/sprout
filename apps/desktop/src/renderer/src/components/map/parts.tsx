@@ -1,6 +1,6 @@
 // 14 작업 지도 v2.0 — 그래프·보드가 같이 쓰는 부품: 할 일 카드(시안 ③ 칸반 카드), 진행 고리, 이름 입력칸, 폴더·리스트·카드 메뉴, 리스트·폴더 아이콘
 import { Check, ExternalLink, Folder, FolderInput, FolderMinus, FolderOutput, ListPlus, Pencil, Sparkles, SquarePen, Target, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState, type DragEvent, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent } from 'react'
 import { rowDateLabel, dayKey } from '../../lib/dates'
 import { checkboxColor } from '../../lib/priority'
 import { folderView, listTitle, type MapFolder, type MapList, type MapTask } from '../../data/map'
@@ -35,8 +35,12 @@ export type MapActions = {
   // 31 v3
   /** `지금` 집중(⚡ · N): 지금이 아닌 할 일을 흐리게 */
   focusNow: boolean
-  /** ✦ AI로 쪼개기 창 */
+  /** ✦ AI로 쪼개기 → 31 §11 같이 계획 짜기 대화 칸(그 할 일로) */
   breakdown: (taskId: string) => void
+  /** 31 §11: ⚡ 첫 걸음(밝힌 할 일) · 같이 짜는 큰 할 일 · 막 만든 할 일·선(id → 피어나는 순번) */
+  lit: string | null
+  planGoal: string | null
+  fresh: Map<string, number>
   /** 목표에 연결(옮기기). null = 목표 없음 */
   linkGoal: (taskId: string, goalId: string | null) => Promise<void>
 }
@@ -65,10 +69,13 @@ export function TaskCard({ task, data, actions, variant, draggable, onDragStart,
   const st = data.state.get(task.id)
   const multi = data.goalCount.get(task.id) ?? 0
   const cls = ['map-card', `map-card--${variant}`, done && 'is-done', actions.selected === task.id && 'is-selected', actions.flash.has(task.id) && 'is-flash', twoLine(task, data) && 'is-two',
-    !done && st && `is-${st}`, actions.focusNow && !done && st !== 'now' && 'is-faded']
+    !done && st && `is-${st}`, actions.focusNow && !done && st !== 'now' && actions.lit !== task.id && 'is-faded',
+    !done && actions.lit === task.id && 'is-lit', actions.planGoal === task.id && 'is-plangoal', actions.fresh.has(task.id) && 'is-fresh']
+  const freshAt = actions.fresh.get(task.id)
   return (
     <div
       className={cls.filter(Boolean).join(' ')}
+      style={freshAt !== undefined ? ({ '--fresh-delay': `${freshAt * 0.2}s` } as CSSProperties) : undefined}
       data-task={task.id}
       draggable={draggable}
       onDragStart={onDragStart}
@@ -86,7 +93,8 @@ export function TaskCard({ task, data, actions, variant, draggable, onDragStart,
         {done && <Check strokeWidth={3} />}
       </button>
       <div className="map-card__body">
-        <div className="map-card__title"><span className="map-card__text">{task.title}</span></div>
+        <div className="map-card__title"><span className="map-card__text">{task.title}</span>
+          {!done && actions.lit === task.id && <span className="map-card__lit" aria-label="지금 할 첫 걸음">⚡ 지금</span>}</div>
         {twoLine(task, data) && (
           <div className="map-card__meta">
             {date && <span className={`map-card__date is-${date.tone}`}>{date.label}</span>}

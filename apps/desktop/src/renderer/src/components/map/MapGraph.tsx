@@ -5,7 +5,7 @@ import {
   type Edge, type EdgeProps, type Node, type NodeProps, type OnConnectEnd, type Viewport
 } from '@xyflow/react'
 import { Check, Maximize2, Minus, Plus, Sparkles, X } from 'lucide-react'
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { autoCollapse, folderView, highlightSet, isCollapsed, layoutMap, listTitle, zoneAt, type LayoutEdge, type LayoutNode, type MapFolder, type MapGoal, type MapList, type MapTask, type MapTree } from '../../data/map'
 import { goalPathText, GoalHead, GoalMenu, renameGoal, toggleGoal } from './GoalBits'
 import { SUGGEST } from '../../data/listSuggest'
@@ -324,12 +324,15 @@ function Graph({ data, actions, links, onBlank, reveal, say, onGrowth }: Props) 
     const cls = `map-edge map-edge--${e.kind}${e.link?.state === 'suggested' ? ' is-sugg' : ''}${on ? ' is-hl' : hl ? ' is-dim' : ''}${edgeSel === e.id ? ' is-sel' : ''}`
     if (e.kind === 'seq' || e.kind === 'goal') {
       const color = e.kind === 'goal' ? 'var(--map-goal)' : 'var(--color-text-secondary)'
-      return { id: e.id, source: e.source, target: e.target, type: 'link', sourceHandle: 'out', targetHandle: e.kind === 'goal' ? 'goal' : 'in', className: cls, data: { link: e.link }, markerEnd: { type: 'arrowclosed' as never, color, width: 14, height: 14 }, selectable: true }
+      // 31 §11.6 같이 계획 짜기: 막 만든 순서 선은 그려지며 나타난다(단계 노드와 같은 0.2초 간격)
+      const fresh = e.link ? actions.fresh.get(e.link.id) : undefined
+      return { id: e.id, source: e.source, target: e.target, type: 'link', sourceHandle: 'out', targetHandle: e.kind === 'goal' ? 'goal' : 'in', className: fresh !== undefined ? `${cls} is-fresh` : cls, data: { link: e.link }, markerEnd: { type: 'arrowclosed' as never, color, width: 14, height: 14 }, selectable: true,
+        ...(fresh !== undefined ? { style: { '--fresh-delay': `${fresh * 0.2 + 0.2}s` } as CSSProperties } : {}) }
     }
     if (e.kind === 'stem') return { id: e.id, source: e.source, target: e.target, type: 'stem', sourceHandle: 'stem', targetHandle: 'stem', className: cls, selectable: false }
     if (e.kind === 'memo') return { id: e.id, source: e.source, target: e.target, targetHandle: 'memo', className: cls, selectable: false }
     return { id: e.id, source: e.source, target: e.target, className: cls, selectable: false }
-  }), [layout, hl, edgeSel])
+  }), [layout, hl, edgeSel, actions.fresh])
 
   const ctx: Ctx = useMemo(() => ({
     data, actions, links, hl, collapsed: shownCollapsed, toggle, hidden, listCount, quiet, dropGoal,

@@ -1,0 +1,88 @@
+/* 31 §11 같이 계획 짜기 — 대화 칸(계획 모드 오른쪽 320) · 점검·정리 한 줄 말풍선 · 지도 위 피어남·⚡ 첫 걸음. 토큰만 쓴다(13개 테마 라이트·다크) */
+.pc { width: 320px; flex-shrink: 0; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; border-left: 1px solid var(--color-border-divider); background: var(--color-bg-app); min-height: 0; }
+@media (max-width: 1100px) { .pc { width: 288px; } }
+.pc-head { display: flex; align-items: center; gap: 8px; height: 52px; flex-shrink: 0; padding: 0 10px 0 14px; border-bottom: 1px solid var(--color-border-divider); }
+.pc-head__who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pc-head__who b { font: 600 14px/18px var(--font-family); color: var(--color-text-primary); }
+.pc-head__who small { font: 400 11.5px/15px var(--font-family); color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-head__q { display: inline-flex; gap: 3px; align-items: center; }
+.pc-head__q i { width: 5px; height: 5px; border-radius: 3px; background: var(--color-bg-selected); transition: width .16s; }
+.pc-head__q i.is-past { background: var(--color-text-quaternary); }
+.pc-head__q i.is-on { width: 14px; background: var(--color-accent); }
+.pc-head__undo { display: inline-flex; align-items: center; gap: 3px; border: 0; background: none; color: var(--color-accent); font: 600 12px/16px var(--font-family); padding: 4px 6px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.pc-head__undo svg { width: 12px; height: 12px; }
+.pc-head__undo:hover { background: var(--color-accent-subtle); }
+.pc-head__x { width: 26px; height: 26px; }
+.pc-head__x svg { width: 14px; height: 14px; }
+
+.pc-av { border-radius: 50%; flex-shrink: 0; background: var(--color-bg-card, var(--color-bg-input)); box-shadow: inset 0 0 0 2px var(--ring, #5dbb63); display: grid; place-items: center; overflow: hidden; }
+.pc-av svg { margin-top: 2px; }
+.pc-av.is-busy { animation: pc-bob 1.2s ease-in-out infinite; }
+@keyframes pc-bob { 50% { transform: translateY(-2px); } }
+
+.pc-msgs { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 14px 8px; display: flex; flex-direction: column; gap: 8px; }
+.pc-msg { display: flex; gap: 8px; align-items: flex-end; animation: pc-rise .2s ease; }
+@keyframes pc-rise { from { opacity: 0; transform: translateY(6px); } }
+.pc-msg__bb { background: var(--color-bg-popover); border-radius: 14px 14px 14px 4px; padding: 7px 12px; font: 400 13.5px/20px var(--font-family); color: var(--color-text-primary); box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 0 0 1px var(--color-border-divider); max-width: 232px; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; min-width: 0; }
+.pc-msg.is-me { justify-content: flex-end; }
+.pc-msg.is-me .pc-msg__bb { background: var(--color-accent-subtle); border-radius: 14px 14px 4px 14px; box-shadow: none; }
+.pc-msg.is-strong .pc-msg__bb { font-weight: 700; box-shadow: 0 0 0 2px var(--color-accent); }
+.pc-msg.is-sys { justify-content: center; font: 400 12.5px/18px var(--font-family); color: var(--color-text-tertiary); }
+.pc-typing { display: inline-flex; gap: 3px; padding: 6px 0; vertical-align: middle; }
+.pc-typing i { width: 5px; height: 5px; border-radius: 50%; background: var(--color-text-tertiary); animation: pc-dot 1.2s infinite ease-in-out; }
+.pc-typing i:nth-child(2) { animation-delay: .15s; }
+.pc-typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes pc-dot { 0%, 80%, 100% { opacity: .3; } 40% { opacity: 1; } }
+.pc-queue { margin-left: 8px; font: var(--text-meta); color: var(--color-text-tertiary); }
+
+.pc-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 14px 8px; flex-shrink: 0; animation: pc-rise .2s ease; }
+.pc-chip { border: 0; border-radius: 999px; padding: 5px 11px; background: var(--color-accent-subtle); color: var(--color-accent); font: 600 12.5px/16px var(--font-family); cursor: pointer; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-chip:hover { filter: brightness(.96); box-shadow: inset 0 0 0 1px var(--color-accent); }
+.pc-chip:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.pc-skip { border: 0; background: none; padding: 5px 6px; color: var(--color-text-tertiary); font: 500 12px/16px var(--font-family); cursor: pointer; }
+.pc-skip:hover { color: var(--color-text-secondary); text-decoration: underline; }
+
+.pc-in { margin: 0 12px 12px; display: flex; align-items: flex-end; gap: 6px; background: var(--color-bg-input); border-radius: 18px; padding: 5px 5px 5px 14px; border: 1px solid var(--color-border-divider); flex-shrink: 0; }
+.pc-in:focus-within { border-color: var(--color-border-input-focus, var(--color-accent)); }
+.pc-in.is-off { opacity: .6; }
+.pc-in textarea { flex: 1; border: 0; outline: 0; resize: none; background: transparent; color: var(--color-text-primary); font: 400 13px/20px var(--font-family); padding: 4px 0; max-height: 96px; user-select: text; }
+.pc-in textarea:focus, .pc-in textarea:focus-visible { outline: none; box-shadow: none; }
+.pc-in textarea::placeholder { color: var(--color-text-quaternary); }
+.pc-send { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--color-accent); color: #fff; flex-shrink: 0; border: 0; cursor: pointer; }
+.pc-send:disabled { background: var(--color-bg-selected); color: var(--color-text-quaternary); cursor: default; }
+.pc-send svg { width: 15px; height: 15px; }
+
+/* 머리 아이콘 — 캐릭터 얼굴 */
+.map-head .pc-open { padding: 0; }
+.map-head .pc-open .pc-av { width: 22px; height: 22px; box-shadow: inset 0 0 0 1.5px var(--ring, #5dbb63); }
+
+/* 점검·정리 한 줄 말풍선 */
+.pc-partner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.pc-partner__bb { background: var(--color-bg-popover); border-radius: 14px 14px 14px 4px; padding: 5px 12px; font: 500 13px/19px var(--font-family); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border-divider); min-width: 0; }
+.pc-partner .pc-chip { padding: 4px 10px; font-size: 12px; }
+.pc-partner__x { width: 22px; height: 22px; margin-left: auto; }
+.pc-partner__x svg { width: 12px; height: 12px; }
+.pc-partner.is-stacked { align-items: flex-start; flex-wrap: nowrap; padding: 2px 0 8px; border-bottom: 1px solid var(--color-border-divider); }
+.pc-partner__col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pc-partner__chips { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* 지도: 막 만든 노드 피어남(0.2초 간격) · 순서 선 그려짐 · ⚡ 첫 걸음 · 같이 짜는 큰 할 일 */
+@media (prefers-reduced-motion: no-preference) {
+  .map:not(.is-reduced) .map-card.is-fresh { animation: pc-popin .45s cubic-bezier(.2, .9, .3, 1.3) both; animation-delay: var(--fresh-delay, 0s); }
+  .map:not(.is-reduced) .react-flow__edge.is-fresh path.react-flow__edge-path { stroke-dasharray: 400; stroke-dashoffset: 400; animation: pc-draw .5s ease-out forwards; animation-delay: var(--fresh-delay, 0s); }
+  .map:not(.is-reduced) .map-card.is-lit { animation: pc-glow 1.6s ease-in-out 2; }
+}
+@keyframes pc-popin { from { opacity: 0; transform: scale(.85) translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes pc-draw { to { stroke-dashoffset: 0; } }
+@keyframes pc-glow { 50% { box-shadow: 0 0 0 6px var(--color-accent-subtle); } }
+.map-card.is-lit { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-subtle); }
+.map-card.is-lit .map-card__text { font-weight: 600; }
+.map-card__lit { margin-left: auto; flex-shrink: 0; padding: 0 5px; border-radius: 4px; background: var(--color-accent-subtle); font: 700 10.5px/16px var(--font-family); color: var(--color-accent); white-space: nowrap; }
+.map-card.is-plangoal { border: 2px solid var(--color-text-primary); }
+.map-card.is-plangoal .map-card__text { font-weight: 700; }
+.map-card.is-plangoal .map-card__text::before { content: '🎯 '; }
+/* 대화 칸이 열린 동안 AI 비서 떠 있는 단추는 숨긴다(대화는 한 번에 하나 — 입력칸을 가리지 않게) */
+.app:has(.pc) .assistant-fab { display: none; }
+/* 동작 줄이기: 말풍선·칩 떠오름·아바타 끄덕임 끔(지도 피어남은 위 .map:not(.is-reduced)로 끔) */
+.pc.is-reduced .pc-msg, .pc.is-reduced .pc-chips, .pc.is-reduced .pc-av.is-busy, .pc.is-reduced .pc-typing i { animation: none; }
+@media (prefers-reduced-motion: reduce) { .pc-msg, .pc-chips, .pc-av.is-busy, .pc-typing i, .map-card.is-lit { animation: none !important; } }

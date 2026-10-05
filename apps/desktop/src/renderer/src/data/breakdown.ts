@@ -150,7 +150,7 @@ export const countNew = (steps: Step[]) => {
 // ── 만들기 · 되돌리기 ──
 export type BreakdownSnapshot = { at: string; parentId: string; parentTitle: string; tasks: string[]; links: string[] }
 /** [N개 만들기] → 한 트랜잭션: 하위 할 일 N개(같은 list_id, 기존 하위 할 일 뒤) + 순서 선(ai·accepted) */
-export function breakdownStmts(parent: Pick<BreakdownTask, 'id' | 'title' | 'list_id'>, steps: Step[], opts: { mode?: 'subtask' | 'sibling'; sortBase: number; at?: string; newId?: () => string }): { stmts: Stmt[]; snapshot: BreakdownSnapshot } {
+export function breakdownStmts(parent: Pick<BreakdownTask, 'id' | 'title' | 'list_id'>, steps: Step[], opts: { mode?: 'subtask' | 'sibling'; sortBase: number; at?: string; newId?: () => string; source?: 'ai' | 'user' }): { stmts: Stmt[]; snapshot: BreakdownSnapshot } {
   const at = opts.at ?? now()
   const newId = opts.newId ?? uuid
   const ids = new Map<string, string>()
@@ -171,7 +171,7 @@ export function breakdownStmts(parent: Pick<BreakdownTask, 'id' | 'title' | 'lis
       if (!from || !to) continue
       const id = newId()
       links.push(id)
-      stmts.push(insert('map_links', { id, kind: 'sequence', from_type: 'task', from_id: from, to_id: to, source: 'ai', state: 'accepted', created_at: at, modified_at: at }))
+      stmts.push(insert('map_links', { id, kind: 'sequence', from_type: 'task', from_id: from, to_id: to, source: opts.source ?? 'ai', state: 'accepted', created_at: at, modified_at: at }))
     }
   }
   return { stmts, snapshot: { at, parentId: parent.id, parentTitle: parent.title, tasks: [...ids.values()], links } }

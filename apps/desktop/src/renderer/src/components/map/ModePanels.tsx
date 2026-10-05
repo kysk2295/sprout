@@ -11,10 +11,12 @@ import type { TaskActions } from '../../lib/taskActions'
 import { useToast } from '../Toast'
 import { addDays } from '@sprout/schema/time'
 import { Ring } from './parts'
+import { PartnerLine } from './PlanChat'
 import type { MapData } from './useMapData'
 import './moments.css'
 
 const DAY = ['월', '화', '수', '목', '금', '토', '일']
+const batchim = (w: string) => { const c = w.trim().charCodeAt(w.trim().length - 1) - 0xac00; return c >= 0 && c <= 11171 && c % 28 !== 0 }
 
 /** 머리 모드 세그먼트 `계획 · 점검 · 정리` */
 /** 정리 탭 옆 작은 수 = 기본함이 정리 카드 기준(>20)을 넘었을 때만 — 큰 배너 대신(2026-10-05 정리) */
@@ -44,8 +46,29 @@ export function ReviewBand({ data, actions, onOpen, onGrowth }: { data: MapData;
   const cols = useMemo(() => weekColumns(rows ?? [], week, today), [rows, week, today])
   const overdue = useMemo(() => overdueOf(late ?? [], today), [late, today])
   const goals = data.goals
+  // 31 §11.9 같은 목소리 한 줄: 덜 찬 목표(가장 많이 남은 것) → 연결된 열린 할 일을 일요일에 · 다음 주로. 칩은 아래 컨트롤과 같은 moveDates
+  const partner = useMemo(() => {
+    const open = goals.filter((g) => g.status !== 'achieved' && g.progress < g.target).sort((a, b) => (b.target - b.progress) - (a.target - a.progress))[0]
+    if (open) {
+      const ids = data.links.filter((l) => l.kind === 'goal' && l.state === 'accepted' && l.from_id === open.id && l.to_status === 0).map((l) => l.to_id)
+      const n = Math.min(open.progress, open.target)
+      if (!ids.length) return { text: `이번 주 ${open.title}${batchim(open.title) ? '은' : '는'} ${n}/${open.target} 했네. 남은 것도 할 수 있어!`, chips: [] }
+      const sunday = addDays(week, 6) < today ? today : addDays(week, 6)
+      return {
+        text: `이번 주 ${open.title}${batchim(open.title) ? '은' : '는'} ${n}/${open.target} 했네, 남은 건 일요일에 할까?`,
+        chips: [
+          { label: '응, 일요일에', run: () => void actions.moveDates(ids, sunday, `남은 ${ids.length}개를 일요일로 옮겼어요`) },
+          { label: '다음 주로 미룰래', run: () => void actions.moveDates(ids, nextMonday(today), `남은 ${ids.length}개를 다음 주로 옮겼어요`) }
+        ]
+      }
+    }
+    if (!goals.length && overdue.length) return { text: `밀린 게 ${overdue.length}개 있네. 다음 주로 넘길까?`, chips: [{ label: '다음 주로', run: () => void actions.moveDates(overdue.map((t) => t.id), nextMonday(today), `밀린 ${overdue.length}개를 다음 주로 옮겼어요`) }] }
+    if (goals.length && goals.every((g) => g.status === 'achieved' || g.progress >= g.target)) return { text: '이번 주 목표 다 채웠어! 🎉', chips: [] }
+    return { text: '이번 주 잘 가고 있어!', chips: [] }
+  }, [goals, data.links, overdue, week, today, actions])
   return (
     <div className="mm-band" aria-label="이번 주 점검">
+      <PartnerLine text={partner.text} chips={partner.chips} />
       <div className="mm-goals">
         {goals.length ? goals.slice(0, 5).map((g) => (
           <div key={g.id} className={`mm-goal${g.status === 'achieved' ? ' is-done' : ''}`} title={g.title}>
@@ -98,7 +121,13 @@ export function TidyPanel({ aiOk, onOpen }: { aiOk: boolean | null; onOpen: (id:
         <Sparkles className="mm-tidy__spark" /><b>옮길 곳 제안</b><span className="mm-tidy__count">기본함 {inbox.length}</span>
         <button className="icon-btn mm-tidy__x" aria-label="닫기" onClick={() => setClosed(true)}><X /></button>
       </header>
-      {inbox.length === 0 ? <p className="mm-tidy__note">기본함이 비어 있어요 ✓</p> : (
+      {/* 31 §11.9 같은 목소리 한 줄 — 칩은 아래 단추와 같은 동작 */}
+      {inbox.length === 0
+        ? <PartnerLine stacked text="기본함이 깨끗해! ✓" chips={[]} />
+        : sure.length > 0
+          ? <PartnerLine stacked text={`이 ${inbox.length}개, 이렇게 나눠 볼게. 괜찮아?`} chips={[{ label: '좋아', run: () => void apply() }, { label: '하나씩 볼래', run: openSuggestReview }]} />
+          : <PartnerLine stacked text="어디에 둘지 같이 정해 볼까?" chips={aiOk === false ? [] : [{ label: '좋아', run: openInboxOrganize }]} />}
+      {inbox.length === 0 ? null : (
         <>
           <p className="mm-tidy__note">{sure.length}개 확실, {inbox.length - sure.length}개는 직접</p>
           <div className="mm-tidy__rows">

@@ -29,7 +29,8 @@ import { MapBoard } from './MapBoard'
 import { MapGraph, type LinkActions } from './MapGraph'
 import { TimelineMoreItems, TimelineOptionItems, TimelineScaleItems, useTimelineNav } from './TimelineControls'
 import { TimelineView } from './TimelineView'
-import { BreakdownDialog } from './BreakdownDialog'
+import { BuddyAvatar, PlanChat, useBuddy, useReducedMotion, type PlanRequest } from './PlanChat'
+import { loadPlanUndo, savePlanUndo, undoPlanSession, type PlanJournal } from '../../data/planActions'
 import { NowStrip } from './NowStrip'
 import { MapGuideButton, MapGuidePanel, MapTour, useMapGuide, type Recipe } from './MapGuide'
 import { CardMenu } from './parts'
@@ -57,7 +58,8 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const [userOpts, setOpts] = useStored<MapOptions>('options', DEFAULT_OPTIONS)
   // 묶기·기간은 모드가 정한다(2026-10-05 정리): 점검 = 목표로 묶기(이번 주 목표가 없으면 리스트), 나머지 = 리스트 · 기간 전체
   const goalCount = useQuery<{ n: number }>('SELECT count(*) AS n FROM kpis WHERE week_start = ?', [thisWeek()])?.[0]?.n ?? 0
-  const opts: MapOptions = useMemo(() => ({ ...userOpts, period: 'all', goalWeek: 'this', groupBy: modeGroupBy(mode, goalCount) }), [userOpts, mode, goalCount])
+  const [planGoal, setPlanGoal] = useState<string | null>(null)
+  const opts: MapOptions = useMemo(() => ({ ...userOpts, period: 'all', goalWeek: 'this', groupBy: modeGroupBy(mode, goalCount), keepDone: planGoal }), [userOpts, mode, goalCount, planGoal])
   const data = useMapData(opts, view)
   const inboxN = useInboxTasks().length
   const tl = useTimelineNav() // 31 §2 타임라인 배율·막대 색·할일 정렬 칸(기기 기억 sprout.map.timeline)
@@ -70,7 +72,12 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const [focusNow, setFocusNow] = useState(false)
   const [reveal, setReveal] = useState<{ id: string; n: number }>()
   const [stripMenu, setStripMenu] = useState<{ task: MapTask; point: { x: number; y: number } }>()
-  const [breakdownId, setBreakdownId] = useState<string | null>(null)
+  // 31 §11 같이 계획 짜기: 대화 칸(계획 모드 오른쪽) · ⚡ 첫 걸음 · 같이 짜는 큰 할 일 · 막 만든 노드·선(피어남)
+  const [plan, setPlan] = useState<PlanRequest | null>(null)
+  const [lit, setLit] = useState<string | null>(null)
+  const [fresh, setFresh] = useState<Map<string, number>>(() => new Map())
+  const { buddy, stage } = useBuddy()
+  const reduced = useReducedMotion()
   const [confirm, setConfirm] = useState<Confirm>()
   const [editor, setEditor] = useState<{ kind: 'list' | 'folder'; item?: OrganizationItem; folderId?: string }>()
   const [pop, setPop] = useState<{ kind: 'filter' | 'more'; anchor: HTMLElement }>()
@@ -167,7 +174,8 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
     organize: openInboxOrganize,
     editing, setEditing, checking, selected, flash,
     focusNow,
-    breakdown: (id) => setBreakdownId(id),
+    breakdown: (id) => openPlan(id),
+    lit, planGoal, fresh,
     linkGoal: async (taskId, goalId) => {
       const undo = await moveGoalLink(taskId, goalId)
       if (!undo) return
@@ -175,7 +183,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
       const g = goalId ? data.goals.find((x) => x.id === goalId) : undefined
       toast.show(g ? `'${t?.title ?? ''}'${eulReul(t?.title ?? '').slice((t?.title ?? '').length)} '${g.title}'에 연결했어요` : '목표 연결을 끊었어요', undo)
     }
-  }), [data, taskActions, toast, say, editing, checking, selected, flash, focusNow])
+  }), [data, taskActions, toast, say, editing, checking, selected, flash, focusNow, lit, planGoal, fresh]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const linkActions: LinkActions = useMemo(() => ({
     connect: (kind, from, to) => void connect(kind, from, to).then((r) => { if (r === 'cycle') toast.show('순서가 돌고 돌아서 이을 수 없어요') }),
@@ -204,17 +212,36 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const onRecipe = (r: Recipe) => {
     if (r === 'morning') { applyMode('plan'); setFocusNow(true); return }
     applyMode(r === 'goal' ? 'review' : 'plan') // 34 §3: 해 보기 = 계획·점검 모드
+    if (r === 'split') openPlan(selected ?? undefined) // 31 §11: 큰 일 = 같이 계획 짜기
   }
   const noTasks = data.loaded && data.allOpen === 0 && data.tasks.length === 0 && data.lists.filter((l) => l.kind !== 'inbox' && !l.archived_at).length === 0
   const setOpt = <K extends keyof MapOptions>(k: K, v: MapOptions[K]) => setOpts((o) => ({ ...o, [k]: v }))
   const undoSnap = pop?.kind === 'more' ? loadApplySnapshot() : null
   const breakdownSnap = pop?.kind === 'more' ? loadBreakdownUndo() : null
+  const planSnap = pop?.kind === 'more' && !plan ? loadPlanUndo() : null
   const revealTask = (id: string) => { setSelected(id); setReveal((r) => ({ id, n: (r?.n ?? 0) + 1 })) }
+  /** 지도에서 그 노드로만 이동(상세는 안 연다 — 대화 칸이 옆에 있을 때) */
+  const panTo = (id: string) => setReveal((r) => ({ id, n: (r?.n ?? 0) + 1 }))
+  const openPlan = (taskId?: string) => { setModeRaw('plan'); setFocusNow(false); setPlan({ key: Date.now(), taskId }) }
+  const freshTimer = useRef(0)
+  const addFresh = (tasks: string[], links: string[]) => {
+    setFresh((m) => { const n = new Map(m); let i = 0; for (const id of tasks) n.set(id, i++); i = 0; for (const id of links) n.set(id, i++); return n })
+    window.clearTimeout(freshTimer.current)
+    freshTimer.current = window.setTimeout(() => setFresh(new Map()), 2600)
+  }
+  const undoPlan = (j: PlanJournal) => undoPlanSession(j, (ids) => taskActions.reopen(ids)).then((r) => toast.show(r.kept ? `계획을 되돌렸어요. 직접 고친 ${r.kept}개는 남겼어요` : '계획을 되돌렸어요'))
+  const closePlan = (j: PlanJournal | null) => {
+    setPlan(null); setLit(null); setPlanGoal(null)
+    if (!j) return
+    savePlanUndo(j)
+    toast.show(j.title ? `'${j.title}' 계획을 짰어요` : '계획을 짰어요', async () => { await undoPlan(j) })
+  }
   // 31 §10.2 모드를 고르면(또는 순간이 열면) 묶음을 한 번 덮어쓴다 — 그 뒤 보기·옵션은 자유
   const [todayCmd, setTodayCmd] = useState(0)
   const applyMode = useCallback((m: MapMode) => {
     const p = MODE_PRESET[m]
     setModeRaw(m)
+    if (m !== 'plan') { setPlan(null); setLit(null); setPlanGoal(null) } // 대화 칸은 계획에서만(만든 것은 그대로)
     setOpts((o) => ({ ...o, showDone: p.showDone }))
     if (p.timeline) { tl.set('scale', p.timeline.scale); setTodayCmd((n) => n + 1) }
     setFocusNow(false)
@@ -226,7 +253,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   applyIntent.current = (i: MapIntent) => {
     if (i.mode) applyMode(i.mode)
     if (i.task) setFocusReq(i.task)
-    if (i.task && i.breakdown) setBreakdownId(i.task)
+    if (i.task && i.breakdown) openPlan(i.task)
     if (i.now) setFocusNow(true)
   }
   useEffect(() => {
@@ -257,7 +284,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const undoBreak = () => void undoBreakdown().then((r) => toast.show(!r ? '되돌릴 쪼개기가 없어요' : r.kept ? `쪼개기를 되돌렸어요. 직접 고친 ${r.kept}개는 남겼어요` : '쪼개기를 되돌렸어요'))
 
   return (
-    <main className="workspace map">
+    <main className={`workspace map${reduced ? ' is-reduced' : ''}`}>
       <div className="map__main">
         {/* 2026-10-05 정리: 제목 + 모드 하나 + 오른쪽 아이콘(계획의 그래프⇄보드 · ? · ⋯) — 틱틱 리스트 머리처럼 */}
         <header className="pane-header map-head">
@@ -269,6 +296,13 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
             <span className="map-tip" data-tip={view === 'board' ? '그래프로 보기' : '보드로 보기'}>
               <button className="icon-btn" aria-label={view === 'board' ? '그래프로 보기' : '보드로 보기'} onClick={() => setPlanView(view === 'board' ? 'graph' : 'board')}>
                 {view === 'board' ? <Network /> : <Columns3 />}
+              </button>
+            </span>
+          )}
+          {mode === 'plan' && !plan && (
+            <span className="map-tip" data-tip="같이 계획 짜기">
+              <button className="icon-btn pc-open" aria-label={`${buddy.name}와 같이 계획 짜기`} onClick={() => openPlan(selected ?? undefined)}>
+                <BuddyAvatar buddy={buddy} stage={stage} size={22} />
               </button>
             </span>
           )}
@@ -311,6 +345,11 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
         )}
       </div>
 
+      {plan && mode === 'plan' && (
+        <PlanChat req={plan} lists={data.lists} aiOk={aiOk} actions={taskActions}
+          onLight={setLit} onReveal={panTo} onFresh={addFresh} onGoal={setPlanGoal} onClose={closePlan}
+          onUndone={(r) => { setPlan(null); setLit(null); setPlanGoal(null); toast.show(r.kept ? `계획을 되돌렸어요. 직접 고친 ${r.kept}개는 남겼어요` : '계획을 되돌렸어요') }} />
+      )}
       {selected && (
         <div className="app__detail map__detail" style={{ width: detailW }}>
           <Resizer side="left" width={detailW} min={DETAIL.min} max={DETAIL.max} defaultWidth={DETAIL.def} onChange={setDetailW} />
@@ -342,21 +381,13 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
             })}
           </SubMenu>
           {view === 'timeline' && <TimelineMoreItems nav={tl} close={() => setPop(undefined)} />}
-          {(undoSnap || breakdownSnap) && <div className="menu__divider" />}
+          {(undoSnap || breakdownSnap || planSnap) && <div className="menu__divider" />}
           {undoSnap && <MenuItem icon={<RotateCcw />} label="기본함 정리 되돌리기" onClick={() => { setPop(undefined); void undoApply().then((ok) => toast.show(ok ? '기본함 정리를 되돌렸어요' : '되돌릴 정리가 없어요')) }} />}
+          {planSnap && <MenuItem icon={<RotateCcw />} label="같이 짠 계획 되돌리기" onClick={() => { setPop(undefined); void undoPlan(planSnap) }} />}
           {breakdownSnap && <MenuItem icon={<RotateCcw />} label="AI 쪼개기 되돌리기" onClick={() => { setPop(undefined); undoBreak() }} />}
         </Popover>
       )}
       {stripMenu && <CardMenu task={stripMenu.task} data={data} actions={actions} point={stripMenu.point} onClose={() => setStripMenu(undefined)} />}
-      {breakdownId && (
-        <BreakdownDialog taskId={breakdownId} lists={data.lists} aiOk={aiOk} onClose={() => setBreakdownId(null)}
-          onAddSubtask={(pid) => void taskActions.addSubtask(pid).then(() => setSelected(pid))}
-          onDone={(snap, n) => {
-            setBreakdownId(null)
-            setSelected(snap.parentId)
-            toast.show(`'${snap.parentTitle}'${eulReul(snap.parentTitle).slice(snap.parentTitle.length)} ${n}단계로 쪼갰어요`, async () => { await undoBreakdown(snap) })
-          }} />
-      )}
       {editor && <OrganizationEditor kind={editor.kind} item={editor.item} folderId={editor.folderId} folders={data.folders} onClose={() => setEditor(undefined)} onSaved={() => setEditor(undefined)} />}
       {confirm && (
         <Dialog label={confirm.kind === 'list' ? '리스트 삭제' : '폴더 해제'} className="map-dialog" onClose={() => setConfirm(undefined)}>

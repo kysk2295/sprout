@@ -93,7 +93,8 @@ export function buildMapTree(folders: MapFolder[], lists: MapList[], tasks: MapT
 export const treeTaskCount = (tree: MapTree) => tree.groups.reduce((n, g) => n + (g.kind === 'list' ? g.tasks.length : g.lists.reduce((m, l) => m + l.tasks.length, 0)), 0)
 
 // ── 기간·거름틀 ──
-export type MapFilter = { period: 'week' | 'all'; showDone: boolean; showNoDate: boolean; lists: string[] | null }
+/** keepDone = 31 §11 같이 짜는 큰 할 일 — 그 하위의 끝낸 단계는 완료 숨김이어도 보인다(줄 그어) */
+export type MapFilter = { period: 'week' | 'all'; showDone: boolean; showNoDate: boolean; lists: string[] | null; keepDone?: string | null }
 /** 이번 주 = 이번 주 마감·일정 + 날짜 없는 미완료 + 이번 주 완료. 전체 = 미완료 전부(+완료 보이기) */
 export function filterTasks(tasks: MapTask[], f: MapFilter, today = dayKey()): MapTask[] {
   const ws = weekStart(today)
@@ -103,6 +104,7 @@ export function filterTasks(tasks: MapTask[], f: MapFilter, today = dayKey()): M
     if (!t.title.trim()) return false
     if (!t.due_at && !f.showNoDate) return false
     if (t.status === 1) {
+      if (f.keepDone && t.parent_id === f.keepDone) return true
       if (f.period === 'week') return !!t.completed_at && t.completed_at >= wsIso
       return f.showDone
     }
