@@ -9,6 +9,10 @@ import { useToast } from '../components/Toast'
 import { useQuery } from './useQuery'
 import { autoTagEnabled, autoTagSince, autoTagStore, rescanNewTagKeys, runBackfill, tagTasks } from './autoTag'
 import { runProjectPass } from './projects'
+import { addNotice } from './notices'
+import { getDb } from './db'
+import { autoTagTitle } from '../../../shared/notices'
+import { dayKey } from '../lib/dates'
 
 const WAIT = 5000
 const RETRY = 10 * 60 * 1000
@@ -37,7 +41,17 @@ export function useAutoTagger(): void {
     autoTagStore.set({ introShown: true })
     toast.show(INTRO)
   }
-  const projects = (force = false) => { void runProjectPass({ force }).catch((e) => console.warn('[project] 자동 프로젝트 보류', e)) }
+  const projects = (force = false) => {
+    void runProjectPass({ force })
+      .then(async (r) => {
+        if (!r.created) return
+        // 01 §3.3 알림 패널: 자동 프로젝트가 새로 생겼다
+        const db = await getDb()
+        const rows = await db.getAll<{ id: string; name: string }>("SELECT id, name FROM tags WHERE kind = 'project' AND source = 'ai' ORDER BY created_at DESC LIMIT ?", [r.created])
+        if (rows.length) addNotice({ kind: 'project', key: `project:${rows.map((x) => x.id).sort().join(',')}`, title: rows.length > 1 ? `프로젝트 ${rows.length}개를 만들었어요` : '프로젝트를 만들었어요', body: rows.map((x) => x.name).join(' · '), target: { view: 'map' } })
+      })
+      .catch((e) => console.warn('[project] 자동 프로젝트 보류', e))
+  }
   const waiting = () => {
     const seen = autoTagStore.get().seen
     return (latest.current ?? []).filter((t) => !skip.current.has(t.id) && seen[t.id] !== titlePrint(t.title)).map((t) => t.id)
@@ -53,6 +67,8 @@ export function useAutoTagger(): void {
       void tagTasks(batch)
         .then((r) => {
           intro(r.applied)
+          // 01 §3.3 알림 패널: 하루 한 줄로 합친다(되돌리기 = 그 묶음들)
+          if (r.applied > 0 && r.at) addNotice({ kind: 'autotag', key: `autotag:${dayKey()}`, title: autoTagTitle(r.applied), body: '✦ 표시가 AI가 붙인 태그예요', count: r.applied, undo: [r.at] })
           if (r.aiError) { console.warn('[autoTag] AI 보류', r.aiError); blockedUntil.current = Date.now() + RETRY }
           else batch.forEach((id) => skip.current.delete(id)) // 다음에 제목이 바뀌면 다시(seen 지문으로 거른다)
           projects() // 31 §12.1 새 할 일로 덩어리가 생겼을 수 있다

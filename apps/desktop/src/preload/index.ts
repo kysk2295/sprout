@@ -1,6 +1,7 @@
 import type { ChatInput } from '../shared/assistant'
 import type { TTBundle, TTConnectInput, TTProgress, TTResult, TTStatus } from '../shared/ticktick'
 import type { CalendarsStatus, ConnectProgress, ConnectResult, ExtEvent, Provider } from '../shared/calendars'
+import type { Notice, NoticeInput } from '../shared/notices'
 import { contextBridge, ipcRenderer } from 'electron'
 
 type Row = Record<string, unknown>
@@ -33,6 +34,7 @@ const remindersApi = {
 }
 
 type AuthState = { user: { id: string; email: string } | null; newAccount?: boolean; notice?: 'account-deleted'; sync: { connected: boolean; uploading: boolean; downloading: boolean; lastSyncedAt: string | null; error: string | null } }
+type SyncNowResult = { ok: true; pending: number; lastSyncedAt: string | null } | { ok: false; reason: 'signed-out' | 'offline' | 'timeout' } | { ok: false; reason: 'error'; message: string }
 type AuthResult = { ok: true; state: AuthState } | { ok: false; error: string }
 type LinkedIdentity = { provider: 'google' | 'apple'; email: string | null }
 type LinkFail = { ok: false; error: string; code: string }
@@ -41,7 +43,8 @@ const authApi = {
   login: (email: string, password: string) => ipcRenderer.invoke('auth:login', email, password) as Promise<AuthResult>,
   signup: (email: string, password: string) => ipcRenderer.invoke('auth:signup', email, password) as Promise<AuthResult>,
   logout: () => ipcRenderer.invoke('auth:logout') as Promise<AuthState>,
-  syncNow: () => ipcRenderer.invoke('auth:sync-now') as Promise<void>,
+  // 01 §3.2.1: 다시 연결하고 가라앉을 때까지 기다려 결과를 준다
+  syncNow: () => ipcRenderer.invoke('auth:sync-now') as Promise<SyncNowResult>,
   // 08 §3.1 구글·애플로 계속하기 (토큰은 메인 프로세스에만)
   social: (provider: 'google' | 'apple') => ipcRenderer.invoke('auth:social', provider) as Promise<AuthResult | { ok: false; error: string; code: string }>,
   socialCancel: () => ipcRenderer.invoke('auth:social-cancel') as Promise<void>,
@@ -57,6 +60,16 @@ const authApi = {
   link: (provider: 'google' | 'apple') => ipcRenderer.invoke('auth:link', provider) as Promise<{ ok: true; linked: boolean; identities: LinkedIdentity[] } | LinkFail>,
   unlink: (provider: 'google' | 'apple') => ipcRenderer.invoke('auth:unlink', provider) as Promise<{ ok: true; linked: boolean; identities: LinkedIdentity[] } | LinkFail>
 }
+
+// 01 §3.3 레일 종 알림 패널: 기록은 메인 프로세스(userData/notices.json)
+const noticesApi = {
+  list: () => ipcRenderer.invoke('notices:list') as Promise<Notice[]>,
+  add: (input: NoticeInput) => ipcRenderer.invoke('notices:add', input) as Promise<void>,
+  read: (id?: string) => ipcRenderer.invoke('notices:read', id) as Promise<void>,
+  undone: (id: string) => ipcRenderer.invoke('notices:undone', id) as Promise<void>,
+  onChanged: (cb: (items: Notice[]) => void) => on('notices:changed', cb)
+}
+export type SproutNoticesApi = typeof noticesApi
 
 const miniApi = {
   toggle: () => ipcRenderer.send('mini:toggle'),
@@ -110,7 +123,7 @@ const desktopApi = {
   loginItem: () => ipcRenderer.invoke('desktop:login-item') as Promise<{ available: boolean; openAtLogin: boolean }>,
   setLoginItem: (open: boolean) => ipcRenderer.invoke('desktop:set-login-item', open) as Promise<{ available: boolean; openAtLogin: boolean }>
 }
-contextBridge.exposeInMainWorld('sprout', { platform: process.platform, calendars: calendarsApi, assistant: assistantApi, collect: collectApi, ticktick: ticktickApi, db: dbApi, reminders: remindersApi, desktop: desktopApi, auth: authApi, mini: miniApi })
+contextBridge.exposeInMainWorld('sprout', { platform: process.platform, calendars: calendarsApi, assistant: assistantApi, collect: collectApi, ticktick: ticktickApi, db: dbApi, reminders: remindersApi, notices: noticesApi, desktop: desktopApi, auth: authApi, mini: miniApi })
 export type SproutMiniApi = typeof miniApi
 export type SproutAuthApi = typeof authApi
 export type SproutDesktopApi = typeof desktopApi

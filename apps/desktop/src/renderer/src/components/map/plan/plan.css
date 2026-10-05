@@ -116,6 +116,11 @@
 .plan-graph { position: relative; height: max(520px, calc(100vh - 330px)); }
 .plan-graph > .rg { position: absolute; inset: 0; min-height: 0; height: auto; }
 .plan-proj__body { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 18px; align-items: start; }
+.plan-proj__body.is-side-closed { grid-template-columns: minmax(0, 1fr); }
+.plan-side__head { display: flex; align-items: center; justify-content: space-between; margin: -4px -6px -6px 0; }
+.plan-side__head h6 { margin: 0; }
+.plan-side__reopen { font: 400 12px/1.4 var(--font-family); color: var(--color-accent); padding: 0 4px; border-radius: var(--radius-sm); }
+.plan-side__reopen:hover { background: var(--color-bg-hover); }
 @media (max-width: 900px) { .plan-proj__body { grid-template-columns: minmax(0, 1fr); } }
 .plan-tl { position: relative; min-width: 0; user-select: none; }
 .plan-tl.is-dragging, .plan-tl.is-dragging * { cursor: grabbing !important; }

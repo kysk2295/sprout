@@ -5,6 +5,7 @@ import { reminderFireTime } from '@sprout/schema/time'
 import { eventReminderTimes } from '@sprout/schema/events'
 import { db } from './db'
 import { displayTitle } from '@sprout/schema/wikiLink'
+import { addNotice } from './notices'
 
 // 03-date-picker §7 알림: 기기에서 예약한다(로컬 퍼스트, 서버 푸시 없음).
 // 로컬 DB를 watch해서 앞으로 48시간 안의 알림을 예약하고, 값이 바뀌면(다른 기기에서 동기화된 변경 포함) 다시 계산한다.
@@ -55,6 +56,8 @@ async function send(channel: string, payload: unknown) {
 function fire(f: Fired) {
   if (!state.fired.includes(f.key)) state.fired.push(f.key)
   save()
+  // 01 §3.3 레일 종 알림 패널에 기록(다시 알림도 한 줄씩)
+  addNotice({ kind: 'reminder', key: `reminder:${f.key}`, title: displayTitle(f.title) || '제목 없음', body: f.body, target: isEvent(f.taskId) ? { view: 'calendar', event: f.taskId } : { view: 'tasks', task: f.taskId } })
   // 앱이 앞에 있으면(메인·미니·설정 창 중 하나라도 앞) 메인 창에 앱 안 팝업 카드도 함께(03 §7).
   // getAllWindows()[0]은 미니 창일 수 있어서 주소에 ?window=가 없는 메인 창을 고른다
   const main = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed() && !/[?&]window=/.test(w.webContents.getURL()))

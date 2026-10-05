@@ -92,3 +92,16 @@ export function linkErrorText(r: { error: string; code: string }): string | null
   if (r.code === 'cancelled') return null
   return r.error || '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요'
 }
+
+// ── 01 §3.2.1 레일 ⟳ · ⌘S 결과 토스트 ──
+export type SyncNowResult = { ok: true; pending: number; lastSyncedAt: string | null } | { ok: false; reason: 'signed-out' | 'offline' | 'timeout' } | { ok: false; reason: 'error'; message: string }
+/** 누른 뒤 최소로 도는 시간(보낼 것이 없어 바로 끝나도 눌린 게 보이게) */
+export const SYNC_MIN_SPIN_MS = 800
+/** 결과 → 토스트 문구와 "다시 시도" 버튼 여부 */
+export function syncResultToast(r: SyncNowResult): { text: string; retry: boolean } {
+  if (r.ok) return { text: r.pending > 0 ? `동기화 완료 · 올릴 것 ${r.pending}건 남음` : '동기화 완료', retry: false }
+  if (r.reason === 'offline') return { text: '오프라인이에요 — 연결되면 자동으로 올라가요', retry: true }
+  if (r.reason === 'timeout') return { text: '동기화가 오래 걸려요 — 뒤에서 계속할게요', retry: false }
+  if (r.reason === 'signed-out') return { text: '로그인하면 동기화돼요', retry: false }
+  return { text: '동기화에 실패했어요', retry: true }
+}

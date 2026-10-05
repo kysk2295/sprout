@@ -11,6 +11,8 @@ import { dayKey } from '../../../lib/dates'
 import { dateDrag, dragDays, laneAt } from '../../../lib/projectEdit'
 import { MenuItem, Popover } from '../../Popover'
 import { TASK_DND } from './ProjectBoard'
+import { PanelClose } from '../../PanelClose'
+import { useLocalState } from '../../../data/preferences'
 import { ProjectTaskMenu, type ProjectEdit } from './edit'
 import type { PlanData, ProjectView, PTaskRow } from './useProjects'
 
@@ -311,8 +313,9 @@ export function ProjectTimeline({ p, data, selected, onSelect, edit, autoOnly }:
     }
   }
 
+  const [sideOpen, setSideOpen] = useLocalState('sprout.map.planSide.open', true)
   return (
-    <div className="plan-proj__body">
+    <div className={`plan-proj__body${sideOpen ? '' : ' is-side-closed'}`}>
       <div className={`plan-tl${drag?.on ? ' is-dragging' : ''}${linking ? ' is-linking' : ''}`} ref={wrap}>
         <div className="plan-tl__axis">
           {layout.ticks.map((t) => <span key={t.label + t.x} style={{ left: t.x }}>{t.label}</span>)}
@@ -364,14 +367,17 @@ export function ProjectTimeline({ p, data, selected, onSelect, edit, autoOnly }:
           {p.autoCount > 0 && <span><i className="plan-lgd is-auto" />자동으로 넣음(확인 전)</span>}
           <span><i className="plan-lgd is-rel" />먼저 해야 함{pairs.some((x) => x.guess) ? ' · 점선 = 추정' : ''}</span>
           <span className="plan-legend__tip">끌어서 날짜·줄 바꾸기 · 오른쪽 점을 끌어 잇기 · 빈 곳 두 번 눌러 새 할 일</span>
+          {!sideOpen && <button className="plan-side__reopen" onClick={() => setSideOpen(true)}>관련 보기</button>}
         </div>
       </div>
-      <aside className="plan-side">
+      {sideOpen && <aside className="plan-side">
+        {/* 01 §2.1 오른쪽 패널 닫기 — 닫은 상태는 기기에 기억(프로젝트마다 같게) */}
+        <header className="plan-side__head"><h6>관련</h6><PanelClose onClose={() => setSideOpen(false)} label="관련 패널 닫기" /></header>
         {p.people.length > 0 && <section><h6>관련 사람</h6><div className="plan-side__rows">{p.people.map((x) => <button key={x.id} onClick={() => openTarget({ view: `tag:${x.id}` })}><span>{x.name}</span><small>{x.label}</small></button>)}</div></section>}
         {p.memos.length > 0 && <section><h6>관련 메모</h6><div className="plan-side__rows">{p.memos.map((m) => <button key={m.kind + m.id} onClick={() => m.kind === 'topic' ? openWikiTopic(m.id) : openTarget({ view: 'notes' })}><span>{m.title}</span><small>{m.kind === 'topic' ? '위키' : '수집함'}</small></button>)}</div></section>}
         {p.lists.length > 0 && <section><h6>리스트 {p.lists.length}곳에서 모음</h6><div className="plan-side__rows">{p.lists.map((l) => <button key={l.id} onClick={() => openTarget({ view: `list:${l.id}` })}><span>{l.emoji ? `${l.emoji} ` : ''}{l.name}</span><small>{l.count}</small></button>)}</div></section>}
         {!p.people.length && !p.memos.length && !p.lists.length && <p className="plan-side__none">관계도에서 사람·메모를 이을 수 있어요</p>}
-      </aside>
+      </aside>}
       {menu && <ProjectTaskMenu all={data.projects} t={menu.t} p={p} edit={edit} point={menu.point} onOpen={() => onSelect(menu.t.id)} onClose={() => setMenu(undefined)} onRename={() => setRenaming(menu.t.id)} />}
       {linkMenu && (
         <Popover point={linkMenu.point} onClose={() => setLinkMenu(undefined)} className="menu" width={170}>

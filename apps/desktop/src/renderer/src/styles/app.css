@@ -1062,3 +1062,10 @@ html:has(.mini), html:has(.mini) body { background: transparent; }
 .sidebar-archive-item button:first-child { flex: 1; min-width: 0; font: var(--text-body); color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0; }
 .sidebar-archive-item button:last-child { font: var(--text-meta); color: var(--color-text-link); opacity: 0; padding: 0; }
 .sidebar-archive-item:hover button:last-child, .sidebar-archive-item button:last-child:focus-visible { opacity: 1; }
+
+/* 01 §2.1 오른쪽 패널 닫기(✕ · Esc) — 상세·일괄 편집·수집함 상세·작업 지도 상세·관련 카드 */
+.panel-close { flex: none; color: var(--color-text-tertiary); -webkit-app-region: no-drag; }
+.panel-close:hover { color: var(--color-text-primary); }
+.detail__flag + .panel-close, .detail__header > .panel-close { margin-right: -8px; }
+.detail__close-float { position: absolute; top: calc(var(--size-header-pad-top) + 8px); right: 12px; z-index: 2; }
+.detail--empty { position: relative; }

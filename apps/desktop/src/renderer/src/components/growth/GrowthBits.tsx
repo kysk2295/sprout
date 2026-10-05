@@ -4,6 +4,7 @@ import { cumulativeXp, SPECIES, STAGES } from '@sprout/schema/growth'
 import { isGrowthStageActive, useGrowth, useWeeklyClose, type XpRow } from '../../data/growth'
 import { CharacterArt } from './CharacterArt'
 import { iGa, ro } from '../../lib/josa'
+import { addNotice } from '../../data/notices'
 import './growth-report.css'
 
 // 10 §2.3 사이드바 맨 아래 작은 캐릭터 카드 — 누르면 성장 화면
@@ -45,6 +46,13 @@ export function LevelUpWatcher() {
     const stamp = () => { try { localStorage.setItem(`${seenKey}.at`, new Date().toISOString()) } catch { /* */ } }
     if (!seen) { try { localStorage.setItem(seenKey, String(progress.level)) } catch { /* */ } stamp(); ready.current = true; return }
     if (progress.level > seen) {
+      // 01 §3.3 알림 패널 기록(레벨업 창·무대로 바로 보니 읽음으로)
+      {
+        const prev = STAGES.filter((s) => seen >= s.from).pop()!.stage
+        const who = character.species ? (character.name || SPECIES[character.species].name) : '알'
+        const stageName = STAGES.find((s) => s.stage === progress.stage)!.name
+        addNotice({ kind: 'levelup', key: `levelup:${character.id}:${progress.level}`, title: progress.stage > prev ? `${iGa(who)} ${ro(stageName)} 자랐어요` : `레벨 ${iGa(String(progress.level))} 됐어요`, body: `Lv ${progress.level} · ${stageName}`, target: { view: 'growth' }, read: true })
+      }
       // 10 §3.2.6 결정: 성장 화면이 열려 있으면 창 대신 무대가 연출한다(본 레벨로 기록)
       if (isGrowthStageActive()) {
         window.dispatchEvent(new CustomEvent('sprout:growth-reveal', { detail: { prev: seen, level: progress.level } }))

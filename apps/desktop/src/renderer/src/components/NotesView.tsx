@@ -42,6 +42,9 @@ export function NotesView({ lists, onOpen, section, onSection }: Props) {
   const status = useCollectorStatus()
   const [search, setSearch] = useState<string | null>(null) // null = 검색칸 닫힘
   const [selected, setSelected] = useState<string>()
+  // 01 §2.1 오른쪽 상세 닫기: 닫으면 목록이 넓어지고, 항목을 다시 고르면 열린다
+  const [detailHidden, setDetailHidden] = useState(false)
+  useEffect(() => { if (selected) setDetailHidden(false) }, [selected])
   const [wikiTopic, setWikiTopic] = useState<string | undefined>(takeWikiTopic) // 33 태그 페이지 위키 줄에서 열기
   useEffect(() => { const on = () => { const t = takeWikiTopic(); if (t) setWikiTopic(t) }; window.addEventListener('sprout:open-wiki', on); return () => window.removeEventListener('sprout:open-wiki', on) }, [])
   const [toggled, setToggled] = useState<Set<string>>(() => new Set())
@@ -219,8 +222,9 @@ export function NotesView({ lists, onOpen, section, onSection }: Props) {
           </>
         )}
       </main>
-      {section !== 'wiki' && (
+      {section !== 'wiki' && !(detailHidden && !current) && (
         <ItemDetail
+          onHide={() => { setSelected(undefined); setDetailHidden(true) }}
           key={current?.id ?? 'none'}
           item={current}
           lists={lists}

@@ -7,6 +7,7 @@ import { collector, useCollectorStatus } from '../../data/collector'
 import { listLabel, type ListRow } from '../../data/types'
 import { dayKey, detailDateLabel } from '../../lib/dates'
 import { useToast } from '../Toast'
+import { PanelClose, panelEsc } from '../PanelClose'
 import { KIND_NAME, fullKo, registeredGone, scheduledWord, sentAt } from './shared'
 
 type Props = {
@@ -18,10 +19,12 @@ type Props = {
   onOpen: (id: string) => void
   onTopic: (id: string) => void
   onEmpty: () => void
+  /** 01 §2.1 오른쪽 패널 닫기(✕ · Esc) */
+  onHide?: () => void
 }
 
 /** 상세(336): v2 편집기(첫 줄 = 제목, 0.6초 뒤 자동 저장) + AI 판단 카드(v3-3) */
-export function ItemDetail({ item, lists, emptyText, onMenu, onConvert, onOpen, onTopic, onEmpty }: Props) {
+export function ItemDetail({ item, lists, emptyText, onMenu, onConvert, onOpen, onTopic, onEmpty, onHide }: Props) {
   const split = (s: string) => { const i = s.indexOf('\n'); return i < 0 ? [s, ''] : [s.slice(0, i), s.slice(i + 1)] }
   const [title, setTitle] = useState(() => split(item?.content ?? '')[0])
   const [body, setBody] = useState(() => split(item?.content ?? '')[1])
@@ -58,7 +61,8 @@ export function ItemDetail({ item, lists, emptyText, onMenu, onConvert, onOpen, 
   }, [body, title])
   if (!item) {
     return (
-      <aside className="detail detail--empty note-detail">
+      <aside className="detail detail--empty note-detail" onKeyDown={onHide ? panelEsc(onHide) : undefined}>
+        {onHide && <PanelClose onClose={onHide} className="detail__close-float" />}
         <FileText className="note-detail__empty-icon" />
         <p className="detail__empty-text">{emptyText}</p>
       </aside>
@@ -78,12 +82,13 @@ export function ItemDetail({ item, lists, emptyText, onMenu, onConvert, onOpen, 
   const linked = !!item.task_id
   const gone = registeredGone(item)
   return (
-    <aside className="detail note-detail" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) leave() }}>
+    <aside className="detail note-detail" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) leave() }} onKeyDown={onHide ? panelEsc(onHide) : undefined}>
       <div className="detail__header">
         <span className="note-detail__meta">{kakao ? `${fullKo(sentAt(item))} · 카톡에서 가져옴` : `${fullKo(item.created_at)} 작성${edited ? ' · 수정됨' : ''}`}</span>
         <div className="detail__footer-actions">
           <button ref={convertRef} className="icon-btn" aria-label={linked && !gone ? '연결된 할 일 열기' : '할 일로 만들기'} onClick={() => convertRef.current && onConvert(convertRef.current)}><SquareCheck /></button>
           <button ref={moreRef} className="icon-btn" aria-label="항목 메뉴" onClick={() => moreRef.current && onMenu(moreRef.current)}><MoreHorizontal /></button>
+          {onHide && <PanelClose onClose={() => { leave(); onHide() }} />}
         </div>
       </div>
       <div className="detail__body">

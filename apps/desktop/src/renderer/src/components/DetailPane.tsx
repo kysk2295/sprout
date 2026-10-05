@@ -20,19 +20,23 @@ import { tagState } from './TaskMenu'
 import { WikiComplete } from './wiki/WikiComplete'
 import { removeTaskTag } from '../data/wiki'
 import { useToast } from './Toast'
+import { PanelClose, panelEsc } from './PanelClose'
 
 // 02-task-list §13: 머리(체크·날짜·깃발) · 제목 · 태그 · 본문/체크 항목 · 하위 태스크 · 하단 바. 편집은 300ms 디바운스로 바로 저장(§13.4).
 const SAVE_DEBOUNCE = 300
 
-type Props = { taskId?: string; lists: ListRow[]; tags: TagRow[]; actions: TaskActions; onSelect: (id: string) => void; onClose: () => void }
+type Props = { taskId?: string; lists: ListRow[]; tags: TagRow[]; actions: TaskActions; onSelect: (id: string) => void; onClose: () => void
+  /** 01 §2.1 오른쪽 패널 닫기(✕ · Esc): 주면 머리 오른쪽 끝에 ✕를 둔다(캘린더 할 일 팝업처럼 바깥 클릭으로 닫히는 곳은 안 줌) */
+  onHide?: () => void }
 
 export function DetailPane({ taskId, ...rest }: Props) {
   const q = openTasksSqlById(taskId ? [taskId] : [])
   const task = useQuery<TaskRow>(q.sql, q.params)?.[0]
   if (!task) {
     return (
-      <aside className="detail detail--empty">
+      <aside className="detail detail--empty" onKeyDown={rest.onHide ? panelEsc(rest.onHide) : undefined}>
         <div className="detail__drag" />
+        {rest.onHide && <PanelClose onClose={rest.onHide} className="detail__close-float" />}
         <DetailEmptyArt />
         <p className="detail__empty-text">태스크 제목을 누르면 자세히 볼 수 있어요</p>
       </aside>
@@ -41,7 +45,7 @@ export function DetailPane({ taskId, ...rest }: Props) {
   return <DetailBody key={task.id} task={task} {...rest} />
 }
 
-function DetailBody({ task, lists, tags, actions, onSelect, onClose }: Omit<Props, 'taskId'> & { task: TaskRow }) {
+function DetailBody({ task, lists, tags, actions, onSelect, onClose, onHide }: Omit<Props, 'taskId'> & { task: TaskRow }) {
   const [menu, setMenu] = useState<'priority' | 'list' | 'more' | 'tag'>()
   const [picker, setPicker] = useState<Schedule>()
   const dateRef = useRef<HTMLButtonElement>(null)
@@ -67,7 +71,7 @@ function DetailBody({ task, lists, tags, actions, onSelect, onClose }: Omit<Prop
   const close = () => setMenu(undefined)
 
   return (
-    <aside className="detail">
+    <aside className="detail" onKeyDown={onHide ? panelEsc(onHide) : undefined}>
       {trashed && (
         <div className="detail__band">
           휴지통에 있는 태스크입니다
@@ -101,6 +105,7 @@ function DetailBody({ task, lists, tags, actions, onSelect, onClose }: Omit<Prop
             <PriorityRow value={task.priority} onPick={(p) => { close(); void actions.setPriority([task.id], p) }} />
           </Popover>
         )}
+        {onHide && <PanelClose onClose={onHide} />}
       </header>
       <div className="detail__body">
         {/* 02 §13.4: 하위 태스크면 부모 이름을 작은 링크로 */}

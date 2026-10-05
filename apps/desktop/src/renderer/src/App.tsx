@@ -17,7 +17,9 @@ import { ensureCharacter } from './data/growth'
 import { useEffect, useRef, useState } from 'react'
 import '@sprout/tokens/tokens.css'
 import './styles/app.css'
-import { Rail, type RailView } from './components/Rail'
+import { Rail, SYNC_NOW_EVENT, type RailView } from './components/Rail'
+import { panelEsc } from './components/PanelClose'
+import { useReportNotices, type NoticeTarget } from './data/notices'
 import { Sidebar } from './components/Sidebar'
 import { TaskListView } from './components/TaskListView'
 import { DetailPane } from './components/DetailPane'
@@ -116,6 +118,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   // 뒤에서 도는 정리: 수집함 AI 분류·링크 제목(11 v3-3), 새 할 일 영역 분류(14 §0.3)
   useCollector(lists)
   useLinkSync() // 33 §6.4 [[링크]] 글 ↔ 관계
+  useReportNotices() // 01 §3.3 주간 리포트 도착 → 레일 종 알림
   const tags = useQuery<TagRow>('SELECT id, name, color FROM tags ORDER BY sort_order') ?? []
   const folder = useQuery<{name:string}>('SELECT name FROM folders WHERE id = ?', [selected.startsWith('folder:') ? selected.slice(7) : ''])?.[0]
   const selectedFilter = useQuery<{name:string}>('SELECT name FROM filters WHERE id=?',[selected.startsWith('filter:')?selected.slice(7):''])?.[0]
@@ -146,6 +149,11 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   const [sidebarPeek, setSidebarPeek] = useState(false)
   const drawerRef = useRef<HTMLDivElement>(null)
   const drawer = winW < DRAWER_BELOW
+  // 01 §2.1 상세 닫기(✕ · Esc, 2026-10-05 사용자 요청): 닫으면 선택을 풀고 패널 자리를 비워 목록이 넓어진다. 할 일을 다시 고르면 열린다(기억하지 않음 — 틱틱은 상세가 늘 보여 닫는 동작이 없다)
+  const [detailHidden, setDetailHidden] = useState(false)
+  useEffect(() => { if (selection.length) setDetailHidden(false) }, [selection.length])
+  const hideDetail = () => { setSelection([]); setDetailHidden(true) }
+  const detailShown = selection.length > 0 || (!drawer && !detailHidden)
   const narrow = winW < NARROW_BELOW
   useEffect(() => {
     const onResize = () => setWinW(window.innerWidth)
@@ -187,6 +195,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
       if (e.isComposing || document.querySelector('[role=dialog], .popover')) return
       const k = e.key.toLowerCase(), mod = e.metaKey || e.ctrlKey
       if(e.ctrlKey && e.shiftKey && k==='a'){e.preventDefault();setOverlay('quick');return}
+      if(mod && !e.shiftKey && !e.altKey && k==='s'){e.preventDefault();prefix=0;window.dispatchEvent(new Event(SYNC_NOW_EVENT));return} // 01 §7 ⌘S 지금 동기화 [틱틱]
       if (mod && ['k','f','n',','].includes(k)) {
         e.preventDefault(); prefix=0
         if(k===',')settings()
@@ -233,6 +242,13 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   }, [setView])
   useEffect(() => { setTidyOpen(false) }, [view])
   const onRailView = (v: RailView) => { setTidyOpen(false); setView(v) }
+  // 01 §3.3 알림 줄 누르기 → 할 일 상세 · 캘린더 일정 · 성장 · 작업 지도
+  const openNotice = (t: NoticeTarget) => {
+    setTidyOpen(false)
+    if (t.view === 'tasks') openTask(t.task)
+    else if (t.view === 'calendar') { setView('calendar'); void openEventById(t.event) }
+    else setView(t.view)
+  }
   // 33: 행 [[링크]]·페이지 머리 알약 → 태그·리스트 페이지, 할 일, 수집함 위키
   useEffect(() => {
     const go = (e: Event) => {
@@ -258,6 +274,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
     {id:'calendar',label:'달력',group:'내비게이션',run:()=>setView('calendar')},
     {id:'search',label:'검색창 열기',key:'⌘F',group:'내비게이션',run:()=>{setSearchQuery('');setOverlay('search')}},
     {id:'settings',label:'설정',key:'⌘,',group:'내비게이션',run:settings},
+    {id:'sync',label:'지금 동기화',key:'⌘S',group:'공통 작업',run:()=>window.dispatchEvent(new Event(SYNC_NOW_EVENT))},
     ...Object.entries({all:'전체',today:'오늘',tomorrow:'내일',next7:'다음 7일',inbox:'기본함',completed:'완료',wontdo:'계획 취소',trash:'휴지통'}).map(([id,label])=>({id,label:`${label}${['기본함','휴지통'].includes(label)?'으로':'로'} 이동`,group:'내비게이션',run:()=>{setView('tasks');selectView(`smart:${id}`)}})),
     {id:'onboarding',label:'시작 안내',group:'지원',run:openOnboarding},
     {id:'shortcuts',label:'단축키',key:'?',group:'지원',run:()=>setOverlay('shortcuts')}
@@ -274,9 +291,9 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
         <ListSuggestHost />{/* 30 §B AI 리스트 제안: 새 할 일 자동 분류 + 기본함 정리 창 */}
         <TickTickImportHost onOpenMap={() => setView('map')} onOpenCalendar={() => setView('calendar')} />
         <OverdueHost />
-        <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}} offset={view === 'tasks' && (!drawer || selection.length > 0) ? detailW : undefined}/>
+        <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}} offset={view === 'tasks' && detailShown ? detailW : undefined}/>
         <ReminderCards onOpen={(id) => { if (isEventKey(id)) { setView('calendar'); void openEventById(id) } else setSelection([id]) }} onComplete={(id) => void actions.complete([id])} />
-        <Rail view={view} onView={onRailView} sync={sync} email={email} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} />
+        <Rail view={view} onView={onRailView} sync={sync} email={email} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} onNotice={openNotice} />
         {overlay==='command' && <CommandMenu commands={commands} onClose={()=>setOverlay(undefined)} onSearch={(q)=>{setSearchQuery(q);setOverlay('search')}}/>}
         {overlay==='search' && <SearchDialog initial={searchQuery} onClose={()=>setOverlay(undefined)} onPick={(r)=>{if(r.kind==='event'){setView('calendar');requestOpenEvent(r.id,r.list_id??dayKey());return}setView('tasks');if(r.kind==='task'){setSelected(r.list_id?listView(r.list_id):'smart:all');setSelection([r.id])}else selectView(`${r.kind}:${r.id}`)}}/>}
         {overlay==='quick' && <QuickAdd lists={lists} tags={tags} inboxId={inboxId} onClose={()=>setOverlay(undefined)} onCreated={(id,listId)=>{setView('tasks');setSelected(listView(listId));setSelection([id])}}/>}
@@ -303,13 +320,13 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
           actions={actions}
           onToggleSidebar={toggleSidebar}
         />
-        {(!drawer || selection.length > 0) && (
-        <div ref={drawerRef} className={`app__detail${drawer ? ' is-drawer' : ''}`} style={{ width: detailW }}>
+        {detailShown && (
+        <div ref={drawerRef} className={`app__detail${drawer ? ' is-drawer' : ''}`} style={{ width: detailW }} onKeyDown={panelEsc(hideDetail)}>
           <Resizer side="left" width={detailW} min={DETAIL.min} max={DETAIL.max} defaultWidth={DETAIL.def} onChange={setDetailW} />
           {selection.length > 1 ? (
-            <BatchPanel ids={selection} lists={lists} tags={tags} actions={actions} onClear={() => setSelection([])} />
+            <BatchPanel ids={selection} lists={lists} tags={tags} actions={actions} onClear={hideDetail} />
           ) : (
-            <DetailPane taskId={selection[0]} lists={lists} tags={tags} actions={actions} onSelect={(id) => setSelection([id])} onClose={() => setSelection([])} />
+            <DetailPane taskId={selection[0]} lists={lists} tags={tags} actions={actions} onSelect={(id) => setSelection([id])} onClose={() => setSelection([])} onHide={hideDetail} />
           )}
         </div>
         )}

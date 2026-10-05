@@ -17,6 +17,7 @@ declare global {
       auth?: import('../../preload').SproutAuthApi
       mini?: import('../../preload').SproutMiniApi
       reminders?: import('../../preload').SproutRemindersApi
+      notices?: import('../../preload').SproutNoticesApi
     }
   }
 }

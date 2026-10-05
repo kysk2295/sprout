@@ -194,7 +194,7 @@ function needsAi(t: AtTask, ctx: Ctx, asked: Record<string, string>) {
 }
 const weekAgo = (at: string) => new Date(Date.parse(at) - 7 * 86_400_000).toISOString()
 
-export type PassResult = { applied: number; created: number; aiError?: unknown }
+export type PassResult = { applied: number; created: number; aiError?: unknown; /** 이 묶음 행의 created_at(01 §3.3 알림 줄 되돌리기) */ at?: string }
 /**
  * 새 할 일·제목 바뀐 할 일 태그 붙이기(최대 20개씩). 대기열은 30 §B와 같은 줄(serial).
  * AI가 안 되면 사전 결과만 쓰고 aiError를 돌려준다(그 할 일들은 나중에 다시).
@@ -238,7 +238,7 @@ export function tagTasks(taskIds: string[], opts: { signal?: AbortSignal; chat?:
     const seen = { ...autoTagStore.get().seen }
     for (const t of targets) if (!aiError || !ask.includes(t)) seen[t.id] = titlePrint(t.title)
     autoTagStore.set({ seen, asked, candidates })
-    return { applied, created, aiError }
+    return { applied, created, aiError, at }
   })
 }
 function aliasStmts(alias: { tagId: string; name: string }[], ctx: Ctx): Stmt[] {
@@ -418,6 +418,29 @@ export async function undoWeek(at = now()): Promise<{ dismissed: number; tags: n
     await run(...stmts)
     autoTagStore.set((s) => ({ blocked: { ...s.blocked, ...Object.fromEntries(tags.map((g) => [tagKey(g.name), true as const])) } }))
     return { dismissed: keep.filter((r) => !gone.has(r.tag_id)).length, tags: tags.length }
+  })
+}
+
+/** 01 §3.3 알림 줄 "AI가 태그 N개 붙였어요 · 되돌리기": 그 묶음들(tagTasks의 at)에 붙인 자동 연결 중 아직 그대로인 것을 dismissed로
+ *  (그 할 일엔 다시 안 붙음) + 그때 AI가 만든 태그 중 사람·링크 연결이 없는 것은 지우고 이름을 막는다(undoWeek와 같은 규칙, 범위만 묶음) */
+export async function undoAutoTagAt(ats: string[]): Promise<{ dismissed: number; tags: number }> {
+  if (!ats.length) return { dismissed: 0, tags: 0 }
+  return serial(async () => {
+    const db = await getDb()
+    const rows = await db.getAll<{ id: string; tag_id: string }>(`SELECT id, tag_id FROM task_tags WHERE source IN ('rule','ai') AND COALESCE(state,'accepted') = 'accepted' AND created_at IN (${marks(ats.length)})`, ats)
+    const tags = await db.getAll<{ id: string; name: string }>(`SELECT g.id, g.name FROM tags g WHERE g.source = 'ai' AND g.created_at IN (${marks(ats.length)})
+      AND NOT EXISTS (SELECT 1 FROM task_tags tt WHERE tt.tag_id = g.id AND COALESCE(tt.state,'accepted') = 'accepted' AND COALESCE(tt.source,'user') NOT IN ('rule','ai'))`, ats)
+    const gone = new Set(tags.map((g) => g.id))
+    const stmts: Stmt[] = []
+    for (const g of tags) {
+      for (const r of await db.getAll<{ id: string }>('SELECT id FROM task_tags WHERE tag_id = ?', [g.id])) stmts.push(remove('task_tags', r.id))
+      stmts.push(remove('tags', g.id))
+    }
+    const keep = rows.filter((r) => !gone.has(r.tag_id))
+    for (const r of keep) stmts.push(update('task_tags', r.id, { state: 'dismissed' }))
+    await run(...stmts)
+    autoTagStore.set((s) => ({ blocked: { ...s.blocked, ...Object.fromEntries(tags.map((g) => [tagKey(g.name), true as const])) } }))
+    return { dismissed: keep.length, tags: tags.length }
   })
 }
 

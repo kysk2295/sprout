@@ -13,6 +13,7 @@ import { ensureSeed, ensureSignedInInbox } from './seed'
 import { forgetTickTick } from './ticktick'
 import { forgetCalendars } from './calendars'
 import { clearWidget } from './widget'
+import { clearNotices } from './notices'
 
 // 기본 = Mac mini 서버(Tailscale Funnel 공개 주소, 2026-10-05). 이 Mac의 개발 서버는 SPROUT_API_URL=http://127.0.0.1:6060 SPROUT_SYNC_URL=http://127.0.0.1:8089
 const API_URL = process.env.SPROUT_API_URL ?? 'https://macmini.tail425c97.ts.net'
@@ -214,7 +215,7 @@ export async function startSync() {
   ipcMain.handle('auth:signup', async (_e, email: string, password: string) => {
     try { return { ok: true, state: await signIn('/auth/signup', email, password) } } catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : String(e) } }
   })
-  ipcMain.handle('auth:sync-now', async () => { if (session) await db.connect(connector) })
+  ipcMain.handle('auth:sync-now', () => syncNow())
   ipcMain.handle('auth:logout', async () => {
     const s = session
     notice = undefined
@@ -253,6 +254,47 @@ export async function startSync() {
   })
 }
 
+// ── 01 §3.2.1 레일 ⟳ · ⌘S: 다시 연결하고(끊고 다시 붙음 → 올릴 것 올리고 내려받기) 가라앉을 때까지 기다려 결과를 돌려준다 ──
+export type SyncNowResult =
+  | { ok: true; pending: number; lastSyncedAt: string | null }
+  | { ok: false; reason: 'signed-out' | 'offline' | 'timeout' }
+  | { ok: false; reason: 'error'; message: string }
+const SYNC_WAIT_MS = 12_000
+let syncing: Promise<SyncNowResult> | undefined
+function syncNow(): Promise<SyncNowResult> {
+  // 겹쳐 누르면 같은 결과를 기다린다(다시 연결을 두 번 하지 않게)
+  syncing ??= runSyncNow().finally(() => { syncing = undefined })
+  return syncing
+}
+async function runSyncNow(): Promise<SyncNowResult> {
+  if (!session) return { ok: false, reason: 'signed-out' }
+  const t0 = Date.now()
+  await db.connect(connector)
+  // 다시 붙은 뒤 이번 체크포인트를 받고 올리기·내리기가 끝날 때까지(오류가 나면 바로). 예전 오류가 남아 있을 수 있어 잠깐 뒤부터 본다
+  const settled = await new Promise<boolean>((resolve) => {
+    let done = false
+    const finish = (v: boolean) => { if (done) return; done = true; clearTimeout(timer); clearTimeout(grace); clearTimeout(offline); off(); resolve(v) }
+    const check = () => {
+      const s = db.currentStatus
+      const f = s?.dataFlowStatus
+      if (Date.now() - t0 > 400 && (f?.uploadError || f?.downloadError)) return finish(true)
+      if (s?.connected && !f?.uploading && !f?.downloading && s.lastSyncedAt && s.lastSyncedAt.getTime() >= t0 - 500) finish(true)
+    }
+    const off = db.registerListener({ statusChanged: check })
+    const grace = setTimeout(check, 450)
+    const timer = setTimeout(() => finish(false), SYNC_WAIT_MS)
+    // 서버에 닿지 못하면 PowerSync는 조용히 다시 시도만 한다 → 5초 안에 못 붙으면 오프라인으로 끝낸다(뒤에서 계속 시도)
+    const offline = setTimeout(() => { if (!db.currentStatus?.connected) finish(true) }, 5000)
+    check()
+  })
+  const st = state().sync
+  if (!st.connected) return { ok: false, reason: 'offline' }
+  if (st.error) return { ok: false, reason: 'error', message: st.error }
+  if (!settled) return { ok: false, reason: 'timeout' }
+  const pending = (await db.getUploadQueueStats().catch(() => ({ count: 0 }))).count
+  return { ok: true, pending, lastSyncedAt: st.lastSyncedAt }
+}
+
 /** 로그아웃·계정 삭제 공통: 이 기기의 내 데이터를 지우고 처음 상태로(다음 사람에게 보이지 않게) */
 async function wipeLocal() {
   inboxWatch?.abort()
@@ -264,6 +306,7 @@ async function wipeLocal() {
   await forgetTickTick() // 17: 로그아웃하면 틱틱 연결도 끊는다
   await forgetCalendars().catch((e) => console.warn('[calendars] 로그아웃 정리 실패:', e)) // 16 결정 ⑤: 구글 연결 끊기·캐시 삭제
   await clearWidget().catch((e) => console.warn('[widget] 로그아웃 정리 실패:', e)) // 25 §8.8: 위젯에 할 일 제목이 남지 않게
+  clearNotices() // 01 §3.3 알림 기록에도 할 일 제목이 있다
   // 설정 창이 열려 있으면 닫는다(로그아웃한 계정 정보가 남아 보이지 않게)
   for (const w of BrowserWindow.getAllWindows()) if (w.webContents.getURL().includes('window=settings')) w.close()
   await ensureSeed(process.env.SPROUT_SEED !== '0' && (!app.isPackaged || process.env.SPROUT_SEED === '1'))

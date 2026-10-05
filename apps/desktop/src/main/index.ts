@@ -9,6 +9,7 @@ import { db } from './db'
 import { registerDbIpc } from './ipc'
 import { ensureSeed } from './seed'
 import { startReminders } from './reminders'
+import { registerNotices } from './notices'
 import { isSignedIn, startSync } from './sync'
 import { handleAuthLink, registerSocialAuth } from './auth-social'
 import { hasTray, startMini } from './mini'
@@ -110,6 +111,7 @@ app.whenReady().then(async () => {
   registerTickTick()
   registerCalendars() // 16 캘린더 연동(구글·Apple 읽기)
   registerSocialAuth() // 08 §3.1 구글·애플로 계속하기
+  registerNotices() // 01 §3.3 레일 종 알림 패널
   ipcMain.on('desktop:settings', openSettings)
   createWindow()
   startReminders(getWindow)

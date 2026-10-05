@@ -366,7 +366,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
       {selected && (
         <div className="app__detail map__detail" style={{ width: detailW }}>
           <Resizer side="left" width={detailW} min={DETAIL.min} max={DETAIL.max} defaultWidth={DETAIL.def} onChange={setDetailW} />
-          <DetailPane taskId={selected} lists={lists} tags={tags} actions={taskActions} onSelect={setSelected} onClose={() => setSelected(null)} />
+          <DetailPane taskId={selected} lists={lists} tags={tags} actions={taskActions} onSelect={setSelected} onClose={() => setSelected(null)} onHide={() => setSelected(null)} />
         </div>
       )}
 
