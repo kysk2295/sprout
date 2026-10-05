@@ -50,7 +50,7 @@ open ios/*.xcworkspace     # Signing & Capabilities에서 팀 선택 → Product
 | Sign in with Apple Key ID + .p8 | 서버 `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` |
 | Services ID | 서버 `APPLE_SERVICES_ID` |
 
-**심사 제출 전에 보내야 합니다.** 서버에 들어가기 전에는 애플 로그인이 실패하고, 그러면 심사에서 거절됩니다. 주인이 "넣었어"라고 하면 TestFlight 빌드에서 애플 로그인을 한 번 눌러 확인합니다.
+**아이폰 앱의 애플 로그인은 이 값 없이도 바로 됩니다.** 서버는 애플 공개키와 번들 ID(`app.sprout.mobile`)만으로 토큰을 확인합니다. 그러니 기다리지 말고 진행해도 됩니다. 이 값은 ① 계정 삭제 때 애플 토큰 폐기(애플 권장 사항), ② 데스크톱의 웹 방식 애플 로그인에만 쓰이니, 만들면 되도록 빨리(가능하면 심사 전에) 주인에게 보냅니다. TestFlight 빌드에서 애플 로그인을 한 번 눌러 확인합니다.
 
 ## 6. App Store Connect
 - 이름 **꿈틀**, 부제·설명·키워드: [store/listing.md](store/listing.md)
