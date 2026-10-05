@@ -14,7 +14,6 @@ import { usePalette } from '../theme/ThemeProvider'
 import { useEventActions } from '../ui/EventMenu'
 import { GlassButton } from '../ui/Glass'
 import { PopMenu, useAnchor } from '../ui/Menu'
-import { SheetScrollGuard } from '../ui/SheetScrollGuard'
 
 export default function EventSheet() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -60,7 +59,6 @@ export default function EventSheet() {
 
   return (
     <View style={{ flex: 1, backgroundColor: p.sheetBg }}>
-      <SheetScrollGuard />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 80 + insets.bottom }}>
         <View style={[s.top, { marginTop: full ? insets.top : 10 }]}>
           {full ? <GlassButton label="닫기" onPress={close}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton> : null}

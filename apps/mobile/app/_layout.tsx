@@ -13,6 +13,7 @@ import { db } from '../src/data/db'
 import { useShareInbox } from '../src/share/useShareInbox'
 import { useReminderNotifications } from '../src/notifications/background'
 import { ThemeProvider, usePalette } from '../src/theme/ThemeProvider'
+import { sheetScreenLayout } from '../src/ui/SheetScrollGuard'
 import { ToastProvider } from '../src/ui/Toast'
 import { WikiIndexProvider } from '../src/wiki/WikiIndex'
 
@@ -55,7 +56,8 @@ function Screens({ signedIn }: { signedIn: boolean }) {
   return (
     <>
       <StatusBar style={p.dark ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: p.pageBg } }}>
+      {/* formSheet 화면은 모두 SheetScrollGuard로 감싼다 — 없으면 iOS가 ScrollView를 시트 밖으로 밀어 하얗게 빈다(SheetScrollGuard.tsx) */}
+      <Stack screenLayout={sheetScreenLayout} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: p.pageBg } }}>
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" />
           {/* 상세: 반 시트 → 끌어 올리면 전체 화면(21 §5) */}

@@ -17,7 +17,6 @@ import { COLUMNS, type TaskRow } from '../data/views'
 import { dayKey, detailDateLabel } from '../lib/dates'
 import { FONT, priorityColor } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
-import { SheetScrollGuard } from '../ui/SheetScrollGuard'
 import { Checkbox } from '../ui/Checkbox'
 import { GlassButton } from '../ui/Glass'
 import { PopMenu, useAnchor } from '../ui/Menu'
@@ -85,7 +84,6 @@ export default function TaskDetail() {
   return (
     <View ref={root} collapsable={false} style={{ flex: 1, backgroundColor: p.sheetBg }}>
       {/* iOS formSheet는 ScrollView를 시트 맨 위에 붙인다 — 머리를 형제로 두면 날짜 줄이 겹쳐서 안에 둔다(README 주의) */}
-      <SheetScrollGuard />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 + kb.height }}>
         <View style={[s.top, { marginTop: full ? insets.top : 10 }]}>
           {full ? <GlassButton label="닫기" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton> : null}

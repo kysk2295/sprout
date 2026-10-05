@@ -41,4 +41,5 @@ npx expo run:ios               # 빌드 + 설치 + Metro. 기기 지정: --devic
 ## 주의
 - **react는 앱 안 사본(19.2.3)으로 고정**: 뿌리에는 데스크톱용 react 19.3이 있어서 `metro.config.js`가 `react`를 이 폴더 기준으로 찾게 한다. RN 렌더러는 react와 버전이 정확히 같아야 한다.
 - iOS formSheet 안에서는 ScrollView가 시트 맨 위에 붙는다 → 시트 머리·검색은 ScrollView **안**에 둔다(`move.tsx`·`tags.tsx` 참고).
+- iOS formSheet가 "루트 View → ScrollView" 화면의 ScrollView를 시트 밖으로 밀어 **시트가 하얗게 빈다**(react-native-screens 프레임 보정). 스택에 `screenLayout={sheetScreenLayout}`(`src/ui/SheetScrollGuard.tsx`)을 달면 그 스택의 formSheet 화면이 모두 막힌다 — 뿌리·일기 스택에 달려 있고, 시트를 띄우는 새 스택에도 단다.
 - `ios/`·`android/`는 생성물이라 커밋하지 않는다(`.gitignore`).
