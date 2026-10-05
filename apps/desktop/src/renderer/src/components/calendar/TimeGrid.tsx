@@ -1,6 +1,7 @@
 import { CalendarDays, Check, Repeat } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent as RPointerEvent } from 'react'
 import { datePart, daysBetween } from '@sprout/schema/time'
+import { weekendClass } from '../../lib/calendar'
 import { hourLabel, isBarItem, layoutDay, minutesOfDay, packBars, shortRange, type CalItem, type ItemStyle } from '../../lib/calendar'
 import { timeSelection } from '../../lib/calendarSelection'
 import { extOf } from '../../lib/calendarExt'
@@ -8,6 +9,9 @@ import { evtOf } from '../../lib/calendarEvents'
 import { at, autoScrollDelta, freeLane, gridMoveChanges, previewOf, resizeBar, resizeTime, SNAP, snapMin as snap } from '../../lib/calendarDrag'
 import { outsideDrag, scheduledDrop } from '../../lib/calendarDrop'
 import type { CalHandlers } from './types'
+import type { DayMarks } from '@sprout/schema/holidays'
+import { weekLabel } from '@sprout/schema/holidays'
+import { RestBadge, SideLabel } from './DayMark'
 import { popoverOpen, quickCreateOpen } from './dismiss'
 import { dragSession, type DragPoint } from './dragSession'
 
@@ -27,6 +31,9 @@ type Props = CalHandlers & {
   items: CalItem[]
   today: string
   hourH: number
+  /** 06 §16 날짜 줄 오른쪽 글자(휴일 이름 > 음력)·"휴" 배지. 주 번호는 왼쪽 위 칸에 */
+  marks?: (day: string, firstOfRow: boolean) => DayMarks
+  weekNumbers?: boolean
   collapsed: boolean
   onCollapsed: (v: boolean) => void
   onDayClick: (day: string) => void
@@ -42,6 +49,8 @@ type Drag =
 export function TimeGrid(p: Props) {
   const { days, items, today, hourH, collapsed } = p
   const n = days.length
+  // 주 번호는 왼쪽 위 칸에 따로 쓰므로 날짜 줄에서는 휴일 이름 > 음력만(firstOfRow = false)
+  const mk = (d: string) => p.marks?.(d, false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
   const alldayRef = useRef<HTMLDivElement>(null)
@@ -227,8 +236,8 @@ export function TimeGrid(p: Props) {
   return (
     <div className="tg">
       <div className="tg__head" style={{ gridTemplateColumns: `${GUTTER}px repeat(${n}, minmax(0, 1fr))` }}>
-        <div />
-        {days.map((d) => <div key={d} className="tg__dayhead">{WEEK[new Date(`${d}T00:00`).getDay()]}</div>)}
+        <div className="tg__weeknum">{p.weekNumbers && days.length ? weekLabel(days[0]) : null}</div>
+        {days.map((d) => <div key={d} className={`tg__dayhead${weekendClass(d)}`}>{WEEK[new Date(`${d}T00:00`).getDay()]}</div>)}
       </div>
       <div
         ref={alldayRef}
@@ -248,7 +257,8 @@ export function TimeGrid(p: Props) {
             const drop = !!barPreview && !preview!.live && i >= barPreview.col && i < barPreview.col + barPreview.span
             return (
               <div key={d} data-cal-day={d} className={`tg__allday-col${sel || pend ? ' is-target' : ''}${drop ? ' is-drop' : ''}`}>
-                <button className={`tg__num${d === today ? ' is-today' : ''}`} onClick={() => p.onDayClick(d)}>{Number(d.slice(8))}</button>
+                <button className={`tg__num${d === today ? ' is-today' : ''}${mk(d)?.holiday ? ' is-holiday' : ''}${weekendClass(d)}`} onClick={() => p.onDayClick(d)} title={mk(d)?.holiday ?? undefined}>{Number(d.slice(8))}<RestBadge marks={mk(d)} /></button>
+                <SideLabel marks={mk(d)} className="tg__side" />
               </div>
             )
           })}

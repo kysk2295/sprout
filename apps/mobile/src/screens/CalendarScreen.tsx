@@ -40,6 +40,9 @@ import { useToast } from '../ui/Toast'
 import { Fab } from '../ui/Fab'
 import { useTabBarSpace } from '../ui/tabBarSpace'
 import { TaskRowView } from '../ui/TaskRow'
+import type { DayMarks } from '@sprout/schema/holidays'
+import { useDayMarks, useMarkPrefs } from '../data/calendarPrefs'
+import { RestBadge, SideLabel } from '../ui/DayMarks'
 
 type Item = CalItem<TaskRow>
 const VIEW_ICON: Record<MobileCalView, typeof List> = { list: List, day: Square, '3day': Columns3, month: CalendarDays }
@@ -104,6 +107,10 @@ export default function CalendarScreen() {
     return [...itemsOf(tasks, range.from, range.to), ...evs]
   }, [tasks, evRows, myColor, range, showDone])
   const evMenu = useEventMenu()
+  // 06 §16 휴일·음력·주 번호(설정 › 날짜와 시간, 데스크톱과 같은 값) — 고른 해 앞뒤까지 한 번에
+  const markPrefs = useMarkPrefs()
+  const year = Number(cursor.slice(0, 4))
+  const marks = useDayMarks(`${year - 1}-12-01`, `${year + 1}-01-31`, markPrefs)
 
   const withUndo = (msg: string, undo: Undo | null) => toast.show(msg, { undo: undo ?? undefined })
   const check = async (t: TaskRow) => {
@@ -174,6 +181,7 @@ export default function CalendarScreen() {
           onPick={setCursor}
           onShift={shift}
           onAdd={addAt}
+          marks={marks}
           list={(fold) => <DayList day={cursor} today={today} items={itemsOnDay(items, cursor)} onCheck={check} onOpen={openDetail} onLong={setLp} onAdd={() => addAt(cursor)} bottomPad={bottomPad} fold={fold} />}
         />
       ) : null}
@@ -191,6 +199,7 @@ export default function CalendarScreen() {
           onDrop={drop}
           onMenu={(task, rect) => setLp({ task, rect })}
           bottomPad={bottomPad}
+          marks={marks}
         />
       ) : null}
       {view === 'list' ? <Agenda today={today} cursor={cursor} items={items} onCheck={check} onOpen={openDetail} onLong={setLp} onMore={() => shift(1)} onBack={cursor > today ? () => setCursor(today) : undefined} bottomPad={bottomPad} /> : null}
@@ -230,6 +239,14 @@ export default function CalendarScreen() {
   )
 }
 
+/** 06 §16 날짜 숫자 색: 공휴일·일요일 = 빨강, 토요일 = 파랑(사용자 결정 2026-10-05), 다른 달은 옅게 */
+function dayTone(p: Palette, d: string, mk: DayMarks, faded: boolean, base = p.textPrimary): string {
+  const w = new Date(`${d}T00:00`).getDay()
+  const c = mk.holiday || w === 0 ? p.holiday : w === 6 ? p.saturday : null
+  if (!c) return faded ? p.textQuaternary : base
+  return faded ? alpha(c, 0.45) : c
+}
+
 // ── 월 ──
 /** 달 접기(20 §7): 아래 목록이 쓰는 끌기 · 스크롤 상태 */
 type Fold = { gesture: ReturnType<typeof Gesture.Simultaneous>; scrollEnabled: boolean; scrollY: SharedValue<number> }
@@ -239,7 +256,7 @@ const snapTo = (to: number) => {
   return withTiming(to, { duration: FOLD_MS, easing: Easing.out(Easing.cubic) })
 }
 
-function MonthView(props: { today: string; cursor: string; items: Item[]; onPick: (d: string) => void; onShift: (n: number) => void; onAdd: (d: string) => void; list: (fold: Fold) => ReactNode }) {
+function MonthView(props: { today: string; cursor: string; items: Item[]; onPick: (d: string) => void; onShift: (n: number) => void; onAdd: (d: string) => void; marks: (d: string, firstOfRow: boolean) => DayMarks; list: (fold: Fold) => ReactNode }) {
   const p = usePalette()
   const days = monthDays(props.cursor)
   const weeks = days.length / 7
@@ -301,7 +318,7 @@ function MonthView(props: { today: string; cursor: string; items: Item[]; onPick
   return (
     <View style={{ flex: 1 }}>
       <View style={s.wd}>
-        {WEEK_HEAD.map((w, i) => <Text key={w} style={[s.wdText, { color: i === 6 ? p.danger : p.textTertiary }]}>{w}</Text>)}
+        {WEEK_HEAD.map((w, i) => <Text key={w} style={[s.wdText, { color: i === 6 ? p.holiday : i === 5 ? p.saturday : p.textTertiary }]}>{w}</Text>)}
       </View>
       <GestureDetector gesture={gridGesture}>
         <Animated.View
@@ -311,8 +328,10 @@ function MonthView(props: { today: string; cursor: string; items: Item[]; onPick
           <Animated.View style={slide}>
             {Array.from({ length: weeks }, (_, w) => (
               <View key={w} style={[s.week, { height: rowH, borderTopColor: p.borderDivider }]} importantForAccessibility={collapsed && w !== selWeek ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={collapsed && w !== selWeek}>
-                {days.slice(w * 7, w * 7 + 7).map((d) => {
-                  const { shown, more } = cellSummary(props.items, d, rowH > 60 ? 3 : 2)
+                {days.slice(w * 7, w * 7 + 7).map((d, c) => {
+                  // 06 §16 숫자 아래 한 줄(휴일 이름·주 번호·음력)이 있으면 띠를 하나 덜 보인다
+                  const mk = props.marks(d, c === 0)
+                  const { shown, more } = cellSummary(props.items, d, (rowH > 60 ? 3 : 2) - (mk.side ? 1 : 0))
                   const isToday = d === props.today
                   const sel = d === props.cursor
                   const other = d.slice(0, 7) !== month
@@ -320,15 +339,17 @@ function MonthView(props: { today: string; cursor: string; items: Item[]; onPick
                     <Pressable
                       key={d}
                       accessibilityRole="button"
-                      accessibilityLabel={`${Number(d.slice(8))}일 ${weekdayKo(d)}요일, 할 일 ${shown.length + more}개`}
+                      accessibilityLabel={`${Number(d.slice(8))}일 ${weekdayKo(d)}요일${mk.holiday ? `, ${mk.holiday}` : ''}, 할 일 ${shown.length + more}개`}
                       accessibilityState={{ selected: sel }}
                       onPress={() => props.onPick(d)}
                       onLongPress={() => props.onAdd(d)}
                       style={[s.cell, sel && { backgroundColor: p.bgSelected }]}
                     >
                       <View style={[s.num, isToday && { backgroundColor: p.accent }]}>
-                        <Text style={{ fontSize: 12, fontWeight: isToday || sel ? '700' : '500', color: isToday ? '#fff' : other && !collapsed ? p.textQuaternary : p.textPrimary }}>{Number(d.slice(8))}</Text>
+                        <Text style={{ fontSize: 12, fontWeight: isToday || sel ? '700' : '500', color: isToday ? '#fff' : dayTone(p, d, mk, other && !collapsed) }}>{Number(d.slice(8))}</Text>
+                        <RestBadge marks={mk} />
                       </View>
+                      <View style={{ marginTop: -1, opacity: other && !collapsed ? 0.55 : 1 }}><SideLabel marks={mk} /></View>
                       {shown.map((it) => {
                         const k = lookOf(p, it, now)
                         return (
@@ -400,6 +421,7 @@ function Timeline(props: {
   view: MobileCalView; today: string; cursor: string; items: Item[]
   onPick: (d: string) => void; onShift: (n: number) => void; onAddAt: (due: string) => void; onOpen: (t: TaskRow) => void; onCheck: (t: TaskRow) => void
   onDrop: (it: Item, dy: number, dCols: number) => void; onMenu: (t: TaskRow, rect: Rect) => void; bottomPad: number
+  marks: (d: string, firstOfRow: boolean) => DayMarks
 }) {
   const p = usePalette()
   const win = useWindowDimensions()
@@ -441,11 +463,13 @@ function Timeline(props: {
             {week.map((d) => {
               const sel = d === props.cursor
               const has = itemsOnDay(props.items, d).length > 0
+              const mk = props.marks(d, false)
               return (
-                <Pressable key={d} accessibilityRole="button" accessibilityState={{ selected: sel }} onPress={() => props.onPick(d)} style={s.stripDay}>
+                <Pressable key={d} accessibilityRole="button" accessibilityLabel={`${Number(d.slice(8))}일 ${weekdayKo(d)}요일${mk.holiday ? `, ${mk.holiday}` : ''}`} accessibilityState={{ selected: sel }} onPress={() => props.onPick(d)} style={s.stripDay}>
                   <Text style={{ fontSize: 11, color: p.textTertiary }}>{weekdayKo(d)}</Text>
                   <View style={[s.stripNum, sel && { backgroundColor: p.accent }, !sel && d === props.today && { borderWidth: 1.5, borderColor: p.accent }]}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: sel ? '#fff' : d === props.today ? p.accent : p.textPrimary }}>{Number(d.slice(8))}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: sel ? '#fff' : d === props.today ? p.accent : dayTone(p, d, mk, false) }}>{Number(d.slice(8))}</Text>
+                    <RestBadge marks={mk} size={13} top={-3} right={-5} />
                   </View>
                   <View style={[s.dot, { backgroundColor: has ? p.textQuaternary : 'transparent' }]} />
                 </Pressable>
@@ -456,11 +480,18 @@ function Timeline(props: {
       ) : (
         <GestureDetector gesture={swipe}>
           <View style={[s.colHead, { paddingLeft: GUTTER }]}>
-            {days.map((d) => (
-              <Pressable key={d} onPress={() => props.onPick(d)} style={{ width: colW, alignItems: 'center', paddingVertical: 6 }}>
-                <Text style={{ fontSize: 12, color: d === props.today ? p.accent : p.textTertiary, fontWeight: d === props.today ? '700' : '400' }}>{`${weekdayKo(d)} ${Number(d.slice(8))}`}</Text>
-              </Pressable>
-            ))}
+            {days.map((d) => {
+              const mk = props.marks(d, false)
+              return (
+                <Pressable key={d} accessibilityLabel={`${weekdayKo(d)} ${Number(d.slice(8))}${mk.holiday ? `, ${mk.holiday}` : ''}`} onPress={() => props.onPick(d)} style={{ width: colW, alignItems: 'center', paddingVertical: 6 }}>
+                  <View>
+                    <Text style={{ fontSize: 12, color: d === props.today ? p.accent : dayTone(p, d, mk, false, p.textTertiary), fontWeight: d === props.today ? '700' : '400' }}>{`${weekdayKo(d)} ${Number(d.slice(8))}`}</Text>
+                    <RestBadge marks={mk} top={-5} right={-9} />
+                  </View>
+                  <SideLabel marks={mk} size={9.5} />
+                </Pressable>
+              )
+            })}
           </View>
         </GestureDetector>
       )}

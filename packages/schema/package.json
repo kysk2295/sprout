@@ -24,9 +24,10 @@
     "./planView": "./src/planView.ts",
     "./review": "./src/review.ts",
     "./tidy": "./src/tidy.ts",
-    "./avatar": "./src/avatar.ts"
+    "./avatar": "./src/avatar.ts",
+    "./holidays": "./src/holidays.ts"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --no-warnings src/time.test.ts && node --experimental-strip-types --experimental-specifier-resolution=node --no-warnings src/recognition.test.ts && node --experimental-strip-types --no-warnings src/growth.test.ts && node --experimental-strip-types --no-warnings src/taskCore.test.ts && node --experimental-strip-types --no-warnings src/notify.test.ts && node --experimental-strip-types --no-warnings src/wikiLink.test.ts && node --experimental-strip-types --no-warnings src/events.test.ts && node --experimental-strip-types --no-warnings src/inbox.test.ts && node --experimental-strip-types --no-warnings src/projects.test.ts && node --experimental-strip-types --no-warnings src/mapShared.test.ts && node --experimental-strip-types --no-warnings src/avatar.test.ts"
+    "test": "node --experimental-strip-types --no-warnings src/time.test.ts && node --experimental-strip-types --experimental-specifier-resolution=node --no-warnings src/recognition.test.ts && node --experimental-strip-types --no-warnings src/growth.test.ts && node --experimental-strip-types --no-warnings src/taskCore.test.ts && node --experimental-strip-types --no-warnings src/notify.test.ts && node --experimental-strip-types --no-warnings src/wikiLink.test.ts && node --experimental-strip-types --no-warnings src/events.test.ts && node --experimental-strip-types --no-warnings src/inbox.test.ts && node --experimental-strip-types --no-warnings src/projects.test.ts && node --experimental-strip-types --no-warnings src/mapShared.test.ts && node --experimental-strip-types --no-warnings src/avatar.test.ts && node --experimental-strip-types --no-warnings src/holidays.test.ts"
   }
 }

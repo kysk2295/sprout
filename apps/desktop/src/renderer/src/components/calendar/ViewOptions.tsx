@@ -6,7 +6,7 @@ import { listLabel, type ListRow, type TagRow } from '../../data/types'
 import { run, update } from '../../data/mutations'
 import { ORG_COLORS } from '../../lib/orgColors'
 
-// 06 §8 옵션 보기(실측 research 17 §1): 색상 · 스타일 / 완료된 할일 보기 · 하위 할일 보기 · 반복 주기 표시
+// 06 §8 옵션 보기(실측 research 17 §1·§15.1): 색상 · 스타일 · 주말 표시 / 완료된 할일 보기 · 하위 할일 보기 · 반복 주기 표시
 const COLORS: [ColorBy, string][] = [['list', '목록'], ['tag', '태그'], ['priority', '우선순위']]
 const STYLES: [ItemStyle, string][] = [['simple', '간결한'], ['detailed', '상세한']]
 
@@ -39,6 +39,8 @@ export function ViewOptions({ opts, lists, tags, onChange, onClose }: { opts: Ca
                 <span>스타일</span>
                 <span className="vo__value">{STYLES.find(([v]) => v === opts.style)?.[1]}<ChevronRight /></span>
               </button>
+              {/* 06 §8 틱틱 Show Weekends(영상 EUB f0069 — 색상·스타일 아래 같은 카드). 끄면 주·월 보기에서 토·일 열을 숨긴다 */}
+              <Toggle label="주말 표시" on={opts.weekends !== 0} onChange={(v) => onChange({ weekends: v ? 1 : 0 })} />
             </div>
             {opts.color !== 'priority' && (
               <ColorCard

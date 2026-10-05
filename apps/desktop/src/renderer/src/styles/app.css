@@ -181,6 +181,8 @@ svg { flex-shrink: 0; }
 .toast__undo { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-sm); color: #f5a623; }
 .toast__undo:hover { background: var(--color-bg-hover); }
 .toast__undo svg { width: 15px; height: 15px; }
+.toast__action { font: var(--text-body-strong); color: var(--color-accent); padding: 2px 8px; border-radius: var(--radius-sm); white-space: nowrap; }
+.toast__action:hover { background: var(--color-bg-hover); }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
 
 .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 18vh; gap: 6px; }
@@ -825,6 +827,33 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .rail__sync { position: relative; }
 .rail__sync.is-busy svg { animation: spin 1s linear infinite; }
 .rail__sync.has-problem::after { content: ""; position: absolute; top: 9px; right: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--color-text-danger); }
+.rail__sync:disabled { cursor: default; } /* 01 §3.2.1 도는 동안(최소 0.8초) 다시 누를 수 없다 — 색은 그대로 */
+
+/* 01 §3.3 레일 종 · 알림 패널 */
+.rail__bell.has-unread::before { content: ""; position: absolute; top: 9px; right: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--color-text-danger); box-shadow: 0 0 0 1.5px var(--color-bg-rail); }
+.popover.notice-panel { padding: 0; display: flex; flex-direction: column; max-height: min(480px, calc(100vh - 16px)); border: 1px solid var(--color-border-popover); overflow: hidden; }
+.notice-panel__head { display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 8px 0 16px; border-bottom: 1px solid var(--color-border-divider); flex: none; }
+.notice-panel__head h2 { margin: 0; font: var(--text-body-strong); color: var(--color-text-primary); }
+.notice-panel__all { font: var(--text-meta); color: var(--color-accent); padding: 4px 8px; border-radius: var(--radius-sm); }
+.notice-panel__all:hover:not(:disabled) { background: var(--color-bg-hover); }
+.notice-panel__all:disabled { color: var(--color-text-quaternary); cursor: default; }
+.notice-panel__list { list-style: none; margin: 0; padding: 4px 0; overflow-y: auto; }
+.notice-panel__empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 36px 24px 40px; text-align: center; }
+.notice-row { display: grid; grid-template-columns: 6px 28px 1fr auto; align-items: start; gap: 8px; padding: 10px 14px 10px 10px; cursor: pointer; }
+.notice-row:hover, .notice-row:focus-visible { background: var(--color-bg-hover); outline: none; }
+.notice-row__dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 11px; }
+.notice-row.is-unread .notice-row__dot { background: var(--color-accent); }
+.notice-row__icon { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--color-bg-input); color: var(--color-text-secondary); }
+.notice-row__icon svg { width: 16px; height: 16px; stroke-width: 1.75; }
+.notice-row__icon--levelup, .notice-row__icon--report { color: var(--color-accent); }
+.notice-row__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-top: 1px; }
+.notice-row__title { font: var(--text-body); color: var(--color-text-primary); overflow-wrap: anywhere; }
+.notice-row.is-unread .notice-row__title { font: var(--text-body-strong); }
+.notice-row__body { font: var(--text-meta); color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notice-row__side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; padding-top: 2px; }
+.notice-row__side time { font: var(--text-small); color: var(--color-text-tertiary); white-space: nowrap; }
+.notice-row__undo { font: var(--text-meta); color: #f5a623; padding: 2px 6px; border-radius: var(--radius-sm); white-space: nowrap; }
+.notice-row__undo:hover:not(:disabled) { background: var(--color-bg-hover); }
 
 /* 08 §7 계정 */
 .account { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 0 24px; }

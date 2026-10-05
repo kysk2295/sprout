@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent as RPointerEvent } from 'react'
 import { addDays, datePart, daysBetween } from '@sprout/schema/time'
-import { packBars, type CalItem, type ItemStyle } from '../../lib/calendar'
+import { isWeekend, packBars, weekHeadClass, weekendClass, type CalItem, type ItemStyle } from '../../lib/calendar'
+import type { DayMarks } from '@sprout/schema/holidays'
+import { RestBadge, SideLabel } from './DayMark'
 import { monthMoveChanges, previewOf, resizeBar, spanDays } from '../../lib/calendarDrag'
 import { outsideDrag } from '../../lib/calendarDrop'
 import { Item } from './TimeGrid'
@@ -20,6 +22,8 @@ type Props = CalHandlers & {
   items: CalItem[]
   today: string
   itemStyle: ItemStyle
+  /** 06 §16 칸 오른쪽 글자(휴일 이름 > 주 번호 > 음력)·"휴" 배지 */
+  marks?: (day: string, firstOfRow: boolean) => DayMarks
   onDayClick: (day: string) => void
   onMore: (day: string, rect: Rect) => void
 }
@@ -33,9 +37,10 @@ const noop = () => {}
 
 export function MonthView(p: Props) {
   const { month, items, today } = p
-  const nRows = p.days.length / 7
-  const rows = Array.from({ length: nRows }, (_, r) => p.days.slice(r * 7, r * 7 + 7))
-  const cols = 7
+  // 06 §8 주말 표시를 끄면 한 줄 5칸(토·일 빠짐)
+  const cols = p.days.some(isWeekend) ? 7 : 5
+  const nRows = p.days.length / cols
+  const rows = Array.from({ length: nRows }, (_, r) => p.days.slice(r * cols, r * cols + cols))
   const bodyRef = useRef<HTMLDivElement>(null)
   const [rowH, setRowH] = useState(100)
   useLayoutEffect(() => {
@@ -140,7 +145,7 @@ export function MonthView(p: Props) {
   return (
     <div className="mv">
       <div className="mv__head" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-        {WEEK.map((w) => <span key={w}>{w}</span>)}
+        {WEEK.slice(0, cols).map((w, i) => <span key={w} className={`mv__wd${weekHeadClass(i)}`}>{w}</span>)}
       </div>
       <div className="mv__body" ref={bodyRef} style={{ gridTemplateRows: `repeat(${nRows}, minmax(0, 1fr))` }}>
         {rows.map((row, r) => {
@@ -154,6 +159,7 @@ export function MonthView(p: Props) {
                 const other = d.slice(0, 7) !== month
                 const label = d.endsWith('-01') ? `${Number(d.slice(5, 7))}월 1일` : String(Number(d.slice(8)))
                 const hidden = covering[c].filter((b) => b.lane >= limit).length
+                const mk = p.marks?.(d, c === 0)
                 return (
                   <div
                     key={d}
@@ -164,7 +170,8 @@ export function MonthView(p: Props) {
                       start(e, { kind: 'create', a: d, b: d })
                     }}
                   >
-                    <button className={`mv__num${d === today ? ' is-today' : ''}${d.endsWith('-01') ? ' is-first' : ''}`} onClick={() => p.onDayClick(d)}>{label}</button>
+                    <button className={`mv__num${d === today ? ' is-today' : ''}${d.endsWith('-01') ? ' is-first' : ''}${mk?.holiday ? ' is-holiday' : ''}${weekendClass(d)}`} onClick={() => p.onDayClick(d)} title={mk?.holiday ?? undefined}>{label}<RestBadge marks={mk} /></button>
+                    <SideLabel marks={mk} className="mv__side" />
                     {hidden > 0 && (
                       <button
                         className="mv__more"

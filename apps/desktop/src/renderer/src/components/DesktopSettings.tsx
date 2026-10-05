@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ListSuggestSettings } from './listSuggest/ListSuggest'
-import { Bell, CircleUser, Keyboard, ListChecks, ListFilter, Palette, Pencil, Plug, Settings2, X } from 'lucide-react'
+import { Bell, CalendarClock, CircleUser, Keyboard, ListChecks, ListFilter, Palette, Pencil, Plug, Settings2, X } from 'lucide-react'
+import { DateTimeSettings } from './calendar/DateTimeSettings'
 import { OverdueSettings } from './overdue/OverdueBits'
 import { NotifySettings } from './NotifySettings'
 import { authApi, deleteErrorText, deleteMode, deleteReady, DELETE_WORD, providerLabel, useAuth, type DeleteMode } from '../data/auth'
@@ -34,13 +35,14 @@ export function DesktopSettings({ onClose, initial = authApi() ? 'account' : 'sm
   return <Dialog label="설정" className="settings-dialog" onClose={onClose}>
     <nav className="settings-nav" aria-label="설정 항목">
       <button className="icon-btn" aria-label="설정 닫기" onClick={onClose}><X /></button><h2>설정</h2>
-      {([...(authApi() ? [['account','계정',CircleUser]] as const : []),['smart','스마트 목록',ListFilter],['tasks','할 일',ListChecks],['appearance','외관',Palette],['integrations','연동',Plug],['notify','알림',Bell],['general','일반',Settings2],['shortcuts','단축키',Keyboard]] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><Icon />{label}</button>)}
+      {([...(authApi() ? [['account','계정',CircleUser]] as const : []),['smart','스마트 목록',ListFilter],['tasks','할 일',ListChecks],['datetime','날짜 & 시간',CalendarClock],['appearance','외관',Palette],['integrations','연동',Plug],['notify','알림',Bell],['general','일반',Settings2],['shortcuts','단축키',Keyboard]] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><Icon />{label}</button>)}
     </nav>
     <section className="settings-content">
       {error && <p role="alert" className="form-error">{error}</p>}
       {tab === 'account' && <AccountPane />}
       {tab === 'smart' && <><h2>스마트 목록</h2><div className="settings-card">{SMART.map(([id,label]) => <label className="settings-row" key={id}><span>{label}</span><select aria-label={`${label} 표시`} disabled={id === 'inbox' || !prefs.ready} value={id === 'inbox' ? 'show' : prefs.visibility[id] ?? 'show'} onChange={(e) => void save({smart_list_visibility: JSON.stringify({...prefs.visibility,[id]:e.target.value as Visibility})})}><option value="show">보이기</option><option value="hide">숨기기</option><option value="auto">비어있지 않으면 표시</option></select></label>)}</div></>}
       {tab === 'tasks' && <><OverdueSettings /><ListSuggestSettings /></>}
+      {tab === 'datetime' && <DateTimeSettings />}
       {tab === 'appearance' && <><h2>테마</h2><ThemePicker save={save} /></>}
       {tab === 'integrations' && <IntegrationsPane />}
       {tab === 'notify' && <NotifySettings />}

@@ -21,8 +21,18 @@ export interface CalOptions {
   myCal: number
   /** "내 일정" 색(없으면 MY_CAL_COLOR) */
   myColor: string | null
+  /** 06 §16 설정 › 날짜 & 시간 "휴일 표시"(틱틱 Show Holidays). 저장값이 없으면 켬 [제안 — 한국어 사용자 기본] */
+  holidays: number
+  /** 06 §16 "추가 달력": 0 = 없음, 1 = 한국 음력(틱틱 Additional Calendar › Korean Lunar) */
+  lunar: number
+  /** 06 §16 "주 번호 표시(W)" — 틱틱 기본 끔 */
+  weekNumbers: number
+  /** 06 §8 옵션 보기 "주말 표시"(틱틱 Show Weekends) — 끄면 토·일 열을 숨긴다. 기본 켬 */
+  weekends: number
 }
-export const DEFAULT_OPTIONS: CalOptions = { view: 'week', color: 'list', style: 'simple', completed: 1, repeats: 0, icons: 1, calIcons: 1, lists: [], tags: [], myCal: 1, myColor: null }
+export const DEFAULT_OPTIONS: CalOptions = { view: 'week', color: 'list', style: 'simple', completed: 1, repeats: 0, icons: 1, calIcons: 1, lists: [], tags: [], myCal: 1, myColor: null, holidays: 1, lunar: 0, weekNumbers: 0, weekends: 1 }
+/** 주말 표시를 끄면 토·일을 뺀다(06 §8). 일 보기는 그대로 */
+export const visibleDays = (days: string[], weekends: boolean) => (weekends || days.length === 1 ? days : days.filter((d) => !isWeekend(d)))
 
 /** 캘린더에 그리는 한 항목. 반복 미래 회차는 virtual(원래 태스크 id = task.id) */
 export interface CalItem {
@@ -64,6 +74,10 @@ export function titleOf(_view: CalView, cursor: string): string {
   return `${a.getFullYear()}년 ${a.getMonth() + 1}월`
 }
 export const isWeekend = (d: string) => [0, 6].includes(toDate(d).getDay())
+/** 06 §16 주말 글자색(사용자 결정 2026-10-05 "주말도 표시"): 토 = 파랑, 일 = 빨강. 날짜 칸·요일 머리에 붙이는 클래스 */
+export const weekendClass = (d: string) => { const w = toDate(d).getDay(); return w === 6 ? ' is-sat' : w === 0 ? ' is-sun' : '' }
+/** 월요일 시작 요일 머리(월…일)의 i번째 */
+export const weekHeadClass = (i: number) => (i === 5 ? ' is-sat' : i === 6 ? ' is-sun' : '')
 
 // ── 항목 만들기 (반복 미래 회차 포함) ──
 export function itemsOf(tasks: TaskRow[], from: string, to: string, withRepeats: boolean): CalItem[] {

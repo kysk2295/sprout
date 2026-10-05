@@ -2,11 +2,11 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight, Circle, ListChecks, More
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { datePart } from '@sprout/schema/time'
 import { useQuery } from '../../data/useQuery'
-import { setViewSetting } from '../../data/mutations'
+import { markPrefsOf, useCalendarOptions, useDayMarks } from '../../data/calendarOptions'
 import { loadSchedule } from '../../data/schedule'
 import { TASK_COLUMNS } from '../../data/taskQueries'
 import type { ListRow, TagRow, TaskRow } from '../../data/types'
-import { colorOf, DEFAULT_OPTIONS, itemsOf, rangeOf, shiftCursor, titleOf, weekStart, type CalItem, type CalOptions, type CalView } from '../../lib/calendar'
+import { colorOf, itemsOf, rangeOf, shiftCursor, titleOf, visibleDays, weekStart, type CalItem, type CalView } from '../../lib/calendar'
 import { addDays } from '@sprout/schema/time'
 import { dayKey } from '../../lib/dates'
 import type { Schedule, TaskActions } from '../../lib/taskActions'
@@ -85,16 +85,16 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
   useEffect(() => { const on = () => setNarrow(window.innerWidth < 900); window.addEventListener('resize', on); return () => window.removeEventListener('resize', on) }, [])
 
   // ── 보기 설정(동기화: view_settings 'calendar' 행의 options_json) ──
-  const row = useQuery<{ options_json: string | null }>("SELECT options_json FROM view_settings WHERE view_key = 'calendar'")?.[0]
-  const opts: CalOptions = useMemo(() => {
-    try { return { ...DEFAULT_OPTIONS, ...(row?.options_json ? JSON.parse(row.options_json) : {}) } } catch { return DEFAULT_OPTIONS }
-  }, [row?.options_json])
-  const setOpts = useCallback((patch: Partial<CalOptions>) => void setViewSetting('calendar', { options_json: JSON.stringify({ ...opts, ...patch }) }), [opts])
+  const [opts, setOpts] = useCalendarOptions()
   const view = opts.view
 
   // ── 범위 · 데이터 ──
   const range = rangeOf(view, cursor)
-  const days = range.days
+  // 06 §8 주말 표시를 끄면 주 보기·월 보기에서 토·일 열을 뺀다
+  const days = visibleDays(range.days, opts.weekends !== 0)
+  // 06 §16 휴일·음력·주 번호(설정 › 날짜 & 시간)
+  const markPrefs = markPrefsOf(opts)
+  const marks = useDayMarks(range.days, markPrefs)
   const { sql, params } = useMemo(() => {
     const cond = ['t.due_at IS NOT NULL', 't.deleted_at IS NULL', 'l.archived_at IS NULL']
     const ps: unknown[] = []
@@ -281,6 +281,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
             onFilter={(l, t) => setOpts({ lists: l, tags: t })}
             myCal={{ on: opts.myCal !== 0, color: opts.myColor, onChange: setOpts }}
             calendarCursor={cursor}
+            markPrefs={markPrefs}
           />
         </div>
       )}
@@ -329,12 +330,12 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
         )}
         <div className="cal__body" ref={bodyRef}>
           {view === 'month' ? (
-            <MonthView {...handlers} days={range.days} month={cursor.slice(0, 7)} items={items} today={today} itemStyle={opts.style}
+            <MonthView {...handlers} days={days} month={cursor.slice(0, 7)} items={items} today={today} itemStyle={opts.style} marks={marks}
               onDayClick={(d) => { setCursor(d); setOpts({ view: 'day' }) }}
               onMore={(day, r) => setPop({ kind: 'more', day, rect: r })}
             />
           ) : (
-            <TimeGrid {...handlers} days={days} items={items} today={today} hourH={hourH} collapsed={collapsed} onCollapsed={setCollapsed} itemStyle={opts.style}
+            <TimeGrid {...handlers} days={days} items={items} today={today} marks={marks} weekNumbers={markPrefs.weekNumbers} hourH={hourH} collapsed={collapsed} onCollapsed={setCollapsed} itemStyle={opts.style}
               onDayClick={(d) => { setCursor(d); setOpts({ view: 'day' }) }}
             />
           )}

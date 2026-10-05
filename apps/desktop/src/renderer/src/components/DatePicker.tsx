@@ -8,6 +8,9 @@ import { dayKey, moveToDate } from '../lib/dates'
 import type { Schedule } from '../lib/taskActions'
 import { Popover } from './Popover'
 import { CalendarPlus7 } from './icons'
+import { markPrefsOf, useCalendarOptions, useDayMarks } from '../data/calendarOptions'
+import { RestBadge } from './calendar/DayMark'
+import { weekHeadClass, weekendClass } from '../lib/calendar'
 
 // 03-date-picker: 날짜 탭 · 기간 탭 · Time/Reminder/Repeat 하위 화면 · Clear/OK
 // 바깥 클릭 = OK(저장 후 닫기), Esc = 취소 후 닫기(03 §2)
@@ -194,6 +197,9 @@ export function MonthGrid({ month, onMonth, today, selected, onPick, compact, ra
   const first = toDate(`${month}-01`)
   const lead = (first.getDay() + 6) % 7 // 월요일 시작
   const days = Array.from({ length: 42 }, (_, i) => addDays(`${month}-01`, i - lead))
+  // 06 §16 "휴일 표시"가 켜져 있으면 공휴일에 작은 "휴" 배지(이름은 마우스를 올리면)
+  const [calOpts] = useCalendarOptions()
+  const marks = useDayMarks([days[0], days[41]], { ...markPrefsOf(calOpts), lunar: false, weekNumbers: false })
   const shift = (n: number) => {
     const d = new Date(first)
     d.setMonth(d.getMonth() + n)
@@ -209,11 +215,14 @@ export function MonthGrid({ month, onMonth, today, selected, onPick, compact, ra
           <button aria-label="다음 달" onClick={() => shift(1)}><ChevronRight /></button>
         </span>
       </div>
-      <div className="dp__week">{WEEK.map((w) => <span key={w}>{w}</span>)}</div>
+      <div className="dp__week">{WEEK.map((w, i) => <span key={w} className={weekHeadClass(i).trim() || undefined}>{w}</span>)}</div>
       <div className="dp__days">
         {days.map((day) => {
           const cls = ['dp__day', day.slice(0, 7) !== month && 'is-other', range.includes(day) && 'is-range', day === today && 'is-today', selected.includes(day) && 'is-selected']
-          return <button key={day} className={cls.filter(Boolean).join(' ')} onClick={() => onPick(day)} aria-label={day}>{Number(day.slice(8))}</button>
+          const mk = marks(day, false)
+          if (mk.holiday) cls.push('is-holiday')
+          cls.push(weekendClass(day).trim())
+          return <button key={day} className={cls.filter(Boolean).join(' ')} onClick={() => onPick(day)} aria-label={day} title={mk.holiday ?? undefined}>{Number(day.slice(8))}<RestBadge marks={mk} /></button>
         })}
       </div>
     </div>

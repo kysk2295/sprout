@@ -40,6 +40,8 @@
   --color-accent-subtle: #ecf0fd;
   --color-danger: #d44343;
   --color-search-highlight: #fbe38e;
+  --color-saturday: #3d74e0;        /* 06 §16 토요일 날짜·요일 파랑(사용자 결정 2026-10-05 "주말도 표시" — 한국 달력 관례, 틱틱은 칠 없음) */
+  --color-holiday: #e5484d;         /* 06 §16 공휴일 날짜·이름·"휴" 배지 — 빨강(사용자 결정 2026-10-05: "공휴일은 빨간색". 틱틱/디다는 초록 休, research 17 §15.2) */
   /* 우선순위 */
   --color-priority-high: #c53c31;
   --color-priority-medium: #efab3e;
@@ -308,6 +310,8 @@
   --color-rail-icon-selected: #ffffff;
   --color-rail-icon-selected-bg: transparent;
   --color-search-highlight: #dcbf77;
+  --color-saturday: #6b9cff;
+  --color-holiday: #f2555a;
   --color-accent-subtle: #262a52;
   --color-menu-icon: #969696;
   --color-border-popover: #2f2f2f;

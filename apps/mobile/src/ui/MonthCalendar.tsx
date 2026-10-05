@@ -3,6 +3,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { usePalette } from '../theme/ThemeProvider'
 import { monthCells, shiftMonth } from './dateSheetModel'
+import { useDayMarks, useMarkPrefs } from '../data/calendarPrefs'
+import { RestBadge } from './DayMarks'
 
 const WEEK = ['월', '화', '수', '목', '금', '토', '일']
 
@@ -12,6 +14,9 @@ export function MonthCalendar({ month, onMonth, today, selected, range = [], onP
   const p = usePalette()
   const [y, m] = month.split('-').map(Number)
   const cells = monthCells(month)
+  // 06 §16 "휴일 표시"가 켜져 있으면 공휴일 숫자 오른쪽 위에 작은 "휴" 배지(이름은 읽어 주기에)
+  const prefs = useMarkPrefs()
+  const marks = useDayMarks(cells[0], cells[cells.length - 1], { ...prefs, lunar: false, weekNumbers: false })
   return (
     <View>
       <View style={s.head}>
@@ -22,22 +27,25 @@ export function MonthCalendar({ month, onMonth, today, selected, range = [], onP
         <Pressable accessibilityRole="button" accessibilityLabel="다음 달" hitSlop={10} onPress={() => onMonth(shiftMonth(month, 1))}><ChevronRight size={18} color={p.textTertiary} /></Pressable>
       </View>
       <View style={s.grid}>
-        {WEEK.map((w) => <Text key={w} style={[s.wd, { color: p.textTertiary }]}>{w}</Text>)}
+        {WEEK.map((w, i) => <Text key={w} style={[s.wd, { color: i === 6 ? p.holiday : i === 5 ? p.saturday : p.textTertiary }]}>{w}</Text>)}
         {cells.map((d, i) => {
           const other = d.slice(0, 7) !== month
           const sel = selected.includes(d)
           const inRange = range.includes(d) && !sel
           const isToday = d === today
           const sun = i % 7 === 6
+          const sat = i % 7 === 5 // 06 §16 토요일 파랑(사용자 결정 2026-10-05)
+          const mk = marks(d, false)
           return (
-            <Pressable key={d} accessibilityRole="button" accessibilityLabel={d} accessibilityState={{ selected: sel }} onPress={() => onPick(d)} style={s.cellWrap}>
+            <Pressable key={d} accessibilityRole="button" accessibilityLabel={d} accessibilityHint={mk.holiday ?? undefined} accessibilityState={{ selected: sel }} onPress={() => onPick(d)} style={s.cellWrap}>
               <View style={[s.cell, sel && { backgroundColor: p.accent }, inRange && { backgroundColor: p.accentSubtle }]}>
                 <Text style={[
                   s.day,
-                  { color: other ? p.calOther : sun ? p.danger : p.textPrimary },
+                  { color: other ? p.calOther : sun || mk.holiday ? p.holiday : sat ? p.saturday : p.textPrimary },
                   isToday && { color: p.accent, fontWeight: '600' },
                   sel && { color: '#fff', fontWeight: '600' }
                 ]}>{Number(d.slice(8))}</Text>
+                <RestBadge marks={mk} size={12} top={1} right={1} />
               </View>
             </Pressable>
           )
