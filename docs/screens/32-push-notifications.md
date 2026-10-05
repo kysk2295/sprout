@@ -1,6 +1,6 @@
 # 32 · 푸시 알림 (FCM) — 할 일 알림 · 하루 요약 · 다른 기기 변경 · 성장 소식
 
-- 상태: **확정 v1.0 (2026-10-05)** — 사용자 "추천대로 전부, 나머지는 다 승인": §12 N1~N5 = 추천안, §10 인프라 I1~I8 승인. 서버 쪽(1·3·4·5·6단계 서버) 구현 완료 — §15 구현 메모 · 7단계 데스크톱 `알림` 탭 구현 완료 — §16
+- 상태: **확정 v1.0 (2026-10-05)** — 사용자 "추천대로 전부, 나머지는 다 승인": §12 N1~N5 = 추천안, §10 인프라 I1~I8 승인. 서버 쪽(1·3·4·5·6단계 서버) 구현 완료 — §15 구현 메모 · 휴대폰 쪽(0·2단계, 3~6단계 휴대폰) 구현 완료 — §17 · 7단계 데스크톱 `알림` 탭 구현 완료 — §16
 - 사용자 결정(2026-10-05): FCM(HTTP v1, 셀프호스트 Node API가 서비스 계정으로 보냄). 알림 종류 4가지 모두 — ① 서버가 보내는 할 일 알림 ② 아침 하루 요약 ③ 다른 기기 변경 즉시 반영(조용한 푸시) ④ 성장·AI 소식. **Android 먼저 끝까지**, iOS는 코드 길만 준비하고 Apple 개발자 계정·APNs 키가 생기면 켠다(그 전까지 iOS는 지금의 로컬 알림 그대로).
 - 바꾸는 결정: [20 모바일 §0 D3](20-mobile-overview.md)("로컬 알림, 서버 푸시는 [다음]") → **로컬 알림은 그대로 두고 서버 푸시를 더한다**(§4.3 하이브리드). 20 §4.4의 로컬 예약 규칙(48시간·50개·버튼·완료 경로)은 그대로 쓴다.
 - 표기: **[틱틱]** 틱틱 동작 근거 있음 · **[sprout]** 틱틱에 없음(성장·AI·동기화) · **[임시]** 숫자·문구 추정값 · **[승인]** 인프라 변경이라 사용자 승인 필요
@@ -256,7 +256,7 @@ CREATE INDEX IF NOT EXISTS tasks_open_due_idx ON tasks (due_at) WHERE status = 0
 |---|---|---|---|
 | N1 | Android에서 할 일 알림을 누가 울리나? ⓐ 하이브리드(로컬 예약 유지 + 서버는 휴대폰이 모르는 것만, 같은 id) ⓑ 서버만(푸시가 켜지면 로컬 예약 끔) | **ⓐ 하이브리드** ✅ | 오프라인·Mac mini 꺼짐·앱 강제 종료에도 울린다(KR2). ⓑ는 단순하지만 휴대폰에서 오프라인으로 만든 할 일·서버 다운 때 안 울림 |
 | N2 | 서버 페이로드에 할 일 제목을 넣나? | **넣는다 + `알림에 제목 숨기기`(기본 꺼짐)** ✅ | 휴대폰이 아직 그 할 일을 내려받지 못해도 제목이 보여야 쓸모가 있다. 제목은 Google(FCM)을 지나간다 — 설정 설명과 처리방침에 적고, 원하면 숨긴다. AI 글은 어떤 경우에도 넣지 않는다 |
-| N3 | 휴대폰 쪽 FCM 라이브러리 | **먼저 `expo-notifications`만** ✅(이미 설치, `getDevicePushTokenAsync` + 백그라운드 알림 작업). 0단계 실험에서 앱이 꺼진 상태의 데이터 메시지 처리가 안 되면 `@react-native-firebase/messaging`(`setBackgroundMessageHandler`)으로 | 새 네이티브 모듈 없이 갈 수 있으면 빌드·iOS 위험이 작다. RN Firebase는 iOS에서 정적 프레임워크 설정이 필요해 다른 모듈과 부딪칠 수 있다. iOS 토큰 문제(§11-4)는 iOS를 켤 때 다시 정한다 |
+| N3 | 휴대폰 쪽 FCM 라이브러리 | **먼저 `expo-notifications`만** ✅(이미 설치, `getDevicePushTokenAsync` + 백그라운드 알림 작업). 0단계 실험에서 앱이 꺼진 상태의 데이터 메시지 처리가 안 되면 `@react-native-firebase/messaging`(`setBackgroundMessageHandler`)으로 → **0단계 실험(§17.1): 닫힌 앱도 expo 작업으로 처리됨 — expo 유지 + 기본 표시만 막는 FCM 서비스(`plugins/push-service`)** | 새 네이티브 모듈 없이 갈 수 있으면 빌드·iOS 위험이 작다. RN Firebase는 iOS에서 정적 프레임워크 설정이 필요해 다른 모듈과 부딪칠 수 있다. iOS 토큰 문제(§11-4)는 iOS를 켤 때 다시 정한다 |
 | N4 | 하루 요약 기본값 | **꺼짐 · 08:00 · 0개인 날 안 보냄** ✅ | 틱틱도 켜야 받는 기능 [research 30]. 첫 할 일 알림 권한을 받은 뒤 설정 화면에서만 켠다 |
 | N5 | 성장 소식 기본 묶음 | **진화·주간 리포트(초안 포함)·일요일 목표 마감 = 켬, 기본함 정리 = 꺼짐(모바일 정리 화면 생기면 켬), 레벨업은 안 보냄** ✅ | 주 2~3건 이하로 성장 루프를 끌어오되 소음은 피한다. 기본함 정리는 지금 휴대폰에서 열 화면이 없다 |
 
@@ -344,3 +344,71 @@ CREATE INDEX IF NOT EXISTS tasks_open_due_idx ON tasks (due_at) WHERE status = 0
 - `이 컴퓨터의 할 일 알림` 스위치는 계속 [다음] — 안내 문구로 OS 설정을 가리킨다.
 - 확인(2026-10-05): 새 계정에서 칸을 바꾸고 로그아웃(로컬 삭제) → 다시 로그인하면 서버에서 같은 `notify_json`이 내려옴.
 
+
+## 17. 구현 메모 — 휴대폰 (2026-10-05, 0단계 실험·2단계·3~6단계 휴대폰 쪽)
+### 17.1 0단계 실험 결과 → N3 확정: **`expo-notifications` 유지 + 작은 FCM 서비스 덮어쓰기**(RN Firebase 안 씀)
+에뮬레이터(API 35 Google Play 이미지), 서버와 같은 모양의 데이터 메시지, `Notifications.registerTaskAsync` 작업:
+
+| 앱 상태 | expo-notifications 그대로 | + `plugins/push-service` |
+|---|---|---|
+| 앞 | 작업이 그림 1개(기본 표시 없음) | 같음 |
+| 배경(홈으로) | **2개** — 작업이 그린 것(채널·버튼·id 맞음) + expo 기본 표시(id = FCM 메시지 id, 채널 `expo_notifications_fallback…`, 본문·버튼 없음) | 작업이 그린 것 1개 |
+| 닫힘(최근 앱에서 밀어 닫기·`am kill`) | headless JS가 몇 초 안에 깨어나 그림 + 같은 기본 표시 = **2개** | 1개 |
+
+- 원인: expo `ExpoHandlingDelegate.handleNotification` — 앱이 앞에 없을 때 data에 `title`(또는 `message`)이 있으면 "보이는 데이터 메시지"로 보고 그 자리에서 그린다. 서버 메시지는 data에 `title`이 있다(§9.4).
+- 그래서 **닫힌 앱의 데이터 메시지 처리 자체는 expo로 된다**(headless 작업) — 막을 것은 기본 표시뿐. RN Firebase(`setBackgroundMessageHandler`)로 바꾸면 iOS 정적 프레임워크·서비스 충돌 위험만 는다.
+- `plugins/push-service`(config 플러그인, prebuild 때마다): `SproutMessagingService extends ExpoFirebaseMessagingService` — `data.type`이 `reminder|daily|growth|sync|test`이고 notification 칸이 없으면 기본 표시를 건너뛰고 `FirebaseMessagingDelegate.runTaskManagerTasks`만 부른다. 매니페스트에서 expo 서비스는 `tools:node="remove"`, 앱 의존성에 `firebase-messaging`(expo-notifications와 같은 판 — 그 모듈은 `implementation`이라 앱에서 안 보인다). 토큰 갱신·다른 메시지는 expo 그대로.
+- `SPROUT_PUSH_PLAIN=1 npx expo prebuild`로 플러그인 없이 만들면 위 실험을 다시 볼 수 있다.
+
+### 17.2 Android 15 배경 네트워크 차단 — 조용한 동기화의 한계
+- 관찰: `normal` 우선순위 `sync`로 깨어난 닫힌 앱은 netpolicy에서 `blocked=APP_BACKGROUND`(캐시 상태 UID) → PowerSync 내려받기·로컬 예약 보고가 안 된다. `high`(할 일 알림·시험)와 **알림 버튼 응답**은 잠깐(약 30초) 허용 목록에 들어 네트워크가 된다.
+- 대응(앱): `sync` 처리 = ① 네트워크 없이 할 수 있는 것 먼저 — 떠 있는 알림 지우기 + **그 할 일의 로컬 예약(할 일 알림·다시 알림)도 취소**(옛 시각이 울리지 않게) ② 동기화·다시 계산·보고는 시도하되 20초 상한(작업이 끝나게).
+- 결과: 휴대폰이 모르는 새 할 일·바뀐 시각은 **서버 할 일 알림이 메운다**(local_keys에 없으니 보냄 — 아래 확인 B). 완료 기준 7의 "앱을 열지 않아도 로컬 예약이 새 값으로"는 Android 15+ 닫힌 앱에서는 기대할 수 없다(앱이 앞으로 오거나 OS 백그라운드 작업(WorkManager, 네트워크 조건)이 돌 때 맞춰진다) — 사용자 체감(제때 한 번 울림)은 하이브리드로 지켜진다.
+- 서버 변경 제안(필수 아님): 지우기가 있는 `sync`는 `high`로 보내면 Doze 중에도 바로 지워진다(지금도 Doze가 아니면 몇 초 안에 지워짐 — 확인 A).
+
+### 17.3 파일
+| 곳 | 내용 |
+|---|---|
+| `apps/mobile/index.ts` (새 진입점, package.json `main`) | 폴리필 → `notifications/push`·`background`(작업 정의) → `expo-router/entry`. 닫힌 앱이 작업으로만 깨어날 때도 정의돼 있게 |
+| `apps/mobile/app.config.ts` | `android.googleServicesFile` = `SPROUT_GOOGLE_SERVICES_FILE` 또는 `~/.config/sprout/google-services.json`(없으면 푸시 없이 빌드, `extra.pushAndroid=false`) · 있으면 `plugins/push-service` · `extra.pushIos=false`(§11) |
+| `apps/mobile/plugins/push-service/` | §17.1 |
+| `src/data/device.ts` | 기기 id(`sprout.deviceId`, uuid v4, 보안 저장소) |
+| `src/data/auth.ts` | `api()`에 headers·timeout · 업로드에 `X-Sprout-Device` · 로그아웃 = `DELETE /push/devices/:id`(3초) → 로컬 지우기 → `/auth/logout {refresh_token, device_id}` |
+| `src/data/notifyPrefs.ts` | `useNotifyPrefs`·`readNotifyPrefs`·`saveNotifyPrefs`(공용 `parseNotifyPrefs`, 전체 모양으로 저장) |
+| `src/notifications/pushLogic.ts` (+test) | 메시지 해석 · 받을 때 중복 확인(같은 id 또는 같은 할 일·같은 순간) · 지우기 대상 · url→경로 · caps(`reminder daily sync growth`) · 등록 하루 1번 · 로컬 보고 비교·30초 간격 |
+| `src/notifications/push.ts` | 작업 `sprout-push`(받기·배경 버튼 응답) · 등록(로그인·시작·앞으로 올 때·토큰 변경·권한/설정/시간대 변경, 토큰 요청 20초 상한) · 로컬 보고(404면 다시 등록) · 시험 알림 · 상태 줄 상태 |
+| `src/notifications/index.ts` | 채널 `daily`·`growth` 추가 · 다시 계산 끝 → `onRescheduled` · `notify_json.reminders=false`면 로컬 할 일 알림도 예약 안 함 · 응답: url 알림(하루 요약·성장) 누르면 그 화면, 완료 전 할 일이 없으면 먼저 동기화, 중복 처리 키에서 날짜 뺌(배경 처리 → 다음 실행 마지막 응답이 같은 것) |
+| `src/notifications/plan.ts` | 본문 = 공용 `reminderBody`(서버와 같은 함수), id = `reminderKey` |
+| `app/(tabs)/settings/notifications.tsx` · `NotificationCell` | 설정 › 소리와 알림(§7) — 칸은 이제 이 화면으로(권한을 아직 안 물었으면 먼저 묻기) |
+
+### 17.4 명세와 다르게/더 정한 것
+- 제목 숨기기는 §4.4 그대로 **서버 페이로드에만** 적용 — 휴대폰은 기기 안 제목이 있으면 보이고, 로컬 예약 알림도 제목을 보인다. 잠금 화면에서도 숨길지(로컬 알림 `vis=PRIVATE` 대체 문구 등)는 [다음].
+- 하루 요약이 꺼져 있으면 `받을 시각`·`주말 건너뛰기`는 흐림·잠금(데스크톱 §16과 같음). 시각은 칸을 누르면 그 아래 휠(22 시간 휠, 5분 단위)이 펼쳐진다.
+- 서버 할 일 알림을 받았을 때 기기 DB에 그 할 일이 이미 완료·휴지통이면 띄우지 않는다.
+- `app_version`은 `0.1.0 (빌드번호)`, `locale`은 기기 Intl 값(에뮬레이터 `en-US`).
+- 배경·닫힘에서 누른 알림 버튼(완료·다시 알림)은 Android에서 푸시 작업으로 바로 처리하고 20초 안에 올린다(앱을 열지 않음 — 완료 기준 3).
+
+### 17.5 확인 (2026-10-05, 에뮬레이터 `sprout-android-push` API 35 Google Play, Mac mini 서버, 새 계정)
+| 확인 | 결과 |
+|---|---|
+| 기기 등록 | 가입 직후 `device_tokens` 1행: `android` · caps `{reminder,daily,sync,growth}` · `Asia/Seoul` · `0.1.0 (1)` · 권한 전 `push_reminders=f` → 권한 뒤 `t` |
+| 시험 알림(설정 버튼) | 몇 초 안에 `sprout 알림이 잘 와요`(채널 `tasks`). 10분에 4번째 → 토스트 `잠시 뒤에 다시 해 주세요`(429) |
+| A. 휴대폰이 모르는 할 일(업로드 헤더 = 그 휴대폰 → 조용한 푸시 없음), 앱 닫힘 | 정시 +19초(스케줄러 30초 tick)에 서버 할 일 알림 — 제목·`오늘 오전 9:18`·채널 `tasks`·버튼 4개(완료·10분·1시간·내일), id `r:<rid>@<ms>` |
+| A'. 다른 기기에서 완료(헤더 없음) | 떠 있던 알림이 **4초 안에** 사라짐(`sync` + `dismiss`) |
+| B. 새 할 일 + 조용한 푸시, 앱 닫힘 | 배경 네트워크 차단(§17.2)으로 내려받지 못함 → 서버가 정시에 할 일 알림 → 1개만 |
+| C. 휴대폰이 아는 할 일(앞에서 동기화 → 로컬 예약 → `local_keys` 보고), 앱 닫힘 | 서버는 **보내지 않음**(`push_sent`에 없음) — 두 번 울림 없음. 단 아래 "로컬 알람" 문제 발견 |
+| 하루 요약·성장 소식(데이터 메시지 직접) | 채널 `daily`·`growth`(기본 중요도)로 표시, 하루 요약 누르면 앱 오늘 화면 |
+| 설정 › 소리와 알림 | 칸·스위치·휠(하루 요약 09:00으로 바꾸면 서버 `user_prefs.notify_json`에 반영)·상태 줄 `서버 알림 연결됨 · 방금 확인` |
+| D. 서버 알림의 `완료` 버튼, 앱 닫힘(릴리스 빌드, 최근 앱에서 밀어 닫기) | 앱을 열지 않고 **6초 안에 서버 `tasks.status=1` + `xp_events` task +1**, 알림 사라짐 |
+| E. Doze(`dumpsys deviceidle force-idle`, 화면 끔) | 서버가 보낸 지 **3초 안에** 할 일 알림 표시(기기 계속 IDLE) |
+| 제목 숨기기 페이로드(제목 없음) | 기기가 아는 할 일 → 기기 안 제목, 모르는 할 일 → `할 일 알림` |
+| 성장 소식 누르기 | 앱 성장 화면으로 |
+| 권한 | 거부 → 맨 위 줄 빨간 `알림이 꺼져 있어요 · 설정 열기`, 아래 칸 흐림, 등록 `push_reminders=f` · `알림 켜기` → OS 창 허용 → 몇 초 안에 `t` |
+| `알림이 늦게 오거나 안 와요` | 시스템 배터리 최적화 설정 화면이 열림 |
+| 로그아웃 / 다시 로그인 / 계정 삭제(앱 안) | 기기 행 삭제 → 같은 기기 id로 다시 등록 → 사용자·기기 행·`push_sent` 모두 0 |
+
+### 17.6 발견한 것 (고치지 않은 것·서버/정책 결정 필요)
+- **로컬 알람이 정확하지 않다**: 매니페스트에 `SCHEDULE_EXACT_ALARM`이 없어(20 §4.4의 "정확한 알람 권한 확인"이 아직 구현 안 됨) expo가 `setAndAllowWhileIdle`(창 약 2분)로 예약한다 — 시험 C에서 09:24 알림이 09:26에도 안 울렸다. 서버는 그 키를 `local_keys`로 보고 보내지 않으므로 **휴대폰이 아는 할 일은 몇 분 늦게 울릴 수 있다**. 앱 쪽 손질(이번에 함): 시각이 막 지난(1시간 안) 아직 안 울린 예약을 다시 계산 때 지우던 버그를 고침(앱을 열면 그 알림이 사라지던 것 — `overdueIds`) · 서버 알림이 왔을 때 같은 알림이 예약만 돼 있으면 지금 띄우고 예약 취소. **결정 필요**: ⓐ `SCHEDULE_EXACT_ALARM`(사용자가 설정에서 허용, 권한 안내 화면 필요) ⓑ `USE_EXACT_ALARM`(자동 허용, Play 정책상 알람·캘린더 앱만 — 캘린더가 있어 해당 가능성) ⓒ 정확한 알람이 없으면 `local_keys`를 비워 보고(서버가 늘 정시에 보냄, 받을 때 겹침은 위 규칙으로 정리).
+- **Android 알림 버튼은 3개까지 보인다**: 카테고리에는 4개(완료·10분·1시간·내일)가 있지만 시스템 UI는 앞 3개만 그린다(`내일 다시 알림`이 안 보임 — 로컬 알림도 같음). 완료 기준 1의 "버튼 4개"는 Android에서 불가 → 틱틱 Android 배치 확인 후 3개로 줄일지 결정.
+- **에뮬레이터 Play 서비스**: API 35 Google Play 이미지에서 Play 스토어가 GMS를 26.36으로 올리면 FCM 등록이 `NetworkCapability 37 out of range`로 죽는다(`SERVICE_NOT_AVAILABLE`) → `pm uninstall-system-updates com.google.android.gms` + Play 스토어 끄기로 24.16에서 확인.
+- **개발용 빌드에서 배경 시험**: 닫힌 앱이 작업으로만 깨어나면 JS를 Metro에서 받아야 하는데, 배경 네트워크 차단·`adb reverse` 끊김으로 자주 실패한다(`Unable to load script`). 배경·닫힘 시험은 **릴리스 빌드**(`./gradlew assembleRelease`, JS 내장)로 했다.

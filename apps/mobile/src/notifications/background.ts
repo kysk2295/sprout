@@ -1,11 +1,12 @@
 // 백그라운드 새로 고침(20 §4.4 [임시]): OS가 허락할 때 앱을 잠깐 깨워 알림 예약을 다시 계산한다.
 // 48시간 창이 앞으로 밀리면서 새로 들어오는 알림, 그사이 동기화된 다른 기기 변경을 잡는다.
-// 작업 정의는 모듈 맨 위에서 해야 한다(expo-task-manager가 JS를 백그라운드로 불러 실행) → 앱 뿌리가 이 파일을 일찍 불러온다.
+// 작업 정의는 모듈 맨 위에서 해야 한다(expo-task-manager가 JS를 백그라운드로 불러 실행) → 앱 진입점(index.ts)이 이 파일을 먼저 불러온다.
 import * as BackgroundTask from 'expo-background-task'
 import * as TaskManager from 'expo-task-manager'
 import { startAuth, syncNow } from '../data/auth'
 import { useEffect } from 'react'
 import { rescheduleNow, useNotifications } from './index'
+import { usePushNotifications } from './push'
 
 export const REFRESH_TASK = 'sprout-reminder-refresh'
 
@@ -37,5 +38,6 @@ export async function registerBackgroundRefresh() {
 /** 앱 뿌리(_layout)에서 부르는 하나: 예약·감시·알림 응답 + 백그라운드 새로 고침 등록 */
 export function useReminderNotifications(signedIn: boolean) {
   useNotifications(signedIn)
+  usePushNotifications(signedIn) // 32 서버 푸시(Android): 기기 등록·로컬 예약 보고·받기
   useEffect(() => { if (signedIn) void registerBackgroundRefresh() }, [signedIn])
 }

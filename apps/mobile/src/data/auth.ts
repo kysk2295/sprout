@@ -10,6 +10,7 @@ import { UpdateType, type AbstractPowerSyncDatabase, type PowerSyncBackendConnec
 import { seedStatements } from '@sprout/schema/seed'
 import { API_URL, SYNC_URL } from '../config'
 import { CONNECT_OPTIONS, db, run } from './db'
+import { deviceId } from './device'
 import { GoogleSignInError, googleIdToken } from './google'
 
 const KEY = 'sprout.session.v1'
@@ -55,16 +56,21 @@ export class ApiError extends Error {
     this.status = status
   }
 }
-export async function api<T>(path: string, init: { method?: string; body?: unknown; token?: string } = {}): Promise<T> {
+export async function api<T>(path: string, init: { method?: string; body?: unknown; token?: string; headers?: Record<string, string>; timeoutMs?: number } = {}): Promise<T> {
   let res: Response
+  const abort = init.timeoutMs ? new AbortController() : undefined
+  const timer = abort ? setTimeout(() => abort.abort(), init.timeoutMs) : undefined
   try {
     res = await fetch(`${API_URL}${path}`, {
       method: init.method ?? (init.body ? 'POST' : 'GET'),
-      headers: { 'content-type': 'application/json', ...(init.token ? { authorization: `Bearer ${init.token}` } : {}) },
+      headers: { 'content-type': 'application/json', ...(init.token ? { authorization: `Bearer ${init.token}` } : {}), ...init.headers },
+      signal: abort?.signal,
       body: init.body ? JSON.stringify(init.body) : undefined
     })
   } catch {
     throw new ApiError('network', 0)
+  } finally {
+    if (timer) clearTimeout(timer)
   }
   const json = (await res.json().catch(() => ({}))) as { error?: string }
   if (!res.ok) throw new ApiError(json.error ?? `HTTP ${res.status}`, res.status)
@@ -113,7 +119,9 @@ export const connector: PowerSyncBackendConnector = {
       data: op.opData
     }))
     try {
-      await api('/sync/upload', { body: { batch: ops }, token })
+      // 32 §6: 올린 기기는 조용한 동기화·지우기·성장 소식 대상에서 뺀다
+      const device = await deviceId().catch(() => null)
+      await api('/sync/upload', { body: { batch: ops }, token, headers: device ? { 'x-sprout-device': device } : undefined })
     } catch (e) {
       // 400(형식이 깨진 연산)은 다시 보내도 같다 → 이 묶음은 버리고 진행. 나머지는 다시 시도
       if (e instanceof ApiError && e.status === 400) console.warn('[sync] upload rejected, skipping batch:', e.message)
@@ -227,11 +235,20 @@ async function signOutLocal() {
   status = 'signedOut'
   emit()
 }
-/** 로그아웃: 이 기기의 내 데이터를 지우고 처음 상태로(다음 사람에게 보이지 않게 — 데스크톱과 같음) */
+/**
+ * 로그아웃: 이 기기의 내 데이터를 지우고 처음 상태로(다음 사람에게 보이지 않게 — 데스크톱과 같음).
+ * 32 §3.2: 접근 토큰이 살아 있을 때 먼저 이 기기 푸시 등록을 지우고(DELETE /push/devices/:id, 3초까지만 기다림),
+ * /auth/logout에도 device_id를 실어 그 DELETE가 실패해도 서버가 정리하게 한다.
+ */
 export async function logout() {
   const s = session
+  const device = await deviceId().catch(() => null)
+  if (s && device) {
+    const token = await freshToken().catch(() => null)
+    if (token) await api(`/push/devices/${device}`, { method: 'DELETE', token, timeoutMs: 3000 }).catch(() => {})
+  }
   await signOutLocal()
-  if (s) await api('/auth/logout', { body: { refresh_token: s.refresh_token } }).catch(() => {})
+  if (s) await api('/auth/logout', { body: { refresh_token: s.refresh_token, ...(device ? { device_id: device } : {}) } }).catch(() => {})
 }
 
 /** 앱 시작: 저장된 세션이 있으면 바로 로그인 상태로(로컬 퍼스트) 열고 동기화를 붙인다 */

@@ -1,12 +1,13 @@
-// 설정 › "소리와 알림" 칸(20 §4.4): 켜짐/꺼짐 표시. 아직 안 물었으면 권한을 묻고, 꺼져 있으면 시스템 설정을 연다.
-import { useFocusEffect } from 'expo-router'
+// 설정 › "소리와 알림" 칸(20 §4.4, 32 §7.1): 켜짐/꺼짐 표시. 누르면 소리와 알림 화면으로(아직 안 물었으면 먼저 권한을 묻는다).
+import { useFocusEffect, useRouter } from 'expo-router'
 import { Bell } from 'lucide-react-native'
 import { useCallback, useState } from 'react'
 import { AppState } from 'react-native'
 import { Cell } from '../ui/Cells'
-import { ensurePermission, openSystemSettings, permissionState, rescheduleNow, type PermissionState } from './index'
+import { ensurePermission, permissionState, rescheduleNow, type PermissionState } from './index'
 
 export function NotificationCell({ first }: { first?: boolean }) {
+  const router = useRouter()
   const [state, setState] = useState<PermissionState | null>(null)
   const refresh = useCallback(() => { void permissionState().then(setState).catch(() => setState(null)) }, [])
   useFocusEffect(useCallback(() => {
@@ -24,7 +25,8 @@ export function NotificationCell({ first }: { first?: boolean }) {
       icon={<Bell size={18} color="#fff" />}
       iconBg="#f0464a"
       onPress={async () => {
-        if (state === 'undetermined') { await ensurePermission(); refresh() } else void openSystemSettings()
+        if (state === 'undetermined') { await ensurePermission(); refresh() }
+        router.push('/settings/notifications')
       }}
     />
   )

@@ -1,6 +1,6 @@
 // 로컬 알림 예약 계획 시험(20 §4.4: 48시간 창 · 최대 50개 · 본문 · 차이 계산)
 import assert from 'node:assert/strict'
-import { bodyOf, diffSchedule, HORIZON_MS, MAX_SCHEDULED, planReminders, reminderId, snoozeAt, staleSnoozes, type ReminderRow } from './plan.ts'
+import { bodyOf, diffSchedule, HORIZON_MS, MAX_SCHEDULED, overdueIds, planReminders, reminderId, snoozeAt, staleSnoozes, type ReminderRow } from './plan.ts'
 
 const now = new Date('2026-10-04T14:00').getTime()
 let n = 0
@@ -54,6 +54,15 @@ const pending = [
 const diff = diffSchedule(pending, plan)
 assert.deepEqual(diff.cancel.sort(), [plan[1].id, 'r:gone@1'].sort())
 assert.deepEqual(diff.add.map((p) => p.id), [plan[1].id, plan[2].id, plan[3].id])
+
+// 시각이 막 지났는데 아직 안 울린 예약(정확하지 않은 알람)은 지우지 않는다 — 완료·삭제된 것은 지운다
+const late = row({ due_at: '2026-10-04T13:50' }) // now 14:00 → 10분 지남
+const lateId = reminderId(late.rid, new Date('2026-10-04T13:50').getTime())
+const old = row({ due_at: '2026-10-04T12:30' }) // 1시간 넘게 지남
+const keep = overdueIds([late, old, soon], now)
+assert.deepEqual([...keep], [lateId])
+assert.deepEqual(diffSchedule([{ id: lateId, title: late.title, body: '' }], [], keep).cancel, [], '늦은 예약은 그대로')
+assert.deepEqual(diffSchedule([{ id: lateId, title: late.title, body: '' }], [], overdueIds([], now)).cancel, [lateId], '할 일이 끝났으면 지움')
 
 // 다시 알림
 assert.equal(snoozeAt(10, now), now + 600_000)
