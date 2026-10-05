@@ -1,0 +1,101 @@
+/* 33 관계 위키 — 페이지 머리 · 태그 알약 · [[링크]] 글자 · 자동 완성. 틱틱 디자인 언어(02 그룹 머리·행·메뉴 팝오버)를 그대로 빌린다 */
+
+/* ── 페이지 머리(§3.1) ── */
+.wiki-ph { margin: 0 var(--space-list-gutter) 8px; padding: 2px 0 8px; border-bottom: 1px solid var(--color-border-divider); font: var(--text-small, 13px/20px var(--font-family)); flex-shrink: 0; max-height: 240px; overflow-y: auto; }
+.wiki-ph.is-collapsed { height: 32px; max-height: none; padding: 0; display: flex; align-items: center; gap: 8px; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; cursor: pointer; font-size: 12.5px; }
+.wiki-ph.is-collapsed:hover .wiki-ph__toggle { color: var(--color-text-secondary); }
+.wiki-ph__desc-line { overflow: hidden; text-overflow: ellipsis; max-width: 50%; min-width: 0; }
+.wiki-ph__sep, .wiki-ph__meta { color: var(--color-text-tertiary); }
+.wiki-ph__toggle { margin-left: auto; width: 14px; height: 14px; color: var(--color-text-tertiary); flex-shrink: 0; }
+.wiki-ph__row { display: flex; gap: 10px; align-items: flex-start; min-height: 30px; padding: 3px 0; }
+.wiki-ph__k { width: 72px; flex-shrink: 0; font-size: 12px; color: var(--color-text-tertiary); line-height: 24px; }
+.wiki-ph__v { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; line-height: 24px; min-width: 0; font-size: 13px; }
+.wiki-ph__fold { margin-left: auto; font-size: 12px; color: var(--color-text-tertiary); display: inline-flex; align-items: center; gap: 2px; }
+.wiki-ph__fold:hover { color: var(--color-text-secondary); }
+.wiki-ph__ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; display: inline-block; vertical-align: bottom; }
+.wiki-desc { color: var(--color-text-secondary); padding: 0 6px; margin-left: -6px; border-radius: var(--radius-xs); white-space: pre-wrap; cursor: text; flex: 1; min-width: 0; }
+.wiki-desc:hover { background: var(--color-bg-hover); }
+.wiki-desc-edit { flex: 1; position: relative; display: flex; }
+.wiki-desc-edit textarea { flex: 1; font: inherit; line-height: 20px; color: var(--color-text-primary); background: var(--color-bg-input); border: 1px solid var(--color-border-input-focus); border-radius: var(--radius-sm); padding: 4px 6px; resize: none; outline: 0; }
+.wiki-desc-edit__n { position: absolute; right: 6px; bottom: 2px; font-size: 11px; color: var(--color-text-tertiary); }
+.wiki-desc-edit__n.is-over { color: var(--color-text-danger); }
+.wiki-add { font-size: 12px; color: var(--color-text-tertiary); }
+.wiki-add:hover { color: var(--color-accent); }
+.wiki-dim { color: var(--color-text-tertiary); font-size: 12px; }
+
+/* 알약(높이 22, 모서리 11) — 고름 = 강조색 채움 */
+.wiki-pill { height: 22px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border-radius: 11px; background: var(--color-bg-input); border: 1px solid var(--color-border-divider); font-size: 12px; white-space: nowrap; line-height: 20px; color: var(--color-text-primary); }
+.wiki-pill:hover { background: var(--color-bg-hover); }
+.wiki-pill.is-on { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+.wiki-pill.is-on .wiki-pill__n, .wiki-pill.is-on .wiki-ai, .wiki-pill.is-on .wiki-kind { color: rgba(255, 255, 255, .85); }
+.wiki-pill.is-sm { height: 20px; font-size: 11px; padding: 0 6px; }
+.wiki-pill__n { color: var(--color-text-tertiary); font-size: 11px; }
+.wiki-ai { color: var(--color-accent); font-size: 10px; }
+.wiki-kind { display: inline-flex; align-items: center; line-height: 1; }
+.wiki-kind.is-topic { color: var(--color-text-tertiary); }
+
+.wiki-src { font-size: 12px; display: inline-flex; gap: 4px; align-items: center; color: var(--color-text-primary); max-width: 100%; }
+.wiki-src:hover { text-decoration: underline; text-underline-offset: 3px; }
+.wiki-src.is-quiet { color: var(--color-text-secondary); }
+.wiki-src.is-quiet:hover { text-decoration: none; }
+.wiki-src.is-accent { color: var(--color-accent); }
+.wiki-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); display: inline-block; }
+
+/* 구역 머리(02 §5 그룹 머리 모양, 높이 28) · 축소 행(높이 32) */
+.wiki-gh { height: 28px; display: flex; align-items: center; gap: 4px; font: 600 12.5px var(--font-family); color: var(--color-text-primary); width: 100%; }
+.wiki-gh.is-quiet { color: var(--color-text-secondary); }
+.wiki-gh.is-quiet > button:first-child { color: inherit; display: flex; align-items: center; gap: 4px; font: inherit; }
+.wiki-gh__n { color: var(--color-text-quaternary); font-weight: 500; }
+.wiki-gh__act { margin-left: auto; font-weight: 500; color: var(--color-accent); font-size: 12px; }
+.wiki-mini { height: 32px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 0 2px 0 4px; border-radius: var(--radius-sm); cursor: default; }
+.wiki-mini:hover { background: var(--color-bg-hover); }
+.wiki-mini__cb { width: 14px; height: 14px; }
+.wiki-mini__cb.is-checked { background: var(--color-text-tertiary); border-color: var(--color-text-tertiary); }
+.wiki-mini__icon { width: 14px; text-align: center; color: var(--color-text-tertiary); flex-shrink: 0; }
+.wiki-mini__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wiki-mini__list { color: var(--color-text-tertiary); font-size: 11.5px; white-space: nowrap; }
+.wiki-mini__act { color: var(--color-accent); font-size: 12px; margin-left: 4px; }
+
+/* 목록 머리 제목 옆 거르기 표시 `· #SQLD ✕` · 태그 페이지 제목 */
+.wiki-filter { font: 500 13px var(--font-family); color: var(--color-accent); margin-left: 6px; display: inline-flex; align-items: center; gap: 2px; vertical-align: middle; -webkit-app-region: no-drag; }
+.wiki-filter button { color: inherit; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; }
+.wiki-filter button:hover { background: var(--color-bg-hover); }
+.wiki-filter svg { width: 12px; height: 12px; }
+.wiki-heading { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.wiki-heading__name { overflow: hidden; text-overflow: ellipsis; }
+.wiki-heading__sub { font: 400 13px var(--font-family); color: var(--color-text-tertiary); }
+
+/* ── 행 제목 속 [[링크]](§6.6): 괄호 없이 강조색 글자, 호버 = 밑줄. 없는 링크 = 회색 점선 밑줄 ── */
+.wiki-link { color: var(--color-accent); cursor: pointer; }
+.wiki-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.row.is-done .wiki-link, .row.is-wontdo .wiki-link { color: var(--color-text-tertiary); }
+.wiki-link.is-missing { color: var(--color-text-secondary); text-decoration: underline dashed var(--color-text-quaternary); text-underline-offset: 3px; }
+
+/* 행 태그 알약 `+N` · 상세 ✦ */
+.tag-more { font: var(--text-meta); color: var(--color-text-tertiary); }
+.tag-pill__ai { color: var(--color-accent); font-size: 10px; margin-right: 2px; }
+
+/* ── 자동 완성 드롭다운(§6.2, 02 메뉴 팝오버) ── */
+.wiki-ac { position: fixed; z-index: 140; max-height: 320px; overflow-y: auto; }
+.wiki-ac__cap { padding-top: 6px; }
+.wiki-ac__item { gap: 8px; }
+.wiki-ac__item .menu__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wiki-ac__icon { width: 18px; display: inline-grid; place-items: center; flex-shrink: 0; color: var(--color-text-tertiary); font-size: 13px; }
+.wiki-ac__sub { margin-left: auto; color: var(--color-text-tertiary); font-size: 11.5px; white-space: nowrap; padding-left: 8px; }
+.wiki-ac__item.is-create { color: var(--color-accent); }
+.wiki-ac__item.is-create .wiki-ac__icon { color: var(--color-accent); }
+.wiki-ac__cb { width: 12px; height: 12px; border: 1.5px solid var(--color-text-tertiary); border-radius: 3px; display: inline-block; }
+
+/* 사이드바 태그 종류 아이콘·종류별 묶음 머리(§4.2) */
+.sidebar__kind-head { height: 24px; display: flex; align-items: center; padding: 0 10px 0 14px; font-size: 11px; color: var(--color-text-tertiary); }
+.sidebar__kind { font-size: 14px; line-height: 1; }
+.wiki-summary { font-size: 12px; color: var(--color-text-tertiary); padding: 6px 10px 4px; line-height: 18px; }
+
+/* 태그 편집 창(05 + 33 §4.2): 종류 세그먼트 · 별칭 · 설명 */
+.org-seg { display: inline-flex; background: var(--color-seg-track); border-radius: 6px; padding: 2px; gap: 2px; border: 1px solid var(--color-border-divider); }
+.org-seg button { font: 500 12px/20px var(--font-family); padding: 2px 8px; border-radius: 4px; color: var(--color-text-secondary); white-space: nowrap; }
+.org-seg button.is-on { background: var(--color-seg-on); color: var(--color-text-primary); box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
+.org-input { min-width: 168px; flex: 0 1 260px; height: 32px; padding: 0 10px; border: 1px solid var(--color-border-divider); border-radius: 4px; background: var(--color-bg-input); color: var(--color-text-primary); font: var(--text-body); outline: 0; box-sizing: border-box; }
+textarea.org-input { height: auto; padding: 6px 10px; resize: none; line-height: 20px; }
+.org-input:focus { border-color: var(--color-border-input-focus); }
+.settings-row.is-top { align-items: flex-start; padding-top: 6px; }
