@@ -102,22 +102,46 @@
 값을 받으면 서버(맥미니)에 넣고 `docker compose up -d --build api`.
 
 ## 5. Android (Google Play)
+> 2026-10-05 출시 빌드 준비 완료: `꿈틀` 1.0.0 (versionCode 1), 업로드 키 서명 AAB `~/Desktop/kkumteul-1.0.0-1.aab`(저장소 밖). 계정: **조직 계정(유니포트)** — 개인 계정용 "테스터 12명·14일" 요건 없음.
+> 등록 문구 [store/play-listing.md](store/play-listing.md) · 데이터 보안·권한·정확한 알람 [store/data-safety.md](store/data-safety.md) · 스크린샷 `store/screenshots/android/` · 그래픽 `store/play-assets/`
+
 | 항목 | 상태 | 메모 |
 |---|---|---|
-| 에뮬레이터 실측(푸시 포함) | [완료] | a993163 |
-| Play Console 가입($25 1회) + 본인 인증 | [사용자] | |
-| **개인 계정 비공개 테스트 요건** | [사용자] | 2023-11 이후 만든 개인 계정은 프로덕션 전에 **테스터 12명 이상이 14일 연속** 비공개 테스트 참여 필요(확인 필요). 일정에 2주 이상 잡기. 조직 계정이면 면제 |
-| 권한 점검 | [할 일] | prebuild 매니페스트에 `SYSTEM_ALERT_WINDOW`가 있다 — 필요 없으면 빼야 Play 심사에서 질문을 안 받는다 |
-| 앱 서명 | [할 일] | Play 앱 서명 사용, 업로드 키(.jks) 생성·백업. `.jks`는 gitignore 됨 |
-| 대상 API 수준 | [할 일] | Play는 매년 8월 말 기준을 올린다(2025: API 35, 2026-08 이후 새 앱은 API 36 예상 — **확인 필요**). Expo SDK 57 기본값 확인, `expo-build-properties`로 고정 |
-| **정확한 알람(exact alarm) 정책** | [사용자] 결정 + [할 일] | Android 14+는 `SCHEDULE_EXACT_ALARM`이 새 설치에 기본 거부. 할 일 알림이 늦게 울릴 수 있다. 선택: (가) 정확하지 않은 알림 허용 + 서버 푸시 보완 (나) 캘린더·할 일 앱으로 `USE_EXACT_ALARM` 신청(Play 정책 선언 필요, 심사에서 거절 위험) (다) 설정 화면에서 "정확한 알람" 권한 안내. expo-notifications가 어떤 권한을 매니페스트에 넣는지 prebuild 결과로 확인 |
-| 알림 권한(POST_NOTIFICATIONS, 13+) | [진행] | 설정 › 소리와 알림에서 요청(32) |
-| FCM | [진행] | Firebase 프로젝트·`google-services.json`(저장소 밖) 사용 중. 서버 서비스 계정 키 보관. **국외 이전(구글) 처리방침 고지** |
-| 데이터 보안(Data safety) 양식 | [진행] 초안 | [store/privacy-answers.md](store/privacy-answers.md) |
-| 계정 삭제 웹 URL | [진행] 문구 / [할 일] 호스팅 | Play는 앱 밖에서 열 수 있는 삭제 요청 URL 필수 → [legal/account-deletion.ko.md](legal/) |
-| 콘텐츠 등급(IARC) 설문 | [진행] 초안 | listing.md |
-| 스토어 등록정보: 짧은 설명 80자·긴 설명·그래픽 이미지 1024×500·아이콘 512 | [진행] | listing.md, `out/<id>/store/` |
-| Android 네이티브 폴더 | — | gitignore, `expo prebuild`로 생성. 빌드 방법(EAS 무료 한도 vs 로컬 Gradle) 결정 |
+| 에뮬레이터 실측(푸시 포함) | [완료] | a993163(디버그). 출시 빌드 실측 2026-10-05: 설치·실행·가입·오늘·빠른 추가·캘린더·성장·Google 버튼·알림 권한 요청·계정 삭제(API) 확인. FCM 토큰은 에뮬레이터 Play 서비스 오류(`NetworkCapability 37 out of range`)로 못 받음 → 내부 테스트 실기기에서 확인 |
+| Play Console 가입 + 인증 | [완료] | 조직 계정 유니포트(D-U-N-S·조직 인증 완료 전제) |
+| 개인 계정 비공개 테스트 요건 | 해당 없음 | 조직 계정. 그래도 **내부 테스트 트랙**으로 실기기 확인 후 프로덕션 권장 |
+| 권한 점검 | [완료] | `apps/mobile/plugins/android-release`가 SYSTEM_ALERT_WINDOW·외부 저장소·FOREGROUND_SERVICE·USE_BIOMETRIC/FINGERPRINT 제거, SCHEDULE_EXACT_ALARM 추가. 최종: INTERNET·ACCESS_NETWORK_STATE·POST_NOTIFICATIONS·SCHEDULE_EXACT_ALARM·RECEIVE_BOOT_COMPLETED·VIBRATE·WAKE_LOCK·c2dm RECEIVE·배지·설치 리퍼러(라이브러리 기본) — data-safety.md §3 |
+| 앱 서명 | [완료] 업로드 키 / [사용자] Play 앱 서명 | 업로드 키 `~/.config/sprout/android-upload.jks`(RSA 2048, 2056년까지, 별칭 `upload`) + 비밀번호 `~/.config/sprout/android-upload.properties`(600). 키가 없으면 `bundleRelease`가 바로 실패(디버그 키 서명 안 함). CI는 `SPROUT_UPLOAD_*` 환경 변수. **두 파일을 암호화해 저장소 밖 2곳 이상에 백업**(분실 시 Play에 업로드 키 재설정 요청) |
+| 업로드 키 지문 | — | SHA-1 `14:D5:4E:EF:49:42:B6:A7:00:BC:F1:DD:C9:70:82:DD:36:E7:69:A2` · SHA-256 `5D:2D:F1:49:1D:2B:09:4D:BD:6B:C0:A3:51:5E:DC:1C:EB:F1:C5:91:36:02:FF:91:D3:F1:A9:52:7E:B5:3F:6C` |
+| 대상 API 수준 | [완료] | compileSdk·targetSdk **36**, minSdk 24 — 플러그인이 `gradle.properties`에 고정(Expo 57 기본값과 같음) |
+| 정확한 알람 | [완료] 결정 | SCHEDULE_EXACT_ALARM(선언 양식 대상 아님). Android 14+ 새 설치는 기본 꺼짐 → 몇 분 늦을 수 있는 알람으로 자동 대체. 콘솔 질문용 문구는 data-safety.md §4. 앱 안 "정확한 알람 켜기" 안내는 v1.1 후보 |
+| 알림 권한(POST_NOTIFICATIONS, 13+) | [완료] | 설정 › 소리와 알림에서 요청 — 출시 빌드에서 시스템 대화상자 확인 |
+| FCM | [완료] 빌드 / [할 일] 실기기 | 출시 빌드에 `~/.config/sprout/google-services.json` 포함·푸시 서비스(SproutMessagingService) 들어감. 토큰 등록은 내부 테스트 기기에서 확인 |
+| 구글 로그인 | [완료] 코드 / [리드] OAuth | 웹 클라이언트 id는 app.config 기본값. **Android OAuth 클라이언트에 업로드 키·Play 앱 서명 키 SHA-1 추가 필요** → §5-1 4단계 |
+| 데이터 보안(Data safety) 양식 | [완료] 답안 | [store/data-safety.md](store/data-safety.md) |
+| 계정 삭제 웹 URL | [완료] | https://web-production-cd889.up.railway.app/account-deletion |
+| 콘텐츠 등급(IARC)·타겟층 | [완료] 답안 | play-listing.md §5·§6 (16–17, 18+ 권장) |
+| 스토어 등록정보·그래픽·스크린샷 | [완료] | play-listing.md, `store/play-assets/`(아이콘 512 RGBA, 그래픽 1024×500 "꿈틀"), `store/screenshots/android/` 6장(1080×2400) |
+| Android 네이티브 폴더 | — | gitignore. 로컬 Gradle로 빌드(아래 §5-1 1단계) |
+| 위젯(Android) | [완료] 빌드 | 오늘·월·캐릭터 위젯 3종이 출시 빌드에 등록됨(홈 화면 배치는 실기기에서 확인) |
+
+### 5-1. 바로 올리는 순서 (사용자)
+1. **(이미 됨) AAB 만들기** — 다시 만들 때만: Node 22 + JDK 17~21 + Android SDK에서
+   `cd apps/mobile && npx expo prebuild --platform android --clean && cd android && ./gradlew bundleRelease`
+   → `apps/mobile/android/app/build/outputs/bundle/release/app-release.aab`. 다음 버전은 `app.json`의 `android.versionCode`를 2, 3…으로 올린다(한 번 올린 번호는 다시 못 씀).
+2. **Play Console › 앱 만들기**: 이름 `꿈틀: 할 일·캘린더`, 기본 언어 한국어, 앱, 무료 → 선언 체크.
+3. **테스트 › 내부 테스트 › 새 버전 만들기**: "Google Play 앱 서명" 사용(기본값, Google이 관리하는 키) 동의 → `~/Desktop/kkumteul-1.0.0-1.aab` 업로드 → 출시 노트(play-listing.md §7) → 저장·검토·출시. 테스터 목록에 본인 Gmail 추가 → 참여 링크로 폰에 설치.
+4. **구글 로그인 지문 등록 (리드가 함, GCP 프로젝트 `sprout-510614`)**:
+   1. Play Console › 테스트 및 출시 › 설정 › **앱 서명(App integrity › App signing)** 에서 "앱 서명 키 인증서"의 **SHA-1** 복사(첫 업로드 뒤에만 보임). 같은 화면의 "업로드 키 인증서" SHA-1이 위 표의 `14:D5:4E:…:69:A2`와 같은지 확인.
+   2. Google Cloud Console › 프로젝트 `sprout-510614` › API 및 서비스 › 사용자 인증 정보 › **사용자 인증 정보 만들기 › OAuth 클라이언트 ID › Android** — 이름 `kkumteul-android-play-signing`, 패키지 `app.sprout.mobile`, SHA-1 = 앱 서명 키 SHA-1 → 만들기.
+   3. 같은 방법으로 하나 더: 이름 `kkumteul-android-upload`, SHA-1 `14:D5:4E:EF:49:42:B6:A7:00:BC:F1:DD:C9:70:82:DD:36:E7:69:A2`(직접 만든 APK·AAB를 기기에 깔 때용).
+   4. 기존 Android 클라이언트(`795271381893-nknlqf…`, 디버그 키 SHA-1)는 그대로 둔다. 웹 클라이언트·서버 `GOOGLE_CLIENT_IDS`·앱 코드는 **바꿀 것 없음**(토큰 aud = 웹 클라이언트). 반영까지 몇 분~몇 시간 걸릴 수 있다.
+   5. (대안) Firebase 콘솔 › 프로젝트 설정 › Android 앱 `app.sprout.mobile` › "디지털 지문 추가"에 두 SHA-1(+SHA-256)을 넣어도 같은 OAuth 클라이언트가 만들어진다 — 한 가지 방법만 쓴다(같은 패키지+SHA-1 중복 등록은 오류).
+   6. 확인: 내부 테스트로 받은 앱에서 "Google로 계속하기" → 계정 선택 → 로그인됨. `DEVELOPER_ERROR`(코드 10)면 SHA-1이 아직 반영 안 된 것.
+5. **내부 테스트 기기에서 확인**: 가입·로그인, 구글 로그인, 설정 › 소리와 알림 켜기 → 푸시 테스트, 할 일 알림 울림, 홈 화면 위젯 3종 추가, 계정 삭제.
+6. **앱 콘텐츠(정책) 채우기**: 개인정보처리방침 URL, 앱 액세스(심사용 데모 계정 — 출시 직전 새로 만들고 콘솔에만 적음), 광고 없음, 콘텐츠 등급, 타겟층, 데이터 보안, 계정 삭제 URL, 정부·금융·건강 = 아니요 — 답은 play-listing.md §4~6, data-safety.md.
+7. **기본 스토어 등록정보**: 한국어 + 영어 번역 문구, 아이콘 `store/play-assets/icon-512.png`, 그래픽 `store/play-assets/feature-graphic-1024x500.png`, 휴대전화 스크린샷 `store/screenshots/android/01~06`. 카테고리 생산성, 연락처 `kysk2295@naver.com`.
+8. **프로덕션**: 내부 테스트 버전을 프로덕션으로 승격 → 국가(대한민국) → 검토를 위해 전송. 심사 기간 Mac mini 서버 상시 가동(AI·동기화).
 
 ## 6. 서버 (Mac mini 셀프호스트)
 ### 6-1. 공개 주소
@@ -186,7 +210,7 @@
 |---|---|---|
 | 제품명·로고·v1 범위·출시 지역 결정 | — | 가장 먼저 |
 | Apple Developer Program | 연 $99 | 맥 공증·iOS 둘 다 필요 |
-| Google Play Console + 본인 인증 + 테스터 12명 14일 | $25 1회 | 출시 3주 전까지 |
+| Google Play Console(조직 계정 유니포트) | $25 1회 | 완료 — 조직 계정이라 테스터 12명·14일 요건 없음. 남은 일: §5-1 |
 | Windows 서명 방식 선택 (MS Store 무료 권장) | 0 ~ 연 수십만 원 | Windows 출시 전 |
 | 도메인 + Cloudflare(Tunnel·Pages·Email Routing) | 연 $10~20 | 이름 정한 직후 |
 | 외부 백업 저장소(R2/B2) | 무료 한도 안 | 출시 전 필수 |

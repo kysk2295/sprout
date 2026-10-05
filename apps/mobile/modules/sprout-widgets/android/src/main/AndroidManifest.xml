@@ -1,0 +1,18 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- 36 모바일 위젯(Android): 라이브러리 매니페스트 → 앱에 합쳐진다(config 플러그인 없음) -->
+  <application>
+    <receiver android:name="app.sprout.widgets.MonthWidgetProvider" android:exported="false" android:label="@string/sprout_widget_month_name">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/sprout_widget_month_info" />
+    </receiver>
+    <receiver android:name="app.sprout.widgets.TodayWidgetProvider" android:exported="false" android:label="@string/sprout_widget_today_name">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/sprout_widget_today_info" />
+    </receiver>
+    <receiver android:name="app.sprout.widgets.CharacterWidgetProvider" android:exported="false" android:label="@string/sprout_widget_character_name">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/sprout_widget_character_info" />
+    </receiver>
+    <receiver android:name="app.sprout.widgets.WidgetActionReceiver" android:exported="false" />
+  </application>
+</manifest>

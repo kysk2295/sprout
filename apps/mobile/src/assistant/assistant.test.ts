@@ -101,7 +101,7 @@ assert.throws(() => interpret('엉망', '내일 3시 회의 등록해 줘', now)
 }
 
 // 오류 문구(13 §6)
-assert.equal(humanize(new Error('network request failed')), 'sprout AI에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.')
+assert.equal(humanize(new Error('network request failed')), '꿈틀 AI에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.')
 assert.equal(humanize(new Error('지금은 AI를 쓸 수 없어요. 잠시 뒤 다시 시도해 주세요.')), '지금은 AI를 쓸 수 없어요. 할 일·캘린더는 그대로 쓸 수 있어요.')
 assert.equal(humanize(new Error('AI 요청이 너무 잦아요. 잠시 뒤 다시 시도해 주세요. (오늘 남은 요청 63회)')), 'AI 요청이 너무 잦아요. 잠시 뒤 다시 시도해 주세요. (오늘 남은 요청 63회)')
 assert.equal(humanize(new Error('{"error":"x"}')), '요청을 처리하지 못했어요. 다시 시도해 주세요.')

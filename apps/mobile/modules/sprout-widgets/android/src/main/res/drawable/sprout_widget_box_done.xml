@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 체크박스 채움 + 흰 ✓(반영 대기) — 칸 색은 setColorFilter가 바꾸므로 ✓는 구멍(evenOdd)으로 낸다 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="16dp" android:height="16dp" android:viewportWidth="16" android:viewportHeight="16">
+  <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+    android:pathData="M4,0.5h8a3.5,3.5 0,0 1,3.5 3.5v8a3.5,3.5 0,0 1,-3.5 3.5h-8a3.5,3.5 0,0 1,-3.5 -3.5v-8a3.5,3.5 0,0 1,3.5 -3.5z M6.6,11.4L3.6,8.4L4.7,7.3L6.6,9.2L11.3,4.5L12.4,5.6Z" />
+</vector>

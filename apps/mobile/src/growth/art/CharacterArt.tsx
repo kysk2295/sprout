@@ -1,6 +1,7 @@
 // 10 §2.2 자리 표시 캐릭터 그림 — 데스크톱 components/growth/CharacterArt.tsx와 같은 도형을 react-native-svg로 옮김(23 §4 [임시]).
 // 4종 × 5단계 + 알. 정식 그림이 생기면 이 파일만 바꾼다. 틱틱·다른 앱 그림 원본 없음.
 import type { Species } from '@sprout/schema/growth'
+import type { Ref } from 'react'
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg'
 import type { Mood } from '../logic'
 
@@ -12,11 +13,11 @@ export const SPECIES_COLORS: Record<Species, { body: string; accent: string }> =
 }
 const INK = '#3A3A3A'
 
-/** look: 눈동자 방향(−1~1), blink: 눈 감기 한 프레임, silhouette: 앞 단계 실루엣(진화 길), cracks: 알 금(0~3) */
-export function CharacterArt({ species, stage = 1, size = 120, mood = 'default', look, blink, cracks, silhouette }: {
-  species: Species | null; stage?: number; size?: number; mood?: Mood; look?: { x: number; y: number }; blink?: boolean; cracks?: number; silhouette?: string
+/** look: 눈동자 방향(−1~1), blink: 눈 감기 한 프레임, silhouette: 앞 단계 실루엣(진화 길), cracks: 알 금(0~3), svgRef: 위젯 그림 굽기(36 §7.3 — toDataURL) */
+export function CharacterArt({ species, stage = 1, size = 120, mood = 'default', look, blink, cracks, silhouette, svgRef }: {
+  species: Species | null; stage?: number; size?: number; mood?: Mood; look?: { x: number; y: number }; blink?: boolean; cracks?: number; silhouette?: string; svgRef?: Ref<Svg>
 }) {
-  if (!species) return <Egg size={size} cracks={cracks} />
+  if (!species) return <Egg size={size} cracks={cracks} svgRef={svgRef} />
   const c = silhouette ? { body: silhouette, accent: silhouette } : SPECIES_COLORS[species]
   const lx = (look?.x ?? 0) * 2.6
   const ly = (look?.y ?? 0) * 2
@@ -39,7 +40,7 @@ export function CharacterArt({ species, stage = 1, size = 120, mood = 'default',
     </G>
   )
   return (
-    <Svg width={size} height={size} viewBox="0 0 120 120" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <Svg ref={svgRef} width={size} height={size} viewBox="0 0 120 120" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Ellipse cx={60} cy={110} rx={30 * scale} ry={5} fill="rgba(0,0,0,0.08)" />
       <G transform={`translate(60 ${108 - 50 * scale}) scale(${scale}) translate(-60 -58)`}>
         {species === 'turtle' && <Ellipse cx={60} cy={74} rx={40} ry={26} fill={c.accent} />}
@@ -88,9 +89,9 @@ function Sprout({ stage, color }: { stage: number; color?: string }) {
   )
 }
 
-export function Egg({ size, cracks = 0 }: { size: number; cracks?: number }) {
+export function Egg({ size, cracks = 0, svgRef }: { size: number; cracks?: number; svgRef?: Ref<Svg> }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 120 120" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <Svg ref={svgRef} width={size} height={size} viewBox="0 0 120 120" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Ellipse cx={60} cy={108} rx={24} ry={5} fill="rgba(0,0,0,0.08)" />
       <Path d="M60 22 C82 22 92 58 92 76 C92 96 78 106 60 106 C42 106 28 96 28 76 C28 58 38 22 60 22 Z" fill="#F3EBDD" stroke="#E0D3BC" strokeWidth={2} />
       <Path d="M40 70 l8 -6 l8 6 l8 -6 l8 6 l8 -6" stroke="#D8C7A8" strokeWidth={2.5} fill="none" strokeLinecap="round" />

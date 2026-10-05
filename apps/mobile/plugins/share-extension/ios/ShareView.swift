@@ -144,7 +144,7 @@ private struct ShareCard: View {
         if !model.privacySeen {
           HStack(alignment: .top, spacing: 8) {
             Image(systemName: "lock.fill").font(.system(size: 13)).foregroundColor(C.accent).padding(.top, 2)
-            (Text("수집함 글은 외부 AI가 아니라 sprout 서버(운영자의 Mac mini) AI가 정리해요. ").foregroundColor(C.text2)
+            (Text("수집함 글은 외부 AI가 아니라 꿈틀 서버(운영자의 Mac mini) AI가 정리해요. ").foregroundColor(C.text2)
               + Text("알겠어요").foregroundColor(C.accent).bold())
               .font(.system(size: 13))
           }
@@ -222,10 +222,10 @@ private struct SignedOutCard: View {
       .padding(.horizontal, 16).frame(height: 44)
       HStack(spacing: 10) {
         Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 15)).foregroundColor(C.warn)
-        Text("sprout에 먼저 로그인해 주세요").font(.system(size: 14, weight: .semibold)).foregroundColor(C.text)
+        Text("꿈틀에 먼저 로그인해 주세요").font(.system(size: 14, weight: .semibold)).foregroundColor(C.text)
         Spacer()
         Button(action: model.openApp) {
-          Text("sprout 열기").font(.system(size: 13, weight: .semibold)).foregroundColor(.white)
+          Text("꿈틀 열기").font(.system(size: 13, weight: .semibold)).foregroundColor(.white)
             .padding(.horizontal, 12).padding(.vertical, 7)
             .background(Capsule().fill(C.accent))
         }

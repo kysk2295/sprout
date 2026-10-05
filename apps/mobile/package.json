@@ -1,6 +1,6 @@
 {
   "name": "@sprout/mobile",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "sprout 모바일 — React Native(Expo 개발용 빌드). docs/screens/20~24",
   "main": "index.ts",
@@ -11,7 +11,7 @@
     "prebuild": "expo prebuild",
     "tokens": "node scripts/gen-tokens.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node --experimental-strip-types --no-warnings src/theme/theme.test.ts && node --experimental-strip-types --no-warnings src/data/views.test.ts && node --experimental-strip-types --no-warnings src/data/calendar.test.ts && node --experimental-strip-types --no-warnings src/data/eventsModel.test.ts && node --experimental-strip-types --no-warnings src/data/calendarMarks.test.ts && node --experimental-strip-types --no-warnings src/data/org.test.ts && node --experimental-strip-types --no-warnings src/share/share.test.ts && node --experimental-strip-types --no-warnings src/notifications/plan.test.ts && node --experimental-strip-types --no-warnings src/notifications/pushLogic.test.ts && node --experimental-strip-types --no-warnings src/ui/dateSheetModel.test.ts && node --experimental-strip-types --no-warnings src/ui/quickAddModel.test.ts && node --experimental-strip-types --no-warnings src/growth/logic.test.ts && node --experimental-strip-types --no-warnings src/growth/goalCore.test.ts && node --experimental-strip-types --no-warnings src/collect/collect.test.ts && node --experimental-strip-types --no-warnings src/assistant/assistant.test.ts && node --experimental-strip-types --no-warnings src/diary/logic.test.ts && node --experimental-strip-types --no-warnings src/map/logic.test.ts"
+    "test": "node --experimental-strip-types --no-warnings src/theme/theme.test.ts && node --experimental-strip-types --no-warnings src/data/views.test.ts && node --experimental-strip-types --no-warnings src/data/calendar.test.ts && node --experimental-strip-types --no-warnings src/data/eventsModel.test.ts && node --experimental-strip-types --no-warnings src/data/calendarMarks.test.ts && node --experimental-strip-types --no-warnings src/data/org.test.ts && node --experimental-strip-types --no-warnings src/share/share.test.ts && node --experimental-strip-types --no-warnings src/notifications/plan.test.ts && node --experimental-strip-types --no-warnings src/notifications/pushLogic.test.ts && node --experimental-strip-types --no-warnings src/ui/dateSheetModel.test.ts && node --experimental-strip-types --no-warnings src/ui/quickAddModel.test.ts && node --experimental-strip-types --no-warnings src/growth/logic.test.ts && node --experimental-strip-types --no-warnings src/growth/goalCore.test.ts && node --experimental-strip-types --no-warnings src/collect/collect.test.ts && node --experimental-strip-types --no-warnings src/assistant/assistant.test.ts && node --experimental-strip-types --no-warnings src/diary/logic.test.ts && node --experimental-strip-types --no-warnings src/map/logic.test.ts && node --experimental-strip-types --no-warnings src/widgets/snapshot.test.ts"
   },
   "dependencies": {
     "@azure/core-asynciterator-polyfill": "^1.0.2",

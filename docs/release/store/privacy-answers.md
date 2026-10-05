@@ -68,7 +68,7 @@
 | B4 | 계정 삭제 웹 URL·개인정보 처리방침 URL — 공개 도메인 필요(`*.ts.net`은 Tailscale 소유 도메인이라 부적합) | 둘 다 | ✅ 2026-10-05 `https://web-production-cd889.up.railway.app` (Railway 정적 사이트, 이름 꿈틀·운영자 유니포트) |
 | B5 | 심사용 데모 계정 + 서버 상시 가동(Mac mini 잠자기 끔) | 둘 다 | 준비 |
 | B6 | iOS 푸시를 켤 때 라벨 "기기 ID" 갱신, APNs 키 | App Store | 나중 |
-| B7 | Android 매니페스트 `SYSTEM_ALERT_WINDOW`·외부 저장소 권한 — 출시 빌드에서 빠지는지 확인(개발 클라이언트 잔여물 의심) | Play | 확인 |
-| B8 | `SCHEDULE_EXACT_ALARM` 사용 — Play "정확한 알람" 선언(할 일 리마인더 앱은 허용 범주) | Play | 선언서 작성 |
+| B7 | Android 매니페스트 `SYSTEM_ALERT_WINDOW`·외부 저장소 권한 — 출시 빌드에서 빠지는지 확인(개발 클라이언트 잔여물 의심) | Play | ✅ 1.0.0 출시 빌드에서 제거됨(`plugins/android-release`, [data-safety.md](data-safety.md) §3) |
+| B8 | `SCHEDULE_EXACT_ALARM` 사용 — Play "정확한 알람" 선언(할 일 리마인더 앱은 허용 범주) | Play | ✅ SCHEDULE_EXACT_ALARM만 선언(양식 대상 아님), 질문 시 문구 [data-safety.md](data-safety.md) §4 |
 | B9 | 처리방침의 "보관 기간"과 실제 동작 일치: 백업 외부 보관·암호화 없음, `ai_usage`·만료 세션 기한 없음 | 둘 다(정확성) | 인벤토리 G1·G7 |
 | B10 | 비밀번호 재설정 없음 — 심사 거절 사유는 아니지만 사용자 지원 문의 대응 필요 | — | 이메일 발송 수단 |

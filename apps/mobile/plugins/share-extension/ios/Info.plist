@@ -5,7 +5,7 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>ko</string>
   <key>CFBundleDisplayName</key>
-  <string>sprout</string>
+  <string>꿈틀</string>
   <key>CFBundleExecutable</key>
   <string>$(EXECUTABLE_NAME)</string>
   <key>CFBundleIdentifier</key>

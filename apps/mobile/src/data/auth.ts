@@ -271,7 +271,7 @@ export function socialErrorText(e: unknown, provider: Provider = e instanceof Ap
     if (e.status === 503 || /not configured/.test(e.message)) return notReady
     if (e.status === 429) return /분 뒤/.test(e.message) ? e.message : '잠시 뒤 다시 시도하세요'
     if (e.status === 409) return e.message // 연결: 서버 한국어 문구
-    if (provider === 'apple' && /email required/.test(e.message)) return 'Apple이 이메일을 보내지 않았어요. 설정 › Apple ID › Apple로 로그인에서 sprout를 지운 뒤 다시 시도하세요.'
+    if (provider === 'apple' && /email required/.test(e.message)) return 'Apple이 이메일을 보내지 않았어요. 설정 › Apple ID › Apple로 로그인에서 꿈틀을 지운 뒤 다시 시도하세요.'
     if (/not verified/.test(e.message)) return '이메일이 확인되지 않은 계정이에요. 이메일을 확인한 뒤 다시 시도하세요.'
     if (e.status === 401 && /^unauthorized$/.test(e.message)) return '로그인이 만료됐어요. 다시 로그인한 뒤 시도하세요'
     if (e.status >= 500) return '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요'

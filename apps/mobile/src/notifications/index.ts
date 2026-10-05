@@ -84,7 +84,7 @@ function askNotifications(): Promise<boolean> {
     if (state === 'denied') {
       if (!deniedShown) {
         deniedShown = true
-        await choose('알림이 꺼져 있어요', '할 일 시간에 알림을 받으려면 설정에서 sprout 알림을 켜 주세요.', '설정 열기').then((ok) => { if (ok) void Linking.openSettings() })
+        await choose('알림이 꺼져 있어요', '할 일 시간에 알림을 받으려면 설정에서 꿈틀 알림을 켜 주세요.', '설정 열기').then((ok) => { if (ok) void Linking.openSettings() })
       }
       return false
     }

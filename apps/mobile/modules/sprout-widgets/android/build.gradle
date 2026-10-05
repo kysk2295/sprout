@@ -1,0 +1,16 @@
+// 36 모바일 위젯(Android): AppWidgetProvider 3개 + 앱 JS 연결 모듈 — 앱 안 작은 Expo 모듈(modules/ 자동 링크)
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'app.sprout'
+version = '0.1.0'
+
+android {
+  namespace "app.sprout.widgets"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}

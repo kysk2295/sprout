@@ -122,12 +122,12 @@ export default function CollectScreen() {
             {search === null ? <AddBar onSaved={(bare) => { if (bare) toast.show('볼 것에 넣었어요') }} /> : null}
             {pending > 0 && search === null ? (
               <View style={[s.band, { backgroundColor: p.accentSubtle }]}>
-                <Text style={[FONT.meta, { color: p.textSecondary, flex: 1 }]}>정리 전 {pending}개 · 컴퓨터에서 sprout를 열면 AI가 정리해요</Text>
+                <Text style={[FONT.meta, { color: p.textSecondary, flex: 1 }]}>정리 전 {pending}개 · 컴퓨터에서 꿈틀을 열면 AI가 정리해요</Text>
               </View>
             ) : null}
             {!items.length ? (
               q ? <CollectEmpty icon="inbox" title={`"${q}"와 맞는 항목이 없어요`} /> : (
-                <CollectEmpty icon="inbox" title="무엇이든 던져 두세요" sub={"다른 앱에서 공유 → sprout 를 누르면 여기로 와요\n(카톡 '나에게 보내기'처럼)"} />
+                <CollectEmpty icon="inbox" title="무엇이든 던져 두세요" sub={"다른 앱에서 공유 → 꿈틀을 누르면 여기로 와요\n(카톡 '나에게 보내기'처럼)"} />
               )
             ) : groups.map((g) => {
               const closed = !q && g.closedByDefault !== toggled.has(g.id)

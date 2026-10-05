@@ -64,7 +64,7 @@ export function buildBuddyMessages(input: { buddy: Buddy; entry: Pick<DiaryEntry
   if (entry.private) return null
   const tone = buddy.species ? TONE[buddy.species] : '다정하고 짧은 말투'
   const system = [
-    `너는 할 일 앱 sprout에서 사용자와 같이 자라는 성장 캐릭터 "${buddy.name}"야. 친구처럼 사용자의 일기를 읽고 이야기를 들어 줘.`,
+    `너는 할 일 앱 꿈틀에서 사용자와 같이 자라는 성장 캐릭터 "${buddy.name}"야. 친구처럼 사용자의 일기를 읽고 이야기를 들어 줘.`,
     `말투: 존댓말 없이 친구처럼 반말(~했구나, ~겠다, ~어?), ${tone}.`,
     '첫 답 예: "기획서를 반이나 썼구나! 막혔던 게 풀릴 때 기분 좋았겠다. 내일 면담은 어떤 점이 제일 신경 쓰여?"',
     '규칙:',

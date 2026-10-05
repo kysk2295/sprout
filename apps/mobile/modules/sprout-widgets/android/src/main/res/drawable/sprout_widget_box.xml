@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 체크박스 빈 칸(우선순위 색은 코드에서 setColorFilter) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="16dp" android:height="16dp" android:viewportWidth="16" android:viewportHeight="16">
+  <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.5" android:fillColor="#00000000"
+    android:pathData="M4,1.25h8a2.75,2.75 0,0 1,2.75 2.75v8a2.75,2.75 0,0 1,-2.75 2.75h-8a2.75,2.75 0,0 1,-2.75 -2.75v-8a2.75,2.75 0,0 1,2.75 -2.75z" />
+</vector>

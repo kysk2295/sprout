@@ -22,7 +22,7 @@ assert.equal(parsePushPayload({ data: { ...reminderData, key: 's:t1@1' } }), nul
 // 하루 요약·성장·시험
 const daily = parsePushPayload({ data: { type: 'daily', kind: 'daily', key: 'daily:2026-10-05', title: '오늘 할 일 5개', body: '보고서 · 운동', url: 'sprout://today', channel: 'daily' } })
 assert.ok(daily && daily.type === 'daily' && daily.channel === 'daily' && daily.url === 'sprout://today')
-const test = parsePushPayload({ data: { type: 'test', kind: 'test', key: 'test:1', title: 'sprout 알림이 잘 와요', body: '이 휴대폰에서 서버 알림을 받을 수 있어요', channel: 'tasks' } })
+const test = parsePushPayload({ data: { type: 'test', kind: 'test', key: 'test:1', title: '꿈틀 알림이 잘 와요', body: '이 휴대폰에서 서버 알림을 받을 수 있어요', channel: 'tasks' } })
 assert.ok(test && test.type === 'test' && test.channel === 'tasks')
 assert.equal(parsePushPayload({ data: { type: 'growth', kind: 'growth_evolve' } }), null, '제목 없으면 버림')
 // 조용한 동기화

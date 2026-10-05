@@ -8,7 +8,7 @@
 // - 모양(06 §14.2): 취소선 없음. 완료 = 옅게 + 체크된 칸, 지난 미완료 = 옅은 채움 + 빈 칸 + 글자 한 단계 진하게, 색 = 리스트 색(없으면 강조색)
 // 구글·Apple 캘린더 일정은 컴퓨터의 기기 데이터(16)라 휴대폰에는 없다.
 import { useQuery } from '@powersync/react-native'
-import { useRouter, useScrollToTop } from 'expo-router'
+import { useLocalSearchParams, useRouter, useScrollToTop } from 'expo-router'
 import { CalendarCheck, CalendarDays, CalendarRange, Check, Columns3, Ellipsis, List, Plus, Square } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
@@ -42,6 +42,7 @@ import { Fab } from '../ui/Fab'
 import { useTabBarSpace } from '../ui/tabBarSpace'
 import { TaskRowView } from '../ui/TaskRow'
 import type { DayMarks } from '@sprout/schema/holidays'
+import { isWidgetDate } from '@sprout/schema/widget'
 import { useDayMarks, useMarkPrefs } from '../data/calendarPrefs'
 import { RestBadge, SideLabel } from '../ui/DayMarks'
 
@@ -87,6 +88,13 @@ export default function CalendarScreen() {
   const [undatedOpen, setUndatedOpen] = useState(false)
   const viewMenu = useAnchor()
   const more = useAnchor()
+  // 36 §6 위젯 날짜 칸: sprout://calendar?date=YYYY-MM-DD → 월 보기에서 그날 고름
+  const { date: linkDate } = useLocalSearchParams<{ date?: string }>()
+  useEffect(() => {
+    if (!isWidgetDate(linkDate)) return
+    setView('month')
+    setCursor(linkDate)
+  }, [linkDate])
 
   // 데이터: 범위에 걸친 할 일(일 보기는 주 줄 점 때문에 그 주 전체)
   const range = useMemo(() => {

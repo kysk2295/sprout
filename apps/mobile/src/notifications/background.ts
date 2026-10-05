@@ -7,6 +7,7 @@ import { startAuth, syncNow } from '../data/auth'
 import { useEffect } from 'react'
 import { rescheduleNow, useNotifications } from './index'
 import { usePushNotifications } from './push'
+import { widgetsBackgroundTick } from '../widgets/useWidgets'
 
 export const REFRESH_TASK = 'sprout-reminder-refresh'
 
@@ -17,6 +18,7 @@ if (!TaskManager.isTaskDefined(REFRESH_TASK)) {
       // 붙어 있으면 잠깐 내려받기(최대 8초) → 다른 기기에서 바꾼 알림도 반영
       await syncNow().catch(() => {})
       await rescheduleNow()
+      await widgetsBackgroundTick().catch(() => {}) // 36 §7.5: 위젯 체크 반영 + 저장 파일(동기화로 들어온 변경)
       return BackgroundTask.BackgroundTaskResult.Success
     } catch {
       return BackgroundTask.BackgroundTaskResult.Failed

@@ -1,6 +1,6 @@
 # 36 · 모바일 홈 화면 위젯 (iOS WidgetKit · Android AppWidget) — 월 캘린더 · 오늘 할 일 · 캐릭터
 
-- 상태: **초안 v0.9 → 구현** (2026-10-05) — 사용자 요청 "틱틱처럼 이 위젯(큰 월 캘린더)이 필요해. 모바일 위젯도 이거랑 마찬가지야." [임시] 값은 실기기에서 고친다.
+- 상태: **v1.0 구현 · 사용자 확인 대기** (2026-10-05) — 사용자 요청 "틱틱처럼 이 위젯(큰 월 캘린더)이 필요해. 모바일 위젯도 이거랑 마찬가지야." [임시] 값은 실기기에서 고친다.
 - 근거: [25 맥 위젯](25-mac-widget.md)(데이터 계약·체크 대기열·상태·색 규칙 — **이 문서는 25의 휴대폰판**, 다른 점만 적는다), [06 캘린더 §16](06-calendar.md)(공휴일·주말 색), [20 §7](20-mobile-overview.md)(모바일 월 보기 칸 모양), [10 성장](10-growth.md)
 - 틱틱 조사: [research 23](../ticktick-research/23-mac-widgets.md), [research 20 §5](../ticktick-research/20-mobile.md), 아래 §1
 - 표기: **[틱틱]** 확인된 틱틱 동작 · **[sprout]** 새 설계 · **[임시]** 확인 전 값 · **[다음]** 이번 범위 밖
@@ -88,7 +88,7 @@
 ## 6. 인터랙션
 | 어디를 | 무엇이 | 주소 | 출처 |
 |---|---|---|---|
-| 월: 날짜 칸 | 앱 **캘린더 탭 월 보기, 그날 고름** | `sprout://calendar?date=2026-10-07` | [sprout 추정] (도움말에 없음) |
+| 월: 날짜 칸 | 앱 **캘린더 탭 월 보기, 그날 고름** | `sprout://calendar?date=2026-10-07` (맥 위젯 형식 `sprout://calendar/2026-10-07`도 받음) | [sprout 추정] (도움말에 없음) |
 | 월: 막대 | 그 할 일 상세 / 그 일정 시트 | `sprout://task/<id>` · `sprout://event/<id>` | [틱틱 Tasks 제목과 같은 규칙] |
 | 월: `+N` | 그날 캘린더(날짜 칸과 같다) | `sprout://calendar?date=…` | [sprout] |
 | 월: ‹ › | 위젯 안에서 달 넘김(앱 안 열림). 위젯마다 따로 기억, 자정·앱 새 저장 때 이번 달로 돌아오지 않는다(사용자가 고른 달 유지) [임시] | iOS AppIntent · Android 브로드캐스트 | [틱틱 iOS] |
@@ -171,5 +171,35 @@
 - [ ] 로그아웃하면 위젯이 바로 `로그인이 필요해요`가 되고 저장 칸에 제목이 남지 않는다.
 - [ ] Android: 같은 3종이 위젯 목록에 있고 같은 동작(체크·달 넘김·링크).
 
-## 10. 구현 메모
-- (구현 뒤 채움)
+## 10. 구현 메모 (2026-10-05, v1.0)
+### 10.1 만든 것
+| 위치 | 내용 |
+|---|---|
+| `packages/schema/src/widget.ts` (+ `widget.test.ts`) | 계약 타입(25 §8.3 + `calendar`), 월 칸 만들기(월요일 시작·5/6줄·오늘·다른 달·일/토/공휴일 색·항목 최대 4 + total), 달 범위(지난달~두 달 뒤), 강조색, 대기열 검사·정리(같은 할 일은 마지막 것만, 7일·반영한 id 버림), 딥 링크 값 검사 |
+| `apps/mobile/src/widgets/snapshot.ts` (+ `snapshot.test.ts`) | DB 읽기(`readWidgetData`) + 순수 조립(`composeWidgetSnapshot`). 오늘 = `openSql('smart:today')` + `rowDateLabel`, 월 칸 = 캘린더 탭과 같은 `itemsOf`·`eventItems`·`itemsOnDay` |
+| `apps/mobile/src/widgets/useWidgets.tsx` | 표 변경 1초 모아 쓰기(내용 같으면 안 씀), 앞으로 올 때·시작·자정 + 5초·백그라운드 작업·(Android) 위젯 신호 → 대기열 반영(`completeTasks`), 로그아웃 정리, 캐릭터 그림 굽기(`WidgetArtBaker` — `CharacterArt`에 `svgRef` 추가, `toDataURL`) |
+| `apps/mobile/modules/sprout-widgets` | 로컬 Expo 모듈. iOS: App Group 쓰기·`WidgetCenter` 새로 고침. Android: `AppWidgetProvider` 3개(RemoteViews 월 칸·행·캐릭터) + 체크·달 넘김 브로드캐스트 + JS 이벤트 `onAction` — 라이브러리 매니페스트라 플러그인 없음 |
+| `apps/mobile/plugins/widgets` | iOS 위젯 확장 타깃(`SproutWidget`, `app.sprout.mobile.widget`, iOS 17) 붙이는 config 플러그인 + SwiftUI 소스(월·오늘·캐릭터, `ToggleTaskIntent`·`ShiftMonthIntent`) |
+| `CalendarScreen.tsx` · `app/(tabs)/calendar/[date].tsx` | `sprout://calendar?date=` / `sprout://calendar/<날짜>` → 월 보기 그날 |
+| `_layout.tsx` · `notifications/background.ts` | `useWidgets()`·`WidgetArtBaker` 연결, 백그라운드 작업에서 `widgetsBackgroundTick()` |
+
+### 10.2 명세와 다른 점 · 정한 것
+- 막대 제목은 …없이 칸 끝에서 자른다(틱틱 그림과 같다). 여러 날 할 일은 날마다 따로 그린다(§3.1 그대로).
+- 오늘 할 일 중간은 넘치면 4행 + `+N개 더`(25 §3.2와 같다), 행 높이 22.
+- 월 칸 막대 수 = (칸 높이 − 17) ÷ 13, 1~4개. iPhone 17 Pro 크게(5주 달)에서 3자리(막대 2 + `+N`, 넘치지 않으면 막대 3).
+- 맥 위젯(25 §15)은 `calendar`를 자기 형식(`widgetSnapshot.ts`)으로 만든다 — 두 위젯이 같은 기기를 공유하지 않아 계약을 하나로 묶지 않았다. 공용 함수(`@sprout/schema/widget`)는 맥이 원하면 그대로 쓸 수 있다.
+- 문구의 앱 이름은 제품명 **꿈틀**(2026-10-05 제품명 결정 — "꿈틀을 한 번 열어 주세요", "꿈틀 열기").
+
+### 10.3 확인한 것 (2026-10-05, iOS 시뮬레이터 iPhone 17 Pro · iOS 26.5, 시험 계정 `e2e-widget-<시각>@sprout.test` — 끝나고 앱에서 계정 삭제)
+- 갤러리에 "꿈틀" 위젯 4종(월 캘린더 크게 · 오늘 할 일 작게/중간 · 캐릭터 작게), 미리보기는 예시 데이터.
+- 월 캘린더: 월요일 시작, 10/5 오늘 원 + `대체공휴일`, 10/3 `개천절`·10/9 `한글날` 빨강, 토 파랑·일 빨강, 다른 달 옅게, 리스트 색 막대 + `+4`·`+3`, 여러 날 `가족 여행` 8~10일, 일정 `워크숍`, 지난 것 옅게. ‹ › 로 11월로 넘어가고 달 이름 누르면 10월로. 날짜(14일)를 누르면 앱 캘린더 탭 월 보기에서 그날이 골라짐.
+- 오늘 할 일: 만료 `보고서 제출 10월 3일`(빨강) → `아침 스트레칭 ⟲ 오전 8:00` → … 하위 `자료 조사` 들여쓰기 · `+3개 더`. 체크 → 바로 채운 체크 + 흐린 제목, 대기열 파일 생성 → 앱을 앞으로 → 완료 반영(개수 7→6, XP 26→27, 오늘 XP 3→4, 대기열 비움).
+- 캐릭터: 앱이 구운 PNG(`art/cat-1-happy@2x.png`)로 그림, `미미 Lv 1 · 아기`, XP 막대.
+- 라이트·다크(시스템 설정) 모두 확인. 계정 삭제 → 저장 파일이 로그아웃 형태로, `art/` 지워짐, 위젯 "로그인이 필요해요".
+- 스크린샷: `docs/screens/shots/36-mobile-widgets/`.
+- **Android**: Kotlin 모듈 컴파일(`:sprout-widgets:compileDebugKotlin`) 통과. 에뮬레이터 실측은 디스크 부족(여유 3GB 안팎)으로 못 함 → 남은 일.
+
+### 10.4 남은 일
+- Android 에뮬레이터·실기기에서 3종 위젯 모양·체크·달 넘김 확인(RemoteViews 높이 계산 `[임시]`).
+- 실기기 iOS(App Group 서명 — `docs/release/CONTRIBUTOR-IOS.md` §8).
+- 갤러리 미리보기 캐릭터는 단색 실루엣(예시 그림 자산 없음), Android 위젯 목록 미리보기 그림(`previewImage`) 없음.

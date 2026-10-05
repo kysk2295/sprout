@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 36 §3.3 캐릭터: 그림 · 이름 + Lv · XP 막대 · 다음 레벨까지 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@android:id/background"
+  android:layout_width="match_parent" android:layout_height="match_parent"
+  android:orientation="vertical" android:background="@drawable/sprout_widget_bg"
+  android:paddingLeft="14dp" android:paddingRight="14dp" android:paddingTop="8dp" android:paddingBottom="10dp">
+  <ImageView android:id="@+id/sw_art" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+    android:scaleType="fitCenter" android:contentDescription="캐릭터" />
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+    <TextView android:id="@+id/sw_name" android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1"
+      android:textSize="13sp" android:textStyle="bold" android:textColor="@color/sprout_widget_primary" />
+    <TextView android:id="@+id/sw_level" android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:paddingLeft="5dp"
+      android:textSize="11sp" android:textColor="@color/sprout_widget_secondary" />
+  </LinearLayout>
+  <ProgressBar android:id="@+id/sw_xp" style="@android:style/Widget.ProgressBar.Horizontal"
+    android:layout_width="match_parent" android:layout_height="6dp" android:layout_marginTop="4dp" android:layout_marginBottom="3dp" android:max="100" />
+  <TextView android:id="@+id/sw_next" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1"
+    android:textSize="11sp" android:textColor="@color/sprout_widget_secondary" />
+  <TextView android:id="@+id/sw_message" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+    android:gravity="center" android:textSize="12sp" android:textColor="@color/sprout_widget_secondary" android:visibility="gone" />
+</LinearLayout>

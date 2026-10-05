@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/sw_task"
+  android:layout_width="match_parent" android:layout_height="28dp" android:orientation="horizontal" android:gravity="center_vertical">
+  <ImageView android:id="@+id/sw_task_box" android:layout_width="28dp" android:layout_height="28dp" android:padding="6dp"
+    android:src="@drawable/sprout_widget_box" android:contentDescription="완료" />
+  <TextView android:id="@+id/sw_task_title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:paddingLeft="4dp"
+    android:textSize="14sp" android:maxLines="1" android:ellipsize="end" android:textColor="@color/sprout_widget_primary" />
+  <TextView android:id="@+id/sw_task_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="6dp"
+    android:textSize="12sp" android:maxLines="1" android:textColor="@color/sprout_widget_accent" />
+</LinearLayout>

@@ -202,7 +202,7 @@ function AiCard({ item, onTopic, onConvert, onRegistered }: { item: CollectItem;
   if (item.ai_state === 'pending') {
     return (
       <Card icon={spark} title="아직 정리하지 않았어요">
-        <Text style={[FONT.sub, { color: p.textSecondary }]}>컴퓨터에서 sprout를 열면 AI가 할 일·볼 것·위키·메모로 나눠 둬요.</Text>
+        <Text style={[FONT.sub, { color: p.textSecondary }]}>컴퓨터에서 꿈틀을 열면 AI가 할 일·볼 것·위키·메모로 나눠 둬요.</Text>
         <View style={s.acts}><Btn label="할 일로 만들기" primary onPress={onConvert} /></View>
       </Card>
     )

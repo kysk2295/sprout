@@ -119,7 +119,7 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
         {a.busy ? (
           <Ai>
             {a.progress.preview ? <Text style={[s.text, { color: p.textPrimary }]}>{a.progress.preview}<Caret /></Text> : (
-              <Text style={[s.text, { color: p.textSecondary }]}>{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.progress.phase === 'connecting' ? 'sprout AI에 연결하는 중…' : '생각하는 중…'}</Text>
+              <Text style={[s.text, { color: p.textSecondary }]}>{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.progress.phase === 'connecting' ? '꿈틀 AI에 연결하는 중…' : '생각하는 중…'}</Text>
             )}
             <View style={s.steps} accessibilityRole="progressbar">
               {STEPS.map((st, i) => (
@@ -151,7 +151,7 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
       ) : null}
       {notice ? <Text style={[s.notice, { backgroundColor: p.toastBg }]}>{notice}</Text> : null}
       <Composer a={a} autoFocus={autoFocus} onSubmit={() => void submit()} />
-      {variant === 'full' ? <Text style={[s.foot, { color: p.textTertiary }]}>sprout AI는 운영자의 Mac mini에서 돌아가요 · 결과는 카드에서 되돌릴 수 있어요</Text> : null}
+      {variant === 'full' ? <Text style={[s.foot, { color: p.textTertiary }]}>꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 결과는 카드에서 되돌릴 수 있어요</Text> : null}
     </View>
   )
 }

@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["SproutWidgetsModule"]
+  },
+  "android": {
+    "modules": ["app.sprout.widgets.SproutWidgetsModule"]
+  }
+}

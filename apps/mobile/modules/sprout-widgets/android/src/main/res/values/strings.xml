@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="sprout_widget_month_name">월 캘린더</string>
+  <string name="sprout_widget_month_desc">이번 달 일정을 한눈에 봐요</string>
+  <string name="sprout_widget_today_name">오늘 할 일</string>
+  <string name="sprout_widget_today_desc">오늘 할 일을 보고 바로 체크해요</string>
+  <string name="sprout_widget_character_name">캐릭터</string>
+  <string name="sprout_widget_character_desc">내 캐릭터의 레벨과 XP를 봐요</string>
+</resources>

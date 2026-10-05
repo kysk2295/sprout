@@ -11,6 +11,8 @@ const { withDangerousMod, withEntitlementsPlist, withXcodeProject } = require('e
 
 const TARGET = 'SproutShare'
 const SOURCES = ['ShareViewController.swift', 'ShareView.swift', 'ShareCore.swift']
+// 확장 번들에 들어갈 리소스 — 개인정보 매니페스트(App Group UserDefaults 사유 1C8F.1)
+const RESOURCES = ['PrivacyInfo.xcprivacy']
 
 function names(config, props) {
   const appId = config.ios?.bundleIdentifier
@@ -59,7 +61,7 @@ const withShareFiles = (config, n) =>
     const dir = path.join(c.modRequest.platformProjectRoot, TARGET)
     fs.mkdirSync(dir, { recursive: true })
     const src = path.join(__dirname, 'ios')
-    for (const f of SOURCES) fs.copyFileSync(path.join(src, f), path.join(dir, f))
+    for (const f of [...SOURCES, ...RESOURCES]) fs.copyFileSync(path.join(src, f), path.join(dir, f))
     const info = fs.readFileSync(path.join(src, 'Info.plist'), 'utf8').replace('__APP_GROUP__', n.appGroup).replace('__KEYCHAIN_GROUP__', n.keychainGroup)
     fs.writeFileSync(path.join(dir, 'Info.plist'), info)
     fs.writeFileSync(path.join(dir, `${TARGET}.entitlements`), plist(entitlements(n, `${n.teamId}.${n.extId}`)))
@@ -75,11 +77,11 @@ const withShareTarget = (config, n) =>
     objects.PBXContainerItemProxy ??= {}
 
     const target = proj.addTarget(TARGET, 'app_extension', TARGET, n.extId)
-    const group = proj.addPbxGroup([...SOURCES, 'Info.plist', `${TARGET}.entitlements`], TARGET, TARGET)
+    const group = proj.addPbxGroup([...SOURCES, ...RESOURCES, 'Info.plist', `${TARGET}.entitlements`], TARGET, TARGET)
     const main = proj.getFirstProject().firstProject.mainGroup
     proj.addToPbxGroup(group.uuid, main)
     proj.addBuildPhase(SOURCES, 'PBXSourcesBuildPhase', 'Sources', target.uuid)
-    proj.addBuildPhase([], 'PBXResourcesBuildPhase', 'Resources', target.uuid)
+    proj.addBuildPhase(RESOURCES, 'PBXResourcesBuildPhase', 'Resources', target.uuid)
     proj.addBuildPhase([], 'PBXFrameworksBuildPhase', 'Frameworks', target.uuid)
 
     // xcode 라이브러리가 남기는 `explicitFileType = undefined` 같은 칸을 지운다(남기면 Xcode가 파일 종류를 모른다)
@@ -103,8 +105,8 @@ const withShareTarget = (config, n) =>
           SWIFT_VERSION: '5.0',
           IPHONEOS_DEPLOYMENT_TARGET: appSettings.IPHONEOS_DEPLOYMENT_TARGET ?? '16.4',
           TARGETED_DEVICE_FAMILY: '"1,2"',
-          MARKETING_VERSION: appSettings.MARKETING_VERSION ?? config.version ?? '1.0',
-          CURRENT_PROJECT_VERSION: appSettings.CURRENT_PROJECT_VERSION ?? '1',
+          MARKETING_VERSION: config.version ?? appSettings.MARKETING_VERSION ?? '1.0', // 본 앱 CFBundleShortVersionString(app.json version)과 같아야 한다(App Store 검증)
+          CURRENT_PROJECT_VERSION: config.ios?.buildNumber ?? appSettings.CURRENT_PROJECT_VERSION ?? '1',
           GENERATE_INFOPLIST_FILE: 'NO',
           APPLICATION_EXTENSION_API_ONLY: 'YES',
           CLANG_ENABLE_MODULES: 'YES',

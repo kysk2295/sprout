@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="sprout_widget_bg">#1A1A1A</color>
+  <color name="sprout_widget_primary">#F2F2F2</color>
+  <color name="sprout_widget_secondary">#CDCDCD</color>
+  <color name="sprout_widget_tertiary">#606060</color>
+  <color name="sprout_widget_divider">#2A2A2A</color>
+  <color name="sprout_widget_accent">#545DFA</color>
+</resources>

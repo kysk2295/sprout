@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { startAuth, useAuth } from '../src/data/auth'
 import { db } from '../src/data/db'
 import { useShareInbox } from '../src/share/useShareInbox'
+import { useWidgets, WidgetArtBaker } from '../src/widgets/useWidgets'
 import { useReminderNotifications } from '../src/notifications/background'
 import { ThemeProvider, usePalette } from '../src/theme/ThemeProvider'
 import { sheetScreenLayout } from '../src/ui/SheetScrollGuard'
@@ -23,6 +24,7 @@ export default function Root() {
   useEffect(() => { void startAuth() }, [])
   const { status } = useAuth()
   useShareInbox() // 24: 공유 확장 토큰 건네기 + 대기열 비우기
+  useWidgets() // 36: 홈 화면 위젯 저장 파일·체크 대기열
   if (status === 'loading') return null
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -74,6 +76,7 @@ function Screens({ signedIn }: { signedIn: boolean }) {
           <Stack.Screen name="signup" options={{ contentStyle: { backgroundColor: p.loginBg } }} />
         </Stack.Protected>
       </Stack>
+      {signedIn ? <WidgetArtBaker /> : null}
     </>
   )
 }

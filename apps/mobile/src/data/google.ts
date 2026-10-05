@@ -3,6 +3,7 @@
 //   서버는 nonce 없는 토큰을 이 모양(azp ≠ aud)·10분 안·한 번만으로 받는다(server/api/src/social.ts).
 // - 매번 기기 구글 세션을 먼저 지운다 → 항상 계정 고르기 창 + 새 토큰(데스크톱 prompt=select_account와 같음).
 // - 네이티브 모듈은 처음 쓸 때 불러온다: 모듈이 없는 옛 개발 빌드에서도 앱이 죽지 않고 "설정이 아직 없어요"로 끝난다.
+import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 
 export type GoogleFailCode = 'cancelled' | 'not_configured' | 'play_services' | 'busy' | 'failed'
@@ -14,8 +15,10 @@ export class GoogleSignInError extends Error {
   }
 }
 
-const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? ''
-const IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ?? ''
+// 빌드 때 env(.env.local) → 없으면 app.config.ts가 extra에 넣은 기본값(공개 id)
+const extra = (Constants.expoConfig?.extra ?? {}) as { googleWebClientId?: string; googleIosClientId?: string }
+const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || extra.googleWebClientId?.trim() || ''
+const IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || extra.googleIosClientId?.trim() || ''
 const isClientId = (v: string) => /^[\w-]+\.apps\.googleusercontent\.com$/.test(v)
 
 /** 이 빌드에 구글 로그인 설정(id)이 들어 있나. iOS는 iOS 클라이언트 id(URL 스킴)도 있어야 한다 */

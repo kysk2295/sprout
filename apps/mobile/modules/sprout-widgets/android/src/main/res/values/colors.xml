@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 36 §5: 00 토큰 Default(라이트) — 다크는 values-night -->
+<resources>
+  <color name="sprout_widget_bg">#FFFFFF</color>
+  <color name="sprout_widget_primary">#191919</color>
+  <color name="sprout_widget_secondary">#7D7D7D</color>
+  <color name="sprout_widget_tertiary">#A3A4A7</color>
+  <color name="sprout_widget_divider">#F0F0F2</color>
+  <color name="sprout_widget_accent">#4E75F2</color>
+</resources>

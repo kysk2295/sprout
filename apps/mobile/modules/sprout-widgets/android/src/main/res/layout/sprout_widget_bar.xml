@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 막대: 왼쪽 2dp 줄 + 제목(채움 색은 코드에서) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/sw_bar"
+  android:layout_width="match_parent" android:layout_height="12dp" android:layout_marginBottom="1dp" android:orientation="horizontal">
+  <ImageView android:id="@+id/sw_bar_line" android:layout_width="2dp" android:layout_height="match_parent" />
+  <TextView android:id="@+id/sw_bar_text" android:layout_width="match_parent" android:layout_height="match_parent" android:paddingLeft="2dp"
+    android:gravity="center_vertical" android:textSize="9sp" android:maxLines="1" android:ellipsize="none" android:includeFontPadding="false"
+    android:textColor="@color/sprout_widget_primary" />
+</LinearLayout>
