@@ -1,13 +1,14 @@
 // 23 모바일 성장 — 읽기(useQuery)와 쓰기(goalCore 문장 → run). 계산은 logic.ts, 문장 만들기는 goalCore.ts.
 // 휴대폰은 AI를 부르지 않고 주간 마감도 하지 않는다(23 M-G2) — 데스크톱이 만든 리포트·초안을 동기화로 받아 읽기만 한다.
 import { useQuery } from '@powersync/react-native'
-import { progressFromEvents } from '@sprout/schema/growth'
+import { progressFromEvents, reviewXpEvent, tidyXpEvent, type XpEventRow } from '@sprout/schema/growth'
+import { insertStmt } from '@sprout/schema/taskCore'
 import { addDays } from '@sprout/schema/time'
 import { useMemo } from 'react'
 import { currentUserId } from '../data/auth'
 import { coreDb, run } from '../data/db'
 import { xpGained } from '../data/events'
-import { CHARACTER_SQL, planAddGoal, planAssignCharacter, planDismissDraft, planMarkSeen, planRename, planSetGoalProgress, type GrowthEnv } from './goalCore'
+import { CHARACTER_SQL, planAddGoal, planEnsureCharacter, planAssignCharacter, planDismissDraft, planMarkSeen, planRename, planSetGoalProgress, type GrowthEnv } from './goalCore'
 import {
   idleDaysOf, streakOf, taskXpOfDay, uniqueWeeks, visibleDrafts, weekStartOf,
   type CharacterRow, type GoalRow, type ReportRow, type StageStats, type XpRow
@@ -89,3 +90,17 @@ export async function assignCharacter(today: string, a: Parameters<typeof planAs
 export async function renameCharacter(today: string, name: string) {
   await run(await planRename(coreDb, env(today), name))
 }
+
+// ── 주간 점검 +30 · 정리 +20(10 §6, 2026-10-05 결정) — 공용 reviewXpEvent·tidyXpEvent(id가 결정적이라 두 기기·다시 끝내기에도 한 번만) ──
+async function grantOnce(today: string, make: (characterId: string) => XpEventRow): Promise<number> {
+  const { character, stmts } = await planEnsureCharacter(coreDb, env(today))
+  const ev = make(character.id)
+  if (await coreDb.get('SELECT id FROM xp_events WHERE id = ?', [ev.id])) { if (stmts.length) await run(stmts); return 0 }
+  await run([...stmts, insertStmt('xp_events', { owner_id: currentUserId(), ...ev })])
+  xpGained.emit(ev.amount)
+  return ev.amount
+}
+/** 주간 점검을 끝내면 — 점검한 주(ISO 주)마다 한 번 */
+export const grantReviewXp = (today: string, week: string) => grantOnce(today, (c) => reviewXpEvent(c, week, today))
+/** 정리 "다 정리했어!" — 하루 한 번(이번 정리에서 1개 이상 처리했을 때만 부른다) */
+export const grantTidyXp = (today: string) => grantOnce(today, (c) => tidyXpEvent(c, today))

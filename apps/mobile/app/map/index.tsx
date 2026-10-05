@@ -1,8 +1,9 @@
-// 29 모바일 작업 지도(2026-10-05 결정: 내 폴더 › 리스트 › 할 일): 머리(‹ · ⋯) · 큰 제목 · 세그먼트 목록|보드.
+// 29 모바일 작업 지도. §9(2026-10-05 결정): 작업 지도 = 프로젝트 한 화면(⚡ 지금 할 일 · 프로젝트 카드 · 같이 계획 짜기).
+// 머리 ⧉ = 전체 지도(아래 §2 — 내 폴더 › 리스트 › 할 일): 머리(‹ · ⧉ · ⋯) · 큰 제목 · 세그먼트 목록|보드.
 // 목록(F1) = 목표 줄 → 폴더 없는 리스트 카드 → 폴더 카드(리스트 행: 진행 고리·완료/전체) → 기본함(점선, 정리할 것) → + 새로운 리스트 · 새 폴더.
 // 보드(F3) = 폴더를 한 열씩 넘김(열 안 묶음 = 리스트), 기본함 열은 맨 오른쪽.
 import { useRouter } from 'expo-router'
-import { ChevronLeft, ChevronRight, FolderPlus, Inbox, Map as MapIcon, MoreHorizontal, Plus, Target } from 'lucide-react-native'
+import { ChevronLeft, ChevronRight, FolderPlus, Inbox, Layers, Map as MapIcon, MoreHorizontal, Plus, Target } from 'lucide-react-native'
 import { useMemo, useRef, useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -19,6 +20,8 @@ import { GlassButton } from '../../src/ui/Glass'
 import { BigTitle, NavRow } from '../../src/ui/Header'
 import { PopMenu, useAnchor, type MenuItem, type Rect } from '../../src/ui/Menu'
 import { Segmented } from '../../src/ui/Segmented'
+import { usePlanData } from '../../src/map/v2/plan'
+import { ProjectBoard } from '../../src/map/v2/ProjectBoard'
 
 export default function WorkMap() {
   const p = usePalette()
@@ -26,6 +29,7 @@ export default function WorkMap() {
   const insets = useSafeAreaInsets()
   const [o, setO] = useMapOptions()
   const data = useMapData(o)
+  const plan = usePlanData()
   const more = useAnchor()
   const [dialog, setDialog] = useState<DialogSpec | null>(null)
   const [menu, setMenu] = useState<{ rect: Rect; items: MenuItem[] } | null>(null)
@@ -42,9 +46,19 @@ export default function WorkMap() {
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
       <NavRow
         left={<GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>}
-        right={<GlassButton label="보기 옵션" onPress={more.open}><View ref={more.ref} collapsable={false}><MoreHorizontal size={20} color={p.textPrimary} /></View></GlassButton>}
+        right={
+          <>
+            <GlassButton label={o.whole ? '프로젝트 화면으로' : '전체 지도'} onPress={() => setO({ whole: !o.whole })}><Layers size={20} color={o.whole ? p.accent : p.textPrimary} /></GlassButton>
+            {o.whole ? <GlassButton label="보기 옵션" onPress={more.open}><View ref={more.ref} collapsable={false}><MoreHorizontal size={20} color={p.textPrimary} /></View></GlassButton> : null}
+          </>
+        }
       />
-      {o.view === 'list' || empty ? (
+      {!o.whole ? (
+        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 30 }}>
+          <BigTitle title="작업 지도" />
+          <ProjectBoard data={plan} />
+        </ScrollView>
+      ) : o.view === 'list' || empty ? (
         <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 30 }}>
           <BigTitle title="작업 지도" />
           {seg}

@@ -27,8 +27,9 @@ const PROGRESS_SQL = `SELECT list_id AS id, sum(CASE WHEN status = 1 THEN 1 ELSE
 const GOALS_SQL = 'SELECT id, title, target, progress, status, week_start, achieved_at, source, sort_order FROM kpis WHERE week_start = ? ORDER BY sort_order'
 
 // ── 보기 설정(기기 기억) ──
-export type MapOptions = MapFilter & { view: 'list' | 'board' }
-export const DEFAULT_OPTIONS: MapOptions = { period: 'week', showDone: false, showNoDate: true, lists: null, view: 'list' }
+/** whole = ⧉ 전체 지도(폴더 › 리스트 목록·보드). 꺼져 있으면 프로젝트 화면(29 §9) */
+export type MapOptions = MapFilter & { view: 'list' | 'board'; whole: boolean }
+export const DEFAULT_OPTIONS: MapOptions = { period: 'week', showDone: false, showNoDate: true, lists: null, view: 'list', whole: false }
 const OPT_KEY = 'sprout.map.mobile'
 let opts: MapOptions = DEFAULT_OPTIONS
 let loaded = false

@@ -1,6 +1,7 @@
 // 성장 탭(23 확정 v1.0, 시안 B1·B2): 머리 ⋯ + 큰 제목 "성장"(스크롤하면 가운데 작은 제목) →
 // ① 캐릭터 방 ② XP 줄 ③ 요약 칩 ④ 진화 길 ⑤ 이번 주 목표 ⑥ 이번 주 XP ⑦ 주간 리포트.
 // 레벨업·진화(23 §4)는 앱이 앞으로 올 때·이 탭을 열 때 확인한다. 휴대폰은 AI·주간 마감을 하지 않는다(M-G2).
+import { ReviewEntry } from '../../src/map/v2/ReviewEntry'
 import { useStatus } from '@powersync/react-native'
 import { SPECIES, type Species } from '@sprout/schema/growth'
 import { useIsFocused, useRouter } from 'expo-router'
@@ -122,6 +123,7 @@ export default function Growth() {
               <EvolutionRoad p={p} species={species} level={g.progress.level} stage={g.progress.stage} open={road} onOpen={setRoad} />
               <GoalsCard p={p} today={today} week={g.week} goals={g.goals} xpIds={g.xpIds} drafts={g.drafts} reduced={reduced} />
               <XpCard p={p} events={g.events} week={g.week} today={today} />
+              <ReviewEntry />
               <ReportsCard p={p} reports={g.reports} />
             </>
           )}

@@ -249,6 +249,8 @@ export default function TaskListScreen() {
       ...(view.startsWith('filter:') ? [{ key: 'edit', label: '필터 편집', onPress: () => afterMenu(() => setEditing('filter')) }] : []),
       // 33 §11: 머리 카드가 없을 때도 설명을 쓸 수 있게(기본함 제외)
       ...((listId && lists.find((l) => l.id === listId)?.kind !== 'inbox') || view.startsWith('tag:') ? [{ key: 'desc', label: '설명 쓰기', onPress: () => afterMenu(() => setDescOpen(true)) }] : []),
+      // 29 §9.4 정리 입구: 기본함 ⋯ › 기본함 정리
+      ...(listId && lists.find((l) => l.id === listId)?.kind === 'inbox' ? [{ key: 'tidy', label: '기본함 정리', onPress: () => afterMenu(() => router.push({ pathname: '/tidy', params: { tab: 'inbox' } })) }] : []),
       ...(listId && settings.group_by === 'custom' ? [{ key: 'section', label: '섹션 추가', onPress: () => afterMenu(() => setPrompt({ kind: 'add' })) }] : []),
       { key: 'group', label: `묶기 · ${GROUP_LABEL[settings.group_by]}`, onPress: () => openSub('group') },
       { key: 'sort', label: `정렬 · ${SORT_LABEL[settings.sort_by]}`, onPress: () => openSub('sort') },
@@ -324,7 +326,8 @@ export default function TaskListScreen() {
           { key: 'today', label: '오늘로', onPress: () => void postponeTo(today, '오늘') },
           { key: 'tomorrow', label: '내일로', onPress: () => void postponeTo(dayKey(1), '내일') },
           { key: 'week', label: '다음 주로', onPress: () => void postponeTo(nextMonday(today), '다음 주') },
-          { key: 'pick', label: '날짜 지정', onPress: () => openSheet('/date', overdueIds) }
+          { key: 'pick', label: '날짜 지정', onPress: () => openSheet('/date', overdueIds) },
+          { key: 'tidy', label: '정리 화면에서 보기', onPress: () => router.push({ pathname: '/tidy', params: { tab: 'overdue' } }) }
         ]}
       />
       <PopMenu
