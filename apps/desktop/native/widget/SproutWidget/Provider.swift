@@ -14,7 +14,7 @@ struct SproutEntry: TimelineEntry {
         if case .ready(let s) = data, let day = s.day { return day != Store.localDay(date) }
         return false
     }
-    /// 60초 넘게 반영되지 않은 체크가 있는지(§4 "sprout을 열면 반영돼요")
+    /// 60초 넘게 반영되지 않은 체크가 있는지(§4 "꿈틀을 열면 반영돼요")
     var pendingTooLong: Bool {
         let f = ISO8601DateFormatter()
         return pending.values.contains { a in

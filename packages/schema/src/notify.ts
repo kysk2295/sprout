@@ -138,6 +138,6 @@ export const growthCopy = {
     kind: 'inbox_cleanup', title: `기본함에 할 일이 ${count}개 쌓였어요`, body: 'AI가 리스트로 나눠 드릴게요. 눌러서 정리를 시작해요.', url: 'sprout://lists/inbox?cleanup=1'
   })
 }
-export const TEST_NOTICE: Notice = { kind: 'test', title: 'sprout 알림이 잘 와요', body: '이 휴대폰에서 서버 알림을 받을 수 있어요' }
+export const TEST_NOTICE: Notice = { kind: 'test', title: '꿈틀 알림이 잘 와요', body: '이 휴대폰에서 서버 알림을 받을 수 있어요' }
 /** 기본함 정리 제안 기준(32 §8, 30 B.1 ①): 미완료 20개 초과 · 마지막 제안 7일 이상 */
 export const INBOX_NUDGE = { over: 20, everyDays: 7 } as const

@@ -1,4 +1,4 @@
-// sprout 사이트 빌드 — 의존성 없음(Node 20+). `node build.mjs` → public/*.html
+// 꿈틀(코드네임 sprout) 사이트 빌드 — 의존성 없음(Node 20+). `node build.mjs` → public/*.html
 // 법률 문서는 ../docs/release/legal/*.md(정본)에서 매번 다시 만든다. 문서를 고치면 다시 빌드만 하면 된다.
 import { readFileSync, writeFileSync, existsSync, copyFileSync, mkdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -158,7 +158,7 @@ function header(path) {
     ? `<nav class="nav" aria-label="${'페이지'}"><a href="#features">${T('기능', 'Features')}</a><a href="#growth">${T('성장', 'Growth')}</a><a href="#privacy">${T('개인정보', 'Privacy')}</a><a href="#faq">FAQ</a></nav>`
     : `<nav class="nav" aria-label="페이지"><a href="/">${T('홈', 'Home')}</a><a href="/support">${T('지원', 'Support')}</a></nav>`
   return `<header class="top"><div class="wrap">
-<a class="brand" href="/" aria-label="${esc(cfg.name)} ${'홈'}"><img src="/favicon.svg" alt="" width="30" height="30">${esc(cfg.name)}</a>
+<a class="brand" href="/" aria-label="${esc(cfg.name)} 홈" data-aria-ko="${esc(cfg.name)} 홈" data-aria-en="${esc(cfg.nameEn)} home"><img src="/favicon.svg" alt="" width="30" height="30">${T(esc(cfg.name), esc(cfg.nameEn))}</a>
 ${nav}
 <div class="tools">
 <button class="tbtn" type="button" data-lang-toggle aria-label="Change language / 언어 바꾸기">${T('EN', '한국어')}</button>
@@ -168,8 +168,9 @@ ${nav}
 }
 function footer() {
   return `<footer class="foot"><div class="wrap">
-<div><a class="brand" href="/"><img src="/favicon.svg" alt="" width="24" height="24">${esc(cfg.name)}</a>
-<div>© ${cfg.year} ${val(cfg.operator)}</div>
+<div><a class="brand" href="/"><img src="/favicon.svg" alt="" width="24" height="24">${T(esc(cfg.name), esc(cfg.nameEn))}</a>
+<div>${T(`운영: ${val(cfg.operator)}`, `Operated by ${val(cfg.operatorEn)}`)}</div>
+<div>© ${cfg.year} ${T(val(cfg.copyrightHolder), val(cfg.copyrightHolderEn))}</div>
 <div>${T('문의', 'Contact')}: ${val(cfg.supportEmail)}</div></div>
 <nav aria-label="${'사이트 정보'}">
 <a href="/privacy">${T('개인정보 처리방침', 'Privacy Policy')}</a>
@@ -184,10 +185,10 @@ function footer() {
 function legal(file, path, titleKo, titleEn) {
   const read = (lang) => {
     let src = readFileSync(join(legalDir, `${file}.${lang}.md`), 'utf8')
-    // 맨 위 "초안 — 법률 검토 필요" 내부 메모 인용은 빼고, 대신 설정에 따라 띠를 붙인다
-    src = src.replace(/^>\s*\*\*(초안|DRAFT)[^\n]*\n(>[^\n]*\n)*/, '')
+    // 맨 위 내부 메모 인용("초안 — 법률 검토 필요"·"내부 메모"·"Internal note")은 빼고, 대신 설정에 따라 띠를 붙인다
+    src = src.replace(/^>\s*\*\*(초안|DRAFT|내부 메모|Internal note)[^\n]*\n(>[^\n]*\n)*/, '')
     src = src
-      .replaceAll('[제품명]', cfg.name).replaceAll('[Product Name]', cfg.name)
+      .replaceAll('[제품명]', cfg.name).replaceAll('[Product Name]', cfg.nameEn)
       .replaceAll('[support@도메인]', '\u0001S').replaceAll('[support@domain]', '\u0001S')
       .replaceAll('[privacy@도메인]', '\u0001P').replaceAll('[privacy@domain]', '\u0001P')
     let html = md(src)
@@ -205,7 +206,7 @@ ${banner}
 <div lang="en" data-l="en">${read('en')}</div>
 <nav class="doc-links" aria-label="다른 문서">${others}</nav>
 </article>`
-  return page({ path, titleKo: `${titleKo} — ${cfg.name}`, titleEn: `${titleEn} — ${cfg.name}`, descKo: `${cfg.name} ${titleKo}`, descEn: `${cfg.name} ${titleEn}`, body })
+  return page({ path, titleKo: `${titleKo} — ${cfg.name}`, titleEn: `${titleEn} — ${cfg.nameEn}`, descKo: `${cfg.name} ${titleKo}`, descEn: `${cfg.nameEn} ${titleEn}`, body })
 }
 
 const ctx = { cfg, T, esc, val, page }

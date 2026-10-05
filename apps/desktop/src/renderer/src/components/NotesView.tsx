@@ -20,6 +20,7 @@ import {
   Empty, Highlight, KindIcon, firstLine, localDay, monthDayKo, registered, registeredGone, scheduledWord, sentAt, suggestionDate, timeKo, titleOf, type Section
 } from './collect/shared'
 import './notes.css'
+import { GuideButton, GuideLayer, useGuide } from './guide/Guide'
 
 // 11-notes v3 수집함: 머리(제목 + 수집·볼 것·위키) · 진행 띠 · 추가 바 · 날짜 그룹(카톡은 원래 날짜별) · 종류 아이콘 행 + 꼬리표 · 오른쪽 상세(336)
 type Props = { lists: ListRow[]; onOpen: (id: string) => void; section: Section; onSection: (section: Section) => void }
@@ -63,6 +64,12 @@ export function NotesView({ lists, onOpen, section, onSection }: Props) {
      ORDER BY COALESCE(n.captured_at, n.created_at) DESC, n.id DESC`,
     [q]
   )
+  const guide = useGuide('collect', { ready: items !== undefined }) // 37 첫 둘러보기 · 머리 `?`
+  const tryRecipe = (r: string) => {
+    if (r === 'watch' || r === 'wiki') { onSection(r); return }
+    setSearch(null); onSection('notes')
+    requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('.notes__addbar-input')?.focus())
+  }
   const pendingKakao = useQuery<{ n: number }>("SELECT COUNT(*) AS n FROM notes WHERE source = 'kakao_import' AND ai_state = 'pending'")?.[0]?.n ?? 0
   const today = dayKey()
   const groups = useMemo<Group[]>(() => {
@@ -160,6 +167,7 @@ export function NotesView({ lists, onOpen, section, onSection }: Props) {
           <SectionSwitch section={section} onSection={onSection} />
           <div className="pane-header__actions">
             <button className="icon-btn" aria-label="검색 (⌘F)" onClick={() => setSearch((s) => (s === null ? '' : null))}><Search /></button>
+            <GuideButton guide={guide} />{/* 37 §3: ⋯ 왼쪽 */}
             <button className="icon-btn" aria-label="수집함 메뉴" onClick={(e) => setMore(e.currentTarget)}><MoreHorizontal /></button>
           </div>
         </header>
@@ -272,6 +280,7 @@ export function NotesView({ lists, onOpen, section, onSection }: Props) {
           onDone={(count) => { setKakao(false); setSearch(null); onSection('notes'); toast.show(`${count.toLocaleString()}개를 가져왔어요. 뒤에서 정리할게요`) }}
         />
       )}
+      <GuideLayer guide={guide} onTry={tryRecipe} aiOk={status.aiDown ? false : null} />
     </div>
   )
 }

@@ -1,12 +1,13 @@
-> **DRAFT — legal review required.** `[ ]` = placeholder. The Korean version governs if the two differ.
+> **Internal note (not shown on the site).** Placeholders filled on 2026-10-05; this is the published version. Not reviewed by a lawyer.
 
-# [Product Name] Terms of Service
+# Kkumteul Terms of Service
 
-- Effective date: [YYYY-MM-DD]
-- Operator: [Operator name] · Address: [Address] · Email: [support@domain]
+- Effective date: 2026-10-06
+- Operator: UniPort (Representative: Ko Yunseo) · Email: kysk2295@naver.com
+- The Korean version governs if the two versions differ.
 
 ## 1. Purpose
-These Terms set out the conditions for using the [Product Name] desktop and mobile apps and related services (the "Service") provided by [Operator] ("we"), and the rights and duties of you and us.
+These Terms set out the conditions for using the Kkumteul (꿈틀) desktop and mobile apps and related services (the "Service") provided by UniPort (Representative: Ko Yunseo; "we"), and the rights and duties of you and us.
 
 ## 2. Definitions
 - "Account": your identity in the Service, created with email/password or Google/Apple sign-in.
@@ -28,9 +29,9 @@ We post these Terms in the app or on our website. We announce changes at least *
 3. AI features have usage limits (e.g. weekly goal draft and weekly report once per week each, per-minute/per-day limits) and may be queued or temporarily unavailable.
 
 ## 6. Changes, interruptions and termination
-1. The Service runs on a computer operated by an individual and **may be interrupted** by maintenance, hardware failure, power or network outages. Because data is saved on your device first, most features keep working on-device while the server is down.
+1. The Service runs on a computer the operator manages directly and **may be interrupted** by maintenance, hardware failure, power or network outages. Because data is saved on your device first, most features keep working on-device while the server is down.
 2. We may change, add or remove features.
-3. If we permanently shut down the Service, we will give at least **30 days' notice** so you can review or move your content. [TO CONFIRM: export feature]
+3. If we permanently shut down the Service, we will give at least **30 days' notice** so you can review your content, and we will explain how to move it.
 4. As the Service is free, no compensation is provided for interruptions, changes or shutdown, except for our intentional misconduct or gross negligence.
 
 ## 7. Prohibited conduct
@@ -52,7 +53,7 @@ Google/Apple sign-in, Google Calendar and macOS Calendar integrations are subjec
 
 ## 11. Account deletion
 1. You may delete your account at any time in **Settings › Account › Delete Account**. Your account and all content are deleted immediately and cannot be recovered; backup copies are deleted after the period stated in the Privacy Policy.
-2. We may delete accounts inactive for more than [TO CONFIRM: e.g. 2 years] after 30 days' notice. [TO CONFIRM: requires an email service]
+2. We do not delete accounts for inactivity. If we change this, we will first amend these Terms with notice under Section 3.
 
 ## 12. Limitation of liability
 1. We are not liable for failures caused by events beyond our control (natural disasters, power or network outages, failures of third-party services).
@@ -61,7 +62,7 @@ Google/Apple sign-in, Google Calendar and macOS Calendar integrations are subjec
 4. These limitations do not apply to our intentional misconduct or gross negligence, or where mandatory law (including the Korean Act on the Regulation of Terms and Conditions) prohibits them.
 
 ## 13. Notices
-We notify you via your registered email, in-app notices or our website. [TO CONFIRM: email service]
+We notify you via your registered email, in-app notices or our website. Notices to all users may be made by posting in the app or on our website for at least 7 days.
 
 ## 14. Governing law and disputes
 These Terms are governed by the **laws of the Republic of Korea**. We will first try to resolve disputes in good faith; otherwise, lawsuits go to the competent court under the Korean Civil Procedure Act.

@@ -52,7 +52,7 @@ export function DesktopSettings({ onClose, initial = authApi() ? 'account' : 'sm
   </Dialog>
 }
 
-/** 설정 › 일반(25 D4·§14): 로그인할 때 sprout 열기 — 패키지 앱에서만 바꿀 수 있다 */
+/** 설정 › 일반(25 D4·§14): 로그인할 때 꿈틀 열기 — 패키지 앱에서만 바꿀 수 있다 */
 function GeneralPane() {
   const api = window.sprout?.desktop
   const [item, setItem] = useState<{ available: boolean; openAtLogin: boolean } | null>(null)
@@ -71,8 +71,8 @@ function GeneralPane() {
   return <>
     <h2>일반</h2>
     <div className="settings-card">
-      <div className="settings-row"><span>로그인할 때 sprout 열기<small className="od-set__hint">{hint}</small></span>
-        <button className={`dp__switch${on ? ' is-on' : ''}`} role="switch" aria-checked={on} aria-label="로그인할 때 sprout 열기" disabled={disabled} onClick={() => void toggle()}><span /></button></div>
+      <div className="settings-row"><span>로그인할 때 꿈틀 열기<small className="od-set__hint">{hint}</small></span>
+        <button className={`dp__switch${on ? ' is-on' : ''}`} role="switch" aria-checked={on} aria-label="로그인할 때 꿈틀 열기" disabled={disabled} onClick={() => void toggle()}><span /></button></div>
     </div>
   </>
 }

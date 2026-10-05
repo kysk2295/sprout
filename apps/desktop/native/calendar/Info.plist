@@ -6,7 +6,7 @@
   <key>CFBundleIdentifier</key><string>app.sprout.desktop.calendar-helper</string>
   <key>CFBundleName</key><string>sprout-calendar</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
-  <key>NSCalendarsFullAccessUsageDescription</key><string>sprout가 맥 캘린더 앱의 일정을 할 일과 함께 캘린더에 보여 주려고 읽어요. 일정은 이 Mac에만 저장되고 바꾸지 않아요.</string>
-  <key>NSCalendarsUsageDescription</key><string>sprout가 맥 캘린더 앱의 일정을 할 일과 함께 캘린더에 보여 주려고 읽어요. 일정은 이 Mac에만 저장되고 바꾸지 않아요.</string>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>꿈틀이 맥 캘린더 앱의 일정을 할 일과 함께 캘린더에 보여 주려고 읽어요. 일정은 이 Mac에만 저장되고 바꾸지 않아요.</string>
+  <key>NSCalendarsUsageDescription</key><string>꿈틀이 맥 캘린더 앱의 일정을 할 일과 함께 캘린더에 보여 주려고 읽어요. 일정은 이 Mac에만 저장되고 바꾸지 않아요.</string>
 </dict>
 </plist>

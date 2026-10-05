@@ -1,11 +1,17 @@
 # sprout 데스크톱 패키징 설정 (electron-builder). 설명: docs/release/packaging.md
 # 번들 ID는 여기 한 곳에서만 정한다. 위젯 확장(WidgetKit)은 app.sprout.desktop.widget 처럼 이 ID를 접두로 쓴다.
 appId: app.sprout.desktop
-productName: sprout # 가칭 — 정식 제품명이 정해지면 바꾼다
-copyright: Copyright © 2026 sprout
+# 제품명 꿈틀(Kkumteul, 2026-10-05 확정). productName은 파일 이름(Kkumteul.app·Kkumteul Helper·Kkumteul.exe)이라 영문으로 둔다 —
+# 한글 productName(꿈틀.app)이나 Info.plist CFBundleName=꿈틀로 패키징하면 Electron이 시작하자마자 SIGTRAP으로 죽는다(2026-10-05 직접 확인).
+# 화면에 보이는 이름 꿈틀은 아래 mac.extendInfo(CFBundleDisplayName) + after-pack.cjs의 ko/en.lproj InfoPlist.strings
+# (Finder·Launchpad·Dock·메뉴 막대), dmg.title, nsis 바로 가기 이름, src/main/brand.ts(창 제목·메뉴·정보 창·트레이)로 정한다.
+productName: Kkumteul
+copyright: Copyright © 2026 유니포트
 
-# 패키지 앱의 package.json에만 productName을 넣는다 → app.getName()='sprout',
-# 데이터 폴더 ~/Library/Application Support/sprout (개발 실행은 package.json name 그대로라 @sprout/desktop — 서로 안 섞임)
+# 실행 중 앱 이름(app.name)은 내부 이름 sprout 그대로 둔다 — 위 productName과 일부러 다르다.
+# app.name이 바뀌면 ① 데이터 폴더 ~/Library/Application Support/sprout 가 새 폴더로 바뀌어 로그아웃·DB 초기화되고
+# ② safeStorage 키체인 항목("sprout Safe Storage")이 바뀌어 저장해 둔 토큰을 못 푼다. 그래서 package.json의 productName만 sprout.
+# (개발 실행은 package.json name 그대로라 @sprout/desktop — 서로 안 섞임. src/main/profile.ts가 폴더를 한 번 더 고정)
 extraMetadata:
   productName: sprout
 
@@ -78,15 +84,28 @@ mac:
     - "Contents/PlugIns/.*\\.appex"
   # 공증은 환경 변수(APPLE_API_KEY…/APPLE_ID…/APPLE_KEYCHAIN_PROFILE)가 있을 때만 electron-builder가 자동 수행
   extendInfo:
-    NSHumanReadableCopyright: Copyright © 2026 sprout
+    NSHumanReadableCopyright: Copyright © 2026 유니포트
+    # CFBundleName(Info.plist 원본)은 영문 productName 그대로 둔다 — 한글로 바꾸면 Electron이 시작 직후 SIGTRAP(2026-10-05 확인).
+    # 메뉴 막대·Finder의 한글 이름은 after-pack.cjs가 넣는 ko/en.lproj InfoPlist.strings의 CFBundleName·CFBundleDisplayName이 맡는다.
+    CFBundleDisplayName: 꿈틀
+    LSHasLocalizedDisplayName: true
     LSApplicationCategoryType: public.app-category.productivity
     # 16 §11.4 Apple 캘린더 읽기 권한 창 문구(권한은 책임 프로세스인 앱 이름으로 묻는다)
-    NSCalendarsFullAccessUsageDescription: sprout가 맥 캘린더 앱의 일정을 할 일과 함께 캘린더에 보여 주려고 읽어요. 일정은 이 Mac에만 저장되고 바꾸지 않아요.
-    NSCalendarsUsageDescription: sprout가 맥 캘린더 앱의 일정을 할 일과 함께 캘린더에 보여 주려고 읽어요. 일정은 이 Mac에만 저장되고 바꾸지 않아요.
+    NSCalendarsFullAccessUsageDescription: 꿈틀이 맥 캘린더 앱의 일정을 할 일과 함께 캘린더에 보여 주려고 읽어요. 일정은 이 Mac에만 저장되고 바꾸지 않아요.
+    NSCalendarsUsageDescription: 꿈틀이 맥 캘린더 앱의 일정을 할 일과 함께 캘린더에 보여 주려고 읽어요. 일정은 이 Mac에만 저장되고 바꾸지 않아요.
 
 # Windows 대상을 만들 때 쓰는 앱 아이콘(로고 B, docs/release/brand/out/b)
 win:
   icon: build/icon.ico
 
-# 예: sprout-0.0.1-arm64.dmg, sprout-0.0.1-arm64.zip (zip은 자동 업데이트용으로 남겨 둠)
-artifactName: ${productName}-${version}-${arch}.${ext}
+# 예: Kkumteul-0.0.1-arm64.dmg, Kkumteul-0.0.1-arm64.zip (zip은 자동 업데이트용으로 남겨 둠). 내려받는 파일 이름은 영문(꿈틀 = Kkumteul)
+artifactName: Kkumteul-${version}-${arch}.${ext}
+
+# dmg를 열었을 때 볼륨 이름
+dmg:
+  title: 꿈틀 ${version}
+
+# Windows 설치 프로그램·시작 메뉴·바탕 화면 바로 가기·프로그램 추가/제거 이름
+nsis:
+  shortcutName: 꿈틀
+  uninstallDisplayName: 꿈틀 ${version}

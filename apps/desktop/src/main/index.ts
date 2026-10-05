@@ -3,7 +3,8 @@ import { registerAssistant } from './assistant'
 import { registerCollect } from './collect'
 import { registerTickTick } from './ticktick'
 import { registerCalendars } from './calendars'
-import { app, BrowserWindow, shell, ipcMain, globalShortcut } from 'electron'
+import { app, BrowserWindow, Menu, shell, ipcMain, globalShortcut } from 'electron'
+import { APP_NAME } from './brand'
 import { join } from 'node:path'
 import { db } from './db'
 import { registerDbIpc } from './ipc'
@@ -14,6 +15,30 @@ import { isSignedIn, startSync } from './sync'
 import { handleAuthLink, registerSocialAuth } from './auth-social'
 import { hasTray, startMini } from './mini'
 import { ensureLoginItemDefault, registerLoginItemIpc, startWidget } from './widget'
+
+// 보이는 이름은 꿈틀(brand.ts), app.name은 내부 이름 sprout 그대로 — 기본 메뉴의 "sprout 정보·가리기·종료"를 꿈틀로 바꾼다.
+// 나머지 메뉴는 Electron 기본 메뉴와 같은 역할(파일·편집·보기·윈도우)을 그대로 쓴다.
+function setAppMenu() {
+  if (process.platform !== 'darwin') return
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { label: APP_NAME, submenu: [
+      { role: 'about', label: `${APP_NAME} 정보` },
+      { type: 'separator' },
+      { role: 'services' },
+      { type: 'separator' },
+      { role: 'hide', label: `${APP_NAME} 가리기` },
+      { role: 'hideOthers' },
+      { role: 'unhide' },
+      { type: 'separator' },
+      { role: 'quit', label: `${APP_NAME} 종료` }
+    ] },
+    { role: 'fileMenu' },
+    { role: 'editMenu' },
+    { role: 'viewMenu' },
+    { role: 'windowMenu' }
+  ]))
+}
+app.setAboutPanelOptions({ applicationName: APP_NAME, applicationVersion: app.getVersion(), version: '', copyright: '© 2026 유니포트' })
 
 // 01-app-shell §2 창: 최소 800×560, Mac은 제목 표시줄을 숨기고 신호등이 레일 위에 놓인다.
 let mainWindow: BrowserWindow | undefined
@@ -33,6 +58,7 @@ function createWindow(): BrowserWindow {
     minWidth: 800,
     minHeight: 560,
     show: false,
+    title: APP_NAME,
     backgroundColor: '#FFFFFF',
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
     ...(isMac
@@ -104,6 +130,7 @@ async function getWindow(): Promise<BrowserWindow> {
 
 app.whenReady().then(async () => {
   if (!gotLock) return
+  setAppMenu()
   await db.init()
   await startSync()
   // 로그인한 기기는 서버 데이터를 내려받으므로 시드를 넣지 않는다(기본함이 두 개 생기지 않게)
@@ -124,7 +151,7 @@ app.whenReady().then(async () => {
   linkReady = true
   for (const url of pendingLinks.splice(0)) void openLink(url)
   startWidget({ isSignedIn }) // 25 맥 위젯: 저장 파일·체크 대기열·새로 고침
-  ensureLoginItemDefault() // 25 D4: 로그인할 때 sprout 열기(기본 켬)
+  ensureLoginItemDefault() // 25 D4: 로그인할 때 꿈틀 열기(기본 켬)
   registerLoginItemIpc() // 설정 › 일반 토글
   globalShortcut.register(process.platform === 'darwin' ? 'Shift+Command+E' : 'Alt+Shift+E', () => {
     const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined

@@ -18,6 +18,7 @@ import { MoodFace, SkyIcon } from './MoodFace'
 import { Review } from './Review'
 import { EntryList, MiniCalendar, StreakCard } from './Side'
 import './diary.css'
+import { GuideButton, GuideLayer, useGuide } from '../guide/Guide'
 
 // 15 일기 v1 디자인(§9) — 왼쪽 260(이어 쓰기·미니 달력·목록) · 가운데 종이 페이지 · 오른쪽 곁자리 320(캐릭터와 이야기)
 // 동작·데이터·안전 규칙은 §3~§8 그대로. 폭 1180 미만이면 곁자리가 페이지 아래로, 760 미만이면 왼쪽이 접힌다.
@@ -77,6 +78,16 @@ export function DiaryView({ onOpen }: { onOpen: (taskId: string) => void }) {
   useEffect(() => { prevDate.current = date }, [date])
 
   const go = (d: string) => { if (d <= today) { setDate(d); setMode('write'); setSideOpen(false) } }
+  // 37 첫 둘러보기 · `?` — 동의 창에 답한 뒤에(일기 동의가 먼저)
+  const guide = useGuide('diary', { ready: entries !== undefined && consent !== null })
+  const tryRecipe = (r: string) => {
+    if (r === 'review') { setMode('review'); return }
+    if (r === 'today') go(today); else setMode('write')
+    window.setTimeout(() => {
+      if (r === 'today') document.querySelector<HTMLTextAreaElement>('.diary__text')?.focus()
+      else document.querySelector('.diary-comp')?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
+    }, 60)
+  }
 
   useEffect(() => {
     const el = rootRef.current
@@ -110,6 +121,7 @@ export function DiaryView({ onOpen }: { onOpen: (taskId: string) => void }) {
         ))}
       </div>
       {mode === 'write' && <div className="pane-header__actions"><button className="icon-btn" aria-label="일기 검색 (⌘F)" onClick={() => setSearch((s) => (s === null ? '' : null))}><Search /></button></div>}
+      {mode === 'review' && <div className="pane-header__actions"><GuideButton guide={guide} /></div>}{/* 쓰기에선 가운데 머리 ⋯ 왼쪽 */}
     </header>
   )
 
@@ -157,10 +169,12 @@ export function DiaryView({ onOpen }: { onOpen: (taskId: string) => void }) {
               onConsent={(on) => { setConsent(on); setConsentState(on) }}
               onMemory={(on) => { setMemory(on); setMemoryState(on) }}
               onOpen={onOpen}
+              help={<GuideButton guide={guide} />}
             />
           )}
         </>
       )}
+      <GuideLayer guide={guide} onTry={tryRecipe} />
       {consent === null && !otherDialog && <ConsentDialog buddy={buddy} stage={progress.stage} onAnswer={(on) => { setConsent(on); setConsentState(on) }} />}
     </div>
   )
@@ -171,8 +185,9 @@ type EditorProps = {
   date: string; today: string; entry?: DiaryEntry; first: boolean; buddy: Buddy; stage: number; consent: boolean | null; memory: boolean
   narrow: boolean; wide: boolean; reduced: boolean; from: string; onSide: () => void
   onConsent: (on: boolean) => void; onMemory: (on: boolean) => void; onOpen: (id: string) => void
+  /** 37 머리 `?`(⋯ 왼쪽) */ help?: React.ReactNode
 }
-function Editor({ date, today, entry, first, buddy, stage, consent, memory, narrow, wide, reduced, from, onSide, onConsent, onMemory, onOpen }: EditorProps) {
+function Editor({ date, today, entry, first, buddy, stage, consent, memory, narrow, wide, reduced, from, onSide, onConsent, onMemory, onOpen, help }: EditorProps) {
   const toast = useToast()
   const [content, setContent] = useState(entry?.content ?? '')
   const [savedAt, setSavedAt] = useState<Date | null>(entry ? new Date(entry.modified_at) : null)
@@ -293,6 +308,7 @@ function Editor({ date, today, entry, first, buddy, stage, consent, memory, narr
         {narrow && <button className="icon-btn" aria-label="달력 열기" onClick={onSide}><CalendarDays /></button>}
         {narrow && <h2 className="diary__etitle">일기</h2>}
         <div className="pane-header__actions">
+          {help}
           <button ref={moreRef} className="icon-btn" aria-label="일기 메뉴" onClick={() => setMenu(true)}><MoreHorizontal /></button>
         </div>
       </header>
@@ -444,7 +460,7 @@ function ConsentDialog({ buddy, stage, onAnswer }: { buddy: Buddy; stage: number
       </div>
       <h2>일기를 {josa(name, '와', '과')} 나눌까요?</h2>
       <div className="diary-consent__facts">
-        <div><CloudIcon /><span>일기 글이 sprout AI(운영자의 Mac mini)에서 처리돼요. {josa(name, '가', '이')} 읽고 공감하며 이야기를 들어 줘요.</span></div>
+        <div><CloudIcon /><span>일기 글이 꿈틀 AI(운영자의 Mac mini)에서 처리돼요. {josa(name, '가', '이')} 읽고 공감하며 이야기를 들어 줘요.</span></div>
         <div><Lock /><span>나만 보기로 둔 날은 보내지 않아요.</span></div>
         <div><Undo2 /><span>언제든 ⋯ 메뉴에서 끌 수 있어요.</span></div>
       </div>

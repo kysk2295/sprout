@@ -6,7 +6,7 @@ import WidgetKit
 
 struct ToggleTaskIntent: AppIntent {
     static var title: LocalizedStringResource = "할 일 체크"
-    static var description = IntentDescription("sprout 위젯에서 할 일을 완료로 표시해요")
+    static var description = IntentDescription("꿈틀 위젯에서 할 일을 완료로 표시해요")
     static var isDiscoverable: Bool = false
 
     @Parameter(title: "할 일 ID")

@@ -1,8 +1,8 @@
-> **초안 — 법률 검토 필요.** Google Play "데이터 삭제 URL"·App Store 지원 페이지에 그대로 올릴 공개 웹 페이지 본문. 근거: `server/api/src/account.ts`, `apps/desktop/src/renderer/src/components/DesktopSettings.tsx`, `apps/mobile/app/(tabs)/settings/account.tsx`. 공개 전에 이 머리글을 지운다.
+> **내부 메모(사이트에는 안 보임).** Google Play "데이터 삭제 URL"·App Store 지원 페이지에 그대로 올릴 공개 웹 페이지 본문. 근거: `server/api/src/account.ts`, `apps/desktop/src/renderer/src/components/DesktopSettings.tsx`, `apps/mobile/app/(tabs)/settings/account.tsx`. 2026-10-05 자리 채움 완료, 공개본.
 
-# [제품명] 계정 삭제 안내
+# 꿈틀 계정 삭제 안내
 
-[제품명]([운영자])의 계정과 데이터를 지우는 방법입니다.
+꿈틀(운영: 유니포트, 대표 고윤서)의 계정과 데이터를 지우는 방법입니다.
 
 ## 1. 앱에서 바로 삭제하기 (권장)
 
@@ -23,7 +23,7 @@
 > Apple로 로그인한 계정을 삭제하면 서비스가 Apple에 로그인 토큰 폐기를 요청해 "Apple로 로그인" 연결도 함께 끊깁니다. Android 휴대폰에서는 Apple로 로그인할 수 없으니, Apple로만 가입한 계정은 iPhone이나 컴퓨터 앱에서 삭제해 주세요.
 
 ## 2. 앱을 쓸 수 없을 때 — 이메일로 요청
-앱을 지웠거나 로그인할 수 없으면 **[privacy@도메인]** 으로 다음을 보내 주세요.
+앱을 지웠거나 로그인할 수 없으면 **kysk2295@naver.com** 으로 다음을 보내 주세요.
 - 제목: `계정 삭제 요청`
 - 가입한 이메일 주소(Google·Apple로 가입했다면 그 계정의 이메일)
 - 가입 방법(이메일·Google·Apple)
@@ -52,4 +52,4 @@
 ## 5. 계정은 두고 일부만 지우려면
 할 일·메모·일기 등은 앱에서 하나씩 삭제할 수 있습니다. 휴지통에서 영구 삭제하면 서버와 다른 기기에서도 지워집니다. 서버 백업 안의 사본은 14일 뒤 사라집니다.
 
-문의: [privacy@도메인]
+문의: kysk2295@naver.com

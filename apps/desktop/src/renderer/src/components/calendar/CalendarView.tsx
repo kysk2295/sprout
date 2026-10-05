@@ -30,6 +30,7 @@ import { CalendarConnectHost } from '../calendars/ConnectHost'
 import { deleteEvents, duplicateEvents, EV_PREFIX, isEventKey, OPEN_DATE, OPEN_EVENT, rescheduleEvents, takeCalendarDate, takeOpenEvent, useEvents } from '../../data/events'
 import { eventItems, evtOf } from '../../lib/calendarEvents'
 import { EventMenu, EventPopover } from '../events/EventCard'
+import { GuideButton, GuideLayer, useGuide } from '../guide/Guide'
 
 // 06-calendar: 머리글 · 일/주/월 보기 · 왼쪽 패널 · 팝오버 · 단축키
 type Props = { lists: ListRow[]; tags: TagRow[]; inboxId?: string; actions: TaskActions }
@@ -112,7 +113,9 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
     }
     return { sql: `SELECT ${TASK_COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE ${cond.join(' AND ')} ORDER BY t.due_at, t.priority DESC, t.sort_order`, params: ps }
   }, [opts.completed, opts.repeats, opts.lists, opts.tags, range.from, range.to])
-  const tasks = useQuery<TaskRow>(sql, params) ?? []
+  const taskRows = useQuery<TaskRow>(sql, params)
+  const tasks = taskRows ?? []
+  const guide = useGuide('calendar', { ready: taskRows !== undefined }) // 37 첫 둘러보기 · 머리 `?`
   // 06 §6 작은 달력의 태스크 점: 그 달 6주 범위에서 날짜가 있는 날
   const miniFrom = weekStart(`${cursor.slice(0, 7)}-01`)
   const busy = useQuery<{ d: string }>(
@@ -319,6 +322,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
               <button onClick={() => setCursor(today)}>오늘</button>
               <button aria-label="다음" onClick={() => go(1)}><ChevronRight /></button>
             </div>
+            <GuideButton guide={guide} />{/* 37 §3: ⋯ 왼쪽 */}
             <button ref={moreBtn} className="icon-btn" aria-label="캘린더 메뉴" onClick={() => setMenu(menu === 'more' ? undefined : 'more')}><MoreHorizontal /></button>
           </div>
         </header>
@@ -405,6 +409,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
           onConverted={(taskId) => setSelection([taskId])} />
       )}
       <CalendarConnectHost />
+      <GuideLayer guide={guide} onTry={(r) => { if (r === 'options') setOptionsOpen(true); else if (r === 'arrange') setArrange(true); else if (r === 'subscribe') openCalendarSettings() }} />
       {optionsOpen && <ViewOptions opts={opts} lists={lists} tags={tags} onChange={setOpts} onClose={() => setOptionsOpen(false)} />}
       {tasks.length === 0 && extEvents.length === 0 && evItems.length === 0 && view === 'month' && !filtered && <div className="cal__empty">이번 달 일정이 없어요</div>}
     </div>

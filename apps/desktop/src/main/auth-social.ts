@@ -39,7 +39,7 @@ const MSG: Record<string, string> = {
   no_google: 'Google 로그인이 아직 준비되지 않았어요. (운영자: GOOGLE_CLIENT_ID 필요)',
   no_apple: 'Apple 로그인이 아직 준비되지 않았어요. (운영자: 서버 APPLE_SERVICES_ID 필요)',
   unverified: '이메일이 확인되지 않은 계정이에요. 이메일을 확인한 뒤 다시 시도하세요.',
-  no_email: 'Apple이 이메일을 알려 주지 않았어요. 기기 설정 › Apple 계정 › Apple로 로그인에서 sprout를 지운 뒤 다시 시도하세요.',
+  no_email: 'Apple이 이메일을 알려 주지 않았어요. 기기 설정 › Apple 계정 › Apple로 로그인에서 꿈틀을 지운 뒤 다시 시도하세요.',
   rejected: '로그인을 확인하지 못했어요. 다시 시도하세요.',
   rate: '잠시 뒤 다시 시도하세요',
   network: '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요',
@@ -99,9 +99,9 @@ function googleIdToken(): Promise<{ idToken: string; nonce: string }> {
       const url = new URL(req.url ?? '/', 'http://127.0.0.1')
       if (url.pathname !== '/auth/google') { res.writeHead(404).end(); return }
       const send = (code: number, title: string, body: string) => res.writeHead(code, { 'content-type': 'text/html; charset=utf-8' }).end(page(title, body))
-      if (url.searchParams.get('state') !== state) { send(400, '로그인하지 못했어요', '요청이 맞지 않아요. sprout에서 다시 시도해 주세요.'); return }
+      if (url.searchParams.get('state') !== state) { send(400, '로그인하지 못했어요', '요청이 맞지 않아요. 꿈틀에서 다시 시도해 주세요.'); return }
       const code = url.searchParams.get('code')
-      if (!code) { send(400, '로그인을 취소했어요', 'sprout로 돌아가 주세요.'); finish(fail('cancelled')); return }
+      if (!code) { send(400, '로그인을 취소했어요', '꿈틀로 돌아가 주세요.'); finish(fail('cancelled')); return }
       try {
         const r = await fetch(GOOGLE_TOKEN, {
           method: 'POST',
@@ -111,10 +111,10 @@ function googleIdToken(): Promise<{ idToken: string; nonce: string }> {
         })
         const json = (await r.json().catch(() => ({}))) as { id_token?: string }
         if (!r.ok || !json.id_token) throw fail('rejected')
-        send(200, 'sprout로 돌아가 주세요', '이 창은 닫아도 돼요.')
+        send(200, '꿈틀로 돌아가 주세요', '이 창은 닫아도 돼요.')
         finish(null, { idToken: json.id_token, nonce })
       } catch (e) {
-        send(500, '로그인하지 못했어요', 'sprout로 돌아가 다시 시도해 주세요.')
+        send(500, '로그인하지 못했어요', '꿈틀로 돌아가 다시 시도해 주세요.')
         finish(e instanceof SocialFail ? e : fail('network'))
       }
     })

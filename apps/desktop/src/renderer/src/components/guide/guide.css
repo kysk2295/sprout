@@ -1,4 +1,4 @@
-/* 34 작업 지도 사용법 — 둘러보기 카드·구멍, 사용법 창, 한 줄 안내. 색은 앱 토큰만(13개 테마 라이트·다크 공통) */
+/* 37 탭 사용법 공통(34 작업 지도에서 옮김) — 둘러보기 카드·구멍, 사용법 창, 그림. 색은 앱 토큰만(13개 테마 라이트·다크 공통) */
 
 /* ── 그림(선화) ── */
 .mg-ill { width: 64px; height: 44px; flex-shrink: 0; color: var(--color-text-tertiary); }
@@ -14,8 +14,36 @@
 .mg-ill__cursor { fill: var(--color-text-primary); stroke: var(--color-bg-app); stroke-width: .8; }
 .mg-ill__emoji { font-size: 8px; text-anchor: middle; }
 .mg-ill__cap { font: 500 5.5px/1 var(--font-family); fill: var(--color-text-tertiary); text-anchor: middle; }
+.mg-ill__cap--on { fill: var(--color-accent); font-weight: 600; }
+.mg-ill__cap--inv { fill: var(--color-text-inverse, #fff); font-weight: 600; }
+.mg-ill__cap--red { fill: var(--color-holiday, #e5484d); }
+.mg-ill__cap--blue { fill: var(--color-saturday, #3b82f6); }
+.mg-ill__num { font: 600 6px/1 var(--font-family); fill: var(--color-text-secondary); text-anchor: middle; }
+.mg-ill__keycap { font: 600 7px/1 var(--font-family); fill: var(--color-text-secondary); text-anchor: middle; }
+.mg-ill__xp { font: 700 7px/1 var(--font-family); fill: var(--color-accent); text-anchor: middle; }
+.mg-ill__key { fill: var(--color-bg-input); stroke: var(--color-text-quaternary); stroke-width: 1.2; }
+.mg-ill__ring-thin { fill: var(--color-bg-app); stroke: var(--color-text-quaternary); stroke-width: 1.1; }
+.mg-ill__tick { stroke: var(--color-bg-app); stroke-width: 1.1; fill: none; }
+.mg-ill__soft2 { fill: color-mix(in srgb, var(--color-saturday, #3b82f6) 18%, transparent); stroke: none; }
+.mg-ill__blue-fill { fill: var(--color-saturday, #3b82f6); stroke: none; }
+.mg-ill__red-fill { fill: var(--color-holiday, #e5484d); stroke: none; }
+.mg-ill__dashed { stroke-dasharray: 2 1.6; }
+.mg-ill__dashed-accent { stroke: var(--color-accent); stroke-width: 1.2; stroke-dasharray: 2 1.6; }
+.mg-ill__hole { fill: var(--color-bg-app); stroke: none; }
+.mg-ill__buddy { fill: var(--color-accent-subtle); stroke: var(--color-accent); stroke-width: 1.2; }
+.mg-ill__eye { fill: var(--color-text-primary); stroke: none; }
+.mg-ill__mouth { stroke: var(--color-text-primary); stroke-width: .9; fill: none; }
+.mg-ill__leaf { fill: var(--color-accent); stroke: none; }
 
 .mg-panel kbd, .mg-tour kbd { display: inline-block; min-width: 14px; padding: 0 4px; border-radius: 4px; border: 1px solid var(--color-border-divider); background: var(--color-bg-input); font: 500 11px/16px var(--font-family); text-align: center; color: var(--color-text-secondary); }
+
+/* ── 단추(작업 지도 .map-btn과 같은 모양 — 다른 탭에서도 쓰게 따로) ── */
+.mg-btn { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border-radius: var(--radius-sm); border: 1px solid var(--color-border-divider); background: var(--color-bg-app); color: var(--color-text-primary); font: 500 12.5px/1 var(--font-family); white-space: nowrap; cursor: pointer; }
+.mg-btn:hover { background: var(--color-bg-hover); }
+.mg-btn--text { border-color: transparent; background: none; color: var(--color-accent); padding: 0 6px; }
+.mg-btn--text:hover { background: var(--color-accent-subtle); }
+.mg-btn--primary { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+.mg-btn--primary:hover { background: var(--color-accent); filter: brightness(1.06); }
 
 /* ── 사용법 창 ── */
 .popover.mg-panel { padding: 0; display: flex; flex-direction: column; max-height: min(640px, calc(100vh - 120px)); overflow: hidden; border: 1px solid var(--color-border-popover); }
@@ -34,11 +62,13 @@
 .mg-recipe { margin: 6px 8px; padding: 8px 10px; border-radius: var(--radius-md); background: var(--color-bg-input); }
 .mg-recipe__head { display: flex; align-items: center; gap: 8px; font: 600 12.5px/18px var(--font-family); color: var(--color-text-primary); }
 .mg-recipe__head b { flex: 1; font-weight: 600; }
-.mg-recipe__head .map-btn { height: 22px; }
+.mg-recipe__head .mg-btn { height: 22px; }
 .mg-recipe ol { margin: 4px 0 0; padding-left: 18px; font: 400 12px/18px var(--font-family); color: var(--color-text-secondary); }
 .mg-panel__foot { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px 8px 10px; border-top: 1px solid var(--color-border-divider); font: var(--text-meta); color: var(--color-text-tertiary); }
 .mg-panel__foot > span { display: inline-flex; align-items: center; gap: 4px; }
-.map-head .icon-btn.is-on { color: var(--color-accent); background: var(--color-bg-selected); }
+.icon-btn.guide-btn.is-on { color: var(--color-accent); background: var(--color-bg-selected); }
+.mg-panel__foot-btn { display: inline-flex; align-items: center; gap: 4px; padding: 0; background: none; border: 0; font: var(--text-meta); color: var(--color-text-tertiary); cursor: pointer; }
+.mg-panel__foot-btn:hover { color: var(--color-text-secondary); }
 
 /* ── 첫 둘러보기 ── z 85: 18 첫 실행 안내와 같은 층(다른 창 90 위로는 안 올라감) */
 .mg-tour { position: fixed; inset: 0; z-index: 85; -webkit-app-region: no-drag; }
@@ -60,9 +90,7 @@
 .mg-tour__foot { display: flex; align-items: center; gap: 6px; margin-top: 14px; }
 .mg-tour__never { margin-right: auto; padding: 0; background: none; border: 0; font: var(--text-meta); color: var(--color-text-tertiary); cursor: pointer; }
 .mg-tour__never:hover { color: var(--color-text-secondary); text-decoration: underline; }
-.mg-tour__foot .map-btn { height: 28px; padding: 0 12px; }
-
-/* ── 한 줄 안내(.map-banner 모양) ── */
+.mg-tour__foot .mg-btn { height: 28px; padding: 0 12px; }
 
 @keyframes mg-fade { from { opacity: 0; } }
 @keyframes mg-rise { from { opacity: 0; transform: translateY(4px); } }
@@ -70,3 +98,6 @@
   .mg-tour__scrim, .mg-tour__hole, .mg-tour__card { animation: none; }
   .mg-tour__hole, .mg-tour__dots li, .mg-sec { transition: none; }
 }
+
+/* 37 §3 머리 `?` — pane-header__actions 밖에 두는 머리(성장)도 ⋯와 6px 사이 */
+.growth__header .guide-btn { margin-right: 6px; }

@@ -21,9 +21,9 @@ npm run dist:mac            # 또는 npm run dist:mac:release
 
 | 파일 | 크기(2026-10-04, arm64) |
 |---|---|
-| `release/mac-arm64/sprout.app` | 약 221MB |
-| `release/sprout-0.0.1-arm64.dmg` | 약 100MB |
-| `release/sprout-0.0.1-arm64.zip` | 약 100MB (자동 업데이트 도입 때 씀) |
+| `release/mac-arm64/Kkumteul.app` | 약 221MB |
+| `release/Kkumteul-0.0.1-arm64.dmg` | 약 100MB |
+| `release/Kkumteul-0.0.1-arm64.zip` | 약 100MB (자동 업데이트 도입 때 씀) |
 | `*.blockmap` | 차등 업데이트용 |
 
 ## 2. 구성 파일
@@ -44,7 +44,8 @@ npm run dist:mac            # 또는 npm run dist:mac:release
 - **`npmRebuild: false`** — better-sqlite3 13은 Node-API 프리빌드(`prebuilds/darwin-arm64.node`)라 Electron용 재빌드가 필요 없다. 개발용 Node 22 시험도 같은 바이너리를 쓴다.
 - **`dependencies`는 실행에 필요한 것만** — `@powersync/node`, `better-sqlite3` 두 개. React·xyflow·`@sprout/*` 등은 electron-vite가 번들에 넣으므로 `devDependencies`로 옮겼다(앱 안 `node_modules`가 13MB로 줄어듦). **메인 프로세스에서 새 npm 패키지를 `import`하면 `dependencies`에 넣어야 한다**(electron-vite가 dependencies만 외부로 빼고, electron-builder는 dependencies만 복사).
 - **Electron 버전 고정**(`"electron": "37.10.3"`) — electron-builder는 범위(`^`)로는 버전을 못 정한다. 올릴 때 숫자를 직접 바꾼다.
-- **`extraMetadata.productName: sprout`** — 패키지 앱의 `app.getName()`이 `sprout`가 되어 데이터 폴더는 `~/Library/Application Support/sprout`. 개발 실행(`npm run dev`)은 `@sprout/desktop` 폴더를 그대로 써서 둘이 섞이지 않는다. `SPROUT_PROFILE=이름`이면 둘 다 `sprout-이름` 폴더.
+- **이름 두 갈래(2026-10-05)** — `productName: Kkumteul`은 파일 이름(Kkumteul.app·Kkumteul Helper·Kkumteul.exe·Kkumteul-*.dmg), 화면 이름 **꿈틀**은 `CFBundleDisplayName`·ko/en.lproj `InfoPlist.strings`(after-pack.cjs)·`dmg.title`·`nsis.shortcutName`·`src/main/brand.ts`(창 제목·메뉴·정보 창·트레이). 한글 productName이나 Info.plist `CFBundleName=꿈틀`로 패키징하면 시작 직후 SIGTRAP(133)으로 죽는다 — 직접 확인.
+- **`extraMetadata.productName: sprout`** — 패키지 앱의 `app.getName()`이 `sprout`로 남아 데이터 폴더는 `~/Library/Application Support/sprout`, 키체인 `sprout Safe Storage`도 그대로(바꾸면 로그아웃). `src/main/profile.ts`가 폴더를 한 번 더 고정한다. 개발 실행(`npm run dev`)은 `@sprout/desktop` 폴더를 그대로 써서 둘이 섞이지 않는다. `SPROUT_PROFILE=이름`이면 둘 다 `sprout-이름` 폴더.
 - **트레이 아이콘** `resources/trayTemplate*.png` → `Contents/Resources/`(`src/main/mini.ts`가 `process.resourcesPath`에서 읽음).
 - **URL 스킴 `sprout://`** — Info.plist `CFBundleURLTypes`에 등록. 메인 프로세스가 `task/<id>`·`today`·`growth`·`quick-add`를 처리한다(`src/main/index.ts`).
 - `electronLanguages: [ko, en]` — 안 쓰는 Electron 언어 파일을 빼서 크기를 줄임.
@@ -80,9 +81,9 @@ npm run dist:mac:release
 - CI에서는 `CSC_LINK`(.p12 경로·base64) + `CSC_KEY_PASSWORD`로 인증서를 넘길 수 있다.
 - 확인:
   ```bash
-  codesign --verify --deep --strict --verbose=2 apps/desktop/release/mac-arm64/sprout.app
-  spctl -a -vvv -t exec apps/desktop/release/mac-arm64/sprout.app   # "Notarized Developer ID"가 나와야 함
-  xcrun stapler validate apps/desktop/release/sprout-0.0.1-arm64.dmg
+  codesign --verify --deep --strict --verbose=2 apps/desktop/release/mac-arm64/Kkumteul.app
+  spctl -a -vvv -t exec apps/desktop/release/mac-arm64/Kkumteul.app   # "Notarized Developer ID"가 나와야 함
+  xcrun stapler validate apps/desktop/release/Kkumteul-0.0.1-arm64.dmg
   ```
 
 ### 3-3. entitlements
@@ -104,7 +105,7 @@ npm run dist:mac       # ② electron-vite build → electron-builder(afterPack�
 3. electron-builder 서명: `mac.signIgnore`로 PlugIns/*.appex는 건너뛰고(위젯 entitlements가 앱 것으로 덮이지 않게, `--deep` 금지와 같은 이유), `widget_bridge.node` 등 나머지 바이너리 → 앱 본체 순으로 서명하며 위젯을 봉인한다.
 4. 확인:
    ```bash
-   APP=apps/desktop/release/mac-arm64/sprout.app
+   APP=apps/desktop/release/mac-arm64/Kkumteul.app
    codesign --verify --deep --strict --verbose=2 $APP
    codesign -d --entitlements - $APP | grep -A3 application-groups          # BU697KN34B.app.sprout.desktop
    codesign -dvv $APP/Contents/PlugIns/SproutWidget.appex 2>&1 | grep Team    # TeamIdentifier=BU697KN34B
@@ -126,7 +127,7 @@ npm run dist:mac       # ② electron-vite build → electron-builder(afterPack�
 ## 5. 패키지 앱 시험 방법
 ```bash
 # 개발용 데이터와 섞이지 않게 프로필을 나누고, 원격 디버깅 포트는 9229(개발 앱) 말고 다른 번호
-SPROUT_PROFILE=e2e-pkg apps/desktop/release/mac-arm64/sprout.app/Contents/MacOS/sprout --remote-debugging-port=9291
+SPROUT_PROFILE=e2e-pkg apps/desktop/release/mac-arm64/Kkumteul.app/Contents/MacOS/Kkumteul --remote-debugging-port=9291
 CDP_PORT=9291 node scripts/devtools/cdp.mjs 'document.body.innerText.slice(0,200)'
 ```
 2026-10-04 확인 결과: 로그인 화면 → 새 계정 가입 → 동기화 연결·할 일 추가 후 올리기 대기 0 → 다른 프로필로 같은 계정 로그인 시 그 할 일이 내려옴(기본함 중복 없음) → 데모 데이터 없음 → PowerSync 확장 `0.5.3` 로드 → 메뉴바 미니 창이 트레이 아이콘 아래에 열림 → 미니 창의 종료로 프로세스 전부 정상 종료.
@@ -136,5 +137,5 @@ CDP_PORT=9291 node scripts/devtools/cdp.mjs 'document.body.innerText.slice(0,200
 2. ~~`sprout://` 처리기 없음~~ — 해결: `src/main/index.ts`에 단일 인스턴스 잠금·`open-url`(whenReady 전 등록)·`second-instance` 처리, 25 위젯 링크 4종.
 3. **Developer ID 서명·공증은 아직 실제로 돌려 보지 않음**(인증서 없음). ad-hoc 빌드만 확인.
 4. **자동 업데이트 없음** — `electron-updater` + `zip`/`blockmap` + 배포 서버(GitHub Releases 등)는 다음 단계.
-5. **앱 메뉴 이름** — 기본 메뉴를 쓰므로 패키지 앱 메뉴 막대 이름은 `sprout`. 정식 제품명이 정해지면 `electron-builder.yml`의 `productName`·`extraMetadata.productName`·아이콘을 함께 바꾼다(데이터 폴더 이름도 바뀌므로 출시 전에 정한다).
+5. **앱 메뉴 이름** — 메뉴 막대 이름은 `꿈틀`(lproj CFBundleName), 앱 메뉴는 `src/main/index.ts` `setAppMenu`가 `꿈틀 정보·꿈틀 가리기·꿈틀 종료`로 만든다. `extraMetadata.productName`(sprout)은 바꾸지 않는다(데이터 폴더·키체인).
 6. Windows·Linux 패키징은 아직 없다.

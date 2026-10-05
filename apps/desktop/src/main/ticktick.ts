@@ -110,9 +110,9 @@ function oauth(): Promise<Saved> {
       const url = new URL(req.url ?? '/', redirect.origin)
       if (url.pathname !== redirect.pathname) { res.writeHead(404).end(); return }
       const send = (code: number, title: string, body: string) => { res.writeHead(code, { 'content-type': 'text/html; charset=utf-8' }).end(page(title, body)) }
-      if (url.searchParams.get('state') !== state) { send(400, '연결하지 못했어요', '요청이 맞지 않아요. sprout에서 다시 시도해 주세요.'); return } // 다른 요청이 끼어든 것 — 기다림은 계속
+      if (url.searchParams.get('state') !== state) { send(400, '연결하지 못했어요', '요청이 맞지 않아요. 꿈틀에서 다시 시도해 주세요.'); return } // 다른 요청이 끼어든 것 — 기다림은 계속
       const code = url.searchParams.get('code')
-      if (!code) { send(400, '연결을 취소했어요', 'sprout로 돌아가 주세요.'); finish(new Error(url.searchParams.get('error') === 'access_denied' ? '틱틱에서 허용하지 않았어요.' : '틱틱 연결을 취소했어요.')); return }
+      if (!code) { send(400, '연결을 취소했어요', '꿈틀로 돌아가 주세요.'); finish(new Error(url.searchParams.get('error') === 'access_denied' ? '틱틱에서 허용하지 않았어요.' : '틱틱 연결을 취소했어요.')); return }
       try {
         const r = await fetch(TOKEN_URL, {
           method: 'POST',
@@ -122,10 +122,10 @@ function oauth(): Promise<Saved> {
         })
         const json = (await r.json().catch(() => ({}))) as { access_token?: string; expires_in?: number }
         if (!r.ok || !json.access_token) throw new Error(`토큰을 받지 못했어요(${r.status}).`)
-        send(200, '틱틱과 연결했어요', '이 창을 닫고 sprout로 돌아가 주세요.')
+        send(200, '틱틱과 연결했어요', '이 창을 닫고 꿈틀로 돌아가 주세요.')
         finish(null, { access_token: json.access_token, kind: 'oauth', expires_at: json.expires_in ? Date.now() + json.expires_in * 1000 : null })
       } catch (e) {
-        send(500, '연결하지 못했어요', 'sprout로 돌아가 다시 시도해 주세요.')
+        send(500, '연결하지 못했어요', '꿈틀로 돌아가 다시 시도해 주세요.')
         finish(e instanceof Error ? e : new Error(String(e)))
       }
     })

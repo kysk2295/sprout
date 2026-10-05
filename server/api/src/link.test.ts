@@ -43,7 +43,7 @@ assert.equal(r.linked, false)
 assert.equal(ids.identities.length, 1)
 
 // 같은 구글 계정을 다른 sprout 계정에 붙이려 하면 409(빼앗지 않음)
-await assert.rejects(linkIdentity(store, 'other', me), is(409, '이미 다른 sprout 계정에 연결된 구글 계정이에요'))
+await assert.rejects(linkIdentity(store, 'other', me), is(409, '이미 다른 꿈틀 계정에 연결된 구글 계정이에요'))
 assert.equal(await store.ownerOf('google', 'g-me'), 'qa')
 // 이 계정에 이미 다른 구글 계정이 있으면 409
 await assert.rejects(linkIdentity(store, 'qa', await google('g-second', 'second@gmail.com')), is(409, MSG.other('google')))

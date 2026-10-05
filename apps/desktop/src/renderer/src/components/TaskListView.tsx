@@ -48,6 +48,12 @@ import { tagFilterIds } from '../lib/wikiGraph'
 import { linkMoveTarget } from '../lib/addParse'
 import { PanelTop } from 'lucide-react'
 import { ro } from '../lib/josa'
+import { GuideButton, GuideLayer, useGuide } from './guide/Guide'
+import { OPEN_QUICK_ADD } from './guide/core'
+import { openTidy } from '../data/mapMoments'
+
+/** 37 할 일 사용법 `예시 넣어 보기` — 목록 위 입력 줄에 예시를 넣고 커서를 둔다 */
+const ADDBAR_FILL = 'sprout:addbar-fill'
 
 // 02-task-list §3~§12: 머리 · 추가 바 · 그룹 · 행 · 선택/키보드 · 끌어 놓기 · 우클릭 메뉴 · 완료 영역 · 빈 상태
 /** 06 §14.3.1·§14.4.3 목록 안 일정 한 줄: 구독 일정(ext) 또는 sprout 자체 일정(native) */
@@ -112,6 +118,15 @@ export function TaskListView(props: Props) {
   }, [settingsRow, view])
   const openQ = useMemo(() => openTasksSql(view, settings, today), [view, settings, today])
   const tasks = useQuery<TaskRow>(openQ.sql, openQ.params)
+  const guide = useGuide('tasks', { ready: tasks !== undefined }) // 37 첫 둘러보기 · 머리 `?`
+  const tryRecipe = (r: string) => {
+    if (r === 'quick') window.dispatchEvent(new Event(OPEN_QUICK_ADD))
+    else if (r === 'tidy') openTidy()
+    else if (r === 'natural') {
+      if (document.querySelector('.list .addbar__input')) window.dispatchEvent(new CustomEvent(ADDBAR_FILL, { detail: '내일 오후 3시 치과 #건강' }))
+      else window.dispatchEvent(new Event(OPEN_QUICK_ADD))
+    }
+  }
   const showDone = !archive && settings.show_completed === 1
   const doneQ = useMemo(() => (showDone ? doneTasksSql(view, today) : { sql: 'SELECT 1 WHERE 0', params: [] }), [showDone, view, today])
   const doneAll = useQuery<TaskRow>(doneQ.sql, doneQ.params) ?? []
@@ -593,13 +608,12 @@ export function TaskListView(props: Props) {
             </span>
           )}
         </h1>
-        {!archive && (
-          <div className="pane-header__actions">
-            {pageView && <button className={`icon-btn${pageOpen ? ' is-on' : ''}`} aria-label="페이지 정보 (⌘⇧I)" title="페이지 정보 (⌘⇧I)" aria-pressed={pageOpen} onClick={() => setPageOpen(!pageOpen)}><PanelTop /></button>}
-            <button ref={sortRef} className="icon-btn" aria-label="그룹·정렬" onClick={() => setHeaderMenu(headerMenu === 'sort' ? undefined : 'sort')}><ArrowUpDown /></button>
-            <button ref={moreRef} className="icon-btn" aria-label="리스트 메뉴" onClick={() => setHeaderMenu(headerMenu === 'more' ? undefined : 'more')}><MoreHorizontal /></button>
-          </div>
-        )}
+        <div className="pane-header__actions">
+          {!archive && pageView && <button className={`icon-btn${pageOpen ? ' is-on' : ''}`} aria-label="페이지 정보 (⌘⇧I)" title="페이지 정보 (⌘⇧I)" aria-pressed={pageOpen} onClick={() => setPageOpen(!pageOpen)}><PanelTop /></button>}
+          {!archive && <button ref={sortRef} className="icon-btn" aria-label="그룹·정렬" onClick={() => setHeaderMenu(headerMenu === 'sort' ? undefined : 'sort')}><ArrowUpDown /></button>}
+          <GuideButton guide={guide} />{/* 37 §3: ⋯ 왼쪽 — 모든 탭 같은 자리 */}
+          {!archive && <button ref={moreRef} className="icon-btn" aria-label="리스트 메뉴" onClick={() => setHeaderMenu(headerMenu === 'more' ? undefined : 'more')}><MoreHorizontal /></button>}
+        </div>
       </header>
       {headerMenu === 'sort' && (
         <Popover anchor={sortRef.current} onClose={() => setHeaderMenu(undefined)} align="end" width={197} className="menu">
@@ -795,6 +809,7 @@ export function TaskListView(props: Props) {
       {picker && (
         <DatePicker initial={picker.initial} point={picker.point} anchor={picker.anchor} onSave={(s) => void actions.applySchedule(picker.ids, s)} onClose={() => setPicker(undefined)} />
       )}
+      <GuideLayer guide={guide} onTry={tryRecipe} />
     </main>
     </LinkIndexProvider>
   )
@@ -855,6 +870,11 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
   const saving = useRef(false)
   const [raw, setRaw] = useState('')
   const [scroll, setScroll] = useState(0)
+  useEffect(() => {
+    const fill = (e: Event) => { setRaw(String((e as CustomEvent<string>).detail ?? '')); requestAnimationFrame(() => { const el = input.current; if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length) } }) }
+    window.addEventListener(ADDBAR_FILL, fill)
+    return () => window.removeEventListener(ADDBAR_FILL, fill)
+  }, [])
   const [recognition, setRecognition] = useState(true)
   const [descOpen, setDescOpen] = useState(false)
   const [focused, setFocused] = useState(false)

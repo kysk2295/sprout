@@ -1,6 +1,7 @@
 // 09 메뉴바 미니 창: 메뉴 막대(Windows 트레이) 아이콘 → 아이콘 아래 패널. ⇧⌘O / Alt+Shift+O로 열고 닫는다.
 import { app, BrowserWindow, globalShortcut, ipcMain, nativeImage, screen, Tray } from 'electron'
 import { join } from 'node:path'
+import { APP_NAME } from './brand'
 
 const SIZE = { width: 340, height: 560 } // 09 §2 [임시]
 let tray: Tray | undefined
@@ -63,7 +64,7 @@ export function startMini(openTask: (taskId: string) => void, showMain: () => vo
   const icon = nativeImage.createFromPath(iconPath())
   if (process.platform === 'darwin') icon.setTemplateImage(true)
   tray = new Tray(icon)
-  tray.setToolTip('sprout')
+  tray.setToolTip(APP_NAME)
   tray.on('click', toggleMini)
   tray.on('right-click', toggleMini)
 

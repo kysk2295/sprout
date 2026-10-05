@@ -3,6 +3,7 @@ import { Sprout, X, MessageCircle, Maximize2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { RailView } from './Rail'
 import './workspace.css'
+import { GuideButton, GuideLayer, useGuide } from './guide/Guide'
 
 type AssistantProps = {assistant:AssistantController;onOpen:(id:string)=>void}
 type Props = AssistantProps & {view:RailView;onView:(view:RailView)=>void;draft:string;onDraft:(text:string)=>void}
@@ -11,11 +12,18 @@ const content = {
 }
 export function WorkspaceView({view,onView,draft,onDraft,assistant,onOpen}:Props){
  // 13 v2 §2.1: 틱틱 목록 머리(제목 + 오른쪽 상태·새 대화·⋯), 부제목 없음
- if(view==='assistant')return <main className="workspace assistant-view"><header className="pane-header"><h1 className="pane-header__title assistant-view__title">AI 비서</h1><AssistantHeaderActions assistant={assistant}/></header><AssistantBody draft={draft} onDraft={onDraft} assistant={assistant} onOpen={onOpen}/></main>
+ if(view==='assistant')return <AssistantView draft={draft} onDraft={onDraft} assistant={assistant} onOpen={onOpen}/>
  const data=content[view as keyof typeof content]
  if(!data)return null
  const Icon=data.icon
  return <main className="workspace"><header><h1>{data.title}</h1><p>{data.description}</p></header><section className="workspace__body"><div className="workspace__intro"><Icon size={32}/><span className="workspace__status">{data.status}</span><h2>{data.description}</h2><ul>{data.items.map(item=><li key={item}>{item}</li>)}</ul></div></section></main>
+}
+// 37 AI 비서 사용법 — 해 보기는 입력 칸에 예시를 넣고 커서를 둔다(보내기는 사용자가)
+const AI_RECIPES:Record<string,string>={add:'내일 오후 3시 치과 예약 할 일로 넣어 줘',week:'이번 주에 끝낸 일 정리해 줘',plan:'오늘 할 일 중 먼저 할 3가지 골라 줘'}
+function AssistantView({draft,onDraft,assistant,onOpen}:AssistantProps & {draft:string;onDraft:(text:string)=>void}){
+ const guide=useGuide('assistant',{ready:!assistant.connecting})
+ const tryRecipe=(r:string)=>{const text=AI_RECIPES[r];if(!text)return;onDraft(text);requestAnimationFrame(()=>{const el=document.querySelector<HTMLTextAreaElement>('.assistant-view .assistant-composer textarea');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}})}
+ return <main className="workspace assistant-view"><header className="pane-header"><h1 className="pane-header__title assistant-view__title">AI 비서</h1><AssistantHeaderActions assistant={assistant} help={<GuideButton guide={guide}/>}/></header><AssistantBody draft={draft} onDraft={onDraft} assistant={assistant} onOpen={onOpen}/><GuideLayer guide={guide} onTry={tryRecipe} aiOk={assistant.connecting?null:assistant.models.length>0}/></main>
 }
 /** offset = 오른쪽에 붙은 상세 패널 폭(px). 그만큼 왼쪽으로 비켜서 상세 바닥의 ⋯ 버튼을 가리지 않는다 */
 export function AssistantLauncher({view,onView,draft,onDraft,assistant,onOpen,offset}:AssistantProps & {view:RailView;onView:(v:RailView)=>void;draft:string;onDraft:(v:string)=>void;offset?:number}){

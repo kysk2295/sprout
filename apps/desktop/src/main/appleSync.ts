@@ -38,7 +38,7 @@ export class AppleSync {
     if (status === 'notDetermined') status = await this.request()
     if (status === 'missing') return { ok: false, error: '캘린더 도우미가 없어요. 앱을 다시 설치해 주세요.', code: status }
     if (status === 'restricted') return { ok: false, error: '이 Mac에서는 캘린더 접근이 제한돼 있어요.', code: status }
-    if (status !== 'fullAccess') return { ok: false, error: '캘린더 접근을 허용해야 볼 수 있어요. 시스템 설정 › 개인정보 보호 및 보안 › 캘린더에서 sprout를 켜 주세요.', code: status }
+    if (status !== 'fullAccess') return { ok: false, error: '캘린더 접근을 허용해야 볼 수 있어요. 시스템 설정 › 개인정보 보호 및 보안 › 캘린더에서 꿈틀을 켜 주세요.', code: status }
     const first = !this.d.store.upsertAccount(APPLE_ACCOUNT_ID, 'apple', APPLE_LABEL)
     await this.sync(first)
     return { ok: true }

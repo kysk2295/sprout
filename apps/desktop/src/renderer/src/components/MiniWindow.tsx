@@ -78,7 +78,7 @@ export function MiniWindow({ signedIn }: { signedIn: boolean }) {
           <MenuItem label="메인 창 열기" trail={<span className="menu__key">⇧⌘E</span>} onClick={() => { setMenu(undefined); window.sprout?.mini?.showMain() }} />
           <MenuItem label="설정" onClick={() => { setMenu(undefined); window.sprout?.desktop?.openSettings() }} />
           <div className="menu__divider" />
-          <MenuItem label="sprout 종료" onClick={() => window.sprout?.mini?.quit()} />
+          <MenuItem label="꿈틀 종료" onClick={() => window.sprout?.mini?.quit()} />
         </Popover>
       )}
       <div className="mini__add">

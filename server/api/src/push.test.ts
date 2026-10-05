@@ -252,7 +252,7 @@ function addDevice(store: ReturnType<typeof memoryPushStore>, id: string, user: 
   assert.deepEqual((await call('POST', '/push/test', 'ub', { device_id: D2 })).body, { ok: true })
   const m = f.sent.at(-1)!
   assert.equal(m.token, 'tok-bbbbbbbb')
-  assert.deepEqual({ type: m.message.data.type, title: m.message.data.title, body: m.message.data.body }, { type: 'test', title: 'sprout 알림이 잘 와요', body: '이 휴대폰에서 서버 알림을 받을 수 있어요' })
+  assert.deepEqual({ type: m.message.data.type, title: m.message.data.title, body: m.message.data.body }, { type: 'test', title: '꿈틀 알림이 잘 와요', body: '이 휴대폰에서 서버 알림을 받을 수 있어요' })
   assert.equal(m.message.android.ttl, '60s')
   await call('POST', '/push/test', 'ub', { device_id: D2 })
   await call('POST', '/push/test', 'ub', { device_id: D2 })

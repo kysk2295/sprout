@@ -45,6 +45,7 @@ import { useLinkSync } from './components/wiki/LinkText'
 import type { OpenTarget } from './data/wiki'
 import { isEventKey, openEventById, requestCalendarDate, requestOpenEvent } from './data/events'
 import { dayKey } from './lib/dates'
+import { guideTabOf, OPEN_QUICK_ADD, OPEN_SHORTCUTS, requestGuide } from './components/guide/core'
 
 const SIDEBAR = { def: 261, min: 200, max: 400 } // 실측 261
 const DETAIL = { def: 298, min: 260, max: 560 } // 02 §0 실측 298
@@ -214,6 +215,15 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
     return ()=>window.removeEventListener('keydown',key)
   })
   useEffect(() => window.sprout?.desktop?.onQuickAdd(() => setOverlay('quick')), [])
+  // 37 사용법 창의 `빠른 추가 열기` · `단축키 모음`
+  useEffect(() => {
+    const quick = () => setOverlay('quick'), keys = () => setOverlay('shortcuts')
+    window.addEventListener(OPEN_QUICK_ADD, quick)
+    window.addEventListener(OPEN_SHORTCUTS, keys)
+    return () => { window.removeEventListener(OPEN_QUICK_ADD, quick); window.removeEventListener(OPEN_SHORTCUTS, keys) }
+  }, [])
+  // 37 §3 레일 도움말 = 지금 탭 사용법 창(머리 `?`가 없는 화면 — 정리 화면·주간 점검 등 — 은 예전처럼 단축키 시트)
+  const openHelp = () => { if (tidyOpen || !requestGuide(guideTabOf(view))) setOverlay('shortcuts') }
   // 25 §14·§15: 위젯 딥 링크(sprout://today·growth·calendar/<날짜>·event/<id>) — 다시 불러오지 않고 보기만 바꾼다
   useEffect(() => window.sprout?.desktop?.onNavigate?.((to) => {
     const views: RailView[] = ['tasks', 'calendar', 'growth', 'notes', 'watch', 'wiki', 'diary', 'assistant', 'map']
@@ -278,6 +288,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
     {id:'sync',label:'지금 동기화',key:'⌘S',group:'공통 작업',run:()=>window.dispatchEvent(new Event(SYNC_NOW_EVENT))},
     ...Object.entries({all:'전체',today:'오늘',tomorrow:'내일',next7:'다음 7일',inbox:'기본함',completed:'완료',wontdo:'계획 취소',trash:'휴지통'}).map(([id,label])=>({id,label:`${label}${['기본함','휴지통'].includes(label)?'으로':'로'} 이동`,group:'내비게이션',run:()=>{setView('tasks');selectView(`smart:${id}`)}})),
     {id:'onboarding',label:'시작 안내',group:'지원',run:openOnboarding},
+    {id:'guide',label:'이 화면 사용법',group:'지원',run:openHelp},
     {id:'shortcuts',label:'단축키',key:'?',group:'지원',run:()=>setOverlay('shortcuts')}
   ]
   const toggleSidebar = () => (narrow ? setSidebarPeek((o) => !o) : setSidebarOpen((o) => !o))
@@ -294,7 +305,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
         <OverdueHost />
         <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}} offset={view === 'tasks' && detailShown ? detailW : undefined}/>
         <ReminderCards onOpen={(id) => { if (isEventKey(id)) { setView('calendar'); void openEventById(id) } else setSelection([id]) }} onComplete={(id) => void actions.complete([id])} />
-        <Rail view={view} onView={onRailView} sync={sync} email={email} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} onNotice={openNotice} />
+        <Rail view={view} onView={onRailView} sync={sync} email={email} onSettings={settings} onHelp={openHelp} onNotice={openNotice} />
         {overlay==='command' && <CommandMenu commands={commands} onClose={()=>setOverlay(undefined)} onSearch={(q)=>{setSearchQuery(q);setOverlay('search')}}/>}
         {overlay==='search' && <SearchDialog initial={searchQuery} onClose={()=>setOverlay(undefined)} onPick={(r)=>{if(r.kind==='event'){setView('calendar');requestOpenEvent(r.id,r.list_id??dayKey());return}setView('tasks');if(r.kind==='task'){setSelected(r.list_id?listView(r.list_id):'smart:all');setSelection([r.id])}else selectView(`${r.kind}:${r.id}`)}}/>}
         {overlay==='quick' && <QuickAdd lists={lists} tags={tags} inboxId={inboxId} onClose={()=>setOverlay(undefined)} onCreated={(id,listId)=>{setView('tasks');setSelected(listView(listId));setSelection([id])}}/>}

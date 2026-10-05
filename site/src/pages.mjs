@@ -21,7 +21,6 @@ const I = {
 const shot = (T, src, ko, en, { dark, w, h, lazy = true } = {}) =>
   `<img src="/assets/img/${src}.webp"${dark ? ` data-dark="/assets/img/${dark}.webp"` : ''} alt="${ko}" data-alt-ko="${ko}" data-alt-en="${en}" width="${w}" height="${h}"${lazy ? ' loading="lazy"' : ' fetchpriority="high"'} decoding="async">`
 const win = (inner) => `<div class="win"><div class="win-bar" aria-hidden="true"><i></i><i></i><i></i></div>${inner}</div>`
-const phone = (inner) => `<div class="phone">${inner}</div>`
 
 const SPECIES = [
   ['turtle', '꾸준한 거북이', 'Steady Turtle', '계획·몰입 — 정한 일을 끝까지 차근차근', 'Planner & deep focus — finishes what it starts, step by step'],
@@ -32,7 +31,7 @@ const SPECIES = [
 const STAGES = [[1, '아기', 'Baby', 1], [2, '꼬마', 'Kid', 3], [3, '친구', 'Buddy', 6], [4, '단짝', 'Best friend', 10], [5, '전설', 'Legend', 15]]
 
 export function landing({ cfg, T, esc, val, page }) {
-  const N = esc(cfg.name)
+  const N = esc(cfg.name), NE = esc(cfg.nameEn)
   const dlBtn = (ic, label) => `<button class="dl-btn" type="button" aria-disabled="true" disabled>${ic}<span><small>${T('곧 출시', 'Coming soon')}</small>${label}</span></button>`
   const ticks = (pairs) => `<ul class="ticks">${pairs.map(([k, e]) => `<li>${T(k, e)}</li>`).join('')}</ul>`
   const card = (ic, hk, he, pk, pe) => `<div class="card">${ic}<div><h3>${T(hk, he)}</h3><p>${T(pk, pe)}</p></div></div>`
@@ -50,8 +49,7 @@ ${dlBtn(I.laptop, 'Mac')}${dlBtn(I.laptop, 'Windows')}${dlBtn(I.phone, 'App Stor
 </div>
 <p class="dl-note">${T('지금 출시를 준비하고 있어요. 열리면 이 자리에서 바로 받을 수 있어요.', 'We are getting ready to launch. Downloads will appear right here.')}</p>
 <div class="shot-stage">
-${win(shot(T, 'tasks', `${N} 데스크톱 앱의 할 일 목록 화면`, `${N} desktop task list`, { dark: 'tasks-dark', w: 1600, h: 1000, lazy: false }))}
-${phone(shot(T, 'm-project', `${N} 모바일 앱의 프로젝트 화면`, `${N} mobile project screen`, { dark: 'm-project-dark', w: 600, h: 891, lazy: false }))}
+${win(shot(T, 'tasks', `${N} 데스크톱 앱 — 오늘 할 일과 AI가 붙인 프로젝트 태그`, `${NE} desktop app: today's tasks with AI-applied project tags`, { dark: 'tasks-dark', w: 1600, h: 1000, lazy: false }))}
 </div>
 </div>
 </section>
@@ -70,7 +68,7 @@ ${ticks([
   ['AI 자동 분류 · 자동 태그 — 마음에 안 들면 한 번에 되돌리기', 'Auto-sorting and auto-tagging, with one-tap undo']
 ])}
 </div>
-<div class="f-media">${win(shot(T, 'next7', '다음 7일 목록 — 할 일과 일정이 함께', 'Next 7 Days list with tasks and events together', { w: 1378, h: 884 }))}</div>
+<div class="f-media">${win(shot(T, 'next7', '다음 7일 목록 — 할 일과 일정이 함께', 'Next 7 Days list with tasks and events together', { dark: 'next7-dark', w: 1600, h: 1000 }))}</div>
 </div>
 
 <div class="feature flip">
@@ -84,7 +82,7 @@ ${ticks([
   ['음력 · 주 번호 표시 선택', 'Optional lunar dates and week numbers']
 ])}
 </div>
-<div class="f-media">${win(shot(T, 'calendar', '공휴일이 표시된 월간 캘린더', 'Month view with public holidays', { dark: 'calendar-dark', w: 1378, h: 884 }))}</div>
+<div class="f-media">${win(shot(T, 'calendar', '공휴일이 표시된 월간 캘린더', 'Month view with public holidays', { dark: 'calendar-dark', w: 1600, h: 1000 }))}</div>
 </div>
 
 <div class="feature">
@@ -98,27 +96,21 @@ ${ticks([
   ['같이 계획 짜기 — 대화하며 단계를 나눠요', 'Plan together: break work into steps in a short chat']
 ])}
 </div>
-<div class="f-media"><div class="stack">
-${win(shot(T, 'map-steps', '프로젝트 단계 보드', 'Project step board', { dark: 'map-steps-dark', w: 1280, h: 800 }))}
-${win(shot(T, 'map-graph', '프로젝트 관계도', 'Project relationship map', { dark: 'map-graph-dark', w: 1280, h: 800 }))}
-</div></div>
+<div class="f-media">${win(shot(T, 'map-plan', '프로젝트 단계 보드와 캐릭터와 같이 계획 짜기', 'Project step board with the plan-together chat', { dark: 'map-plan-dark', w: 1600, h: 1000 }))}</div>
 </div>
 
 <div class="feature flip">
 <div class="f-text">
-<div class="kicker">${T('정리와 점검', 'Tidy & review')}</div>
-<h2>${T('쌓인 일은 같이 치우고,<br>한 주는 같이 돌아봐요', 'Clear the pile together.<br>Look back on the week.')}</h2>
-<p>${T('기본함과 밀린 일을 캐릭터가 하나씩 물어보며 정리해 줘요. 주말엔 한 주를 돌아보고 다음 주 목표를 골라요. 휴대폰에서도 똑같이 돼요.', 'Your character walks you through the inbox and overdue tasks one by one. At the end of the week, look back and pick next week’s goals, on your phone as well.')}</p>
+<div class="kicker">${T('주간 퀘스트 · 점검', 'Weekly quests & review')}</div>
+<h2>${T('한 주는 퀘스트로 정하고,<br>주말엔 같이 돌아봐요', 'Set the week as quests.<br>Look back together.')}</h2>
+<p>${T('이번 주에 이루고 싶은 일을 퀘스트로 정하면, 해낼 때마다 캐릭터 방이 채워져요. 주말엔 캐릭터와 한 주를 돌아보고, 쌓인 기본함과 밀린 일도 하나씩 같이 정리해요.', 'Turn this week’s goals into quests and watch your character’s room fill up as you hit them. At the weekend, look back with your character and clear the inbox and overdue tasks together.')}</p>
 ${ticks([
-  ['정리 끝내면 +20 XP, 주간 점검 끝내면 +30 XP', '+20 XP for a tidy-up, +30 XP for a weekly review'],
+  ['퀘스트 하나에 +30 XP, 주간 점검 +30 XP, 정리 +20 XP', '+30 XP per quest, +30 for a weekly review, +20 for a tidy-up'],
   ['기한 지난 일은 미루기 · 날짜 바꾸기 · 지우기를 한 번에', 'Snooze, reschedule or remove overdue tasks in one pass'],
-  ['Android 푸시 · 기기 알림으로 놓치지 않게', 'Reminders and Android push so nothing slips']
+  ['레벨이 오르면 방을 꾸밀 장식이 하나씩 열려요', 'Each level unlocks a new decoration for the room']
 ])}
 </div>
-<div class="f-media"><div class="duo">
-${phone(shot(T, 'm-tidy', '모바일 기본함 정리 화면', 'Mobile inbox tidy-up', { w: 600, h: 861 }))}
-${phone(shot(T, 'm-review', '모바일 주간 점검 완료 화면', 'Mobile weekly review done', { w: 600, h: 881 }))}
-</div></div>
+<div class="f-media">${win(shot(T, 'growth', '캐릭터 방 — 레벨, 이번 주 퀘스트, 주간 점검', 'Character room with level, weekly quests and review', { dark: 'growth-dark', w: 1600, h: 1000 }))}</div>
 </div>
 
 </div>
@@ -188,7 +180,7 @@ ${card(I.trash, '언제든 완전히 삭제', 'Delete everything, anytime', '앱
 <div class="wrap">
 <div class="sec-head center"><h2 id="faq-title">${T('자주 묻는 질문', 'FAQ')}</h2></div>
 <div class="faq">
-${faq('정말 무료예요?', 'Is it really free?', `<p>네. ${N}는 무료이고 앱 안 결제나 광고가 없어요.</p>`, `<p>Yes. ${N} is free, with no in-app purchases and no ads.</p>`)}
+${faq('정말 무료예요?', 'Is it really free?', `<p>네. ${N}은 무료이고 앱 안 결제나 광고가 없어요.</p>`, `<p>Yes. ${NE} is free, with no in-app purchases and no ads.</p>`)}
 ${faq('언제 받을 수 있어요?', 'When can I get it?', '<p>지금 출시를 준비하고 있어요. Mac · Windows · iPhone · Android 앱이 열리면 이 페이지 맨 위 버튼으로 받을 수 있어요.</p>', '<p>We are preparing the launch. When the Mac, Windows, iPhone and Android apps are ready, the buttons at the top of this page will work.</p>')}
 ${faq('AI가 내 글을 읽거나 저장하나요?', 'Does AI read or keep what I write?', '<p>자동 분류·태그처럼 AI 기능을 쓸 때만 그 내용을 우리 서버의 모델로 보내 처리해요. 처리한 원문은 저장하지 않고, 외부 AI 회사로 보내지도 않아요.</p>', '<p>Only when you use an AI feature such as auto-sorting, the relevant text goes to the model on our own server. The text is not stored afterwards and never goes to third-party AI companies.</p>')}
 ${faq('인터넷이 없어도 되나요?', 'Does it work offline?', '<p>네. 할 일 추가·수정·완료는 기기에 먼저 저장돼서 오프라인에서도 그대로 돼요. 다시 연결되면 다른 기기와 자동으로 맞춰요. AI 기능만 연결이 필요해요.</p>', '<p>Yes. Adding, editing and completing tasks are saved on the device first, so they work offline and sync when you reconnect. Only AI features need a connection.</p>')}
@@ -201,7 +193,7 @@ ${faq('앱 화면은 영어도 되나요?', 'Is the app available in English?', 
   return page({
     path: '/',
     titleKo: `${cfg.name} — 해낸 만큼 자라는 할 일·캘린더`,
-    titleEn: `${cfg.name} — The to-do list that grows with you`,
+    titleEn: `${cfg.nameEn} — The to-do list that grows with you`,
     descKo: '할 일과 캘린더를 한곳에. AI가 알아서 정리하고, 끝낸 할 일만큼 캐릭터가 자라는 무료 플래너. Mac · Windows · iPhone · Android.',
     descEn: 'Tasks and calendar in one place. AI sorts things for you and your character grows as you get things done. Free for Mac, Windows, iPhone and Android.',
     body
@@ -216,6 +208,7 @@ export function support({ cfg, T, val, page }) {
 <p>쓰다가 막히거나 이상한 점이 있으면 편하게 알려 주세요. 혼자 만드는 앱이라 답이 조금 늦을 수 있지만 꼭 읽어요.</p>
 <h2>문의하기</h2>
 <p>이메일: ${val(cfg.supportEmail)}</p>
+<p>운영: ${val(cfg.operator)}</p>
 <p>문제를 알려 주실 땐 아래를 같이 적어 주면 빨리 고칠 수 있어요.</p>
 <ul><li>쓰는 기기와 운영체제(예: iPhone 15 · iOS 26, MacBook · macOS 26)</li><li>앱 버전(설정 맨 아래)</li><li>어떻게 하면 그 문제가 생기는지, 화면 캡처가 있으면 더 좋아요</li></ul>
 <p>할 일 내용·비밀번호는 보내지 않아도 돼요.</p>
@@ -230,10 +223,11 @@ export function support({ cfg, T, val, page }) {
 <p>개인정보 열람·정정·삭제 요청은 ${val(cfg.privacyEmail)} 로 보내 주세요. 본인 확인 후 10일 안에 처리 결과를 알려 드려요.</p>
 </div>
 <div lang="en" data-l="en">
-<h1>${cfg.name} Support</h1>
-<p>If something is not working or feels off, let us know. ${cfg.name} is built by one person, so replies can take a little while, but every message is read.</p>
+<h1>${cfg.nameEn} Support</h1>
+<p>If something is not working or feels off, let us know. ${cfg.nameEn} is built by one person, so replies can take a little while, but every message is read.</p>
 <h2>Contact</h2>
 <p>Email: ${val(cfg.supportEmail)}</p>
+<p>Operator: ${val(cfg.operatorEn)}</p>
 <p>To help us fix things quickly, please include:</p>
 <ul><li>Your device and OS (e.g. iPhone 15 · iOS 26, MacBook · macOS 26)</li><li>App version (bottom of Settings)</li><li>Steps to reproduce, plus a screenshot if you can</li></ul>
 <p>There is no need to send task contents or passwords.</p>
@@ -248,7 +242,7 @@ export function support({ cfg, T, val, page }) {
 <p>Send requests to access, correct or delete personal data to ${val(cfg.privacyEmail)}. We respond within 10 days after verifying your identity.</p>
 </div>
 </article>`
-  return page({ path: '/support', titleKo: `지원 — ${cfg.name}`, titleEn: `Support — ${cfg.name}`, descKo: `${cfg.name} 문의·지원`, descEn: `${cfg.name} help and contact`, body })
+  return page({ path: '/support', titleKo: `지원 — ${cfg.name}`, titleEn: `Support — ${cfg.nameEn}`, descKo: `${cfg.name} 문의·지원`, descEn: `${cfg.nameEn} help and contact`, body })
 }
 
 export function notFound({ cfg, T, page }) {
@@ -258,5 +252,5 @@ export function notFound({ cfg, T, page }) {
 <p>${T('주소가 바뀌었거나 없는 페이지예요.', 'This page has moved or does not exist.')}</p>
 <p><a class="btn" href="/">${T('처음으로', 'Go home')}</a></p>
 </article>`
-  return page({ path: '/404', titleKo: `찾을 수 없음 — ${cfg.name}`, titleEn: `Not found — ${cfg.name}`, descKo: '', descEn: '', body })
+  return page({ path: '/404', titleKo: `찾을 수 없음 — ${cfg.name}`, titleEn: `Not found — ${cfg.nameEn}`, descKo: '', descEn: '', body })
 }

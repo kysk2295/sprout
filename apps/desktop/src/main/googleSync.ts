@@ -33,7 +33,7 @@ export function pkce() {
 
 /** 브라우저 쪽 돌아오는 페이지(16 §3.4) — 외부 이미지·스크립트 없음 */
 const page = (ok: boolean) =>
-  `<!doctype html><meta charset="utf-8"><title>sprout</title><body style="margin:0;background:#fff;font:15px -apple-system,system-ui,sans-serif;color:#333;display:grid;place-items:center;height:90vh"><p>${ok ? 'sprout로 돌아가 주세요. 이 창은 닫아도 돼요.' : '연결하지 못했어요. sprout에서 다시 시도해 주세요.'}</p></body>`
+  `<!doctype html><meta charset="utf-8"><title>꿈틀</title><body style="margin:0;background:#fff;font:15px -apple-system,system-ui,sans-serif;color:#333;display:grid;place-items:center;height:90vh"><p>${ok ? '꿈틀로 돌아가 주세요. 이 창은 닫아도 돼요.' : '연결하지 못했어요. sprout에서 다시 시도해 주세요.'}</p></body>`
 
 export interface OAuthHandle { promise: Promise<Tokens>; cancel: () => void; reopen: () => void }
 /** 루프백(127.0.0.1, 빈 포트) + PKCE로 인증 코드 → 토큰 */

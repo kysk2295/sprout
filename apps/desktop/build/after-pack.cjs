@@ -10,7 +10,7 @@
 //       build.sh가 이미 개발 인증서로 서명해 두므로 로컬 빌드는 그대로 쓰고, CSC_NAME(배포 서명 ID)이 있으면
 //       여기서 그 ID로 다시 서명한다(entitlements: SPROUT_WIDGET_ENTITLEMENTS → build/widget/SproutWidget.entitlements).
 //       그 뒤 electron-builder가 앱 전체를 서명하면서 확장을 봉인한다(안쪽 → 바깥 순서).
-const { existsSync, readdirSync, cpSync, mkdirSync, copyFileSync } = require('node:fs')
+const { existsSync, readdirSync, cpSync, mkdirSync, copyFileSync, writeFileSync } = require('node:fs')
 const { join, basename } = require('node:path')
 const { execFileSync } = require('node:child_process')
 
@@ -19,6 +19,14 @@ exports.default = async function afterPack(context) {
   const widgetDir = join(__dirname, 'widget')
   const appName = `${context.packager.appInfo.productFilename}.app`
   const contents = join(context.appOutDir, appName, 'Contents')
+
+  // Finder·Launchpad·Spotlight에 보이는 이름 = 꿈틀(파일 이름은 Kkumteul.app). Info.plist의 LSHasLocalizedDisplayName과 짝
+  for (const lang of ['ko', 'en']) {
+    const dir = join(contents, 'Resources', `${lang}.lproj`)
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'InfoPlist.strings'), '"CFBundleName" = "꿈틀";\n"CFBundleDisplayName" = "꿈틀";\n', 'utf8')
+  }
+  console.log('[afterPack] 보이는 이름: ko/en.lproj InfoPlist.strings = 꿈틀')
 
   const bridge = join(widgetDir, 'widget_bridge.node')
   if (existsSync(bridge)) {

@@ -262,10 +262,10 @@ export function parseAppleCallback(body: string): { state: string; value: AppleH
 /** 브라우저에 보여 줄 돌아가기 페이지(외부 자원 없음). state는 STATE_RE를 통과한 값만 들어온다 */
 export function appleReturnPage(state: string, ok: boolean): string {
   const link = `sprout://auth/apple?state=${state}`
-  const title = ok ? 'sprout로 돌아가 주세요' : '로그인하지 못했어요'
-  const body = ok ? '이 창은 닫아도 돼요.' : 'sprout에서 다시 시도해 주세요.'
+  const title = ok ? '꿈틀로 돌아가 주세요' : '로그인하지 못했어요'
+  const body = ok ? '이 창은 닫아도 돼요.' : '꿈틀에서 다시 시도해 주세요.'
   return `<!doctype html><meta charset="utf-8"><meta name="referrer" content="no-referrer"><meta http-equiv="refresh" content="0;url=${link}"><title>${title}</title>` +
-    `<body style="font:15px -apple-system,system-ui,sans-serif;display:grid;place-items:center;height:90vh;color:#333"><div style="text-align:center"><h2>${title}</h2><p>${body}</p><p><a href="${link}">sprout 열기</a></p></div></body>`
+    `<body style="font:15px -apple-system,system-ui,sans-serif;display:grid;place-items:center;height:90vh;color:#333"><div style="text-align:center"><h2>${title}</h2><p>${body}</p><p><a href="${link}">꿈틀 열기</a></p></div></body>`
 }
 
 // ── 계정 찾기·연결·만들기 ──

@@ -1,6 +1,8 @@
-> **DRAFT — legal review required.** Public page text for the Google Play "data deletion URL" and App Store support page. Remove this banner before publishing.
+> **Internal note (not shown on the site).** Public page text for the Google Play "data deletion URL" and App Store support page. Placeholders filled on 2026-10-05; published version.
 
-# Delete your [Product Name] account
+# Delete your Kkumteul account
+
+How to delete your Kkumteul (꿈틀) account and data. Kkumteul is operated by UniPort (Representative: Ko Yunseo).
 
 ## 1. Delete in the app (recommended)
 
@@ -21,7 +23,7 @@
 > When you delete an account that uses Sign in with Apple, we ask Apple to revoke the sign-in token, which also removes the "Sign in with Apple" connection. Apple sign-in is not available on Android, so delete an Apple-only account from an iPhone or the desktop app.
 
 ## 2. Can't use the app? Request by email
-Email **[privacy@domain]** with subject `Account deletion request`, your account email and how you signed up (email / Google / Apple). Please send it **from the email address of your account**; otherwise we may ask for additional verification. We delete the account within **10 days** after verification and confirm by email.
+Email **kysk2295@naver.com** with subject `Account deletion request`, your account email and how you signed up (email / Google / Apple). Please send it **from the email address of your account**; otherwise we may ask for additional verification. We delete the account within **10 days** after verification and confirm by email.
 
 ## 3. What is deleted (immediately)
 Deleted from our server in one step and removed from your other signed-in devices:
@@ -45,4 +47,4 @@ We have no legal obligation to retain any data (free service, no payments).
 ## 5. Delete some data without deleting the account
 Delete individual items in the app. Items permanently deleted from Trash are removed from the server and your other devices; backup copies expire after 14 days.
 
-Contact: [privacy@domain]
+Contact: kysk2295@naver.com

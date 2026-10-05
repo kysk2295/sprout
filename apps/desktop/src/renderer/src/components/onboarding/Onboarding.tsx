@@ -42,7 +42,7 @@ export function Onboarding({ state, ready, onChange, onHide, onOpenCalendar }: P
   const step = state.step
   return createPortal(
     <div className="onb-scrim">
-      <div className="onb" role="dialog" aria-modal="true" aria-label="sprout 시작하기">
+      <div className="onb" role="dialog" aria-modal="true" aria-label="꿈틀 시작하기">
         <header className="onb__top">
           {index > 0 ? (
             <button className="onb__back icon-btn" aria-label="이전" disabled={busy} onClick={() => onChange(back(state))}><ChevronLeft size={18} /></button>
@@ -77,7 +77,7 @@ function Welcome({ onStart, onSkipAll }: { onStart: () => void; onSkipAll: () =>
   return (
     <section className="onb__body onb__body--center">
       <SproutMark />
-      <h2 className="onb__title">sprout에 오신 걸 환영해요</h2>
+      <h2 className="onb__title">꿈틀에 오신 걸 환영해요</h2>
       <p className="onb__lead">할 일을 끝낼수록 함께 자라는 친구가 생겨요.<br />시작하기 전에 1분만 준비해요.</p>
       <ul className="onb__list">
         <li><CalendarDays size={16} /> 쓰던 캘린더 일정을 할 일과 한 화면에</li>
@@ -150,7 +150,7 @@ function ImportStep({ onNext, onSkip }: { onNext: (opened: boolean) => void; onS
   return (
     <section className="onb__body">
       <h2 className="onb__title">틱틱에서 쓰던 걸 옮겨 올까요?</h2>
-      <p className="onb__lead">리스트·할 일·완료 기록·태그·노트를 sprout로 옮겨요. 틱틱 데이터는 바뀌지 않아요(읽기만 해요).</p>
+      <p className="onb__lead">리스트·할 일·완료 기록·태그·노트를 꿈틀로 옮겨요. 틱틱 데이터는 바뀌지 않아요(읽기만 해요).</p>
       <div className="onb__rows">
         <div className={`onb__row${opened ? ' is-done' : ''}`}>
           <span className="onb__row-icon"><Download size={18} /></span>
@@ -221,7 +221,7 @@ function FirstTaskStep({ ready, onFinish }: { ready: boolean; onFinish: (made: b
         <li><kbd>⌘K</kbd> 명령 메뉴 — "시작 안내"로 이 화면을 다시 열 수 있어요</li>
       </ul>
       <Foot>
-        <button className="onb__primary" onClick={() => onFinish(made.length > 0)}>{made.length ? 'sprout 시작하기' : '건너뛰고 시작하기'}</button>
+        <button className="onb__primary" onClick={() => onFinish(made.length > 0)}>{made.length ? '꿈틀 시작하기' : '건너뛰고 시작하기'}</button>
       </Foot>
     </section>
   )

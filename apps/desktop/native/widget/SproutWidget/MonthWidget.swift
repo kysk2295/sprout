@@ -38,23 +38,23 @@ struct MonthContent: View {
 
     var body: some View {
         switch data {
-        case .first: MessageView(text: "sprout을 한 번 열어 주세요", pal: pal).widgetURL(Links.calendar(today))
-        case .signedOut: MessageView(text: "로그인이 필요해요", action: "sprout 열기", pal: pal).widgetURL(Links.today)
-        case .failed: MessageView(text: "위젯을 불러오지 못했어요", action: "sprout 열기", pal: pal).widgetURL(Links.today)
+        case .first: MessageView(text: "꿈틀을 한 번 열어 주세요", pal: pal).widgetURL(Links.calendar(today))
+        case .signedOut: MessageView(text: "로그인이 필요해요", action: "꿈틀 열기", pal: pal).widgetURL(Links.today)
+        case .failed: MessageView(text: "위젯을 불러오지 못했어요", action: "꿈틀 열기", pal: pal).widgetURL(Links.today)
         case .ready(let snap):
             if let cal = snap.calendar, !cal.days.isEmpty {
                 if cal.month != String(today.prefix(7)) {
                     // §15.3 달이 바뀌었는데 앱이 새로 쓰지 않음 — 지난달을 이번 달처럼 보이지 않게
                     VStack(alignment: .leading, spacing: 0) {
                         MonthHeader(title: monthTitle(today), today: today, pal: pal)
-                        MessageView(text: "sprout을 열면 이번 달로 바뀌어요", pal: pal)
+                        MessageView(text: "꿈틀을 열면 이번 달로 바뀌어요", pal: pal)
                     }
                     .widgetURL(Links.calendar(today))
                 } else {
                     MonthGrid(cal: cal, today: today, weekOnly: weekOnly, pal: pal).widgetURL(Links.calendar(today))
                 }
             } else {
-                MessageView(text: "sprout을 열면 이번 달 일정이 보여요", action: "sprout 열기", pal: pal).widgetURL(Links.calendar(today))
+                MessageView(text: "꿈틀을 열면 이번 달 일정이 보여요", action: "꿈틀 열기", pal: pal).widgetURL(Links.calendar(today))
             }
         }
     }

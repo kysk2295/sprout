@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/readme/banner-dark.png">
-    <img src="docs/readme/banner-light.png" alt="sprout — 할 일을 끝낼수록 캐릭터가 자라는 할 일·캘린더 앱" width="100%">
+    <img src="docs/readme/banner-light.png" alt="꿈틀(Kkumteul) — 할 일을 끝낼수록 캐릭터가 자라는 할 일·캘린더 앱" width="100%">
   </picture>
 </p>
 
@@ -31,7 +31,7 @@
 평소처럼 할 일을 적기만 하면 됩니다. **분류와 정리는 AI가** 하고, 할 일을 끝낼 때마다 **XP가 쌓여 캐릭터가 진화**합니다.
 AI는 우리 서버의 자체 모델에서만 돌고, 요청 원문은 남기지 않습니다.
 
-> `sprout`는 코드네임입니다. 정식 이름은 출시 전에 정합니다.
+> 제품 이름은 **꿈틀**(영문 Kkumteul)입니다. `sprout`는 코드네임이라 패키지 이름·번들 ID(`app.sprout.*`)·URL 스킴(`sprout://`)·데이터 폴더·저장소 이름에는 그대로 남아 있습니다.
 
 ## 기능
 
@@ -80,22 +80,39 @@ AI는 우리 서버의 자체 모델에서만 돌고, 요청 원문은 남기지
 
 ## 화면
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/readme-map-dark.png">
+    <img src="docs/readme/readme-map-light.png" alt="작업 지도" width="100%">
+  </picture>
+  <br><sub><b>작업 지도</b> — 흩어진 일을 프로젝트로 묶고, 캐릭터와 다음 단계를 같이 짜요</sub>
+</p>
+
 <table>
   <tr>
-    <td width="66%"><img src="docs/verification/calendar-events/month-light.png" alt="캘린더 월 보기"></td>
-    <td width="34%"><img src="docs/verification/mobile-map-v2/board-light.png" alt="모바일 작업 지도"></td>
+    <td width="33%" valign="top">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/readme/readme-today-dark.png">
+      <img src="docs/readme/readme-today-light.png" alt="오늘 목록" width="100%">
+    </picture>
+    </td>
+    <td width="33%" valign="top">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/readme/readme-growth-dark.png">
+      <img src="docs/readme/readme-growth-light.png" alt="성장 화면" width="100%">
+    </picture>
+    </td>
+    <td width="33%" valign="top">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/readme/readme-calendar-dark.png">
+      <img src="docs/readme/readme-calendar-light.png" alt="캘린더" width="100%">
+    </picture>
+    </td>
   </tr>
   <tr>
-    <td align="center"><sub>캘린더 — 할 일과 일정, 공휴일</sub></td>
-    <td align="center"><sub>작업 지도 — 자동으로 묶인 프로젝트</sub></td>
-  </tr>
-  <tr>
-    <td><img src="docs/verification/calendar-events/today-light.png" alt="오늘 목록"></td>
-    <td><img src="docs/verification/mobile-map-v2/chat-ai-steps-light.png" alt="캐릭터와 같이 계획 짜기"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>오늘 — 할 일과 일정이 한눈에</sub></td>
-    <td align="center"><sub>같이 계획 짜기 — 캐릭터가 단계를 제안</sub></td>
+    <td align="center"><sub><b>오늘</b> — AI가 태그와 프로젝트를 알아서 붙여요(✦)</sub></td>
+    <td align="center"><sub><b>성장</b> — 할 일을 끝낼수록 캐릭터가 자라요</sub></td>
+    <td align="center"><sub><b>캘린더</b> — 할 일·일정·공휴일을 한눈에</sub></td>
   </tr>
 </table>
 

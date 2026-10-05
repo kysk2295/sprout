@@ -137,7 +137,7 @@ export function TickTickImport({ onClose, onOpenMap, onOpenCalendar }: Props) {
         {step.s === 'loading' && <p className="tt-import__muted">확인하고 있어요…</p>}
 
         {step.s === 'connect' && <>
-          <p>틱틱의 리스트·할 일·완료 기록·태그·노트를 sprout로 옮겨요. 틱틱 데이터는 바뀌지 않아요(읽기만 해요).</p>
+          <p>틱틱의 리스트·할 일·완료 기록·태그·노트를 꿈틀로 옮겨요. 틱틱 데이터는 바뀌지 않아요(읽기만 해요).</p>
           {step.error && <p className="form-error" role="alert">{step.error}</p>}
           <div className="tt-import__actions">
             <button className="entry-primary" data-autofocus disabled={!status?.oauthAvailable} onClick={() => void connect({ kind: 'oauth' })}>틱틱 계정으로 연결</button>
@@ -213,9 +213,9 @@ function PreviewBody({ preview, kind }: { preview: Preview; kind: 'oauth' | 'tok
       {items.map(([label, v]) => <div key={label}><dt>{label}</dt><dd>{n(v)}</dd></div>)}
       {c.already > 0 && <div className="is-already"><dt>이미 가져온 것</dt><dd>{n(c.already)}</dd></div>}
     </dl>}
-    {c.already > 0 && <p className="tt-import__caption">이미 가져온 항목은 건너뛰어요. sprout에서 고친 내용은 덮어쓰지 않아요.</p>}
+    {c.already > 0 && <p className="tt-import__caption">이미 가져온 항목은 건너뛰어요. 꿈틀에서 고친 내용은 덮어쓰지 않아요.</p>}
     {preview.plan.warnings.length > 0 && <ul className="tt-import__warn">{preview.plan.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
-    <p className="tt-import__caption">틱틱 받은함 → sprout 기본함, 폴더·태그·하위 태스크·체크 항목·알림은 그대로, 노트는 수집함으로 가요.</p>
+    <p className="tt-import__caption">틱틱 받은함 → 꿈틀 기본함, 폴더·태그·하위 태스크·체크 항목·알림은 그대로, 노트는 수집함으로 가요.</p>
   </>
 }
 

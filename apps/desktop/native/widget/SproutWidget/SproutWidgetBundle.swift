@@ -41,9 +41,9 @@ struct TodayWidgetView: View {
 
     @ViewBuilder private func content(_ pal: Palette) -> some View {
         switch entry.data {
-        case .first: MessageView(text: "sprout을 한 번 열어 주세요", pal: pal).widgetURL(Links.today)
-        case .signedOut: MessageView(text: "로그인이 필요해요", action: "sprout 열기", pal: pal).widgetURL(Links.today)
-        case .failed: MessageView(text: "위젯을 불러오지 못했어요", action: "sprout 열기", pal: pal).widgetURL(Links.today)
+        case .first: MessageView(text: "꿈틀을 한 번 열어 주세요", pal: pal).widgetURL(Links.today)
+        case .signedOut: MessageView(text: "로그인이 필요해요", action: "꿈틀 열기", pal: pal).widgetURL(Links.today)
+        case .failed: MessageView(text: "위젯을 불러오지 못했어요", action: "꿈틀 열기", pal: pal).widgetURL(Links.today)
         case .ready(let snap):
             switch family {
             case .systemSmall: SmallToday(snap: snap, entry: entry, pal: pal).widgetURL(Links.today)
@@ -68,7 +68,7 @@ struct SmallToday: View {
             }
             .padding(.bottom, 2)
             if entry.stale {
-                Text("sprout을 열면 오늘 목록으로 바뀌어요").font(.system(size: 12)).foregroundStyle(pal.secondary)
+                Text("꿈틀을 열면 오늘 목록으로 바뀌어요").font(.system(size: 12)).foregroundStyle(pal.secondary)
             } else if tasks.isEmpty {
                 Spacer()
                 Text("오늘 할 일이 없어요").font(.system(size: 12)).foregroundStyle(pal.secondary).frame(maxWidth: .infinity)
@@ -115,9 +115,9 @@ struct CharacterWidgetView: View {
 
     @ViewBuilder private func content(_ pal: Palette) -> some View {
         switch entry.data {
-        case .first: MessageView(text: "sprout을 한 번 열어 주세요", egg: true, pal: pal).widgetURL(Links.today)
-        case .signedOut: MessageView(text: "로그인이 필요해요", action: "sprout 열기", pal: pal).widgetURL(Links.today)
-        case .failed: MessageView(text: "위젯을 불러오지 못했어요", action: "sprout 열기", pal: pal).widgetURL(Links.today)
+        case .first: MessageView(text: "꿈틀을 한 번 열어 주세요", egg: true, pal: pal).widgetURL(Links.today)
+        case .signedOut: MessageView(text: "로그인이 필요해요", action: "꿈틀 열기", pal: pal).widgetURL(Links.today)
+        case .failed: MessageView(text: "위젯을 불러오지 못했어요", action: "꿈틀 열기", pal: pal).widgetURL(Links.today)
         case .ready(let snap):
             if let growth = snap.growth {
                 if family == .systemMedium {
@@ -134,7 +134,7 @@ struct CharacterWidgetView: View {
                     CharacterCard(growth: growth, artSize: 72, showTodayXp: false, pal: pal).widgetURL(Links.growth)
                 }
             } else {
-                MessageView(text: "위젯을 불러오지 못했어요", action: "sprout 열기", pal: pal).widgetURL(Links.today)
+                MessageView(text: "위젯을 불러오지 못했어요", action: "꿈틀 열기", pal: pal).widgetURL(Links.today)
             }
         }
     }

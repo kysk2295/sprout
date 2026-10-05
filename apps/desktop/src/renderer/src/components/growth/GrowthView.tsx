@@ -16,6 +16,7 @@ import { CharacterArt } from './CharacterArt'
 import { Confetti, streakOf, WeekChart } from './Interactive'
 import { GrowthStage, StageRoad } from './Stage'
 import { WeeklyReports } from './WeeklyReports'
+import { GuideButton, GuideLayer, useGuide } from '../guide/Guide'
 import './growth-report.css'
 import './growth-stage.css'
 
@@ -73,11 +74,14 @@ function GrowthHome({ onSurvey, onReview }: { onSurvey: () => void; onReview: ()
     window.setTimeout(() => goalInputRef.current?.focus({ preventScroll: true }), reduced ? 0 : 350)
   }
   const toDiary = () => diaryRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' })
+  const guide = useGuide('growth', { ready: loaded }) // 37 첫 둘러보기 · 머리 `?`
 
   return (
     <div className={`growth${reduced ? ' gs-reduced' : ''}`}>
       <header className="growth__header">
         <h1 className="pane-header__title">성장</h1>
+        <span style={{ flex: 1 }} />
+        <GuideButton guide={guide} />{/* 37 §3: ⋯ 왼쪽 */}
         <button ref={moreRef} className="icon-btn" aria-label="성장 메뉴" onClick={() => setMenu(!menu)}><MoreHorizontal /></button>
         {menu && (
           <Popover anchor={moreRef.current} align="end" width={200} className="menu" onClose={() => setMenu(false)}>
@@ -88,6 +92,7 @@ function GrowthHome({ onSurvey, onReview }: { onSurvey: () => void; onReview: ()
           </Popover>
         )}
       </header>
+      <GuideLayer guide={guide} onTry={(r) => { if (r === 'review') onReview(); else if (r === 'quest') toQuests(); else if (r === 'diary') toDiary() }} />
       <div className="growth__body gs-body">
         <div className="gs-wrap">
           <section className="gs-stage-card" aria-label="캐릭터 방">

@@ -187,7 +187,7 @@ struct TaskListBlock: View {
         VStack(alignment: .leading, spacing: 0) {
             TodayHeader(count: count, plus: plus, pal: pal)
             if entry.stale {
-                MessageView(text: "sprout을 열면 오늘 목록으로 바뀌어요", pal: pal)
+                MessageView(text: "꿈틀을 열면 오늘 목록으로 바뀌어요", pal: pal)
             } else if tasks.isEmpty {
                 VStack(spacing: 3) {
                     Text("오늘 할 일이 없어요").font(.system(size: 12)).foregroundStyle(pal.secondary)
@@ -198,7 +198,7 @@ struct TaskListBlock: View {
                 ForEach(shown) { t in TaskRowView(task: t, pending: entry.pending[t.id] != nil, pal: pal) }
                 if overflow { OverflowView(more: count - shown.count, pal: pal) }
                 Spacer(minLength: 0)
-                if footer { Text("sprout을 열면 반영돼요").font(.system(size: 11)).foregroundStyle(pal.tertiary) }
+                if footer { Text("꿈틀을 열면 반영돼요").font(.system(size: 11)).foregroundStyle(pal.tertiary) }
             }
         }
     }

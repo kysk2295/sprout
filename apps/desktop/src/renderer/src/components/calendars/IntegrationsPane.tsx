@@ -29,7 +29,7 @@ export function IntegrationsPane() {
       <h3 className="integrations__title">캘린더</h3>
       <div className="settings-card integrations">
         <div className="settings-row integrations__head">
-          <span>다른 캘린더를 sprout에 구독해요.</span>
+          <span>다른 캘린더를 꿈틀에 구독해요.</span>
           <button className="integrations__add" disabled={!api} onClick={(e) => setAddAt(e.currentTarget)}><Plus />캘린더 추가</button>
         </div>
         {accounts.map((a) => <AccountRow key={a.id} a={a} onEdit={() => setEdit(a.id)} />)}
@@ -38,7 +38,7 @@ export function IntegrationsPane() {
       {s && !s.providers.google.configured && <p className="integrations__warn">구글 연결 준비가 아직 안 됐어요. 운영자가 구글 OAuth 클라이언트 ID(GOOGLE_CLIENT_ID)를 넣어야 구글 캘린더를 연결할 수 있어요.</p>}
       {s && !s.providers.encryption && <p className="integrations__warn">이 컴퓨터에는 로그인 정보를 안전하게 저장할 곳이 없어요. 앱을 다시 켜면 구글 캘린더를 다시 연결해야 해요.</p>}
       {notice && <p className="integrations__notice" role="status">{notice}</p>}
-      <p className="integrations__caption">외부 캘린더 일정은 읽기 전용이에요. sprout에서 일정을 바꾸지 않고, 일정은 이 기기에만 저장돼요.</p>
+      <p className="integrations__caption">외부 캘린더 일정은 읽기 전용이에요. 꿈틀에서 일정을 바꾸지 않고, 일정은 이 기기에만 저장돼요.</p>
       {addAt && (
         <Popover anchor={addAt} align="end" width={180} className="menu" onClose={() => setAddAt(undefined)}>
           <MenuItem icon={<CalendarDays />} label="구글 캘린더" disabled={!s?.providers.google.configured} onClick={() => { setAddAt(undefined); void connectCalendar('google') }} />

@@ -407,7 +407,7 @@ export function planImport(bundle: TTBundle, ctx: MapContext): ImportPlan {
   stats.tags = plan.tags.length
   stats.notes = plan.notes.length
   if (unknownProject) warnings.push(`리스트를 찾지 못한 할 일 ${unknownProject}개는 기본함에 넣어요.`)
-  if (stats.droppedRepeat) warnings.push(`반복 규칙 ${stats.droppedRepeat}개는 sprout가 지원하지 않아(음력·공휴일 건너뛰기 등) 반복 없이 가져와요.`)
+  if (stats.droppedRepeat) warnings.push(`반복 규칙 ${stats.droppedRepeat}개는 꿈틀이 지원하지 않아(음력·공휴일 건너뛰기 등) 반복 없이 가져와요.`)
   if (stats.droppedReminders) warnings.push(`알림 ${stats.droppedReminders}개는 옮기지 못했어요(날짜 없는 할 일·위치·절대 시각 알림).`)
   return plan
 }

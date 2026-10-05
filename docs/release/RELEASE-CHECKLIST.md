@@ -16,7 +16,7 @@
 ## 0. 먼저 정할 것 (뒤 작업이 전부 여기에 걸려 있음)
 | # | 결정 | 왜 먼저인가 | 상태 |
 |---|---|---|---|
-| D1 | **정식 제품명** (후보: 해싹·꿈틀·움틈 등, name-candidates.md) | 번들 표시 이름, 데이터 폴더 이름(`productName`), 스토어 이름, 도메인, 처리방침 문구가 모두 바뀐다. 출시 뒤에 바꾸면 데이터 폴더가 갈린다 | [사용자] |
+| D1 | ✅ 2026-10-05 **꿈틀(Kkumteul)** 확정 — 운영자 유니포트(대표 고윤서), kysk2295@naver.com (name-candidates.md) | 번들 표시 이름, 데이터 폴더 이름(`productName`), 스토어 이름, 도메인, 처리방침 문구가 모두 바뀐다. 출시 뒤에 바꾸면 데이터 폴더가 갈린다 | [사용자] |
 | D2 | **로고 후보** (A 새싹 체크 추천) | 아이콘 적용은 `docs/release/brand/out/<id>/APPLY.md` 대로 | [완료] 로고 B 적용됨 2026-10-05 (달력 새싹, `out/b/`) |
 | D3 | **공개 주소: Tailscale Funnel 유지 vs 자체 도메인** (§5-1) | 앱에 서버 주소가 박혀 출시되므로 나중에 바꾸면 앱 업데이트가 필요. 처리방침·계정 삭제 페이지에도 고정 주소가 필요 | [사용자] |
 | D4 | **개인 vs 사업자로 스토어 가입** | Apple·Google 판매자 이름이 그대로 공개. 사업자(조직)면 D-U-N-S 번호(무료, 발급에 시간 걸림)가 필요. EU 배포 때 "트레이더" 여부 신고(트레이더면 주소·전화 공개) | [사용자] |
@@ -40,7 +40,7 @@
 | 첫 Developer ID 서명 + 공증 + 스테이플 실제 실행 | [할 일] | 한 번도 안 돌려 봄. PowerSync dylib 로드 실패 시 `disable-library-validation` 검토 |
 | 자동 업데이트 | [할 일] | `electron-updater` + zip·blockmap 이미 생성 중. **배포처 결정 필요**: GitHub Releases(저장소가 비공개라 별도 공개 저장소 필요) 또는 자체 도메인 정적 파일(R2·Cloudflare Pages). 맥 자동 업데이트는 서명된 앱에서만 동작 |
 | 인텔 Mac 지원 여부 | [사용자] | arm64만 빌드 중. `x64`/`universal` 추가는 설정 한 줄 + 크기 2배 |
-| 제품명 반영 | [할 일] | `productName`·`extraMetadata.productName`·`copyright`·권한 문구(NSCalendars…)의 "sprout" |
+| 제품명 반영 | [완료] 2026-10-05 | 화면 이름 꿈틀(.app 표시 이름·메뉴·창·트레이·dmg·위젯·권한 문구·앱 문구), 파일 이름 Kkumteul, 데이터 폴더·키체인은 sprout 유지 — packaging.md |
 | 다운로드 페이지 | [할 일] | 웹사이트에 dmg 링크 + 최소 macOS 12 표기 |
 
 ## 3. Windows
@@ -71,13 +71,15 @@
 | **Sign in with Apple** | [완료] 코드(서버 `/auth/apple/native`·웹 흐름, 모바일 `SPROUT_APPLE_SIGN_IN=1`일 때 켜짐) / [친구] 키 | **구글 로그인이 있으므로 심사 지침 4.8에 따라 필수.** App ID에 Sign in with Apple 켜기, 키(.p8)·Services ID 만들기 → 아래 "친구에게 받을 값" |
 | 앱 안 계정 삭제 | [완료] | 지침 5.1.1(v). 애플로만 가입한 계정도 "Apple로 다시 로그인" 후 삭제, 삭제 때 애플 토큰 폐기(키가 있을 때) |
 | 푸시(APNs) | [할 일] | 지금 `pushIos: false`. APNs 인증 키(.p8) 발급 → FCM에 등록하거나 서버가 APNs 직접. 로컬 알림만으로 v1 내도 됨(결정) |
-| 개인정보 매니페스트(PrivacyInfo.xcprivacy) | [할 일] | 필수 사유 API(UserDefaults·파일 시각 등) 선언. Expo `ios.privacyManifests` + 라이브러리 매니페스트 확인 |
+| 개인정보 매니페스트(PrivacyInfo.xcprivacy) | [완료] 2026-10-05 | `app.json` `ios.privacyManifests`: 추적 안 함, 필수 사유 API = UserDefaults CA92.1 · 파일 시각 C617.1 · 부팅 시각 35F9.1 · 디스크 공간 E174.1(RN·Expo·op-sqlite 라이브러리 매니페스트 합집합), 수집 데이터 = 이메일·사용자 ID·기타 사용자 콘텐츠·제품 상호작용(모두 연결·앱 기능, privacy-answers.md와 같음). 공유 확장은 자체 매니페스트(App Group UserDefaults 1C8F.1) |
 | 암호화 수출 규정 | [완료] | `ITSAppUsesNonExemptEncryption: false`(HTTPS만) |
+| 버전·이름·권한 문구 | [완료] 2026-10-05 | 표시 이름 `꿈틀`(공유 확장도), 1.0.0 / buildNumber 1 / Android versionCode 1. 권한 문구는 쓰는 것만: 알림(문구 필요 없음). 안 쓰는 Face ID 문구 제거(`expo-secure-store` `faceIDPermission: false`). 캘린더·사진·위치·카메라 권한 없음 |
+| Release 빌드(서명 없이) | [완료] 2026-10-05 | `xcodebuild … -configuration Release -sdk iphoneos CODE_SIGNING_ALLOWED=NO` 성공, JS 번들(Hermes) 포함, 운영 서버 주소, `.env.local` 없이도 구글 로그인(공개 클라이언트 id를 `app.config.ts` 기본값으로) |
 | App Store Connect 등록: 앱 이름·부제·설명·키워드·카테고리 | [진행] 초안 | [store/listing.md](store/listing.md) |
 | 앱 개인정보(영양 성분표) 답변 | [진행] 초안 | [store/privacy-answers.md](store/privacy-answers.md) |
 | 연령 등급 설문 | [진행] 초안 | listing.md. AI 대화(일기·비서)가 있어 "사용자 생성 콘텐츠/AI" 관련 질문 답변 주의 |
-| 스크린샷 6.9"/6.5"(+ iPad 13", `supportsTablet: true`라 필수) | [할 일] | [store/screenshots.md](store/screenshots.md). iPad를 안 낼 거면 `supportsTablet: false` |
-| 심사용 데모 계정 | [할 일] | 심사관용 로그인 계정 + 메모(AI는 Mac mini가 켜져 있어야 함 — 심사 기간 서버 상시 가동) |
+| 스크린샷 6.9"/6.5" | [완료] 2026-10-05 | [store/screenshots/ios/](store/screenshots/ios/) 6장씩 + 캡션. **아이폰 전용**(`supportsTablet: false`) → iPad 스크린샷 필요 없음 |
+| 심사용 데모 계정 + 심사 메모 | [완료] 2026-10-05 | [store/review-notes.md](store/review-notes.md)(영어 본문). 비밀번호는 운영자 맥 `~/.config/sprout/review-account.txt`에만 — 제출자에게 따로 전달. 심사 기간 Mac mini 상시 가동 |
 | 지원 URL·개인정보 처리방침 URL | [완료] | https://web-production-cd889.up.railway.app/support · /privacy · /terms · /account-deletion (`?lang=en` 영어) |
 | TestFlight 외부 테스트 | [할 일] | 베타 심사 1회 |
 | EU 디지털서비스법 트레이더 신고 | [사용자] | D4·D6 |

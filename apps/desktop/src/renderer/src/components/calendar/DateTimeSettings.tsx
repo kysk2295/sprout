@@ -15,7 +15,7 @@ export function DateTimeSettings() {
   return <>
     <h2>날짜 & 시간</h2>
     <div className="settings-card">
-      <label className="settings-row"><span>일주일을 시작하는 요일<small className="od-set__hint">sprout는 월요일로 맞춰 두었어요</small></span>
+      <label className="settings-row"><span>일주일을 시작하는 요일<small className="od-set__hint">꿈틀은 월요일로 맞춰 두었어요</small></span>
         <select aria-label="일주일을 시작하는 요일" value="mon" disabled><option value="mon">월요일</option></select></label>
     </div>
     <div className="settings-card">

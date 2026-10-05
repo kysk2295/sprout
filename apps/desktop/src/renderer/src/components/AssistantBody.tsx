@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowDown, ArrowUp, ArrowUpRight, BarChart3, CalendarDays, Check, Cpu, List, MoreHorizontal, Plus, RefreshCw, RotateCcw, Sparkles, Square, Trash2 } from 'lucide-react'
 import { localModels, type AssistantProgress } from '../../../shared/assistant'
 import { askAssistant, undoAssistant, type AssistantResult } from '../data/assistant'
@@ -61,7 +61,7 @@ export function humanize(e: unknown) {
   if (/^지금은 AI를 쓸 수 없어요/.test(raw)) return OFFLINE
   if (/[가-힣]/.test(raw) && !/[{}<>]|Error|https?:/.test(raw)) return raw
   if (/429|rate.?limit|too many/i.test(raw)) return '잠시 뒤 다시 시도해 주세요.'
-  if (/fetch|network|ENOTFOUND|ECONN|EAI_AGAIN|socket/i.test(raw)) return 'sprout AI에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.'
+  if (/fetch|network|ENOTFOUND|ECONN|EAI_AGAIN|socket/i.test(raw)) return '꿈틀 AI에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.'
   if (/ssh|timeout|Ollama|503|502|504/i.test(raw)) return OFFLINE
   return '요청을 처리하지 못했어요. 다시 시도해 주세요.'
 }
@@ -71,18 +71,20 @@ const isLimit = (e: unknown) => /너무 잦아요|한도|처리 중인 AI 요청
 export function AssistantStatus({ assistant: a, short }: { assistant: AssistantController; short?: boolean }) {
   const waiting = a.busy && (a.progress.queue ?? 0) > 0
   const state = a.connecting || waiting ? 'wait' : a.models.length ? 'ok' : 'off'
-  const label = a.connecting ? '연결 중…' : waiting ? `대기 중 · 앞에 ${a.progress.queue}명` : a.models.length ? (short ? '연결됨' : 'sprout AI · 연결됨') : '지금은 쓸 수 없어요'
+  const label = a.connecting ? '연결 중…' : waiting ? `대기 중 · 앞에 ${a.progress.queue}명` : a.models.length ? (short ? '연결됨' : '꿈틀 AI · 연결됨') : '지금은 쓸 수 없어요'
   return <button className={`assistant-status is-${state}`} title="다시 연결" disabled={a.connecting || a.busy} onClick={() => void a.refresh()}><i /><span>{label}</span></button>
 }
 
 /** 전용 화면 머리 오른쪽: 상태 · 새 대화 · ⋯(모델 · 다시 연결 · 기록 지우기) */
-export function AssistantHeaderActions({ assistant: a }: { assistant: AssistantController }) {
+/** help = 37 머리 `?`(⋯ 왼쪽) */
+export function AssistantHeaderActions({ assistant: a, help }: { assistant: AssistantController; help?: ReactNode }) {
   const [menu, setMenu] = useState(false), [confirm, setConfirm] = useState(false)
   const more = useRef<HTMLButtonElement>(null)
   return (
     <div className="pane-header__actions">
       <AssistantStatus assistant={a} />
       <button className="icon-btn" aria-label="새 대화" title="새 대화 (⌘N)" disabled={a.busy || !a.messages.length} onClick={a.clear}><Plus /></button>
+      {help}
       <button ref={more} className="icon-btn" aria-label="AI 비서 메뉴" onClick={() => setMenu(!menu)}><MoreHorizontal /></button>
       {menu && (
         <Popover anchor={more.current} align="end" width={210} onClose={() => setMenu(false)} className="menu">
@@ -166,7 +168,7 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
               <div className="assistant-ai">
                 <span className="assistant-avatar"><Sparkles /></span>
                 <div className="assistant-ai__body">
-                  {a.progress.preview ? <p className="assistant-text">{a.progress.preview}<span className="assistant-caret" /></p> : <p className="assistant-muted">{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.progress.phase === 'connecting' ? 'sprout AI에 연결하는 중…' : '생각하는 중…'}</p>}
+                  {a.progress.preview ? <p className="assistant-text">{a.progress.preview}<span className="assistant-caret" /></p> : <p className="assistant-muted">{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.progress.phase === 'connecting' ? '꿈틀 AI에 연결하는 중…' : '생각하는 중…'}</p>}
                   <div className="assistant-steps" role="status">
                     {STEPS.map((s, i) => <span key={s.label} className={i <= phaseIndex ? 'is-on' : ''}>{i > 0 && <em>›</em>}● {s.label}</span>)}
                     <span>· {elapsed}초</span>
@@ -206,7 +208,7 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
             : <button className="assistant-send" aria-label="보내기" title="보내기" disabled={!a.model || !draft.trim() || a.connecting} onClick={() => void submit()}><ArrowUp /></button>}
         </div>
       </div>
-      {variant === 'full' && <p className="assistant-footnote">sprout AI는 운영자의 Mac mini에서 돌아가요 · 등록 결과는 카드에서 확인하고 되돌릴 수 있어요</p>}
+      {variant === 'full' && <p className="assistant-footnote">꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 등록 결과는 카드에서 확인하고 되돌릴 수 있어요</p>}
     </div>
   )
 }
