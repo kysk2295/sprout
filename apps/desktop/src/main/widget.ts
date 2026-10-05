@@ -20,8 +20,12 @@ export const WIDGET_GROUP_ID = `${WIDGET_TEAM_ID}.app.sprout.desktop`
 const DEBOUNCE_MS = 800 // §7: 0.8초 모아서
 const RELOAD_GAP_MS = 10_000 // §7: 새로 고침 요청은 최소 10초 간격 [임시]
 
+// 공개 내려받기 빌드(ad-hoc 서명, 위젯 확장 없음 — docs/release/desktop-download.md)는 App Group을 검증받지 못해
+// 저장 칸(Group Containers)을 건드리면 macOS 15+가 "다른 앱의 데이터에 접근" 확인 창을 띄운다 → 확장이 들어 있을 때만 켠다.
+const hasWidgetExtension = () => existsSync(join(process.resourcesPath, '..', 'PlugIns', 'SproutWidget.appex'))
 export const widgetEnabled = () =>
-  process.platform === 'darwin' && process.env.SPROUT_WIDGET !== '0' && (process.env.SPROUT_WIDGET === '1' || (app.isPackaged && !process.env.SPROUT_PROFILE))
+  process.platform === 'darwin' && process.env.SPROUT_WIDGET !== '0' &&
+  (process.env.SPROUT_WIDGET === '1' || (app.isPackaged && !process.env.SPROUT_PROFILE && hasWidgetExtension()))
 
 const root = () => join(homedir(), 'Library', 'Group Containers', WIDGET_GROUP_ID, 'widget')
 const actionsDir = () => join(root(), 'actions')

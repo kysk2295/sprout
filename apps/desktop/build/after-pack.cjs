@@ -28,6 +28,8 @@ exports.default = async function afterPack(context) {
   }
   console.log('[afterPack] 보이는 이름: ko/en.lproj InfoPlist.strings = 꿈틀')
 
+  // 공개 내려받기 빌드(ad-hoc, dist-mac-public.mjs)는 위젯을 넣지 않는다 — App Group 검증이 안 돼 위젯이 데이터를 못 읽는다
+  if (process.env.SPROUT_SKIP_WIDGET === '1') { console.log('[afterPack] SPROUT_SKIP_WIDGET=1 — 위젯 없이 패키징'); return }
   const bridge = join(widgetDir, 'widget_bridge.node')
   if (existsSync(bridge)) {
     copyFileSync(bridge, join(contents, 'Resources', 'widget_bridge.node'))

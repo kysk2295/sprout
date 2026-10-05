@@ -138,4 +138,4 @@ CDP_PORT=9291 node scripts/devtools/cdp.mjs 'document.body.innerText.slice(0,200
 3. **Developer ID 서명·공증은 아직 실제로 돌려 보지 않음**(인증서 없음). ad-hoc 빌드만 확인.
 4. **자동 업데이트 없음** — `electron-updater` + `zip`/`blockmap` + 배포 서버(GitHub Releases 등)는 다음 단계.
 5. **앱 메뉴 이름** — 메뉴 막대 이름은 `꿈틀`(lproj CFBundleName), 앱 메뉴는 `src/main/index.ts` `setAppMenu`가 `꿈틀 정보·꿈틀 가리기·꿈틀 종료`로 만든다. `extraMetadata.productName`(sprout)은 바꾸지 않는다(데이터 폴더·키체인).
-6. Windows·Linux 패키징은 아직 없다.
+6. 사이트 내려받기용 서명 없는 설치 파일(맥 arm64·x64 dmg, Windows x64 NSIS)은 CI가 만든다 — [desktop-download.md](desktop-download.md). Linux는 없음.

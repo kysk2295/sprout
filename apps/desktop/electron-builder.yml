@@ -24,12 +24,11 @@ directories:
 files:
   - out/**
   - package.json
-  # 다른 플랫폼용 네이티브 바이너리는 뺀다
+  # 다른 플랫폼용 네이티브 바이너리는 뺀다(플랫폼별 제외는 아래 mac.files·win.files — 위쪽 목록과 합쳐진다)
   - "!**/node_modules/@powersync/node/lib/*.linux.so"
-  - "!**/node_modules/@powersync/node/lib/*.dll"
   - "!**/node_modules/@powersync/node/src/**"
   - "!**/node_modules/@powersync/node/lib/**/*.map"
-  - "!**/node_modules/better-sqlite3/prebuilds/{linux,linuxmusl,win32}-*.node"
+  - "!**/node_modules/better-sqlite3/prebuilds/{linux,linuxmusl}-*.node"
   - "!**/node_modules/better-sqlite3/{src,deps}/**"
 
 # asar를 끈다: @powersync/node의 기본 워커가 import.meta.url 기준으로 확장(.dylib)을 sqlite loadExtension(dlopen)으로
@@ -51,11 +50,6 @@ extraResources:
   # Windows 트레이(템플릿 이미지가 없어 색 있는 .ico를 쓴다 — mini.ts가 win32에서 읽음)
   - from: resources/tray.ico
     to: tray.ico
-  # 16 §11.4 Apple 캘린더 도우미(EventKit). 먼저 npm run calendar:build — 없으면 건너뛰고 앱은 "도우미가 없어요"로 표시
-  - from: native/calendar/out
-    to: .
-    filter:
-      - sprout-calendar
 
 protocols:
   - name: sprout
@@ -66,6 +60,15 @@ afterPack: build/after-pack.cjs
 
 mac:
   category: public.app-category.productivity
+  files:
+    - "!**/node_modules/@powersync/node/lib/*.dll"
+    - "!**/node_modules/better-sqlite3/prebuilds/win32-*.node"
+  extraResources:
+    # 16 §11.4 Apple 캘린더 도우미(EventKit). 먼저 npm run calendar:build(arm64·x64 유니버설) — 없으면 건너뛰고 앱은 "도우미가 없어요"로 표시
+    - from: native/calendar/out
+      to: .
+      filter:
+        - sprout-calendar
   icon: build/icon.icns
   target:
     - target: dmg
@@ -98,6 +101,10 @@ mac:
 # Windows 대상을 만들 때 쓰는 앱 아이콘(로고 B, docs/release/brand/out/b)
 win:
   icon: build/icon.ico
+  # 맥 전용 바이너리(PowerSync .dylib, better-sqlite3 darwin 프리빌드)는 Windows 설치 파일에서 뺀다
+  files:
+    - "!**/node_modules/@powersync/node/lib/*.dylib"
+    - "!**/node_modules/better-sqlite3/prebuilds/darwin-*.node"
 
 # 예: Kkumteul-0.0.1-arm64.dmg, Kkumteul-0.0.1-arm64.zip (zip은 자동 업데이트용으로 남겨 둠). 내려받는 파일 이름은 영문(꿈틀 = Kkumteul)
 artifactName: Kkumteul-${version}-${arch}.${ext}

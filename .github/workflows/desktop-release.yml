@@ -1,0 +1,88 @@
+# 데스크톱 설치 파일(맥 dmg 2개 + Windows 설치 파일)을 만들어 GitHub Release에 올린다.
+# 사이트(site/)는 https://github.com/kysk2295/sprout/releases/latest/download/<이름> 으로 건다 — 이름을 바꾸지 말 것.
+# 실행: 태그 desktop-v<버전>을 올리면 자동(git tag desktop-v1.0.1 && git push origin desktop-v1.0.1),
+#       또는 Actions › desktop-release › Run workflow(태그 입력). 버전은 apps/desktop/package.json과 맞춘다.
+# 서명 없음(맥 ad-hoc·Windows 서명 안 함) — 설명: docs/release/desktop-download.md
+name: desktop-release
+
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '릴리스 태그(예: desktop-v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  mac:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # 설치 스크립트는 막는다(npm 11 기본과 같게) — better-sqlite3·PowerSync는 프리빌드, Electron은 electron-builder가 따로 받는다
+      - run: npm ci --ignore-scripts
+      - name: Apple 캘린더 도우미(arm64+x64)
+        run: sh apps/desktop/native/calendar/build.sh
+      - name: 빌드·패키징
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: npm run dist:public -w @sprout/desktop -- mac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: apps/desktop/release/Kkumteul-mac-*.dmg
+          if-no-files-found: error
+
+  win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: 빌드·패키징
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: npm run dist:public -w @sprout/desktop -- win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: win
+          path: apps/desktop/release/Kkumteul-windows-*-setup.exe
+          if-no-files-found: error
+
+  release:
+    needs: [mac, win]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: 릴리스 만들기(이미 있으면 파일만 바꿈)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la dist
+          (cd dist && sha256sum * > SHA256SUMS.txt)
+          VERSION="${TAG#desktop-v}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --latest \
+              --title "꿈틀 데스크톱 $VERSION" --notes-file .github/desktop-release-notes.md
+          fi

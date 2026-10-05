@@ -1,6 +1,6 @@
 {
   "name": "@sprout/desktop",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "private": true,
   "description": "sprout — 할 일·캘린더 + 성장 루프",
   "author": "sprout",
@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "dist:mac": "electron-vite build && node build/dist-mac-local.mjs",
     "dist:mac:release": "electron-vite build && node build/dist-mac-release.mjs",
+    "dist:public": "electron-vite build && node build/dist-public.mjs",
     "widget:build": "sh native/widget/build.sh",
     "calendar:build": "sh native/calendar/build.sh"
   },
