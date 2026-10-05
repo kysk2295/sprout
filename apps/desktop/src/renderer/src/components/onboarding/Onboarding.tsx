@@ -1,4 +1,4 @@
-import { CalendarDays, Check, ChevronLeft, Download, Sparkles, X } from 'lucide-react'
+import { CalendarDays, Check, ChevronLeft, Sparkles, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -10,12 +10,11 @@ import { createTask, taskListId } from '../../data/mutations'
 import { dayKey } from '../../lib/dates'
 import { CharacterArt } from '../growth/CharacterArt'
 import { SurveyDialog } from '../growth/SurveyDialog'
-import { openTickTickImport } from '../TickTickImport'
 import './onboarding.css'
 
 type Props = { state: OnboardingState; ready: boolean; onChange: (s: OnboardingState) => void; onHide: () => void; onOpenCalendar?: () => void }
 
-// 18 §3 첫 실행 안내: 환영 → 캘린더 연결 → 틱틱에서 가져오기 → 성향 조사 → 첫 할 일. 모든 단계는 건너뛸 수 있다.
+// 18 §3 첫 실행 안내: 환영 → 캘린더 연결 → 성향 조사 → 첫 할 일. 모든 단계는 건너뛸 수 있다.
 export function Onboarding({ state, ready, onChange, onHide, onOpenCalendar }: Props) {
   const { character } = useGrowth()
   const hasSpecies = !!character?.species
@@ -54,7 +53,6 @@ export function Onboarding({ state, ready, onChange, onHide, onOpenCalendar }: P
         </header>
         {step === 'welcome' && <Welcome onStart={() => go('done')} onSkipAll={() => onChange(skipAll(state))} />}
         {step === 'calendar' && <CalendarStep onBusy={setBusy} onNext={(any) => go(any ? 'done' : 'skip')} onSkip={() => go('skip')} onOpenCalendar={onOpenCalendar} />}
-        {step === 'import' && <ImportStep onNext={(opened) => go(opened ? 'done' : 'skip')} onSkip={() => go('skip')} />}
         {step === 'survey' && (
           <SurveyStep ready={ready} onStart={() => void ensureCharacter().then(() => setSurvey(true))} onSkip={() => go('skip')} />
         )}
@@ -81,7 +79,6 @@ function Welcome({ onStart, onSkipAll }: { onStart: () => void; onSkipAll: () =>
       <p className="onb__lead">할 일을 끝낼수록 함께 자라는 친구가 생겨요.<br />시작하기 전에 1분만 준비해요.</p>
       <ul className="onb__list">
         <li><CalendarDays size={16} /> 쓰던 캘린더 일정을 할 일과 한 화면에</li>
-        <li><Download size={16} /> 틱틱에서 쓰던 할 일 그대로 옮기기</li>
         <li><Sparkles size={16} /> 나와 닮은 캐릭터 찾기</li>
       </ul>
       <Foot>
@@ -144,29 +141,7 @@ function CalendarStep({ onNext, onSkip, onBusy, onOpenCalendar }: { onNext: (any
   )
 }
 
-// ── 3. 틱틱에서 가져오기 (17 — 가져오기 창을 위에 연다) ──
-function ImportStep({ onNext, onSkip }: { onNext: (opened: boolean) => void; onSkip: () => void }) {
-  const [opened, setOpened] = useState(false)
-  return (
-    <section className="onb__body">
-      <h2 className="onb__title">틱틱에서 쓰던 걸 옮겨 올까요?</h2>
-      <p className="onb__lead">리스트·할 일·완료 기록·태그·노트를 꿈틀로 옮겨요. 틱틱 데이터는 바뀌지 않아요(읽기만 해요).</p>
-      <div className="onb__rows">
-        <div className={`onb__row${opened ? ' is-done' : ''}`}>
-          <span className="onb__row-icon"><Download size={18} /></span>
-          <span className="onb__row-text"><b>틱틱에서 가져오기</b><small>{opened ? '가져오기 창에서 마치면 여기로 돌아와요.' : '틱틱 계정으로 연결하거나 API 토큰을 붙여 넣어요.'}</small></span>
-          <button className="onb__ghost" onClick={() => { setOpened(true); openTickTickImport() }}>{opened ? '다시 열기' : '가져오기'}</button>
-        </div>
-      </div>
-      <p className="onb__note">⌘K › "틱틱에서 가져오기"로 언제든 할 수 있어요.</p>
-      <Foot>
-        <button className="onb__primary" onClick={() => (opened ? onNext(true) : onSkip())}>{opened ? '다음' : '건너뛰기'}</button>
-      </Foot>
-    </section>
-  )
-}
-
-// ── 4. 성향 조사 (10 §2.2 — 조사 창은 성장 화면과 같은 것) ──
+// ── 3. 성향 조사 (10 §2.2 — 조사 창은 성장 화면과 같은 것) ──
 function SurveyStep({ ready, onStart, onSkip }: { ready: boolean; onStart: () => void; onSkip: () => void }) {
   // 조사를 마치면(캐릭터 생김) 위 autoSkip이 이 단계를 '함'으로 넘긴다 — 결과 축하는 조사 창의 결과 화면이 맡는다
   return (
@@ -182,7 +157,7 @@ function SurveyStep({ ready, onStart, onSkip }: { ready: boolean; onStart: () =>
   )
 }
 
-// ── 5. 첫 할 일 ──
+// ── 4. 첫 할 일 ──
 function FirstTaskStep({ ready, onFinish }: { ready: boolean; onFinish: (made: boolean) => void }) {
   const [title, setTitle] = useState('')
   const [made, setMade] = useState<string[]>([])

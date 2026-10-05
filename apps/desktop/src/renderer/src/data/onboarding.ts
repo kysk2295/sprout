@@ -3,8 +3,9 @@
 // - 중간에 앱을 끄면 다음 실행에 그 단계부터 이어서 연다(진행 기록 = 기기 localStorage, 계정 id별 키).
 // - 동기화 스키마는 바꾸지 않는다(18 §6): 다른 기기에서는 "이미 쓰던 계정"이라 안내를 띄우지 않는다.
 
-export type Step = 'welcome' | 'calendar' | 'import' | 'survey' | 'first-task'
-export const STEPS: Step[] = ['welcome', 'calendar', 'import', 'survey', 'first-task']
+// 2026-10-05 사용자 결정: 틱틱 가져오기 단계는 뺐다(가져오기는 ⌘K에 그대로). 옛 기록의 'import'는 성향 조사로 잇는다(loadState)
+export type Step = 'welcome' | 'calendar' | 'survey' | 'first-task'
+export const STEPS: Step[] = ['welcome', 'calendar', 'survey', 'first-task']
 
 export type OnboardingState = {
   v: 1
@@ -73,6 +74,7 @@ export function loadState(userId: string, s: Storage | null = store()): Onboardi
     const raw = s?.getItem(storageKey(userId))
     if (!raw) return null
     const v = JSON.parse(raw) as OnboardingState
+    if ((v?.step as string) === 'import') v.step = 'survey'
     return v?.v === 1 && STEPS.includes(v.step) ? v : null
   } catch { return null }
 }
