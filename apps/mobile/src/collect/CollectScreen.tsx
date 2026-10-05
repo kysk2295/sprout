@@ -28,6 +28,7 @@ import { ItemSheet } from './ItemSheet'
 import { ChipView, CollectEmpty, ItemRow, Segmented, SiteMark } from './parts'
 import { seedSeen, useSeen } from './wikiSeen'
 import { useTabBarSpace } from '../ui/tabBarSpace'
+import { canReceiveShare } from '../share/android'
 
 type Section = 'notes' | 'watch' | 'wiki'
 type Topic = WikiTopic & { count: number }
@@ -127,7 +128,7 @@ export default function CollectScreen() {
             ) : null}
             {!items.length ? (
               q ? <CollectEmpty icon="inbox" title={`"${q}"와 맞는 항목이 없어요`} /> : (
-                <CollectEmpty icon="inbox" title="무엇이든 던져 두세요" sub={"다른 앱에서 공유 → 꿈틀을 누르면 여기로 와요\n(카톡 '나에게 보내기'처럼)"} />
+                <CollectEmpty icon="inbox" title="무엇이든 던져 두세요" sub={canReceiveShare ? "다른 앱에서 공유 → 꿈틀을 누르면 여기로 와요\n(카톡 '나에게 보내기'처럼)" : '링크·글을 복사해 위 입력 칸에 붙여 넣으면 여기로 와요\n(카톡 \'나에게 보내기\'처럼)'} />
               )
             ) : groups.map((g) => {
               const closed = !q && g.closedByDefault !== toggled.has(g.id)

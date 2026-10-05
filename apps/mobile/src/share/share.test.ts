@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { firstUrl, isBareLink, TASK_HINT, URL_RE } from './link.ts'
-import { composeContent, parseItem, shareRow, uploadBody, type ShareItem } from './row.ts'
+import { androidShareContent, composeContent, parseItem, shareRow, uploadBody, type ShareItem } from './row.ts'
 import { drainQueue, type QueueIO } from './queue.ts'
 
 // ── ① 데스크톱과 같은 규칙: 정규식 원문이 그대로이고, 예시 결과가 같다 ──
@@ -95,5 +95,12 @@ assert.ok(!('d.json' in files))
 // user_id 없는 항목(옛 형식)은 지금 사용자로
 files['e.json'] = JSON.stringify({ ...item, id: 'e', user_id: null })
 assert.equal((await drainQueue(fakeIO(files, local), 'u1')).inserted, 1)
+
+// ── ④ Android 공유 글 합치기 ──
+assert.equal(androidShareContent('네이버 뉴스', 'https://n.news.naver.com/a/1'), '네이버 뉴스\nhttps://n.news.naver.com/a/1')
+assert.equal(androidShareContent(null, '  내일 3시 치과 '), '내일 3시 치과')
+assert.equal(androidShareContent('영상', '영상 https://youtu.be/x'), '영상 https://youtu.be/x')
+assert.equal(androidShareContent('제목만', ''), '제목만')
+assert.equal(androidShareContent(' ', undefined), '')
 
 console.log('share: ok')

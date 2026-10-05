@@ -1,6 +1,6 @@
 # 24 · 모바일 — 공유하기로 수집함 (다른 앱 → sprout 수집함)
 
-- 상태: **확정 v1.0** (2026-10-05) — 20 §0의 제안대로 사용자 승인. 이전 v0.2 (2026-10-04).
+- 상태: **확정 v1.1** (2026-10-05 Android 공유 받기 구현 — §8) · 확정 v1.0 (2026-10-05) — 20 §0의 제안대로 사용자 승인. 이전 v0.2 (2026-10-04).
 - 시안: [mockups/mobile-sprout.html](mockups/mobile-sprout.html) **C1**(공유 카드) · **C2**(저장됨 · 로그아웃 상태). 수집함 목록은 [26](26-mobile-collect.md) [다음]
 - 조사: [research 25 §3](../ticktick-research/25-mobile-sprout-patterns.md)(iOS 공유 확장 두 방식·메모리 120MB·App Groups·Todoist/Raindrop/Things 공유 화면), §7(카카오톡 '나에게 보내기' 습관)
 - 근거: PRD §8 출시 경로 7 "모바일 최소형(… + 공유하기로 수집함)", PRD §7.2 G(카톡 "나에게 보내기" 대신), [11 수집함 v3](11-notes.md)
@@ -95,7 +95,7 @@
 2. 온라인이고 액세스 토큰이 유효하면(키체인 공유 그룹에서 읽음) 확장이 직접 `POST /sync/upload` `[{op:'PUT', table:'notes', id, data:{…}}]` — **기존 API 그대로**.
 3. 아니면 App Group 공유 폴더의 대기열 파일(JSON 줄)에 쓴다. 본 앱이 앞으로 올 때 대기열을 읽어 로컬 DB에 같은 id로 INSERT OR IGNORE → PowerSync가 올린다 → 대기열 비움.
 4. 리프레시 토큰은 확장에서 쓰지 않는다(쓸 때마다 바뀌어 본 앱 로그인이 깨질 수 있음). 토큰이 만료면 3번.
-5. Android는 공유가 본 앱의 작은 화면(Activity)으로 열려 바로 로컬 DB에 쓴다(1~4 불필요) [구현 때 확인].
+5. Android는 공유가 본 앱(MainActivity)으로 열려 바로 로컬 DB에 쓴다(1~4 불필요) — 구현은 §8.
 - 라이브러리 후보(구현 때 하나 고름): `expo-share-intent`(커뮤니티, App Group 설정) / Expo 공식 `expo-sharing`의 받기 기능 / iOS 맞춤 화면이 필요하면 `expo-share-extension`.
 
 ## 6. 완료 기준
@@ -122,5 +122,17 @@
 | 안내 줄 | 링크만이면 `링크만 있어서 바로 ‘볼 것’에 넣어요`, 아니면 `AI가 할 일·볼 것·위키·메모로 정리해 둘게요` [임시 — 구현 때 추가, 결과가 다르다는 걸 미리 보여 줌] |
 | 다른 점 [임시] | iOS 26에서 확장 화면은 시스템 시트 안에 뜬다(`overFullScreen`을 무시) → 덮개는 시트 안에만 그려진다. 카드 높이 500·모서리 22·머리 52는 명세대로. [sprout 열기]는 공식 API가 없어 응답자 사슬로 `sprout://`를 연다(안 되면 그냥 닫힘, 실기기 확인 필요) |
 | 실기기 | Apple Developer에서 App ID `app.sprout.mobile`·`app.sprout.mobile.share` 둘 다 App Groups(`group.app.sprout.mobile`) 켜기, 팀 `BU697KN34B`로 서명. 키체인 공유는 같은 팀이면 따로 등록 없음 |
-| [다음] | Android 공유 받기(`SEND` `text/plain` → 본 앱 RN 화면, 바로 로컬 DB). 오늘 탭 위 `공유한 N개를 수집함에 넣는 중…` 띠. 설정의 `공유 목록에 sprout 추가하는 법` 안내 |
+| [다음] | ~~Android 공유 받기~~ → §8 구현. Android 공유 카드(덧붙이기·넣기 확인) — 지금은 바로 저장. 오늘 탭 위 `공유한 N개를 수집함에 넣는 중…` 띠. 설정의 `공유 목록에 sprout 추가하는 법` 안내 |
 | 확인 (iOS 26.5 시뮬레이터, 2026-10-05) | 사파리 링크 공유 → 바로 업로드(`kind link`·`done`), 글 공유 → 바로 업로드(`pending`), 토큰 만료 상태 공유 → 대기열 → 앱 열 때 넣기(같은 id 두 파일 → 한 줄, 원래 `captured_at` 유지), 다시 열어도 중복 없음, 로그아웃 → 로그인 카드 → [sprout 열기]로 앱 열림, 다크 모드 카드, 취소 = 저장 없음. 데스크톱 화면에서 직접은 보지 않았다(서버 행·모바일 수집함 탭으로 확인) |
+
+## 8. 구현 메모 (2026-10-05, Android 공유 받기)
+| 부분 | 위치 · 내용 |
+|---|---|
+| 받는 종류 | `apps/mobile/app.json` `android.intentFilters` = `SEND` · `DEFAULT` · `text/plain` 하나 → expo prebuild가 MainActivity(`singleTask`)에 붙인다. 링크도 Android에서는 `text/plain`(크롬·유튜브·카톡 모두)이라 이것만으로 글·링크를 받는다. 사진·파일만 공유하면 꿈틀이 목록에 안 뜬다(M-S3). `SEND_MULTIPLE`은 받지 않는다 |
+| 인텐트 읽기 | `apps/mobile/modules/sprout-share`(앱 안 Expo 모듈, Android 전용, 자동 링크) — `take()`가 쌓인 공유 `{text, subject, at}`를 넘기고 비운다. 꺼져 있다 켜진 경우는 시작 인텐트를, 떠 있을 때는 `OnNewIntent` → `onShare` 이벤트. 읽은 인텐트는 action을 MAIN으로 바꾸고 extra를 지워 다시 불러오기에도 두 번 들어가지 않는다 |
+| 글 합치기 | `src/share/row.ts` `androidShareContent(subject, text)` — 크롬처럼 제목(EXTRA_SUBJECT)과 주소(EXTRA_TEXT)를 따로 주면 `<제목>\n<주소>`(§3), 글에 제목이 이미 있으면 글만. 시험 `share.test.ts` ④ |
+| 저장 | `src/share/android.ts` `useAndroidShare(signedIn)`(`app/_layout.tsx` Screens에서 한 줄): 로그인 상태에서 시작·앞으로 올 때·`onShare`마다 `notes`에 `shareRow`(iOS 대기열과 같은 행 — 링크만이면 바로 볼 것, 나머지 `pending`, `captured_at` = 공유 시각)로 INSERT → PowerSync가 올린다(오프라인이면 연결될 때 — iOS 대기열과 같은 결과). 넣었으면 **수집함 탭으로 가고** 토스트 `수집함에 넣었어요`(여러 개면 `공유한 N개를 수집함에 넣었어요`) |
+| 로그아웃 상태 | 공유는 모듈에 쌓여 있다가 로그인하면 들어간다(앱 프로세스가 살아 있는 동안 — 앱을 완전히 닫으면 사라짐) [임시] |
+| 빈 상태 문구 | 수집함 빈 상태 `다른 앱에서 공유 → 꿈틀…`은 공유를 받을 수 있는 빌드에서만(iOS · `sprout-share` 모듈이 든 Android). 모듈 없는 옛 Android 빌드는 `링크·글을 복사해 위 입력 칸에 붙여 넣으면 여기로 와요`(`canReceiveShare`) |
+| iOS와 다른 점 [임시] | §2.1 공유 카드(덧붙이기 줄·`넣기`·확인 카드) 없이 **바로 저장 + 앱 수집함 탭**(틱틱 Android도 공유하면 앱 안 빠른 추가로 열린다 — research 20 §6). 카드는 [다음] |
+| 확인 | `npx expo prebuild --platform android` → 매니페스트에 `SEND text/plain` intent-filter, `:sprout-share:compileDebugKotlin` 통과, `npm run typecheck:mobile`·`npm run test:mobile`. 에뮬레이터(Pixel 6a, 개발용 빌드): 앱이 떠 있을 때 `am start -a SEND -t text/plain`(제목 + 주소) → 수집함 탭으로 가고 `<제목>` 행 · `볼 것` 1개(링크만 판정). **앱이 꺼져 있을 때 공유는 개발용 빌드에서는 확인 못 함** — expo-dev-client 런처가 시작 인텐트를 가로챈다(출시 빌드에는 런처가 없어 MainActivity가 그대로 받는다). 출시 빌드·실기기에서 크롬·유튜브·카톡 공유로 다시 확인 |

@@ -46,3 +46,13 @@ export function parseItem(raw: string): ShareItem | null {
     return null
   }
 }
+
+/** Android 공유(SEND text/plain) 글 + 제목 → 한 항목 글. 크롬은 제목=페이지 제목·글=주소를 따로 준다(§3 "<제목>\n<주소>").
+ *  글에 제목이 이미 들어 있으면(카톡·유튜브 등) 글만, 한쪽만 있으면 그쪽만. */
+export function androidShareContent(subject: string | null | undefined, text: string | null | undefined): string {
+  const s = (subject ?? '').trim()
+  const t = (text ?? '').trim()
+  if (!s) return t
+  if (!t || t.includes(s)) return t || s
+  return `${s}\n${t}`
+}

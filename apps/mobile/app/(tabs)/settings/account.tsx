@@ -6,7 +6,8 @@
 import { useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Alert, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   api, ApiError, freshToken, linkApple, linkGoogle, loginMethods, logout, reauthWithApple, reauthWithGoogle, socialErrorText, unlinkProvider, useAuth,
   type LinkedIdentity, type LoginMethods, type Provider
@@ -36,11 +37,21 @@ function deleteErrorText(error: string, status: number, provider: Provider = 'go
 export default function Account() {
   const p = usePalette()
   const space = useTabBarSpace()
+  const insets = useSafeAreaInsets()
   const scrollRef = useRef<ScrollView>(null)
+  // 삭제 확인 카드는 화면 맨 아래라 떠 있는 탭 알약·키보드에 가린다(20 §3.1) →
+  //  · 카드가 열리거나 내용(비밀번호·재로그인·오류)이 바뀌면 맨 아래(삭제 버튼)까지 내린다
+  //  · 키보드: iOS는 automaticallyAdjustKeyboardInsets가 키보드만큼 안쪽 여백을 더한다.
+  //    Android(전체 화면 그리기 — 창이 줄지 않는다)는 키보드 높이 + 제스처 막대만큼 아래 여백을 직접 늘린다(BottomSheet와 같은 보정)
+  const [kb, setKb] = useState(0)
+  const wantEnd = useRef(false)
+  const toEnd = () => { wantEnd.current = true; requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true })) }
   useEffect(() => {
-    const sub = Keyboard.addListener('keyboardDidShow', () => scrollRef.current?.scrollToEnd({ animated: true }))
-    return () => sub.remove()
-  }, [])
+    const android = Platform.OS === 'android'
+    const show = Keyboard.addListener('keyboardDidShow', (e) => { if (android) setKb(e.endCoordinates.height + insets.bottom); toEnd() })
+    const hide = Keyboard.addListener('keyboardDidHide', () => { if (android) setKb(0) })
+    return () => { show.remove(); hide.remove() }
+  }, [insets.bottom])
   const router = useRouter()
   const toast = useToast()
   const { user } = useAuth()
@@ -117,6 +128,7 @@ export default function Account() {
   const [reauthing, setReauthing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  useEffect(() => { if (open) toEnd() }, [open, mode, reauthed, error]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const start = async () => {
     setOpen(true); setError(''); setMode(null); setPassword(''); setWord(''); setReauthed(false)
@@ -169,8 +181,15 @@ export default function Account() {
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
       <NavRow title="계정" left={<GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>} right={<View style={{ width: 40 }} />} />
-      {/* 삭제 확인 칸은 화면 아래쪽이라 키보드에 가린다 → 키보드만큼 안쪽 여백을 늘리고(iOS) 키보드가 올라오면 맨 아래(입력·삭제 버튼)로 내린다(20 §3.1) */}
-      <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets contentContainerStyle={{ paddingTop: 6, paddingBottom: space.pad }}>
+      {/* 아래 여백 = 탭 알약 위 24(space.pad), Android 키보드가 떠 있으면 키보드 위 24 — 카드가 커지면(onContentSizeChange) 맨 아래로 */}
+      <ScrollView
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        onContentSizeChange={() => { if (wantEnd.current) scrollRef.current?.scrollToEnd({ animated: true }) }}
+        onScrollBeginDrag={() => { wantEnd.current = false }}
+        contentContainerStyle={{ paddingTop: 6, paddingBottom: Math.max(space.pad, kb + 24) }}
+      >
         {/* 35 §2: 맨 위 아바타 + "프로필 이미지 바꾸기" → 고르기 시트 */}
         <Pressable accessibilityRole="button" accessibilityLabel="프로필 이미지 바꾸기" onPress={() => setAvatarOpen(true)} style={s.avatar}>
           <ProfileAvatar avatar={avatar} size={64} letter={letter} />
@@ -227,7 +246,7 @@ export default function Account() {
             ) : null}
             {error ? <Text accessibilityRole="alert" style={{ color: p.danger, fontSize: 13 }}>{error}</Text> : null}
             <View style={s.row}>
-              <Pressable accessibilityRole="button" disabled={busy} onPress={() => { setOpen(false); setError('') }} style={[s.small, { backgroundColor: p.bgSelected }]}>
+              <Pressable accessibilityRole="button" disabled={busy} onPress={() => { wantEnd.current = false; setOpen(false); setError('') }} style={[s.small, { backgroundColor: p.bgSelected }]}>
                 <Text style={{ color: p.textPrimary, fontSize: 15 }}>취소</Text>
               </Pressable>
               <Pressable accessibilityRole="button" accessibilityState={{ disabled: !ready }} disabled={!ready} onPress={() => void submit()} style={[s.small, { backgroundColor: ready ? p.danger : p.bgSelected }]}>

@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { startAuth, useAuth } from '../src/data/auth'
 import { db } from '../src/data/db'
+import { useAndroidShare } from '../src/share/android'
 import { useShareInbox } from '../src/share/useShareInbox'
 import { useWidgets, WidgetArtBaker } from '../src/widgets/useWidgets'
 import { useReminderNotifications } from '../src/notifications/background'
@@ -48,6 +49,7 @@ function Screens({ signedIn }: { signedIn: boolean }) {
   const p = usePalette()
   useEffect(() => { void SystemUI.setBackgroundColorAsync(p.pageBg) }, [p.pageBg])
   useReminderNotifications(signedIn) // 20 §4.4 로컬 알림: 예약·감시·알림 동작·백그라운드 새로 고침
+  useAndroidShare(signedIn) // 24 §5-5: Android 다른 앱 공유 → 수집함
   const sheet = (detents: number[]) => ({
     presentation: 'formSheet' as const,
     sheetAllowedDetents: detents,

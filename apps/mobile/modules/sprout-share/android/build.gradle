@@ -1,0 +1,17 @@
+// 24 Android 공유 받기: 다른 앱의 공유(SEND text/plain)를 본 앱 JS로 넘기는 작은 Expo 모듈(modules/ 자동 링크).
+// 받는 종류(intent-filter)는 app.json android.intentFilters가 MainActivity에 붙인다.
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'app.sprout'
+version = '0.1.0'
+
+android {
+  namespace "app.sprout.share"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
