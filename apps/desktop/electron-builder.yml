@@ -87,7 +87,8 @@ mac:
     NSHumanReadableCopyright: Copyright © 2026 유니포트
     # CFBundleName(Info.plist 원본)은 영문 productName 그대로 둔다 — 한글로 바꾸면 Electron이 시작 직후 SIGTRAP(2026-10-05 확인).
     # 메뉴 막대·Finder의 한글 이름은 after-pack.cjs가 넣는 ko/en.lproj InfoPlist.strings의 CFBundleName·CFBundleDisplayName이 맡는다.
-    CFBundleDisplayName: 꿈틀
+    # Finder는 이 기본값이 파일 이름(Kkumteul.app)과 같을 때만 lproj의 현지화 이름(꿈틀)을 보여 준다(2026-10-05 확인)
+    CFBundleDisplayName: Kkumteul
     LSHasLocalizedDisplayName: true
     LSApplicationCategoryType: public.app-category.productivity
     # 16 §11.4 Apple 캘린더 읽기 권한 창 문구(권한은 책임 프로세스인 앱 이름으로 묻는다)
