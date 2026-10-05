@@ -76,7 +76,7 @@ export function ProjectBoard({ data }: { data: PlanData }) {
 }
 
 /** 할 일 행(체크 · 제목 · 날짜) — 체크 = 완료(XP 규칙 그대로, 토스트 되돌리기) */
-export function PlanTaskRow({ task, today, first, right }: { task: PTaskRow; today: string; first?: boolean; right?: string }) {
+export function PlanTaskRow({ task, today, first, right, onLongPress }: { task: PTaskRow; today: string; first?: boolean; right?: string; onLongPress?: () => void }) {
   const p = usePalette()
   const router = useRouter()
   const toast = useToast()
@@ -84,7 +84,7 @@ export function PlanTaskRow({ task, today, first, right }: { task: PTaskRow; tod
   const done = task.status !== 0 || leaving
   const date = rowDateLabel({ start_at: task.start_at ?? null, due_at: task.due_at ?? null }, today)
   return (
-    <Pressable onPress={() => router.push(`/task/${task.id}`)} accessibilityRole="button"
+    <Pressable onPress={() => router.push(`/task/${task.id}`)} onLongPress={onLongPress} delayLongPress={350} accessibilityRole="button"
       style={({ pressed }) => [s.trow, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
       <Checkbox priority={task.priority ?? 0} done={done} disabled={task.status !== 0} onPress={() => {
         setLeaving(true)

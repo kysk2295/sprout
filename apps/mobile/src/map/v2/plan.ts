@@ -2,14 +2,14 @@
 // 휴대폰은 자동 프로젝트 패스를 돌리지 않는다(29 §9.1): 데스크톱이 만든 프로젝트 태그를 보여 주기만. 구성원 계산만 공용 함수로 같이 한다.
 import { useQuery } from '@powersync/react-native'
 import { autoTagRowId, findSynonym, type AtTag } from '@sprout/schema/autoTag'
-import { buildPlanView, type LinkRow, type ListRow, type PlanData, type PTaskRow, type SeqRow, type TagRow } from '@sprout/schema/planView'
+import { buildPlanView, type LinkRow, type ListRow, type PlanData, type ProjectTaskInput, type PTaskRow, type SeqRow, type TagRow } from '@sprout/schema/planView'
+import { relationId } from '@sprout/schema/wikiLink'
 import { PROJECT } from '@sprout/schema/projects'
 import { deleteStmt, type Stmt } from '@sprout/schema/taskCore'
 import { useMemo } from 'react'
 import { db, run } from '../../data/db'
-import { insert, update } from '../../data/tasks'
+import { createTask, deleteForever, insert, update } from '../../data/tasks'
 import { dayKey } from '../../lib/dates'
-import { removeTaskTags } from '../../wiki/data'
 import { kvGet, kvSet, useKv } from './kv'
 
 export type { PlanData, ProjectView, PTaskRow, TodayItem } from '@sprout/schema/planView'
@@ -57,10 +57,10 @@ export function confirmProject(tagId: string, count: number) {
   kvSet(PROJECTS_KEY, { ...s, confirmed: { ...s.confirmed, [tagId]: count } })
 }
 
-/** `✕ 빼기`(31 §12.3 ✕ 이건 아니야): 붙은 태그 행이 있으면 떼고(자동 = dismissed, 사용자 = 지움), 집·하위로 들어온 할 일은 dismissed 행 하나 */
+/** 프로젝트에서 빼기(31 §12.9.2 · §12.12.2, 데스크톱과 같음): 연결만 끊는다 — 태그 행은 (사람이 넣은 것도) dismissed로 남겨
+ * 자동 패스가 다시 붙이지 않게 하고, 집·하위로 들어온 할 일은 dismissed 행 하나. 할 일은 리스트에 그대로 */
 export async function removeFromProject(taskId: string, tagId: string): Promise<Undo> {
   const rows = await db.getAll<{ id: string; state: string | null }>('SELECT id, state FROM task_tags WHERE task_id = ? AND tag_id = ?', [taskId, tagId])
-  if (rows.some((r) => (r.state ?? 'accepted') === 'accepted')) return removeTaskTags([taskId], tagId)
   if (rows.length) {
     await run(rows.map((r) => update('task_tags', r.id, { state: 'dismissed' })))
     return async () => { await run(rows.map((r) => update('task_tags', r.id, { state: r.state }))) }
@@ -68,6 +68,20 @@ export async function removeFromProject(taskId: string, tagId: string): Promise<
   const id = autoTagRowId(taskId, tagId)
   await run([insert('task_tags', { id, task_id: taskId, tag_id: tagId, source: 'rule', state: 'dismissed', confidence: null, run_id: null })])
   return async () => { await run([deleteStmt('task_tags', id)]) }
+}
+
+/** 31 §12.12.1 프로젝트 안 새 할 일(공용 projectTaskInput 결과): 리스트(없으면 기본함) · 시각이 있으면 정시 알림 · 반복 · #태그 ·
+ * 프로젝트 태그 user · 줄(묶음) 종류가 제목 분류와 다르면 일의 종류 덮어쓰기. 되돌리기 = 만든 것 지움 */
+export async function addProjectTask(input: ProjectTaskInput, projectTagId: string): Promise<{ id: string; undo: Undo }> {
+  const timed = !!input.due_at?.includes('T')
+  const id = await createTask({
+    title: input.title, list_id: input.list_id ?? '', due_at: input.due_at, priority: input.priority, repeat_rule: input.repeat_rule,
+    tag_ids: input.tag_ids.filter((t) => t !== projectTagId), reminders: timed ? ['-PT0M'] : []
+  })
+  await addToProject([id], projectTagId)
+  const kindId = relationId(id, 'work_kind', 'work_kind')
+  if (input.kind) await run([insert('relations', { id: kindId, from_type: 'task', from_id: id, to_type: 'work_kind', to_id: input.kind, source: 'manual', state: 'accepted', field: 'work_kind' })])
+  return { id, undo: async () => { if (input.kind) await run([deleteStmt('relations', kindId)]); await deleteForever([id]) } }
 }
 
 /** `＋ 더 넣기` · 같이 계획 짜기: 사람이 넣음(source user). 뗀 행이 있으면 다시 켠다 */
