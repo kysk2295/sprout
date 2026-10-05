@@ -186,6 +186,7 @@ section.tight { padding: 64px 0; }
 .app-win button { font: inherit; color: inherit; }
 .ico { display: inline-flex; width: 14px; height: 14px; flex: none; }
 .ico svg { width: 100%; height: 100%; }
+.tl::-webkit-scrollbar, .pc-msgs::-webkit-scrollbar { display: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .check { width: 15px; height: 15px; flex: none; border-radius: 4px; border: 1.5px solid var(--l-gray); background: transparent; padding: 0; cursor: pointer; position: relative; transition: background .15s, border-color .15s; }
 .check::before { content: ""; position: absolute; inset: -9px; } /* 누르는 자리를 넉넉하게 */
@@ -245,7 +246,7 @@ section.tight { padding: 64px 0; }
 .ex-l { font-size: 11.5px; color: var(--a-text3); margin-right: 2px; }
 .ex { border: 1px dashed var(--a-line2); background: var(--a-bg); border-radius: 999px; padding: 3px 10px; font-size: 12px !important; color: var(--a-text2) !important; cursor: pointer; transition: border-color .15s, color .15s; }
 .ex:hover { border-color: var(--a-accent); color: var(--a-accent) !important; }
-.tl { flex: 1; overflow-y: auto; padding: 4px 0 64px; scrollbar-width: thin; }
+.tl { flex: 1; overflow-x: hidden; overflow-y: auto; padding: 4px 0 64px; scrollbar-width: none; }
 .grp-h { display: flex; gap: 6px; align-items: baseline; font-size: 12px; font-weight: 700; padding: 10px 2px 4px; }
 .grp-h small { color: var(--a-text3); font-weight: 500; }
 .grp.done .r-title { color: var(--a-text3); }
@@ -406,7 +407,7 @@ section.tight { padding: 64px 0; }
 .pc { display: flex; flex-direction: column; border-left: 1px solid var(--a-line); background: var(--a-bg); min-width: 0; max-height: 560px; }
 .pc-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--a-line); }
 .pc-head div { display: grid; } .pc-head b { font-size: 13.5px; } .pc-head small { font-size: 11px; color: var(--a-text3); }
-.pc-msgs { flex: 1; overflow-y: auto; padding: 12px 12px 6px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; min-height: 220px; }
+.pc-msgs { flex: 1; overflow-y: auto; padding: 12px 12px 6px; display: flex; flex-direction: column; gap: 8px; overflow-x: hidden; scrollbar-width: none; min-height: 220px; }
 .msg { display: flex; gap: 6px; align-items: flex-end; animation: chipIn .25s ease-out; }
 .msg img { width: 26px; height: 26px; flex: none; }
 .msg .bubble { max-width: 86%; font-size: 13px; padding: 7px 11px; border-radius: 14px; background: var(--a-hover); border: 1px solid var(--a-line); }
