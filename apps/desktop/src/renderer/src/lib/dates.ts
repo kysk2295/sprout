@@ -79,8 +79,9 @@ export function detailDateLabel(s: Span, today: string): { label: string; tone: 
 }
 
 export type TimeGroup = 'overdue' | 'today' | 'tomorrow' | 'next7' | 'later' | 'nodate'
+/** 날짜 묶음 순서 — 만료됨은 늘 맨 아래(완료 묶음 바로 위, 2026-10-06 사용자 결정 · 02 §그룹) */
 export const TIME_GROUPS: [TimeGroup, string][] = [
-  ['overdue', '만료됨'], ['today', '오늘'], ['tomorrow', '내일'], ['next7', '다음 7일'], ['later', '나중'], ['nodate', '날짜 없음']
+  ['today', '오늘'], ['tomorrow', '내일'], ['next7', '다음 7일'], ['later', '나중'], ['nodate', '날짜 없음'], ['overdue', '만료됨']
 ]
 /** 03 §4: 끝 < 오늘이면 만료됨, 진행 중이면 오늘, 아니면 시작 날짜 기준 */
 export function timeGroup(s: Span, today: string): TimeGroup {

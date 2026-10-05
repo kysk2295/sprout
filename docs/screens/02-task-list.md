@@ -94,7 +94,7 @@
 |---|---|---|
 | Custom (섹션) | 사용자가 만든 섹션 + "섹션 없음" | 일반 리스트 |
 | List | 리스트별 | 스마트 리스트, 폴더, 필터 |
-| Time | Overdue · Today · Tomorrow · Next 7 Days · Later · No Date | 전체 |
+| Time | Today · Tomorrow · Next 7 Days · Later · No Date · **Overdue(만료됨)** — 만료됨은 늘 맨 아래(완료 묶음 바로 위). 틱틱은 맨 위지만 2026-10-06 사용자 결정("만료됨은 가장 아래에")으로 바꿈 [sprout] | 전체 |
 | Priority | High · Medium · Low · None | 전체 |
 | Tag | 태그별 (태그 없음 포함) | 전체 |
 | Created Time | 만든 날짜별 | 전체 |
@@ -337,7 +337,7 @@
 
 ## 15. 완료 기준 (틱틱과 나란히 놓고 확인)
 - [ ] (§14.1) 새 계정(이메일·구글)으로 로그인하자마자 사이드바에 기본함이 하나 있고, 캘린더 빈칸 클릭 → 제목 → Enter로 할 일이 기본함에 생긴다. 로그인 전 쓰던 기기로 가입해도 기본함은 하나(이전 할 일 그대로).
-- [ ] Today 화면을 [8.0 f0061](../ticktick-captures/_video/aJ0ELyY215A/f0061.jpg)과 나란히 놓으면 그룹(Overdue·Today), Postpone 링크, 행 메타 순서(태그·리스트·⟲·⏰·날짜)와 날짜 색이 같다.
+- [ ] Today 화면을 [8.0 f0061](../ticktick-captures/_video/aJ0ELyY215A/f0061.jpg)과 나란히 놓으면 그룹(Today·Overdue — 만료됨은 맨 아래, 틱틱과 다름), Postpone 링크, 행 메타 순서(태그·리스트·⟲·⏰·날짜)와 날짜 색이 같다.
 - [ ] Inbox 화면을 [8.0 f0109](../ticktick-captures/_video/aJ0ELyY215A/f0109.jpg)과 나란히 놓으면 상세 패널 머리·제목·자리 표시 문구·하단 바 구성이 같다.
 - [ ] 행 높이 40px, 체크박스 16px, 체크박스 테두리 색이 우선순위를 따른다.
 - [ ] 추가 바: Enter 연속 입력, Shift+Enter 설명, `#`/`~` 드롭다운, 날짜 인식 하이라이트와 칩, 스마트 리스트에서 기본값(오늘 등) 적용.

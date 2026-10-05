@@ -93,7 +93,7 @@ export function eventsByGroup<T extends { start: string; allDay: boolean; task: 
   }
   return m
 }
-const TIME_ORDER = ['pinned', 'overdue', 'today', 'tomorrow', 'next7', 'later', 'nodate']
+const TIME_ORDER = ['pinned', 'today', 'tomorrow', 'next7', 'later', 'nodate', 'overdue'] // 만료됨은 맨 아래(lib/dates TIME_GROUPS)
 const TIME_TITLE: Record<string, string> = { today: '오늘', tomorrow: '내일', next7: '다음 7일', later: '나중' }
 /**
  * 할 일 묶음에 일정 묶음을 합친다: 날짜 묶음이 있으면 개수에 더하고, 할 일이 없는 날짜면 묶음을 새로 만든다(06 §14.3.1).

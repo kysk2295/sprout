@@ -46,9 +46,9 @@ assert.equal(eventsByGroup(list, today, false).get('events')!.length, 3)
 
 // 묶음 합치기: 있는 묶음은 개수만, 없는 날짜 묶음은 순서대로 새로, 완료 앞
 const g = (id: string, n: number, extra: Partial<Group> = {}): Group => ({ id, title: id, rows: [], count: n, ...extra })
-const merged = mergeEventGroups([g('overdue', 2), g('tomorrow', 1), g('done', 4, { done: true })], by, true)
-assert.deepEqual(merged.map((x) => [x.id, x.count]), [['overdue', 2], ['today', 2], ['tomorrow', 1], ['next7', 1], ['done', 4]])
-assert.equal(merged[1].title, '오늘')
+const merged = mergeEventGroups([g('tomorrow', 1), g('overdue', 2), g('done', 4, { done: true })], by, true)
+assert.deepEqual(merged.map((x) => [x.id, x.count]), [['today', 2], ['tomorrow', 1], ['next7', 1], ['overdue', 2], ['done', 4]], '만료됨은 날짜 묶음 맨 아래')
+assert.equal(merged[0].title, '오늘')
 const merged2 = mergeEventGroups([g('l:a', 1), g('done', 1, { done: true })], eventsByGroup(list, today, false), false)
 assert.deepEqual(merged2.map((x) => [x.id, x.title, x.count]), [['l:a', 'l:a', 1], ['events', '일정', 3], ['done', 'done', 1]])
 assert.equal(mergeEventGroups([], new Map(), true).length, 0)
