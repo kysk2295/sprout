@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>관계 위키 시안</title>
+<style>
+/* 시안 전용 — 토큰은 work-map-v3.html·new-tabs.html과 같다. 명세: ../33-relations-wiki.md v0.2 (제안, 사용자 확인 전) */
+:root{
+  --color-bg-app:#fff;--color-bg-rail:#f8f8f8;--color-bg-side:#fafafa;--color-bg-input:#f8f8f9;--color-bg-selected:#f1f1f1;--color-bg-hover:#f5f5f5;--color-bg-card:#fafafa;--color-bg-popover:#fff;
+  --color-border-divider:#f3f3f4;--color-border-row:#f4f4f4;--color-border-popover:transparent;
+  --color-text-primary:#191919;--color-text-secondary:#7d7d7d;--color-text-tertiary:#a3a4a7;--color-text-quaternary:#b5b6b8;
+  --color-accent:#4e75f2;--color-accent-subtle:#ecf0fd;--color-danger:#d44343;--color-goal:#e8a23a;--color-relate:#2a9d8f;--color-relate-subtle:rgba(42,157,143,.12);
+  --color-rail-icon:#a3a4a7;--color-rail-icon-selected:#4e75f2;--color-menu-icon:#7d7d7d;--color-seg-track:#f3f3f3;--color-seg-on:#fff;
+  --card-border:rgba(0,0,0,.06);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Pretendard","Apple SD Gothic Neo",sans-serif;
+  --shadow-popover:0 4px 16px rgba(0,0,0,.1),0 0 0 1px rgba(0,0,0,.04);
+  --page:#e9e9ec;--page-text:#333;
+}
+[data-theme=dark]{
+  --color-bg-app:#1a1a1a;--color-bg-rail:#212121;--color-bg-side:#1e1e1e;--color-bg-input:#212121;--color-bg-selected:#2c2c2c;--color-bg-hover:#242424;--color-bg-card:#252525;--color-bg-popover:#212121;
+  --color-border-divider:#262626;--color-border-row:#212121;--color-border-popover:#2f2f2f;
+  --color-text-primary:#f2f2f2;--color-text-secondary:#cdcdcd;--color-text-tertiary:#606060;--color-text-quaternary:#474747;
+  --color-accent:#545dfa;--color-accent-subtle:#262a52;--color-relate:#3fb8a8;--color-relate-subtle:rgba(63,184,168,.16);
+  --color-rail-icon:#787878;--color-rail-icon-selected:#fff;--color-menu-icon:#969696;--color-seg-track:#1a1a1a;--color-seg-on:#282828;
+  --card-border:#2a2a2a;--shadow-popover:0 6px 20px rgba(0,0,0,.5),0 0 0 1px #2f2f2f;
+  --page:#0e0e0e;--page-text:#ddd;color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:400 14px/20px var(--font);background:var(--page);color:var(--color-text-primary);padding:24px 16px 80px}
+.page-head{max-width:1120px;margin:0 auto 6px;display:flex;align-items:center;gap:12px;color:var(--page-text);flex-wrap:wrap}
+.page-head h1{font:700 18px/24px var(--font)}
+.page-head p{font-size:12px;opacity:.75;flex:1;min-width:200px}
+.page-head button{font:500 12px var(--font);padding:6px 12px;border-radius:6px;border:1px solid #888;background:transparent;color:inherit;cursor:pointer}
+.proposal{max-width:1120px;margin:0 auto;font:600 12px/18px var(--font);color:#b26b00}
+[data-theme=dark] .proposal{color:#efab3e}
+.label{max-width:1120px;margin:34px auto 10px;color:var(--page-text);font:600 13px var(--font);display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.label small{font-weight:400;opacity:.75}
+.scroll{overflow-x:auto;padding-bottom:6px}
+.frame{width:1120px;height:720px;margin:0 auto;background:var(--color-bg-app);border-radius:10px;overflow:hidden;display:flex;box-shadow:0 10px 40px rgba(0,0,0,.3);position:relative}
+.frame.short{height:470px}
+.rail{width:55px;background:var(--color-bg-rail);display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:12px;flex-shrink:0}
+.dots{display:flex;gap:5px;margin-bottom:6px}.dots i{width:9px;height:9px;border-radius:50%;background:#ff5f57}.dots i:nth-child(2){background:#febc2e}.dots i:nth-child(3){background:#28c840}
+.rail .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#8fb3ff,#4e75f2);color:#fff;display:grid;place-items:center;font-weight:600;margin-bottom:6px}
+.rail b{width:40px;height:40px;display:grid;place-items:center;color:var(--color-rail-icon);border-radius:6px;font-size:18px}
+.rail b.on{color:var(--color-rail-icon-selected)}
+/* 사이드바 */
+.side{width:232px;background:var(--color-bg-side);border-right:1px solid var(--color-border-divider);padding:14px 8px;flex-shrink:0;overflow:hidden;font-size:13px}
+.side .sec{font:600 11px/24px var(--font);color:var(--color-text-tertiary);padding:8px 10px 0;display:flex;justify-content:space-between}
+.side .sec.new::after{content:"새 구역";font:500 10px/16px var(--font);color:var(--color-relate);background:var(--color-relate-subtle);padding:0 6px;border-radius:4px;margin-top:4px}
+.side .it{height:32px;display:flex;align-items:center;gap:8px;padding:0 10px;border-radius:6px;white-space:nowrap}
+.side .it .n{margin-left:auto;color:var(--color-text-tertiary);font-size:12px}
+.side .it.on{background:var(--color-bg-selected)}
+.side .it.sub{padding-left:26px}
+.side .it .em{width:18px;text-align:center}
+/* 메인 */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+.head{height:56px;padding:9px 16px 0 21px;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.head h2{font:700 20px/26px var(--font);flex:1;display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap}
+.head h2 small{font:400 13px var(--font);color:var(--color-text-tertiary)}
+.ib{width:30px;height:30px;display:grid;place-items:center;color:var(--color-text-secondary);border-radius:6px;font-size:15px}
+.ib.on{background:var(--color-bg-selected);color:var(--color-accent)}
+.seg{display:inline-flex;background:var(--color-seg-track);border-radius:6px;padding:2px;gap:2px;border:1px solid var(--color-border-divider)}
+.seg span{font:500 12px/20px var(--font);padding:2px 12px;border-radius:4px;color:var(--color-text-secondary)}
+.seg span.on{background:var(--color-seg-on);color:var(--color-text-primary);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+/* 페이지 머리 */
+.ph{margin:0 16px 0 21px;border-bottom:1px solid var(--color-border-divider);padding:6px 0 10px;flex-shrink:0;font-size:13px}
+.ph .row{display:flex;gap:10px;align-items:flex-start;min-height:30px;padding:3px 0}
+.ph .k{width:72px;flex-shrink:0;font-size:12px;color:var(--color-text-tertiary);line-height:24px}
+.ph .v{flex:1;display:flex;flex-wrap:wrap;gap:6px;align-items:center;line-height:24px;min-width:0}
+.ph .desc{color:var(--color-text-secondary);padding:0 6px;margin-left:-6px;border-radius:4px}
+.ph .desc:hover{background:var(--color-bg-hover)}
+.ph .tog{margin-left:auto;color:var(--color-text-tertiary);font-size:12px}
+.collapsed{height:32px;display:flex;align-items:center;gap:8px;margin:0 16px 0 21px;border-bottom:1px solid var(--color-border-divider);font-size:12.5px;color:var(--color-text-secondary);white-space:nowrap;overflow:hidden}
+.collapsed .d{overflow:hidden;text-overflow:ellipsis;max-width:46%}
+.collapsed .m{color:var(--color-text-tertiary)}
+.pp{height:22px;display:inline-flex;align-items:center;gap:4px;padding:0 8px;border-radius:11px;background:var(--color-bg-input);border:1px solid var(--color-border-divider);font-size:12px;white-space:nowrap;line-height:20px}
+.pp .c{color:var(--color-text-tertiary);font-size:11px}
+.pp .ai{color:var(--color-accent);font-size:10px}
+.pp.sug{border-style:dashed;border-color:var(--color-text-quaternary)}
+.pp .ok{color:var(--color-accent);font-weight:600}.pp .no{color:var(--color-text-tertiary)}
+.pp.sm{height:20px;font-size:11px;padding:0 6px}
+.addlink{font-size:12px;color:var(--color-text-tertiary)}
+.src{font-size:12px;display:inline-flex;gap:4px;align-items:center;color:var(--color-text-primary)}
+.src .c{color:var(--color-text-tertiary)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--color-accent);display:inline-block}
+.gh{height:28px;display:flex;align-items:center;gap:6px;font:600 12.5px var(--font)}
+.gh .c{color:var(--color-text-quaternary);font-weight:500}
+.gh .r{margin-left:auto;font-weight:500;color:var(--color-accent);font-size:12px}
+.mini{height:30px;display:flex;align-items:center;gap:8px;font-size:12.5px;padding-left:2px}
+.mini .l{margin-left:auto;color:var(--color-text-tertiary);font-size:11.5px;white-space:nowrap}
+.mini .act{color:var(--color-accent);font-size:12px;margin-left:8px}
+/* 추가 바·행 */
+.add{height:36px;margin:10px 16px 6px 21px;border-radius:6px;background:var(--color-bg-input);display:flex;align-items:center;gap:8px;padding:0 10px;color:var(--color-text-tertiary);font-size:13px;flex-shrink:0;position:relative}
+.add.focus{outline:1px solid var(--color-accent);color:var(--color-text-primary)}
+.add .hl{background:var(--color-accent-subtle);border-radius:3px;padding:0 2px}
+.add .chips{margin-left:auto;display:flex;gap:6px}
+.add .chips span{font-size:11.5px;color:var(--color-accent);background:var(--color-accent-subtle);border-radius:4px;padding:0 6px;line-height:20px}
+.caret{display:inline-block;width:1px;height:16px;background:var(--color-text-primary);vertical-align:middle;margin-left:1px}
+.list{padding:0 16px 0 21px;overflow:hidden;flex:1}
+.grp{height:32px;display:flex;align-items:center;gap:6px;font:600 13px var(--font)}
+.grp .c{color:var(--color-text-quaternary);font-weight:500;font-size:12px}
+.row{position:relative}
+.tr{height:40px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--color-border-row);font-size:13.5px;padding:0 6px;border-radius:4px}
+.tr.sel{background:var(--color-bg-selected)}
+.tr .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr .meta{font-size:12px;color:var(--color-text-tertiary);white-space:nowrap;display:flex;gap:8px;align-items:center}
+.tr .meta .acc{color:var(--color-accent)}
+.tr .meta .red{color:var(--color-danger)}
+.tr.done .t{color:var(--color-text-tertiary)}
+.lk{color:var(--color-accent)}
+.lk.hv{text-decoration:underline}
+.lk.miss{color:var(--color-text-secondary);text-decoration:underline dashed var(--color-text-quaternary);text-underline-offset:3px}
+.cb{width:14px;height:14px;border:1.5px solid var(--color-text-tertiary);border-radius:3px;flex-shrink:0;display:inline-grid;place-items:center}
+.cb.p3{border-color:var(--color-danger)}
+.cb.done{background:var(--color-text-tertiary);border-color:var(--color-text-tertiary)}
+.cb.done::after{content:"";width:6px;height:3px;border-left:1.5px solid var(--color-bg-app);border-bottom:1.5px solid var(--color-bg-app);transform:rotate(-45deg) translate(0,-1px)}
+/* 상세 */
+.detail{position:relative;width:298px;border-left:1px solid var(--color-border-divider);display:flex;flex-direction:column;flex-shrink:0}
+.detail .dh{height:56px;display:flex;align-items:center;gap:10px;padding:0 16px 0 19px;border-bottom:1px solid var(--color-border-divider);font-size:13px}
+.detail .dh .vr{width:1px;height:18px;background:var(--color-border-divider)}
+.detail .dt{padding:14px 19px 0;font:700 18px/26px var(--font)}
+.detail .lk .k{font-size:12px;margin-right:2px}
+.detail .body{padding:10px 19px;font-size:13.5px;line-height:22px;color:var(--color-text-secondary);flex:1}
+.detail .auto{margin:0 12px 8px;font-size:12px;color:var(--color-text-secondary);display:flex;gap:6px;align-items:center;padding:6px 8px;border-radius:6px;background:var(--color-bg-input)}
+.detail .auto .x{margin-left:auto;color:var(--color-accent)}
+.detail .sugg{margin:0 12px 8px;font-size:12px;display:flex;gap:6px;align-items:center;padding:5px 8px;border-radius:6px;border:1px dashed var(--color-text-quaternary)}
+.detail .sugg .r{margin-left:auto;display:flex;gap:8px}
+.detail .db{height:44px;border-top:1px solid var(--color-border-divider);display:flex;align-items:center;padding:0 16px;gap:8px;font-size:13px;color:var(--color-text-secondary)}
+.detail .db .sp{flex:1}
+/* 팝오버 */
+.pop{position:absolute;background:var(--color-bg-popover);border:1px solid var(--color-border-popover);box-shadow:var(--shadow-popover);border-radius:8px;padding:6px;z-index:15;font-size:13px}
+.pop .cap{height:24px;font-size:11px;color:var(--color-text-tertiary);padding:0 10px;display:flex;align-items:center}
+.pop .o{height:32px;display:flex;align-items:center;gap:8px;padding:0 10px;border-radius:4px;white-space:nowrap}
+.pop .o.hv{background:var(--color-bg-hover)}
+.pop .o .s{color:var(--color-text-tertiary);font-size:11.5px;margin-left:auto}
+.pop .o b{font-weight:600}
+.pop hr{border:0;border-top:1px solid var(--color-border-divider);margin:4px 0}
+.pop .o.make{color:var(--color-accent)}
+.pop .tg{margin-left:auto;width:28px;height:16px;border-radius:8px;background:var(--color-bg-selected);position:relative}
+.pop .tg.on{background:var(--color-accent)}
+.pop .tg::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:.15s}
+.pop .tg.on::after{left:14px}
+.note-callout{position:absolute;font:500 11px/15px var(--font);background:#ffd166;color:#222;padding:4px 8px;border-radius:4px;z-index:20;max-width:250px;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.card{margin:6px 16px 0 21px;height:36px;border-radius:6px;background:var(--color-bg-input);display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12.5px;flex-shrink:0}
+.card .r{margin-left:auto;display:flex;gap:6px}
+.btn{font:500 12px/18px var(--font);padding:3px 10px;border-radius:6px;background:var(--color-bg-selected);color:var(--color-text-primary);white-space:nowrap}
+.btn.pri{background:var(--color-accent);color:#fff}
+/* 지도 */
+.canvas{position:absolute;left:0;right:0;top:56px;bottom:0;overflow:hidden;background-image:radial-gradient(var(--color-border-divider) 1px,transparent 1px);background-size:18px 18px}
+.canvas svg{position:absolute;inset:0;width:100%;height:100%}
+.edges path{fill:none;stroke:var(--color-text-quaternary);stroke-width:1.5}
+.edges path.rel{stroke:var(--color-relate);stroke-dasharray:3 3;opacity:.75}
+.edges path.rel.w2{stroke-width:1.75}.edges path.rel.w3{stroke-width:2.25}
+.edges path.rel.hl{opacity:1;stroke-dasharray:none;stroke-width:2}
+.node{position:absolute;display:flex;align-items:center;gap:6px;background:var(--color-bg-card);border:1px solid var(--card-border);border-radius:8px;padding:0 10px;font:600 12.5px/18px var(--font);white-space:nowrap;height:36px}
+.node .n{color:var(--color-text-tertiary);font-weight:500;margin-left:auto}
+.node.root{border-radius:999px;background:var(--color-bg-selected);font-size:12px;justify-content:center;height:30px}
+.node.folder{height:40px;font-size:13px}
+.node.sel{outline:2px solid var(--color-relate);outline-offset:1px}
+.node.dim{opacity:.45}
+.rtag{position:absolute;height:18px;padding:0 6px;border-radius:9px;background:var(--color-bg-popover);border:1px solid var(--color-relate);font-size:11px;line-height:16px;color:var(--color-relate);white-space:nowrap}
+.legend{position:absolute;right:16px;bottom:14px;font-size:11.5px;color:var(--color-text-tertiary);display:flex;gap:14px;background:var(--color-bg-popover);padding:6px 10px;border-radius:6px;box-shadow:var(--shadow-popover)}
+.legend i{display:inline-block;width:22px;height:0;border-top:1.5px solid var(--color-text-quaternary);vertical-align:middle;margin-right:4px}
+.legend i.rel{border-top:1.75px dashed var(--color-relate)}
+@media (max-width:640px){.page-head p{min-width:0}}
+</style>
+<style>
+/* v0.2 추가: 태그 알약(틱틱 행 메타), 거르기 알약, 일괄 태그 창 */
+.tag{display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 6px;border-radius:9px;font-size:11px;line-height:16px;white-space:nowrap;background:color-mix(in srgb,var(--tc,#9aa0a6) 16%,transparent);color:color-mix(in srgb,var(--tc,#9aa0a6) 80%,var(--color-text-primary))}
+.tag .ai{color:var(--color-accent);font-size:9px}
+.tag.sug{background:transparent;border:1px dashed var(--color-text-quaternary);color:var(--color-text-secondary)}
+.tag .x{color:var(--color-text-tertiary);margin-left:2px}
+.more{font-size:11px;color:var(--color-text-tertiary)}
+.pp.on{background:var(--color-accent);border-color:var(--color-accent);color:#fff}
+.pp.on .c{color:rgba(255,255,255,.8)}
+.dtags{padding:8px 19px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.dtags .tag{height:22px;font-size:12px;padding:0 8px;border-radius:11px}
+.dtags .plus{color:var(--color-text-tertiary);font-size:14px}
+.tip{position:absolute;background:var(--color-bg-popover);box-shadow:var(--shadow-popover);border-radius:6px;padding:4px 8px;font-size:11.5px;color:var(--color-text-secondary);white-space:nowrap;z-index:16}
+.filt{font:500 13px var(--font);color:var(--color-accent);margin-left:4px}
+.dlg{position:absolute;left:50%;top:40px;transform:translateX(-50%);width:640px;background:var(--color-bg-popover);border-radius:10px;box-shadow:var(--shadow-popover),0 20px 60px rgba(0,0,0,.25);z-index:12;font-size:13px}
+.dlg .dh2{height:52px;display:flex;align-items:center;padding:0 20px;font:700 15px var(--font);gap:8px}
+.dlg .dh2 .x{margin-left:auto;color:var(--color-text-tertiary);font-weight:400}
+.dlg .sub2{padding:0 20px 10px;color:var(--color-text-secondary);font-size:12.5px}
+.dlg .bar{margin:0 20px 10px;height:30px;border-radius:6px;background:var(--color-bg-input);display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px}
+.dlg .bar .pg{flex:1;height:4px;border-radius:2px;background:var(--color-bg-selected);overflow:hidden}
+.dlg .bar .pg i{display:block;height:100%;width:27%;background:var(--color-accent)}
+.dlg .grp2{padding:6px 20px 2px;font:600 12px var(--font);color:var(--color-text-secondary);display:flex;gap:6px}
+.dlg .grp2 .c{color:var(--color-text-quaternary);font-weight:500}
+.dlg .ln{height:40px;display:flex;align-items:center;gap:10px;padding:0 20px;border-bottom:1px solid var(--color-border-row)}
+.dlg .ln .nm{font-weight:600;min-width:120px}
+.dlg .ln .badge{font-size:10.5px;padding:0 6px;border-radius:4px;line-height:16px;border:1px dashed var(--color-text-quaternary);color:var(--color-text-secondary)}
+.dlg .ln .badge.have{border-style:solid;border-color:var(--color-border-divider)}
+.dlg .ln .ct{margin-left:auto;color:var(--color-text-tertiary);font-size:12px;white-space:nowrap}
+.dlg .ln .mg{color:var(--color-text-tertiary);font-size:13px}
+.dlg .exp{padding:2px 20px 6px 64px;font-size:12px;color:var(--color-text-secondary);line-height:22px}
+.dlg .cb.on{background:var(--color-accent);border-color:var(--color-accent)}
+.dlg .cb.on::after{content:"";width:6px;height:3px;border-left:1.5px solid #fff;border-bottom:1.5px solid #fff;transform:rotate(-45deg) translate(0,-1px)}
+.dlg .ft{height:56px;display:flex;align-items:center;gap:8px;padding:0 20px;border-top:1px solid var(--color-border-divider);font-size:12px;color:var(--color-text-secondary)}
+.dlg .ft .sp{flex:1}
+.dlg .warn{color:var(--color-danger)}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.25);z-index:11}
+</style>
+</head>
+<body>
+<div class="page-head">
+  <h1>관계 위키 시안 v0.2</h1>
+  <p>명세 <a href="../33-relations-wiki.md" style="color:inherit">33-relations-wiki.md</a> · <b>태그 = 위키 페이지</b> · A 리스트 페이지(태그로 세분화) · B 태그 페이지 · C <code>#</code>·<code>[[</code> 자동 완성 · D 작업 지도 관련 선 · E 기존 할 일 태그 붙이기. 폴더·리스트는 사용자 실제 구조, 할 일·태그는 예시.</p>
+  <button id="theme">다크로 보기</button>
+</div>
+<div class="proposal">제안 (사용자 확인 전) · 노란 쪽지는 설명용이며 실제 화면에 없음</div>
+
+<!-- A -->
+<div class="label">A · 리스트 페이지 — 태그로 세분화 <small>🎓 학교 › 자격증. 머리의 태그 알약 = 리스트 안 거르기(#SQLD 고름). 행 태그는 2개까지, 자동 태그도 행에선 같은 모양 · 상세에서만 ✦</small></div>
+<div class="scroll"><div class="frame">
+  <div class="rail"><div class="dots"><i></i><i></i><i></i></div><div class="av">윤</div><b class="on">☑</b><b>▦</b><b>⌘</b><b>✎</b><b>◎</b></div>
+  <div class="side">
+    <div class="it"><span class="em">📥</span>기본함<span class="n">12</span></div>
+    <div class="it"><span class="em">☀</span>오늘<span class="n">5</span></div>
+    <div class="sec">목록</div>
+    <div class="it"><span class="em">🎓</span>학교</div>
+    <div class="it sub"><span class="em">📚</span>수업·과제<span class="n">31</span></div>
+    <div class="it sub"><span class="em">🏛</span>학사 행정<span class="n">9</span></div>
+    <div class="it sub on"><span class="em">📜</span>자격증<span class="n">10</span></div>
+    <div class="it"><span class="em">💼</span>커리어<span class="n">22</span></div>
+    <div class="it"><span class="em">🚀</span>UniPort</div>
+    <div class="it"><span class="em">🌱</span>창업 준비<span class="n">17</span></div>
+    <div class="it"><span class="em">🤖</span>AI 공부·도구<span class="n">26</span></div>
+    <div class="it"><span class="em">📈</span>투자·트레이딩<span class="n">14</span></div>
+    <div class="it"><span class="em">🛠</span>사이드 프로젝트<span class="n">8</span></div>
+    <div class="it"><span class="em">🏠</span>생활<span class="n">40</span></div>
+    <div class="sec">태그 <span style="color:var(--color-accent)">•</span></div>
+    <div class="it"><span class="em">👤</span>교수님<span class="n">4</span></div>
+    <div class="it"><span class="em">#</span>SQLD<span class="n">9</span></div>
+    <div class="it"><span class="em">#</span>지원사업<span class="n">7</span></div>
+    <div class="it" style="color:var(--color-text-tertiary)"><span class="em"></span>모든 태그 34 ›</div>
+  </div>
+  <div class="main">
+    <div class="head"><h2>📜 자격증 <span class="filt">· #SQLD ✕</span></h2><span class="ib on" title="페이지 정보 (⌘⇧I)">▤</span><span class="ib">⇅</span><span class="ib">⋯</span></div>
+    <div class="ph">
+      <div class="row"><span class="k">설명</span><span class="v"><span class="desc">올해 SQLD(11월)·정보처리기사(내년 3월) 따기. 기출은 주 3회.</span><span class="tog">접기 ▴</span></span></div>
+      <div class="row"><span class="k">태그</span><span class="v">
+        <span class="pp">전체 <span class="c">10</span></span>
+        <span class="pp on">#SQLD <span class="c">6</span></span>
+        <span class="pp">#정보처리기사 <span class="c">4</span></span>
+        <span class="pp"><span class="ai">✦</span>#기출 <span class="c">3</span></span>
+        <span class="pp">👤 스터디원 <span class="c">1</span></span>
+        <span class="addlink">+</span></span></div>
+      <div class="row"><span class="k">관련 리스트</span><span class="v">
+        <span class="pp">💼 커리어 <span class="c">#SQLD</span></span>
+        <span class="pp">💻 개발·디자인 <span class="c">#SQLD</span></span></span></div>
+      <div class="row"><span class="k">수집함</span><span class="v">
+        <span class="src">📖 SQLD <span class="c">· 핵심 정리 5줄</span></span>
+        <span class="src"><span class="dot"></span>🔗 SQLD 2과목 30분 요약 <span class="c">youtube.com</span></span></span></div>
+      <div class="gh">▾ 백링크 <span class="c">1</span></div>
+      <div class="mini"><span class="cb"></span>이력서 자격증 칸에 <span class="lk">자격증</span> 결과 넣기<span class="l">💼 커리어</span></div>
+      <div class="gh" style="color:var(--color-text-secondary)">› 연결 안 된 언급 <span class="c">2</span><span class="r">모두 링크로</span></div>
+    </div>
+    <div class="add">＋ 할 일 추가</div>
+    <div class="list">
+      <div class="grp">⌄ 이번 주 <span class="c">3</span></div>
+      <div class="tr sel"><span class="cb p3"></span><span class="t">SQLD 기출 3회 풀기</span><span class="meta"><span class="tag" style="--tc:#4e75f2">SQLD</span><span class="tag" style="--tc:#e8a23a">기출</span><span class="acc">10월 7일</span></span></div>
+      <div class="tr"><span class="cb"></span><span class="t">SQLD 2과목 오답 노트</span><span class="meta"><span class="tag" style="--tc:#4e75f2">SQLD</span><span class="acc">10월 9일</span></span></div>
+      <div class="tr"><span class="cb"></span><span class="t"><span class="lk">스터디원</span>이랑 SQLD 모의고사 맞춰 보기</span><span class="meta"><span class="tag" style="--tc:#4e75f2">SQLD</span><span class="tag" style="--tc:#2a9d8f">스터디원</span><span class="more">+1</span><span class="acc">10월 10일</span></span></div>
+      <div class="grp">⌄ 나중 <span class="c">3</span></div>
+      <div class="tr"><span class="cb"></span><span class="t">SQLD 시험 접수 확인</span><span class="meta"><span class="tag" style="--tc:#4e75f2">SQLD</span>10월 20일</span></div>
+      <div class="tr"><span class="cb"></span><span class="t">요약 노트 <span class="lk miss">데이터 모델링</span> 정리</span><span class="meta"><span class="tag" style="--tc:#4e75f2">SQLD</span>10월 24일</span></div>
+      <div class="tr"><span class="cb"></span><span class="t">SQLD 시험</span><span class="meta"><span class="tag" style="--tc:#4e75f2">SQLD</span><span class="red">11월 16일</span></span></div>
+    </div>
+    <div class="note-callout" style="left:600px;top:236px">태그 알약 누르기 = 이 리스트 안 거르기(세분화). ⌘누르기 = 태그 페이지</div>
+    <div class="note-callout" style="left:420px;top:600px">점선 밑줄 = 없는 링크 → 누르면 '데이터 모델링' 태그 만들기</div>
+  </div>
+  <div class="detail">
+    <div class="dh"><span class="cb p3"></span><span class="vr"></span><span style="color:var(--color-accent)">📅 10월 7일, 2일 남음</span><span style="margin-left:auto;color:var(--color-danger)">⚑</span></div>
+    <div class="dt">SQLD 기출 3회 풀기</div>
+    <div class="dtags"><span class="tag" style="--tc:#4e75f2">SQLD</span><span class="tag" style="--tc:#e8a23a"><span class="ai">✦</span>기출<span class="x">✕</span></span><span class="tag sug">✦ #스터디 <span style="color:var(--color-accent)">✓</span> ✕</span><span class="plus">+</span></div>
+    <div class="body">35회·36회·37회. 틀린 문제는 <span class="lk">SQLD 2과목 오답 노트</span>에 모으기.<br><span style="color:var(--color-text-tertiary)">↳ 본문 [[ ]] = 틱틱 할 일 링크 그대로</span></div>
+    <div class="db"><span>📜 자격증</span><span class="sp"></span><span>A</span><span>⋯</span></div>
+    <div class="tip" style="left:70px;top:132px">✦ AI가 붙였어요 · 92점 · ✕로 떼면 다시 안 붙여요</div>
+  </div>
+</div></div>
+
+<div class="label">A-2 · 접힘 상태 <small>접힌 한 줄(32). ▾ 또는 ⌘⇧I로 펼침, 리스트마다 기억. 내용이 없으면 이 줄도 없음 = 틱틱 화면</small></div>
+<div class="scroll"><div class="frame" style="height:130px">
+  <div class="main">
+    <div class="head"><h2>📜 자격증</h2><span class="ib">▤</span><span class="ib">⇅</span><span class="ib">⋯</span></div>
+    <div class="collapsed"><span class="d">올해 SQLD(11월)·정보처리기사(내년 3월) 따기. 기출은 주 3회.</span>·<span class="pp sm">#SQLD</span><span class="pp sm">#정보처리기사</span><span class="pp sm">#기출</span><span class="m">관련 2 · ↩ 1</span><span style="margin-left:auto" class="m">▾</span></div>
+    <div class="add">＋ 할 일 추가</div>
+  </div>
+</div></div>
+
+<!-- B -->
+<div class="label">B · 태그 페이지 👤 교수님 <small>지금 있는 틱틱 태그 화면(리스트별 묶음) + 같은 페이지 머리. 위키 줄 = 수집함 위키 주제와 1:1</small></div>
+<div class="scroll"><div class="frame">
+  <div class="rail"><div class="dots"><i></i><i></i><i></i></div><div class="av">윤</div><b class="on">☑</b><b>▦</b><b>⌘</b><b>✎</b><b>◎</b></div>
+  <div class="side">
+    <div class="it"><span class="em">📥</span>기본함<span class="n">12</span></div>
+    <div class="it"><span class="em">☀</span>오늘<span class="n">5</span></div>
+    <div class="sec">목록</div>
+    <div class="it"><span class="em">🎓</span>학교</div>
+    <div class="it"><span class="em">💼</span>커리어<span class="n">22</span></div>
+    <div class="it"><span class="em">🚀</span>UniPort</div>
+    <div class="it"><span class="em">🌱</span>창업 준비<span class="n">17</span></div>
+    <div class="it"><span class="em">🤖</span>AI 공부·도구<span class="n">26</span></div>
+    <div class="sec">태그 · 종류별</div>
+    <div class="it" style="height:24px;font-size:11px;color:var(--color-text-tertiary)">사람</div>
+    <div class="it on"><span class="em">👤</span>교수님<span class="n">4</span></div>
+    <div class="it"><span class="em">👤</span>대표님<span class="n">3</span></div>
+    <div class="it" style="height:24px;font-size:11px;color:var(--color-text-tertiary)">프로젝트</div>
+    <div class="it"><span class="em">🚀</span>UniPort<span class="n">6</span></div>
+    <div class="it" style="height:24px;font-size:11px;color:var(--color-text-tertiary)">주제</div>
+    <div class="it"><span class="em">#</span>SQLD<span class="n">9</span></div>
+    <div class="it"><span class="em">#</span>지원사업<span class="n">7</span></div>
+    <div class="it"><span class="em">#</span>LLM 공부<span class="n">5</span></div>
+  </div>
+  <div class="main">
+    <div class="head"><h2># 👤 교수님 <small>사람 · 지도교수님</small></h2><span class="ib on">▤</span><span class="ib">⇅</span><span class="ib">⋯</span></div>
+    <div class="ph">
+      <div class="row"><span class="k">설명</span><span class="v"><span class="desc">졸업 프로젝트 지도교수. 창업지원단 추천서도 부탁드림. 면담은 화요일 오후.</span><span class="tog">접기 ▴</span></span></div>
+      <div class="row"><span class="k">위키</span><span class="v"><span class="src">📖 <span class="c">개요 2줄 · 면담 메모 9/30 · 카톡 10/2</span></span><span class="src" style="color:var(--color-accent)">핵심 정리 3줄 ›</span></span></div>
+      <div class="row"><span class="k">리스트</span><span class="v"><span class="pp">📚 수업·과제 <span class="c">2</span></span><span class="pp">🌱 창업 준비 <span class="c">1</span></span><span class="pp">💼 커리어 <span class="c">1</span></span></span></div>
+      <div class="row"><span class="k">관련 태그</span><span class="v"><span class="pp">#지원사업</span><span class="pp">#졸업</span><span class="pp">🚀 UniPort</span></span></div>
+      <div class="gh">✦ 제안 <span class="c">2</span><span class="r">모두 받기</span></div>
+      <div class="mini"><span class="cb"></span>지도 면담 일정 잡기<span class="l">📥 기본함 · 72점</span><span class="act">✓</span><span class="act" style="color:var(--color-text-tertiary)">✕</span></div>
+      <div class="mini"><span class="cb"></span>연구실 세미나 발표 준비<span class="l">📚 수업·과제 · 61점</span><span class="act">✓</span><span class="act" style="color:var(--color-text-tertiary)">✕</span></div>
+    </div>
+    <div class="add">＋ "#교수님"에 할 일 추가</div>
+    <div class="list">
+      <div class="grp">⌄ 📚 수업·과제 <span class="c">2</span></div>
+      <div class="tr"><span class="cb p3"></span><span class="t"><span class="lk">교수님</span>께 중간 보고 메일</span><span class="meta"><span class="acc">10월 8일</span></span></div>
+      <div class="tr"><span class="cb"></span><span class="t">발표 자료 교수님 검토</span><span class="meta"><span class="tag" style="--tc:#8a6de9">졸업</span>10월 20일</span></div>
+      <div class="grp">⌄ 🌱 창업 준비 <span class="c">1</span></div>
+      <div class="tr"><span class="cb"></span><span class="t">창업지원단 추천서 교수님께 부탁</span><span class="meta"><span class="tag" style="--tc:#e8a23a">지원사업</span><span class="acc">10월 10일</span></span></div>
+      <div class="grp">⌄ 💼 커리어 <span class="c">1</span></div>
+      <div class="tr"><span class="cb"></span><span class="t">연구실 인턴 <span class="lk">교수님</span> 면담</span><span class="meta">10월 14일</span></div>
+      <div class="grp" style="color:var(--color-text-secondary)">› 완료 <span class="c">3</span></div>
+      <div class="grp" style="color:var(--color-text-secondary)">› 연결 안 된 언급 <span class="c">1</span></div>
+    </div>
+    <div class="note-callout" style="left:470px;top:250px">애매한 AI 태그(50~84점)만 여기로. 85점↑·이름 같음은 조용히 자동(상세에 ✦)</div>
+    <div class="note-callout" style="left:480px;top:478px">태그 페이지 안에선 이 태그 알약은 숨김(중복)</div>
+  </div>
+</div></div>
+
+<!-- C -->
+<div class="label">C · <code>#</code>·<code>[[</code> 자동 완성 <small># = 태그 붙이기(제목에서 빠짐, 틱틱) · [[ ]] = 문장 속 링크(남음, 대상이 태그면 태그도 붙음) · [[ ]] 안은 날짜·#·~ 인식에서 보호</small></div>
+<div class="scroll"><div class="frame short">
+  <div class="rail"><div class="dots"><i></i><i></i><i></i></div><div class="av">윤</div><b class="on">☑</b><b>▦</b><b>⌘</b></div>
+  <div class="main">
+    <div class="head"><h2>📥 기본함</h2><span class="ib">⇅</span><span class="ib">⋯</span></div>
+    <div class="add focus">＋ 데모데이 리허설 <span class="hl">내일 3시</span> [[유니<span class="caret"></span><span class="chips"><span>📅 내일 오후 3:00</span></span></div>
+    <div class="pop" style="left:150px;top:100px;width:300px">
+      <div class="cap">태그</div>
+      <div class="o hv">🚀 <b>UniPort</b><span class="s">= 유니포트 · 프로젝트 · 6</span></div>
+      <div class="cap">리스트</div>
+      <div class="o">📣 마케팅·콘텐츠<span class="s">🚀 UniPort</span></div>
+      <div class="o">💻 개발·디자인<span class="s">🚀 UniPort</span></div>
+      <div class="cap">할 일</div>
+      <div class="o"><span class="cb"></span>UniPort 데모 화면 3개 녹화<span class="s">💻 개발·디자인</span></div>
+      <hr>
+      <div class="o make">＋ '유니' 태그 만들기 ›</div>
+    </div>
+    <div class="pop" style="left:620px;top:178px;width:230px">
+      <div class="cap">`#지` 입력 중 — 태그만</div>
+      <div class="o hv"># <b>지원사업</b><span class="s">7</span></div>
+      <div class="o">👤 지도교수님<span class="s">= 교수님</span></div>
+      <hr>
+      <div class="o make">＋ 새 태그 "지"</div>
+    </div>
+    <div class="note-callout" style="left:470px;top:104px">고르면 → <b>데모데이 리허설 [[UniPort]]</b> + 태그 UniPort도 붙음(link). 날짜 문구는 빠짐</div>
+    <div class="note-callout" style="left:860px;top:178px;max-width:190px">틱틱 # 드롭다운. 별칭으로도 찾음. 공백 = 지금 글자로(없으면 새 태그)</div>
+    <div class="list" style="margin-top:250px">
+      <div class="grp">⌄ 오늘 <span class="c">2</span></div>
+      <div class="tr"><span class="cb"></span><span class="t"><span class="lk">대표님</span>과 투자 미팅 준비</span><span class="meta"><span class="tag" style="--tc:#e8a23a">IR</span><span class="acc">오후 5:00</span></span></div>
+      <div class="tr"><span class="cb"></span><span class="t">예비창업패키지 서류 마감 확인</span><span class="meta"><span class="pp sm" style="border-style:dashed">✦ → 🌱 창업 준비 ✕</span><span class="tag" style="--tc:#e8a23a">지원사업</span><span class="acc">오늘</span></span></div>
+    </div>
+  </div>
+</div></div>
+
+<!-- D -->
+<div class="label">D · 작업 지도 관련 선 <small>네 번째 선 '관련': 다른 폴더 리스트가 같은 태그를 공유할 때 · 기본 꺼짐 · 최대 12개 · 리스트 노드 선택 시 그 선만 강조</small></div>
+<div class="scroll"><div class="frame">
+  <div class="rail"><div class="dots"><i></i><i></i><i></i></div><div class="av">윤</div><b>☑</b><b class="on">▦</b><b>⌘</b></div>
+  <div class="main">
+    <div class="head"><h2>작업 지도 <span class="seg"><span class="on">그래프</span><span>보드</span><span>타임라인</span></span></h2><span class="ib">⚡</span><span class="ib">✦</span><span class="ib on">⫶</span><span class="ib">⋯</span></div>
+    <div class="canvas">
+      <svg class="edges" viewBox="0 0 1065 664" preserveAspectRatio="none">
+        <path d="M532 40 C532 70 92 70 92 110"/><path d="M532 40 C532 70 222 70 222 110"/><path d="M532 40 C532 70 352 70 352 110"/>
+        <path d="M532 40 C532 70 482 70 482 110"/><path d="M532 40 C532 70 612 70 612 110"/><path d="M532 40 C532 70 742 70 742 110"/>
+        <path d="M532 40 C532 70 872 70 872 110"/><path d="M532 40 C532 70 1000 70 1000 110"/>
+        <path d="M92 150 C92 190 70 190 70 250"/><path d="M92 150 C92 190 120 190 120 330"/>
+        <path d="M352 150 C352 190 340 190 340 250"/><path d="M352 150 C352 190 350 190 350 330"/>
+        <!-- 관련 -->
+        <path class="rel w3 hl" d="M120 348 C160 300 200 230 222 150"/>
+        <path class="rel w2 hl" d="M120 348 C200 420 300 420 350 348"/>
+        <path class="rel w2" d="M340 268 C400 220 450 200 482 150"/>
+        <path class="rel" d="M70 268 C120 380 400 460 482 150"/>
+        <path class="rel" d="M612 150 C700 220 820 220 872 150"/>
+      </svg>
+      <div class="node root" style="left:472px;top:12px;width:120px">나의 할 일</div>
+      <div class="node folder" style="left:30px;top:110px;width:124px">🎓 학교<span class="n">50</span></div>
+      <div class="node folder" style="left:160px;top:110px;width:124px">💼 커리어<span class="n">22</span></div>
+      <div class="node folder" style="left:290px;top:110px;width:124px">🚀 UniPort<span class="n">48</span></div>
+      <div class="node folder" style="left:420px;top:110px;width:124px">🌱 창업 준비<span class="n">17</span></div>
+      <div class="node folder" style="left:550px;top:110px;width:124px">🤖 AI 공부<span class="n">26</span></div>
+      <div class="node folder" style="left:680px;top:110px;width:124px">📈 투자<span class="n">14</span></div>
+      <div class="node folder" style="left:810px;top:110px;width:124px">🛠 사이드<span class="n">8</span></div>
+      <div class="node folder" style="left:940px;top:110px;width:116px">🏠 생활<span class="n">40</span></div>
+      <div class="node" style="left:16px;top:250px;width:118px">📚 수업·과제<span class="n">31</span></div>
+      <div class="node sel" style="left:50px;top:330px;width:130px">📜 자격증<span class="n">10</span></div>
+      <div class="node" style="left:270px;top:250px;width:140px">📝 기획·사업계획서<span class="n">12</span></div>
+      <div class="node" style="left:286px;top:330px;width:130px">💻 개발·디자인<span class="n">15</span></div>
+      <div class="rtag" style="left:150px;top:232px">#SQLD · 4</div>
+      <div class="rtag" style="left:212px;top:404px">#SQLD · 2</div>
+      <div class="rtag" style="left:396px;top:206px">#지원사업 👤대표님</div>
+      <div class="rtag" style="left:230px;top:470px">👤 교수님</div>
+      <div class="pop" style="left:770px;top:6px;width:250px">
+        <div class="cap">보기 옵션</div>
+        <div class="o">묶기<span class="s">리스트 ›</span></div>
+        <div class="o">순서 선 보이기<span class="tg on"></span></div>
+        <div class="o hv"><b>관련 선 보이기</b><span class="tg on"></span></div>
+        <div class="cap" style="padding-left:10px">관련 선 5/5 · 다른 폴더끼리만 · 키 R</div>
+        <hr>
+        <div class="o">완료 보이기<span class="tg"></span></div>
+      </div>
+      <div class="pop" style="left:560px;top:400px;width:260px">
+        <div class="o"><b>📜 자격증 ↔ 💼 커리어</b></div>
+        <div class="cap">이어 주는 태그</div>
+        <div class="o"># SQLD<span class="s">할 일 6 · 4</span></div>
+        <hr>
+        <div class="o" style="color:var(--color-text-secondary)">이 쌍 숨기기</div>
+      </div>
+      <div class="note-callout" style="left:40px;top:520px">자격증을 누르면 그 리스트의 관련 선만 실선 강조</div>
+      <div class="legend"><span><i></i>포함</span><span><i class="rel"></i>관련(청록 점선, 굵기 = 공유 정도)</span></div>
+    </div>
+  </div>
+</div></div>
+
+<!-- E -->
+<div class="label">E · 기존 할 일에 태그 붙이기 (한 번) <small>사전 검사 → AI(태그 0개인 것만) → 태그별 미리 보기 → 이대로 적용(한 트랜잭션) → 24시간 되돌리기</small></div>
+<div class="scroll"><div class="frame">
+  <div class="rail"><div class="dots"><i></i><i></i><i></i></div><div class="av">윤</div><b class="on">☑</b><b>▦</b><b>⌘</b></div>
+  <div class="main"><div class="head"><h2>⚙ 설정 › 할 일</h2></div></div>
+  <div class="scrim"></div>
+  <div class="dlg">
+    <div class="dh2">✦ 기존 할 일에 태그 붙이기 <span class="x">✕</span></div>
+    <div class="sub2">할 일 제목만 보고 태그를 붙여요. 새 태그는 체크한 것만 만들어요. <span class="seg" style="margin-left:6px"><span>열린 것만 902</span><span class="on">+ 최근 90일 완료 1,182</span><span>전부 1,604</span></span></div>
+    <div class="bar">✦ 살펴보는 중… 320 / 1,182 <span class="pg"><i></i></span><span style="color:var(--color-accent)">멈추기</span></div>
+    <div class="grp2">확실 — 바로 붙어요 <span class="c">할 일 214</span></div>
+    <div class="ln"><span class="cb on"></span><span class="nm"># SQLD</span><span class="badge have">있는 태그</span><span class="ct">할 일 9 · 자격증 6 · 커리어 2 · 개발·디자인 1</span><span class="mg">⇄</span></div>
+    <div class="ln"><span class="cb on"></span><span class="nm">👤 교수님</span><span class="badge have">있는 태그</span><span class="ct">할 일 4 · 수업·과제 2 · 창업 준비 1 · 커리어 1</span><span class="mg">⇄</span></div>
+    <div class="ln"><span class="cb on"></span><span class="nm"># 지원사업</span><span class="badge">새 태그</span><span class="ct">할 일 7 · 창업 준비 5 · 기획·사업계획서 2</span><span class="mg">⇄</span></div>
+    <div class="exp">☑ 예비창업패키지 서류 마감 확인 · ☑ 사업계획서 시장 규모 보강 · ☐ 지원사업 설명회 영상 보기 · …</div>
+    <div class="ln"><span class="cb on"></span><span class="nm"># 네트워크</span><span class="badge">새 태그</span><span class="ct">할 일 11 · 수업·과제 11</span><span class="mg">⇄</span></div>
+    <div class="ln"><span class="cb"></span><span class="nm"># SQLD공부</span><span class="badge">새 태그</span><span class="ct warn">'#SQLD'와 비슷해요 → 합치기 ›</span><span class="mg">⇄</span></div>
+    <div class="grp2">제안 — 칩으로 남아요 <span class="c">할 일 63</span></div>
+    <div class="ln"><span class="cb on"></span><span class="nm"># 미국주식</span><span class="badge have">있는 태그</span><span class="ct">할 일 8 · 투자·트레이딩 8 · 60~84점</span><span class="mg">⇄</span></div>
+    <div class="ft">새 태그 3개 · 붙일 태그 277개 · 할 일 241개 <span class="sp"></span><span class="btn">나중에</span><span class="btn pri">이대로 적용</span></div>
+  </div>
+  <div class="note-callout" style="left:900px;top:300px;max-width:200px">🚀 UniPort 폴더 안 할 일에는 #UniPort를 안 붙임(리스트와 같은 뜻). 할 일당 자동 2개까지</div>
+</div></div>
+
+<script>
+const b=document.getElementById('theme');
+b.onclick=()=>{const d=document.documentElement;const on=d.dataset.theme==='dark';if(on)delete d.dataset.theme;else d.dataset.theme='dark';b.textContent=on?'다크로 보기':'라이트로 보기'};
+</script>
+</body>
+</html>
