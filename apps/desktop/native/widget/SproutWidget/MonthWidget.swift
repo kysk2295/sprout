@@ -18,10 +18,11 @@ struct MonthWidget: Widget {
 struct MonthWidgetView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.widgetRenderingMode) private var mode // §16 바탕화면 흐림 = .vibrant, 강조 = .accented
     let entry: SproutEntry
 
     var body: some View {
-        let pal = Palette(scheme, theme)
+        let pal = Palette(scheme, theme, mode)
         MonthContent(data: entry.data, today: Store.localDay(entry.date), weekOnly: family == .systemMedium, pal: pal)
             .redacted(reason: entry.placeholder ? .placeholder : [])
             .containerBackground(for: .widget) { pal.bg }
@@ -90,7 +91,7 @@ struct MonthGrid: View {
             HStack(spacing: 0) {
                 ForEach(0..<7, id: \.self) { i in
                     Text(Self.weekdays[i]).font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(i == 5 ? pal.saturday : i == 6 ? pal.holiday : pal.secondary)
+                        .foregroundStyle(pal.mono ? pal.secondary : i == 5 ? pal.saturday : i == 6 ? pal.holiday : pal.secondary)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -143,9 +144,15 @@ struct DayCell: View {
                 Text("\(Int(day.d.suffix(2)) ?? 0)")
                     .font(.system(size: 11, weight: isToday ? .semibold : .regular))
                     .monospacedDigit()
-                    .foregroundStyle(isToday ? Color.white : numberColor(other: other))
+                    .foregroundStyle(isToday && !pal.mono ? Color.white : numberColor(other: other))
                     .frame(minWidth: 16, minHeight: 16)
-                    .background { if isToday { Circle().fill(pal.accent).widgetAccentable() } }
+                    .background {
+                        if isToday {
+                            // §16.2 단색: 칠한 원 위 흰 숫자는 한 덩어리가 된다 → 테두리 원 + 숫자
+                            if pal.mono { Circle().strokeBorder(pal.accent, lineWidth: 1.3).widgetAccentable() }
+                            else { Circle().fill(pal.accent).widgetAccentable() }
+                        }
+                    }
                 Spacer(minLength: 0)
                 if more > 0 {
                     Text("+\(more)").font(.system(size: 9, weight: .medium)).foregroundStyle(pal.accent).widgetAccentable()
@@ -155,10 +162,13 @@ struct DayCell: View {
             .frame(height: Self.head - Self.gap)
             .padding(.leading, 2)
             if let h = day.holiday, lanes > 0 {
-                BarView(title: h, fill: holidayFill, text: holidayText, repeat: false).opacity(other ? 0.5 : 1)
+                // §16.2 단색: 공휴일 = 테두리 막대 + 이름 글자(빨강에 기대지 않는다)
+                BarView(title: h, fill: pal.mono ? .clear : holidayFill, text: pal.mono ? pal.primary : holidayText, repeat: false,
+                        stroke: pal.mono ? Palette.white(0.55) : nil).opacity(other ? 0.5 : 1)
             }
             ForEach(Array(shown.enumerated()), id: \.offset) { _, it in
-                let bar = BarView(title: it.title, fill: fill(it), text: textColor(it), repeat: it.repeat).opacity(other ? 0.6 : 1)
+                let bar = BarView(title: it.title, fill: fill(it), text: textColor(it), repeat: it.repeat,
+                                  done: pal.mono && it.done).opacity(other ? 0.6 : 1)
                 if let url = link(it) { WLink(url) { bar } } else { bar }
             }
             Spacer(minLength: 0)
@@ -172,6 +182,7 @@ struct DayCell: View {
 
     // M3: 일요일·공휴일 빨강, 토요일 파랑, 다른 달 흐림
     private func numberColor(other: Bool) -> Color {
+        if pal.mono { return other ? pal.calOther : pal.primary }
         let base: Color = (day.holiday != nil || col == 6) ? pal.holiday : col == 5 ? pal.saturday : pal.primary
         return other ? (day.holiday != nil || col >= 5 ? base.opacity(0.45) : pal.calOther) : base
     }
@@ -182,10 +193,13 @@ struct DayCell: View {
     /// 완료·지난 날 일정 = 면 20% + 3단계 회색 글자(M6, 취소선 없음)
     private func dim(_ it: Snapshot.CalItem) -> Bool { it.done || (it.kind != "task" && day.d < today) }
     private func colorHex(_ it: Snapshot.CalItem) -> String { it.color ?? pal.accentHex }
+    /// §16.2 단색: 면 = 흰 20%(지난·완료 8%), 글자 = 흰 100%(지난·완료 40% + 완료는 체크 표시)
     private func fill(_ it: Snapshot.CalItem) -> Color {
-        Color.mix(colorHex(it), pal.bgHex, dim(it) ? 0.2 : pal.dark ? 0.62 : 0.6)
+        if pal.mono { return Palette.white(dim(it) ? 0.08 : 0.2) }
+        return Color.mix(colorHex(it), pal.bgHex, dim(it) ? 0.2 : pal.dark ? 0.62 : 0.6)
     }
     private func textColor(_ it: Snapshot.CalItem) -> Color {
+        if pal.mono { return dim(it) ? pal.tertiary : pal.primary }
         if dim(it) { return pal.tertiary }
         return pal.dark ? .white : Color.mix(colorHex(it), pal.primaryHex, 0.45)
     }
@@ -202,12 +216,16 @@ struct BarView: View {
     let fill: Color
     let text: Color
     let `repeat`: Bool
+    var stroke: Color? = nil
+    var done = false
     var body: some View {
         // 막대 크기는 칸 폭이 정하고(바탕 모양), 글자는 그 위에 얹어 넘치면 잘린다(틱틱처럼 … 없이)
         RoundedRectangle(cornerRadius: 3, style: .continuous).fill(fill)
+            .overlay { if let stroke { RoundedRectangle(cornerRadius: 3, style: .continuous).strokeBorder(stroke, lineWidth: 0.8) } }
             .frame(maxWidth: .infinity, minHeight: DayCell.bar, maxHeight: DayCell.bar)
             .overlay(alignment: .leading) {
                 HStack(spacing: 1.5) {
+                    if done { Image(systemName: "checkmark").font(.system(size: 6.5, weight: .bold)) }
                     if `repeat` { Image(systemName: "repeat").font(.system(size: 6.5, weight: .semibold)) }
                     Text(title).font(.system(size: 9, weight: .medium)).lineLimit(1).fixedSize().privacySensitive()
                 }

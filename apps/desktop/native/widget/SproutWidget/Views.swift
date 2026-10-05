@@ -16,20 +16,28 @@ extension Color {
 struct Palette {
     let dark: Bool
     let theme: Snapshot.Theme?
-    init(_ scheme: ColorScheme, _ theme: Snapshot.Theme?) { dark = scheme == .dark; self.theme = theme }
+    /// §16 바탕화면 흐림(vibrant)·강조(accented) 렌더링: 시스템이 색을 지우고 단색으로 다시 칠한다.
+    /// 이때는 색(hue) 대신 흰색 + 불투명도 단계로만 그린다(색에 뜻을 싣지 않는다).
+    let mono: Bool
+    init(_ scheme: ColorScheme, _ theme: Snapshot.Theme?, _ mode: WidgetRenderingMode = .fullColor) {
+        dark = scheme == .dark; self.theme = theme; mono = mode != .fullColor
+    }
+    /// 단색 단계(§16.2): 1 · 0.62 · 0.4 / 막대 면 0.2 · 지난 막대 0.08 · 구분선 0.16
+    static func white(_ a: Double) -> Color { Color.white.opacity(a) }
     /// §5.2: 밝게 = 내 테마 강조색, 어둡게 = 다크일 때 테마 강조색(앱이 계산해 넘긴다)
-    var accent: Color { Color(hex: dark ? (theme?.accentDark ?? "#545DFA") : (theme?.accentLight ?? "#4E75F2")) }
+    var accent: Color { mono ? .white : Color(hex: dark ? (theme?.accentDark ?? "#545DFA") : (theme?.accentLight ?? "#4E75F2")) }
     var bg: Color { Color(hex: dark ? "#1A1A1A" : "#FFFFFF") }
-    var primary: Color { Color(hex: dark ? "#F2F2F2" : "#191919") }
-    var secondary: Color { Color(hex: dark ? "#CDCDCD" : "#7D7D7D") }
-    var tertiary: Color { Color(hex: dark ? "#606060" : "#A3A4A7") }
-    var danger: Color { Color(hex: "#D44343") }
+    var primary: Color { mono ? .white : Color(hex: dark ? "#F2F2F2" : "#191919") }
+    var secondary: Color { mono ? Self.white(0.62) : Color(hex: dark ? "#CDCDCD" : "#7D7D7D") }
+    var tertiary: Color { mono ? Self.white(0.4) : Color(hex: dark ? "#606060" : "#A3A4A7") }
+    var danger: Color { mono ? .white : Color(hex: "#D44343") }
     // §15 월 캘린더(00 토큰 · 06 §16): 공휴일·일요일 빨강, 토요일 파랑, 다른 달 날짜, 칸 구분선
-    var holiday: Color { Color(hex: dark ? "#F2555A" : "#E5484D") }
-    var saturday: Color { Color(hex: dark ? "#6B9CFF" : "#3D74E0") }
-    var calOther: Color { Color(hex: dark ? "#666666" : "#B5B6B8") }
-    var grid: Color { Color(hex: dark ? "#2A2A2A" : "#EBEBEC") }
+    var holiday: Color { mono ? primary : Color(hex: dark ? "#F2555A" : "#E5484D") }
+    var saturday: Color { mono ? primary : Color(hex: dark ? "#6B9CFF" : "#3D74E0") }
+    var calOther: Color { mono ? Self.white(0.32) : Color(hex: dark ? "#666666" : "#B5B6B8") }
+    var grid: Color { mono ? Self.white(0.16) : Color(hex: dark ? "#2A2A2A" : "#EBEBEC") }
     func priority(_ p: Int) -> Color {
+        if mono { return .white }
         switch p {
         case 3: return Color(hex: "#C53C31")
         case 2: return Color(hex: "#EFAB3E")
@@ -93,7 +101,7 @@ struct TodayHeader: View {
     let pal: Palette
     var body: some View {
         HStack(spacing: 6) {
-            Link(destination: Links.today) {
+            WLink(Links.today) {
                 HStack(spacing: 6) {
                     Text("오늘").font(.system(size: 15, weight: .bold)).foregroundStyle(pal.accent).widgetAccentable()
                     Text("\(count)").font(.system(size: 15)).foregroundStyle(pal.accent.opacity(0.55)).contentTransition(.numericText())
@@ -101,7 +109,7 @@ struct TodayHeader: View {
             }
             Spacer(minLength: 4)
             if plus {
-                Link(destination: Links.quickAdd) {
+                WLink(Links.quickAdd) {
                     Image(systemName: "plus").font(.system(size: 14, weight: .semibold)).foregroundStyle(pal.accent).widgetAccentable()
                         .frame(width: 20, height: 20)
                 }
@@ -115,9 +123,14 @@ struct TodayHeader: View {
 struct CheckBox: View {
     let color: Color
     let done: Bool
+    var mono = false
     var body: some View {
         ZStack {
-            if done {
+            if done && mono {
+                // §16: 단색에서는 면을 칠하면 체크 표시가 면에 묻힌다 → 테두리 + 체크
+                RoundedRectangle(cornerRadius: 3).strokeBorder(color.opacity(0.5), lineWidth: 1.5)
+                Image(systemName: "checkmark").font(.system(size: 8, weight: .heavy)).foregroundStyle(color)
+            } else if done {
                 RoundedRectangle(cornerRadius: 3).fill(color)
                 Image(systemName: "checkmark").font(.system(size: 8, weight: .heavy)).foregroundStyle(.white)
             } else {
@@ -136,10 +149,10 @@ struct TaskRowView: View {
     var body: some View {
         HStack(spacing: 7) {
             Button(intent: ToggleTaskIntent(taskId: task.id)) {
-                CheckBox(color: pal.priority(task.priority), done: pending).frame(width: 18, height: 20).contentShape(Rectangle())
+                CheckBox(color: pal.priority(task.priority), done: pending, mono: pal.mono).frame(width: 18, height: 20).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            Link(destination: Links.task(task.id)) {
+            WLink(Links.task(task.id)) {
                 HStack(spacing: 4) {
                     Text(task.title).font(.system(size: 13)).foregroundStyle(pending ? pal.tertiary : pal.primary).lineLimit(1)
                     Spacer(minLength: 4)
@@ -163,7 +176,7 @@ struct OverflowView: View {
     let more: Int
     let pal: Palette
     var body: some View {
-        Link(destination: Links.today) {
+        WLink(Links.today) {
             HStack { Spacer(); Text("+\(more)개 더").font(.system(size: 12)).foregroundStyle(pal.accent).contentTransition(.numericText()) }
         }
         .frame(height: 20)
@@ -208,21 +221,92 @@ struct TaskListBlock: View {
 struct CharacterArtView: View {
     let growth: Snapshot.Growth
     let size: CGFloat
+    var mono = false
     var body: some View {
         if let url = Store.imageURL(growth.art), let img = NSImage(contentsOf: url) {
-            Image(nsImage: img).resizable().interpolation(.high).frame(width: size, height: size)
+            if mono, let line = LineArt.make(img) {
+                // §16.3 흐림·강조: 원본은 시스템이 알파만 남겨 흰 덩어리가 된다 → 윤곽·이목구비를 알파로 옮긴 선화
+                Image(nsImage: line).resizable().interpolation(.high).frame(width: size, height: size)
+            } else {
+                Image(nsImage: img).resizable().interpolation(.high).frame(width: size, height: size)
+            }
         } else {
-            // 그림을 아직 못 구웠거나 갤러리 미리보기: 단색 실루엣
+            // 그림을 아직 못 구웠거나 갤러리 미리보기: 단색 실루엣(단색 모드는 선)
             ZStack {
                 if growth.hasCharacter {
-                    Circle().fill(Color(hex: "#F2C9A0")).frame(width: size * 0.62, height: size * 0.58).offset(y: size * 0.08)
-                    Capsule().fill(Color(hex: "#5DBB63")).frame(width: size * 0.05, height: size * 0.16).offset(y: -size * 0.28)
+                    if mono {
+                        Circle().fill(Palette.white(0.18)).overlay(Circle().strokeBorder(Color.white, lineWidth: 1.5))
+                            .frame(width: size * 0.62, height: size * 0.58).offset(y: size * 0.08)
+                        Capsule().fill(Color.white).frame(width: size * 0.05, height: size * 0.16).offset(y: -size * 0.28)
+                    } else {
+                        Circle().fill(Color(hex: "#F2C9A0")).frame(width: size * 0.62, height: size * 0.58).offset(y: size * 0.08)
+                        Capsule().fill(Color(hex: "#5DBB63")).frame(width: size * 0.05, height: size * 0.16).offset(y: -size * 0.28)
+                    }
+                } else if mono {
+                    EggShape().fill(Palette.white(0.18)).overlay(EggShape().stroke(Color.white, lineWidth: 1.5))
+                        .frame(width: size * 0.5, height: size * 0.66)
                 } else {
                     EggShape().fill(Color(hex: "#F3EBDD")).frame(width: size * 0.5, height: size * 0.66)
                 }
             }
             .frame(width: size, height: size)
         }
+    }
+}
+
+/// §16.3 캐릭터 선화: 흐림(vibrant)·강조(accented)에서 시스템은 색을 지우고 알파(또는 밝기)만 남긴다.
+/// 그래서 그림의 정보를 "흰색 + 알파"로 옮긴다 — 윤곽선(알파·밝기 경계)과 어두운 이목구비는 불투명, 몸 면은 옅게.
+enum LineArt {
+    static func make(_ src: NSImage) -> NSImage? {
+        guard let cg = src.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let w = cg.width, h = cg.height
+        guard w > 2, h > 2, w * h <= 1024 * 1024 else { return nil }
+        let cs = CGColorSpaceCreateDeviceRGB()
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        let info = CGImageAlphaInfo.premultipliedLast.rawValue
+        guard let ctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: cs, bitmapInfo: info) else { return nil }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var alpha = [Float](repeating: 0, count: w * h)
+        var lum = [Float](repeating: 1, count: w * h)  // 알파를 곱한 밝기 + 투명은 1(흰 바탕처럼) — 경계 검출용
+        var rawLum = [Float](repeating: 1, count: w * h)
+        for i in 0..<(w * h) {
+            let a = Float(px[i * 4 + 3]) / 255
+            alpha[i] = a
+            if a > 0.01 {
+                let r = Float(px[i * 4]) / 255 / a, g = Float(px[i * 4 + 1]) / 255 / a, b = Float(px[i * 4 + 2]) / 255 / a
+                let l = min(1, 0.299 * r + 0.587 * g + 0.114 * b)
+                rawLum[i] = l
+                lum[i] = l * a + (1 - a)
+            }
+        }
+        func sobel(_ f: [Float], _ x: Int, _ y: Int) -> Float {
+            func v(_ dx: Int, _ dy: Int) -> Float { f[min(h - 1, max(0, y + dy)) * w + min(w - 1, max(0, x + dx))] }
+            let gx = (v(1, -1) + 2 * v(1, 0) + v(1, 1)) - (v(-1, -1) + 2 * v(-1, 0) + v(-1, 1))
+            let gy = (v(-1, 1) + 2 * v(0, 1) + v(1, 1)) - (v(-1, -1) + 2 * v(0, -1) + v(1, -1))
+            return (gx * gx + gy * gy).squareRoot()
+        }
+        var edge = [Float](repeating: 0, count: w * h)
+        for y in 0..<h { for x in 0..<w {
+            let e = max(sobel(alpha, x, y) * 0.9, sobel(lum, x, y) * 2.2)
+            edge[y * w + x] = min(1, max(0, (e - 0.12) * 1.6))
+        } }
+        // 선을 1px 두껍게(작게 줄여 그려도 보이게)
+        var out = [UInt8](repeating: 0, count: w * h * 4)
+        for y in 0..<h { for x in 0..<w {
+            var e: Float = 0
+            for dy in -1...1 { for dx in -1...1 {
+                let xx = min(w - 1, max(0, x + dx)), yy = min(h - 1, max(0, y + dy))
+                e = max(e, edge[yy * w + xx])
+            } }
+            let i = y * w + x
+            let dark = min(1, max(0, (0.5 - rawLum[i]) / 0.25)) * alpha[i] // 눈·입 같은 어두운 부분
+            let a = min(1, max(e, dark, alpha[i] * 0.2))
+            let v = UInt8(a * 255)
+            out[i * 4] = v; out[i * 4 + 1] = v; out[i * 4 + 2] = v; out[i * 4 + 3] = v // 흰색(미리 곱한 알파)
+        } }
+        guard let octx = CGContext(data: &out, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: cs, bitmapInfo: info),
+              let line = octx.makeImage() else { return nil }
+        return NSImage(cgImage: line, size: src.size)
     }
 }
 
@@ -250,7 +334,7 @@ struct CharacterCard: View {
     let pal: Palette
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            HStack { Spacer(); CharacterArtView(growth: growth, size: artSize); Spacer() }
+            HStack { Spacer(); CharacterArtView(growth: growth, size: artSize, mono: pal.mono); Spacer() }
             HStack(spacing: 5) {
                 Text(growth.name ?? "알").font(.system(size: 13, weight: .bold)).foregroundStyle(pal.primary).lineLimit(1)
                 Text("Lv \(growth.level) · \(growth.stageName)").font(.system(size: 11)).foregroundStyle(pal.secondary).lineLimit(1)

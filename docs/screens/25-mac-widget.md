@@ -138,7 +138,7 @@
 
 ### 5.3 시스템이 색을 바꾸는 모드 (macOS 14 바탕화면 · macOS 26)
 - 바탕화면 위젯은 앞에 창이 있으면 **흐린 단색(vibrant)** 으로, macOS 26에서 사용자가 "착색·투명" 스타일을 고르면 **강조(accented)** 모드로 그려진다.
-- 처리: 머리 "오늘"·XP 막대·체크박스는 `widgetAccentable()`로 표시해 강조 모드에서 시스템 색을 받게 하고, 캐릭터 그림은 강조 모드에서 단색으로 바뀌어도 모양이 보이게 둔다(시스템 기본). 우선순위 색은 단색 모드에서 사라지는 것을 받아들인다(틱틱 위젯도 같은 OS 동작).
+- ~~처리: 캐릭터 그림은 시스템 기본에 맡긴다~~ → 2026-10-05 사용자 스크린숏(흐린 바탕화면에서 월 캘린더 막대가 빈 회색 알약, 공휴일 글자 사라짐, 캐릭터가 흰 덩어리)으로 **§16 규칙으로 바뀜**. 우선순위 색이 단색 모드에서 사라지는 것은 그대로 받아들인다.
 
 ## 6. 인터랙션
 | 어디를 | 무엇이 | 출처 |
@@ -501,3 +501,34 @@ apps/desktop/src/shared/taskCore.ts       # 완료·XP 정상 경로(렌더러�
 | `native/widget/preview/render.sh` | 위젯 화면 코드를 `-D WIDGET_RENDER`로 묶어 `ImageRenderer`로 크게·중간 × 라이트·다크 PNG(설치 없음). `WLink`가 렌더러에서는 Link 대신 내용만 그린다(ImageRenderer는 Link를 못 그림) |
 - 바뀐 점: 칸 구분선은 토큰 `border.divider`(#F3F3F4)가 위젯에서 거의 안 보여 **한 단계 진한 #EBEBEC / 다크 #2A2A2A** [임시]. 주말 표시 끔(06 §8)은 위젯에 적용하지 않는다(늘 7칸) [다음].
 - 남은 확인(§15.7): 실제 바탕화면 위젯에서 크기·여백·Link 영역(사용자 Mac — §14.4와 같은 방법, 갤러리에 "월 캘린더"가 추가로 보임).
+
+## 16. 흐린(vibrant)·강조(accented) 렌더링 규칙 (2026-10-05 — 사용자 스크린숏 "앞에 다른 앱이 있을 때 위젯이 깨짐")
+### 16.0 원인
+- 바탕화면 위젯은 바탕화면을 만지고 있지 않으면 `widgetRenderingMode == .vibrant`로 그려진다. Apple: vibrant = "Desaturates text, images, and gauges into monochrome and creates a vibrant effect by coloring your content appropriately for the Lock Screen background or a macOS desktop", accented = "treats the widget's views as if they were template images. It replaces the view's color … while preserving the view's alpha channel". 두 경우 모두 시스템이 바탕(containerBackground)을 걷어낸다.
+  - 근거: [Preparing widgets for additional contexts and appearances](https://developer.apple.com/documentation/widgetkit/preparing-widgets-for-additional-contexts-and-appearances) · [WidgetRenderingMode.vibrant](https://developer.apple.com/documentation/widgetkit/widgetrenderingmode/vibrant) · [WidgetRenderingMode.accented](https://developer.apple.com/documentation/widgetkit/widgetrenderingmode/accented) · [showsWidgetContainerBackground](https://developer.apple.com/documentation/swiftui/environmentvalues/showswidgetcontainerbackground) · [widgetAccentable(_:)](https://developer.apple.com/documentation/swiftui/view/widgetaccentable(_:))
+- 그래서 색으로만 구분하던 것이 깨졌다: 옅은 색 막대(면 60%) 위의 진한 색 글자는 흑백·알파로 바뀌면 막대와 한 덩어리 → 빈 알약. 원본 캐릭터 PNG는 불투명 픽셀이 전부 같은 단색 → 흰 덩어리. 칠한 "오늘" 원 위 흰 숫자도 같은 이유로 사라진다.
+
+### 16.1 바탕
+- 바탕은 모든 위젯에서 `containerBackground(for: .widget) { pal.bg }` 하나로만 깐다(본문 안에 바탕 사각형을 따로 그리지 않는다) — 시스템이 흐림·강조 모드에서 이것만 걷어낸다. `containerBackgroundRemovable(false)`는 쓰지 않는다.
+
+### 16.2 단색 팔레트 (`Palette.mono` = `widgetRenderingMode != .fullColor`)
+- 색(hue) 대신 **흰색 + 불투명도 단계**로만 그린다: 글자 1 · 보조 0.62 · 3단계 0.4 · 다른 달 날짜 0.32 · 구분선 0.16. 강조색·우선순위색·공휴일 빨강·토요일 파랑은 모두 흰색 단계로 바뀐다.
+- 월 캘린더
+  - 막대 = **면 흰 20% + 글자 흰 100%**(제목이 늘 보인다). 지난 일정·완료 = 면 8% + 글자 40%, **완료는 제목 앞 체크 표시(✓)** — 색 흐림에 기대지 않는다.
+  - 공휴일 = **테두리 막대(흰 55%, 0.8pt) + 이름 글자**(면 없음) — 빨강 대신 모양과 글자로 구분.
+  - 오늘 = **테두리 원(1.3pt) + 숫자**(칠한 원 아님). 요일 머리는 전부 보조 단계, 날짜 숫자는 전부 글자 단계(다른 달만 0.32).
+- 오늘 할 일: 체크박스 완료(대기) 상태는 면을 칠하지 않고 테두리 50% + 체크.
+- `widgetAccentable()`(강조 묶음): 오늘 원, "+N", 머리 "오늘", `+`, 체크박스, XP 막대 채움 — 강조 모드에서 시스템 강조색을 받는다. 나머지는 기본 묶음.
+
+### 16.3 캐릭터
+- 단색 모드에서는 원본 PNG 대신 **선화**를 그린다(`LineArt.make`, 위젯 안에서 계산): 흰색 + 알파로 — 윤곽선(알파·밝기 경계, Sobel, 1px 두껍게)과 어두운 이목구비 = 불투명, 몸 면 = 20%. 그림을 아직 못 구웠을 때의 실루엣도 단색 모드에서는 테두리 + 옅은 면.
+- XP 막대: 바탕 흰 14% + 채움 흰(강조 묶음) — 늘 보인다.
+
+### 16.4 확인
+- 미리보기: `sh native/widget/preview/render.sh` → 월 크게·중간, 캐릭터 작게·중간, 오늘 작게·중간·크게 × 라이트·다크 × `full`·`-vibrant`·`-accented` PNG, 비교용 `-before-vibrant`(고치기 전 색 팔레트를 같은 흉내에 넣은 것 — 사용자 스크린숏의 빈 막대·흰 덩어리가 재현됨). 흉내는 근사(흑백 밝기×알파 → 흰색 불투명도 / 알파만 남겨 한 색)라 최종 확인은 실제 바탕화면에서.
+- 완료 기준
+  - [ ] 다른 앱을 앞에 두고(흐린 모드) 월 캘린더 막대 제목이 모두 읽힌다, 공휴일 이름이 보인다, 오늘 원이 테두리로 보인다.
+  - [ ] 완료 항목에 ✓, 지난 일정은 흐리게.
+  - [ ] 캐릭터가 선화로 알아볼 수 있고 XP 막대가 보인다.
+  - [ ] 바탕화면을 누르면(전체 색) 이전과 똑같다.
+

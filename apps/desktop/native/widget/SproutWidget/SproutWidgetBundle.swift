@@ -3,6 +3,7 @@
 import SwiftUI
 import WidgetKit
 
+#if !WIDGET_RENDER // 미리보기 렌더러(preview/render.swift)는 자기 @main을 쓴다
 @main
 struct SproutWidgetBundle: WidgetBundle {
     var body: some Widget {
@@ -11,6 +12,7 @@ struct SproutWidgetBundle: WidgetBundle {
         MonthWidget()
     }
 }
+#endif
 
 // MARK: ① 오늘 할 일
 struct TodayWidget: Widget {
@@ -28,16 +30,26 @@ struct TodayWidget: Widget {
 struct TodayWidgetView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.widgetRenderingMode) private var mode // §16 바탕화면 흐림 = .vibrant, 강조 = .accented
     let entry: SproutEntry
 
     var body: some View {
-        let pal = Palette(scheme, theme)
-        content(pal)
+        let pal = Palette(scheme, theme, mode)
+        TodayContent(entry: entry, family: family, pal: pal)
             .redacted(reason: entry.placeholder ? .placeholder : [])
+            // 바탕은 꼭 containerBackground로: 흐림(vibrant)·강조(accented)에서 시스템이 이것만 걷어낸다(§16.1)
             .containerBackground(for: .widget) { pal.bg }
     }
 
     private var theme: Snapshot.Theme? { if case .ready(let s) = entry.data { return s.theme } else { return nil } }
+}
+
+/// 위젯 크기별 본문(미리보기 렌더러도 이것을 그린다 — widgetFamily 환경값은 바꿀 수 없어서 인자로 받는다)
+struct TodayContent: View {
+    let entry: SproutEntry
+    let family: WidgetFamily
+    let pal: Palette
+    var body: some View { content(pal) }
 
     @ViewBuilder private func content(_ pal: Palette) -> some View {
         switch entry.data {
@@ -102,16 +114,24 @@ struct CharacterWidget: Widget {
 struct CharacterWidgetView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.widgetRenderingMode) private var mode // §16 바탕화면 흐림 = .vibrant, 강조 = .accented
     let entry: SproutEntry
 
     var body: some View {
-        let pal = Palette(scheme, theme)
-        content(pal)
+        let pal = Palette(scheme, theme, mode)
+        CharacterContent(entry: entry, family: family, pal: pal)
             .redacted(reason: entry.placeholder ? .placeholder : [])
             .containerBackground(for: .widget) { pal.bg }
     }
 
     private var theme: Snapshot.Theme? { if case .ready(let s) = entry.data { return s.theme } else { return nil } }
+}
+
+struct CharacterContent: View {
+    let entry: SproutEntry
+    let family: WidgetFamily
+    let pal: Palette
+    var body: some View { content(pal) }
 
     @ViewBuilder private func content(_ pal: Palette) -> some View {
         switch entry.data {
@@ -123,7 +143,7 @@ struct CharacterWidgetView: View {
                 if family == .systemMedium {
                     GeometryReader { geo in
                         HStack(alignment: .top, spacing: 12) {
-                            Link(destination: Links.growth) {
+                            WLink(Links.growth) {
                                 CharacterCard(growth: growth, artSize: 84, showTodayXp: !entry.stale, pal: pal)
                             }
                             .frame(width: geo.size.width * 0.4 - 6)

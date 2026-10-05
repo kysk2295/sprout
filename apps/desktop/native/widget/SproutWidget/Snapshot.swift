@@ -88,7 +88,11 @@ enum Store {
     static let groupID = "BU697KN34B.app.sprout.desktop"
 
     static var root: URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID)?
+        #if WIDGET_RENDER
+        // 미리보기 렌더러(preview/render.sh): App Group 대신 임시 폴더
+        if let p = ProcessInfo.processInfo.environment["SPROUT_WIDGET_ROOT"] { return URL(fileURLWithPath: p, isDirectory: true) }
+        #endif
+        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID)?
             .appendingPathComponent("widget", isDirectory: true)
     }
     static var actionsDir: URL? { root?.appendingPathComponent("actions", isDirectory: true) }
