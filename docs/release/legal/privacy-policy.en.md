@@ -25,7 +25,7 @@ UniPort (Representative: Ko Yunseo; "we") operates Kkumteul (꿈틀; desktop and
 | Generated — AI | **Counts only**: requests, failures, tokens and processing time per AI feature per day | When you use AI |
 | Optional — push (Android) | App-generated device ID, Firebase push token, platform, app version, time zone, locale, notification settings, last seen time | When you allow notifications |
 
-- Stored **only on your device**, never sent to our server: sign-in tokens (device secure storage), events read from Google Calendar / macOS Calendar (events created elsewhere) and their connection tokens, AI assistant chat history, Mac widget data, tokens for importing from other services.
+- Stored **only on your device**, never sent to our server: sign-in tokens (device secure storage), events and calendar names read from Google Calendar / macOS Calendar / your phone's calendars (events created elsewhere) and their connection tokens, AI assistant chat history, Mac widget data, tokens for importing from other services.
 - **IP addresses** are used only in server memory for sign-in rate limiting (at most 24 hours, cleared on restart). We **do not keep access logs**. Tailscale, which relays connections to our server, can see connection metadata such as IP address and time while relaying (Sections 5 and 6).
 - We do not collect sensitive information or national ID numbers. You may choose to write about health or mood in your journal — please write only what you are comfortable storing.
 - If you enter other people's names or import a messenger chat export, that text is stored as your content. Please include only what is necessary.
@@ -63,10 +63,11 @@ Our server and AI run on **a computer owned by the operator in the Republic of K
 - To keep task titles out of notifications, turn on **Settings › Sounds & Notifications › Hide titles in notifications**. Titles and list names are then not included in notification data at all. You can also disable notifications; reminders already scheduled on your device still work.
 - iOS currently uses on-device notifications only (no server push).
 - **Google/Apple sign-in** and **Google Calendar** are connections you make directly with those companies. We receive only the sign-in result (ID and email); events read from Google Calendar stay on your device. Events you create or edit in Kkumteul are saved and synced as Kkumteul events and are also saved to the Google or Apple calendar you chose.
+- **Phone calendars** (mobile app): we ask for calendar access (iOS full calendar access, Android calendar read/write) only when you tap connect in Settings › Calendar connections. Events, calendar names and colors from your phone's calendars are read on your phone only to show them in the app, and are never sent to our server or to AI. Only events you create in Kkumteul and choose to also save to a phone calendar are stored and synced as Kkumteul events, with only an unreadable code for which calendar it is (no calendar names or emails). Disconnecting hides your phone calendar events in Kkumteul; events in your phone calendar are not deleted.
 
 ## 7. AI and your data
 1. All AI features run on **an AI model hosted on the operator's own computer**. Your text is **not sent to third-party AI providers** (such as OpenAI, Google or Anthropic).
-2. Only what a feature needs is sent (e.g. a note to sort, task titles and list names, the day's journal text when journal conversation is on and the entry is not "private"). **Calendar events from Google/Apple are never sent to AI.**
+2. Only what a feature needs is sent (e.g. a note to sort, task titles and list names, the day's journal text when journal conversation is on and the entry is not "private"). **Calendar events from Google/Apple or your phone's calendars are never sent to AI.**
 3. The server **does not store or log AI request or response text**; it keeps only usage counts to enforce limits.
 4. AI output you keep in the app (journal conversation and summary, weekly reports, sorting/tag results) is stored and synced as your content under Section 3.
 5. AI output is an automated suggestion and may be wrong. Auto-sorting and auto-tagging are not automated decisions with significant effects on your rights; you can change or undo them at any time.

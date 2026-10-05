@@ -33,6 +33,7 @@
 ■ 캘린더
 · 목록·일·3일·월 보기로 할 일과 일정을 함께
 · 끌어서 날짜와 시간 옮기기
+· 휴대폰에 추가한 구글·iCloud 캘린더 일정도 함께 보고 고치기
 
 ■ 성장 — 해낸 만큼 자라는 캐릭터
 · 할 일을 끝내면 경험치가 쌓이고 캐릭터가 진화해요
@@ -94,6 +95,7 @@ TASKS
 CALENDAR
 • List, day, 3-day and month views with tasks and events together
 • Drag to reschedule
+• See and edit events from the Google and iCloud calendars on your phone
 
 GROWTH
 • Earn XP for finished tasks and evolve your character

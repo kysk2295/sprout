@@ -73,7 +73,8 @@
 | 푸시(APNs) | [할 일] | 지금 `pushIos: false`. APNs 인증 키(.p8) 발급 → FCM에 등록하거나 서버가 APNs 직접. 로컬 알림만으로 v1 내도 됨(결정) |
 | 개인정보 매니페스트(PrivacyInfo.xcprivacy) | [완료] 2026-10-05 | `app.json` `ios.privacyManifests`: 추적 안 함, 필수 사유 API = UserDefaults CA92.1 · 파일 시각 C617.1 · 부팅 시각 35F9.1 · 디스크 공간 E174.1(RN·Expo·op-sqlite 라이브러리 매니페스트 합집합), 수집 데이터 = 이메일·사용자 ID·기타 사용자 콘텐츠·제품 상호작용(모두 연결·앱 기능, privacy-answers.md와 같음). 공유 확장은 자체 매니페스트(App Group UserDefaults 1C8F.1) |
 | 암호화 수출 규정 | [완료] | `ITSAppUsesNonExemptEncryption: false`(HTTPS만) |
-| 버전·이름·권한 문구 | [완료] 2026-10-05 | 표시 이름 `꿈틀`(공유 확장도), 1.0.0 / buildNumber 1 / Android versionCode 1. 권한 문구는 쓰는 것만: 알림(문구 필요 없음). 안 쓰는 Face ID 문구 제거(`expo-secure-store` `faceIDPermission: false`). 캘린더·사진·위치·카메라 권한 없음 |
+| 버전·이름·권한 문구 | [완료] 2026-10-05 | 표시 이름 `꿈틀`(공유 확장도), 1.0.0 / buildNumber 1 / Android versionCode 1. 권한 문구는 쓰는 것만: 알림(문구 필요 없음). 안 쓰는 Face ID 문구 제거(`expo-secure-store` `faceIDPermission: false`). 사진·위치·카메라 권한 없음. **2026-10-05 추가: 캘린더 권한**(휴대폰 캘린더 연결 38 — iOS 캘린더 전체 접근, Android READ/WRITE_CALENDAR) |
+| 캘린더 권한 문구 확인 | [ ] | 새 빌드의 iOS Info.plist에 `NSCalendarsFullAccessUsageDescription`·`NSCalendarsUsageDescription`가 38 §8 문구로 들어갔는지, 미리 알림 키가 없는지, 연결을 누를 때만 권한 창이 뜨는지 실기기·시뮬레이터에서 확인 |
 | Release 빌드(서명 없이) | [완료] 2026-10-05 | `xcodebuild … -configuration Release -sdk iphoneos CODE_SIGNING_ALLOWED=NO` 성공, JS 번들(Hermes) 포함, 운영 서버 주소, `.env.local` 없이도 구글 로그인(공개 클라이언트 id를 `app.config.ts` 기본값으로) |
 | App Store Connect 등록: 앱 이름·부제·설명·키워드·카테고리 | [진행] 초안 | [store/listing.md](store/listing.md) |
 | 앱 개인정보(영양 성분표) 답변 | [진행] 초안 | [store/privacy-answers.md](store/privacy-answers.md) |
@@ -128,6 +129,7 @@
 | FCM | [완료] 빌드 / [할 일] 실기기 | 출시 빌드에 `~/.config/sprout/google-services.json` 포함·푸시 서비스(SproutMessagingService) 들어감. 토큰 등록은 내부 테스트 기기에서 확인 |
 | 구글 로그인 | [완료] 코드 / [리드] OAuth | 웹 클라이언트 id는 app.config 기본값. **Android OAuth 클라이언트에 업로드 키·Play 앱 서명 키 SHA-1 추가 필요** → §5-1 4단계 |
 | 데이터 보안(Data safety) 양식 | [완료] 답안 | [store/data-safety.md](store/data-safety.md) |
+| 데이터 보안 양식 다시 제출 | [ ] | 캘린더 권한(READ/WRITE_CALENDAR)이 추가된 빌드와 함께 Play Console 데이터 보안을 다시 확인·제출(답은 그대로 — data-safety.md 전제) |
 | 계정 삭제 웹 URL | [완료] | https://web-production-cd889.up.railway.app/account-deletion |
 | 콘텐츠 등급(IARC)·타겟층 | [완료] 답안 | play-listing.md §5·§6 (16–17, 18+ 권장) |
 | 스토어 등록정보·그래픽·스크린샷 | [완료] | play-listing.md, `store/play-assets/`(아이콘 512 RGBA, 그래픽 1024×500 "꿈틀"), `store/screenshots/android/` 6장(1080×2400) |
