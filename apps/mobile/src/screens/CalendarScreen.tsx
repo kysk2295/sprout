@@ -44,7 +44,7 @@ import { TaskRowView } from '../ui/TaskRow'
 import type { DayMarks } from '@sprout/schema/holidays'
 import { isWidgetDate } from '@sprout/schema/widget'
 import { useDayMarks, useMarkPrefs } from '../data/calendarPrefs'
-import { RestBadge, SideLabel } from '../ui/DayMarks'
+import { SideLabel } from '../ui/DayMarks'
 
 type Item = CalItem<TaskRow>
 const VIEW_ICON: Record<MobileCalView, typeof List> = { list: List, day: Square, '3day': Columns3, month: CalendarDays }
@@ -356,7 +356,6 @@ function MonthView(props: { today: string; cursor: string; items: Item[]; onPick
                     >
                       <View style={[s.num, isToday && { backgroundColor: p.accent }]}>
                         <Text style={{ fontSize: 12, fontWeight: isToday || sel ? '700' : '500', color: isToday ? '#fff' : dayTone(p, d, mk, other && !collapsed) }}>{Number(d.slice(8))}</Text>
-                        <RestBadge marks={mk} />
                       </View>
                       <View style={{ marginTop: -1, opacity: other && !collapsed ? 0.55 : 1 }}><SideLabel marks={mk} /></View>
                       {shown.map((it) => {
@@ -478,7 +477,6 @@ function Timeline(props: {
                   <Text style={{ fontSize: 11, color: p.textTertiary }}>{weekdayKo(d)}</Text>
                   <View style={[s.stripNum, sel && { backgroundColor: p.accent }, !sel && d === props.today && { borderWidth: 1.5, borderColor: p.accent }]}>
                     <Text style={{ fontSize: 15, fontWeight: '600', color: sel ? '#fff' : d === props.today ? p.accent : dayTone(p, d, mk, false) }}>{Number(d.slice(8))}</Text>
-                    <RestBadge marks={mk} size={13} top={-3} right={-5} />
                   </View>
                   <View style={[s.dot, { backgroundColor: has ? p.textQuaternary : 'transparent' }]} />
                 </Pressable>
@@ -495,7 +493,6 @@ function Timeline(props: {
                 <Pressable key={d} accessibilityLabel={`${weekdayKo(d)} ${Number(d.slice(8))}${mk.holiday ? `, ${mk.holiday}` : ''}`} onPress={() => props.onPick(d)} style={{ width: colW, alignItems: 'center', paddingVertical: 6 }}>
                   <View>
                     <Text style={{ fontSize: 12, color: d === props.today ? p.accent : dayTone(p, d, mk, false, p.textTertiary), fontWeight: d === props.today ? '700' : '400' }}>{`${weekdayKo(d)} ${Number(d.slice(8))}`}</Text>
-                    <RestBadge marks={mk} top={-5} right={-9} />
                   </View>
                   <SideLabel marks={mk} size={9.5} />
                 </Pressable>

@@ -21,27 +21,36 @@ export function Popover({ anchor, point, rect, placement = 'below', onClose, chi
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number }>()
   useLayoutEffect(() => {
-    if (!ref.current) return
-    const w = ref.current.offsetWidth
-    const h = ref.current.offsetHeight
-    let left: number
-    let top: number
-    const a = rect ?? anchor?.getBoundingClientRect()
-    if (a && placement === 'side') {
-      // 06 §7.3: 블록 오른쪽(공간이 없으면 왼쪽)에, 위쪽을 맞춰서
-      left = a.right - a.left > w ? (a.left + a.right - w) / 2 : a.right + 8 + w > window.innerWidth - 8 ? a.left - w - 8 : a.right + 8
-      top = Math.min(Math.max(8, a.top), window.innerHeight - h - 8)
-    } else if (point) {
-      left = point.x
-      top = point.y
-      if (top + h > window.innerHeight - 8) top = Math.max(8, point.y - h)
-    } else if (a) {
-      left = align === 'end' ? a.right - w : a.left
-      top = a.bottom + 6
-      if (top + h > window.innerHeight - 8) top = Math.max(8, a.top - h - 6)
-    } else return
-    left = Math.max(8, Math.min(left, window.innerWidth - w - 8))
-    setPos({ top, left })
+    const el = ref.current
+    if (!el) return
+    const place = () => {
+      const w = el.offsetWidth
+      const h = el.offsetHeight
+      let left: number
+      let top: number
+      const a = rect ?? anchor?.getBoundingClientRect()
+      if (a && placement === 'side') {
+        // 06 §7.3: 블록 오른쪽(공간이 없으면 왼쪽)에, 위쪽을 맞춰서
+        left = a.right - a.left > w ? (a.left + a.right - w) / 2 : a.right + 8 + w > window.innerWidth - 8 ? a.left - w - 8 : a.right + 8
+        top = Math.min(Math.max(8, a.top), window.innerHeight - h - 8)
+      } else if (point) {
+        left = point.x
+        top = point.y
+        if (top + h > window.innerHeight - 8) top = Math.max(8, point.y - h)
+      } else if (a) {
+        left = align === 'end' ? a.right - w : a.left
+        top = a.bottom + 6
+        if (top + h > window.innerHeight - 8) top = Math.max(8, a.top - h - 6)
+      } else return
+      left = Math.max(8, Math.min(left, window.innerWidth - w - 8))
+      setPos((p) => (p && p.top === top && p.left === left ? p : { top, left }))
+    }
+    place()
+    // 06 §7.5: 내용이 늦게 차서 높이가 바뀌면(태스크 팝오버 등) 화면 밖으로 넘치지 않게 다시 맞춘다
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => place())
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [anchor, point, rect, placement, align])
   useEffect(() => {
     // 겹친 팝오버: 안쪽 팝오버를 누른 것은 바깥이 아니고, Esc는 맨 위 팝오버만 닫는다

@@ -9,7 +9,7 @@ import type { Schedule } from '../lib/taskActions'
 import { Popover } from './Popover'
 import { CalendarPlus7 } from './icons'
 import { markPrefsOf, useCalendarOptions, useDayMarks } from '../data/calendarOptions'
-import { RestBadge } from './calendar/DayMark'
+import './calendar/holidays.css'
 import { weekHeadClass, weekendClass } from '../lib/calendar'
 
 // 03-date-picker: 날짜 탭 · 기간 탭 · Time/Reminder/Repeat 하위 화면 · Clear/OK
@@ -197,7 +197,7 @@ export function MonthGrid({ month, onMonth, today, selected, onPick, compact, ra
   const first = toDate(`${month}-01`)
   const lead = (first.getDay() + 6) % 7 // 월요일 시작
   const days = Array.from({ length: 42 }, (_, i) => addDays(`${month}-01`, i - lead))
-  // 06 §16 "휴일 표시"가 켜져 있으면 공휴일에 작은 "휴" 배지(이름은 마우스를 올리면)
+  // 06 §16 "휴일 표시"가 켜져 있으면 공휴일 숫자를 빨강으로(이름은 마우스를 올리면, "휴" 배지는 뺌 — 사용자 결정 2026-10-05)
   const [calOpts] = useCalendarOptions()
   const marks = useDayMarks([days[0], days[41]], { ...markPrefsOf(calOpts), lunar: false, weekNumbers: false })
   const shift = (n: number) => {
@@ -222,7 +222,7 @@ export function MonthGrid({ month, onMonth, today, selected, onPick, compact, ra
           const mk = marks(day, false)
           if (mk.holiday) cls.push('is-holiday')
           cls.push(weekendClass(day).trim())
-          return <button key={day} className={cls.filter(Boolean).join(' ')} onClick={() => onPick(day)} aria-label={day} title={mk.holiday ?? undefined}>{Number(day.slice(8))}<RestBadge marks={mk} /></button>
+          return <button key={day} className={cls.filter(Boolean).join(' ')} onClick={() => onPick(day)} aria-label={day} title={mk.holiday ?? undefined}>{Number(day.slice(8))}</button>
         })}
       </div>
     </div>

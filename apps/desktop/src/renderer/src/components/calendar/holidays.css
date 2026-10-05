@@ -1,12 +1,6 @@
-/* 06 §16 휴일·음력·주 번호 — 틱틱/디다 실측(research 17 §15.2)의 자리: 오른쪽 위 작은 "휴" 원 +
-   칸 오른쪽에 휴일 이름 또는 주 번호·음력(회색). 색은 빨강(사용자 결정 — 틱틱은 초록). 주말은 칠하지 않는다(§15.1) */
-.cal-rest {
-  position: absolute; top: -3px; right: -7px; z-index: 1;
-  width: 13px; height: 13px; border-radius: 50%;
-  background: var(--color-holiday); color: #fff;
-  font: 600 8px/13px var(--font-family); text-align: center; letter-spacing: 0;
-  pointer-events: none;
-}
+/* 06 §16 휴일·음력·주 번호 — 틱틱/디다 실측(research 17 §15.2)의 자리: 칸 오른쪽에 휴일 이름 또는 주 번호·음력(회색).
+   색은 빨강(사용자 결정 — 틱틱은 초록). 틱틱/디다의 오른쪽 위 "휴" 원 배지는 뺐다(사용자 결정 2026-10-05 "거슬려").
+   주말은 칠하지 않는다(§15.1) */
 .cal-sidelabel {
   position: absolute; right: 6px; z-index: 1;
   max-width: calc(100% - 48px);
@@ -16,14 +10,10 @@
 .cal-sidelabel.is-holiday { color: var(--color-holiday); }
 .mv__side { top: 7px; }
 .mv__cell.is-other .cal-sidelabel { opacity: 0.55; }
-.mv__cell.is-other .cal-rest { opacity: 0.55; }
 .tg__side { top: 8px; }
 .tg__allday-col { position: relative; }
 .tg__weeknum { font: 400 11px/15px var(--font-family); color: var(--color-text-tertiary); text-align: center; }
-/* 작은 달력(왼쪽 패널·날짜 선택기): 배지만, 이름은 마우스를 올리면 */
-.cal-side__day .cal-rest, .dp__day .cal-rest { top: -2px; right: -3px; width: 10px; height: 10px; font-size: 6.5px; line-height: 10px; }
-.dp__day { position: relative; }
-.dp__day.is-other .cal-rest, .cal-side__day.is-other .cal-rest { opacity: 0.5; }
+/* 작은 달력(왼쪽 패널·날짜 선택기): 빨간 숫자만, 이름은 마우스를 올리면 */
 /* 사용자 결정(2026-10-05 "공휴일은 빨간색"): 공휴일 날짜 숫자도 빨강. 오늘·고른 날(색 면 위 흰 글자)은 그대로 */
 .mv__num.is-holiday:not(.is-today), .tg__num.is-holiday:not(.is-today),
 .cal-side__day.is-holiday:not(.is-today):not(.is-picked), .dp__day.is-holiday:not(.is-selected):not(.is-today) { color: var(--color-holiday); }

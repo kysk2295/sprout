@@ -4,7 +4,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { usePalette } from '../theme/ThemeProvider'
 import { monthCells, shiftMonth } from './dateSheetModel'
 import { useDayMarks, useMarkPrefs } from '../data/calendarPrefs'
-import { RestBadge } from './DayMarks'
 
 const WEEK = ['월', '화', '수', '목', '금', '토', '일']
 
@@ -14,7 +13,7 @@ export function MonthCalendar({ month, onMonth, today, selected, range = [], onP
   const p = usePalette()
   const [y, m] = month.split('-').map(Number)
   const cells = monthCells(month)
-  // 06 §16 "휴일 표시"가 켜져 있으면 공휴일 숫자 오른쪽 위에 작은 "휴" 배지(이름은 읽어 주기에)
+  // 06 §16 "휴일 표시"가 켜져 있으면 공휴일 숫자를 빨강으로(이름은 읽어 주기에, "휴" 배지는 뺌 — 사용자 결정 2026-10-05)
   const prefs = useMarkPrefs()
   const marks = useDayMarks(cells[0], cells[cells.length - 1], { ...prefs, lunar: false, weekNumbers: false })
   return (
@@ -45,7 +44,7 @@ export function MonthCalendar({ month, onMonth, today, selected, range = [], onP
                   isToday && { color: p.accent, fontWeight: '600' },
                   sel && { color: '#fff', fontWeight: '600' }
                 ]}>{Number(d.slice(8))}</Text>
-                <RestBadge marks={mk} size={12} top={1} right={1} />
+                
               </View>
             </Pressable>
           )

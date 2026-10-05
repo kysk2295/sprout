@@ -30,7 +30,7 @@ export function saveCalendarOptions(patch: Partial<CalOptions>): Promise<unknown
 
 export const markPrefsOf = (o: Pick<CalOptions, 'holidays' | 'lunar' | 'weekNumbers'>): MarkPrefs => ({ holidays: o.holidays !== 0, lunar: o.lunar === 1, weekNumbers: o.weekNumbers === 1 })
 
-/** 06 §16 날짜 칸 표시(휴일 이름·"휴" 배지·주 번호·음력)를 범위 하나로 미리 계산한다 */
+/** 06 §16 날짜 칸 표시(휴일 이름·주 번호·음력)를 범위 하나로 미리 계산한다 */
 export function useDayMarks(days: string[], prefs: MarkPrefs): (day: string, firstOfRow: boolean) => DayMarks {
   const from = days[0]
   const to = days[days.length - 1]

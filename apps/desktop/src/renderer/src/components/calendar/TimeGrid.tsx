@@ -11,7 +11,7 @@ import { outsideDrag, scheduledDrop } from '../../lib/calendarDrop'
 import type { CalHandlers } from './types'
 import type { DayMarks } from '@sprout/schema/holidays'
 import { weekLabel } from '@sprout/schema/holidays'
-import { RestBadge, SideLabel } from './DayMark'
+import { SideLabel } from './DayMark'
 import { popoverOpen, quickCreateOpen } from './dismiss'
 import { dragSession, type DragPoint } from './dragSession'
 
@@ -31,7 +31,7 @@ type Props = CalHandlers & {
   items: CalItem[]
   today: string
   hourH: number
-  /** 06 §16 날짜 줄 오른쪽 글자(휴일 이름 > 음력)·"휴" 배지. 주 번호는 왼쪽 위 칸에 */
+  /** 06 §16 날짜 줄 오른쪽 글자(휴일 이름 > 음력). 주 번호는 왼쪽 위 칸에 */
   marks?: (day: string, firstOfRow: boolean) => DayMarks
   weekNumbers?: boolean
   collapsed: boolean
@@ -257,7 +257,7 @@ export function TimeGrid(p: Props) {
             const drop = !!barPreview && !preview!.live && i >= barPreview.col && i < barPreview.col + barPreview.span
             return (
               <div key={d} data-cal-day={d} className={`tg__allday-col${sel || pend ? ' is-target' : ''}${drop ? ' is-drop' : ''}`}>
-                <button className={`tg__num${d === today ? ' is-today' : ''}${mk(d)?.holiday ? ' is-holiday' : ''}${weekendClass(d)}`} onClick={() => p.onDayClick(d)} title={mk(d)?.holiday ?? undefined}>{Number(d.slice(8))}<RestBadge marks={mk(d)} /></button>
+                <button className={`tg__num${d === today ? ' is-today' : ''}${mk(d)?.holiday ? ' is-holiday' : ''}${weekendClass(d)}`} onClick={() => p.onDayClick(d)} title={mk(d)?.holiday ?? undefined}>{Number(d.slice(8))}</button>
                 <SideLabel marks={mk(d)} className="tg__side" />
               </div>
             )

@@ -8,7 +8,7 @@ import { ExtPanelFilter } from '../calendars/ExtPanelFilter'
 import { MyCalRow } from '../events/MyCalRow'
 import type { MarkPrefs } from '@sprout/schema/holidays'
 import { useDayMarks } from '../../data/calendarOptions'
-import { RestBadge } from './DayMark'
+import './holidays.css'
 
 // 06 §6 왼쪽 패널(실측 research 17 §8): 작은 달력(이번 주 띠 · 태스크 점) + 필터(전체 · 리스트 · 태그 · 캘린더 구독)
 type Props = {
@@ -25,7 +25,7 @@ type Props = {
   calendarCursor?: string
   /** 06 §14.4.3 "내 일정" 보이기·색 */
   myCal?: { on: boolean; color: string | null | undefined; onChange: (patch: { myCal?: number; myColor?: string | null }) => void }
-  /** 06 §16 작은 달력에는 "휴" 배지만(이름은 마우스를 올리면) */
+  /** 06 §16 작은 달력은 빨간 숫자만(이름은 마우스를 올리면) — "휴" 배지는 뺌(사용자 결정 2026-10-05) */
   markPrefs?: MarkPrefs
 }
 const NO_MARKS: MarkPrefs = { holidays: false, lunar: false, weekNumbers: false }
@@ -74,7 +74,6 @@ export function CalendarSide(p: Props) {
                   title={marks(d, false).holiday ?? undefined}
                 >
                   {Number(d.slice(8))}
-                  <RestBadge marks={marks(d, false)} />
                   {p.busyDays.has(d) && <i className="cal-side__dot" />}
                 </button>
               ))}

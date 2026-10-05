@@ -639,6 +639,11 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 
 /* 팝오버 */
 .task-pop .detail { min-height: 300px; }
+/* 06 §7.5 캘린더 팝오버 열기 — 틱틱 영상 프레임 실측(research 17 §16): 120ms 페이드 + 0.96 → 1 확대(카드 가운데 기준), 끝으로 갈수록 느려짐.
+   위치는 처음부터 최종 자리(미끄러지지 않음). 닫기는 틱틱처럼 바로 사라진다(애니메이션 없음) */
+@keyframes cal-pop-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+.popover.qc, .popover.task-pop, .popover.day-pop { animation: cal-pop-in var(--motion-fast); transform-origin: 50% 50%; }
+@media (prefers-reduced-motion: reduce) { .popover.qc, .popover.task-pop, .popover.day-pop { animation: none; } }
 .qc { padding: 0; min-height: 296px; display: flex; flex-direction: column; }
 .qc__head { height: 48px; padding: 0 12px 0 16px; border-bottom: 1px solid var(--color-border-divider); }
 .qc__date { font-size: 13px; }

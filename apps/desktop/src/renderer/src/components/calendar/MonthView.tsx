@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEv
 import { addDays, datePart, daysBetween } from '@sprout/schema/time'
 import { isWeekend, packBars, weekHeadClass, weekendClass, type CalItem, type ItemStyle } from '../../lib/calendar'
 import type { DayMarks } from '@sprout/schema/holidays'
-import { RestBadge, SideLabel } from './DayMark'
+import { SideLabel } from './DayMark'
 import { monthMoveChanges, previewOf, resizeBar, spanDays } from '../../lib/calendarDrag'
 import { outsideDrag } from '../../lib/calendarDrop'
 import { Item } from './TimeGrid'
@@ -22,7 +22,7 @@ type Props = CalHandlers & {
   items: CalItem[]
   today: string
   itemStyle: ItemStyle
-  /** 06 §16 칸 오른쪽 글자(휴일 이름 > 주 번호 > 음력)·"휴" 배지 */
+  /** 06 §16 칸 오른쪽 글자(휴일 이름 > 주 번호 > 음력) */
   marks?: (day: string, firstOfRow: boolean) => DayMarks
   onDayClick: (day: string) => void
   onMore: (day: string, rect: Rect) => void
@@ -170,7 +170,7 @@ export function MonthView(p: Props) {
                       start(e, { kind: 'create', a: d, b: d })
                     }}
                   >
-                    <button className={`mv__num${d === today ? ' is-today' : ''}${d.endsWith('-01') ? ' is-first' : ''}${mk?.holiday ? ' is-holiday' : ''}${weekendClass(d)}`} onClick={() => p.onDayClick(d)} title={mk?.holiday ?? undefined}>{label}<RestBadge marks={mk} /></button>
+                    <button className={`mv__num${d === today ? ' is-today' : ''}${d.endsWith('-01') ? ' is-first' : ''}${mk?.holiday ? ' is-holiday' : ''}${weekendClass(d)}`} onClick={() => p.onDayClick(d)} title={mk?.holiday ?? undefined}>{label}</button>
                     <SideLabel marks={mk} className="mv__side" />
                     {hidden > 0 && (
                       <button
