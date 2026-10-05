@@ -1,6 +1,6 @@
 // 32 푸시 알림(휴대폰) — 기기 등록 · 로컬 예약 보고 · FCM 데이터 메시지 받기. Android만 켠다(iOS는 §11 준비 전까지 로컬 알림만).
 // - 등록(§3.2): 로그인·앱 시작·앞으로 올 때(같은 본문이면 하루 한 번 이하)·FCM 토큰이 바뀔 때·권한/설정/시간대가 바뀔 때 PUT /push/devices/:id
-// - 보고(§4.3-1): 로컬 예약을 다시 계산할 때마다 바뀌었으면 PUT …/local(30초 간격, 끝에 한 번 더)
+// - 보고(§4.3-1): 로컬 예약을 다시 계산할 때마다 바뀌었으면 PUT …/local(30초 간격, 끝에 한 번 더). 정확한 알람이 없으면 빈 목록(§17.6 ⓒ)
 // - 받기: FCM 데이터 메시지 → expo 알림 작업(Notifications.registerTaskAsync, 앱이 앞·배경·닫힘 모두).
 //   Android에서는 plugins/push-service가 expo의 기본 표시를 막고 이 작업으로만 넘긴다(0단계 실험 — 32 §15.1).
 //   reminder: 로컬 알림과 같은 채널·카테고리(버튼)·id, 이미 예약/떠 있으면 안 띄움 · daily/growth/test: 그 채널로 · sync: 지우기 + 배경이면 동기화·다시 계산
@@ -17,10 +17,11 @@ import { api, ApiError, freshToken, startAuth, syncNow } from '../data/auth'
 import { db } from '../data/db'
 import { deviceId } from '../data/device'
 import { readNotifyPrefs } from '../data/notifyPrefs'
+import { exactAlarmsOk } from './exactAlarm'
 import { configureNotifications, handleResponse, onRescheduled, permissionState, rescheduleNow, scheduledIds } from './index'
 import { CATEGORY } from './plan'
 import {
-  dismissTargets, isResponsePayload, localKeysOf, MOBILE_CAPS, needsRegister, parsePushPayload, reminderPlan, reportDelay, sameKeys,
+  dismissTargets, isResponsePayload, MOBILE_CAPS, needsRegister, parsePushPayload, reminderPlan, reportDelay, reportKeys, sameKeys,
   type DeviceBody, type PushMessage, type ShownNote
 } from './pushLogic'
 
@@ -103,7 +104,8 @@ export async function reportLocal(): Promise<void> {
   if (!PUSH_SUPPORTED) return
   // 이 프로세스에서 아직 등록 전이면(닫힌 앱이 작업으로만 깨어남) 먼저 등록 — 등록이 끝나면 보고가 이어진다
   if (!lastReg) { await registerDevice(); if (!lastReg) return }
-  const keys = localKeysOf(await scheduledIds().catch(() => []))
+  // 정확한 알람이 없으면 빈 목록 → 서버가 모든 할 일 알림을 정시에 보낸다(32 §17.6 ⓒ). 허용이 바뀌면 목록이 달라져 다시 보고된다
+  const keys = reportKeys(await scheduledIds().catch(() => []), exactAlarmsOk())
   if (sameKeys(lastKeys, keys)) return
   const wait = reportDelay(lastReportAt, Date.now())
   if (wait > 0) {

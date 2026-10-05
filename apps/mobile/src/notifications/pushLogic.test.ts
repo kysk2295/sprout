@@ -1,7 +1,7 @@
 // 32 푸시(휴대폰) 순수 함수 시험: 메시지 해석 · 중복 확인 · 지우기 · 경로 · 등록 · 로컬 보고
 import assert from 'node:assert/strict'
 import {
-  dismissTargets, isResponsePayload, localKeysOf, MOBILE_CAPS, needsRegister, parsePushPayload, reminderPlan, reportDelay, routeOf, sameKeys, type DeviceBody
+  dismissTargets, isResponsePayload, localKeysOf, MOBILE_CAPS, needsRegister, parsePushPayload, reminderPlan, reportDelay, reportKeys, routeOf, sameKeys, type DeviceBody
 } from './pushLogic.ts'
 
 // ── 해석: Android 작업 페이로드(data 안 FCM data)와 data 자체 둘 다 ──
@@ -74,5 +74,10 @@ assert.equal(sameKeys(['r:a@1'], ['r:a@2']), false)
 assert.equal(reportDelay(null, 100), 0)
 assert.equal(reportDelay(0, 10_000), 20_000)
 assert.equal(reportDelay(0, 40_000), 0)
+
+// 32 §17.6 ⓒ: 정확한 알람이 없으면 빈 목록(서버가 모두 보냄)
+assert.deepEqual(reportKeys(['r:b@2', 's:t@1', 'r:a@1'], true), ['r:a@1', 'r:b@2'])
+assert.deepEqual(reportKeys(['r:b@2', 'r:a@1'], false), [])
+assert.equal(sameKeys(['r:a@1'], reportKeys(['r:a@1'], false)), false, '허용이 꺼지면 다시 보고')
 
 console.log('pushLogic.test ok')

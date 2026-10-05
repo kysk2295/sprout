@@ -33,7 +33,7 @@ export default function DateRoute() {
     router.back()
     const label = chipLabel(s, dayKey())
     toast.show(ids.length > 1 ? `${ids.length}개 할 일의 날짜를 바꿨어요` : label ? `${label} · 날짜를 바꿨어요` : '날짜를 지웠어요', { undo })
-    if (initial && addsReminder(initial.reminders, s.due_at ? s.reminders : [])) void ensurePermission()
+    if (initial && addsReminder(initial.reminders, s.due_at ? s.reminders : [])) void ensurePermission({ reminder: true })
   }
   return (
     <View style={{ flex: 1, backgroundColor: p.sheetBg }}>

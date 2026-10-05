@@ -34,3 +34,18 @@
 
 ## 5. 알림 팝업 버튼 (09 다시 확인)
 - **[확인]** 닫기 · 집중 시작 · 완료 · 다시 알림. sprout 모바일은 이미 **완료 · 10분 뒤 · 1시간 뒤 · 내일 다시 알림**(22 §구현, 시안 J). 서버에서 온 알림도 **같은 버튼**을 단다.
+
+## 6. Android 알림 버튼 수 · 제시간 알림(정확한 알람) — 2026-10-05 보탬 (32 §17.6 결정의 근거)
+- 출처:
+  - [Updates in 2024 (틱틱 도움말)](https://help.ticktick.com/external/articles/7301088783166865408) — "Customizable Reminder Notifications for Android"
+  - [FAQ (틱틱 도움말)](https://help.ticktick.com/articles/7055792921664028672) — "Why didn't the task remind me on time?" (페이지 HTML에 든 글 본문에서 확인)
+  - [Constant Reminder (틱틱 도움말)](https://help.ticktick.com/articles/7374017550633402368) — iOS 26 Alarm 권한
+  - [Apple Community — TickTick 알림 버튼](https://discussions.apple.com/thread/253800201) — Android 잠금 화면 버튼(사용자 글)
+  - [Android 개발자 — Schedule exact alarms are denied by default (14)](https://developer.android.com/about/versions/14/changes/schedule-exact-alarms) · [Schedule alarms](https://developer.android.com/develop/background-work/services/alarms)
+- **[확인] Android 할 일 알림 버튼 = `Done`(완료) · `Snooze`(다시 알림) 두 개**가 기본. 설정 › Sounds & Notifications › **Notification & Status Bar**에서 이 버튼을 다른 동작으로 바꿀 수 있다(2024 업데이트 글). → 틱틱도 Android 한도(버튼 3개) 안에서 **완료가 맨 앞, 그다음 다시 알림**.
+- **[확인]** Android 잠금 화면에서 잠금을 풀지 않고 완료·다시 알림을 누를 수 있다(사용자 글, 20 §4와 같음).
+- **[미확인]** 알림의 `Snooze`를 누르면 정해진 시간(설정의 다시 알림 시간)으로 바로 미루는지, 고르는 창이 뜨는지. 다시 알림 시간은 설정에서 바꿀 수 있다고만 나온다(iOS 알람 글).
+- **[확인] 제시간 알림 안내 위치**: FAQ "알림이 제시간에 안 왔어요" → "Android 시스템 제한 때문에 일부 휴대폰은 설정 › Sounds & Notifications › Advanced Settings에서 `Alert Mode`를 켜야 한다". 즉 **소리와 알림 화면 안의 칸**으로 안내하고, 첫 실행에 몰아서 묻지 않는다.
+- **[확인] iOS 26**: 계속 알림의 Alarm 방식은 시스템 Alarm 권한이 있어야 한다(없으면 그 방식만 못 씀). Android 쪽 "알람 및 리마인더" 특별 권한을 틱틱이 어떤 문구로 묻는지는 **[미확인]**(공식 글 없음).
+- **[확인, Android]** Android 12+는 정확한 알람에 `SCHEDULE_EXACT_ALARM`(사용자가 설정 › 특별한 앱 액세스 › **알람 및 리마인더**에서 허용)이 필요하고, 13+ 새 설치는 기본 거부다. `USE_EXACT_ALARM`(자동 허용)은 Play 정책상 알람·타이머·캘린더가 핵심인 앱만.
+- sprout 판단(32 §17.6): 버튼은 **완료 · 10분 뒤 · 1시간 뒤**(틱틱의 완료+다시 알림 두 종류를 한도 3 안에서, `내일`은 뺌). 정확한 알람은 틱틱처럼 소리와 알림 안의 칸 + 처음 알림을 정할 때 한 번만 권하고, 허용이 없어도 서버가 제때 보낸다.

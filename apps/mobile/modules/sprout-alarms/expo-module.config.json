@@ -1,0 +1,6 @@
+{
+  "platforms": ["android"],
+  "android": {
+    "modules": ["app.sprout.alarms.SproutAlarmsModule"]
+  }
+}

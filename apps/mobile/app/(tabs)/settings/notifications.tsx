@@ -1,13 +1,14 @@
-// 설정 › 소리와 알림(32 §7 — 틱틱 Sounds & Notifications + sprout 칸): 알림 권한 · 할 일 알림·제목 숨기기 · 하루 요약(시각·주말) ·
+// 설정 › 소리와 알림(32 §7 — 틱틱 Sounds & Notifications + sprout 칸): 알림 권한 · 알람 및 리마인더(Android 12+, §17.6) · 할 일 알림·제목 숨기기 · 하루 요약(시각·주말) ·
 // 성장 소식 · 시험 알림 · 배터리 안내 · 서버 알림 상태 줄. 값은 동기화되는 user_prefs.notify_json(데스크톱 설정 › 알림과 같음).
 // 이 휴대폰의 권한·등록(push_reminders)은 서버 device_tokens에만 — 바꾸면 push.ts가 다시 등록한다.
 import { formatTimeKo } from '@sprout/schema/time'
 import { useFocusEffect, useRouter } from 'expo-router'
-import { Bell, ChevronLeft } from 'lucide-react-native'
+import { AlarmClock, Bell, ChevronLeft } from 'lucide-react-native'
 import { useCallback, useState } from 'react'
 import { AppState, Linking, Platform, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
 import { saveNotifyPrefs, useNotifyPrefs } from '../../../src/data/notifyPrefs'
 import { ensurePermission, openSystemSettings, permissionState, rescheduleNow, type PermissionState } from '../../../src/notifications/index'
+import { exactAlarmState, openExactAlarmSettings, type ExactAlarmState } from '../../../src/notifications/exactAlarm'
 import { PUSH_SUPPORTED, registerDevice, sendTestPush, usePushStatus } from '../../../src/notifications/push'
 import { M } from '../../../src/theme/palette'
 import { usePalette } from '../../../src/theme/ThemeProvider'
@@ -37,10 +38,14 @@ export default function NotificationSettings() {
   const prefs = useNotifyPrefs()
   const push = usePushStatus()
   const [perm, setPerm] = useState<PermissionState | null>(null)
+  const [exact, setExact] = useState<ExactAlarmState>(() => exactAlarmState())
   const [wheel, setWheel] = useState(false)
   const [testing, setTesting] = useState(false)
 
-  const refresh = useCallback(() => { void permissionState().then(setPerm).catch(() => setPerm(null)) }, [])
+  const refresh = useCallback(() => {
+    void permissionState().then(setPerm).catch(() => setPerm(null))
+    setExact(exactAlarmState())
+  }, [])
   useFocusEffect(useCallback(() => {
     refresh()
     void registerDevice()
@@ -102,7 +107,21 @@ export default function NotificationSettings() {
             onPress={perm === 'granted' ? () => void openSystemSettings() : () => void askPermission()}
             right={denied ? <Text style={{ color: p.danger, fontSize: 14 }} numberOfLines={1}>알림이 꺼져 있어요 · 설정 열기</Text> : undefined}
           />
+          {/* §17.6 ⓐ Android 12+: 정확한 알람. 시스템 화면에서 돌아오면(앞으로 올 때) 다시 읽고 예약을 다시 넣는다 */}
+          {exact !== 'na' ? (
+            <Cell
+              label="알람 및 리마인더"
+              icon={<AlarmClock size={18} color="#fff" />}
+              iconBg="#f29a1f"
+              value={exact === 'allowed' ? '허용됨' : undefined}
+              onPress={() => void openExactAlarmSettings()}
+              right={exact === 'denied' ? <Text style={{ color: p.danger, fontSize: 14 }} numberOfLines={1}>허용 안 됨 · 설정 열기</Text> : undefined}
+            />
+          ) : null}
         </Cells>
+        {exact === 'denied' ? (
+          <Text style={[s.foot, { color: p.textTertiary }]}>허용하면 인터넷이 없어도 할 일 알림이 제시간에 울려요. 지금은 연결돼 있을 때 서버가 제때 알려 드려요</Text>
+        ) : null}
 
         <View style={{ opacity: dim }}>
           <Cells>

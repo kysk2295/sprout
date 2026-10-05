@@ -90,7 +90,7 @@ export default function QuickAdd() {
       if (msg) setFlash({ msg, id: Date.now() })
       setText(''); setDesc(''); setCursor(0); setIgnored([]); setManual(null); setPriority(null); setListId(null)
       titleRef.current?.focus()
-      if (input.reminders.length) void ensurePermission()
+      if (input.reminders.length) void ensurePermission({ reminder: true })
     } catch {
       setFlash({ msg: '저장하지 못했어요. 다시 시도해 주세요', error: true, id: Date.now() })
     }

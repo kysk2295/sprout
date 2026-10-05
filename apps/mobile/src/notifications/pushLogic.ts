@@ -89,6 +89,11 @@ export function needsRegister(body: DeviceBody, last: { sig: string; at: number 
 export function localKeysOf(ids: string[], max = 50): string[] {
   return [...new Set(ids.filter((id) => /^r:[^\s]{1,120}$/.test(id)))].sort().slice(0, max)
 }
+/**
+ * 32 §17.6 결정 ⓒ: 이 휴대폰이 정확한 알람을 못 쓰면(Android 12+ "알람 및 리마인더" 꺼짐) 빈 목록을 보고한다
+ * → 서버가 모든 할 일 알림을 정시에 보내고, 늦게 울릴 로컬 예약은 받을 때 정리된다(reminderPlan). 로컬 예약 자체는 남긴다(오프라인 대비)
+ */
+export const reportKeys = (ids: string[], exact: boolean, max = 50): string[] => (exact ? localKeysOf(ids, max) : [])
 export const sameKeys = (a: string[] | null, b: string[]) => !!a && a.length === b.length && a.every((k, i) => k === b[i])
 /** 보고 간격 최소 30초: 지금 보내도 되면 0, 아니면 기다릴 ms */
 export const reportDelay = (lastAt: number | null, now: number, minMs = 30_000) => (lastAt === null ? 0 : Math.max(0, lastAt + minMs - now))

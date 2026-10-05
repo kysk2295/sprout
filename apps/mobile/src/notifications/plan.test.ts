@@ -1,6 +1,6 @@
 // 로컬 알림 예약 계획 시험(20 §4.4: 48시간 창 · 최대 50개 · 본문 · 차이 계산)
 import assert from 'node:assert/strict'
-import { bodyOf, diffSchedule, HORIZON_MS, MAX_SCHEDULED, overdueIds, planReminders, reminderId, snoozeAt, staleSnoozes, type ReminderRow } from './plan.ts'
+import { bodyOf, diffSchedule, HORIZON_MS, LEGACY_SNOOZE_ACTIONS, MAX_ACTIONS, MAX_SCHEDULED, overdueIds, planReminders, reminderId, snoozeAt, snoozeAtOf, SNOOZE_ACTIONS, staleSnoozes, type ReminderRow } from './plan.ts'
 
 const now = new Date('2026-10-04T14:00').getTime()
 let n = 0
@@ -67,5 +67,24 @@ assert.deepEqual(diffSchedule([{ id: lateId, title: late.title, body: '' }], [],
 // 다시 알림
 assert.equal(snoozeAt(10, now), now + 600_000)
 assert.deepEqual(staleSnoozes([{ id: 's:a@1', taskId: 'a' }, { id: 's:b@1', taskId: 'b' }, { id: 'r:x@1', taskId: 'x' }], new Set(['a'])), ['s:b@1'])
+
+// 32 §17.6: 정확한 알람 허용이 바뀌면 이미 예약된 것도 모두 다시 넣는다(막 지난 것은 그대로)
+{
+  const a = { id: 'r:a@100', taskId: 'a', at: now + 100, title: 'A', body: 'b' }
+  const b = { id: 'r:b@200', taskId: 'b', at: now + 200, title: 'B', body: 'b' }
+  const pending = [{ id: a.id, title: 'A', body: 'b' }, { id: b.id, title: 'B', body: 'b' }, { id: 'r:late@1', title: 'L', body: 'b' }, { id: 's:a@300', title: 'A', body: 'b' }]
+  assert.deepEqual(diffSchedule(pending, [a, b], new Set(['r:late@1'])), { cancel: [], add: [] }, '평소엔 그대로')
+  const forced = diffSchedule(pending, [a, b], new Set(['r:late@1']), true)
+  assert.deepEqual(forced.cancel, [a.id, b.id])
+  assert.deepEqual(forced.add.map((p) => p.id), [a.id, b.id])
+}
+assert.equal(snoozeAtOf('s:task-1@1760000000000'), 1760000000000)
+assert.equal(snoozeAtOf('r:x@1'), null)
+assert.equal(snoozeAtOf('s:bad'), null)
+
+// 알림 버튼: 완료 + 다시 알림 ≤ Android 한도 3, 예전 `내일` 응답도 처리
+assert.ok(1 + SNOOZE_ACTIONS.length <= MAX_ACTIONS)
+assert.deepEqual(SNOOZE_ACTIONS.map((a) => a.minutes), [10, 60])
+assert.equal(LEGACY_SNOOZE_ACTIONS[0].id, 'snooze-tomorrow')
 
 console.log('plan.test ok')

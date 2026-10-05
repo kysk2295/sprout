@@ -1,6 +1,7 @@
 // 로컬 알림(20 §4.4, 03 §7): 동기화된 로컬 DB의 tasks·reminders를 보고 앞으로 48시간 안 알림(최대 50개)을 OS에 맡긴다.
 // - 다시 계산: 앱 시작 · 앞으로 올 때 · tasks/reminders/lists가 바뀔 때(다른 기기 변경이 동기화돼도) · 앞에 있는 동안 30분마다 · 백그라운드 작업(background.ts)
-// - 알림 동작: 완료(앱을 열지 않음 — 공용 완료 경로 completeTasks, XP 규칙 그대로) · 10분/1시간/내일 다시 알림 · 누르면 sprout://task/<id>
+// - 알림 동작: 완료(앱을 열지 않음 — 공용 완료 경로 completeTasks, XP 규칙 그대로) · 10분/1시간 뒤 다시 알림(Android 버튼 3개 한도 — 32 §17.6) · 누르면 sprout://task/<id>
+// - 정확한 알람(Android 12+ 알람 및 리마인더, exactAlarm.ts): 허용이 바뀌면 예약을 모두 다시 넣는다
 // - 다시 알림은 기기에만 있다(예약된 알림 자체가 상태 — 03 §9 local_reminder_state 대신)
 // - 앱이 완전히 꺼진 상태에서 "완료"를 누르면 iOS가 JS를 깨우지 않을 수 있다 → 다음 실행 때 마지막 응답을 확인해 반영한다(맥 위젯과 같은 방식)
 //   Android는 배경·닫힘에서도 버튼 응답이 푸시 작업(push.ts)으로 와서 바로 반영된다
@@ -15,8 +16,9 @@ import { CHANNELS, parseNotifyPrefs } from '@sprout/schema/notify'
 import { db } from '../data/db'
 import { syncNow } from '../data/auth'
 import { completeTasks } from '../data/tasks'
+import { ensureExactAlarm, exactAlarmChanged } from './exactAlarm'
 import { routeOf } from './pushLogic'
-import { ACTION_DONE, CATEGORY, diffSchedule, isReminderId, overdueIds, isSnoozeId, planReminders, SNOOZE_ACTIONS, snoozeAt, snoozeId, staleSnoozes, type ReminderRow } from './plan'
+import { ACTION_DONE, CATEGORY, diffSchedule, isReminderId, LEGACY_SNOOZE_ACTIONS, overdueIds, isSnoozeId, planReminders, SNOOZE_ACTIONS, snoozeAt, snoozeAtOf, snoozeId, staleSnoozes, type ReminderRow } from './plan'
 
 const QUERY = `SELECT r.id AS rid, r.trigger, t.id AS tid, t.title, t.start_at, t.due_at, l.name AS list_name, l.kind AS list_kind
   FROM reminders r JOIN tasks t ON t.id = r.task_id LEFT JOIN lists l ON l.id = t.list_id
@@ -56,8 +58,15 @@ let asking: Promise<boolean> | undefined
 /**
  * 알림이 있는 할 일을 저장한 뒤 부른다. 아직 안 물었으면 한국어 안내 → OS 권한 창,
  * 꺼져 있으면 설정 열기를 권한다(같은 실행에서 한 번만).
+ * reminder = 할 일 알림을 정한 순간(빠른 추가·날짜 시트): 알림 권한이 있으면 정확한 알람도 한 번 권한다(32 §17.6 ⓐ)
  */
-export function ensurePermission(): Promise<boolean> {
+export function ensurePermission(opts: { reminder?: boolean } = {}): Promise<boolean> {
+  return askNotifications().then(async (granted) => {
+    if (granted && opts.reminder) await ensureExactAlarm().catch(() => {})
+    return granted
+  })
+}
+function askNotifications(): Promise<boolean> {
   asking ??= (async () => {
     const state = await permissionState()
     if (state === 'granted') return true
@@ -118,7 +127,9 @@ async function rescheduleOnce() {
   const pending = (await Notifications.getAllScheduledNotificationsAsync()).map((n) => ({
     id: n.identifier, title: n.content.title, body: n.content.body, taskId: (n.content.data as { taskId?: string } | null)?.taskId
   }))
-  const { cancel, add } = diffSchedule(pending, planned, overdueIds(rows, Date.now()))
+  // 정확한 알람 허용이 바뀌었으면(32 §17.6) 이미 예약된 것도 모두 다시 넣는다
+  const force = await exactAlarmChanged()
+  const { cancel, add } = diffSchedule(pending, planned, overdueIds(rows, Date.now()), force)
   const open = new Set((await db.getAll<{ id: string }>('SELECT id FROM tasks WHERE status = 0 AND deleted_at IS NULL')).map((r) => r.id))
   for (const id of [...cancel, ...staleSnoozes(pending, open)]) await Notifications.cancelScheduledNotificationAsync(id)
   for (const p of add) {
@@ -127,6 +138,20 @@ async function rescheduleOnce() {
       content: { title: p.title, body: p.body, data: { taskId: p.taskId, url: `sprout://task/${p.taskId}` }, categoryIdentifier: CATEGORY, sound: 'default' },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(p.at), ...(Platform.OS === 'android' ? { channelId: CHANNEL } : {}) }
     })
+  }
+  // 다시 알림도 같은 id·시각으로 다시 넣는다(정확한 알람으로/OS가 지운 알람 되살리기)
+  if (force) {
+    const now = Date.now()
+    for (const n of await Notifications.getAllScheduledNotificationsAsync()) {
+      const at = snoozeAtOf(n.identifier)
+      if (at === null || at <= now) continue
+      await Notifications.cancelScheduledNotificationAsync(n.identifier)
+      await Notifications.scheduleNotificationAsync({
+        identifier: n.identifier,
+        content: { title: n.content.title, body: n.content.body, data: n.content.data, categoryIdentifier: CATEGORY, sound: 'default' },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at), ...(Platform.OS === 'android' ? { channelId: CHANNEL } : {}) }
+      })
+    }
   }
   rescheduledListeners.forEach((l) => l())
 }
@@ -166,7 +191,7 @@ export async function handleResponse(r: Notifications.NotificationResponse, opts
   }
   // 같은 알림·같은 버튼은 한 번만(Android 배경 작업에서 이미 처리한 응답이 다음 실행 때 마지막 응답으로 다시 보인다)
   if (await alreadyHandled(`${req.identifier}|${r.actionIdentifier}`)) return
-  const snooze = SNOOZE_ACTIONS.find((a) => a.id === r.actionIdentifier)
+  const snooze = [...SNOOZE_ACTIONS, ...LEGACY_SNOOZE_ACTIONS].find((a) => a.id === r.actionIdentifier)
   if (r.actionIdentifier === ACTION_DONE) {
     // 32 §4.4: 서버 알림으로 처음 안 할 일(아직 내려받지 못함)이면 먼저 동기화(최대 8초)
     if (!(await db.getOptional('SELECT id FROM tasks WHERE id = ?', [taskId]))) await syncNow().catch(() => {})

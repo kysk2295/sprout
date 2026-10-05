@@ -6,14 +6,20 @@ import { reminderFireTime } from '@sprout/schema/time'
 
 export const HORIZON_MS = 48 * 3600_000
 export const MAX_SCHEDULED = 50
-/** 알림 동작(카테고리 sprout-task) — 시안 J: 완료 · 10분 뒤 · 1시간 뒤 · 내일 */
+/**
+ * 알림 동작(카테고리 sprout-task) — 완료 · 10분 뒤 · 1시간 뒤 (32 §17.6 결정: Android 알림은 버튼을 3개까지만 그린다.
+ * 틱틱 Android 기본도 완료·다시 알림 두 종류뿐 — research 30 §6). `내일`은 뺀다(알림을 눌러 상세에서 날짜를 옮긴다).
+ */
 export const CATEGORY = 'sprout-task'
 export const ACTION_DONE = 'done'
 export const SNOOZE_ACTIONS: { id: string; label: string; minutes: number }[] = [
   { id: 'snooze-10', label: '10분 뒤 다시 알림', minutes: 10 },
-  { id: 'snooze-60', label: '1시간 뒤 다시 알림', minutes: 60 },
-  { id: 'snooze-tomorrow', label: '내일 다시 알림', minutes: 24 * 60 }
+  { id: 'snooze-60', label: '1시간 뒤 다시 알림', minutes: 60 }
 ]
+/** 예전 판(버튼 4개)에서 이미 떠 있던 알림의 `내일` 응답도 처리한다 */
+export const LEGACY_SNOOZE_ACTIONS: { id: string; label: string; minutes: number }[] = [{ id: 'snooze-tomorrow', label: '내일 다시 알림', minutes: 24 * 60 }]
+/** 알림에 다는 버튼 수(Android 시스템 한도 3) */
+export const MAX_ACTIONS = 3
 
 export type ReminderRow = {
   rid: string
@@ -53,11 +59,16 @@ export function planReminders(rows: ReminderRow[], now: number, opts: { horizonM
   return out.sort((a, b) => a.at - b.at || a.id.localeCompare(b.id)).slice(0, opts.max ?? MAX_SCHEDULED)
 }
 
-/** 지금 예약된 것과 새 계획의 차이: 지울 id, 새로 넣을 것(제목·본문·시각이 바뀌면 다시 넣는다) */
+/**
+ * 지금 예약된 것과 새 계획의 차이: 지울 id, 새로 넣을 것(제목·본문·시각이 바뀌면 다시 넣는다).
+ * force = 정확한 알람 허용이 바뀜(32 §17.6) — 이미 예약된 것도 모두 다시 넣는다(허용 전 예약은 정확하지 않은 채로 남고,
+ * 허용을 끄면 OS가 정확한 알람을 모두 지우는데 expo 목록에는 남아 있다)
+ */
 export function diffSchedule(
   pending: { id: string; title?: string | null; body?: string | null }[],
   planned: Planned[],
-  keep: Set<string> = new Set()
+  keep: Set<string> = new Set(),
+  force = false
 ): { cancel: string[]; add: Planned[] } {
   const want = new Map(planned.map((p) => [p.id, p]))
   const have = new Map(pending.filter((p) => isReminderId(p.id)).map((p) => [p.id, p]))
@@ -66,7 +77,7 @@ export function diffSchedule(
     // 시각이 막 지났는데 아직 안 울린 예약(Android 정확하지 않은 알람은 몇 분 늦게 울린다)은 지우지 않는다 — 서버도 이 알림은 보내지 않는다(local_keys)
     if (keep.has(id)) continue
     const w = want.get(id)
-    if (!w || w.title !== p.title || w.body !== p.body) cancel.push(id)
+    if (force || !w || w.title !== p.title || w.body !== p.body) cancel.push(id)
   }
   const add = planned.filter((p) => !have.has(p.id) || cancel.includes(p.id))
   return { cancel, add }
@@ -75,6 +86,13 @@ export function diffSchedule(
 /** 아직 유효한 알림(할 일 미완료·알림 그대로) 중 시각이 지난 지 graceMs 안인 것의 id — diffSchedule의 keep */
 export function overdueIds(rows: ReminderRow[], now: number, graceMs = 3600_000): Set<string> {
   return new Set(planReminders(rows, now - graceMs, { horizonMs: graceMs, max: 1000 }).filter((p) => p.at <= now).map((p) => p.id))
+}
+
+/** 다시 알림(s:<taskId>@<ms>)의 울릴 시각 — 정확한 알람 허용이 바뀌면 같은 id·시각으로 다시 넣는다 */
+export const snoozeAtOf = (id: string): number | null => {
+  if (!isSnoozeId(id)) return null
+  const at = Number(id.slice(id.lastIndexOf('@') + 1))
+  return Number.isFinite(at) && at > 0 ? at : null
 }
 
 /** 다시 알림 시각 */
