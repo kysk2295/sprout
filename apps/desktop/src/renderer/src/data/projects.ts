@@ -5,7 +5,7 @@
 import {
   AUTO_TAG, aiTagId, autoTagRowId, dictionaryPass, findSynonym, planAssign, tagKey, type Assign, type AtFolder, type AtLink, type AtList, type AtTag, type Ctx
 } from '@sprout/schema/autoTag'
-import { expandProject, findProjectClusters, PROJECT, projectMembers, upgradeToProject, type Proposal, type PTask } from '@sprout/schema/projects'
+import { expandProject, findProjectClusters, nearSameName, planProjectCleanup, PROJECT, projectMembers, upgradeToProject, type Proposal, type PTask } from '@sprout/schema/projects'
 import { getDb, type Stmt } from './db'
 import { insert, now, remove, run, update, uuid } from './mutations'
 import { assignStmts, autoTagEnabled, autoTagPerson, autoTagStore } from './autoTag'
@@ -19,6 +19,8 @@ export type ProjectStore = {
   /** `빠진 거 없어` — 태그 id → 그때 구성원 수(늘면 말풍선이 다시) */
   confirmed: Record<string, number>
   lastRun?: string
+  /** 한 번 정리(cleanupProjects)를 한 판 — CLEANUP_VERSION과 같으면 다시 안 돈다 */
+  cleanup?: number
 }
 const KEY = 'sprout.map.projects.v1'
 let mem: ProjectStore | undefined
@@ -51,7 +53,7 @@ export async function readProjectCtx(at = new Date()): Promise<ProjectCtx> {
     db.getAll<AtFolder>('SELECT id, name FROM folders'),
     db.getAll<PTask & { status: number }>(`SELECT id, title, list_id, parent_id, status, due_at, start_at, completed_at, created_at FROM tasks
       WHERE deleted_at IS NULL AND title IS NOT NULL AND title != '' AND (status = 0 OR (status = 1 AND completed_at >= ?)) ORDER BY created_at`, [cutoff]),
-    db.getAll<AtLink>('SELECT id, task_id, tag_id, source, state, created_at, run_id FROM task_tags')
+    db.getAll<AtLink>('SELECT id, task_id, tag_id, source, state, created_at, run_id, confidence FROM task_tags')
   ])
   return { tags, lists, folders, tasks, links, person: autoTagPerson() }
 }
@@ -63,8 +65,9 @@ export type ProjectPassResult = { created: number; attached: number; upgraded: n
 export const PASS_GAP = 60_000
 
 /** 새 프로젝트 태그 행(+ ctx에 더함) */
-function projectTagStmt(ctx: ProjectCtx, p: Pick<Proposal, 'name' | 'word' | 'home'>, source: 'ai' | 'user', runId: string | null, at: string): { stmt: Stmt; tag: AtTag } {
-  const aliases = tagKey(p.word) !== tagKey(p.name) ? JSON.stringify([p.word]) : null
+function projectTagStmt(ctx: ProjectCtx, p: Pick<Proposal, 'name' | 'word' | 'home' | 'aliases'>, source: 'ai' | 'user', runId: string | null, at: string): { stmt: Stmt; tag: AtTag } {
+  const al = [...new Set([p.word, ...(p.aliases ?? [])])].filter((a) => tagKey(a) !== tagKey(p.name))
+  const aliases = al.length ? JSON.stringify(al) : null
   const tag: AtTag = { id: source === 'ai' ? aiTagId(p.name) : uuid(), name: p.name, kind: 'project', aliases, source, home_type: p.home?.type ?? null, home_id: p.home?.id ?? null, created_at: at, run_id: runId }
   ctx.tags.push(tag)
   return {
@@ -79,9 +82,12 @@ function attachPlan(ctx: ProjectCtx, tagIds: Set<string>): Assign[] {
 }
 function expandPlan(ctx: ProjectCtx, tagIds: Set<string>): Assign[] {
   const out: Assign[] = []
+  // 기본함은 묶음이 아니다 — 자동 넓히기에서 뺀다(2026-10-05: 기본함 할 일이 `근무`·`adsp`에 쓸려 들어감). 정리 책상 제안(tidy)은 그대로
+  const inbox = new Set(ctx.lists.filter((l) => l.kind === 'inbox').map((l) => l.id))
+  const inInbox = new Set(ctx.tasks.filter((t) => !t.list_id || inbox.has(t.list_id)).map((t) => t.id))
   for (const tag of ctx.tags.filter((t) => tagIds.has(t.id))) {
     const members = projectMembers(tag, ctx.tasks, ctx.links, ctx.lists)
-    for (const taskId of expandProject(tag, members, ctx)) out.push({ taskId, tagId: tag.id, source: 'rule', confidence: PROJECT.expandScore })
+    for (const taskId of expandProject(tag, members, ctx)) if (!inInbox.has(taskId)) out.push({ taskId, tagId: tag.id, source: 'rule', confidence: PROJECT.expandScore })
   }
   return planAssign(out, ctx)
 }
@@ -93,8 +99,9 @@ function expandPlan(ctx: ProjectCtx, tagIds: Set<string>): Assign[] {
 export function runProjectPass(opts: { at?: string; force?: boolean } = {}): Promise<ProjectPassResult> {
   return serial(async () => {
     const zero = { created: 0, attached: 0, upgraded: 0 }
-    if (!autoTagEnabled()) return zero
     const at = opts.at ?? now()
+    await cleanupOnce(at)
+    if (!autoTagEnabled()) return zero
     const last = projectStore.get().lastRun
     if (!opts.force && last && Date.parse(at) - Date.parse(last) < PASS_GAP && Date.parse(at) >= Date.parse(last)) return zero
     const runId = `proj-${at}`
@@ -109,6 +116,7 @@ export function runProjectPass(opts: { at?: string; force?: boolean } = {}): Pro
     for (const p of auto) {
       if (ctx.tags.length >= AUTO_TAG.maxTags) break
       const syn = findSynonym(p.name, ctx.tags) ?? findSynonym(p.word, ctx.tags)
+      if (!syn && ctx.tags.some((t) => t.kind === 'project' && nearSameName(t.name, p.name))) continue // 이름이 거의 같은 프로젝트가 이미 있음
       if (syn) {
         if (syn.tag.source === 'ai' && syn.tag.kind !== 'project') { stmts.push(update('tags', syn.tag.id, { kind: 'project' })); syn.tag.kind = 'project'; up.push(syn.tag.id) }
         continue
@@ -128,6 +136,68 @@ export function runProjectPass(opts: { at?: string; force?: boolean } = {}): Pro
     projectStore.set({ lastRun: at })
     return { created, attached, upgraded: up.length }
   })
+}
+
+// ── 한 번 정리(2026-10-05) ──
+/** 판이 오르면 다시 한 번 돈다 */
+export const CLEANUP_VERSION = 1
+const CLEANUP_KEY = 'sprout.map.projects.cleanup.v1'
+type CleanupRecord = { at: string; tags: Record<string, unknown>[]; links: Record<string, unknown>[]; added: string[]; updated: Record<string, unknown>[] }
+export type CleanupResult = { removedTags: number; removedLinks: number; merged: number; renamed: number }
+/**
+ * 예전 규칙이 만든 잘못된 자동 프로젝트를 고친다(@sprout/schema/projects planProjectCleanup — 자동 태그·연결만, 사용자 태그는 그대로).
+ * 바꾸기 전 행을 기기 localStorage `sprout.map.projects.cleanup.v1`에 남겨 undoProjectCleanup으로 되돌린다.
+ */
+export async function cleanupProjects(at = now()): Promise<CleanupResult> {
+  const ctx = await readProjectCtx(new Date(at))
+  const plan = planProjectCleanup(ctx)
+  const zero = { removedTags: 0, removedLinks: 0, merged: 0, renamed: 0 }
+  if (!plan.removeTags.length && !plan.removeLinks.length && !plan.updateTags.length && !plan.addLinks.length) return zero
+  const db = await getDb()
+  const marks = (n: number) => Array.from({ length: n }, () => '?').join(',')
+  const tagRows = plan.removeTags.length ? await db.getAll<Record<string, unknown>>(`SELECT * FROM tags WHERE id IN (${marks(plan.removeTags.length)})`, plan.removeTags) : []
+  const linkRows = plan.removeLinks.length ? await db.getAll<Record<string, unknown>>(`SELECT * FROM task_tags WHERE id IN (${marks(plan.removeLinks.length)})`, plan.removeLinks) : []
+  const upIds = plan.updateTags.map((u) => u.id)
+  const updated = upIds.length ? await db.getAll<Record<string, unknown>>(`SELECT id, name, aliases FROM tags WHERE id IN (${marks(upIds.length)})`, upIds) : []
+  const runId = `projfix-${at}`
+  const added: string[] = []
+  const stmts: Stmt[] = [
+    ...plan.removeLinks.map((id) => remove('task_tags', id)),
+    ...plan.removeTags.map((id) => remove('tags', id)),
+    ...plan.updateTags.map(({ id, ...patch }) => update('tags', id, patch)),
+    ...plan.addLinks.map((l) => { const id = `${autoTagRowId(l.task_id, l.tag_id)}`; added.push(id); return insert('task_tags', { id, ...l, run_id: runId, created_at: at, modified_at: at }) })
+  ]
+  await run(...stmts)
+  const rec: CleanupRecord = { at, tags: tagRows, links: linkRows, added, updated }
+  try { localStorage.setItem(CLEANUP_KEY, JSON.stringify(rec)) } catch { /* 되돌리기 기억만 못 한다 */ }
+  const merged = plan.addLinks.length ? new Set(plan.addLinks.map((l) => l.tag_id)).size : 0
+  return { removedTags: plan.removeTags.length, removedLinks: plan.removeLinks.length, merged, renamed: plan.updateTags.filter((u) => u.name).length }
+}
+/** 남은 정리 기록(없으면 null) */
+export function loadProjectCleanup(): CleanupRecord | null {
+  try { const r = JSON.parse(localStorage.getItem(CLEANUP_KEY) ?? 'null'); return r && Array.isArray(r.tags) ? r : null } catch { return null }
+}
+/** 한 번 정리 되돌리기: 지운 태그·연결을 되살리고, 옮겨 만든 연결을 지우고, 이름·별칭을 돌린다. 판은 그대로(다시 저절로 안 돈다) */
+export async function undoProjectCleanup(): Promise<boolean> {
+  const rec = loadProjectCleanup()
+  if (!rec) return false
+  const strip = (r: Record<string, unknown>) => { const { id, ...rest } = r; return { id: id as string, rest } }
+  await run(
+    ...rec.added.map((id) => remove('task_tags', id)),
+    ...rec.tags.map((r) => insert('tags', r)),
+    ...rec.links.map((r) => insert('task_tags', r)),
+    ...rec.updated.map((r) => { const { id, rest } = strip(r); return update('tags', id, rest) })
+  )
+  try { localStorage.removeItem(CLEANUP_KEY) } catch { /* */ }
+  return true
+}
+/** 자동 패스 앞에서 한 판에 한 번(자동 태그가 꺼져 있어도 돈다 — 이미 생긴 잘못을 고치는 것) */
+async function cleanupOnce(at: string) {
+  if ((projectStore.get().cleanup ?? 0) >= CLEANUP_VERSION) return
+  try {
+    const r = await cleanupProjects(at)
+    if (r.removedTags || r.removedLinks || r.renamed) console.info('[project] 자동 프로젝트 정리', r)
+  } finally { projectStore.set({ cleanup: CLEANUP_VERSION }) }
 }
 
 // ── 사람 손 ──

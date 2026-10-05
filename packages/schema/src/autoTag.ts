@@ -138,7 +138,7 @@ export type AtTag = { id: string; name: string; kind?: string | null; aliases?: 
 export type AtList = { id: string; name: string; folder_id?: string | null; kind?: string | null }
 export type AtFolder = { id: string; name: string }
 export type AtTask = { id: string; title: string; list_id: string | null; status?: number | null }
-export type AtLink = { id: string; task_id: string; tag_id: string; source?: string | null; state?: string | null; created_at?: string | null; run_id?: string | null }
+export type AtLink = { id: string; task_id: string; tag_id: string; source?: string | null; state?: string | null; created_at?: string | null; run_id?: string | null; confidence?: number | null }
 export type Ctx = { tags: AtTag[]; lists: AtList[]; folders: AtFolder[]; tasks: AtTask[]; links: AtLink[]; person: boolean }
 export type Assign = { taskId: string; tagId: string; source: 'rule' | 'ai'; confidence: number }
 

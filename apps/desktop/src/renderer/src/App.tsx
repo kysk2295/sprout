@@ -2,7 +2,8 @@ import { useAssistant } from './components/AssistantBody'
 import { WorkspaceView, AssistantLauncher } from './components/WorkspaceViews'
 import { NotesView } from './components/NotesView'
 import { WorkMapView } from './components/map/WorkMapView'
-import { isMapMode, openMap, OPEN_MAP } from './data/mapMoments'
+import { isMapMode, openMap, OPEN_MAP, OPEN_SCREEN, openTidy, takeScreen, type SideScreen } from './data/mapMoments'
+import { TidyScreen } from './components/map/modes'
 import { DiaryView } from './components/diary/DiaryView'
 import { TickTickImportHost, openTickTickImport } from './components/TickTickImport'
 import { OnboardingHost } from './components/onboarding/OnboardingHost'
@@ -208,6 +209,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   useEffect(() => window.sprout?.desktop?.onNavigate?.((to) => {
     const views: RailView[] = ['tasks', 'calendar', 'growth', 'notes', 'watch', 'wiki', 'diary', 'assistant', 'map']
     if (!views.includes(to.view as RailView)) return
+    if (to.view === 'map' && (to.mode === 'review' || to.mode === 'tidy')) { openMap({ mode: to.mode }); return } // 예전 sprout://map?mode=review·tidy → 성장 › 주간 점검 · 정리 화면(2026-10-05)
     setView(to.view as RailView)
     if (to.view === 'map') { if (to.mode || to.task) openMap({ ...(isMapMode(to.mode) ? { mode: to.mode } : {}), ...(to.task ? { task: to.task } : {}) }); return } // 31 §10.4 sprout://map?mode=
     if (to.selected) { setSelected(to.selected); setSelection([]) }
@@ -218,6 +220,19 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
     window.addEventListener(OPEN_MAP, go)
     return () => window.removeEventListener(OPEN_MAP, go)
   }, [setView])
+  // 사용자 결정 2026-10-05: 점검 = 성장 탭(GrowthView가 요청을 받는다), 정리 = 본문 자리 정리 화면(다른 보기로 가면 닫힘)
+  const [tidyOpen, setTidyOpen] = useState(false)
+  useEffect(() => {
+    const on = (e: Event) => {
+      const s = (e as CustomEvent<SideScreen>).detail
+      if (s === 'review') setView('growth')
+      else if (s === 'tidy' && takeScreen('tidy')) setTidyOpen(true)
+    }
+    window.addEventListener(OPEN_SCREEN, on)
+    return () => window.removeEventListener(OPEN_SCREEN, on)
+  }, [setView])
+  useEffect(() => { setTidyOpen(false) }, [view])
+  const onRailView = (v: RailView) => { setTidyOpen(false); setView(v) }
   // 33: 행 [[링크]]·페이지 머리 알약 → 태그·리스트 페이지, 할 일, 수집함 위키
   useEffect(() => {
     const go = (e: Event) => {
@@ -238,6 +253,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
     {id:'new',label:'할 일 추가',key:'⌘N',group:'공통 작업',run:()=>setOverlay('quick')},
     {id:'ticktick-import',label:'틱틱에서 가져오기',group:'공통 작업',run:openTickTickImport},
     {id:'overdue-cleanup',label:'밀린 일 정리',group:'공통 작업',run:()=>openOverdueCleanup()},
+    {id:'tidy',label:'기본함 정리하기',group:'공통 작업',run:()=>openTidy()}, // 정리 화면(분류 책상) — 19 밀린 일 정리 대화 상자와 따로
     {id:'tasks',label:'할일',group:'내비게이션',run:()=>setView('tasks')},
     {id:'calendar',label:'달력',group:'내비게이션',run:()=>setView('calendar')},
     {id:'search',label:'검색창 열기',key:'⌘F',group:'내비게이션',run:()=>{setSearchQuery('');setOverlay('search')}},
@@ -260,12 +276,12 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
         <OverdueHost />
         <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}} offset={view === 'tasks' && (!drawer || selection.length > 0) ? detailW : undefined}/>
         <ReminderCards onOpen={(id) => { if (isEventKey(id)) { setView('calendar'); void openEventById(id) } else setSelection([id]) }} onComplete={(id) => void actions.complete([id])} />
-        <Rail view={view} onView={setView} sync={sync} email={email} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} />
+        <Rail view={view} onView={onRailView} sync={sync} email={email} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} />
         {overlay==='command' && <CommandMenu commands={commands} onClose={()=>setOverlay(undefined)} onSearch={(q)=>{setSearchQuery(q);setOverlay('search')}}/>}
         {overlay==='search' && <SearchDialog initial={searchQuery} onClose={()=>setOverlay(undefined)} onPick={(r)=>{if(r.kind==='event'){setView('calendar');requestOpenEvent(r.id,r.list_id??dayKey());return}setView('tasks');if(r.kind==='task'){setSelected(r.list_id?listView(r.list_id):'smart:all');setSelection([r.id])}else selectView(`${r.kind}:${r.id}`)}}/>}
         {overlay==='quick' && <QuickAdd lists={lists} tags={tags} inboxId={inboxId} onClose={()=>setOverlay(undefined)} onCreated={(id,listId)=>{setView('tasks');setSelected(listView(listId));setSelection([id])}}/>}
         {(overlay==='settings'||overlay==='shortcuts') && <DesktopSettings initial={overlay==='shortcuts'?'shortcuts':'smart'} onClose={()=>setOverlay(undefined)}/> }
-        {view === 'growth' ? <GrowthView onSurvey={() => setSurvey(true)} /> : view === 'map' ? <WorkMapView lists={lists} onOpen={openTask} onTasks={() => setView('tasks')} onGrowth={() => setView('growth')}/> : view === 'diary' ? <DiaryView onOpen={openTask}/> : view === 'assistant' ? <WorkspaceView view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={openTask}/> : (view === 'notes' || view === 'watch' || view === 'wiki') ? <NotesView section={view} onSection={setView} lists={lists} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : view === 'calendar' ? (
+        {tidyOpen ? <TidyScreen lists={lists} onClose={() => setTidyOpen(false)} /> : view === 'growth' ? <GrowthView lists={lists} onSurvey={() => setSurvey(true)} /> : view === 'map' ? <WorkMapView lists={lists} onOpen={openTask} onTasks={() => setView('tasks')} onGrowth={() => setView('growth')}/> : view === 'diary' ? <DiaryView onOpen={openTask}/> : view === 'assistant' ? <WorkspaceView view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={openTask}/> : (view === 'notes' || view === 'watch' || view === 'wiki') ? <NotesView section={view} onSection={setView} lists={lists} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : view === 'calendar' ? (
           <CalendarView lists={lists} tags={tags} inboxId={inboxId} actions={actions} />
         ) : (
           <>

@@ -130,12 +130,28 @@ export const markBigSeen = (id: string, s?: Store | null) => saveMoments({ big: 
 export const subscribeMoments = (f: () => void) => { subs.add(f); return () => { subs.delete(f) } }
 
 // ── 지도 열기 요청(§10.4) — 순간·딥 링크가 부른다. 지도가 아직 안 떴으면 들고 있다가 뜰 때 적용 ──
-export type MapIntent = { mode?: MapMode; task?: string; breakdown?: boolean; now?: boolean }
+// 사용자 결정 2026-10-05 "작업 지도 = 프로젝트 한 화면": 모드 탭이 없어졌다. 점검은 성장 탭 › 주간 점검, 정리는 따로 여는 정리 화면.
+// 예전 요청(mode 'review'·'tidy', sprout://map?mode=…)은 여기서 그 화면으로 돌려 보낸다.
+export type MapIntent = { mode?: MapMode; task?: string; breakdown?: boolean; now?: boolean; /** 같이 계획 짜기 대화 열기(task 있으면 그 일부터) */ plan?: boolean }
 export const OPEN_MAP = 'sprout:open-map'
 let pending: MapIntent | null = null
 export function openMap(intent: MapIntent) {
+  if (intent.mode === 'review') { openScreen('review'); return }
+  if (intent.mode === 'tidy') { openScreen('tidy'); return }
   pending = intent
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(OPEN_MAP, { detail: intent }))
 }
+/** 지도 밖 화면: review = 성장 › 주간 점검, tidy = 정리 화면(분류 책상). App이 탭을 옮기고, 그 화면이 takeScreen으로 받는다 */
+export type SideScreen = 'review' | 'tidy'
+export const OPEN_SCREEN = 'sprout:open-screen'
+let pendingScreen: SideScreen | null = null
+export function openScreen(s: SideScreen) {
+  pendingScreen = s
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(OPEN_SCREEN, { detail: s }))
+}
+export const openReview = () => openScreen('review')
+export const openTidy = () => openScreen('tidy')
+/** 그 화면 요청이 남아 있으면 가져간다(한 번) */
+export const takeScreen = (s: SideScreen): boolean => { if (pendingScreen !== s) return false; pendingScreen = null; return true }
 export const takeMapIntent = (): MapIntent | null => { const p = pending; pending = null; return p }
 

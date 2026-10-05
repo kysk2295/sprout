@@ -1,5 +1,5 @@
 import { Check, ChevronRight, MoreHorizontal, Plus, X } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { SPECIES, XP, type Species } from '@sprout/schema/growth'
 import { addDays } from '@sprout/schema/time'
 import {
@@ -7,6 +7,9 @@ import {
   useWeeklyReports, writeLogOpen, writeMotionPref, type GoalRow, type StageStats, type XpRow
 } from '../../data/growth'
 import { useQuery } from '../../data/useQuery'
+import { OPEN_SCREEN, takeScreen } from '../../data/mapMoments'
+import type { ListRow } from '../../data/types'
+import { ReviewScreen } from '../map/modes'
 import { dayKey } from '../../lib/dates'
 import { MenuItem, Popover } from '../Popover'
 import { CharacterArt } from './CharacterArt'
@@ -19,7 +22,19 @@ import './growth-stage.css'
 // 10 §3.2 성장 화면 v3(캐릭터 중심): 무대(캐릭터 방) + 진화 길 → 이번 주 퀘스트 · 이번 주 기록 | ○○의 일기
 const md = (d: string) => { const x = new Date(`${d}T00:00`); return `${x.getMonth() + 1}월 ${x.getDate()}일` }
 
-export function GrowthView({ onSurvey }: { onSurvey: () => void }) {
+export function GrowthView({ onSurvey, lists = [] }: { onSurvey: () => void; lists?: ListRow[] }) {
+  // 사용자 결정 2026-10-05: 주간 점검(31 §12 점검 3단계)은 성장 탭 안 — 일요일 카드·sprout://map?mode=review·일기 옆 `주간 점검`이 연다
+  const [review, setReview] = useState(() => takeScreen('review'))
+  useEffect(() => {
+    const on = () => { if (takeScreen('review')) setReview(true) }
+    window.addEventListener(OPEN_SCREEN, on)
+    return () => window.removeEventListener(OPEN_SCREEN, on)
+  }, [])
+  if (review) return <ReviewScreen lists={lists} onClose={() => setReview(false)} />
+  return <GrowthHome onSurvey={onSurvey} onReview={() => setReview(true)} />
+}
+
+function GrowthHome({ onSurvey, onReview }: { onSurvey: () => void; onReview: () => void }) {
   const { events, character, progress, loaded } = useGrowth()
   useWeeklyClose() // 10 §5 — 앱 전체에서는 LevelUpWatcher가 부른다. 여기서도 불러 성장 화면을 열면 확인
   const reduced = useMotionReduced()
@@ -85,6 +100,9 @@ export function GrowthView({ onSurvey }: { onSurvey: () => void }) {
               <LogCard events={events} />
             </div>
             <aside ref={diaryRef}>
+              <button className="growth-card gs-review-entry" onClick={onReview}>
+                <span><b>주간 점검</b><small>이번 주 돌아보기 → 밀린 일 → 다음 주 목표</small></span><ChevronRight />
+              </button>
               <WeeklyReports diary={{ name, species, stage: progress.stage }} />
             </aside>
           </div>

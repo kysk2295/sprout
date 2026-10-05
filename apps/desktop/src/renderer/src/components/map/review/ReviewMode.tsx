@@ -3,6 +3,8 @@
 // 데이터는 스스로 읽는다(WorkMapView는 모드 자리만 준다). 계산은 data/review.ts, 진행은 그 주 안에서 기기에 기억.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { addDays } from '@sprout/schema/time'
+import { isoWeekStart, XP } from '@sprout/schema/growth'
+import { grantReviewXp } from '../../../data/growth'
 import { useQuery } from '../../../data/useQuery'
 import { dayKey } from '../../../lib/dates'
 import { saveMoments } from '../../../data/mapMoments'
@@ -135,6 +137,8 @@ export function ReviewMode({ lists, onSelectTask, onMode, notify }: ModeSlotProp
       const created = await createGoals(planWeek, picked)
       patch((x) => ({ ...goStep(x, 4), created, finishedAt: new Date().toISOString() }))
       saveMoments({ review: week }) // 오늘 목록 점검 카드는 이 주에 다시 안 뜬다
+      // 10 §6 주간 점검 +30 — 점검한 주마다 한 번(다시 끝내도 그대로). "+30"은 sprout:xp로 캐릭터 카드에 뜬다
+      await grantReviewXp(week).catch((e) => console.warn('[review] XP', e))
       if (created.length) notify(`다음 주 목표 ${created.length}개를 정했어요`, { label: '되돌리기', run: () => void undoFinish() })
     } finally { setFinishing(false) }
   }
@@ -151,6 +155,8 @@ export function ReviewMode({ lists, onSelectTask, onMode, notify }: ModeSlotProp
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && p.step < 4) { e.preventDefault(); void next() }
   }
 
+  // 끝 화면 알약: 이 주 점검 XP를 받았으면(원장 기준 — 다른 기기에서 받았어도)
+  const reviewXp = useQuery<{ amount: number }>('SELECT amount FROM xp_events WHERE kind = ? AND ref_id = ? LIMIT 1', ['review', `review:${isoWeekStart(week)}`])
   const step = p.step
   const reached = Math.max(p.reached ?? 1, step)
   const left = cards.filter((c) => !p.decisions[c.id]).length
@@ -201,6 +207,7 @@ export function ReviewMode({ lists, onSelectTask, onMode, notify }: ModeSlotProp
             <h3>다음 주 준비 끝! 월요일 아침에 ⚡로 알려 줄게</h3>
             <p>{finishSummary(p)}</p>
             {p.created.length > 0 && <ul className="rv-fin__goals">{p.created.map((c) => <li key={c.goalId}>🎯 {c.title}</li>)}</ul>}
+            {!!reviewXp?.length && <span className="map-xp">주간 점검 +{XP.review} XP</span>}
             <div className="rv-fin__acts">
               <button className="map-btn map-btn--primary" onClick={() => onMode('plan')}>계획 보러 가기</button>
               <button className="map-btn" onClick={() => go(3)}>다음 주 다시 고르기</button>

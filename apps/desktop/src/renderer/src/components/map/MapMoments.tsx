@@ -5,9 +5,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '../../data/useQuery'
 import { nowStrip, taskStates, unlockCounts } from '../../data/mapNow'
 import {
-  loadMoments, markBigSeen, nowLineDue, NOW_LINE, openMap, pickBigTask, reviewDue, saveMoments, subscribeMoments, type BigKind, type BigTaskInput
+  loadMoments, markBigSeen, nowLineDue, NOW_LINE, openMap, openReview, pickBigTask, reviewDue, saveMoments, subscribeMoments, type BigKind, type BigTaskInput
 } from '../../data/mapMoments'
 import { addDays } from '@sprout/schema/time'
+import { bulkCleanupIds } from '@sprout/schema/review'
 import './moments.css'
 
 const useMoments = () => {
@@ -93,8 +94,10 @@ function NowLine({ today, onPick }: { today: string; onPick: (id: string) => voi
 
 function ReviewCard({ week, today }: { week: string; today: string }) {
   const end = addDays(week, 7)
-  const done = useQuery<{ n: number }>('SELECT count(*) AS n FROM tasks WHERE deleted_at IS NULL AND status = 1 AND completed_at >= ? AND completed_at < ?',
-    [new Date(`${week}T00:00`).toISOString(), new Date(`${end}T00:00`).toISOString()])?.[0]?.n ?? 0
+  // 한꺼번에 정리한 완료(XP 없음)는 안 센다 — 점검 큰 숫자와 같은 규칙(@sprout/schema/review bulkCleanupIds)
+  const doneRows = useQuery<{ id: string; status: number; parent_id: string | null; due_at: string | null; completed_at: string | null }>('SELECT id, status, parent_id, due_at, completed_at FROM tasks WHERE deleted_at IS NULL AND status = 1 AND completed_at >= ? AND completed_at < ?',
+    [new Date(`${week}T00:00`).toISOString(), new Date(`${end}T00:00`).toISOString()])
+  const done = useMemo(() => { const rows = (doneRows ?? []).map((r) => ({ ...r, title: '', list_id: null })); const bulk = bulkCleanupIds(rows); return rows.filter((r) => !bulk.has(r.id)).length }, [doneRows])
   const late = useQuery<{ n: number }>(`SELECT count(*) AS n FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.deleted_at IS NULL AND t.status = 0 AND t.parent_id IS NULL
     AND l.archived_at IS NULL AND t.due_at IS NOT NULL AND substr(t.due_at, 1, 10) < ? AND substr(t.due_at, 1, 10) >= ?`, [today, week])?.[0]?.n ?? 0
   const close = () => saveMoments({ review: week })
@@ -103,7 +106,7 @@ function ReviewCard({ week, today }: { week: string; today: string }) {
       <MapIcon className="ls-card__icon" />
       <span className="ls-card__text"><b>이번 주 돌아보기</b> <span className="ls-card__meta">{done}개 끝냈고 {late}개가 밀렸어요. 5분만 보고 다음 주를 정해 볼까요?</span></span>
       <span className="ls-card__acts">
-        <button className="ls-btn ls-btn--primary" onClick={() => { close(); openMap({ mode: 'review' }) }}>지도에서 보기</button>
+        <button className="ls-btn ls-btn--primary" onClick={() => { close(); openReview() }}>주간 점검</button>
         <button className="ls-btn" onClick={close}>나중에</button>
       </span>
     </div>

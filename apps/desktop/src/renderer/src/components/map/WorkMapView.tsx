@@ -1,5 +1,6 @@
 // 14 작업 지도 v2.0 + 31 v3 — 머리(그래프·보드·타임라인 · 기간 · ⚡ 지금 · ✦ 기본함 정리 · 거름틀 · ⋯), AI 제안 카드, 지금 띠, 보기, 상세 패널(02와 같은 컴포넌트).
-// 31 §12 v2(2026-10-05): 모드 화면이 기본 — 계획 = plan/PlanHome(자동 프로젝트), 점검·정리 = modes.tsx 자리. 전체 나무(위 보기들)는 머리 ⧉ 전체 지도에서만.
+// 31 §12 v2(2026-10-05): 프로젝트 화면이 기본 — plan/PlanHome(자동 프로젝트). 전체 나무(위 보기들)는 머리 ⧉ 전체 지도에서만.
+// 사용자 결정 2026-10-05 "작업 지도 = 프로젝트 한 화면": 계획·점검·정리 탭 없음. 점검 = 성장 › 주간 점검, 정리 = 정리 화면(modes.tsx) — applyMode가 그쪽으로 보낸다.
 // 내 폴더 › 리스트 › 할 일을 틱틱처럼 직접 고친다. AI는 기본함 할 일에 대한 제안만(30 §B).
 import { Check, Columns3, FolderPlus, ListPlus, Map as MapIcon, MoreHorizontal, Network, RotateCcw, Sparkles, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -21,7 +22,7 @@ import { useTaskActions } from '../../lib/taskActions'
 import { eulReul } from '../../lib/josa'
 import { DetailPane } from '../DetailPane'
 import { Dialog } from '../Dialog'
-import { openInboxOrganize, useInboxTasks } from '../listSuggest/ListSuggest'
+import { openInboxOrganize } from '../listSuggest/ListSuggest'
 import { OrganizationEditor } from '../OrganizationEditor'
 import { MenuItem, Popover, SubMenu } from '../Popover'
 import { Resizer } from '../Resizer'
@@ -35,13 +36,10 @@ import { loadPlanUndo, savePlanUndo, undoPlanSession, type PlanJournal } from '.
 import { NowStrip } from './NowStrip'
 import { MapGuideButton, MapGuidePanel, MapTour, useMapGuide, type Recipe } from './MapGuide'
 import { CardMenu } from './parts'
-import { ModeSeg, ReviewBand, TidyPanel } from './ModePanels'
-import { modeGroupBy, modeView, MODE_PRESET, OPEN_MAP, takeMapIntent, type MapIntent, type MapMode } from '../../data/mapMoments'
-import { SUGGEST } from '../../data/listSuggest'
+import { modeGroupBy, modeView, MODE_PRESET, OPEN_MAP, openReview, openTidy, takeMapIntent, type MapIntent, type MapMode } from '../../data/mapMoments'
 import type { MapTask } from '../../data/map'
 import type { MapActions } from './parts'
 import { DEFAULT_OPTIONS, useMapData, useStored, useStoredValue, type MapOptions } from './useMapData'
-import { ReviewSlot, TidySlot, type ModeSlotProps } from './modes'
 import { PlanHome } from './plan/PlanHome'
 import type { PlanOpen } from './plan/ProjectBoard'
 import './map.css'
@@ -56,7 +54,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const tags = useQuery<TagRow>('SELECT id, name, color FROM tags ORDER BY sort_order') ?? []
   // 31 §10 모드(계획·점검·정리)가 보기를 정한다 — 계획 = 그래프(⇄ 보드 아이콘), 점검 = 타임라인 + 목표로 묶기, 정리 = 구조 그래프.
   // 마지막 모드 기기 기억 sprout.map.mode, 계획의 그래프·보드는 sprout.map.view
-  const [mode, setModeRaw] = useStoredValue<MapMode>('mode', 'plan')
+  const mode = 'plan' as MapMode // 모드 탭 없음(2026-10-05) — 예전 기억 sprout.map.mode는 안 읽는다
   const [planView, setPlanView] = useStoredValue<'graph' | 'board' | 'timeline'>('view', 'graph')
   const view = modeView(mode, planView)
   // 31 §12 ⧉ 전체 지도(기기 기억 sprout.map.whole) — 꺼져 있으면 모드 화면(계획 = 프로젝트 보드)
@@ -69,7 +67,6 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const [planGoal, setPlanGoal] = useState<string | null>(null)
   const opts: MapOptions = useMemo(() => ({ ...userOpts, period: 'all', goalWeek: 'this', groupBy: modeGroupBy(mode, goalCount), keepDone: planGoal }), [userOpts, mode, goalCount, planGoal])
   const data = useMapData(opts, view)
-  const inboxN = useInboxTasks().length
   const tl = useTimelineNav() // 31 §2 타임라인 배율·막대 색·할일 정렬 칸(기기 기억 sprout.map.timeline)
   const [selected, setSelected] = useState<string | null>(null)
   const [detailW, setDetailW] = useState(DETAIL.def)
@@ -216,10 +213,10 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   }, [data.goals, data.links, skipGoals, notice, say])
 
   // 34 사용법: 첫 둘러보기 · 머리 ? 사용법 창
-  const guide = useMapGuide(data.loaded)
+  const guide = useMapGuide(data.loaded, mode, () => setWholeN(0)) // 둘러보기는 프로젝트 화면 기준(34 §2)
   const onRecipe = (r: Recipe) => {
     if (r === 'morning') { applyMode('plan'); setFocusNow(true); return }
-    applyMode(r === 'goal' ? 'review' : 'plan') // 34 §3: 해 보기 = 계획·점검 모드
+    applyMode(r === 'goal' ? 'review' : 'plan') // 34 §3: 해 보기 — 이번 주 확인은 성장 › 주간 점검
     if (r === 'split') openPlan(selected ?? undefined, whole ? {} : { makeProject: true }) // 31 §11·§12.4: 큰 일 = 같이 계획 짜기(모드 화면에선 프로젝트로)
   }
   const noTasks = data.loaded && data.allOpen === 0 && data.tasks.length === 0 && data.lists.filter((l) => l.kind !== 'inbox' && !l.archived_at).length === 0
@@ -230,9 +227,8 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const revealTask = (id: string) => { setSelected(id); setReveal((r) => ({ id, n: (r?.n ?? 0) + 1 })) }
   /** 지도에서 그 노드로만 이동(상세는 안 연다 — 대화 칸이 옆에 있을 때) */
   const panTo = (id: string) => setReveal((r) => ({ id, n: (r?.n ?? 0) + 1 }))
-  const openPlan = (taskId?: string, extra: { project?: { id: string; name: string }; makeProject?: boolean } = {}) => { setModeRaw('plan'); setFocusNow(false); setPlan({ key: Date.now(), taskId, ...extra }) }
+  const openPlan = (taskId?: string, extra: { project?: { id: string; name: string }; makeProject?: boolean } = {}) => { setFocusNow(false); setPlan({ key: Date.now(), taskId, ...extra }) }
   const onPlanOpen: PlanOpen = (o = {}) => openPlan(o.taskId, { project: o.project, makeProject: o.makeProject })
-  const slot: ModeSlotProps = { lists, onSelectTask: setSelected, onMode: (m) => applyMode(m), notify: (text, action) => say(text, action), openPlanChat: (taskId) => openPlan(taskId) }
   const freshTimer = useRef(0)
   const addFresh = (tasks: string[], links: string[]) => {
     setFresh((m) => { const n = new Map(m); let i = 0; for (const id of tasks) n.set(id, i++); i = 0; for (const id of links) n.set(id, i++); return n })
@@ -249,14 +245,15 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   // 31 §10.2 모드를 고르면(또는 순간이 열면) 묶음을 한 번 덮어쓴다 — 그 뒤 보기·옵션은 자유
   const [todayCmd, setTodayCmd] = useState(0)
   const applyMode = useCallback((m: MapMode) => {
+    if (m === 'review') { openReview(); return } // 성장 › 주간 점검
+    if (m === 'tidy') { openTidy(); return } // 정리 화면
     const p = MODE_PRESET[m]
-    setModeRaw(m)
     setFocusProject(null)
     if (m !== 'plan') { setPlan(null); setLit(null); setPlanGoal(null) } // 대화 칸은 계획에서만(만든 것은 그대로)
     setOpts((o) => ({ ...o, showDone: p.showDone }))
     if (p.timeline) { tl.set('scale', p.timeline.scale); setTodayCmd((n) => n + 1) }
     setFocusNow(false)
-  }, [setModeRaw, setOpts, tl])
+  }, [setOpts, tl])
   useEffect(() => { if (todayCmd) tl.today() }, [todayCmd]) // eslint-disable-line react-hooks/exhaustive-deps
   // 31 §10.4 지도 열기 요청(순간 ①~④ · sprout://map 링크): 뜰 때 들고 있던 것 + 떠 있는 동안 오는 것
   const [focusReq, setFocusReq] = useState<string>()
@@ -264,7 +261,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   applyIntent.current = (i: MapIntent) => {
     if (i.mode) applyMode(i.mode)
     if (i.task) setFocusReq(i.task)
-    if (i.task && i.breakdown) openPlan(i.task)
+    if ((i.task && i.breakdown) || i.plan) openPlan(i.task)
     if (i.now) setFocusNow(true)
   }
   useEffect(() => {
@@ -297,12 +294,9 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   return (
     <main className={`workspace map${reduced ? ' is-reduced' : ''}`}>
       <div className="map__main">
-        {/* 2026-10-05 정리: 제목 + 모드 하나 + 오른쪽 아이콘(계획의 그래프⇄보드 · ? · ⋯) — 틱틱 리스트 머리처럼 */}
+        {/* 2026-10-05: 제목 + 오른쪽 아이콘(⧉ 전체 지도 · 그래프⇄보드 · ? · ⋯) — 모드 탭 없음(프로젝트 한 화면) */}
         <header className="pane-header map-head">
-          <h1 className="pane-header__title map-head__title">
-            작업 지도
-            <ModeSeg mode={mode} onMode={applyMode} tidyCount={inboxN > SUGGEST.inboxCard ? inboxN : 0} />
-          </h1>
+          <h1 className="pane-header__title map-head__title">작업 지도</h1>
           <span className="map-tip" data-tip={whole ? '모드 화면으로' : '전체 지도 — 폴더 › 리스트 › 할 일 나무'}>
             <button className={`icon-btn map-whole${whole ? ' is-on' : ''}`} aria-label="전체 지도" aria-pressed={whole} onClick={() => { setWholeN(whole ? 0 : 1); setFocusProject(null) }}><MapIcon /></button>
           </span>
@@ -325,12 +319,9 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
         </header>
 
         {!whole ? (
-          mode === 'plan' ? <PlanHome selected={selected} onSelect={setSelected} onPlan={onPlanOpen} onTidy={() => applyMode('tidy')} actions={taskActions} focusProject={focusProject} />
-            : mode === 'review' ? <ReviewSlot {...slot} />
-              : <TidySlot {...slot} />
+          <PlanHome selected={selected} onSelect={setSelected} onPlan={onPlanOpen} onTidy={openTidy} actions={taskActions} focusProject={focusProject} />
         ) : <>
-        {data.loaded && mode === 'review' && <ReviewBand data={data} actions={taskActions} onOpen={revealTask} onGrowth={onGrowth} />}
-        {data.loaded && mode === 'plan' && (
+        {data.loaded && (
           <NowStrip data={data} actions={actions} focusNow={focusNow} onFocus={() => setFocusNow((f) => !f)} onReveal={revealTask}
             onMenu={(task, e) => setStripMenu({ task, point: { x: e.clientX, y: e.clientY } })} />
         )}
@@ -354,7 +345,6 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
           <MapBoard data={data} actions={actions} onReorderFolders={(ids) => void run(...reorderFoldersStmts(data.folders, ids))} reveal={reveal} say={say} onGrowth={onGrowth} />
         )}
 
-        {data.loaded && mode === 'tidy' && <TidyPanel aiOk={aiOk} onOpen={revealTask} />}
         </>}
         {notice && (
           <div className="map-notice" key={notice.id} role="status">
@@ -365,7 +355,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
         )}
       </div>
 
-      {plan && mode === 'plan' && (
+      {plan && (
         <PlanChat req={plan} lists={data.lists} aiOk={aiOk} actions={taskActions}
           onLight={setLit} onReveal={panTo} onFresh={addFresh} onGoal={setPlanGoal} onClose={closePlan} onProject={(id) => { if (!whole) setFocusProject((f) => ({ id, n: (f?.n ?? 0) + 1 })) }}
           onUndone={(r) => { setPlan(null); setLit(null); setPlanGoal(null); toast.show(r.kept ? `계획을 되돌렸어요. 직접 고친 ${r.kept}개는 남겼어요` : '계획을 되돌렸어요') }} />

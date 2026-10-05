@@ -22,6 +22,8 @@ export const PROJECT = {
   expandScore: 75,
   /** 리스트·폴더 이름이 다른 리스트 할 일 제목에 이 수 이상 나오면 프로젝트(그 리스트·폴더가 집) */
   homeMentions: 2,
+  /** 자동으로 만들려면 날짜(마감·시작·끝낸 날)가 서로 다른 할 일이 이 수 이상(2026-10-05: 한 날 몰린 묶음·날짜 없는 낱말 막기) */
+  autoDays: 3,
   nameMax: 20
 } as const
 
@@ -58,11 +60,16 @@ export const isWorkWord = (w: string) => KIND_SET.has(w.toLowerCase())
 const PROJECT_PARTS = ['공모전', '경진대회', '대회', '해커톤', '프로젝트', '창업', '지원사업', '논문', '졸업작품', '캡스톤', '학회', '아이디어톤', '챌린지']
 const EXAMS = ['sqld', 'sqlp', 'adsp', 'adp', '정보처리기사', '빅데이터분석기사', '정처기', '토익', 'toeic', '토플', 'toefl', '오픽', 'opic', '한국사', '컴활', 'gre', 'gmat', 'jlpt', 'hsk', '텝스', '리눅스마스터', '네트워크관리사', 'aws']
 const EXAM_SET = new Set(EXAMS)
-/** 낱말 하나가 프로젝트 이름 같은가: 공모전·창업 같은 말을 품음 · 시험 이름 · 대소문자 섞인 영문 고유 이름(UniPort) */
+/**
+ * 그 자체로는 프로젝트 이름이 아닌 막연한 말(2026-10-05 실제 데이터: `🚀 프로젝트`가 생김) — 이 말 하나뿐인 이름은 자동으로 안 만든다.
+ * 생활 영역 말(근무·생활·업무…)도 여기 — 리스트·폴더 이름이 영역이면 집 프로젝트가 아니다.
+ */
+export const PROJECT_STOP = new Set(['프로젝트', '계획', '목표', '일정', '공부', '과제', '대회', '챌린지', '준비', '업무', '근무', '알바', '아르바이트', '생활', '개인', '일상', '회사', '학교', '집', '건강', '운동', '가족', '취미', '기타', '할일', '메모', '정리'])
+/** 낱말 하나가 프로젝트 이름 같은가: 공모전·창업 같은 말을 품음 · 시험 이름 · 대소문자 섞인 영문 고유 이름(UniPort). 막연한 말(PROJECT_STOP)만으로는 아님 */
 export function projectish(word: string): boolean {
-  const raw = word.trim()
+  const raw = word.trim().replace(EMOJI_HEAD, '').trim()
   const k = tagKey(raw)
-  if ([...k].length < 2) return false
+  if ([...k].length < 2 || PROJECT_STOP.has(k)) return false
   if (EXAM_SET.has(k)) return true
   if (PROJECT_PARTS.some((p) => k.includes(p))) return true
   return /^[A-Z][a-z]+[A-Z][A-Za-z]*$/.test(raw)
@@ -163,6 +170,8 @@ export type Proposal = {
   /** 이미 있는 사용자 topic 태그를 프로젝트로 보자는 제안 */
   tagId?: string
   reason: 'project' | 'home' | 'plain' | 'tag'
+  /** 이름이 거의 같아 합친 다른 제안의 낱말·이름(별칭으로) */
+  aliases?: string[]
 }
 export type FindCtx = { tags: AtTag[]; lists: AtList[]; folders: AtFolder[]; tasks: PTask[]; links: AtLink[] }
 
@@ -177,26 +186,40 @@ function surface(title: string, key: string): string | null {
   return null
 }
 /**
- * 태그 이름: 그 낱말 앞에 붙어 나오는 가장 긴 이름(앞 낱말 최대 5개, 20자). 영문 한 글자는 대문자.
- * `k 인공지능 제조 데이터 공모전 신청` → `K 인공지능 제조 데이터 공모전`
+ * 태그 이름: 그 낱말 앞에 붙어 나오는 이름(앞 낱말 최대 5개, 20자) 중 **제목 절반 넘게가 함께 쓰는 가장 긴 것**. 영문 한 글자는 대문자.
+ * 제목 하나면 그 제목의 가장 긴 이름(`k 인공지능 제조 데이터 공모전 신청` → `K 인공지능 제조 데이터 공모전`).
+ * 2026-10-05: 예전엔 제목 하나의 가장 긴 이름이 이겨서 공모전 할 일 20개가 모두 `신한 스퀘어브릿지 대학생 창업 공모전`이 됐다.
  */
 export function fullProjectName(word: string, titles: string[]): string {
   const key = tagKey(word)
-  let best = word
-  for (const title of titles) {
-    const parts = displayTitle(title).replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean)
-    const at = parts.findIndex((p) => tagKey(p).startsWith(key))
-    if (at < 0) continue
-    const head = parts[at].slice(0, [...parts[at]].length - ([...tagKey(parts[at])].length - [...key].length))
-    for (let from = Math.max(0, at - 5); from <= at; from++) {
-      const before = parts.slice(from, at).filter((p) => !STOP_WORDS.has(p.toLowerCase()) && !/^\d/.test(p))
-      if (before.length !== at - from) continue // 사이에 흔한 낱말이 끼면 그 앞은 이름이 아니다
-      const name = [...before, head].map((p) => (/^[a-z]$/.test(p) ? p.toUpperCase() : p)).join(' ')
-      if ([...name].length <= PROJECT.nameMax && [...name].length > [...best].length) best = name
-      break
-    }
+  const per = titles.map((t) => longestName(word, key, t)).filter((x): x is string[] => !!x)
+  if (!per.length) return word
+  if (per.length === 1) return per[0].join(' ')
+  // 끝에서부터 같은 낱말 줄(접미)을 세어, 절반 넘게 같이 쓰는 가장 긴 접미
+  let best = per[0].slice(-1).join(' ')
+  const norm = (xs: string[]) => xs.map((x) => x.toLowerCase()).join(' ')
+  for (let n = 1; n <= 6; n++) {
+    const counts = new Map<string, { n: number; name: string[] }>()
+    for (const p of per) if (p.length >= n) { const suf = p.slice(-n); const k = norm(suf); const c = counts.get(k) ?? { n: 0, name: suf }; c.n++; counts.set(k, c) }
+    const top = [...counts.values()].sort((a, b) => b.n - a.n)[0]
+    if (!top || top.n * 2 <= per.length) break
+    best = top.name.join(' ')
   }
   return best
+}
+/** 제목 하나에서 그 낱말로 끝나는 가장 긴 이름(낱말 배열) */
+function longestName(word: string, key: string, title: string): string[] | null {
+  const parts = displayTitle(title).replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean)
+  const at = parts.findIndex((p) => tagKey(p).startsWith(key))
+  if (at < 0) return null
+  const head = parts[at].slice(0, [...parts[at]].length - ([...tagKey(parts[at])].length - [...key].length))
+  for (let from = Math.max(0, at - 5); from <= at; from++) {
+    const before = parts.slice(from, at).filter((p) => !STOP_WORDS.has(p.toLowerCase()) && !/^\d/.test(p))
+    if (before.length !== at - from) continue // 사이에 흔한 낱말이 끼면 그 앞은 이름이 아니다
+    const name = [...before, head].map((p) => (/^[a-z]$/.test(p) ? p.toUpperCase() : p))
+    if ([...name.join(' ')].length <= PROJECT.nameMax) return name
+  }
+  return [word]
 }
 
 /**
@@ -238,11 +261,14 @@ export function findProjectClusters(ctx: FindCtx, blocked: Set<string> = new Set
       name: reason === 'home' ? home!.name.replace(EMOJI_HEAD, '').trim() : reason === 'plain' ? word : fullProjectName(word, tasks.map((t) => t.title)),
       taskIds: tasks.map((t) => t.id), listIds, home: home ? { type: home.type, id: home.id } : undefined, reason
     })
-    if (home && outside.length >= PROJECT.homeMentions) { auto.push(p('home')); continue }
+    // 집 프로젝트는 리스트·폴더 이름이 프로젝트 같을 때만 — `🏠생활 › 근무` 같은 영역 리스트는 아님(2026-10-05)
+    const days = new Set(tasks.map(taskDay).filter(Boolean)).size
+    const homeDays = home ? new Set([...tasks, ...ctx.tasks.filter((t) => !t.deleted_at && inHome(t, home))].map(taskDay).filter(Boolean)).size : 0
+    if (home && outside.length >= PROJECT.homeMentions && projectish(home.name) && homeDays >= PROJECT.autoDays) { auto.push(p('home')); continue }
     const free = tasks.filter((t) => !taken.has(t.id))
     const freeLists = new Set(free.map((t) => t.list_id ?? '')).size
     if (projectish(word)) {
-      if (tasks.length >= PROJECT.autoMin) auto.push(p('project'))
+      if (tasks.length >= PROJECT.autoMin && days >= PROJECT.autoDays) auto.push(p('project'))
       else if (free.length >= PROJECT.suggestMin) suggest.push(p('project'))
       continue
     }
@@ -264,9 +290,30 @@ export function findProjectClusters(ctx: FindCtx, blocked: Set<string> = new Set
     }
     return keep
   }
-  const a = dedupe(auto)
+  const a = mergeNearNames(dedupe(auto))
   const s = dedupe(suggest).filter((x) => !a.some((y) => y.taskIds.filter((id) => x.taskIds.includes(id)).length >= x.taskIds.length * 0.6))
   return { auto: a, suggest: s }
+}
+
+/** 이름이 거의 같은가: 띄어쓰기·대소문자 무시하고 한쪽이 다른 쪽의 앞부분이거나 뒷부분(`신한 … 창업` / `신한 … 창업 공모전`) */
+export function nearSameName(a: string, b: string): boolean {
+  const x = tagKey(projectTitle(a)).replace(/\s+/g, ''), y = tagKey(projectTitle(b)).replace(/\s+/g, '')
+  if (!x || !y) return false
+  if (x === y) return true
+  const [s, l] = x.length <= y.length ? [x, y] : [y, x]
+  return [...s].length >= 2 && (l.startsWith(s) || l.endsWith(s))
+}
+/** 이름이 거의 같은 자동 제안은 하나로(할 일 많은 쪽, 같으면 짧은 이름) — 진 쪽 낱말은 별칭으로 남는다(aliases) */
+function mergeNearNames(xs: Proposal[]): Proposal[] {
+  const keep: (Proposal & { aliases?: string[] })[] = []
+  for (const x of [...xs].sort((a, b) => b.taskIds.length - a.taskIds.length || a.name.length - b.name.length)) {
+    const k = keep.find((y) => nearSameName(y.name, x.name))
+    if (!k) { keep.push({ ...x }); continue }
+    k.taskIds = [...new Set([...k.taskIds, ...x.taskIds])]
+    k.listIds = [...new Set([...k.listIds, ...x.listIds])]
+    k.aliases = [...new Set([...(k.aliases ?? []), x.word, x.name])].filter((n) => tagKey(n) !== tagKey(k.name) && tagKey(n) !== tagKey(k.word))
+  }
+  return keep
 }
 
 /** AI가 만든 topic 태그 중 프로젝트 같은 이름 → project로 바꿀 id */
@@ -353,5 +400,99 @@ export function stackRows(xs: { id: string; x: number; w: number }[], gap = 6): 
     ends[row] = it.x + it.w
     out.set(it.id, row)
   }
+  return out
+}
+
+// ── 한 번 정리(2026-10-05 실제 데이터 버그) ──
+/**
+ * 예전 규칙이 만든 잘못된 자동 프로젝트를 고칠 계획(순수). 사용자 태그(source user·없음)는 건드리지 않는다 — 자동(ai·rule)만.
+ *  ① 막연한 이름(`프로젝트`) · 영역 리스트·폴더가 집인 것(`근무`) → 태그와 자동 연결 지움
+ *  ② 기본함에서 넓히기(rule 75)로 붙은 연결 → 지움(기본함은 묶음이 아니다)
+ *  ③ 이름을 별칭 낱말 + 구성원 제목으로 다시 지음(`신한 … 공모전` → `공모전`)
+ *  ④ 이름이 거의 같은 자동 프로젝트는 하나로(구성원 많은 쪽, 진 쪽 이름은 별칭, 연결은 옮김)
+ *  ⑤ 자동 덩어리(run_id proj-)인데 날짜가 다른 구성원이 3개 미만 → 지움
+ */
+export type CleanupPlan = {
+  removeTags: string[]
+  removeLinks: string[]
+  addLinks: { task_id: string; tag_id: string; source: string; state: string; confidence: number | null }[]
+  updateTags: { id: string; name?: string; aliases?: string | null }[]
+}
+export function planProjectCleanup(ctx: FindCtx): CleanupPlan {
+  const out: CleanupPlan = { removeTags: [], removeLinks: [], addLinks: [], updateTags: [] }
+  const auto = (t: AtTag) => t.kind === 'project' && (t.source === 'ai' || t.source === 'rule')
+  const autoLink = (l: AtLink) => l.source === 'ai' || l.source === 'rule'
+  const tags = ctx.tags.filter(auto)
+  const listOf = new Map(ctx.lists.map((l) => [l.id, l]))
+  const taskOf = new Map(ctx.tasks.map((t) => [t.id, t]))
+  const linksOf = (id: string) => ctx.links.filter((l) => l.tag_id === id && !out.removeLinks.includes(l.id))
+  const hasUser = (id: string) => ctx.links.some((l) => l.tag_id === id && !autoLink(l) && accepted(l))
+  const drop = (t: AtTag) => {
+    if (hasUser(t.id)) return false // 사람이 넣은 할 일이 있으면 태그는 둔다
+    out.removeTags.push(t.id)
+    for (const l of ctx.links) if (l.tag_id === t.id && !out.removeLinks.includes(l.id)) out.removeLinks.push(l.id)
+    return true
+  }
+  const homeName = (t: AtTag) => t.home_type === 'folder' ? ctx.folders.find((f) => f.id === t.home_id)?.name : listOf.get(t.home_id ?? '')?.name
+  let live: AtTag[] = []
+  // ①
+  for (const t of tags) {
+    const generic = PROJECT_STOP.has(tagKey(projectTitle(t.name)))
+    const areaHome = !!t.home_id && !projectish(homeName(t) ?? t.name)
+    if ((generic || areaHome) && drop(t)) continue
+    live.push(t)
+  }
+  // ②
+  for (const t of live) for (const l of linksOf(t.id)) {
+    const task = taskOf.get(l.task_id)
+    if (l.source === 'rule' && l.confidence === PROJECT.expandScore && task?.list_id && listOf.get(task.list_id)?.kind === 'inbox') out.removeLinks.push(l.id)
+  }
+  // ③
+  const names = new Map<string, { name: string; aliases: string[] }>()
+  for (const t of live) {
+    const aliases = parseAliases(t.aliases)
+    let name = t.name
+    if (t.run_id?.startsWith('proj-') && aliases.length) {
+      const word = aliases[0]
+      const titles = linksOf(t.id).filter(accepted).map((l) => taskOf.get(l.task_id)?.title ?? '').filter((x) => x && tagKey(x).includes(tagKey(word)))
+      const fresh = titles.length ? fullProjectName(word, titles) : word
+      if (tagKey(fresh) !== tagKey(name) && !ctx.tags.some((o) => o.id !== t.id && tagKey(o.name) === tagKey(fresh))) name = fresh
+    }
+    names.set(t.id, { name, aliases })
+  }
+  // ④ 구성원 많은 쪽이 남는다
+  const size = (t: AtTag) => linksOf(t.id).filter(accepted).length
+  const order = [...live].sort((a, b) => size(b) - size(a) || names.get(a.id)!.name.length - names.get(b.id)!.name.length)
+  const kept: AtTag[] = []
+  for (const t of order) {
+    const k = kept.find((y) => nearSameName(names.get(y.id)!.name, names.get(t.id)!.name))
+    if (!k || hasUser(t.id)) { kept.push(t); continue }
+    const kn = names.get(k.id)!
+    kn.aliases = [...new Set([...kn.aliases, ...names.get(t.id)!.aliases, names.get(t.id)!.name, t.name])]
+    const have = new Set(linksOf(k.id).map((l) => l.task_id))
+    for (const l of linksOf(t.id)) {
+      out.removeLinks.push(l.id)
+      if (!have.has(l.task_id) && accepted(l)) { have.add(l.task_id); out.addLinks.push({ task_id: l.task_id, tag_id: k.id, source: l.source ?? 'rule', state: 'accepted', confidence: l.confidence ?? null }) }
+    }
+    out.removeTags.push(t.id)
+  }
+  live = kept
+  // ⑤
+  for (const t of live) {
+    if (!t.run_id?.startsWith('proj-') || t.home_id) continue
+    const ids = new Set([...linksOf(t.id).filter(accepted).map((l) => l.task_id), ...out.addLinks.filter((a) => a.tag_id === t.id).map((a) => a.task_id)])
+    const days = new Set([...ids].map((id) => taskOf.get(id)).filter((x): x is PTask => !!x).map(taskDay).filter(Boolean)).size
+    if (days < PROJECT.autoDays && drop(t)) { live = live.filter((x) => x !== t); out.addLinks = out.addLinks.filter((a) => a.tag_id !== t.id) }
+  }
+  for (const t of live) {
+    const n = names.get(t.id)!
+    const aliases = n.aliases.filter((a) => tagKey(a) !== tagKey(n.name))
+    const raw = aliases.length ? JSON.stringify([...new Set(aliases)]) : null
+    const patch: CleanupPlan['updateTags'][number] = { id: t.id }
+    if (n.name !== t.name) patch.name = n.name
+    if (raw !== (t.aliases ?? null)) patch.aliases = raw
+    if (patch.name !== undefined || patch.aliases !== undefined) out.updateTags.push(patch)
+  }
+  out.removeLinks = [...new Set(out.removeLinks)]
   return out
 }

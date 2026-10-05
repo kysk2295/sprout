@@ -5,7 +5,7 @@ import { TABLES } from '@sprout/schema'
 import { insert, run } from '../src/renderer/src/data/mutations'
 import {
   applyDecision, createGoals, finishSummary, freshProgress, loadProgress, lookColumns, lookLine, membershipOf, mergeMissed, missedLine, missedOf, pickLine, pickRoom,
-  goStep, planColumns, projectProgress, restoreSnap, reviewTarget, saveProgress, shortTitle, suggestGoals, togglePick, undecided, undoGoals, weekNumbers, type RGoal, type RTask
+  goStep, planColumns, projectProgress, restoreSnap, bulkCleanupIds, reviewTarget, saveProgress, shortTitle, suggestGoals, togglePick, undecided, undoGoals, weekNumbers, type RGoal, type RTask
 } from '../src/renderer/src/data/review'
 
 // ── 주 ──
@@ -198,5 +198,29 @@ assert.deepEqual(all("SELECT from_id, to_id FROM map_links WHERE kind = 'goal'")
 // 주 5개 상한: 이미 4개면 하나만
 for (let i = 0; i < 4; i++) await run(insert('kpis', { id: `K${i}`, week_start: planWeek, title: `기존 ${i}`, target: 1, progress: 0, status: 'active', sort_order: i }))
 assert.equal((await createGoals(planWeek, [{ key: 'a', kind: 'custom', title: '하나', meta: '', target: 1, taskIds: [] }, { key: 'b', kind: 'custom', title: '둘', meta: '', target: 1, taskIds: [] }])).length, 1)
+
+
+// ── 한꺼번에 정리한 완료(XP 없음)는 점검 숫자·7칸·프로젝트 진행에서 뺀다(2026-10-05 실제: 10/5에 기한 지난 186개 한꺼번에 → "189개 끝냈어", 칸 +187) ──
+{
+  const wk = '2026-10-05'
+  const at = '2026-10-05T00:09:21.070Z'
+  const bulk = Array.from({ length: 186 }, (_, i) => T(`bk${i}`, { status: 1, due_at: `2026-0${(i % 8) + 1}-1${i % 10}`, completed_at: at }))
+  const mine = [
+    T('me1', { status: 1, due_at: '2026-10-05', completed_at: '2026-10-05T02:00:09.865Z' }),
+    T('me2', { status: 1, completed_at: '2026-10-05T02:00:13.528Z' }),
+    T('me3', { status: 1, due_at: '2026-09-30', completed_at: '2026-10-05T02:00:16.475Z' }) // 기한 지났어도 하나씩 끝낸 건 센다
+  ]
+  // 같은 시각이라도 5개 미만이거나 마감이 안 지난 게 섞이면 정리 묶음 아님(한 번에 여러 개 체크)
+  const multi = ['m1', 'm2', 'm3'].map((id) => T(`x${id}`, { status: 1, due_at: '2026-10-01', completed_at: '2026-10-06T01:00:00.000Z' }))
+  const all = [...bulk, ...mine, ...multi]
+  const ids = bulkCleanupIds(all)
+  assert.equal(ids.size, 186)
+  assert.ok(!ids.has('me3') && !ids.has('xm1'))
+  assert.equal(weekNumbers(all, [], wk, 0).done, 6, '정리 묶음 186개는 안 셈 — 3 + 3')
+  const day = lookColumns(all, wk, '2026-10-07')[0]
+  assert.equal(day.bars.length, 3, '월요일 칸에 정리 묶음 없음')
+  const mem = new Map(all.map((t) => [t.id, ['P']]))
+  assert.equal(projectProgress(all, [{ id: 'P', name: '프로젝트' }], mem, wk)[0].done, 6)
+}
 
 console.log('review ok')

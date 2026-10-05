@@ -104,42 +104,10 @@ export function scoreOf(raw: unknown): number | null {
   return Math.max(0, Math.min(100, v))
 }
 
-// ── 낱말 검사(AI 없이) ──
-/** 어느 리스트에나 나올 흔한 낱말 — 이것만으로는 주제를 알 수 없다 */
-const STOP = new Set(['정리', '확인', '준비', '메모', '연락', '통화', '전화', '사기', '하기', '오늘', '내일', '모레', '이번', '다음', '오전', '오후', '아침', '점심', '저녁', '주말', '작성', '검토', '신청', '등록', '예약', '보내기', '처리', '시작', '마무리', '생각', '체크', '할일', '해야', '하자', '아이디어', '자료', '조사', '관련', '내용', '다시', '그냥', '중요'])
-const VERB_END = /(하기로|합니다|해야함|해야|하기|하자|했다|하는|하고|할것|할|한|해)$/
-const JOSA_END = /(에서|으로|에게|께서|까지|부터|이랑|랑|을|를|이|가|은|는|에|로|와|과|도|의|께)$/
-const strip = (w: string) => {
-  let x = w
-  for (const re of [VERB_END, JOSA_END]) { const y = x.replace(re, ''); if ([...y].length >= 2) x = y }
-  return x
-}
-/** 제목의 뚜렷한 낱말(조사·끝말 뗌, 2글자 이상, 숫자·흔한 낱말 뺌) */
-export function keywords(title: string): string[] {
-  const out = new Set<string>()
-  for (const raw of title.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/)) {
-    if (!raw || /^\d/.test(raw)) continue
-    const w = strip(raw)
-    if ([...w].length >= 2 && !STOP.has(w)) out.add(w)
-  }
-  return [...out]
-}
-/** 주제 낱말이 하나도 없는 제목("정리하기", "오후 3시 통화")은 바로 옮기지 않는다 */
-export const isVague = (title: string) => keywords(title).length === 0
+// ── 낱말 검사(AI 없이) — 공용 @sprout/schema/keywords(모바일 정리 모드와 같은 규칙) ──
+import { isVague, keywords, keywordVotes } from '@sprout/schema/keywords'
+export { isVague, keywords, keywordVotes }
 const sameWord = (a: string, b: string) => a === b || (Math.min(a.length, b.length) >= 2 && (a.startsWith(b) || b.startsWith(a)))
-/** 리스트별로 제목과 뚜렷한 낱말이 겹치는 최근 할 일 수. 두 리스트 이상에 나오는 낱말은 뚜렷하지 않아 뺀다 */
-export function keywordVotes(title: string, recent: Record<string, string[]>): Map<string, number> {
-  const mine = keywords(title)
-  const per = Object.entries(recent).map(([listId, titles]) => ({ listId, words: titles.map(keywords) }))
-  const distinct = mine.filter((w) => per.filter((l) => l.words.some((ws) => ws.some((x) => sameWord(w, x)))).length === 1)
-  const votes = new Map<string, number>()
-  if (!distinct.length) return votes
-  for (const l of per) {
-    const n = l.words.filter((ws) => ws.some((x) => distinct.some((w) => sameWord(w, x)))).length
-    if (n) votes.set(l.listId, n)
-  }
-  return votes
-}
 /** (가) 낱말 검사로 확실: 딱 한 리스트의 최근 할 일 keywordMin개 이상과 겹치면 AI 없이 그 리스트(자동 이동 후보) */
 export function keywordSure(tasks: { id: string; title: string }[], lists: SuggestList[], recent: Record<string, string[]>): Suggestion[] {
   const ok = new Set(pickable(lists).map((l) => l.id))

@@ -25,6 +25,9 @@
 .map-btn svg { width: 12px; height: 12px; }
 .map-btn--text { border-color: transparent; background: none; color: var(--color-accent); padding: 0 6px; }
 .map-btn--primary { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+/* 점검·정리 끝 화면 "+N XP" 알약(31 R.5·T.7, 시안 work-map-modes-v2 .xp) */
+.map-xp { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; background: var(--color-accent-subtle); color: var(--color-accent); font: 600 12px/1 var(--font-family); }
+.map-xp.is-muted { background: var(--color-bg-hover); color: var(--color-text-tertiary); font-weight: 500; }
 .map-btn--primary:hover { background: var(--color-accent); filter: brightness(1.06); }
 .map-btn--danger { background: var(--color-danger, #e5534b); border-color: transparent; color: #fff; }
 

@@ -230,3 +230,10 @@
 /* 보이지 않으면 멈춘다 */
 .gs-stage.is-paused *, .gs-stage.is-paused *::before, .gs-stage.is-paused *::after { animation-play-state: paused !important; }
 .gs-quests__title { display: flex; align-items: center; gap: 10px; }
+/* 사용자 결정 2026-10-05: 주간 점검 입구(일기 위) — 성장 카드 모양 그대로 */
+.gs-review-entry { display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 12px; text-align: left; cursor: pointer; color: var(--color-text-primary); }
+.gs-review-entry:hover { background: var(--color-bg-hover, var(--color-bg-input)); }
+.gs-review-entry span { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.gs-review-entry b { font: var(--text-group); }
+.gs-review-entry small { font: var(--text-meta); color: var(--color-text-tertiary); }
+.gs-review-entry svg { width: 16px; height: 16px; color: var(--color-text-tertiary); }

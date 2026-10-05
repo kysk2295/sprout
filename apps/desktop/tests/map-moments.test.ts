@@ -1,7 +1,7 @@
 // 31 §10 작업 지도 쓰는 순간·모드 — 모드 묶음 · ① 큰 일 · ② ⚡ 줄 · ③ 주간 점검 창 · 점검 7칸·밀린 일 · 기기 기억 · 지도 열기 요청
 import assert from 'node:assert/strict'
 import {
-  bigTaskKind, loadMoments, markBigSeen, MODE_PRESET, modeGroupBy, modeView, nextMonday, nowLineDue, openMap, overdueOf, pickBigTask, reviewDue, reviewWeek, saveMoments, takeMapIntent, weekColumns, isMapMode
+  bigTaskKind, loadMoments, markBigSeen, MODE_PRESET, modeGroupBy, modeView, nextMonday, nowLineDue, openMap, overdueOf, pickBigTask, reviewDue, reviewWeek, saveMoments, takeMapIntent, weekColumns, isMapMode, takeScreen
 } from '../src/renderer/src/data/mapMoments'
 
 const today = '2026-10-07' // 수요일
@@ -87,8 +87,17 @@ mem.set('sprout.map.moments', '{망가짐')
 assert.deepEqual(loadMoments(store), { big: [] })
 
 // ── 지도 열기 요청: 들고 있다가 한 번만 ──
-openMap({ mode: 'review' })
-assert.deepEqual(takeMapIntent(), { mode: 'review' })
+openMap({ mode: 'plan', task: 't1' })
+assert.deepEqual(takeMapIntent(), { mode: 'plan', task: 't1' })
 assert.equal(takeMapIntent(), null)
+// 사용자 결정 2026-10-05 프로젝트 한 화면: 예전 점검·정리 요청은 지도가 아니라 성장 › 주간 점검 · 정리 화면으로
+openMap({ mode: 'review' })
+assert.equal(takeMapIntent(), null, '지도로 안 감')
+assert.equal(takeScreen('tidy'), false)
+assert.equal(takeScreen('review'), true)
+assert.equal(takeScreen('review'), false, '한 번만')
+openMap({ mode: 'tidy' })
+assert.equal(takeMapIntent(), null)
+assert.equal(takeScreen('tidy'), true)
 
 console.log('map-moments: ok')

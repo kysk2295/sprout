@@ -1,4 +1,4 @@
-// 34 작업 지도 사용법 — 첫 둘러보기(코치 마크 4단계) · 머리 `?` 사용법 창(빈 상태 한 줄 안내는 2026-10-05 정리로 뺌 — 점검 띠·타임라인 빈 상태·사용법 창과 겹침).
+// 34 작업 지도 사용법 — 첫 둘러보기(코치 마크 3단계 — 2026-10-05 프로젝트 한 화면) · 머리 `?` 사용법 창(빈 상태 한 줄 안내는 2026-10-05 정리로 뺌 — 점검 띠·타임라인 빈 상태·사용법 창과 겹침).
 // 기기 기억 sprout.map.guide = { tour: 'new' | 'done', hints: 닫은 안내 id[] }. ✕·Esc로 닫은 둘러보기는 이번 실행 동안만 안 뜬다.
 import { HelpCircle, X } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -6,6 +6,8 @@ import { createPortal } from 'react-dom'
 import { Popover } from '../Popover'
 import { useStored } from './useMapData'
 import './guide.css'
+import { placeTourCard, shouldAutoTour, type TourBox } from './tourLayout'
+import type { MapMode } from '../../data/mapMoments'
 
 export type GuideState = { tour: 'new' | 'done'; hints: string[] }
 const INITIAL: GuideState = { tour: 'new', hints: [] }
@@ -15,7 +17,8 @@ let closedThisRun = false
 export type GuideSection = 'what' | 'now' | 'seq' | 'goal' | 'split' | 'views'
 export type Recipe = 'split' | 'morning' | 'goal'
 
-export function useMapGuide(loaded: boolean) {
+/** mode: 저절로 뜨는 건 계획 모드에서만(34 §2.1 v2). toPlan: 둘러보기 다시 하기 전에 계획 모드 화면으로 */
+export function useMapGuide(loaded: boolean, mode: MapMode, toPlan?: () => void) {
   const [state, setState] = useStored<GuideState>('guide', INITIAL)
   const [tour, setTour] = useState(false)
   const [panel, setPanel] = useState<{ section?: GuideSection; n: number } | null>(null)
@@ -23,7 +26,7 @@ export function useMapGuide(loaded: boolean) {
 
   // 처음 열고 자료가 다 읽힌 뒤 0.6초(그래프 노드가 놓일 시간). 다른 창·팝오버·첫 실행 안내가 떠 있으면 기다린다
   useEffect(() => {
-    if (!loaded || state.tour === 'done' || closedThisRun || tour) return
+    if (!shouldAutoTour({ loaded, done: state.tour === 'done', closedThisRun, open: tour, mode })) return
     let timer = 0
     const tryOpen = () => {
       if (document.querySelector('.popover,[aria-modal="true"],.onb-scrim')) { timer = window.setTimeout(tryOpen, 800); return }
@@ -31,11 +34,15 @@ export function useMapGuide(loaded: boolean) {
     }
     timer = window.setTimeout(tryOpen, 600)
     return () => window.clearTimeout(timer)
-  }, [loaded, state.tour, tour])
+  }, [loaded, state.tour, tour, mode])
+  // 둘러보기 중 다른 모드로 바뀌면(순간 카드 등) 조용히 접는다 — 계획으로 돌아오면 다시
+  useEffect(() => { if (tour && mode !== 'plan') setTour(false) }, [tour, mode])
+  const toPlanRef = useRef(toPlan)
+  toPlanRef.current = toPlan
 
   return useMemo(() => ({
     state, btnRef, tour, panel,
-    startTour: () => { setPanel(null); setTour(true) },
+    startTour: () => { setPanel(null); toPlanRef.current?.(); setTour(true) },
     closeTour: () => { closedThisRun = true; setTour(false) },
     finishTour: () => { setState((s) => ({ ...s, tour: 'done' })); setTour(false) },
     openPanel: (section?: GuideSection) => setPanel((p) => ({ section, n: (p?.n ?? 0) + 1 })),
@@ -93,16 +100,16 @@ export const ILLUS: Record<GuideSection, ReactNode> = {
 
 const SECTIONS: { id: GuideSection; title: string; body: ReactNode }[] = [
   { id: 'what', title: '무엇을 보여 주나요', body: <><b>계획</b>은 흩어진 할 일을 프로젝트별로 모아 보여 줘요. 공모전·시험·사이드 프로젝트처럼 여러 리스트에 걸친 일도 제목을 보고 <b>저절로 묶어요</b>(태그를 달 필요 없음). 카드를 누르면 관련 일이 날짜순으로 이어진 타임라인이 열려요. 폴더 › 리스트 › 할 일 나무는 머리 <b>전체 지도</b> 아이콘에서 볼 수 있어요.</> },
-  { id: 'now', title: '지금 할 일', body: <>계획 맨 위 <kbd>⚡ 지금 할 일</kbd>에는 오늘 마감인 일과 지금 시작할 수 있는 계획 단계만 3개까지 올려요. 기한이 지난 일은 여기 섞지 않고 <b>정리</b>에서 한꺼번에 봐요.</> },
+  { id: 'now', title: '지금 할 일', body: <>계획 맨 위 <kbd>⚡ 지금 할 일</kbd>에는 오늘 마감인 일과 지금 시작할 수 있는 계획 단계만 3개까지 올려요. 기한이 지난 일은 여기 섞지 않고 <b>정리하기</b>에서 한꺼번에 봐요.</> },
   { id: 'seq', title: '잘못 묶였거나 빠졌으면', body: <>프로젝트 타임라인에서 할 일에 마우스를 올리고 <b>✕ 이건 아니야</b>를 누르면 그 일만 빠져요(할 일은 그대로). 빠진 일은 말풍선의 <b>＋ 더 넣기</b>로 넣어요. 선은 순서(먼저 해야 함)이고, 순서를 정하지 않았으면 조사 → 개발 → 제출 순으로 점선으로 이어 보여 줘요. 순서 선은 전체 지도에서 할 일 아래 점을 끌어 이어요.</> },
-  { id: 'goal', title: '목표로 묶기', body: <><b>점검</b> 모드에서는 이번 주 목표 아래로 할 일이 모여요. 🎯 위 점을 끌어 할 일에 놓거나, 할 일 오른쪽 클릭 › 목표에 연결. 연결한 일을 다 끝내면 달성을 제안해요.</> },
+  { id: 'goal', title: '한 주 점검', body: <>이번 주 돌아보기 → 밀린 일 정하기 → 다음 주 목표 고르기는 <b>성장</b> 탭의 <b>주간 점검</b>에서 해요. 일요일 저녁엔 오늘 목록 카드가 그리로 열어 줘요. 할 일 오른쪽 클릭 › 목표에 연결하면 목표 고리로 모여요.</> },
   { id: 'split', title: '같이 계획 짜기', body: <>보드의 <b>＋ 같이 계획 짜기</b>(새 프로젝트) 또는 프로젝트 안 <b>✦ 다음 단계 같이 짜기</b>를 누르면 내 캐릭터가 무엇을·언제까지·이미 한 것·첫 걸음을 짧게 물어요. 답하는 대로 지도에 할 일·마감·순서 선이 바로 생기고, 지도에서 끌어 고쳐도 돼요. 대화 칸 <b>되돌리기</b>(또는 24시간 안에 ⋯ › 같이 짠 계획 되돌리기)로 한 번에 되돌려요.</> },
-  { id: 'views', title: '세 가지 모드', body: <><b>계획</b>(프로젝트별로, 관련된 일을 시간순으로) · <b>점검</b>(일주일에 한 번 — 돌아보기 → 밀린 일 → 다음 주) · <b>정리</b>(흩어진 일을 제자리에). 오늘 목록의 ⚡ 줄, 큰 일 칩, 일요일 저녁 카드, 기본함 카드가 알맞은 모드로 열어 줘요. 예전의 나무 그래프·보드·타임라인은 머리 <b>전체 지도</b> 아이콘 안에 있어요.</> }
+  { id: 'views', title: '정리와 전체 지도', body: <>작업 지도는 <b>프로젝트 한 화면</b>이에요. 기본함에 쌓인 일은 기본함 카드의 <b>정리하기</b>(또는 ⌘K › 기본함 정리하기)에서 제자리로 옮겨요. 폴더 › 리스트 › 할 일 나무·보드·타임라인은 머리 <b>전체 지도</b> 아이콘 안에 있어요.</> },
 ]
 const RECIPES: { id: Recipe; title: string; steps: string[]; cta: string }[] = [
   { id: 'split', title: '큰 일이 막막할 때', steps: ['계획 › ＋ 같이 계획 짜기(또는 할 일 행의 ✦ 지도에서 쪼개기)', '캐릭터 물음에 답하면 프로젝트와 단계·순서가 생겨요', '⚡ 첫 걸음부터 하나씩'], cta: '같이 짜 보기' },
-  { id: 'morning', title: '매일 아침 3분', steps: ['작업 지도 › 계획 열기', '⚡ 지금 할 일에서 오늘 것부터', '기한 지난 일은 정리에서 한꺼번에'], cta: '계획 열기' },
-  { id: 'goal', title: '이번 주 진행 확인', steps: ['머리 모드 › 점검(일요일 저녁엔 오늘 목록 카드로)', '목표 고리·이번 주 7칸 보기', '밀린 일은 다음 주로'], cta: '점검 모드로' }
+  { id: 'morning', title: '매일 아침 3분', steps: ['작업 지도 › 계획 열기', '⚡ 지금 할 일에서 오늘 것부터', '기한 지난 일은 정리하기에서 한꺼번에'], cta: '계획 열기' },
+  { id: 'goal', title: '이번 주 진행 확인', steps: ['성장 › 주간 점검(일요일 저녁엔 오늘 목록 카드로)', '목표 고리·이번 주 7칸 보기', '밀린 일은 다음 주로'], cta: '주간 점검 열기' }
 ]
 
 /** 머리 `?`·⋯에서 여는 사용법 창 — 틱틱 팁 글처럼 절마다 작은 그림 + 두세 줄 */
@@ -163,14 +170,12 @@ type Step = { targets: string[]; title: string; body: ReactNode; ill?: GuideSect
 const STEPS: Step[] = [
   { targets: ['.plan-grid', '.plan-empty', '.map-canvas', '.map-board', '.map__main .tl', '.map-empty'], title: '흩어진 일을 프로젝트로 묶어 줘요',
     body: <>공모전·시험·사이드 프로젝트처럼 여러 리스트에 흩어진 일을 제목을 보고 <b>저절로</b> 묶어요. 카드를 누르면 분석·회의·개발·제출이 날짜순으로 이어진 타임라인이 열려요.</> },
-  { targets: ['.plan-now', '.map-now', '.map-head__title .map-mode'], title: '지금 할 일',
-    body: <>오늘 마감인 일과 지금 시작할 수 있는 계획 단계만 3개까지 올려요. 기한이 지난 일은 <b>정리</b>에서 한꺼번에 봐요.</> },
+  { targets: ['.plan-now', '.map-now'], title: '지금 할 일',
+    body: <>오늘 마감인 일과 지금 시작할 수 있는 계획 단계만 3개까지 올려요. 기한이 지난 일은 <b>정리하기</b>에서 한꺼번에 봐요.</> },
   { targets: ['.pc-card--new', '.plan-empty__go', '.plan-grid'], title: '큰 일은 같이 짜요', ill: 'split',
-    body: <><b>＋ 같이 계획 짜기</b>를 누르면 캐릭터가 무엇을·언제까지를 물어보고 프로젝트와 단계를 만들어 줘요. 잘못 묶인 일은 타임라인에서 <b>✕ 이건 아니야</b>로 빼요.</> },
-  { targets: ['.map-head__title .map-mode'], title: '필요할 때 맞는 모드로 열려요',
-    body: <><b>계획</b>은 무엇부터, <b>점검</b>은 한 주 돌아보기, <b>정리</b>는 어디에 둘지예요. 큰 일·주간 점검·기본함 정리 때 앱이 알맞은 모드로 열어 줘요. 폴더 › 리스트 › 할 일 나무는 머리 <b>전체 지도</b> 아이콘에 있어요. 사용법은 머리의 <b>?</b> 버튼에서 언제든 다시 볼 수 있어요.</> }
+    body: <><b>＋ 같이 계획 짜기</b>를 누르면 캐릭터가 무엇을·언제까지를 물어 프로젝트와 단계를 만들어 줘요. 잘못 묶인 일은 타임라인에서 <b>✕ 이건 아니야</b>로 빼요. 한 주 점검은 <b>성장</b> 탭에, 폴더 나무는 머리 <b>전체 지도</b> 아이콘에 있어요. 사용법은 <b>?</b>에서 언제든.</> }
 ]
-type Box = { left: number; top: number; width: number; height: number }
+type Box = TourBox
 const visible = (r: DOMRect) => r.width > 2 && r.height > 2 && r.bottom > 0 && r.right > 0 && r.top < window.innerHeight && r.left < window.innerWidth
 function findTarget(targets: string[]): Box | null {
   for (const sel of targets) {
@@ -210,20 +215,13 @@ export function MapTour({ guide }: { guide: MapGuide }) {
     window.addEventListener('resize', measure)
     return () => { window.clearInterval(t); window.removeEventListener('resize', measure) }
   }, [guide.tour, step])
+  // guide.tour도 의존 — 대상이 처음부터 없으면(box null 그대로) 카드가 자리를 못 잡고 -9999에 남던 버그(2026-10-05)
   useLayoutEffect(() => {
     const c = card.current
     if (!c) return
-    const w = c.offsetWidth, h = c.offsetHeight, W = window.innerWidth, H = window.innerHeight, gap = 14
-    let left: number, top: number
-    if (!box) { left = (W - w) / 2; top = (H - h) / 2 }
-    else {
-      left = box.left + box.width / 2 - w / 2
-      if (box.top + box.height + gap + h < H - 8) top = box.top + box.height + gap
-      else if (box.top - gap - h > 8) top = box.top - gap - h
-      else top = box.top + box.height - h - 28 // 큰 영역(지도 본문)은 안쪽 아래 — 노드는 보통 위쪽에 놓인다
-    }
-    setCardPos({ left: Math.max(8, Math.min(left, W - w - 8)), top: Math.max(8, Math.min(top, H - h - 8)) })
-  }, [box, i])
+    setCardPos(placeTourCard(box, { w: c.offsetWidth, h: c.offsetHeight }, { W: window.innerWidth, H: window.innerHeight }))
+  }, [box, i, guide.tour])
+  useEffect(() => { if (!guide.tour) setCardPos(undefined) }, [guide.tour])
 
   const next = useCallback(() => { if (last) guide.finishTour(); else setI((x) => x + 1) }, [last, guide])
   const prev = useCallback(() => setI((x) => Math.max(0, x - 1)), [])
@@ -243,12 +241,13 @@ export function MapTour({ guide }: { guide: MapGuide }) {
   if (!guide.tour) return null
   const pad = 6
   return createPortal(
-    <div className="mg-tour" onMouseDown={(e) => e.preventDefault()}>
+    <div className="mg-tour" onMouseDown={(e) => e.preventDefault()}
+      onClick={(e) => { if (!card.current?.contains(e.target as Node)) guide.closeTour() }}>
       {box
         ? <div className="mg-tour__hole" style={{ left: box.left - pad, top: box.top - pad, width: box.width + pad * 2, height: box.height + pad * 2 }} />
         : <div className="mg-tour__scrim" />}
       <div ref={card} className="mg-tour__card" key={i} role="dialog" aria-modal="true" aria-label={`작업 지도 둘러보기 — ${STEPS.length}단계 중 ${i + 1}단계`}
-        style={{ left: cardPos?.left ?? -9999, top: cardPos?.top ?? -9999 }} onMouseDown={(e) => e.stopPropagation()}>
+        style={cardPos ? { left: cardPos.left, top: cardPos.top } : { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} onMouseDown={(e) => e.stopPropagation()}>
         <div className="mg-tour__top">
           <ol className="mg-tour__dots" aria-hidden>{STEPS.map((_, k) => <li key={k} className={k === i ? 'is-on' : k < i ? 'is-past' : ''} />)}</ol>
           <span className="mg-tour__count">{i + 1} / {STEPS.length}</span>

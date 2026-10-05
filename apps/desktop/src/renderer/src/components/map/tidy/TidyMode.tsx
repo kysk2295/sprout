@@ -5,6 +5,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { isUnavailable } from '../../../data/ai'
 import { askAi, keywordSure, readSuggestContext, serial, suggestStore, SUGGEST } from '../../../data/listSuggest'
 import { createList } from '../../../data/mutations'
+import { grantTidyXp } from '../../../data/growth'
+import { XP } from '@sprout/schema/growth'
 import { nextMonday } from '../../../data/mapMoments'
 import { applyCleanup, beginCleanupSession, type CleanupOp } from '../../../data/overdue'
 import {
@@ -64,6 +66,14 @@ export function TidyMode({ onSelectTask, onMode, notify }: ModeSlotProps & { onC
   const propOf = useMemo(() => new Map(proposals.map((p) => [p.taskId, p])), [proposals])
   const counts = useMemo(() => Object.fromEntries(TIDY_TABS.map((t) => [t, data.piles[t].length])) as Record<TidyTab, number>, [data.piles])
   const allClear = data.loaded && TIDY_TABS.every((t) => counts[t] === 0)
+  // 10 §6 정리 +20: 이번 정리에서 1개 이상 처리하고 "다 정리했어!"에 닿으면, 하루 한 번(이미 받았으면 'already')
+  const [tidyXp, setTidyXp] = useState<'got' | 'already' | null>(null)
+  const xpAsked = useRef(false)
+  useEffect(() => {
+    if (!allClear || xpAsked.current || !session.current.length) return
+    xpAsked.current = true
+    grantTidyXp().then((n) => setTidyXp(n > 0 ? 'got' : 'already'), (e) => { xpAsked.current = false; console.warn('[tidy] XP', e) })
+  }, [allClear])
 
   const remember = useCallback((u: Undo) => { session.current.push(u); setUndoN(session.current.length) }, [])
   const say = useCallback((text: string, undo?: Undo) => {
@@ -291,7 +301,7 @@ export function TidyMode({ onSelectTask, onMode, notify }: ModeSlotProps & { onC
   }
 
   if (!data.loaded) return <div className="td td--loading" aria-busy="true" />
-  if (allClear) return <Finished onPlan={() => onMode('plan')} canUndo={session.current.length > 0} onUndo={() => void undoSession()} />
+  if (allClear) return <Finished onPlan={() => onMode('plan')} canUndo={session.current.length > 0} onUndo={() => void undoSession()} xp={tidyXp} />
 
   return (
     <div className={`td${reduced ? ' is-still' : ''}`}>
@@ -491,13 +501,15 @@ function NewListBox({ count, onSave, onCancel }: { count: number; onSave: (name:
   )
 }
 
-function Finished({ onPlan, canUndo, onUndo }: { onPlan: () => void; canUndo: boolean; onUndo: () => void }) {
+function Finished({ onPlan, canUndo, onUndo, xp }: { onPlan: () => void; canUndo: boolean; onUndo: () => void; xp: 'got' | 'already' | null }) {
   const { buddy, stage } = useBuddy()
   return (
     <div className="td td-fin">
       <BuddyAvatar buddy={buddy} stage={stage} size={110} mood="happy" />
       <h3>다 정리했어!</h3>
       <p>기본함 0 · 기한 지난 일 0 · 프로젝트 밖 0 · 태그 없음 0</p>
+      {xp === 'got' && <span className="map-xp">정리 보너스 +{XP.tidy} XP</span>}
+      {xp === 'already' && <span className="map-xp is-muted">오늘 정리 보너스는 이미 받았어요</span>}
       <div className="td-fin__acts">
         <button className="map-btn map-btn--primary" onClick={onPlan}>계획 보러 가기</button>
         {canUndo && <button className="map-btn" onClick={onUndo}>이번 정리 되돌리기</button>}
