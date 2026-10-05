@@ -1,4 +1,7 @@
-import { addDays, dateKey, parseTimeInput, WEEKDAY_KO } from './time.ts'
+import { addDays, dateKey, NATIVE_HOURS, parseTimeInput, TIME_PREFIXES, WEEKDAY_KO } from './time.ts'
+
+const HOUR = `(?:\\d{1,2}|${NATIVE_HOURS.map(([w]) => w).join('|')})`
+const TIME_RE = new RegExp(`(?:^|\\s)((?:(?:${TIME_PREFIXES.join('|')})\\s*)?(?:\\d{1,2}:\\d{2}|${HOUR}시(?:\\s*(?:반|정각|\\d{1,2}분))?))(?=\\s|$)`)
 
 export interface Recognition {
   title: string
@@ -41,7 +44,8 @@ export function recognize(raw: string, lists: { id: string; name: string }[] = [
       }
     }
   }
-  const time = title.match(/(?:^|\s)((?:(?:오전|오후)\s*)?\d{1,2}(?::\d{2}|시(?:\s*\d{1,2}분)?))(?=\s|$)/)
+  // 시각: "오후 3시", "3:30", "세시 반", "저녁 일곱시 20분", "3시 정각" — 고유어 한시~열두시와 앞말(오전·오후·아침·저녁·새벽·낮·밤)
+  const time = title.match(TIME_RE)
   if (time) {
     const parsed = parseTimeInput(time[1])
     if (parsed) { result.due_at = `${date ?? today}T${parsed}`; consume(time[0]) }

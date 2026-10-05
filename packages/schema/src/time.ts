@@ -40,14 +40,25 @@ export function nextWholeHour(now = new Date()): string {
   return fromDate(d, true)
 }
 
-/** "1730", "930", "17:30", "5:30pm", "5pm", "오후 5:30", "17시 30분", "17시" → "HH:mm" */
+/** 한시~열두시 고유어 수(긴 말 먼저) — 04 빠른 추가 "내일 세시 반" */
+export const NATIVE_HOURS: [string, number][] = [['열한', 11], ['열두', 12], ['다섯', 5], ['여섯', 6], ['일곱', 7], ['여덟', 8], ['아홉', 9], ['열', 10], ['한', 1], ['두', 2], ['세', 3], ['네', 4]]
+/** 시각 앞말: 오전·아침·새벽 = 오전, 오후·저녁 = 오후, 낮(12·1~6시 = 낮), 밤(6~11시 = 오후, 1~5시 = 새벽, 12시는 모호해서 안 읽음) */
+export const TIME_PREFIXES = ['오전', '오후', '아침', '저녁', '새벽', '낮', '밤'] as const
+
+/** "1730", "930", "17:30", "5:30pm", "5pm", "오후 5:30", "17시 30분", "17시", "세시", "오후 세시 반", "저녁 일곱시", "3시 정각" → "HH:mm" */
 export function parseTimeInput(raw: string): string | null {
   let s = raw.trim().toLowerCase().replace(/\s+/g, '')
   if (!s) return null
   let pm: boolean | undefined
+  let word: string | undefined
   if (/^(오후|pm)/.test(s) || /(pm|p)$/.test(s)) pm = true
   if (/^(오전|am)/.test(s) || /(am|a)$/.test(s)) pm = false
+  const pre = s.match(/^(아침|저녁|새벽|낮|밤)/)
+  if (pre) { word = pre[1]; s = s.slice(word.length) }
   s = s.replace(/^(오전|오후|am|pm)/, '').replace(/(am|pm|a|p)$/, '')
+  // 고유어 시(세시 → 3시) · 반 → 30분 · 정각 → 0분
+  for (const [w, n] of NATIVE_HOURS) if (s.startsWith(`${w}시`)) { s = `${n}${s.slice(w.length)}`; break }
+  s = s.replace(/시반$/, '시30분').replace(/시정각$/, '시')
   let h: number
   let m = 0
   let mt: RegExpMatchArray | null
@@ -56,6 +67,13 @@ export function parseTimeInput(raw: string): string | null {
   else if ((mt = s.match(/^(\d{3,4})$/))) [h, m] = [Number(mt[1].slice(0, -2)), Number(mt[1].slice(-2))]
   else if ((mt = s.match(/^(\d{1,2})$/))) h = Number(mt[1])
   else return null
+  if (word) {
+    if (h > 12) return null // "저녁 19시"처럼 겹치면 읽지 않는다
+    if (word === '아침' || word === '새벽') pm = false
+    else if (word === '저녁') { if (h === 12) return null; pm = true }
+    else if (word === '낮') pm = h === 12 || h <= 6
+    else if (word === '밤') { if (h === 12) return null; pm = h >= 6 }
+  }
   if (pm === true && h < 12) h += 12
   if (pm === false && h === 12) h = 0
   if (h > 23 || m > 59) return null
