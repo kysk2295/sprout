@@ -1,28 +1,18 @@
-<!-- sprout 임시 앱 아이콘(원본 제작, 틱틱 자산 아님). macOS 아이콘 격자: 1024 캔버스, 본체 824×824(여백 100), 모서리 반경 185 -->
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5BC98A"/>
-      <stop offset="1" stop-color="#2E9E62"/>
-    </linearGradient>
-    <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#E6F7EC"/>
-    </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.22"/>
-    </filter>
-  </defs>
-  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#shadow)"/>
-  <!-- 흙 -->
-  <ellipse cx="512" cy="742" rx="190" ry="34" fill="#1F7A49" opacity="0.55"/>
-  <!-- 줄기 -->
-  <path d="M512 740 C 512 640, 508 560, 512 470" stroke="#FFFFFF" stroke-width="34" stroke-linecap="round" fill="none"/>
-  <!-- 왼쪽 잎 -->
-  <path d="M506 520 C 430 540, 300 500, 270 360 C 400 330, 500 400, 506 520 Z" fill="url(#leaf)"/>
-  <!-- 오른쪽 잎 -->
-  <path d="M518 470 C 560 360, 680 270, 790 300 C 780 430, 660 500, 518 470 Z" fill="url(#leaf)"/>
-  <!-- 잎맥 -->
-  <path d="M492 505 C 430 470, 370 430, 320 382" stroke="#7FD3A3" stroke-width="10" stroke-linecap="round" fill="none"/>
-  <path d="M534 458 C 600 410, 680 350, 750 322" stroke="#7FD3A3" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <!-- macOS 앱 아이콘 — 1024 캔버스, 본체 824 -->
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5CD08F"/><stop offset="1" stop-color="#1F9455"/></linearGradient><filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.22"/></filter></defs><rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#sh)"/>
+  <mask id="mml" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400">
+    <rect x="-200" y="-200" width="1400" height="1400" fill="#fff"/>
+      <rect x="100" y="318" width="800" height="48" fill="#000"/>
+      <path d="M500 800 L500 615" stroke="#000" stroke-width="74" stroke-linecap="round"/>
+      <path d="M492 660 C 400 660 300 605 290 478 C 420 470 496 548 492 660 Z" fill="#000"/>
+      <path d="M508 618 C 520 500 610 428 725 428 C 728 548 630 624 508 618 Z" fill="#000"/>
+  </mask>
+  <g transform="translate(243.6 243.6) scale(0.5373)">
+    <g mask="url(#mml)">
+      <rect x="130" y="205" width="740" height="690" rx="150" fill="#FFFFFF"/>
+      <rect x="290" y="105" width="104" height="200" rx="52" fill="#FFFFFF"/>
+      <rect x="606" y="105" width="104" height="200" rx="52" fill="#FFFFFF"/>
+    </g>
+  </g>
 </svg>

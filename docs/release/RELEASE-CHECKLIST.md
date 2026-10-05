@@ -17,7 +17,7 @@
 | # | 결정 | 왜 먼저인가 | 상태 |
 |---|---|---|---|
 | D1 | **정식 제품명** (후보: 해싹·꿈틀·움틈 등, name-candidates.md) | 번들 표시 이름, 데이터 폴더 이름(`productName`), 스토어 이름, 도메인, 처리방침 문구가 모두 바뀐다. 출시 뒤에 바꾸면 데이터 폴더가 갈린다 | [사용자] |
-| D2 | **로고 후보** (A 새싹 체크 추천) | 아이콘 적용은 `docs/release/brand/out/<id>/APPLY.md` 대로 | [사용자] |
+| D2 | **로고 후보** (A 새싹 체크 추천) | 아이콘 적용은 `docs/release/brand/out/<id>/APPLY.md` 대로 | [완료] 로고 B 적용됨 2026-10-05 (달력 새싹, `out/b/`) |
 | D3 | **공개 주소: Tailscale Funnel 유지 vs 자체 도메인** (§5-1) | 앱에 서버 주소가 박혀 출시되므로 나중에 바꾸면 앱 업데이트가 필요. 처리방침·계정 삭제 페이지에도 고정 주소가 필요 | [사용자] |
 | D4 | **개인 vs 사업자로 스토어 가입** | Apple·Google 판매자 이름이 그대로 공개. 사업자(조직)면 D-U-N-S 번호(무료, 발급에 시간 걸림)가 필요. EU 배포 때 "트레이더" 여부 신고(트레이더면 주소·전화 공개) | [사용자] |
 | D5 | **v1 범위** (PRD 8장 가·나·다) | 스토어 설명·스크린샷·심사 범위가 정해진다 | [사용자] |
@@ -33,7 +33,7 @@
 | 항목 | 상태 | 메모 |
 |---|---|---|
 | electron-builder 설정·dmg·zip(arm64) | [완료] | `apps/desktop/electron-builder.yml`, packaging.md |
-| 앱 아이콘·메뉴 막대 템플릿 아이콘 | [진행] | 지금은 임시 새싹 그림. 로고 확정 뒤 `out/<id>/macos/*` 적용 |
+| 앱 아이콘·메뉴 막대 템플릿 아이콘 | [완료] | 로고 B(`out/b/macos/*`) 적용 |
 | Apple Developer Program 가입 (연 $99, iOS와 공용) | [사용자] | 지금 키체인은 무료 개인 팀 개발용 인증서뿐 |
 | Developer ID Application 인증서 + 공증 자격(App Store Connect API 키 권장) | [사용자] | 발급 절차: packaging.md §3-1 |
 | 팀 ID 바뀌면 4곳 수정 | [할 일] | 유료 팀 ID가 지금 `BU697KN34B`와 다르면 entitlements·위젯·widget.ts 함께(packaging.md §4-2). 출시 뒤엔 못 바꿈 |
@@ -47,7 +47,7 @@
 | 항목 | 상태 | 메모 |
 |---|---|---|
 | Windows 패키징 설정 | [할 일] | 아직 없음. `win` 대상(NSIS) 추가, `files`에서 지금 빼는 `*.dll`(PowerSync)·win32 better-sqlite3 프리빌드를 Windows 빌드 때는 넣도록 분리. 맥 전용(위젯·Apple 캘린더 도우미·URL 스킴 처리) 분기 확인 |
-| Windows 아이콘·트레이 | [진행] | `out/<id>/windows/icon.ico`·`tray.ico` 준비됨. 트레이는 템플릿 이미지가 없어 `mini.ts`에 win32 분기 필요 |
+| Windows 아이콘·트레이 | [완료] | 로고 B `build/icon.ico`(`win.icon`)·`resources/tray.ico`, `mini.ts` win32 분기. Windows 실기기 확인은 아직 |
 | 빌드·시험 환경 | [사용자] | Windows PC·VM이 필요. 또는 GitHub Actions Windows 러너(비공개 저장소는 무료 분 한도, Windows는 2배 차감) |
 | **코드 서명** | [사용자] | 아래 표에서 고른다 |
 | 자동 업데이트 | [할 일] | electron-updater NSIS. 서명 안 하면 업데이트 때마다 SmartScreen 경고 |

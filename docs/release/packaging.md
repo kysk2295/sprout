@@ -31,7 +31,7 @@ npm run dist:mac            # 또는 npm run dist:mac:release
 | 파일 | 내용 |
 |---|---|
 | `apps/desktop/electron-builder.yml` | 패키징 설정 전부. **번들 ID `app.sprout.desktop`는 여기 한 곳에만** 있다 |
-| `apps/desktop/build/icon.svg` → `icon.icns`, `icon.png` | 임시 앱 아이콘(직접 만든 새싹 그림, 틱틱 자산 아님). 다시 만들기: `sh apps/desktop/build/make-icon.sh` (Chrome 헤드리스 + sips + iconutil) |
+| `apps/desktop/build/icon.svg` → `icon.icns`, `icon.png`, `icon.ico` | 앱 아이콘 — 로고 B(달력 새싹, 2026-10-05 적용). 다시 만들기: `node scripts/brand/build-icons.mjs b` 후 `docs/release/brand/out/b/APPLY.md`대로 복사 |
 | `apps/desktop/build/entitlements.mac.plist` | 메인 앱 entitlements (`allow-jit` + 위젯용 App Group `BU697KN34B.app.sprout.desktop`) |
 | `apps/desktop/build/entitlements.mac.inherit.plist` | 도우미 프로세스용 (`allow-jit`) |
 | `apps/desktop/build/after-pack.cjs` | 서명 전 훅. 위젯 확장(.appex)을 `Contents/PlugIns/`에, `widget_bridge.node`를 `Contents/Resources/`에 복사. `CSC_NAME`이 있으면 확장을 그 ID로 다시 서명 |

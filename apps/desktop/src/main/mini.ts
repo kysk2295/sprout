@@ -6,7 +6,9 @@ const SIZE = { width: 340, height: 560 } // 09 §2 [임시]
 let tray: Tray | undefined
 let mini: BrowserWindow | undefined
 
-const iconPath = () => (app.isPackaged ? join(process.resourcesPath, 'trayTemplate.png') : join(app.getAppPath(), 'resources', 'trayTemplate.png'))
+// macOS: 검은 템플릿 이미지(@2x·@3x는 같은 폴더에서 자동으로 고른다). Windows: 템플릿이 없어 색 있는 tray.ico
+const trayFile = () => (process.platform === 'win32' ? 'tray.ico' : 'trayTemplate.png')
+const iconPath = () => (app.isPackaged ? join(process.resourcesPath, trayFile()) : join(app.getAppPath(), 'resources', trayFile()))
 
 function createMini(): BrowserWindow {
   const win = new BrowserWindow({
@@ -59,7 +61,7 @@ export const hasTray = () => !!tray
 
 export function startMini(openTask: (taskId: string) => void, showMain: () => void) {
   const icon = nativeImage.createFromPath(iconPath())
-  icon.setTemplateImage(true)
+  if (process.platform === 'darwin') icon.setTemplateImage(true)
   tray = new Tray(icon)
   tray.setToolTip('sprout')
   tray.on('click', toggleMini)

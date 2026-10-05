@@ -230,14 +230,28 @@ function FirstTaskStep({ ready, onFinish }: { ready: boolean; onFinish: (made: b
   )
 }
 
-/** sprout 표시(직접 그린 새싹 — 제품 로고 확정 전 자리 표시) */
+/** sprout 로고(후보 B 달력 새싹 — docs/release/brand/out/b/svg/favicon.svg와 같은 모양) */
 function SproutMark() {
   return (
-    <svg className="onb__mark" width="72" height="72" viewBox="0 0 72 72" aria-hidden>
-      <circle cx="36" cy="36" r="34" fill="var(--color-accent)" opacity="0.12" />
-      <path d="M36 56V34" stroke="var(--color-accent)" strokeWidth="4" strokeLinecap="round" />
-      <path d="M36 38c-2-9-9-14-18-13 0 9 7 15 18 13z" fill="var(--color-accent)" />
-      <path d="M36 33c2-10 9-16 19-15 0 10-8 17-19 15z" fill="var(--color-accent)" opacity="0.75" />
+    <svg className="onb__mark" width="72" height="72" viewBox="0 0 1024 1024" aria-hidden>
+      <defs>
+        <linearGradient id="onb-mark-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5CD08F" /><stop offset="1" stopColor="#1F9455" /></linearGradient>
+        <mask id="onb-mark-cut" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400">
+          <rect x="-200" y="-200" width="1400" height="1400" fill="#fff" />
+          <rect x="100" y="318" width="800" height="48" fill="#000" />
+          <path d="M500 800 L500 615" stroke="#000" strokeWidth="74" strokeLinecap="round" />
+          <path d="M492 660 C 400 660 300 605 290 478 C 420 470 496 548 492 660 Z" fill="#000" />
+          <path d="M508 618 C 520 500 610 428 725 428 C 728 548 630 624 508 618 Z" fill="#000" />
+        </mask>
+      </defs>
+      <rect width="1024" height="1024" rx="230" fill="url(#onb-mark-bg)" />
+      <g transform="translate(115.2 115.2) scale(0.7943)">
+        <g mask="url(#onb-mark-cut)" fill="#fff">
+          <rect x="130" y="205" width="740" height="690" rx="150" />
+          <rect x="290" y="105" width="104" height="200" rx="52" />
+          <rect x="606" y="105" width="104" height="200" rx="52" />
+        </g>
+      </g>
     </svg>
   )
 }

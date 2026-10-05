@@ -9,16 +9,62 @@
     "ios": {
       "bundleIdentifier": "app.sprout.mobile",
       "supportsTablet": true,
-      "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "icon": {
+        "light": "./assets/brand/AppIcon-1024.png",
+        "dark": "./assets/brand/AppIcon-1024-dark.png",
+        "tinted": "./assets/brand/AppIcon-1024-tinted.png"
+      }
     },
     "android": {
-      "package": "app.sprout.mobile"
+      "package": "app.sprout.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/brand/adaptive-foreground.png",
+        "backgroundImage": "./assets/brand/adaptive-background.png",
+        "monochromeImage": "./assets/brand/adaptive-monochrome.png"
+      }
     },
-    "plugins": ["expo-router", "expo-secure-store", "expo-background-task", "expo-notifications", ["./plugins/share-extension", { "teamId": "BU697KN34B", "appGroup": "group.app.sprout.mobile" }]],
-    "experiments": { "typedRoutes": false },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-background-task",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#2BAE66",
+          "dark": {
+            "image": "./assets/brand/splash-icon-dark.png",
+            "backgroundColor": "#0F1E16"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/brand/notification-icon.png",
+          "color": "#2BAE66"
+        }
+      ],
+      [
+        "./plugins/share-extension",
+        {
+          "teamId": "BU697KN34B",
+          "appGroup": "group.app.sprout.mobile"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
     "extra": {
       "apiUrl": "https://macmini.tail425c97.ts.net",
       "syncUrl": "https://macmini.tail425c97.ts.net:8443"
-    }
+    },
+    "icon": "./assets/brand/AppIcon-1024.png"
   }
 }
