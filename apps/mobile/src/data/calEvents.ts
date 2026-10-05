@@ -33,14 +33,19 @@ async function snapshot(ids: string[]): Promise<Undo> {
   return () => run(rows.map(({ id, ...rest }) => update('events', id as string, rest)))
 }
 
-export interface NewEvent { title: string; start_at: string | null; due_at: string; repeat_rule?: string | null; reminders?: string[]; notes?: string; location?: string }
+export interface NewEvent {
+  title: string; start_at: string | null; due_at: string; repeat_rule?: string | null; reminders?: string[]; notes?: string; location?: string
+  /** 38 §5.3 연결된 일정: 휴대폰 캘린더에도 저장(다리가 올린다) */
+  link?: { provider: string; account: string; calendar: string; color: string }
+}
 /** 빠른 입력(22 §3.5): 한 트랜잭션, 시각 하나 = 1시간 */
 export async function createEvent(input: NewEvent): Promise<string> {
   if (!input.title.trim()) throw new Error('제목을 입력해 주세요.')
   const id = uuid()
   await run([insert('events', {
     id, title: input.title.trim(), notes: input.notes?.trim() || null, location: input.location?.trim() || null, ...eventSpan(input.start_at, input.due_at),
-    time_zone: 'floating', repeat_rule: input.repeat_rule ?? null, reminders: stringifyReminders(input.reminders ?? []), color: null, deleted_at: null
+    time_zone: 'floating', repeat_rule: input.repeat_rule ?? null, reminders: stringifyReminders(input.reminders ?? []), color: input.link?.color ?? null, deleted_at: null,
+    ...(input.link ? { ext_provider: input.link.provider, ext_account: input.link.account, ext_calendar: input.link.calendar } : {})
   })])
   return id
 }
@@ -75,8 +80,8 @@ export async function duplicateEvent(id: string): Promise<Undo> {
   const e = await db.getOptional<Record<string, unknown>>('SELECT * FROM events WHERE id = ?', [eventIdOf(id)])
   if (!e) return async () => {}
   const copy = uuid()
-  const { id: _i, owner_id: _o, created_at: _c, modified_at: _m, ...rest } = e
-  await run([insert('events', { ...rest, id: copy })])
+  const { id: _i, owner_id: _o, created_at: _c, modified_at: _m, ext_id: _x, ext_etag: _t, ext_updated: _u, ext_hash: _h, ext_error: _r, ...rest } = e
+  await run([insert('events', { ...rest, id: copy })]) // 연결 정보는 남기고 외부 id는 빼서 새로 만든다(데스크톱과 같음)
   return () => run([deleteStmt('events', copy)])
 }
 

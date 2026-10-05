@@ -12,10 +12,13 @@ import { usePalette } from '../src/theme/ThemeProvider'
 import { DateSheet } from '../src/ui/DateSheet'
 import { addsReminder, chipLabel, EMPTY_SCHEDULE, type Schedule } from '../src/ui/dateSheetModel'
 import { useToast } from '../src/ui/Toast'
+import { deviceDatePick } from '../src/calendars/datePick'
+import { deviceRef } from '../src/calendars/items'
 
 export default function DateRoute() {
   // event=<일정 id>면 일정의 날짜(20 §7.1 — 날짜는 지울 수 없다)
-  const { ids: raw, event } = useLocalSearchParams<{ ids: string; event?: string }>()
+  // device=<휴대폰 일정 열쇠>면 휴대폰 캘린더 일정(38 §2.3 — 날짜·기간·종일만, 결과는 그 시트가 받아 쓴다)
+  const { ids: raw, event, device } = useLocalSearchParams<{ ids: string; event?: string; device?: string }>()
   const ids = (raw ?? '').split(',').filter(Boolean)
   const p = usePalette()
   const router = useRouter()
@@ -24,12 +27,20 @@ export default function DateRoute() {
   useEffect(() => {
     let alive = true
     void (async () => {
-      const s = event ? await getEventSchedule(event) : ids[0] ? await getSchedule(ids[0]) : null
+      const ref = device ? deviceRef(device) : undefined
+      const s = ref ? { start_at: ref.start_at === ref.end_at ? null : ref.start_at, due_at: ref.end_at, is_all_day: ref.is_all_day, repeat_rule: null, repeat_from: null, reminders: [] }
+        : event ? await getEventSchedule(event) : ids[0] ? await getSchedule(ids[0]) : null
       if (alive) setInitial(s ?? EMPTY_SCHEDULE)
     })()
     return () => { alive = false }
-  }, [raw, event]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [raw, event, device]) // eslint-disable-line react-hooks/exhaustive-deps
   const done = async (s: Schedule) => {
+    if (device) {
+      router.back()
+      if (!s.due_at) return
+      deviceDatePick.fn?.(s)
+      return
+    }
     if (event) {
       router.back()
       if (!s.due_at) return void toast.show('일정은 날짜를 지울 수 없어요')
@@ -46,7 +57,7 @@ export default function DateRoute() {
   }
   return (
     <View style={{ flex: 1, backgroundColor: p.sheetBg }}>
-      {initial ? <DateSheet initial={initial} onDone={(s) => void done(s)} onClose={() => router.back()} /> : null}
+      {initial ? <DateSheet initial={initial} datesOnly={!!device} onDone={(s) => void done(s)} onClose={() => router.back()} /> : null}
     </View>
   )
 }

@@ -19,8 +19,10 @@ type Open = 'time' | 'reminder' | 'custom' | 'repeat' | 'sd' | 'st' | 'ed' | 'et
 const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1))
 const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
 
-export function DateSheet({ initial, onDone, onClose, scroll = true }: {
+export function DateSheet({ initial, onDone, onClose, scroll = true, datesOnly = false }: {
   initial: Schedule
+  /** 38 §2.3 휴대폰 캘린더 일정: 날짜·기간·종일만(알림·반복 줄과 날짜 지우기 숨김) */
+  datesOnly?: boolean
   /** ✓ 또는 빠른 날짜(바로 닫힘 — 03 §3) */
   onDone: (s: Schedule) => void
   onClose: () => void
@@ -172,18 +174,24 @@ export function DateSheet({ initial, onDone, onClose, scroll = true }: {
               }}
             />
             {open === 'time' && hasTime(d.due_at) ? timeWheel(timePart(d.due_at!)!, (t) => setD(setTime(d, t, today))) : null}
-            <Row icon={<AlarmClock size={20} color={p.textSecondary} />} label="알림" value={reminderText || '없음'} accent={!!reminderText} first={false} onPress={() => toggle(open === 'custom' ? 'custom' : 'reminder')} onClear={reminderText ? () => setD({ ...d, reminders: [] }) : undefined} />
-            {open === 'reminder' || open === 'custom' ? reminderList() : null}
-            <Row icon={<Repeat size={20} color={p.textSecondary} />} label="반복" value={rule ? ruleSummary(rule, anchor) : '없음'} accent={!!rule} first={false} onPress={() => toggle('repeat')} onClear={rule ? () => setD(setRepeat(d, null, today)) : undefined} />
-            {open === 'repeat' ? repeatList() : null}
+            {datesOnly ? null : (
+              <>
+                <Row icon={<AlarmClock size={20} color={p.textSecondary} />} label="알림" value={reminderText || '없음'} accent={!!reminderText} first={false} onPress={() => toggle(open === 'custom' ? 'custom' : 'reminder')} onClear={reminderText ? () => setD({ ...d, reminders: [] }) : undefined} />
+                {open === 'reminder' || open === 'custom' ? reminderList() : null}
+                <Row icon={<Repeat size={20} color={p.textSecondary} />} label="반복" value={rule ? ruleSummary(rule, anchor) : '없음'} accent={!!rule} first={false} onPress={() => toggle('repeat')} onClear={rule ? () => setD(setRepeat(d, null, today)) : undefined} />
+                {open === 'repeat' ? repeatList() : null}
+              </>
+            )}
           </Card>
         </>
       ) : (
-        <DurationBody d={d} setD={setD} open={open} toggle={toggle} today={today} timeWheel={timeWheel} reminderText={reminderText} reminderList={reminderList} ruleText={rule ? ruleSummary(rule, anchor) : ''} repeatList={repeatList} onClearRepeat={() => setD(setRepeat(d, null, today))} />
+        <DurationBody datesOnly={datesOnly} d={d} setD={setD} open={open} toggle={toggle} today={today} timeWheel={timeWheel} reminderText={reminderText} reminderList={reminderList} ruleText={rule ? ruleSummary(rule, anchor) : ''} repeatList={repeatList} onClearRepeat={() => setD(setRepeat(d, null, today))} />
       )}
-      <Pressable accessibilityRole="button" onPress={() => onDone(EMPTY_SCHEDULE)} style={s.clear}>
-        <Text style={{ fontSize: 15, color: p.textTertiary }}>날짜 지우기</Text>
-      </Pressable>
+      {datesOnly ? null : (
+        <Pressable accessibilityRole="button" onPress={() => onDone(EMPTY_SCHEDULE)} style={s.clear}>
+          <Text style={{ fontSize: 15, color: p.textTertiary }}>날짜 지우기</Text>
+        </Pressable>
+      )}
     </View>
   )
   if (!scroll) return body
@@ -191,6 +199,7 @@ export function DateSheet({ initial, onDone, onClose, scroll = true }: {
 }
 
 function DurationBody(props: {
+  datesOnly?: boolean
   d: Schedule; setD: (s: Schedule) => void; open: Open; toggle: (o: Open) => void; today: string
   timeWheel: (v: string, on: (t: string) => void) => ReactNode; reminderText: string; reminderList: () => ReactNode; ruleText: string; repeatList: () => ReactNode; onClearRepeat: () => void
 }) {
@@ -241,12 +250,14 @@ function DurationBody(props: {
           <Switch value={allDay} onValueChange={() => setD(toggleAllDay(d))} trackColor={{ true: p.accent }} accessibilityLabel="종일" />
         </View>
       </Card>
-      <Card>
-        <Row icon={<AlarmClock size={20} color={p.textSecondary} />} label="알림" value={props.reminderText || '없음'} accent={!!props.reminderText} onPress={() => toggle('reminder')} onClear={props.reminderText ? () => setD({ ...d, reminders: [] }) : undefined} />
-        {open === 'reminder' || open === 'custom' ? props.reminderList() : null}
-        <Row icon={<Repeat size={20} color={p.textSecondary} />} label="반복" value={props.ruleText || '없음'} accent={!!props.ruleText} first={false} onPress={() => toggle('repeat')} onClear={props.ruleText ? props.onClearRepeat : undefined} />
-        {open === 'repeat' ? props.repeatList() : null}
-      </Card>
+      {props.datesOnly ? null : (
+        <Card>
+          <Row icon={<AlarmClock size={20} color={p.textSecondary} />} label="알림" value={props.reminderText || '없음'} accent={!!props.reminderText} onPress={() => toggle('reminder')} onClear={props.reminderText ? () => setD({ ...d, reminders: [] }) : undefined} />
+          {open === 'reminder' || open === 'custom' ? props.reminderList() : null}
+          <Row icon={<Repeat size={20} color={p.textSecondary} />} label="반복" value={props.ruleText || '없음'} accent={!!props.ruleText} first={false} onPress={() => toggle('repeat')} onClear={props.ruleText ? props.onClearRepeat : undefined} />
+          {open === 'repeat' ? props.repeatList() : null}
+        </Card>
+      )}
     </>
   )
 }

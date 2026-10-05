@@ -20,7 +20,8 @@ export interface CalTask {
   repeat_from?: string | null
   list_color?: string | null
 }
-export interface CalItem<T extends CalTask = CalTask> { key: string; task: T; start: string; end: string; allDay: boolean; virtual: boolean }
+/** locked = 끌 수 없음(읽기 전용 휴대폰 캘린더 일정 — 38 §4) */
+export interface CalItem<T extends CalTask = CalTask> { key: string; task: T; start: string; end: string; allDay: boolean; virtual: boolean; locked?: boolean }
 
 // ── 범위 ──
 export const weekStart = (d: string) => addDays(d, -((toDate(d).getDay() + 6) % 7))

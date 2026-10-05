@@ -4,13 +4,14 @@
 import { useQuery, useStatus } from '@powersync/react-native'
 import { progressFromEvents, SPECIES, type Species } from '@sprout/schema/growth'
 import { useRouter } from 'expo-router'
-import { CalendarDays, ChevronLeft, ChevronRight, Info, ListTree, Palette, RefreshCw } from 'lucide-react-native'
+import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Info, ListTree, Palette, RefreshCw } from 'lucide-react-native'
 import { useState } from 'react'
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { AvatarSheet } from '../../../src/avatar/AvatarSheet'
 import { ProfileAvatar } from '../../../src/avatar/ProfileAvatar'
 import { APP_VERSION } from '../../../src/config'
 import { useAvatar } from '../../../src/data/avatar'
+import { shownCalendars, useDeviceCal } from '../../../src/calendars/store'
 import { logout, syncNow, useAuth } from '../../../src/data/auth'
 import { NotificationCell } from '../../../src/notifications/NotificationCell'
 import { findTheme } from '../../../src/theme/themes'
@@ -39,6 +40,8 @@ export default function Settings() {
   const [syncing, setSyncing] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
   const avatar = useAvatar().resolved
+  const devCal = useDeviceCal() // 38 §2.1 캘린더 연동 칸 값
+  const devCalValue = !devCal.prefs.connected ? '꺼짐' : devCal.perm?.state !== 'granted' ? '권한 필요' : `캘린더 ${shownCalendars(devCal).length}개`
   const events = useQuery<{ amount: number; created_at: string }>('SELECT amount, created_at FROM xp_events').data
   const ch = useQuery<{ species: Species | null }>('SELECT species FROM characters WHERE species IS NOT NULL LIMIT 1').data[0]
   const level = progressFromEvents(events).level
@@ -75,6 +78,7 @@ export default function Settings() {
           <Cell first label="외관" value={findTheme(themeId)?.name} icon={<Palette {...white} />} iconBg="#775dbe" onPress={() => router.push('/settings/appearance')} />
           <NotificationCell />
           <Cell label="날짜와 시간" value="휴일 · 음력 · 주 번호" icon={<CalendarDays {...white} />} iconBg="#f29a2e" onPress={() => router.push('/settings/datetime')} />
+          <Cell label="캘린더 연동" value={devCalValue} icon={<CalendarPlus {...white} />} iconBg="#e5534b" onPress={() => router.push('/settings/calendars')} />
           <Cell label="리스트 관리" value="스마트 목록 · 보관함" icon={<ListTree {...white} />} iconBg="#4e75f2" onPress={() => router.push('/lists/manage')} />
         </Cells>
         <Cells>

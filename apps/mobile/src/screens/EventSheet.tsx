@@ -15,6 +15,9 @@ import { useEventActions } from '../ui/EventMenu'
 import { GlassButton } from '../ui/Glass'
 import { CloseButton } from '../ui/SheetHead'
 import { PopMenu, useAnchor } from '../ui/Menu'
+import { PF } from '../calendars/device'
+import { linkLabel } from '../calendars/items'
+import { myLinkAccount, useDeviceCal } from '../calendars/store'
 
 export default function EventSheet() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -25,6 +28,10 @@ export default function EventSheet() {
   const e = useEvent(id)
   const myColor = useMyCalColor()
   const act = useEventActions()
+  // 38 §5.5 연결된 일정: 위 줄 = 그 캘린더 이름, 맨 아래 = 올리기 오류 / 아직 못 올림
+  const devCal = useDeviceCal()
+  const [myAccount, setMyAccount] = useState<string | null>(null)
+  useEffect(() => { void myLinkAccount().then(setMyAccount).catch(() => {}) }, [])
   const more = useAnchor()
   const [full, setFull] = useState(false)
   useEffect(() => navigation.addListener('sheetDetentChange' as never, ((ev: { data: { index: number } }) => setFull(ev.data.index === 1)) as never), [navigation])
@@ -54,6 +61,7 @@ export default function EventSheet() {
 
   if (!e) return <View style={{ flex: 1, backgroundColor: p.sheetBg }} />
   const color = eventColor(e, myColor)
+  const calName = linkLabel(e, devCal.calendars, myAccount, PF) ?? '내 일정'
   const reminders = parseReminders(e.reminders).length
   const close = () => router.back()
   const after = (fn: () => Promise<void>) => { flush(); close(); void fn() }
@@ -63,9 +71,9 @@ export default function EventSheet() {
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 80 + insets.bottom }}>
         <View style={[s.top, { marginTop: full ? insets.top : 10 }]}>
           {full ? <GlassButton label="닫기" onPress={close}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton> : <CloseButton onPress={close} />}
-          <View style={s.cal} accessibilityLabel="캘린더: 내 일정">
+          <View style={s.cal} accessibilityLabel={`캘린더: ${calName}`}>
             <View style={[s.dot, { backgroundColor: color }]} />
-            <Text style={[s.calText, { color: p.textSecondary }]}>내 일정</Text>
+            <Text style={[s.calText, { color: p.textSecondary }]} numberOfLines={1}>{calName}</Text>
           </View>
           <View style={{ flex: 1 }} />
           <View ref={more.ref} collapsable={false}>
@@ -114,6 +122,8 @@ export default function EventSheet() {
           accessibilityLabel="설명"
         />
         {e.repeat_rule ? <Text style={[FONT.meta, { color: p.textQuaternary, paddingHorizontal: 16, paddingTop: 12 }]}>반복 일정은 모든 회차가 함께 바뀌어요</Text> : null}
+        {e.ext_error ? <Text accessibilityRole="alert" style={[FONT.meta, { color: p.danger, paddingHorizontal: 16, paddingTop: 12 }]}>{e.ext_error}</Text>
+          : e.ext_provider && !e.ext_id && !e.deleted_at ? <Text style={[FONT.meta, { color: p.textQuaternary, paddingHorizontal: 16, paddingTop: 12 }]}>연결한 캘린더에 아직 올리지 않았어요</Text> : null}
       </ScrollView>
 
       <PopMenu

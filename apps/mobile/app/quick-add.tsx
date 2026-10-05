@@ -28,6 +28,11 @@ import { usePalette } from '../src/theme/ThemeProvider'
 import { DateSheet } from '../src/ui/DateSheet'
 import { chipLabel, EMPTY_SCHEDULE, type Schedule } from '../src/ui/dateSheetModel'
 import { PopMenu, useAnchor } from '../src/ui/Menu'
+import { PF } from '../src/calendars/device'
+import { calHash, providerFor } from '../src/calendars/link'
+import { myLinkAccount, setLastTarget, sourceName, targetCalendars, useDeviceCal } from '../src/calendars/store'
+import { scheduleBridge } from '../src/calendars/bridge'
+import { ChevronDown } from 'lucide-react-native'
 import { Segmented } from '../src/ui/Segmented'
 import { activeTrigger, addedToast, applySuggestion, buildInput, linkListFor, rangeAt, recognizeWith, segments, suggestions, type Trigger } from '../src/ui/quickAddModel'
 
@@ -59,6 +64,11 @@ export default function QuickAdd() {
   const setKind = (k: Kind) => { setKindState(k); saveKind(k) }
   const [place, setPlace] = useState(draft.place)
   const myColor = useMyCalColor() ?? MY_CAL_COLOR
+  // 38 §2.4 캘린더 고르기: 내 일정 + 쓸 수 있고 켜 둔 휴대폰 캘린더. 기본 = 마지막으로 고른 것(사라졌으면 내 일정)
+  const devCal = useDeviceCal()
+  const targets = targetCalendars(devCal)
+  const target = targets.find((c) => c.id === devCal.prefs.lastTarget) ?? null
+  const calMenu = useAnchor()
   const isEvent = kind === 'event'
   const [cursor, setCursor] = useState(draft.text.length)
   const [ignored, setIgnored] = useState<string[]>([])
@@ -127,7 +137,9 @@ export default function QuickAdd() {
   const sendEvent = async () => {
     try {
       const f = quickEventFields(input, !!manual, today)
-      await createEvent({ title: input.title, notes: desc, location: place, ...f })
+      const link = target ? { provider: providerFor(PF), account: await myLinkAccount(), calendar: calHash(target.id), color: target.color } : undefined
+      await createEvent({ title: input.title, notes: desc, location: place, ...f, link })
+      if (link) scheduleBridge(0)
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
       setFlash({ msg: eventAddedToast(f.start_at ?? f.due_at, today), id: Date.now() })
       setText(''); setDesc(''); setPlace(''); setCursor(0); setIgnored([]); setManual(null)
@@ -242,10 +254,20 @@ export default function QuickAdd() {
                 <Tool label="날짜" onPress={openDate}><Calendar size={21} color={p.textSecondary} /></Tool>
               )}
               {isEvent ? (
-                <View style={s.myCal} accessibilityLabel="캘린더: 내 일정">
-                  <View style={[s.myDot, { backgroundColor: myColor }]} />
-                  <Text style={{ fontSize: 13, color: p.textSecondary }}>내 일정</Text>
-                </View>
+                targets.length ? (
+                  <View ref={calMenu.ref} collapsable={false}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`캘린더: ${target?.title ?? '내 일정'}, 바꾸기`} onPress={calMenu.open} style={s.myCal}>
+                      <View style={[s.myDot, { backgroundColor: target?.color ?? myColor }]} />
+                      <Text style={{ fontSize: 13, color: p.textSecondary, maxWidth: 140 }} numberOfLines={1}>{target?.title ?? '내 일정'}</Text>
+                      <ChevronDown size={13} color={p.textTertiary} />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <View style={s.myCal} accessibilityLabel="캘린더: 내 일정">
+                    <View style={[s.myDot, { backgroundColor: myColor }]} />
+                    <Text style={{ fontSize: 13, color: p.textSecondary }}>내 일정</Text>
+                  </View>
+                )
               ) : (
                 <>
                   <View ref={flag.ref} collapsable={false}>
@@ -316,6 +338,16 @@ export default function QuickAdd() {
           icon: <Flag size={18} color={priorityColor(p, v)} fill={v ? priorityColor(p, v) : 'none'} />,
           onPress: () => setPriority(v)
         }))}
+      />
+      <PopMenu
+        anchor={calMenu.rect}
+        onClose={calMenu.close}
+        align="left"
+        width={260}
+        items={[
+          { key: 'sprout', label: '내 일정', checked: !target, icon: <View style={[s.myDot, { backgroundColor: myColor }]} />, onPress: () => setLastTarget(null) },
+          ...targets.map((c) => ({ key: c.id, label: `${c.title} · ${sourceName(c)}`, checked: target?.id === c.id, icon: <View style={[s.myDot, { backgroundColor: c.color }]} />, onPress: () => setLastTarget(c.id) }))
+        ]}
       />
       <PopMenu
         anchor={listMenu.rect}

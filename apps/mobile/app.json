@@ -108,6 +108,13 @@
         }
       ],
       "expo-background-task",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "꿈틀이 휴대폰 캘린더의 일정을 할 일과 함께 보여 주고, 꿈틀에서 만들거나 고친 일정을 고른 캘린더에도 저장해요.",
+          "remindersPermission": false
+        }
+      ],
       "./plugins/android-release",
       [
         "expo-splash-screen",

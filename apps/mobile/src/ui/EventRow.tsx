@@ -9,7 +9,7 @@ import { FONT, M, mix } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import type { Rect } from './Menu'
 
-export const EventRowView = memo(function EventRowView(props: { evt: EventRow; start: string; end: string; color: string; onPress?: () => void; onLongPress?: (r: Rect) => void }) {
+export const EventRowView = memo(function EventRowView(props: { evt: EventRow; start: string; end: string; color: string; calName?: string | null; onPress?: () => void; onLongPress?: (r: Rect) => void }) {
   const p = usePalette()
   const ref = useRef<View>(null)
   const e = props.evt
@@ -32,7 +32,7 @@ export const EventRowView = memo(function EventRowView(props: { evt: EventRow; s
           <Text style={[FONT.body, { color: past ? p.textTertiary : p.textPrimary }]} numberOfLines={1}>{e.title || '제목 없음'}</Text>
           <View style={s.sub}>
             <View style={[s.dot, { backgroundColor: props.color }]} />
-            <Text style={[FONT.meta, { color: p.textTertiary }]} numberOfLines={1}>내 일정</Text>
+            <Text style={[FONT.meta, { color: p.textTertiary }]} numberOfLines={1}>{props.calName || '내 일정'}</Text>
             {place ? <MapPin size={11} color={p.textTertiary} /> : null}
             {place ? <Text style={[FONT.meta, { color: p.textTertiary, flexShrink: 1 }]} numberOfLines={1}>{place}</Text> : null}
           </View>

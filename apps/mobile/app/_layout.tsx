@@ -16,7 +16,9 @@ import { useWidgets, WidgetArtBaker } from '../src/widgets/useWidgets'
 import { useReminderNotifications } from '../src/notifications/background'
 import { ThemeProvider, usePalette } from '../src/theme/ThemeProvider'
 import { sheetScreenLayout } from '../src/ui/SheetScrollGuard'
-import { ToastProvider } from '../src/ui/Toast'
+import { ToastProvider, useToast } from '../src/ui/Toast'
+import { useDeviceCalBridge } from '../src/calendars/bridge'
+import { useDeviceCalLifecycle } from '../src/calendars/store'
 import { WikiIndexProvider } from '../src/wiki/WikiIndex'
 
 export const unstable_settings = { anchor: '(tabs)' }
@@ -50,6 +52,9 @@ function Screens({ signedIn }: { signedIn: boolean }) {
   useEffect(() => { void SystemUI.setBackgroundColorAsync(p.pageBg) }, [p.pageBg])
   useReminderNotifications(signedIn) // 20 §4.4 로컬 알림: 예약·감시·알림 동작·백그라운드 새로 고침
   useAndroidShare(signedIn) // 24 §5-5: Android 다른 앱 공유 → 수집함
+  const toast = useToast()
+  useDeviceCalLifecycle(signedIn) // 38: 휴대폰 캘린더 권한·목록(앞으로 올 때 다시)
+  useDeviceCalBridge(signedIn, (m) => toast.show(m)) // 38 §6: 이 휴대폰이 주인인 연결된 일정 ⇄ 휴대폰 캘린더
   const sheet = (detents: number[]) => ({
     presentation: 'formSheet' as const,
     sheetAllowedDetents: detents,
@@ -68,6 +73,8 @@ function Screens({ signedIn }: { signedIn: boolean }) {
           <Stack.Screen name="task/[id]" options={sheet([0.6, 1])} />
           {/* 일정 시트(20 §7.1): 상세와 같은 반 시트 */}
           <Stack.Screen name="event/[id]" options={sheet([0.6, 1])} />
+          {/* 38 §2.3 휴대폰 캘린더 일정 시트 */}
+          <Stack.Screen name="device-event" options={sheet([0.6, 1])} />
           <Stack.Screen name="move" options={{ ...sheet([0.8, 1]), contentStyle: { backgroundColor: p.pageBg } }} />
           <Stack.Screen name="tags" options={{ ...sheet([0.7, 1]), contentStyle: { backgroundColor: p.pageBg } }} />
           <Stack.Screen name="date" options={sheet([0.85, 1])} />

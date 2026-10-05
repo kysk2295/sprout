@@ -9,6 +9,12 @@ export interface EventRow extends EventRecord {
   time_zone?: string | null
   created_at?: string | null
   modified_at?: string | null
+  // 16 §12.0 · 38 §6 연결된 일정(SELECT * 라 함께 온다)
+  ext_provider?: string | null
+  ext_account?: string | null
+  ext_calendar?: string | null
+  ext_id?: string | null
+  ext_error?: string | null
 }
 /** 캘린더 항목 id 앞붙이 — 할 일 id와 섞여도 구분(데스크톱과 같음) */
 export const EV_PREFIX = 'ev:'
@@ -30,22 +36,23 @@ export function myColorOf(optionsJson: string | null | undefined): string | null
 export type EventCalItem = CalItem<TaskRow> & { evt: EventRow; occ: Occurrence; color: string }
 export const evtOf = (it: CalItem<TaskRow>): EventRow | undefined => (it as Partial<EventCalItem>).evt
 
-function fakeTask(e: EventRow, o: Occurrence, color: string): TaskRow {
+function fakeTask(e: EventRow, o: Occurrence, color: string, calName: string): TaskRow {
   return {
     id: `${EV_PREFIX}${e.id}`, list_id: null, parent_id: null, section_id: null, title: e.title ?? '', content: e.notes, content_mode: null, status: 0, priority: 0,
     start_at: o.start === o.end ? null : o.start, due_at: o.end, is_all_day: e.is_all_day, sort_order: null, repeat_rule: e.repeat_rule, pinned_at: null,
-    created_at: e.created_at ?? null, completed_at: null, deleted_at: null, list_name: '내 일정', list_emoji: null, list_color: color, list_kind: 'event',
+    created_at: e.created_at ?? null, completed_at: null, deleted_at: null, list_name: calName, list_emoji: null, list_color: color, list_kind: 'event',
     check_total: 0, check_done: 0, reminder_count: 0, tag_ids: null
   }
 }
 
-/** 보이는 기간의 회차마다 캘린더 항목(06 §14.4.3 — 반복은 늘 계산해서 그린다) */
-export function eventItems(rows: EventRow[], from: string, to: string, myColor?: string | null): EventCalItem[] {
+/** 보이는 기간의 회차마다 캘린더 항목(06 §14.4.3 — 반복은 늘 계산해서 그린다). nameOf = 연결된 일정의 캘린더 이름(38 §2.2) */
+export function eventItems(rows: EventRow[], from: string, to: string, myColor?: string | null, nameOf?: (e: EventRow) => string | null): EventCalItem[] {
   const out: EventCalItem[] = []
   for (const e of rows) {
     const color = eventColor(e, myColor)
+    const calName = nameOf?.(e) ?? '내 일정'
     for (const o of occurrences(e, from, to)) {
-      out.push({ key: `${EV_PREFIX}${e.id}${o.virtual ? `@${o.date}` : ''}`, task: fakeTask(e, o, color), start: o.start, end: o.end, allDay: !hasTime(o.start), virtual: o.virtual, evt: e, occ: o, color })
+      out.push({ key: `${EV_PREFIX}${e.id}${o.virtual ? `@${o.date}` : ''}`, task: fakeTask(e, o, color, calName), start: o.start, end: o.end, allDay: !hasTime(o.start), virtual: o.virtual, evt: e, occ: o, color })
     }
   }
   return out

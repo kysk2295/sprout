@@ -6,10 +6,12 @@
 // - ⋯ → 완료 보기/숨기기 · 날짜 없는 할 일(누르면 고른 날에 일정 잡기 — 06 §9 할일 정렬 패널의 휴대폰판)
 // - sprout 일정(20 §7.1, 06 §14.4): 할 일과 같은 띠·블록·행에 섞어 그린다 — 체크박스 자리 캘린더 아이콘, 누르면 일정 시트, 길게 누르면 일정 메뉴
 // - 모양(06 §14.2): 취소선 없음. 완료 = 옅게 + 체크된 칸, 지난 미완료 = 옅은 채움 + 빈 칸 + 글자 한 단계 진하게, 색 = 리스트 색(없으면 강조색)
-// 구글·Apple 캘린더 일정은 컴퓨터의 기기 데이터(16)라 휴대폰에는 없다.
+// 38 휴대폰 캘린더: 연결하면(설정 › 캘린더 연동 · ⋯ › 캘린더 구독) 켜 둔 휴대폰 캘린더 일정을 그 캘린더 색으로 섞어 그린다.
+//   연결된 꿈틀 일정과 같은 일정은 숨김(§7). 누르면 휴대폰 일정 시트, 쓸 수 있으면 끌어 옮기기(반복이면 범위 대화).
+//   구글·Apple 캐시 전용 일정(데스크톱 16)은 컴퓨터의 기기 데이터라 휴대폰에는 없다.
 import { useQuery } from '@powersync/react-native'
 import { useLocalSearchParams, useRouter, useScrollToTop } from 'expo-router'
-import { CalendarCheck, CalendarDays, CalendarRange, Check, Columns3, Ellipsis, List, Plus, Square } from 'lucide-react-native'
+import { CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Check, Columns3, Ellipsis, ExternalLink, List, Plus, Square, Trash2 } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
@@ -45,6 +47,12 @@ import type { DayMarks } from '@sprout/schema/holidays'
 import { isWidgetDate } from '@sprout/schema/widget'
 import { useDayMarks, useMarkPrefs } from '../data/calendarPrefs'
 import { SideLabel } from '../ui/DayMarks'
+import { eventSpan } from '@sprout/schema/events'
+import { useDeviceActions } from '../calendars/actions'
+import { PF } from '../calendars/device'
+import { deviceItems, deviceRef, isDeviceItemId, linkLabel } from '../calendars/items'
+import { isMine } from '../calendars/link'
+import { myLinkAccount, useDeviceEvents } from '../calendars/store'
 
 type Item = CalItem<TaskRow>
 const VIEW_ICON: Record<MobileCalView, typeof List> = { list: List, day: Square, '3day': Columns3, month: CalendarDays }
@@ -110,11 +118,22 @@ export default function CalendarScreen() {
   ).data
   const evRows = useEvents(range.from, range.to)
   const myColor = useMyCalColor()
+  // 38: 휴대폰 캘린더 일정(켜 둔 캘린더) + 연결된 일정의 캘린더 이름
+  const dev = useDeviceEvents(range.from, range.to)
+  const [myAccount, setMyAccount] = useState<string | null>(null)
+  useEffect(() => { void myLinkAccount().then(setMyAccount).catch(() => {}) }, [])
   const items = useMemo<Item[]>(() => {
     const now = new Date()
-    const evs = eventItems(evRows, range.from, range.to, myColor).filter((it) => showDone || !isPast(it.end, now)) // 완료 숨기기 = 지난 일정도 숨김(06 §14.3)
-    return [...itemsOf(tasks, range.from, range.to), ...evs]
-  }, [tasks, evRows, myColor, range, showDone])
+    const nameOf = (e: (typeof evRows)[number]) => linkLabel(e, dev.calendars, myAccount, PF)
+    const evs = eventItems(evRows, range.from, range.to, myColor, nameOf)
+    const linked = evs.filter((it) => !!it.evt.ext_provider)
+    const myExtIds = new Set(evRows.filter((e) => e.ext_id && myAccount && isMine(e, PF, myAccount)).map((e) => e.ext_id!))
+    const devs = deviceItems(dev.events, dev.calendars, PF, { myExtIds, linked, from: range.from, to: range.to })
+    const shown = [...evs, ...devs].filter((it) => showDone || !isPast(it.end, now)) // 완료 숨기기 = 지난 일정도 숨김(06 §14.3)
+    return [...itemsOf(tasks, range.from, range.to), ...shown]
+  }, [tasks, evRows, myColor, range, showDone, dev.events, dev.calendars, myAccount])
+  const devAct = useDeviceActions()
+  const [devMenu, setDevMenu] = useState<{ id: string; rect: Rect } | null>(null)
   const evMenu = useEventMenu()
   // 06 §16 휴일·음력·주 번호(설정 › 날짜와 시간, 데스크톱과 같은 값) — 고른 해 앞뒤까지 한 번에
   const markPrefs = useMarkPrefs()
@@ -128,13 +147,13 @@ export default function CalendarScreen() {
     const undo = await completeTasks([t.id])
     if (undo) withUndo('작업이 완료되었습니다.', undo)
   }
-  const openDetail = (t: TaskRow) => router.push(isEventId(t.id) ? `/event/${eventIdOf(t.id)}` : `/task/${t.id}`)
+  const openDetail = (t: TaskRow) => (isDeviceItemId(t.id) ? devAct.open(t.id) : router.push(isEventId(t.id) ? `/event/${eventIdOf(t.id)}` : `/task/${t.id}`))
   const addAt = (due: string) => router.push({ pathname: '/quick-add', params: { view: `date:${due}` } })
   const openSheet = (path: '/move' | '/date' | '/tags', ids: string[]) => router.push({ pathname: path, params: { ids: ids.join(',') } })
 
   // 길게 누름(목록 행 · 블록): 할 일 탭과 같은 메뉴
   const [lp, setLpState] = useState<{ task: TaskRow; rect: Rect } | null>(null)
-  const setLp = (v: { task: TaskRow; rect: Rect } | null) => (v && isEventId(v.task.id) ? evMenu.openMenu(v.task.id, v.rect) : setLpState(v))
+  const setLp = (v: { task: TaskRow; rect: Rect } | null) => (v && isDeviceItemId(v.task.id) ? setDevMenu({ id: v.task.id, rect: v.rect }) : v && isEventId(v.task.id) ? evMenu.openMenu(v.task.id, v.rect) : setLpState(v))
   const onAction = async (a: LongPressAction) => {
     const t = lp?.task
     if (!t) return
@@ -155,6 +174,7 @@ export default function CalendarScreen() {
     const t = it.task
     const target = dragTarget(it.start, dy, dCols)
     if (target === it.start) return
+    if (isDeviceItemId(t.id)) { const m = moveTo({ start_at: it.start, due_at: it.end }, target); await devAct.save(t.id, eventSpan(m.start_at, m.due_at), { toast: '옮겼어요' }); return }
     if (evtOf(it)) return withUndo('옮겼어요', await rescheduleEvent(t.id, moveTo({ start_at: it.start, due_at: it.end }, target)))
     const before = { start_at: t.start_at, due_at: t.due_at, is_all_day: t.is_all_day }
     await updateTask(t.id, moveTo(t, target))
@@ -231,9 +251,24 @@ export default function CalendarScreen() {
         width={230}
         items={[
           { key: 'done', label: showDone ? '완료한 할 일 숨기기' : '완료한 할 일 보기', onPress: () => setShowDone(!showDone) },
-          { key: 'undated', label: '날짜 없는 할 일', icon: <CalendarRange size={18} color={p.textSecondary} />, onPress: () => afterMenu(() => setUndatedOpen(true)) }
+          { key: 'undated', label: '날짜 없는 할 일', icon: <CalendarRange size={18} color={p.textSecondary} />, onPress: () => afterMenu(() => setUndatedOpen(true)) },
+          // 38 §2.2 [틱틱 ⋯ › Calendar Subscription]
+          { key: 'subscribe', label: '캘린더 구독', icon: <CalendarPlus size={18} color={p.textSecondary} />, onPress: () => router.push('/settings/calendars') }
         ]}
       />
+      {/* 38 §5.4 휴대폰 캘린더 일정 길게 누름: 열기 · 캘린더 앱에서 열기 · 삭제(쓸 수 있을 때) */}
+      <PopMenu
+        anchor={devMenu?.rect ?? null}
+        onClose={() => setDevMenu(null)}
+        width={220}
+        align="left"
+        items={devMenu ? [
+          { key: 'open', label: '열기', icon: <ExternalLink size={18} color={p.textSecondary} />, onPress: () => devAct.open(devMenu.id) },
+          { key: 'app', label: '캘린더 앱에서 열기', icon: <CalendarDays size={18} color={p.textSecondary} />, onPress: () => devAct.openInApp(devMenu.id) },
+          ...(deviceRef(devMenu.id)?.writable ? [{ key: 'del', label: '삭제', danger: true, icon: <Trash2 size={18} color={p.danger} />, onPress: () => void devAct.remove(devMenu.id) }] : [])
+        ] : []}
+      />
+      {devAct.element}
       <LongPressMenu
         rect={lp?.rect ?? null}
         pinned={!!lp?.task.pinned_at}
@@ -399,7 +434,7 @@ function DayList(props: { day: string; today: string; items: Item[]; onCheck: (t
         {props.items.length ? (
           <GroupCard title={agendaTitle(props.day, props.today)} count={props.items.length} collapsed={false} onToggle={() => {}}>
             {props.items.map((it) => evtOf(it) ? (
-              <EventRowView key={it.key} evt={evtOf(it)!} start={it.start} end={it.end} color={it.task.list_color ?? ''} onPress={() => props.onOpen(it.task)} onLongPress={(rect) => props.onLong({ task: it.task, rect })} />
+              <EventRowView key={it.key} evt={evtOf(it)!} start={it.start} end={it.end} color={it.task.list_color ?? ''} calName={it.task.list_name} onPress={() => props.onOpen(it.task)} onLongPress={(rect) => props.onLong({ task: it.task, rect })} />
             ) : (
               <View key={it.key} ref={(r) => { refs.current.set(it.key, r) }} collapsable={false}>
                 <TaskRowView
@@ -596,7 +631,7 @@ function DragBlock(props: { block: Block<TaskRow>; colW: number; colIndex: numbe
   const maxY = 24 * HOUR_H - q - top
   const { onDragging, onTap } = props
   const pan = Gesture.Pan()
-    .enabled(!b.item.virtual)
+    .enabled(!b.item.virtual && !b.item.locked)
     .activateAfterLongPress(320)
     .onStart(() => { lifted.value = 1; scheduleOnRN(onDragging, true) })
     .onUpdate((e) => {
@@ -651,7 +686,7 @@ function Agenda(props: { today: string; cursor: string; items: Item[]; onCheck: 
       {groups.map((g) => (
         <GroupCard key={g.d} title={agendaTitle(g.d, props.today)} count={g.items.length} collapsed={false} onToggle={() => {}}>
           {g.items.map((it) => evtOf(it) ? (
-            <EventRowView key={`${g.d}:${it.key}`} evt={evtOf(it)!} start={it.start} end={it.end} color={it.task.list_color ?? ''} onPress={() => props.onOpen(it.task)} onLongPress={(rect) => props.onLong({ task: it.task, rect })} />
+            <EventRowView key={`${g.d}:${it.key}`} evt={evtOf(it)!} start={it.start} end={it.end} color={it.task.list_color ?? ''} calName={it.task.list_name} onPress={() => props.onOpen(it.task)} onLongPress={(rect) => props.onLong({ task: it.task, rect })} />
           ) : (
             <View key={`${g.d}:${it.key}`} ref={(r) => { refs.current.set(`${g.d}:${it.key}`, r) }} collapsable={false}>
               <TaskRowView
