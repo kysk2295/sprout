@@ -1,4 +1,4 @@
-// 언어·테마 전환, 캐릭터 고르기, 다크 스크린샷 바꾸기 — 프레임워크 없이
+// 언어·테마 전환, 다크 스크린샷 바꾸기(체험 창은 demos.js) — 프레임워크 없이
 (function () {
   var root = document.documentElement
   var store = {
@@ -51,26 +51,10 @@
       if (nl === 'en') u.searchParams.set('lang', 'en'); else u.searchParams.delete('lang')
       history.replaceState(null, '', u.pathname + u.search + u.hash)
       applyLang()
+      document.dispatchEvent(new CustomEvent('langchange'))
     }
-    var sp = e.target.closest('[data-species]')
-    if (sp) pickSpecies(sp.getAttribute('data-species'))
   })
   if (mq && mq.addEventListener) mq.addEventListener('change', applyTheme)
-
-  function pickSpecies(id) {
-    document.querySelectorAll('[data-species]').forEach(function (b) { b.setAttribute('aria-selected', String(b.getAttribute('data-species') === id)) })
-    document.querySelectorAll('[data-stage]').forEach(function (img) { img.src = '/assets/characters/' + id + '-' + img.getAttribute('data-stage') + '.svg' })
-    document.querySelectorAll('[data-species-line]').forEach(function (p) { p.hidden = p.getAttribute('data-species-line') !== id })
-  }
-  // 캐릭터 탭: 화살표 키로 옮기기
-  var tabs = document.querySelector('.species-tabs')
-  if (tabs) tabs.addEventListener('keydown', function (e) {
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
-    var bs = Array.prototype.slice.call(tabs.querySelectorAll('button'))
-    var i = bs.indexOf(document.activeElement); if (i < 0) return
-    var n = bs[(i + (e.key === 'ArrowRight' ? 1 : bs.length - 1)) % bs.length]
-    n.focus(); pickSpecies(n.getAttribute('data-species'))
-  })
 
   var top = document.querySelector('.top')
   if (top) {

@@ -98,11 +98,11 @@ const icon = {
   sun: '<svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
   moon: '<svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>'
 }
-const headScript = `(function(){var r=document.documentElement,q=null,s=null,t=null;try{q=new URLSearchParams(location.search).get('lang')}catch(e){}try{s=localStorage.getItem('lang');t=localStorage.getItem('theme')}catch(e){}var l=(q==='en'||q==='ko')?q:(s==='en'?'en':'ko');r.setAttribute('data-lang',l);r.setAttribute('lang',l);if(t==='dark'||t==='light')r.setAttribute('data-theme',t)})()`
+const headScript = `(function(){var r=document.documentElement,q=null,s=null,t=null;try{q=new URLSearchParams(location.search).get('lang')}catch(e){}try{s=localStorage.getItem('lang');t=localStorage.getItem('theme')}catch(e){}var l=(q==='en'||q==='ko')?q:(s==='en'?'en':'ko');r.setAttribute('data-lang',l);r.setAttribute('lang',l);if(t==='dark'||t==='light')r.setAttribute('data-theme',t);r.classList.add('js')})()`
 
 const headHash = createHash('sha256').update(headScript).digest('base64')
 
-export function page({ path, titleKo, titleEn, descKo, descEn, body }) {
+export function page({ path, titleKo, titleEn, descKo, descEn, body, scripts = [] }) {
   const url = cfg.baseUrl + path
   return `<!doctype html>
 <html lang="ko" data-lang="ko" data-title-ko="${esc(titleKo)}" data-title-en="${esc(titleEn)}">
@@ -145,7 +145,7 @@ ${header(path)}
 ${body}
 </main>
 ${footer()}
-<script src="/assets/app.js?v=${version}" defer></script>
+<script src="/assets/app.js?v=${version}" defer></script>${scripts.map((f) => `\n<script src="/assets/${f}?v=${version}" defer></script>`).join('')}
 </body>
 </html>
 `
@@ -155,7 +155,7 @@ const version = Date.now().toString(36)
 function header(path) {
   const home = path === '/'
   const nav = home
-    ? `<nav class="nav" aria-label="${'페이지'}"><a href="#features">${T('기능', 'Features')}</a><a href="#growth">${T('성장', 'Growth')}</a><a href="#privacy">${T('개인정보', 'Privacy')}</a><a href="#faq">FAQ</a></nav>`
+    ? `<nav class="nav" aria-label="${'페이지'}"><a href="#tasks">${T('할 일', 'Tasks')}</a><a href="#growth">${T('성장', 'Growth')}</a><a href="#map">${T('작업 지도', 'Work map')}</a><a href="#calendar">${T('캘린더', 'Calendar')}</a><a href="#privacy">${T('개인정보', 'Privacy')}</a><a href="#faq">FAQ</a></nav>`
     : `<nav class="nav" aria-label="페이지"><a href="/">${T('홈', 'Home')}</a><a href="/support">${T('지원', 'Support')}</a></nav>`
   return `<header class="top"><div class="wrap">
 <a class="brand" href="/" aria-label="${esc(cfg.name)} 홈" data-aria-ko="${esc(cfg.name)} 홈" data-aria-en="${esc(cfg.nameEn)} home"><img src="/favicon.svg" alt="" width="30" height="30">${T(esc(cfg.name), esc(cfg.nameEn))}</a>
@@ -224,6 +224,7 @@ for (const [f, html] of Object.entries(files)) writeFileSync(join(pub, f), html)
 
 copyFileSync(join(here, 'src/styles.css'), join(pub, 'assets/styles.css'))
 copyFileSync(join(here, 'src/app.js'), join(pub, 'assets/app.js'))
+copyFileSync(join(here, 'src/demos.js'), join(pub, 'assets/demos.js'))
 writeFileSync(join(pub, 'site.webmanifest'), JSON.stringify({
   name: cfg.name, short_name: cfg.name, start_url: '/', display: 'standalone', theme_color: '#2BAE66', background_color: '#ffffff',
   icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }, { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }]
