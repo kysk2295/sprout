@@ -1,11 +1,10 @@
-// 34 작업 지도 사용법 — 첫 둘러보기(코치 마크 4단계) · 머리 `?` 사용법 창 · 빈 상태 한 줄 안내.
+// 34 작업 지도 사용법 — 첫 둘러보기(코치 마크 4단계) · 머리 `?` 사용법 창(빈 상태 한 줄 안내는 2026-10-05 정리로 뺌 — 점검 띠·타임라인 빈 상태·사용법 창과 겹침).
 // 기기 기억 sprout.map.guide = { tour: 'new' | 'done', hints: 닫은 안내 id[] }. ✕·Esc로 닫은 둘러보기는 이번 실행 동안만 안 뜬다.
-import { HelpCircle, Lightbulb, X } from 'lucide-react'
+import { HelpCircle, X } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Popover } from '../Popover'
 import { useStored } from './useMapData'
-import { HINTS, type HintId } from './guideHints'
 import './guide.css'
 
 export type GuideState = { tour: 'new' | 'done'; hints: string[] }
@@ -40,8 +39,7 @@ export function useMapGuide(loaded: boolean) {
     closeTour: () => { closedThisRun = true; setTour(false) },
     finishTour: () => { setState((s) => ({ ...s, tour: 'done' })); setTour(false) },
     openPanel: (section?: GuideSection) => setPanel((p) => ({ section, n: (p?.n ?? 0) + 1 })),
-    closePanel: () => setPanel(null),
-    dismissHint: (id: string) => setState((s) => ({ ...s, hints: [...new Set([...s.hints, id])] }))
+    closePanel: () => setPanel(null)
   }), [state, setState, tour, panel])
 }
 export type MapGuide = ReturnType<typeof useMapGuide>
@@ -95,16 +93,16 @@ export const ILLUS: Record<GuideSection, ReactNode> = {
 
 const SECTIONS: { id: GuideSection; title: string; body: ReactNode }[] = [
   { id: 'what', title: '무엇을 보여 주나요', body: <>폴더 › 리스트 › 할 일을 나무처럼 펼쳐 보여 줘요. 리스트 정리는 AI가 맡고, 카드를 다른 리스트로 끌면 사이드바에도 그대로 옮겨져요.</> },
-  { id: 'now', title: '지금 할 수 있는 일', body: <>먼저 끝내야 할 일이 남은 할 일은 빼고, 바로 시작할 수 있는 일만 위 띠에 올려요. 기한 지남 → 오늘 마감 → 다음 일을 많이 열어 주는 일 순이에요. <kbd>⚡</kbd> 또는 <kbd>N</kbd>을 누르면 지도에서도 그 일만 밝아져요.</> },
+  { id: 'now', title: '지금 할 수 있는 일', body: <>먼저 끝내야 할 일이 남은 할 일은 빼고, 바로 시작할 수 있는 일만 위 띠에 올려요. 기한 지남 → 오늘 마감 → 다음 일을 많이 열어 주는 일 순이에요. 띠의 <kbd>⚡ 지금 할 수 있는 일</kbd>(또는 <kbd>N</kbd>)을 누르면 지도에서도 그 일만 밝아져요. 계획 모드에서 보여요.</> },
   { id: 'seq', title: '순서 선 잇기', body: <>그래프에서 할 일 아래 작은 점을 끌어 다른 할 일에 놓으면 '먼저 해야 함' 선이 생겨요. 앞 일을 끝내면 "이제 … 시작할 수 있어요"라고 알려 드려요. 선을 오른쪽 클릭하면 끊을 수 있어요.</> },
-  { id: 'goal', title: '목표로 묶기', body: <>보기 옵션(거름틀) › 묶기: 목표를 고르면 이번 주 목표 아래로 할 일이 모여요. 🎯 위 점을 끌어 할 일에 놓거나, 할 일 오른쪽 클릭 › 목표에 연결. 연결한 일을 다 끝내면 달성을 제안해요.</> },
+  { id: 'goal', title: '목표로 묶기', body: <><b>점검</b> 모드에서는 이번 주 목표 아래로 할 일이 모여요. 🎯 위 점을 끌어 할 일에 놓거나, 할 일 오른쪽 클릭 › 목표에 연결. 연결한 일을 다 끝내면 달성을 제안해요.</> },
   { id: 'split', title: '✦ AI로 쪼개기', body: <>막막한 큰 일은 오른쪽 클릭 › AI로 쪼개기. 미리 보기에서 단계를 고치고 만들면 하위 할 일과 순서 선이 생겨요. 24시간 안에는 ⋯ › AI 쪼개기 되돌리기로 되돌릴 수 있어요.</> },
-  { id: 'views', title: '세 가지 보기', body: <>그래프는 일의 흐름, 보드는 리스트별 칸, 타임라인은 날짜 막대예요. 타임라인에서 날짜 없는 할 일은 오른쪽 할일 정렬 칸에 있어요.</> }
+  { id: 'views', title: '세 가지 모드와 보기', body: <>모드 <b>계획</b>(무엇부터) · <b>점검</b>(목표 고리 + 이번 주 7칸 + 밀린 일 다음 주로) · <b>정리</b>(옮길 곳 제안). 오늘 목록의 ⚡ 줄, 큰 일 칩, 일요일 저녁 카드, 기본함 카드가 알맞은 모드로 열어 줘요. 보기는 모드가 정해요 — 계획 그래프(오른쪽 위 아이콘으로 보드), 점검 타임라인(배율·할일 정렬 칸은 ⋯), 정리 구조 그래프.</> }
 ]
 const RECIPES: { id: Recipe; title: string; steps: string[]; cta: string }[] = [
-  { id: 'split', title: '큰 일이 막막할 때', steps: ['할 일 오른쪽 클릭 › AI로 쪼개기', '미리 보기에서 고치고 만들기', '지금 띠에서 첫 단계부터 하나씩'], cta: '그래프에서 해 보기' },
+  { id: 'split', title: '큰 일이 막막할 때', steps: ['할 일 행의 ✦ 지도에서 쪼개기(또는 오른쪽 클릭 › AI로 쪼개기)', '미리 보기에서 고치고 만들기', '지금 띠에서 첫 단계부터 하나씩'], cta: '계획 모드로' },
   { id: 'morning', title: '매일 아침 3분', steps: ['작업 지도 열기', '⚡ 띠에서 기한 지남·오늘 마감부터', '하나 끝내면 다음 일이 열려요'], cta: '⚡ 켜 보기' },
-  { id: 'goal', title: '이번 주 진행 확인', steps: ['보기 옵션 › 묶기: 목표', '🎯 점을 할 일로 끌어 연결', '진행 고리로 이번 주 확인'], cta: '목표로 묶어 보기' }
+  { id: 'goal', title: '이번 주 진행 확인', steps: ['머리 모드 › 점검(일요일 저녁엔 오늘 목록 카드로)', '목표 고리·이번 주 7칸 보기', '밀린 일은 다음 주로'], cta: '점검 모드로' }
 ]
 
 /** 머리 `?`·⋯에서 여는 사용법 창 — 틱틱 팁 글처럼 절마다 작은 그림 + 두세 줄 */
@@ -165,12 +163,12 @@ type Step = { targets: string[]; title: string; body: ReactNode; ill?: GuideSect
 const STEPS: Step[] = [
   { targets: ['.map-canvas', '.map-board', '.map__main .tl', '.map-empty'], title: '작업 지도는 할 일의 큰 그림이에요',
     body: <>폴더 › 리스트 › 할 일을 나무처럼 펼쳐 보여 줘요. 리스트는 알아서 정리되니, 여기서는 <b>무엇부터 할지</b>만 보면 돼요.</> },
-  { targets: ['.map-now', '.map-now-btn'], title: '지금 할 수 있는 일',
-    body: <>먼저 끝내야 할 일이 남은 할 일은 빼고, 지금 바로 시작할 수 있는 일만 골라 올려요. <kbd>⚡</kbd>(또는 <kbd>N</kbd>)를 누르면 지도에서도 그 일만 밝아져요.</> },
+  { targets: ['.map-now', '.map-head__title .map-mode'], title: '지금 할 수 있는 일',
+    body: <>먼저 끝내야 할 일이 남은 할 일은 빼고, 지금 바로 시작할 수 있는 일만 골라 띠에 올려요. <kbd>⚡ 지금 할 수 있는 일</kbd>(또는 <kbd>N</kbd>)을 누르면 지도에서도 그 일만 밝아져요.</> },
   { targets: ['@seq', '.map-canvas', '.map-board', '.map__main .tl'], title: '순서를 이어 주세요', ill: 'seq',
     body: <>할 일 아래 작은 점을 끌어 다른 할 일에 놓으면 '먼저 해야 함' 선이 생겨요. 큰 일은 오른쪽 클릭 › <b>✦ AI로 쪼개기</b>로 단계를 받아요.</> },
-  { targets: ['.map-head__title .map-seg'], title: '보는 방법은 세 가지예요',
-    body: <>그래프는 흐름, 보드는 리스트별 칸, 타임라인은 날짜 막대예요. 사용법은 머리의 <b>?</b> 버튼에서 언제든 다시 볼 수 있어요.</> }
+  { targets: ['.map-head__title .map-mode'], title: '필요할 때 맞는 모드로 열려요',
+    body: <><b>계획</b>은 무엇부터, <b>점검</b>은 한 주 돌아보기, <b>정리</b>는 어디에 둘지예요. 큰 일·주간 점검·기본함 정리 때 앱이 알맞은 모드로 열어 줘요. 모드가 보기도 정해요(계획은 오른쪽 위 아이콘으로 그래프 ⇄ 보드). 사용법은 머리의 <b>?</b> 버튼에서 언제든 다시 볼 수 있어요.</> }
 ]
 type Box = { left: number; top: number; width: number; height: number }
 const visible = (r: DOMRect) => r.width > 2 && r.height > 2 && r.bottom > 0 && r.right > 0 && r.top < window.innerHeight && r.left < window.innerWidth
@@ -267,22 +265,5 @@ export function MapTour({ guide }: { guide: MapGuide }) {
       </div>
     </div>,
     document.body
-  )
-}
-
-// ── 빈 상태 한 줄 안내 ──
-export { pickHint, type HintId } from './guideHints'
-export function MapHint({ id, guide, onAct }: { id: HintId | null; guide: MapGuide; onAct: (id: HintId) => void }) {
-  if (!id || guide.tour) return null
-  const h = HINTS[id]
-  return (
-    <div className="map-banner mg-hint" role="note">
-      <Lightbulb className="map-banner__icon" />
-      <span>{h.text}</span>
-      <span className="map-banner__acts">
-        <button className="map-btn map-btn--text" onClick={() => onAct(id)}>{h.cta}</button>
-        <button className="icon-btn map-banner__close" aria-label="이 안내 닫기" onClick={() => guide.dismissHint(id)}><X /></button>
-      </span>
-    </div>
   )
 }

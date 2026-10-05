@@ -31,7 +31,7 @@ import { useStored, type MapData } from './useMapData'
 import './timeline.css'
 
 type Extra = { id: string; repeat_rule: string | null; tag_ids: string | null }
-const EXTRA_SQL = `SELECT t.id, t.repeat_rule, (SELECT group_concat(tt.tag_id) FROM task_tags tt WHERE tt.task_id = t.id) AS tag_ids
+const EXTRA_SQL = `SELECT t.id, t.repeat_rule, (SELECT group_concat(tt.tag_id) FROM task_tags tt WHERE tt.task_id = t.id AND COALESCE(tt.state, 'accepted') = 'accepted') AS tag_ids
   FROM tasks t WHERE t.deleted_at IS NULL AND t.due_at IS NOT NULL`
 const NARROW = 900
 type Placed = { task: MapTask; bar: Bar; row: number }

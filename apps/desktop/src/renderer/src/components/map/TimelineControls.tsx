@@ -1,6 +1,6 @@
-// 31 §2 타임라인 — 머리 오른쪽 조작(일·주·월 · 오늘 · ‹ ›)과 보기 옵션·⋯ 메뉴 항목. 상태는 기기 기억 sprout.map.timeline.
-// WorkMapView는 useTimelineNav() 하나를 만들어 머리·보기 옵션·⋯·TimelineView에 같이 넘긴다.
-import { Check, ChevronLeft, ChevronRight, PanelRight } from 'lucide-react'
+// 31 §2 타임라인 — ⋯ 메뉴 항목(배율 · 오늘로 · 막대 색 · 순서 선 · 할일 정렬 칸). 머리 조작은 2026-10-05 정리로 ⋯·키보드로 옮김. 상태는 기기 기억 sprout.map.timeline.
+// WorkMapView는 useTimelineNav() 하나를 만들어 ⋯·TimelineView에 같이 넘긴다.
+import { Check, PanelRight } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import type { ColorBy } from '../../lib/calendar'
 import { SCALES, SCALE_LABEL, ROW_HEAD, type Scale } from '../../lib/timeline'
@@ -22,19 +22,17 @@ export function useTimelineNav() {
 }
 export type TimelineNav = ReturnType<typeof useTimelineNav>
 
-/** 머리 오른쪽: `일 · 주 · 월` [틱틱] · `오늘` · `‹ ›` (31 §2.1) */
-export function TimelineHeadControls({ nav }: { nav: TimelineNav }) {
+/** ⋯ 메뉴(2026-10-05 정리 — 머리 세그먼트 대신): 배율 `일 · 주 · 월` [틱틱] · 오늘로. 키 1·2·3, T, ⇧← → 는 그대로 */
+export function TimelineScaleItems({ nav, close }: { nav: TimelineNav; close: () => void }) {
   return (
-    <span className="tl-head">
-      <span className="map-seg" role="tablist" aria-label="배율">
+    <>
+      <SubMenu label="배율" trail={SCALE_LABEL[nav.scale]} width={140}>
         {SCALES.map((s, i) => (
-          <button key={s} role="tab" aria-selected={nav.scale === s} className={nav.scale === s ? 'is-on' : ''} title={`${SCALE_LABEL[s]} (${i + 1})`} onClick={() => nav.set('scale', s)}>{SCALE_LABEL[s]}</button>
+          <MenuItem key={s} label={`${SCALE_LABEL[s]} (${i + 1})`} onClick={() => { close(); nav.set('scale', s) }} trail={nav.scale === s ? <Check className="map-check" /> : undefined} />
         ))}
-      </span>
-      <button className="tl-head__today" title="오늘 (T)" onClick={nav.today}>오늘</button>
-      <button className="icon-btn" aria-label="이전" title="이전 (⇧←)" onClick={() => nav.page(-1)}><ChevronLeft /></button>
-      <button className="icon-btn" aria-label="다음" title="다음 (⇧→)" onClick={() => nav.page(1)}><ChevronRight /></button>
-    </span>
+      </SubMenu>
+      <MenuItem label="오늘로 (T)" onClick={() => { close(); nav.today() }} />
+    </>
   )
 }
 

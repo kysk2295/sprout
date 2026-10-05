@@ -1,9 +1,9 @@
 // 14 작업 지도 v2.0 + 31 v3 — 머리(그래프·보드·타임라인 · 기간 · ⚡ 지금 · ✦ 기본함 정리 · 거름틀 · ⋯), AI 제안 카드, 지금 띠, 보기, 상세 패널(02와 같은 컴포넌트).
 // 내 폴더 › 리스트 › 할 일을 틱틱처럼 직접 고친다. AI는 기본함 할 일에 대한 제안만(30 §B).
-import { Check, Compass, Filter, FolderPlus, HelpCircle, ListPlus, MoreHorizontal, Network, RotateCcw, Sparkles, X, Zap } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Check, Columns3, FolderPlus, ListPlus, MoreHorizontal, Network, RotateCcw, Sparkles, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { localModels } from '../../../../shared/assistant'
-import { setGoalProgress, type GoalRow } from '../../data/growth'
+import { setGoalProgress, thisWeek, type GoalRow } from '../../data/growth'
 import { loadApplySnapshot, undoApply } from '../../data/listSuggest'
 import { loadBreakdownUndo, undoBreakdown } from '../../data/breakdown'
 import { moveGoalLink } from '../../data/mapGoals'
@@ -20,19 +20,22 @@ import { useTaskActions } from '../../lib/taskActions'
 import { eulReul } from '../../lib/josa'
 import { DetailPane } from '../DetailPane'
 import { Dialog } from '../Dialog'
-import { InboxSuggestCard, openInboxOrganize } from '../listSuggest/ListSuggest'
+import { openInboxOrganize, useInboxTasks } from '../listSuggest/ListSuggest'
 import { OrganizationEditor } from '../OrganizationEditor'
 import { MenuItem, Popover, SubMenu } from '../Popover'
 import { Resizer } from '../Resizer'
 import { useToast } from '../Toast'
 import { MapBoard } from './MapBoard'
 import { MapGraph, type LinkActions } from './MapGraph'
-import { TimelineHeadControls, TimelineMoreItems, TimelineOptionItems, useTimelineNav } from './TimelineControls'
+import { TimelineMoreItems, TimelineOptionItems, TimelineScaleItems, useTimelineNav } from './TimelineControls'
 import { TimelineView } from './TimelineView'
 import { BreakdownDialog } from './BreakdownDialog'
 import { NowStrip } from './NowStrip'
-import { MapGuideButton, MapGuidePanel, MapHint, MapTour, pickHint, useMapGuide, type HintId, type Recipe } from './MapGuide'
+import { MapGuideButton, MapGuidePanel, MapTour, useMapGuide, type Recipe } from './MapGuide'
 import { CardMenu } from './parts'
+import { ModeSeg, ReviewBand, TidyPanel } from './ModePanels'
+import { modeGroupBy, modeView, MODE_PRESET, OPEN_MAP, takeMapIntent, type MapIntent, type MapMode } from '../../data/mapMoments'
+import { SUGGEST } from '../../data/listSuggest'
 import type { MapTask } from '../../data/map'
 import type { MapActions } from './parts'
 import { DEFAULT_OPTIONS, useMapData, useStored, useStoredValue, type MapOptions } from './useMapData'
@@ -46,9 +49,17 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const toast = useToast()
   const taskActions = useTaskActions()
   const tags = useQuery<TagRow>('SELECT id, name, color FROM tags ORDER BY sort_order') ?? []
-  const [view, setView] = useStoredValue<'graph' | 'board' | 'timeline'>('view', 'graph')
-  const [opts, setOpts] = useStored<MapOptions>('options', DEFAULT_OPTIONS)
+  // 31 §10 모드(계획·점검·정리)가 보기를 정한다 — 계획 = 그래프(⇄ 보드 아이콘), 점검 = 타임라인 + 목표로 묶기, 정리 = 구조 그래프.
+  // 마지막 모드 기기 기억 sprout.map.mode, 계획의 그래프·보드는 sprout.map.view
+  const [mode, setModeRaw] = useStoredValue<MapMode>('mode', 'plan')
+  const [planView, setPlanView] = useStoredValue<'graph' | 'board' | 'timeline'>('view', 'graph')
+  const view = modeView(mode, planView)
+  const [userOpts, setOpts] = useStored<MapOptions>('options', DEFAULT_OPTIONS)
+  // 묶기·기간은 모드가 정한다(2026-10-05 정리): 점검 = 목표로 묶기(이번 주 목표가 없으면 리스트), 나머지 = 리스트 · 기간 전체
+  const goalCount = useQuery<{ n: number }>('SELECT count(*) AS n FROM kpis WHERE week_start = ?', [thisWeek()])?.[0]?.n ?? 0
+  const opts: MapOptions = useMemo(() => ({ ...userOpts, period: 'all', goalWeek: 'this', groupBy: modeGroupBy(mode, goalCount) }), [userOpts, mode, goalCount])
   const data = useMapData(opts, view)
+  const inboxN = useInboxTasks().length
   const tl = useTimelineNav() // 31 §2 타임라인 배율·막대 색·할일 정렬 칸(기기 기억 sprout.map.timeline)
   const [selected, setSelected] = useState<string | null>(null)
   const [detailW, setDetailW] = useState(DETAIL.def)
@@ -57,7 +68,6 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const [flash, setFlash] = useState<Set<string>>(new Set())
   // 31 §1 지금 할 일: ⚡ 집중(기기 기억 안 함 — 지도를 다시 열면 꺼짐) · 띠 접기(기기 기억 sprout.map.nowStrip) · 알약 클릭 이동
   const [focusNow, setFocusNow] = useState(false)
-  const [stripFolded, setStripFolded] = useStoredValue<0 | 1>('nowStrip', 0)
   const [reveal, setReveal] = useState<{ id: string; n: number }>()
   const [stripMenu, setStripMenu] = useState<{ task: MapTask; point: { x: number; y: number } }>()
   const [breakdownId, setBreakdownId] = useState<string | null>(null)
@@ -189,32 +199,48 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
     }
   }, [data.goals, data.links, skipGoals, notice, say])
 
-  const aiTitle = aiOk === false ? '지금은 AI를 쓸 수 없어요. 리스트는 직접 만들어 옮길 수 있어요.' : '기본함 정리 — AI가 리스트를 제안해요'
-  // 34 사용법: 첫 둘러보기 · 머리 ? 사용법 창 · 빈 상태 한 줄 안내
+  // 34 사용법: 첫 둘러보기 · 머리 ? 사용법 창
   const guide = useMapGuide(data.loaded)
-  const inScope = data.tasks.filter((t) => t.status === 0 && (!opts.lists || (t.list_id && opts.lists.includes(t.list_id))))
-  const hint = data.loaded ? pickHint({
-    view, groupBy: opts.groupBy ?? 'list', goals: data.goals.length,
-    openTasks: inScope.length,
-    seqLinks: data.links.filter((l) => l.kind === 'sequence' && l.state === 'accepted').length,
-    datedOpen: inScope.filter((t) => t.due_at || t.start_at).length,
-    panelOpen: tl.panel
-  }, guide.state.hints) : null
-  const onHint = (id: HintId) => {
-    if (id === 'nogoal') onGrowth?.()
-    else if (id === 'noseq') guide.openPanel('seq')
-    else tl.set('panel', true)
-  }
   const onRecipe = (r: Recipe) => {
-    if (r === 'morning') { setFocusNow(true); if (stripFolded) setStripFolded(0); return }
-    setView('graph')
-    if (r === 'goal') setOpt('groupBy', 'goal')
+    if (r === 'morning') { applyMode('plan'); setFocusNow(true); return }
+    applyMode(r === 'goal' ? 'review' : 'plan') // 34 §3: 해 보기 = 계획·점검 모드
   }
   const noTasks = data.loaded && data.allOpen === 0 && data.tasks.length === 0 && data.lists.filter((l) => l.kind !== 'inbox' && !l.archived_at).length === 0
   const setOpt = <K extends keyof MapOptions>(k: K, v: MapOptions[K]) => setOpts((o) => ({ ...o, [k]: v }))
   const undoSnap = pop?.kind === 'more' ? loadApplySnapshot() : null
   const breakdownSnap = pop?.kind === 'more' ? loadBreakdownUndo() : null
   const revealTask = (id: string) => { setSelected(id); setReveal((r) => ({ id, n: (r?.n ?? 0) + 1 })) }
+  // 31 §10.2 모드를 고르면(또는 순간이 열면) 묶음을 한 번 덮어쓴다 — 그 뒤 보기·옵션은 자유
+  const [todayCmd, setTodayCmd] = useState(0)
+  const applyMode = useCallback((m: MapMode) => {
+    const p = MODE_PRESET[m]
+    setModeRaw(m)
+    setOpts((o) => ({ ...o, showDone: p.showDone }))
+    if (p.timeline) { tl.set('scale', p.timeline.scale); setTodayCmd((n) => n + 1) }
+    setFocusNow(false)
+  }, [setModeRaw, setOpts, tl])
+  useEffect(() => { if (todayCmd) tl.today() }, [todayCmd]) // eslint-disable-line react-hooks/exhaustive-deps
+  // 31 §10.4 지도 열기 요청(순간 ①~④ · sprout://map 링크): 뜰 때 들고 있던 것 + 떠 있는 동안 오는 것
+  const [focusReq, setFocusReq] = useState<string>()
+  const applyIntent = useRef<(i: MapIntent) => void>(() => {})
+  applyIntent.current = (i: MapIntent) => {
+    if (i.mode) applyMode(i.mode)
+    if (i.task) setFocusReq(i.task)
+    if (i.task && i.breakdown) setBreakdownId(i.task)
+    if (i.now) setFocusNow(true)
+  }
+  useEffect(() => {
+    const first = takeMapIntent()
+    if (first) applyIntent.current(first)
+    const on = () => { const i = takeMapIntent(); if (i) applyIntent.current(i) }
+    window.addEventListener(OPEN_MAP, on)
+    return () => window.removeEventListener(OPEN_MAP, on)
+  }, [])
+  useEffect(() => {
+    if (!focusReq || !data.loaded) return
+    const t = window.setTimeout(() => { revealTask(focusReq); setFocusReq(undefined) }, 120) // 노드가 놓인 뒤
+    return () => window.clearTimeout(t)
+  }, [focusReq, data.loaded]) // eslint-disable-line react-hooks/exhaustive-deps
   // `N` 키(지도에 초점, 입력칸 밖) = 지금 집중 켜기·끄기 [임시]
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -233,48 +259,29 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   return (
     <main className="workspace map">
       <div className="map__main">
+        {/* 2026-10-05 정리: 제목 + 모드 하나 + 오른쪽 아이콘(계획의 그래프⇄보드 · ? · ⋯) — 틱틱 리스트 머리처럼 */}
         <header className="pane-header map-head">
           <h1 className="pane-header__title map-head__title">
             작업 지도
-            <span className="map-seg" role="tablist" aria-label="보기">
-              <button role="tab" aria-selected={view === 'graph'} className={view === 'graph' ? 'is-on' : ''} onClick={() => setView('graph')}>그래프</button>
-              <button role="tab" aria-selected={view === 'board'} className={view === 'board' ? 'is-on' : ''} onClick={() => setView('board')}>보드</button>
-              <button role="tab" aria-selected={view === 'timeline'} className={view === 'timeline' ? 'is-on' : ''} onClick={() => setView('timeline')}>타임라인</button>
-            </span>
+            <ModeSeg mode={mode} onMode={applyMode} tidyCount={inboxN > SUGGEST.inboxCard ? inboxN : 0} />
           </h1>
-          {view === 'graph' && opts.groupBy === 'goal' && (
-            <span className="map-seg map-seg--period" aria-label="목표 주">
-              <button className={opts.goalWeek !== 'next' ? 'is-on' : ''} onClick={() => setOpt('goalWeek', 'this')}>이번 주</button>
-              <button className={opts.goalWeek === 'next' ? 'is-on' : ''} onClick={() => setOpt('goalWeek', 'next')}>다음 주</button>
+          {mode === 'plan' && (
+            <span className="map-tip" data-tip={view === 'board' ? '그래프로 보기' : '보드로 보기'}>
+              <button className="icon-btn" aria-label={view === 'board' ? '그래프로 보기' : '보드로 보기'} onClick={() => setPlanView(view === 'board' ? 'graph' : 'board')}>
+                {view === 'board' ? <Network /> : <Columns3 />}
+              </button>
             </span>
           )}
-          {view === 'graph' && opts.groupBy !== 'goal' && (
-            <span className="map-seg map-seg--period" aria-label="기간">
-              <button className={opts.period === 'week' ? 'is-on' : ''} onClick={() => setOpt('period', 'week')}>이번 주</button>
-              <button className={opts.period === 'all' ? 'is-on' : ''} onClick={() => setOpt('period', 'all')}>전체</button>
-            </span>
-          )}
-          {view === 'timeline' && <TimelineHeadControls nav={tl} />}
-          <span className="map-tip" data-tip={`지금 할 수 있는 일만 밝게 (${data.strip.total}) · N`}>
-            <button className={`icon-btn map-now-btn${focusNow ? ' is-on' : ''}`} aria-pressed={focusNow} aria-label="지금 할 수 있는 일만 밝게" onClick={() => setFocusNow((f) => !f)}>
-              <Zap />{stripFolded && data.strip.total > 0 ? <span className="map-now-btn__dot" /> : null}
-            </button>
-          </span>
-          <span className="map-tip" data-tip={aiTitle}>
-            <button className="icon-btn" aria-label={aiTitle} disabled={aiOk === false} onClick={openInboxOrganize}><Sparkles /></button>
-          </span>
           <MapGuideButton guide={guide} />
-          <button className="icon-btn" aria-label="보기 옵션" onClick={(e) => setPop({ kind: 'filter', anchor: e.currentTarget })}><Filter /></button>
           <button className="icon-btn" aria-label="더 보기" onClick={(e) => setPop({ kind: 'more', anchor: e.currentTarget })}><MoreHorizontal /></button>
         </header>
 
-        <div className="map-suggest"><InboxSuggestCard compact /></div>
-        {data.loaded && !stripFolded && (
-          <NowStrip data={data} actions={actions} onReveal={revealTask} onMore={() => setFocusNow(true)} onFold={() => setStripFolded(1)}
+        {data.loaded && mode === 'review' && <ReviewBand data={data} actions={taskActions} onOpen={revealTask} onGrowth={onGrowth} />}
+        {data.loaded && mode === 'plan' && (
+          <NowStrip data={data} actions={actions} focusNow={focusNow} onFocus={() => setFocusNow((f) => !f)} onReveal={revealTask}
             onMenu={(task, e) => setStripMenu({ task, point: { x: e.clientX, y: e.clientY } })} />
         )}
 
-        {!noTasks && <MapHint id={hint} guide={guide} onAct={onHint} />}
 
         {!data.loaded ? <div className="map-fill" /> : noTasks ? (
           <div className="map-empty">
@@ -294,6 +301,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
           <MapBoard data={data} actions={actions} onReorderFolders={(ids) => void run(...reorderFoldersStmts(data.folders, ids))} reveal={reveal} say={say} onGrowth={onGrowth} />
         )}
 
+        {data.loaded && mode === 'tidy' && <TidyPanel aiOk={aiOk} onOpen={revealTask} />}
         {notice && (
           <div className="map-notice" key={notice.id} role="status">
             <Sparkles className="map-banner__icon" /><span>{notice.text}</span>
@@ -310,41 +318,33 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
         </div>
       )}
 
-      {pop?.kind === 'filter' && (
-        <Popover anchor={pop.anchor} align="end" width={230} onClose={() => setPop(undefined)} className="menu">
-          <MenuItem label="묶기: 리스트" onClick={() => setOpt('groupBy', 'list')} trail={opts.groupBy !== 'goal' ? <Check className="map-check" /> : undefined} />
-          <MenuItem label="묶기: 목표" onClick={() => setOpt('groupBy', 'goal')} trail={opts.groupBy === 'goal' ? <Check className="map-check" /> : undefined} />
-          <div className="menu__divider" />
-          <MenuItem label="완료한 항목 보이기" onClick={() => setOpt('showDone', !opts.showDone)} trail={opts.showDone ? <Check className="map-check" /> : undefined} />
-          <MenuItem label="날짜 없는 항목 보이기" onClick={() => setOpt('showNoDate', !opts.showNoDate)} trail={opts.showNoDate ? <Check className="map-check" /> : undefined} />
-          {view === 'timeline' && <TimelineOptionItems nav={tl} />}
-          {view === 'graph' && <MenuItem label="메모 보이기" onClick={() => setOpt('showMemos', !opts.showMemos)} trail={opts.showMemos ? <Check className="map-check" /> : undefined} />}
-          <div className="menu__divider" />
-          <MenuItem label="범위: 모든 리스트" onClick={() => setOpt('lists', null)} trail={!opts.lists ? <Check className="map-check" /> : undefined} />
-          <SubMenu label="범위: 고른 리스트" trail={opts.lists ? `${opts.lists.length}개` : undefined} width={220}>
-            {lists.map((l) => {
-              const on = !!opts.lists?.includes(l.id)
-              return <MenuItem key={l.id} label={listLabel(l)} onClick={() => {
-                const cur = opts.lists ?? []
-                const next = on ? cur.filter((x) => x !== l.id) : [...cur, l.id]
-                setOpt('lists', next.length ? next : null)
-              }} trail={on ? <Check className="map-check" /> : undefined} />
-            })}
-          </SubMenu>
-        </Popover>
-      )}
       {pop?.kind === 'more' && (
         <Popover anchor={pop.anchor} align="end" width={230} onClose={() => setPop(undefined)} className="menu">
           <MenuItem icon={<ListPlus />} label="새 리스트" onClick={() => { setPop(undefined); actions.editList() }} />
           <MenuItem icon={<FolderPlus />} label="새 폴더" onClick={() => { setPop(undefined); actions.editFolder() }} />
           <div className="menu__divider" />
-          <MenuItem icon={<Sparkles />} label="기본함 정리" disabled={aiOk === false} onClick={() => { setPop(undefined); openInboxOrganize() }} />
-          <MenuItem icon={<RotateCcw />} label="기본함 정리 되돌리기" disabled={!undoSnap} onClick={() => { setPop(undefined); void undoApply().then((ok) => toast.show(ok ? '기본함 정리를 되돌렸어요' : '되돌릴 정리가 없어요')) }} />
-          <MenuItem icon={<RotateCcw />} label="AI 쪼개기 되돌리기" disabled={!breakdownSnap} onClick={() => { setPop(undefined); undoBreak() }} />
-          <div className="menu__divider" />
+          {/* 보기 옵션(예전 거름틀) — 묶기·기간은 모드가 정해서 뺐다 */}
+          {view === 'timeline' && <TimelineScaleItems nav={tl} close={() => setPop(undefined)} />}
+          <MenuItem label="완료한 항목 보이기" onClick={() => setOpt('showDone', !userOpts.showDone)} trail={userOpts.showDone ? <Check className="map-check" /> : undefined} />
+          <MenuItem label="날짜 없는 항목 보이기" onClick={() => setOpt('showNoDate', !userOpts.showNoDate)} trail={userOpts.showNoDate ? <Check className="map-check" /> : undefined} />
+          {view === 'timeline' && <TimelineOptionItems nav={tl} />}
+          {view === 'graph' && <MenuItem label="메모 보이기" onClick={() => setOpt('showMemos', !userOpts.showMemos)} trail={userOpts.showMemos ? <Check className="map-check" /> : undefined} />}
+          <SubMenu label="범위" trail={userOpts.lists ? `${userOpts.lists.length}개 리스트` : '모든 리스트'} width={220}>
+            <MenuItem label="모든 리스트" onClick={() => setOpt('lists', null)} trail={!userOpts.lists ? <Check className="map-check" /> : undefined} />
+            <div className="menu__divider" />
+            {lists.map((l) => {
+              const on = !!userOpts.lists?.includes(l.id)
+              return <MenuItem key={l.id} label={listLabel(l)} onClick={() => {
+                const cur = userOpts.lists ?? []
+                const next = on ? cur.filter((x) => x !== l.id) : [...cur, l.id]
+                setOpt('lists', next.length ? next : null)
+              }} trail={on ? <Check className="map-check" /> : undefined} />
+            })}
+          </SubMenu>
           {view === 'timeline' && <TimelineMoreItems nav={tl} close={() => setPop(undefined)} />}
-          <MenuItem icon={<HelpCircle />} label="작업 지도 사용법" onClick={() => { setPop(undefined); guide.openPanel() }} />
-          <MenuItem icon={<Compass />} label="작업 지도 둘러보기" onClick={() => { setPop(undefined); guide.startTour() }} />
+          {(undoSnap || breakdownSnap) && <div className="menu__divider" />}
+          {undoSnap && <MenuItem icon={<RotateCcw />} label="기본함 정리 되돌리기" onClick={() => { setPop(undefined); void undoApply().then((ok) => toast.show(ok ? '기본함 정리를 되돌렸어요' : '되돌릴 정리가 없어요')) }} />}
+          {breakdownSnap && <MenuItem icon={<RotateCcw />} label="AI 쪼개기 되돌리기" onClick={() => { setPop(undefined); undoBreak() }} />}
         </Popover>
       )}
       {stripMenu && <CardMenu task={stripMenu.task} data={data} actions={actions} point={stripMenu.point} onClose={() => setStripMenu(undefined)} />}

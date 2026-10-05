@@ -1,0 +1,68 @@
+/* 31 §10 작업 지도 쓰는 순간·모드 — 토큰만 쓴다(13개 테마 라이트·다크) */
+
+
+
+/* ① 큰 일 칩 */
+.mm-chip { display: inline-flex; align-items: center; height: 20px; border-radius: 10px; background: var(--color-accent-subtle); color: var(--color-accent); font: 600 11px/20px var(--font-family); white-space: nowrap; flex: 0 0 auto; }
+.mm-chip__go { display: inline-flex; align-items: center; gap: 3px; padding: 0 4px 0 8px; color: inherit; font: inherit; border: 0; background: none; cursor: pointer; }
+.mm-chip__go svg { width: 11px; height: 11px; }
+.mm-chip__go:hover { text-decoration: underline; }
+.mm-chip__x { width: 0; height: 16px; overflow: hidden; display: grid; place-items: center; border: 0; background: none; color: var(--color-text-tertiary); border-radius: 8px; padding: 0; cursor: pointer; transition: width .12s; }
+.mm-chip__x svg { width: 10px; height: 10px; }
+.mm-chip:hover .mm-chip__x, .mm-chip__x:focus-visible { width: 16px; margin-right: 2px; }
+.mm-chip__x:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+/* ② ⚡ 줄 (19 어제 띠 모양) */
+.mm-now__icon { width: 14px; height: 14px; color: var(--color-accent); flex: 0 0 auto; }
+.od-band.mm-now .mm-now__task { padding: 0; color: var(--color-text-primary); font-weight: 600; }
+.od-band.mm-now .mm-now__task:hover { text-decoration: underline; }
+.mm-now__dot { color: var(--color-text-tertiary); }
+
+/* ③ 점검 카드 */
+.mm-review { border-style: solid; }
+
+/* 점검 띠 (지도) */
+.mm-band { flex-shrink: 0; margin: 0 21px 6px; padding: 8px 0 10px; border-bottom: 1px solid var(--color-border-divider); display: flex; flex-direction: column; gap: 8px; }
+.mm-goals { display: flex; gap: 8px; flex-wrap: wrap; }
+.mm-goal { flex: 1 1 140px; max-width: 240px; min-width: 0; display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border: 1px solid var(--color-border-divider); border-radius: 8px; background: var(--color-bg-card, var(--color-bg-input)); }
+.mm-goal .map-ring { width: 18px; height: 18px; flex: 0 0 auto; }
+.mm-goal__t { flex: 1; min-width: 0; font: 600 12.5px/16px var(--font-family); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-goal__n { font: var(--text-meta); color: var(--color-text-tertiary); }
+.mm-goal.is-done .mm-goal__t { color: var(--color-text-tertiary); }
+.mm-goals__empty { font: var(--text-meta); color: var(--color-text-tertiary); display: flex; align-items: center; gap: 4px; }
+.mm-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.mm-day { min-height: 70px; padding: 4px; border: 1px solid var(--color-border-divider); border-radius: 6px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mm-day.is-today { border-color: var(--color-accent); }
+.mm-day__n { font: 600 11px/14px var(--font-family); color: var(--color-text-secondary); margin-bottom: 1px; }
+.mm-day__more { font: 500 10.5px/14px var(--font-family); color: var(--color-text-tertiary); }
+.mm-bar { display: block; width: 100%; text-align: left; border: 0; border-radius: 3px; padding: 1px 4px; font: 500 10.5px/15px var(--font-family); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; background: var(--color-accent-subtle); color: var(--color-accent); }
+.mm-bar.is-done { background: var(--color-bg-selected); color: var(--color-text-tertiary); text-decoration: line-through; }
+.mm-bar.is-miss { background: color-mix(in srgb, var(--color-danger, #d44343) 14%, transparent); color: var(--color-danger, #d44343); }
+.mm-bar:hover { filter: brightness(.97); }
+.mm-late { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; background: var(--color-accent-subtle); font: var(--text-meta); }
+.mm-late__t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-text-primary); }
+.mm-late__names { color: var(--color-text-secondary); }
+@media (max-width: 900px) { .mm-week { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* 정리 패널 (지도 오른쪽 위에 뜨는 카드) */
+.mm-tidy { position: absolute; top: 62px; right: 16px; z-index: 6; width: 300px; max-width: calc(100% - 32px); max-height: calc(100% - 80px); overflow: auto; box-sizing: border-box; padding: 10px 12px; border-radius: var(--radius-lg, 10px); background: var(--color-bg-popover); box-shadow: var(--shadow-popover); display: flex; flex-direction: column; gap: 6px; }
+.mm-tidy__head { display: flex; align-items: center; gap: 6px; font: 600 13px/18px var(--font-family); }
+.mm-tidy__spark { width: 14px; height: 14px; color: var(--color-accent); }
+.mm-tidy__count { font: var(--text-meta); color: var(--color-text-tertiary); flex: 1; }
+.mm-tidy__x { width: 22px; height: 22px; }
+.mm-tidy__x svg { width: 13px; height: 13px; }
+.mm-tidy__note { margin: 0; font: var(--text-meta); color: var(--color-text-tertiary); }
+.mm-tidy__rows { display: flex; flex-direction: column; gap: 4px; }
+.mm-tidy__row { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 5px 8px; border: 1px solid var(--color-border-divider); border-radius: 6px; background: none; text-align: left; font: 12px/16px var(--font-family); color: var(--color-text-primary); cursor: pointer; }
+.mm-tidy__row:hover { background: var(--color-bg-hover); }
+.mm-tidy__task { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-tidy__to { color: var(--color-accent); font-weight: 600; white-space: nowrap; max-width: 50%; overflow: hidden; text-overflow: ellipsis; }
+.mm-tidy__more { font: var(--text-meta); color: var(--color-text-tertiary); padding-left: 2px; }
+.mm-tidy__acts { display: flex; justify-content: flex-end; gap: 6px; margin-top: 2px; }
+.ls-btn--link { border-color: transparent; color: var(--color-accent); font-weight: 600; padding: 0 6px; }
+
+/* 2026-10-05 정리: 정리 탭 옆 기본함 수 · 지금 띠 이름표 = ⚡ 집중 단추 */
+.map-mode__n { margin-left: 4px; padding: 0 5px; border-radius: 8px; background: var(--color-accent); color: #fff; font: 600 10px/15px var(--font-family); }
+.map-now__label.map-now-btn { border: 0; background: none; padding: 3px 8px 3px 6px; margin-left: -6px; border-radius: 6px; cursor: pointer; }
+.map-now__label.map-now-btn:hover { background: var(--color-bg-hover); }
+.map-now__label.map-now-btn.is-on { background: var(--color-accent-subtle); color: var(--color-accent); }

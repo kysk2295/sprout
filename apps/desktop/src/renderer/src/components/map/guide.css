@@ -63,12 +63,10 @@
 .mg-tour__foot .map-btn { height: 28px; padding: 0 12px; }
 
 /* ── 한 줄 안내(.map-banner 모양) ── */
-.mg-hint { animation: mg-fade var(--motion-base, 160ms) ease-out; }
-.mg-hint > span:first-of-type { flex: 1; min-width: 0; }
 
 @keyframes mg-fade { from { opacity: 0; } }
 @keyframes mg-rise { from { opacity: 0; transform: translateY(4px); } }
 @media (prefers-reduced-motion: reduce) {
-  .mg-tour__scrim, .mg-tour__hole, .mg-tour__card, .mg-hint { animation: none; }
+  .mg-tour__scrim, .mg-tour__hole, .mg-tour__card { animation: none; }
   .mg-tour__hole, .mg-tour__dots li, .mg-sec { transition: none; }
 }
