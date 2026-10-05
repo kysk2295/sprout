@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Android 적응형 전경 — 안전 원 61% 안 -->
+  <defs></defs>
+  <mask id="maf" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400">
+    <rect x="-200" y="-200" width="1400" height="1400" fill="#fff"/>
+      <path d="M318 548 L452 682 L705 382" fill="none" stroke="#000" stroke-width="96" stroke-linecap="round" stroke-linejoin="round"/>
+  </mask>
+  <g transform="translate(245.5 252.8) scale(0.5257)">
+    <g mask="url(#maf)">
+      <path d="M135 865 C 105 470 420 150 880 120 C 905 560 600 890 135 865 Z" fill="#FFFFFF"/>
+    </g>
+  </g>
+</svg>

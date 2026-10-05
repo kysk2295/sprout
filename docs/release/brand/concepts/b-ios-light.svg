@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- iOS·App Store·Play 512 원본 — 꽉 찬 사각형 -->
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5CD08F"/><stop offset="1" stop-color="#1F9455"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#bg)"/>
+  <mask id="ml" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400">
+    <rect x="-200" y="-200" width="1400" height="1400" fill="#fff"/>
+      <rect x="100" y="318" width="800" height="48" fill="#000"/>
+      <path d="M500 800 L500 615" stroke="#000" stroke-width="74" stroke-linecap="round"/>
+      <path d="M492 660 C 400 660 300 605 290 478 C 420 470 496 548 492 660 Z" fill="#000"/>
+      <path d="M508 618 C 520 500 610 428 725 428 C 728 548 630 624 508 618 Z" fill="#000"/>
+  </mask>
+  <g transform="translate(185.3 185.3) scale(0.6541)">
+    <g mask="url(#ml)">
+      <rect x="130" y="205" width="740" height="690" rx="150" fill="#FFFFFF"/>
+      <rect x="290" y="105" width="104" height="200" rx="52" fill="#FFFFFF"/>
+      <rect x="606" y="105" width="104" height="200" rx="52" fill="#FFFFFF"/>
+    </g>
+  </g>
+</svg>

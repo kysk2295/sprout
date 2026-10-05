@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sprout 로고 후보</title>
+<link rel="icon" href="out/a/web/favicon.svg">
+<style>
+  :root {
+    --bg: #f6f7f6; --card: #fff; --ink: #18201b; --muted: #6b746e; --line: #e4e8e5;
+    --brand: #2BAE66; --brand-ink: #1F7A49; --rec: #fff4d6; --rec-ink: #8a5a00;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.55 var(--font); padding: 32px 20px 64px; }
+  main { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h2 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  h3 { font-size: 12px; margin: 0 0 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  p { margin: 0 0 8px; }
+  .lede { color: var(--muted); max-width: 760px; }
+  .note { font-size: 12px; color: var(--muted); }
+  code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: #eef1ef; padding: 1px 5px; border-radius: 4px; }
+
+  .compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 24px 0 36px; }
+  .pick { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; grid-template-columns: 72px 1fr; gap: 14px; align-items: center; text-decoration: none; color: inherit; }
+  .pick img { width: 72px; height: 72px; border-radius: 16px; }
+  .pick b { display: block; font-size: 15px; }
+  .pick.rec { border-color: #f0c454; box-shadow: 0 0 0 3px var(--rec); }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--rec); color: var(--rec-ink); margin-left: 6px; vertical-align: 2px; }
+
+  section.concept { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 24px; margin: 0 0 28px; }
+  section.concept.rec { border-color: #f0c454; box-shadow: 0 0 0 4px var(--rec); }
+  .head { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-start; margin-bottom: 20px; }
+  .head .title { flex: 1 1 320px; }
+  .pros { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; font-size: 13px; margin-top: 8px; }
+  .pros ul { margin: 0; padding-left: 18px; }
+  .masters { display: flex; gap: 10px; flex-wrap: wrap; }
+  .masters figure { margin: 0; text-align: center; font-size: 11px; color: var(--muted); }
+  .masters img { width: 96px; height: 96px; display: block; }
+  .chk { background-image: linear-gradient(45deg,#e9ece9 25%,transparent 25%),linear-gradient(-45deg,#e9ece9 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e9ece9 75%),linear-gradient(-45deg,transparent 75%,#e9ece9 75%); background-size: 12px 12px; background-position: 0 0,0 6px,6px -6px,-6px 0; border-radius: 8px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 16px; }
+  .tile { border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; overflow: hidden; }
+
+  /* macOS Dock */
+  .desk { height: 170px; border-radius: 10px; background: linear-gradient(160deg, #8fb3d9, #c9a7d8 55%, #f2c6a4); position: relative; overflow: hidden; }
+  .menubar { height: 24px; display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 0 12px; font-size: 12px; }
+  .menubar.light { background: rgba(246,246,246,.78); color: #111; }
+  .menubar.dark { background: rgba(30,30,30,.82); color: #f2f2f2; }
+  .menubar .tray { width: 16px; height: 16px; }
+  .menubar.dark .tray { filter: invert(1); }
+  .menubar .tray-sel { background: rgba(0,0,0,.12); border-radius: 4px; padding: 3px 5px; display: inline-flex; }
+  .menubar.dark .tray-sel { background: rgba(255,255,255,.18); }
+  .dock { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); display: flex; gap: 2px; padding: 4px 6px; border-radius: 18px; background: rgba(255,255,255,.35); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.4); }
+  .dock img, .dock .ph { width: 54px; height: 54px; display: block; }
+  .dock .ph { padding: 5px; } .dock .ph i { display: block; width: 100%; height: 100%; border-radius: 10px; }
+  .dock .me { position: relative; } .dock .me::after { content: ""; position: absolute; left: 50%; bottom: -3px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: #222; }
+  .desk.dark { background: linear-gradient(160deg, #1d2633, #2e2440 55%, #3a2a24); }
+  .desk.dark .dock { background: rgba(40,40,40,.45); border-color: rgba(255,255,255,.12); }
+
+  /* iOS 홈 화면 */
+  .phones { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .phone { width: 190px; height: 372px; border-radius: 34px; border: 6px solid #111; padding: 34px 14px 0; position: relative; overflow: hidden; }
+  .phone.light { background: linear-gradient(170deg, #b8d8f2, #e9d3f0 60%, #fbe6cf); }
+  .phone.dark { background: linear-gradient(170deg, #0d1b2a, #1f1630 60%, #2a1b14); }
+  .phone .apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 4px; }
+  .phone .app { text-align: center; font-size: 8.5px; }
+  .phone.light .app { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+  .phone.dark .app { color: #eee; }
+  .phone .app img, .phone .app i { display: block; width: 34px; height: 34px; margin: 0 auto 3px; border-radius: 8px; }
+  .phone.dark .app .darkicon { background: linear-gradient(180deg, #2a2a2c, #111113); }
+  .phone .dockbar { position: absolute; left: 10px; right: 10px; bottom: 12px; height: 58px; border-radius: 22px; background: rgba(255,255,255,.3); display: flex; justify-content: space-around; align-items: center; }
+  .phone.dark .dockbar { background: rgba(60,60,60,.45); }
+  .phone .dockbar i { width: 34px; height: 34px; border-radius: 9px; display: block; }
+
+  /* Android */
+  .layers { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; }
+  .layer { text-align: center; font-size: 11px; color: var(--muted); }
+  .layer .box { width: 88px; height: 88px; position: relative; border-radius: 6px; overflow: hidden; }
+  .layer .box img { width: 100%; height: 100%; display: block; }
+  .layer .safe::after { content: ""; position: absolute; inset: 17px; border: 1.5px dashed rgba(255,80,80,.9); border-radius: 50%; }
+  .masks { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+  .adaptive { width: 58px; height: 58px; position: relative; overflow: hidden; }
+  .adaptive img { position: absolute; inset: -9px; width: 76px; height: 76px; }
+  .m-circle { border-radius: 50%; } .m-squircle { border-radius: 38%; } .m-rounded { border-radius: 18%; } .m-tear { border-radius: 50% 50% 50% 18%; }
+  .themed { width: 58px; height: 58px; border-radius: 50%; background: #d3e8da; position: relative; overflow: hidden; }
+  .themed img { position: absolute; inset: -9px; width: 76px; height: 76px; opacity: .78; }
+  .themed.dk { background: #1e3327; } .themed.dk img { filter: invert(1); opacity: .82; }
+  /* 실제 테마 아이콘은 단색 레이어를 배경화면 색으로 칠한다 — 여기선 file:// 제한 때문에 투명도로 흉내 */
+
+  /* 파비콘·트레이 */
+  .browser { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #dfe3e8; }
+  .tabs { display: flex; gap: 2px; padding: 6px 6px 0; }
+  .tab { display: flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 12px; border-radius: 8px 8px 0 0; background: #cfd4da; color: #333; max-width: 170px; white-space: nowrap; overflow: hidden; }
+  .tab.on { background: #fff; }
+  .tab img { width: 16px; height: 16px; flex: none; }
+  .addr { background: #fff; padding: 8px 12px; font-size: 12px; color: #555; border-top: 1px solid #e8e8e8; }
+  .browser.dark { background: #202124; } .browser.dark .tab { background: #2d2e31; color: #ddd; } .browser.dark .tab.on { background: #35363a; } .browser.dark .addr { background: #35363a; color: #bbb; border-color: #3c3c3c; }
+  .win { margin-top: 12px; height: 40px; background: #1f1f1f; border-radius: 8px; display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 0 12px; color: #eee; font-size: 11px; }
+  .win img { width: 16px; height: 16px; }
+  .ladder { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+  .ladder figure { margin: 0; text-align: center; font-size: 10px; color: var(--muted); }
+  .ladder img { display: block; margin: 0 auto 4px; }
+  .pix img { image-rendering: pixelated; }
+
+  .names { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .tablewrap { overflow-x: auto; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  .v-good { color: #1f7a49; font-weight: 700; } .v-warn { color: #a06a00; font-weight: 700; } .v-bad { color: #b33a3a; font-weight: 700; }
+  @media (max-width: 560px) { .pros { grid-template-columns: 1fr; } .phone { width: 168px; height: 330px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>로고 후보 3안 <span class="note">· 코드네임 sprout · 2026-10-05</span></h1>
+  <p class="lede">세 안 모두 직접 그린 원본이다(틱틱 로고·아이콘 미사용). 정식 이름이 정해지지 않아 <b>글자 없이 기호만으로</b> 읽히게 만들었다. 틱틱 로고(파란 체크·원형 테두리)와 헷갈리지 않도록 파랑·원형 테두리는 피했고, 성장 루프를 나타내는 초록 계열로 통일했다. 각 안 아래에 Mac Dock, iOS 홈 화면, Android 적응형 아이콘, 파비콘, 메뉴 막대(트레이)에 놓은 모습이 있다.</p>
+  <p class="note">원본 SVG: <code>docs/release/brand/concepts/&lt;a|b|c&gt;-*.svg</code> · 기호 정의: <code>scripts/brand/glyphs.mjs</code> · 모든 크기 만들기: <code>node scripts/brand/build-icons.mjs &lt;a|b|c&gt;</code> (추천안 결과: <code>docs/release/brand/out/a/</code>)</p>
+
+  <div class="compare" id="compare"></div>
+  <div id="concepts"></div>
+
+  <section class="names">
+    <h2>정식 이름 후보 (1차 조사 — 전부 확인 필요)</h2>
+    <p class="note" style="margin:6px 0 14px">웹 검색만으로 본 결과다. 법적 판단이 아니며 KIPRIS(9·42류)·USPTO·앱스토어 직접 검색과 변리사 상담이 필요하다. 자세한 내용은 <code>name-candidates.md</code>. <b>코드네임 "Sprout"는 같은 컨셉의 할 일 앱(할 일을 하면 펫이 자람, 수달 포함)이 이미 스토어에 있어 정식 이름으로 쓰면 위험하다.</b></p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>후보</th><th>영문</th><th>뜻</th><th>1차 판정</th><th>메모</th></tr></thead>
+      <tbody>
+        <tr><td><b>해싹</b></td><td>Haessak</td><td>해(실행) + 싹(성장)</td><td class="v-good">유망 · 1순위</td><td>같은 이름 앱 안 보임, .com·.app 비어 보임. 보안 회사 "한싹"과 유사성 확인</td></tr>
+        <tr><td><b>꿈틀</b></td><td>Kkumteul</td><td>작게 움직여 자람, "꿈"</td><td class="v-good">유망 · 2순위</td><td>.app 비어 보임, .com 등록됨. 영문 표기 정해야 함</td></tr>
+        <tr><td><b>움틈</b></td><td>Umteum</td><td>싹이 움트다</td><td class="v-good">유망(약한 주의) · 3순위</td><td>업종 다른 공방 이름과 겹침, .app 비어 보임</td></tr>
+        <tr><td>도담</td><td>Dodam</td><td>탈 없이 잘 자라는 모양</td><td class="v-warn">주의</td><td>"도담도담" 앱 다수</td></tr>
+        <tr><td>쑥쑥</td><td>Ssukssuk</td><td>빠르게 자라다</td><td class="v-bad">위험</td><td>육아·가계부 앱 다수</td></tr>
+        <tr><td>새싹</td><td>Saessak</td><td>새싹</td><td class="v-bad">위험</td><td>서울시 SeSAC, 일반명사라 식별력 약함</td></tr>
+        <tr><td>자람</td><td>Jaram</td><td>자라다</td><td class="v-bad">위험</td><td>육아·학교 앱, 도메인 둘 다 등록</td></tr>
+        <tr><td>스프리그</td><td>Sprig</td><td>잔가지</td><td class="v-bad">위험</td><td>같은 이름 소프트웨어 회사 상표(USPTO)</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</main>
+
+<script>
+  const CONCEPTS = [
+    { id: 'a', name: '새싹 체크', en: 'Check Sprout', rec: true,
+      idea: '체크 표시의 긴 획이 그대로 줄기가 되어 잎 두 장을 틔운다. "끝낸 일이 자란다", 곧 할 일 완료 → XP → 캐릭터 성장이라는 제품 핵심을 기호 하나에 담았다.',
+      pros: ['할 일 앱이라는 것(체크)과 성장(새싹)이 한눈에 보인다', '세 안 중 가장 독창적이라 이름이 정해진 뒤에도 상표 식별력이 좋다', '32px 이하에서는 잎 하나짜리 단순형을 자동으로 쓴다'],
+      cons: ['잎 두 장은 16px에서 작아진다(단순형으로 보완)', '체크 표시 자체는 할 일 앱에 흔한 모티프다'] },
+    { id: 'b', name: '달력 새싹', en: 'Calendar Seedling', rec: false,
+      idea: '달력 한 장 가운데에서 새싹이 돋는다. 할 일·캘린더 앱에 성장을 얹은 구성을 그대로 보여 준다.',
+      pros: ['캘린더 기능이 정면으로 드러난다', '실루엣(달력)이 크고 단단해서 Dock·홈 화면에서 잘 보인다'],
+      cons: ['달력 아이콘은 기본 캘린더 앱을 비롯해 흔하다. "캘린더 전용 앱"으로 오해할 수 있다', '16px에서는 안쪽 새싹이 뭉개진다'] },
+    { id: 'c', name: '잎 체크', en: 'Leaf Check', rec: false,
+      idea: '잎 한 장의 잎맥 자리에 체크를 넣었다. 셋 중 가장 단순하다.',
+      pros: ['16px 메뉴 막대에서 가장 또렷하다', '단색·테마 아이콘으로 바꿔도 모양이 그대로 유지된다'],
+      cons: ['친환경·인증 마크(eco·verified)에서 흔히 쓰는 모양이라 식별력이 약하다', '캐릭터 성장 이야기와는 연결이 약하다'] }
+  ];
+  const svg = (id, v) => `concepts/${id}-${v}.svg`;
+  const ph = (c) => `<span class="ph"><i style="background:${c}"></i></span>`;
+  const neutral = ['#7d8fa3', '#d9a441', '#c96f6f', '#6f9fc9', '#9a7fc4', '#7fb59a', '#c4a27f', '#5f6b7a'];
+
+  document.getElementById('compare').innerHTML = CONCEPTS.map(k => `
+    <a class="pick ${k.rec ? 'rec' : ''}" href="#c-${k.id}">
+      <img src="${svg(k.id, 'ios-light')}" alt="">
+      <span><b>${k.id.toUpperCase()}. ${k.name}${k.rec ? '<span class="badge">추천</span>' : ''}</b><span class="note">${k.en}</span></span>
+    </a>`).join('');
+
+  document.getElementById('concepts').innerHTML = CONCEPTS.map(k => {
+    const others = (n, off = 0) => Array.from({ length: n }, (_, i) => neutral[(i + off) % neutral.length]);
+    const homeApps = (dark) => others(15, 2).map((c, i) => i === 5
+      ? `<div class="app">${dark ? `<img class="darkicon" src="${svg(k.id, 'ios-dark')}" alt="">` : `<img src="${svg(k.id, 'ios-light')}" alt="">`}sprout</div>`
+      : `<div class="app"><i style="background:${c};opacity:${dark ? .75 : 1}"></i>앱</div>`).join('');
+    return `
+    <section class="concept ${k.rec ? 'rec' : ''}" id="c-${k.id}">
+      <div class="head">
+        <div class="title">
+          <h2>${k.id.toUpperCase()}. ${k.name} <span class="note">${k.en}</span>${k.rec ? '<span class="badge">추천</span>' : ''}</h2>
+          <p style="margin-top:8px">${k.idea}</p>
+          <div class="pros">
+            <div><b style="color:#1f7a49">장점</b><ul>${k.pros.map(x => `<li>${x}</li>`).join('')}</ul></div>
+            <div><b style="color:#a06a00">아쉬운 점</b><ul>${k.cons.map(x => `<li>${x}</li>`).join('')}</ul></div>
+          </div>
+        </div>
+        <div class="masters">
+          <figure><img src="${svg(k.id, 'ios-light')}" style="border-radius:22%" alt="">라이트</figure>
+          <figure><img src="${svg(k.id, 'square-dark')}" style="border-radius:22%" alt="">다크</figure>
+          <figure><img class="chk" src="${svg(k.id, 'mono')}" alt="">단색(템플릿)</figure>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="tile">
+          <h3>macOS Dock · 메뉴 막대</h3>
+          <div class="desk">
+            <div class="menubar light"><span>Wi‑Fi</span><span class="tray-sel"><img class="tray" src="${svg(k.id, 'mono-small')}" alt=""></span><span>월 10월 5일 09:41</span></div>
+            <div class="dock">${others(3).map(ph).join('')}<img class="me" src="${svg(k.id, 'mac-light')}" alt="">${others(3, 4).map(ph).join('')}</div>
+          </div>
+          <div class="desk dark" style="margin-top:10px">
+            <div class="menubar dark"><span class="tray-sel"><img class="tray" src="${svg(k.id, 'mono-small')}" alt=""></span><span>월 10월 5일 21:41</span></div>
+            <div class="dock">${others(3, 1).map(ph).join('')}<img class="me" src="${svg(k.id, 'mac-dark')}" alt="">${others(3, 5).map(ph).join('')}</div>
+          </div>
+          <p class="note" style="margin-top:8px">메뉴 막대는 템플릿 이미지(검정+알파)라 macOS가 라이트·다크에 맞춰 칠한다. 위는 16pt 실제 크기.</p>
+        </div>
+        <div class="tile">
+          <h3>iOS 홈 화면 (라이트 · iOS 18 다크)</h3>
+          <div class="phones">
+            <div class="phone light"><div class="apps">${homeApps(false)}</div><div class="dockbar">${others(4, 3).map(c => `<i style="background:${c}"></i>`).join('')}</div></div>
+            <div class="phone dark"><div class="apps">${homeApps(true)}</div><div class="dockbar">${others(4, 3).map(c => `<i style="background:${c};opacity:.75"></i>`).join('')}</div></div>
+          </div>
+        </div>
+        <div class="tile">
+          <h3>Android 적응형 아이콘</h3>
+          <div class="layers">
+            <div class="layer"><div class="box safe"><img src="${svg(k.id, 'android-bg')}" alt=""></div>배경</div>
+            <div class="layer"><div class="box safe chk"><img src="${svg(k.id, 'android-fg')}" style="filter:drop-shadow(0 0 1px rgba(0,0,0,.5))" alt=""></div>전경</div>
+            <div class="layer"><div class="box safe chk"><img src="${svg(k.id, 'android-mono')}" alt=""></div>단색(13+)</div>
+          </div>
+          <p class="note" style="margin-top:6px">빨간 점선 = 안전 영역(지름 66dp). 기호는 그 안에 있다.</p>
+          <div class="masks">
+            ${['m-circle', 'm-squircle', 'm-rounded', 'm-tear'].map(m => `<div class="adaptive ${m}" style="background:url('${svg(k.id, 'android-bg')}') center/cover"><img src="${svg(k.id, 'android-fg')}" alt=""></div>`).join('')}
+            <div class="themed"><img src="${svg(k.id, 'android-mono')}" alt=""></div>
+            <div class="themed dk"><img src="${svg(k.id, 'android-mono')}" alt=""></div>
+          </div>
+          <p class="note" style="margin-top:6px">원형·스쿼클·둥근 사각·물방울 마스크 + 테마 아이콘(라이트·다크)</p>
+        </div>
+        <div class="tile">
+          <h3>파비콘 · Windows 트레이 · 크기</h3>
+          <div class="browser"><div class="tabs"><div class="tab on"><img src="${svg(k.id, 'favicon-small')}" alt="">계정 삭제 안내</div><div class="tab"><i style="width:16px;height:16px;border-radius:4px;background:#9aa4ae;display:block"></i>다른 탭</div></div><div class="addr">https://[도메인]/delete-account</div></div>
+          <div class="browser dark" style="margin-top:8px"><div class="tabs"><div class="tab on"><img src="${svg(k.id, 'favicon-small')}" alt="">개인정보 처리방침</div><div class="tab"><i style="width:16px;height:16px;border-radius:4px;background:#5f6b7a;display:block"></i>다른 탭</div></div><div class="addr">https://[도메인]/privacy</div></div>
+          <div class="win"><span>^</span><img src="${svg(k.id, 'favicon-small')}" alt=""><span>한</span><span>오후 9:41</span></div>
+          <div class="ladder">
+            ${[16, 24, 32, 48, 64, 128].map(s => `<figure><img src="${svg(k.id, s <= 32 ? 'favicon-small' : 'favicon')}" width="${s}" height="${s}" alt="">${s}</figure>`).join('')}
+          </div>
+        </div>
+      </div>
+    </section>`;
+  }).join('');
+</script>
+</body>
+</html>

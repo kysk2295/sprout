@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- 단색 작은 크기(≤32px) -->
+  <defs></defs>
+  <mask id="mmos" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400">
+    <rect x="-200" y="-200" width="1400" height="1400" fill="#fff"/>
+      <path d="M318 548 L452 682 L705 382" fill="none" stroke="#000" stroke-width="96" stroke-linecap="round" stroke-linejoin="round"/>
+  </mask>
+  <g transform="translate(-141.0 -122.9) scale(1.2879)">
+    <g mask="url(#mmos)">
+      <path d="M135 865 C 105 470 420 150 880 120 C 905 560 600 890 135 865 Z" fill="#000000"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- iOS 18 다크 아이콘 — 배경 투명 -->
+  <defs><linearGradient id="fg" gradientUnits="userSpaceOnUse" x1="0" y1="100" x2="0" y2="900"><stop offset="0" stop-color="#7BE5A8"/><stop offset="1" stop-color="#34B771"/></linearGradient></defs>
+  <mask id="md" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400">
+    <rect x="-200" y="-200" width="1400" height="1400" fill="#fff"/>
+  </mask>
+  <g transform="translate(165.2 174.7) scale(0.7071)">
+    <g mask="url(#md)">
+      <path d="M150 560 L370 770 C 450 650 520 545 600 440" fill="none" stroke="url(#fg)" stroke-width="130" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M585 470 C 585 290 700 150 895 120 C 912 310 790 450 585 470 Z" fill="url(#fg)"/>
+      <path d="M560 455 C 450 450 372 375 356 262 C 480 258 560 340 560 455 Z" fill="url(#fg)"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- 단색 흰색 작은 크기 -->
+  <defs></defs>
+  <mask id="mmws" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400">
+    <rect x="-200" y="-200" width="1400" height="1400" fill="#fff"/>
+  </mask>
+  <g transform="translate(-94.9 -78.2) scale(1.2374)">
+    <g mask="url(#mmws)">
+      <path d="M150 560 L370 770 C 450 650 520 545 600 440" fill="none" stroke="#FFFFFF" stroke-width="140" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M585 470 C 585 290 700 150 895 120 C 912 310 790 450 585 470 Z" fill="#FFFFFF"/>
+    </g>
+  </g>
+</svg>

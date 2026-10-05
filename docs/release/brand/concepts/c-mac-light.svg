@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- macOS 앱 아이콘 — 1024 캔버스, 본체 824 -->
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5CD08F"/><stop offset="1" stop-color="#1F9455"/></linearGradient><filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.22"/></filter></defs><rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#sh)"/>
+  <mask id="mml" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400">
+    <rect x="-200" y="-200" width="1400" height="1400" fill="#fff"/>
+      <path d="M318 548 L452 682 L705 382" fill="none" stroke="#000" stroke-width="96" stroke-linecap="round" stroke-linejoin="round"/>
+  </mask>
+  <g transform="translate(205.5 214.0) scale(0.6045)">
+    <g mask="url(#mml)">
+      <path d="M135 865 C 105 470 420 150 880 120 C 905 560 600 890 135 865 Z" fill="#FFFFFF"/>
+    </g>
+  </g>
+</svg>

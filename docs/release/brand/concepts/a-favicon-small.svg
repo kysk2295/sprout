@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- 파비콘 작은 크기(≤32px) -->
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5CD08F"/><stop offset="1" stop-color="#1F9455"/></linearGradient></defs><rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+  <mask id="mfvs" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400">
+    <rect x="-200" y="-200" width="1400" height="1400" fill="#fff"/>
+  </mask>
+  <g transform="translate(66.1 78.4) scale(0.9091)">
+    <g mask="url(#mfvs)">
+      <path d="M150 560 L370 770 C 450 650 520 545 600 440" fill="none" stroke="#FFFFFF" stroke-width="140" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M585 470 C 585 290 700 150 895 120 C 912 310 790 450 585 470 Z" fill="#FFFFFF"/>
+    </g>
+  </g>
+</svg>

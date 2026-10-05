@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- 스플래시(라이트) — 배경 #2BAE66 -->
+  <defs></defs>
+  <mask id="msl" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400">
+    <rect x="-200" y="-200" width="1400" height="1400" fill="#fff"/>
+  </mask>
+  <g transform="translate(-20.6 -6.0) scale(1.0859)">
+    <g mask="url(#msl)">
+      <path d="M150 560 L370 770 C 450 650 520 545 600 440" fill="none" stroke="#FFFFFF" stroke-width="130" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M585 470 C 585 290 700 150 895 120 C 912 310 790 450 585 470 Z" fill="#FFFFFF"/>
+      <path d="M560 455 C 450 450 372 375 356 262 C 480 258 560 340 560 455 Z" fill="#FFFFFF"/>
+    </g>
+  </g>
+</svg>

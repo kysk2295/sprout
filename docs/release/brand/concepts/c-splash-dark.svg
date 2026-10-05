@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- 스플래시(다크) — 배경 #0F1E16 -->
+  <defs><linearGradient id="fg" gradientUnits="userSpaceOnUse" x1="0" y1="100" x2="0" y2="900"><stop offset="0" stop-color="#7BE5A8"/><stop offset="1" stop-color="#34B771"/></linearGradient></defs>
+  <mask id="msd" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400">
+    <rect x="-200" y="-200" width="1400" height="1400" fill="#fff"/>
+      <path d="M318 548 L452 682 L705 382" fill="none" stroke="#000" stroke-width="96" stroke-linecap="round" stroke-linejoin="round"/>
+  </mask>
+  <g transform="translate(-61.0 -45.2) scale(1.1302)">
+    <g mask="url(#msd)">
+      <path d="M135 865 C 105 470 420 150 880 120 C 905 560 600 890 135 865 Z" fill="url(#fg)"/>
+    </g>
+  </g>
+</svg>
