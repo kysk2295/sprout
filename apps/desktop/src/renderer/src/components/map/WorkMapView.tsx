@@ -1,6 +1,6 @@
 // 14 작업 지도 v2.0 + 31 v3 — 머리(그래프·보드·타임라인 · 기간 · ⚡ 지금 · ✦ 기본함 정리 · 거름틀 · ⋯), AI 제안 카드, 지금 띠, 보기, 상세 패널(02와 같은 컴포넌트).
 // 내 폴더 › 리스트 › 할 일을 틱틱처럼 직접 고친다. AI는 기본함 할 일에 대한 제안만(30 §B).
-import { Check, Filter, FolderPlus, HelpCircle, ListPlus, MoreHorizontal, Network, RotateCcw, Sparkles, X, Zap } from 'lucide-react'
+import { Check, Compass, Filter, FolderPlus, HelpCircle, ListPlus, MoreHorizontal, Network, RotateCcw, Sparkles, X, Zap } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { localModels } from '../../../../shared/assistant'
 import { setGoalProgress, type GoalRow } from '../../data/growth'
@@ -31,6 +31,7 @@ import { TimelineHeadControls, TimelineMoreItems, TimelineOptionItems, useTimeli
 import { TimelineView } from './TimelineView'
 import { BreakdownDialog } from './BreakdownDialog'
 import { NowStrip } from './NowStrip'
+import { MapGuideButton, MapGuidePanel, MapHint, MapTour, pickHint, useMapGuide, type HintId, type Recipe } from './MapGuide'
 import { CardMenu } from './parts'
 import type { MapTask } from '../../data/map'
 import type { MapActions } from './parts'
@@ -63,7 +64,6 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const [confirm, setConfirm] = useState<Confirm>()
   const [editor, setEditor] = useState<{ kind: 'list' | 'folder'; item?: OrganizationItem; folderId?: string }>()
   const [pop, setPop] = useState<{ kind: 'filter' | 'more'; anchor: HTMLElement }>()
-  const [help, setHelp] = useState(false)
   const [notice, setNotice] = useState<Notice>()
   const [aiOk, setAiOk] = useState<boolean | null>(null)
 
@@ -190,6 +190,26 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   }, [data.goals, data.links, skipGoals, notice, say])
 
   const aiTitle = aiOk === false ? '지금은 AI를 쓸 수 없어요. 리스트는 직접 만들어 옮길 수 있어요.' : '기본함 정리 — AI가 리스트를 제안해요'
+  // 34 사용법: 첫 둘러보기 · 머리 ? 사용법 창 · 빈 상태 한 줄 안내
+  const guide = useMapGuide(data.loaded)
+  const inScope = data.tasks.filter((t) => t.status === 0 && (!opts.lists || (t.list_id && opts.lists.includes(t.list_id))))
+  const hint = data.loaded ? pickHint({
+    view, groupBy: opts.groupBy ?? 'list', goals: data.goals.length,
+    openTasks: inScope.length,
+    seqLinks: data.links.filter((l) => l.kind === 'sequence' && l.state === 'accepted').length,
+    datedOpen: inScope.filter((t) => t.due_at || t.start_at).length,
+    panelOpen: tl.panel
+  }, guide.state.hints) : null
+  const onHint = (id: HintId) => {
+    if (id === 'nogoal') onGrowth?.()
+    else if (id === 'noseq') guide.openPanel('seq')
+    else tl.set('panel', true)
+  }
+  const onRecipe = (r: Recipe) => {
+    if (r === 'morning') { setFocusNow(true); if (stripFolded) setStripFolded(0); return }
+    setView('graph')
+    if (r === 'goal') setOpt('groupBy', 'goal')
+  }
   const noTasks = data.loaded && data.allOpen === 0 && data.tasks.length === 0 && data.lists.filter((l) => l.kind !== 'inbox' && !l.archived_at).length === 0
   const setOpt = <K extends keyof MapOptions>(k: K, v: MapOptions[K]) => setOpts((o) => ({ ...o, [k]: v }))
   const undoSnap = pop?.kind === 'more' ? loadApplySnapshot() : null
@@ -243,6 +263,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
           <span className="map-tip" data-tip={aiTitle}>
             <button className="icon-btn" aria-label={aiTitle} disabled={aiOk === false} onClick={openInboxOrganize}><Sparkles /></button>
           </span>
+          <MapGuideButton guide={guide} />
           <button className="icon-btn" aria-label="보기 옵션" onClick={(e) => setPop({ kind: 'filter', anchor: e.currentTarget })}><Filter /></button>
           <button className="icon-btn" aria-label="더 보기" onClick={(e) => setPop({ kind: 'more', anchor: e.currentTarget })}><MoreHorizontal /></button>
         </header>
@@ -252,6 +273,8 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
           <NowStrip data={data} actions={actions} onReveal={revealTask} onMore={() => setFocusNow(true)} onFold={() => setStripFolded(1)}
             onMenu={(task, e) => setStripMenu({ task, point: { x: e.clientX, y: e.clientY } })} />
         )}
+
+        {!noTasks && <MapHint id={hint} guide={guide} onAct={onHint} />}
 
         {!data.loaded ? <div className="map-fill" /> : noTasks ? (
           <div className="map-empty">
@@ -320,7 +343,8 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
           <MenuItem icon={<RotateCcw />} label="AI 쪼개기 되돌리기" disabled={!breakdownSnap} onClick={() => { setPop(undefined); undoBreak() }} />
           <div className="menu__divider" />
           {view === 'timeline' && <TimelineMoreItems nav={tl} close={() => setPop(undefined)} />}
-          <MenuItem icon={<HelpCircle />} label="작업 지도 도움말" onClick={() => { setPop(undefined); setHelp(true) }} />
+          <MenuItem icon={<HelpCircle />} label="작업 지도 사용법" onClick={() => { setPop(undefined); guide.openPanel() }} />
+          <MenuItem icon={<Compass />} label="작업 지도 둘러보기" onClick={() => { setPop(undefined); guide.startTour() }} />
         </Popover>
       )}
       {stripMenu && <CardMenu task={stripMenu.task} data={data} actions={actions} point={stripMenu.point} onClose={() => setStripMenu(undefined)} />}
@@ -350,19 +374,8 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
           </footer>
         </Dialog>
       )}
-      {help && (
-        <Dialog label="작업 지도 도움말" className="map-dialog" onClose={() => setHelp(false)}>
-          <h2>작업 지도 도움말</h2>
-          <ul>
-            <li>내 폴더 › 리스트 › 할 일을 한눈에 봐요. 사이드바의 리스트와 같은 것이에요.</li>
-            <li>할 일 카드를 다른 리스트로 끌면 그 리스트로 옮겨져요. 리스트를 폴더에 끌어 넣거나 뿌리(나의 할 일)에 놓으면 폴더 밖으로 나와요.</li>
-            <li>이름을 두 번 누르면 바로 고칠 수 있어요. ⋯ 메뉴에서 편집(아이콘·색)·폴더로 옮기기·삭제.</li>
-            <li>✦ 기본함 정리: AI가 기본함 할 일을 보고 리스트를 제안해요. 확인하고 [이대로 만들기]를 눌러야 만들어져요.</li>
-            <li>그래프에서 할 일 아래 점을 끌어 다른 할 일에 놓으면 '먼저 해야 함' 선, 목표(🎯) 위 점을 끌어 할 일에 놓으면 목표 연결.</li>
-          </ul>
-          <footer><button className="map-btn map-btn--primary" data-autofocus onClick={() => setHelp(false)}>확인</button></footer>
-        </Dialog>
-      )}
+      <MapGuidePanel guide={guide} aiOk={aiOk} onTry={onRecipe} />
+      <MapTour guide={guide} />
     </main>
   )
 }

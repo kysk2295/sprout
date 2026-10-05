@@ -1,0 +1,74 @@
+/* 34 작업 지도 사용법 — 둘러보기 카드·구멍, 사용법 창, 한 줄 안내. 색은 앱 토큰만(13개 테마 라이트·다크 공통) */
+
+/* ── 그림(선화) ── */
+.mg-ill { width: 64px; height: 44px; flex-shrink: 0; color: var(--color-text-tertiary); }
+.mg-ill__card { fill: var(--color-bg-app); stroke: var(--color-text-quaternary); stroke-width: 1.2; }
+.mg-ill__card.is-on { fill: var(--color-accent-subtle); stroke: var(--color-accent); }
+.mg-ill__line { stroke: var(--color-text-quaternary); stroke-width: 1.2; }
+.mg-ill__band { fill: var(--color-accent-subtle); stroke: none; }
+.mg-ill__accent { stroke: var(--color-accent); stroke-width: 1.4; }
+.mg-ill__accent-fill { fill: var(--color-accent); stroke: none; }
+.mg-ill__goal { stroke: var(--map-goal, #e8a23a); stroke-width: 1.6; }
+.mg-ill__ring { stroke: var(--color-border-divider); stroke-width: 2.4; fill: none; }
+.mg-ill__dot { fill: var(--color-text-quaternary); }
+.mg-ill__cursor { fill: var(--color-text-primary); stroke: var(--color-bg-app); stroke-width: .8; }
+.mg-ill__emoji { font-size: 8px; text-anchor: middle; }
+.mg-ill__cap { font: 500 5.5px/1 var(--font-family); fill: var(--color-text-tertiary); text-anchor: middle; }
+
+.mg-panel kbd, .mg-tour kbd { display: inline-block; min-width: 14px; padding: 0 4px; border-radius: 4px; border: 1px solid var(--color-border-divider); background: var(--color-bg-input); font: 500 11px/16px var(--font-family); text-align: center; color: var(--color-text-secondary); }
+
+/* ── 사용법 창 ── */
+.popover.mg-panel { padding: 0; display: flex; flex-direction: column; max-height: min(640px, calc(100vh - 120px)); overflow: hidden; border: 1px solid var(--color-border-popover); }
+.mg-panel__head { display: flex; align-items: flex-start; gap: 8px; padding: 14px 10px 10px 16px; border-bottom: 1px solid var(--color-border-divider); }
+.mg-panel__head > div { flex: 1; min-width: 0; }
+.mg-panel__head h2 { margin: 0; font: 600 15px/22px var(--font-family); color: var(--color-text-primary); }
+.mg-panel__head p { margin: 2px 0 0; font: var(--text-meta); color: var(--color-text-tertiary); }
+.mg-panel__head .icon-btn { width: 26px; height: 26px; }
+.mg-panel__body { overflow-y: auto; padding: 6px 8px 10px; }
+.mg-sec { display: flex; gap: 12px; padding: 10px 8px; border-radius: var(--radius-md); transition: background var(--motion-base, 160ms); scroll-margin-top: 6px; }
+.mg-sec.is-flash { background: var(--color-accent-subtle); }
+.mg-sec h3 { margin: 0 0 2px; font: 600 13px/18px var(--font-family); color: var(--color-text-primary); }
+.mg-sec p { margin: 0; font: 400 12.5px/18px var(--font-family); color: var(--color-text-secondary); }
+.mg-sec__off { margin-top: 4px !important; color: var(--color-text-tertiary) !important; }
+.mg-recipes__title { margin: 8px 8px 4px; padding-top: 10px; border-top: 1px solid var(--color-border-divider); font: 600 13px/18px var(--font-family); color: var(--color-text-primary); }
+.mg-recipe { margin: 6px 8px; padding: 8px 10px; border-radius: var(--radius-md); background: var(--color-bg-input); }
+.mg-recipe__head { display: flex; align-items: center; gap: 8px; font: 600 12.5px/18px var(--font-family); color: var(--color-text-primary); }
+.mg-recipe__head b { flex: 1; font-weight: 600; }
+.mg-recipe__head .map-btn { height: 22px; }
+.mg-recipe ol { margin: 4px 0 0; padding-left: 18px; font: 400 12px/18px var(--font-family); color: var(--color-text-secondary); }
+.mg-panel__foot { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px 8px 10px; border-top: 1px solid var(--color-border-divider); font: var(--text-meta); color: var(--color-text-tertiary); }
+.mg-panel__foot > span { display: inline-flex; align-items: center; gap: 4px; }
+.map-head .icon-btn.is-on { color: var(--color-accent); background: var(--color-bg-selected); }
+
+/* ── 첫 둘러보기 ── z 85: 18 첫 실행 안내와 같은 층(다른 창 90 위로는 안 올라감) */
+.mg-tour { position: fixed; inset: 0; z-index: 85; -webkit-app-region: no-drag; }
+.mg-tour__scrim { position: absolute; inset: 0; background: var(--color-overlay-scrim); animation: mg-fade var(--motion-base, 160ms) ease-out; }
+.mg-tour__hole { position: absolute; border-radius: 8px; box-shadow: 0 0 0 2px var(--color-accent), 0 0 0 200vmax var(--color-overlay-scrim); pointer-events: none; transition: left 200ms ease, top 200ms ease, width 200ms ease, height 200ms ease; animation: mg-fade var(--motion-base, 160ms) ease-out; }
+.mg-tour__card { position: absolute; width: 300px; box-sizing: border-box; padding: 12px 16px 14px; border-radius: var(--radius-lg); background: var(--color-bg-popover); border: 1px solid var(--color-border-popover); box-shadow: var(--shadow-popover); color: var(--color-text-primary); animation: mg-rise var(--motion-base, 160ms) ease-out; }
+.mg-tour__top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.mg-tour__dots { display: flex; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.mg-tour__dots li { width: 6px; height: 6px; border-radius: 3px; background: var(--color-border-divider); transition: width var(--motion-base, 160ms); }
+.mg-tour__dots li.is-past { background: var(--color-text-quaternary); }
+.mg-tour__dots li.is-on { width: 16px; background: var(--color-accent); }
+.mg-tour__count { font: var(--text-meta); color: var(--color-text-tertiary); }
+.mg-tour__close { margin-left: auto; width: 24px; height: 24px; }
+.mg-tour__card h2 { margin: 0 0 4px; font: 600 15px/22px var(--font-family); }
+.mg-tour__card p { margin: 0; font: 400 13px/19px var(--font-family); color: var(--color-text-secondary); }
+.mg-tour__card p b { color: var(--color-text-primary); font-weight: 600; }
+.mg-tour__ill { display: flex; justify-content: center; margin-top: 10px; padding: 6px 0; border-radius: var(--radius-md); background: var(--color-bg-input); }
+.mg-tour__ill .mg-ill { width: 112px; height: 77px; }
+.mg-tour__foot { display: flex; align-items: center; gap: 6px; margin-top: 14px; }
+.mg-tour__never { margin-right: auto; padding: 0; background: none; border: 0; font: var(--text-meta); color: var(--color-text-tertiary); cursor: pointer; }
+.mg-tour__never:hover { color: var(--color-text-secondary); text-decoration: underline; }
+.mg-tour__foot .map-btn { height: 28px; padding: 0 12px; }
+
+/* ── 한 줄 안내(.map-banner 모양) ── */
+.mg-hint { animation: mg-fade var(--motion-base, 160ms) ease-out; }
+.mg-hint > span:first-of-type { flex: 1; min-width: 0; }
+
+@keyframes mg-fade { from { opacity: 0; } }
+@keyframes mg-rise { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) {
+  .mg-tour__scrim, .mg-tour__hole, .mg-tour__card, .mg-hint { animation: none; }
+  .mg-tour__hole, .mg-tour__dots li, .mg-sec { transition: none; }
+}

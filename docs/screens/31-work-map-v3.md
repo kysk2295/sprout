@@ -3,6 +3,7 @@
 - 상태: **확정 v1.0 (2026-10-05)** — 사용자 "시안대로 해줘. 추천대로 전부". 결정 D1~D5 = 추천안(§8). 데스크톱 P1~P3 구현, P4 타임라인 병행 구현. [14 작업 지도](14-work-map.md) v2.0 위에 얹는다.
 - 사용자 요청: 작업 지도를 더 키운다. 고른 방향 네 가지 전부 — ① 지금 뭐 할지 보여 주기 ② 타임라인(간트) 보기 ③ 목표 → 할 일 트리 + 성장 연결 ④ AI로 큰 일 쪼개기.
 - 바탕: [14 v2.0](14-work-map.md)(폴더 › 리스트 › 할 일, 그래프·보드, 순서·목표 선 `map_links`, 끌어 옮기기) — **v2.0에서 바뀌지 않는 것은 그대로 둔다.**
+- 사용법·둘러보기·빈 상태 한 줄 안내: [34 작업 지도 사용법](34-work-map-guide.md) (2026-10-05 확정)
 - 시안: [mockups/work-map-v3.html](mockups/work-map-v3.html) (A 지금 할 일 강조 · B 타임라인 · C 목표로 묶기 · D AI 쪼개기 창, 라이트/다크)
 - 근거: [research 29 타임라인](../ticktick-research/29-timeline-view.md) · [18 칸반](../ticktick-research/18-notes-kanban-live.md) · [08 그룹](../ticktick-research/08-group-sort.md) · [11 하위 태스크](../ticktick-research/11-subtasks.md) · [06 캘린더](06-calendar.md) §9 할일 정렬 · [10 성장](10-growth.md) §3.2.8·§4·§6 · [30 §B](30-lists-and-areas.md) AI 제안 규칙 · [server/README AI 프록시](../../server/README.md)
 - 표기: **[틱틱]** 틱틱과 같게 · **[sprout]** 틱틱에 없음, 틱틱 디자인 언어로 새로 · **[임시]** 구현 뒤 실측·조정 · **[다음]** 이번 범위 밖 · **[미확인]** 조사에 없음(실측 필요)
