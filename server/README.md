@@ -111,6 +111,8 @@ curl -s localhost:6060/ai/status -H "authorization: Bearer <접근 토큰>"   # 
 ## 소셜 로그인 — 구글·애플 (api/src/social.ts · 명세 08 §3.1)
 - `POST /auth/google {id_token, nonce}`: 데스크톱이 시스템 브라우저 + PKCE + 루프백으로 받은 구글 ID 토큰을 구글 공개키(JWKS)로 검증(iss·aud=우리 클라이언트 id·만료·`email_verified`·nonce).
 - 애플(웹 흐름, `response_mode=form_post`): 애플 → `POST /auth/apple/callback`(이 API의 https 주소) → 토큰은 **서버 메모리에 state별로 5분, 한 번만** 맡기고 브라우저는 `sprout://auth/apple?state=…`로 앱을 깨운다(토큰은 URL에 싣지 않는다). 앱은 `POST /auth/apple {state, nonce}`로 찾아간다(아직이면 202, 2초마다). 애플에는 nonce의 SHA-256만 보내므로 원래 nonce를 가진 그 앱만 교환할 수 있다. `.p8` 키가 있으면 인가 코드를 애플에 한 번 더 확인한다.
+  - **iOS 기기(2026-10-05)**: `POST /auth/apple/native {id_token, nonce, authorization_code?}`(연결 `POST /auth/link/apple/native`, Bearer). aud = 앱 번들 id(`APPLE_BUNDLE_IDS`), nonce 규칙은 웹과 같다. 앱은 `SPROUT_APPLE_SIGN_IN=1` 빌드에서만 버튼을 켠다(apps/mobile/app.config.ts).
+  - **애플 토큰 폐기(지침 5.1.1(v))**: `.p8`이 있으면 인가 코드를 교환해 refresh_token을 `user_identities.apple_refresh_token`(서버 전용)에 두고, 계정 삭제·애플 연결 해제 때 `appleid.apple.com/auth/revoke`. 마이그레이션 `db/migrations/20261011-apple-tokens.sql`(칸이 없으면 로그만 남고 로그인은 된다).
   - 맡김 칸이 메모리라 **API는 한 대만** 돌린다(지금 구성 그대로). 여러 대가 되면 Postgres/Redis로 옮긴다.
 - 계정 규칙: (공급자, sub)가 있으면 그 계정 → 없으면 **확인된 같은 이메일** 계정에 연결 → 없으면 새 계정(`password_hash` NULL). 애플 가림 주소(`…@privaterelay.appleid.com`)는 따로 계정이 된다. 비밀번호 없는 계정에 이메일 로그인을 하면 401 `social account: google,apple`.
 - `GET /auth/providers` → `{google: bool, apple: {services_id, redirect_uri} | null}` (앱이 버튼 설정 여부를 안다).
@@ -122,6 +124,7 @@ curl -s localhost:6060/ai/status -H "authorization: Bearer <접근 토큰>"   # 
 | `APPLE_SERVICES_ID` | `com.example.sprout.signin` | 애플 Services ID(= 애플 토큰의 aud). 비우면 애플 로그인 끔 |
 | `APPLE_TEAM_ID` | `BU697KN34B` | 기본값 그대로(인증서 이름 괄호 안 `Z32F3Z65RD`는 팀 ID가 아니다) |
 | `APPLE_KEY_ID` · `APPLE_PRIVATE_KEY` | `ABC123DEFG` · `/run/secrets/apple.p8` | Sign in with Apple 키(.p8)와 그 id. 없어도 로그인은 되지만(ID 토큰 검증만), 있으면 코드 교환으로 한 번 더 확인하고 나중에 계정 삭제 때 애플 토큰 폐기에 쓴다 |
+| `APPLE_BUNDLE_IDS` | `app.sprout.mobile` | iOS 기기 애플 토큰의 aud(쉼표로 여러 개). 비우면 `app.sprout.mobile`, `off`면 기기 애플 로그인 끔 |
 | `API_PUBLIC_URL` | `https://macmini.tail425c97.ts.net` | 애플 돌아오는 주소 = `<이 값>/auth/apple/callback`(`APPLE_REDIRECT_URI`로 직접 정해도 됨) |
 
 `docker-compose.yaml`의 `api.environment`에 아래를 더하고, `.p8`은 읽기 전용으로 붙인다(**리드 승인 뒤 적용**):
@@ -168,7 +171,7 @@ curl -s localhost:6060/auth/providers     # {"google":true,"apple":{...}} 확인
 - `DELETE /auth/account` (Bearer, 본문 `{password?}`) → `{ok:true}`.
 - 다시 확인: 비밀번호 계정은 **비밀번호**(403 `invalid password`). 구글·애플로만 가입한 계정은 접근 토큰의 **`auth_time`이 10분 안**(403 `reauth required`) — `auth_time`은 비밀번호·구글·애플로 막 로그인해 받은 토큰에만 있고 `/auth/refresh`로 받은 토큰에는 없다. 그래서 앱은 삭제 직전에 구글·애플로 다시 로그인시킨다. 마이그레이션 없음(토큰 클레임만).
 - 한 트랜잭션: `DELETE FROM ai_usage`(이미 CASCADE지만 명시) → `DELETE FROM users` → 동기화 테이블·`sessions`·`user_identities`는 모두 `ON DELETE CASCADE`. PowerSync가 지워진 행을 다른 기기로 내려보내고, 세션이 없어 다른 기기의 리프레시는 401. 다른 기기가 남은 접근 토큰(최대 1시간)으로 `/sync/upload` 하면 외래 키 오류 대신 401.
-- 로그는 "계정 1건 삭제"만. 백업(`backups/`, 14일)에는 그 기간 남는다 → 개인정보 처리방침에 적는다. 애플 토큰 폐기(`.p8`)는 [다음].
+- 로그는 "계정 1건 삭제"만. 백업(`backups/`, 14일)에는 그 기간 남는다 → 개인정보 처리방침에 적는다. 애플 토큰은 삭제 커밋 뒤 폐기한다(`.p8` 있을 때, 위 "소셜 로그인").
 - `GET /auth/me`가 `has_password`·`providers`를 더 준다(앱이 확인 방법을 고른다).
 
 ## 푸시 알림 — FCM (api/src/push.ts · push-plan.ts · push-store.ts · fcm.ts · 명세 32)

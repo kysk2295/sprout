@@ -18,7 +18,7 @@
 | Category | Items | How |
 |---|---|---|
 | Required — email sign-up | Email address, password (stored only as a one-way hash) | Sign-up screen |
-| Required — Google/Apple sign-in | Provider user ID, email address (may be an Apple "Hide My Email" address). **We do not store your name or profile photo.** | Returned after you sign in with Google/Apple directly |
+| Required — Google/Apple sign-in | Provider user ID, email address (may be an Apple "Hide My Email" address). **We do not store your name or profile photo.** For Apple sign-in we keep the refresh token Apple issues, only so we can ask Apple to revoke it when you delete your account or unlink Apple. | Returned after you sign in with Google/Apple directly |
 | Required — use of the Service | Content you create: tasks (title, notes, dates, repeat, reminders), lists/folders/tags/filters, events (title, notes, location, time), notes/links/wiki, journal (text, mood, conversation with the AI, summary), growth records (XP, character, personality-quiz answers, weekly goals, reports), work map, settings | Your input, sync |
 | Generated | Account ID, sign-up time, sign-in sessions (token hash and expiry) | While using the Service |
 | Generated — AI | **Counts only**: requests, failures, tokens and processing time per AI feature per day | When you use AI |

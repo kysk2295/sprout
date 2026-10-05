@@ -10,7 +10,7 @@
 3. Scroll to the bottom → **Delete Account**
 4. Type **삭제** ("delete") in the confirmation field, then
    - email sign-up: enter your **password**
-   - Google-only account: **sign in with Google again** (then delete within 10 minutes)
+   - Google-only account: **sign in with Google again**; Apple-only account (iPhone): **sign in with Apple again** (then delete within 10 minutes)
 5. Tap **Delete Account**
 
 **Computer (macOS / Windows)**
@@ -18,7 +18,7 @@
 2. Red **Delete Account** at the bottom
 3. Type the confirmation word + password (or sign in again with Google/Apple) → **Delete Account**
 
-> Accounts created only with Apple can currently be deleted from the desktop app. [TO CONFIRM: remove once Apple sign-in ships on iOS with in-app deletion]
+> When you delete an account that uses Sign in with Apple, we ask Apple to revoke the sign-in token, which also removes the "Sign in with Apple" connection. Apple sign-in is not available on Android, so delete an Apple-only account from an iPhone or the desktop app.
 
 ## 2. Can't use the app? Request by email
 Email **[privacy@domain]** with subject `Account deletion request`, your account email and how you signed up (email / Google / Apple). Please send it **from the email address of your account**; otherwise we may ask for additional verification. We delete the account within **10 days** after verification and confirm by email.
@@ -38,7 +38,7 @@ Deletion **cannot be undone**.
 |---|---|---|
 | Copies in server backups | Up to **14 days**, then deleted automatically | Disaster recovery only. If a backup is restored, deleted accounts are deleted again |
 | Device-only data (AI assistant history, Google/macOS calendar cache, widget data) | Until you sign out or uninstall on that device | Never on our server; removed on the device where you deleted the account |
-| The "connected app" entry in your Google/Apple account | Until you remove it | Remove it in Google Account › Security › Third-party connections, or Apple ID › Sign in with Apple |
+| The "connected app" entry in your Google/Apple account | Until you remove it | Remove it in Google Account › Security › Third-party connections, or Apple ID › Sign in with Apple. For Apple, we also ask Apple to revoke our token when you delete the account or unlink Apple |
 
 We have no legal obligation to retain any data (free service, no payments).
 

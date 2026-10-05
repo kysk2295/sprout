@@ -1,16 +1,17 @@
 // 설정 › 계정(08 §7.1 휴대폰판 — 틱틱 설정 › 계정 맨 아래 "계정 삭제"): 이메일 · 로그인 방법 · 로그아웃 · 계정 삭제.
-// 로그인 방법(20 §4.3.1 = 08 §3.1.1 휴대폰판): 이메일 ✓ · Google [연결]/연결됨 [연결 해제] · Apple 준비 중.
+// 로그인 방법(20 §4.3.1 = 08 §3.1.1 휴대폰판): 이메일 ✓ · Google [연결]/연결됨 [연결 해제] · Apple [연결](iOS, 애플 로그인 빌드) / 준비 중.
 // 계정 삭제 = DELETE /auth/account(서버가 다시 확인: 비밀번호 계정은 비밀번호, 구글·애플로만 가입한 계정은 10분 안 소셜 재로그인).
-// 소셜 전용 계정은 데스크톱처럼 "Google로 방금 다시 로그인"(같은 계정이면 토큰만 바꿈). Apple로만 가입한 계정은 Apple 준비 전까지 컴퓨터 앱 안내.
+// 소셜 전용 계정은 데스크톱처럼 "Google(또는 Apple)로 방금 다시 로그인"(같은 계정이면 토큰만 바꿈). Apple로만 가입한 계정은 애플 로그인이 없는 빌드(Android·준비 중)에서만 컴퓨터 앱 안내.
 // 문구·확인 단어("삭제")·오류 문구는 데스크톱 DeleteAccount·LoginMethods와 같다.
 import { useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import {
-  api, ApiError, freshToken, linkGoogle, loginMethods, logout, reauthWithGoogle, socialErrorText, unlinkProvider, useAuth,
+  api, ApiError, freshToken, linkApple, linkGoogle, loginMethods, logout, reauthWithApple, reauthWithGoogle, socialErrorText, unlinkProvider, useAuth,
   type LinkedIdentity, type LoginMethods, type Provider
 } from '../../../src/data/auth'
+import { appleAvailable } from '../../../src/data/apple'
 import { AvatarSheet } from '../../../src/avatar/AvatarSheet'
 import { ProfileAvatar } from '../../../src/avatar/ProfileAvatar'
 import { useAvatar } from '../../../src/data/avatar'
@@ -24,9 +25,9 @@ import { useTabBarSpace } from '../../../src/ui/tabBarSpace'
 
 const DELETE_WORD = '삭제'
 const NAME: Record<Provider, string> = { google: 'Google', apple: 'Apple' }
-function deleteErrorText(error: string, status: number): string {
+function deleteErrorText(error: string, status: number, provider: Provider = 'google'): string {
   if (/invalid password/.test(error)) return '비밀번호가 맞지 않아요'
-  if (/reauth required/.test(error)) return '보안을 위해 Google로 다시 로그인한 뒤 10분 안에 삭제해 주세요'
+  if (/reauth required/.test(error)) return `보안을 위해 ${NAME[provider]}로 다시 로그인한 뒤 10분 안에 삭제해 주세요`
   if (status === 429 || /시도가 너무 많아요/.test(error)) return /분 뒤/.test(error) ? error : '잠시 뒤 다시 시도하세요'
   if (status === 401 || /unauthorized/.test(error)) return '로그인이 만료됐어요. 다시 로그인한 뒤 시도하세요'
   return '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요'
@@ -51,20 +52,22 @@ export default function Account() {
   const [methods, setMethods] = useState<LoginMethods | null>(null)
   const [methodsError, setMethodsError] = useState('')
   const [linking, setLinking] = useState<Provider | null>(null)
+  const [appleReady, setAppleReady] = useState(false)
+  useEffect(() => { void appleAvailable().then(setAppleReady) }, [])
   const loadMethods = useCallback(async () => {
     setMethodsError('')
     try { setMethods(await loginMethods()) } catch (e) { setMethodsError(socialErrorText(e) ?? '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요') }
   }, [])
   useEffect(() => { void loadMethods() }, [loadMethods])
   const setIdentities = (identities: LinkedIdentity[]) => setMethods((m) => (m ? { ...m, identities } : m))
-  const link = async () => {
+  const link = async (provider: Provider = 'google') => {
     if (linking) return
-    setLinking('google'); setMethodsError('')
+    setLinking(provider); setMethodsError('')
     try {
-      setIdentities(await linkGoogle())
-      toast.show("구글 계정을 연결했어요 — 다음부터 'Google로 계속하기'로 들어올 수 있어요", { duration: 3500 })
+      setIdentities(await (provider === 'apple' ? linkApple() : linkGoogle()))
+      toast.show(provider === 'apple' ? "Apple 계정을 연결했어요 — 다음부터 'Apple로 계속하기'로 들어올 수 있어요" : "구글 계정을 연결했어요 — 다음부터 'Google로 계속하기'로 들어올 수 있어요", { duration: 3500 })
     } catch (e) {
-      const text = socialErrorText(e)
+      const text = socialErrorText(e, provider)
       if (text) setMethodsError(text)
     } finally { setLinking(null) }
   }
@@ -96,9 +99,9 @@ export default function Account() {
         </View>
       )
     }
-    if (provider === 'apple') return <Text style={[FONT.sub, { color: p.textTertiary }]}>준비 중</Text>
+    if (provider === 'apple' && !appleReady) return <Text style={[FONT.sub, { color: p.textTertiary }]}>준비 중</Text>
     return (
-      <Pressable accessibilityRole="button" accessibilityLabel="Google 연결" disabled={!!linking} onPress={() => void link()} hitSlop={8}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${NAME[provider]} 연결`} disabled={!!linking} onPress={() => void link(provider)} hitSlop={8}>
         <Text style={{ color: p.accent, fontSize: 15, fontWeight: '500', opacity: linking ? 0.4 : 1 }}>연결</Text>
       </Pressable>
     )
@@ -106,7 +109,8 @@ export default function Account() {
 
   // ── 계정 삭제 ──
   const [open, setOpen] = useState(false)
-  const [mode, setMode] = useState<'password' | 'google' | 'apple-only' | null>(null)
+  // google·apple = 그 공급자로 방금 다시 로그인 / apple-only = 애플로만 가입했는데 이 빌드에 애플 로그인이 없음(컴퓨터 앱 안내)
+  const [mode, setMode] = useState<'password' | 'google' | 'apple' | 'apple-only' | null>(null)
   const [password, setPassword] = useState('')
   const [word, setWord] = useState('')
   const [reauthed, setReauthed] = useState(false)
@@ -122,7 +126,7 @@ export default function Account() {
       const me = await api<{ has_password?: boolean; providers?: string[] }>('/auth/me', { token })
       if (me.has_password !== false) return setMode('password')
       const providers = Array.isArray(me.providers) ? me.providers : []
-      setMode(providers.includes('google') || !providers.includes('apple') ? 'google' : 'apple-only')
+      setMode(providers.includes('google') || !providers.includes('apple') ? 'google' : appleReady ? 'apple' : 'apple-only')
     } catch (e) {
       setError(deleteErrorText(e instanceof ApiError ? e.message : 'network', e instanceof ApiError ? e.status : 0))
     }
@@ -131,14 +135,14 @@ export default function Account() {
     if (reauthing || busy) return
     setReauthing(true); setError('')
     try {
-      await reauthWithGoogle()
+      await (mode === 'apple' ? reauthWithApple() : reauthWithGoogle())
       setReauthed(true)
     } catch (e) {
-      const text = socialErrorText(e)
+      const text = socialErrorText(e, mode === 'apple' ? 'apple' : 'google')
       if (text) setError(text)
     } finally { setReauthing(false) }
   }
-  const ready = !busy && word.trim() === DELETE_WORD && ((mode === 'password' && password.length > 0) || (mode === 'google' && reauthed))
+  const ready = !busy && word.trim() === DELETE_WORD && ((mode === 'password' && password.length > 0) || ((mode === 'google' || mode === 'apple') && reauthed))
   const submit = async () => {
     if (!ready) return
     setBusy(true); setError('')
@@ -153,7 +157,7 @@ export default function Account() {
       setBusy(false)
       const msg = e instanceof ApiError ? e.message : 'network'
       if (/reauth required/.test(msg)) setReauthed(false) // 10분 지남 → 다시 로그인부터
-      setError(deleteErrorText(msg, e instanceof ApiError ? e.status : 0))
+      setError(deleteErrorText(msg, e instanceof ApiError ? e.status : 0, mode === 'apple' ? 'apple' : 'google'))
     }
   }
   const confirmLogout = () =>
@@ -199,23 +203,23 @@ export default function Account() {
             <Text style={[FONT.bodyStrong, { color: p.textPrimary }]}>계정을 삭제할까요?</Text>
             <Text style={[FONT.sub, { color: p.textSecondary }]}>모든 할 일·일기·수집함·캐릭터와 성장 기록이 서버와 모든 기기에서 지워져요. <Text style={{ fontWeight: '700' }}>되돌릴 수 없어요.</Text></Text>
             {!mode && !error ? <ActivityIndicator color={p.textTertiary} /> : null}
-            {mode === 'apple-only' ? <Text style={[FONT.sub, { color: p.textSecondary }]}>Apple로만 가입한 계정은 지금은 컴퓨터 앱(설정 › 계정)에서 삭제할 수 있어요.</Text> : null}
+            {mode === 'apple-only' ? <Text style={[FONT.sub, { color: p.textSecondary }]}>Apple로만 가입한 계정은 iPhone 앱이나 컴퓨터 앱(설정 › 계정)에서 삭제할 수 있어요.</Text> : null}
             {mode === 'password' ? (
               <>
                 <Text style={[FONT.meta, { color: p.textTertiary }]}>비밀번호</Text>
                 <TextInput secureTextEntry autoComplete="current-password" textContentType="password" value={password} editable={!busy} onChangeText={setPassword} placeholder="비밀번호" placeholderTextColor={p.textQuaternary} style={[s.input, { color: p.textPrimary, borderColor: p.borderDivider }]} accessibilityLabel="비밀번호" />
               </>
             ) : null}
-            {mode === 'google' ? (
+            {mode === 'google' || mode === 'apple' ? (
               reauthed ? (
                 <Text style={[FONT.sub, { color: p.textSecondary }]}>다시 로그인했어요. 10분 안에 삭제하세요.</Text>
               ) : (
                 <Pressable accessibilityRole="button" disabled={reauthing || busy} onPress={() => void reauth()} style={({ pressed }) => [s.reauth, { borderColor: p.borderDivider, backgroundColor: pressed ? p.bgSelected : 'transparent' }]}>
-                  {reauthing ? <ActivityIndicator color={p.textSecondary} /> : <Text style={{ color: p.textPrimary, fontSize: 15, fontWeight: '500' }}>Google로 방금 다시 로그인</Text>}
+                  {reauthing ? <ActivityIndicator color={p.textSecondary} /> : <Text style={{ color: p.textPrimary, fontSize: 15, fontWeight: '500' }}>{mode === 'apple' ? 'Apple로 방금 다시 로그인' : 'Google로 방금 다시 로그인'}</Text>}
                 </Pressable>
               )
             ) : null}
-            {mode === 'password' || mode === 'google' ? (
+            {mode === 'password' || mode === 'google' || mode === 'apple' ? (
               <>
                 <Text style={[FONT.meta, { color: p.textTertiary }]}>{`확인하려면 "${DELETE_WORD}"를 입력하세요`}</Text>
                 <TextInput value={word} editable={!busy} onChangeText={setWord} placeholder={DELETE_WORD} placeholderTextColor={p.textQuaternary} autoCapitalize="none" style={[s.input, { color: p.textPrimary, borderColor: p.borderDivider }]} accessibilityLabel="확인 단어" />

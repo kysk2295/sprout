@@ -10,6 +10,8 @@
 //   POST /auth/google  {id_token, nonce?}     → 같은 토큰 응답 + created (social.ts). nonce 없음 = 모바일 기기 로그인(azp≠aud·10분·한 번만)
 //   POST /auth/apple/callback (애플 form_post) → state별로 5분 맡기고 sprout://auth/apple 로 돌려보냄
 //   POST /auth/apple   {state, nonce}         → 202 {pending} 또는 토큰 응답 + created
+//   POST /auth/apple/native {id_token, nonce, authorization_code?} → iOS 기기 애플 로그인(aud = 번들 id) — 토큰 응답 + created
+//   POST /auth/link/apple/native (Bearer) {id_token, nonce, authorization_code?} → 지금 계정에 애플 연결(iOS)
 //   POST /auth/link/google (Bearer) {id_token, nonce?} · POST /auth/link/apple (Bearer) {state, nonce}
 //                                             → 로그인한 계정에 연결 {linked, identities:[{provider, email(가림)}]} (link.ts, 08 §3.1.1)
 //   DELETE /auth/link/google · /auth/link/apple (Bearer) → 연결 해제(로그인할 길이 없어지면 409)
@@ -28,7 +30,7 @@ import { clientIp, enforce, limitsFromEnv, RateLimiter, RateLimitError, trustFro
 import { AccountError, deleteAccount } from './account.ts'
 import { toStatements, UploadError } from './upload.ts'
 import {
-  APPLE_JWKS_URL, exchangeAppleCode, GOOGLE_JWKS_URL, HandoffStore, appleReturnPage, parseAppleCallback, pgIdentityStore, remoteJwks,
+  APPLE_JWKS_URL, appleTokenExchange, GOOGLE_JWKS_URL, pgAppleTokenStore, revokeAppleTokens, HandoffStore, appleReturnPage, parseAppleCallback, pgIdentityStore, remoteJwks,
   resolveSocialUser, socialConfigFromEnv, SocialError, STATE_RE, verifyAppleIdToken, verifyGoogleIdToken
 } from './social.ts'
 import { linkedView, linkIdentity, parseProvider, pgLinkStore, unlinkProvider } from './link.ts'
@@ -118,6 +120,22 @@ const identities = pgIdentityStore((sql, params) => pool.query(sql, params))
 const googleKeys = remoteJwks(GOOGLE_JWKS_URL)
 const appleKeys = remoteJwks(APPLE_JWKS_URL)
 const appleHandoff = new HandoffStore()
+const appleTokens = pgAppleTokenStore((sql, params) => pool.query(sql, params))
+const appleKey = social.appleNative.key
+/** 인가 코드가 있고 .p8 키가 있으면: 애플에 코드를 확인(같은 사용자인지)하고 폐기용 refresh_token을 받는다 */
+async function appleConfirm(clientId: string, subject: string, code: unknown, redirectUri?: string) {
+  if (!appleKey || typeof code !== 'string' || !code || code.length > 4096) return null
+  const got = await appleTokenExchange(appleKey, clientId, code, redirectUri)
+  if (got.subject !== subject) throw new SocialError('invalid token')
+  return got.refreshToken ? { clientId, refreshToken: got.refreshToken } : null
+}
+/** 기기(iOS) 애플 ID 토큰: aud = 번들 id, nonce = sha256(앱이 가진 원래 nonce) */
+async function appleNativeVerify(body: any) {
+  if (!social.appleNative.bundleIds.length) throw new SocialError('provider not configured', 503)
+  const verified = await verifyAppleIdToken(body?.id_token, { audiences: social.appleNative.bundleIds, keys: appleKeys, rawNonce: body?.nonce })
+  const token = await appleConfirm(verified.audience, verified.subject, body?.authorization_code)
+  return { verified, token }
+}
 /** 애플 맡김 칸에서 state + 원래 nonce로 꺼내 검증한다. 아직 안 왔으면 null(202) — 로그인·연결 공용 */
 function appleVerify(req: IncomingMessage, state: unknown, nonce: unknown, extra: [string, Rule][] = []) {
   if (!social.apple) throw new SocialError('provider not configured', 503)
@@ -128,12 +146,11 @@ function appleVerify(req: IncomingMessage, state: unknown, nonce: unknown, extra
     const got = appleHandoff.take(state)!
     if (got.error) throw new SocialError(got.error === 'cancelled' ? 'cancelled' : 'apple error', 400)
     const verified = await verifyAppleIdToken(got.idToken, { servicesId: apple.servicesId, keys: appleKeys, rawNonce: nonce })
-    // .p8 키가 있으면 인가 코드를 애플에 한 번 더 확인한다(같은 사용자인지)
-    if (apple.privateKey && apple.keyId && got.code) {
-      const sub = await exchangeAppleCode({ ...apple, privateKey: apple.privateKey }, got.code)
-      if (sub !== verified.subject) throw new SocialError('invalid token')
-    }
-    return [200, await then(verified)] as [number, unknown]
+    // .p8 키가 있으면 인가 코드를 애플에 한 번 더 확인한다(같은 사용자인지) + 폐기용 refresh_token 보관
+    const token = await appleConfirm(apple.servicesId, verified.subject, got.code, apple.redirectUri)
+    const out = await then(verified)
+    if (token) await appleTokens.save(verified.subject, token)
+    return [200, out] as [number, unknown]
   })
 }
 async function withTx<T>(fn: (q: (sql: string, params?: unknown[]) => Promise<any>) => Promise<T>): Promise<T> {
@@ -155,7 +172,13 @@ const links = pgLinkStore((sql, params) => pool.query(sql, params), withTx)
 const linkKeys = (req: IncomingMessage, userId: string): [string, Rule][] => [[`social:ip:${ipOf(req)}`, limits.socialIp], [`link:user:${userId}`, limits.socialIp]]
 async function unlinkRoute(req: IncomingMessage, provider: string): Promise<[number, unknown]> {
   const userId = await userFrom(req)
-  return counted([[`link:user:${userId}`, limits.socialIp]], async () => [200, await unlinkProvider(links, userId, parseProvider(provider))] as [number, unknown])
+  return counted([[`link:user:${userId}`, limits.socialIp]], async () => {
+    // 애플 연결 해제 = 애플 토큰도 폐기(행이 지워지기 전에 읽어 둔다)
+    const tokens = provider === 'apple' ? await appleTokens.forUser(userId) : []
+    const out = await unlinkProvider(links, userId, parseProvider(provider))
+    if (tokens.length) void revokeAppleTokens(appleKey, tokens)
+    return [200, out] as [number, unknown]
+  })
 }
 
 async function socialSignIn(verified: Awaited<ReturnType<typeof verifyGoogleIdToken>>) {
@@ -234,6 +257,14 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
     return run ? run(socialSignIn) : [202, { pending: true }]
   },
 
+  // 20 §4.3.1 iOS 기기 애플 로그인(expo-apple-authentication). 웹 흐름과 같은 계정 규칙
+  'POST /auth/apple/native': async (req) => counted([[`social:ip:${ipOf(req)}`, limits.socialIp]], async () => {
+    const { verified, token } = await appleNativeVerify(await readJson(req, 20_000))
+    const out = await socialSignIn(verified)
+    if (token) await appleTokens.save(verified.subject, token)
+    return [200, out] as [number, unknown]
+  }),
+
   // 08 §3.1.1 로그인 방법 연결 — 로그인하지 않고, 지금 계정에 식별자만 붙인다
   'POST /auth/link/google': async (req) => {
     const userId = await userFrom(req)
@@ -248,6 +279,15 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
     const { state, nonce } = await readJson(req, 10_000)
     const run = appleVerify(req, state, nonce, [[`link:user:${userId}`, limits.socialIp]])
     return run ? run((v) => linkIdentity(links, userId, v)) : [202, { pending: true }]
+  },
+  'POST /auth/link/apple/native': async (req) => {
+    const userId = await userFrom(req)
+    return counted(linkKeys(req, userId), async () => {
+      const { verified, token } = await appleNativeVerify(await readJson(req, 20_000))
+      const out = await linkIdentity(links, userId, verified)
+      if (token) await appleTokens.save(verified.subject, token)
+      return [200, out] as [number, unknown]
+    })
   },
   'DELETE /auth/link/google': (req) => unlinkRoute(req, 'google'),
   'DELETE /auth/link/apple': (req) => unlinkRoute(req, 'apple'),
@@ -297,7 +337,8 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
     const { password } = await readJson(req, 10_000)
     const key: [string, Rule] = [`delete:user:${claims.sub}`, limits.deleteUser]
     enforce(limiter, [key], '계정 삭제 확인')
-    await deleteAccount({ query: (sql, params) => pool.query(sql, params), transaction: withTx }, { userId: claims.sub, authTime: claims.authTime, password }, () => limiter.hit(...key))
+    await deleteAccount({ query: (sql, params) => pool.query(sql, params), transaction: withTx }, { userId: claims.sub, authTime: claims.authTime, password }, () => limiter.hit(...key),
+      { read: (id) => appleTokens.forUser(id), revoke: (tokens) => revokeAppleTokens(appleKey, tokens) })
     limiter.reset(key[0])
     return [200, { ok: true }]
   },

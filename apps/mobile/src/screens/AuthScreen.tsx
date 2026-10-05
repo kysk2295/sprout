@@ -1,12 +1,14 @@
 // 로그인·가입(08 A안을 휴대폰 배치로 — 시안 A-1·A-2): 좌우 24, 입력·버튼 폭 꽉 참, 같은 문구·같은 오류 6종(08 §4).
 // 이메일 → 비밀번호 → 보내기 키 = 제출. 버튼 안 스피너 = 로딩(입력 잠금). 전환할 때 이메일은 유지.
-// 20 §4.3.1: 주 버튼 아래 구분선 → iOS "Apple로 계속하기"(준비 중) · "Google로 계속하기", Android는 Google만.
+// 20 §4.3.1: 주 버튼 아래 구분선 → iOS "Apple로 계속하기" · "Google로 계속하기", Android는 Google만.
+// Apple은 애플 로그인 권한을 넣은 빌드(SPROUT_APPLE_SIGN_IN=1)에서만 진짜 버튼, 아니면 "준비 중"(누르면 안내).
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft, Lock, Mail, Sprout } from 'lucide-react-native'
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { authErrorText, login, loginWithGoogle, signup, socialErrorText } from '../data/auth'
+import { appleAvailable } from '../data/apple'
+import { authErrorText, login, loginWithApple, loginWithGoogle, signup, socialErrorText } from '../data/auth'
 import { FONT } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { AppleMark, GoogleMark } from '../ui/BrandMarks'
@@ -22,7 +24,9 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
   const [email, setEmail] = useState(params.email ?? '')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
-  const [social, setSocial] = useState<'google' | null>(null) // 기기 구글 창이 열려 있는 동안
+  const [social, setSocial] = useState<'google' | 'apple' | null>(null) // 기기 구글·애플 창이 열려 있는 동안
+  const [appleReady, setAppleReady] = useState(false)
+  useEffect(() => { if (Platform.OS === 'ios') void appleAvailable().then(setAppleReady) }, [])
   const [error, setError] = useState<{ field: 'email' | 'password' | 'form'; text: string } | null>(null)
   const [focus, setFocus] = useState<'email' | 'password' | null>(null)
   const pw = useRef<TextInput>(null)
@@ -41,8 +45,20 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
       setSocial(null)
     }
   }
-  // Apple 개발자 계정 전 [임시]: 버튼만 보이고 누르면 안내(20 §4.3.1)
-  const continueWithApple = () => { if (!locked) setError({ field: 'form', text: 'Apple 로그인은 준비 중이에요. Google이나 이메일로 계속하세요.' }) }
+  const continueWithApple = async () => {
+    if (locked) return
+    // 애플 로그인 권한이 없는 빌드: 버튼만 보이고 누르면 안내(20 §4.3.1)
+    if (!appleReady) return setError({ field: 'form', text: 'Apple 로그인은 준비 중이에요. Google이나 이메일로 계속하세요.' })
+    setSocial('apple')
+    setError(null)
+    try {
+      await loginWithApple()
+    } catch (e) {
+      const text = socialErrorText(e, 'apple')
+      if (text) setError({ field: 'form', text })
+      setSocial(null)
+    }
+  }
 
   const submit = async () => {
     if (locked) return
@@ -129,7 +145,7 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
           </Pressable>
           <View style={[s.divider, { backgroundColor: p.loginInputBorder }]} />
           {Platform.OS === 'ios' ? (
-            <SocialButton label="Apple로 계속하기" soon disabled={locked} onPress={continueWithApple} icon={<AppleMark color={p.textPrimary} />} />
+            <SocialButton label="Apple로 계속하기" soon={!appleReady} waiting={social === 'apple'} disabled={locked} onPress={() => void continueWithApple()} icon={<AppleMark color={p.textPrimary} />} />
           ) : null}
           <SocialButton label="Google로 계속하기" waiting={social === 'google'} disabled={locked} onPress={() => void continueWithGoogle()} icon={<GoogleMark />} />
         </View>

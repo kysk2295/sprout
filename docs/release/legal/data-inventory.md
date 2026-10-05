@@ -24,7 +24,7 @@
 | 비밀번호 해시 | `users.password_hash` — scrypt(N=16384, r=8, p=1, 16바이트 솔트). 소셜 전용 계정은 NULL | 로그인 | 탈퇴 시까지 | 즉시 삭제 | 없음 |
 | 가입 시각 | `users.created_at` | 운영 | 탈퇴 시까지 | 즉시 | 없음 |
 | 리프레시 토큰 | `sessions.token_hash`(SHA-256 해시만), `created_at`, `expires_at`(60일). **IP·기기 정보 저장 안 함** | 로그인 유지 | 로그아웃·리프레시(회전)·탈퇴 때 삭제. **만료된 행을 지우는 작업은 없음 [갭]** | CASCADE | 없음 |
-| 구글·애플 식별자 | `user_identities(provider, subject, email, created_at)` — `subject`=공급자 사용자 id, `email`=그때 받은 이메일(애플 가림 주소 가능). 이름·프로필 사진은 **저장 안 함** | 소셜 로그인·로그인 방법 연결 | 탈퇴 또는 연결 해제(`DELETE /auth/link/*`) 시까지 | CASCADE | 공급자(구글·애플)는 사용자가 직접 로그인 |
+| 구글·애플 식별자 | `user_identities(provider, subject, email, created_at, apple_client_id, apple_refresh_token)` — `subject`=공급자 사용자 id, `email`=그때 받은 이메일(애플 가림 주소 가능), `apple_refresh_token`=애플 폐기용 갱신 토큰(.p8 키가 있을 때만, 서버 전용 — 2026-10-05 `migrations/20261011-apple-tokens.sql`). 이름·프로필 사진은 **저장 안 함** | 소셜 로그인·로그인 방법 연결 | 탈퇴 또는 연결 해제(`DELETE /auth/link/*`) 시까지 | CASCADE | 공급자(구글·애플)는 사용자가 직접 로그인 |
 | 접근 토큰(JWT) | 저장 안 함(RS256 서명, 1시간, `auth_time`은 막 로그인했을 때만) | API·동기화 인증 | — | — | 없음 |
 | JWT 서명 키 | `api_data` 볼륨 `/data/keys.json`(권한 600) | 토큰 서명 | — | — | 없음 |
 
@@ -124,7 +124,7 @@
 | Google LLC — Firebase Cloud Messaging | FCM 등록 토큰, 알림 페이로드(할 일 제목·시각·리스트 이름 — 숨기기면 제외, 할 일 id) | Android에서 서버 푸시가 켜진 경우 | 처리 위탁 + 국외 이전(알림 전송) | 미국 등 Google 데이터센터 |
 | Google LLC — Google 로그인 | 사용자가 Google에 직접 로그인 → 우리는 ID 토큰(sub·이메일·이메일 확인 여부)만 받음. 범위 `openid email profile`(이름·사진은 저장 안 함) | 사용자가 선택할 때 | 이용자가 직접 이용하는 외부 로그인. 서버는 Google 공개키만 받아 검증 | 미국 |
 | Google LLC — Google Calendar API | 기기 ↔ Google 직접(서버 경유 없음) | 데스크톱에서 연결할 때 | 이용자 직접 연결 | 미국 |
-| Apple Inc. — Sign in with Apple | 사용자가 Apple에 직접 로그인 → ID 토큰(sub·이메일/가림 주소) | **데스크톱만 코드 있음, 모바일은 "준비 중"** | 위와 같음 | 미국 |
+| Apple Inc. — Sign in with Apple | 사용자가 Apple에 직접 로그인 → ID 토큰(sub·이메일/가림 주소) | 데스크톱(웹 흐름) + iOS 기기(`expo-apple-authentication`, 2026-10-05 — 애플 팀 설정 시 켜짐) | 위와 같음 | 미국 |
 | Tailscale Inc. — Funnel | 암호화된 연결 중계(내용 복호화 안 함 [확인 필요]), 접속 IP·시각 메타데이터 | 모든 서버 통신 | 처리 위탁 여부 **[확인 필요 — 법률 검토]** | 캐나다·미국 |
 | Ollama(소프트웨어) | 운영자 Mac mini 안에서 실행 — 데이터가 외부로 나가지 않음 | AI 사용 시 | 제3자 아님 | 대한민국 |
 | 광고·분석 업체 | 없음 | — | — | — |
@@ -138,8 +138,8 @@
 - 경로: 데스크톱 **설정 › 계정 › 맨 아래 `계정 삭제`**(`DesktopSettings.tsx:144`) · 모바일 **더보기 › 설정 › (맨 위 계정 카드) › 계정 › 맨 아래 `계정 삭제`**(`apps/mobile/app/(tabs)/settings/account.tsx`).
 - 확인: "삭제" 입력 + 비밀번호(비밀번호 계정) 또는 10분 안 Google 재로그인(소셜 전용 계정). 서버 `DELETE /auth/account`(`server/api/src/account.ts`), 재확인 실패 시도 제한 사용자당 15분 5회.
 - 지우는 것: 한 트랜잭션으로 `ai_usage` → `device_tokens` → `users` 삭제 → CASCADE로 `sessions`·`user_identities`·`push_state`·`push_sent`·동기화 25개 표 전부. 다른 기기는 PowerSync로 삭제를 받고, 리프레시는 401 → 로그아웃. 남은 접근 토큰(최대 1시간)으로 올려도 401.
-- 남는 것: 서버 백업(최대 14일, 수동 백업은 지울 때까지), PowerSync 저장 DB 연산 기록(압축 전까지 [확인 필요]), Google·Apple 쪽 연결(사용자가 각 계정 설정에서 해제 — **Apple 토큰 폐기(revoke) 미구현 [갭]**).
-- **[차단 후보]** 모바일에서 Apple로만 가입한 계정은 삭제할 수 없고 "컴퓨터 앱에서" 안내(`account.tsx:191`). 지금은 모바일에 Apple 로그인이 없어 실제로 생기진 않지만, iOS에 Apple 로그인을 켜면 반드시 고쳐야 한다(App Store 5.1.1(v)).
+- 남는 것: 서버 백업(최대 14일, 수동 백업은 지울 때까지), PowerSync 저장 DB 연산 기록(압축 전까지 [확인 필요]), Google·Apple 쪽 연결(구글은 사용자가 계정 설정에서 해제. Apple은 2026-10-05부터 삭제·연결 해제 때 서버가 `POST /auth/revoke`로 폐기 — .p8 키가 서버에 있어야 하고, 키 넣기 전에 가입한 애플 계정은 토큰이 없어 폐기 안 됨).
+- ~~**[차단 후보]** 모바일에서 Apple로만 가입한 계정은 삭제할 수 없고 "컴퓨터 앱에서" 안내(`account.tsx:191`). 지금은 모바일에 Apple 로그인이 없어 실제로 생기진 않지만, iOS에 Apple 로그인을 켜면 반드시 고쳐야 한다(App Store 5.1.1(v)).~~ → 2026-10-05 iOS에서 "Apple로 다시 로그인" 후 삭제로 해결.
 
 ## 6. 출시 전 갭 요약
 

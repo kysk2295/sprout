@@ -91,6 +91,30 @@ const NOW = 2_000_000_000
   assert.deepEqual(state.devices, ['pw'])
 }
 
+// ── 애플 토큰 폐기 훅(지침 5.1.1(v)): 확인 통과 뒤 읽고 → 삭제 커밋 뒤 폐기. 폐기 실패해도 삭제는 끝난다 ──
+{
+  const { db, state } = fakeDb([{ id: 'social', password_hash: null }, { id: 'pw', password_hash: hash }])
+  const order: string[] = []
+  const hook = {
+    read: async (id: string) => { order.push(`read:${id}:${state.users.length}`); return [{ clientId: 'app.sprout.mobile', refreshToken: 'rt' }] },
+    revoke: async (t: unknown[]) => { order.push(`revoke:${t.length}:${state.users.length}`) }
+  }
+  // 확인 실패면 읽지도 폐기하지도 않는다
+  await assert.rejects(deleteAccount(db, { userId: 'social', nowSec: NOW }, undefined, hook), is(403, 'reauth required'))
+  await assert.rejects(deleteAccount(db, { userId: 'pw', password: 'wrong' }, undefined, hook), is(403, 'invalid password'))
+  assert.deepEqual(order, [])
+  await deleteAccount(db, { userId: 'social', authTime: NOW, nowSec: NOW }, undefined, hook)
+  assert.deepEqual(order, ['read:social:2', 'revoke:1:1']) // 지우기 전에 읽고, 지운 뒤 폐기
+  // 폐기가 던져도 · 읽기가 던져도 삭제는 성공
+  await deleteAccount(db, { userId: 'pw', password: 'correct horse' }, undefined, { read: async () => { throw new Error('no column') }, revoke: async () => { throw new Error('x') } })
+  assert.equal(state.users.length, 0)
+  // 트랜잭션이 실패하면 폐기하지 않는다
+  const f = fakeDb([{ id: 'pw', password_hash: hash }], { failOn: /DELETE FROM users/ })
+  let revoked = 0
+  await assert.rejects(deleteAccount(f.db, { userId: 'pw', password: 'correct horse' }, undefined, { read: async () => [{}], revoke: async () => { revoked++ } }), /db down/)
+  assert.equal(revoked, 0)
+}
+
 // ── 없는 사용자 ──
 {
   const { db } = fakeDb([])

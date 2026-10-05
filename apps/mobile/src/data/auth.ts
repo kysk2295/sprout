@@ -13,6 +13,7 @@ import { API_URL, SYNC_URL } from '../config'
 import { CONNECT_OPTIONS, coreDb, db, run } from './db'
 import { deviceId } from './device'
 import { GoogleSignInError, googleIdToken } from './google'
+import { AppleSignInError, appleCredential } from './apple'
 
 const KEY = 'sprout.session.v1'
 
@@ -197,6 +198,25 @@ export async function reauthWithGoogle() {
   await save(toSession(r))
 }
 
+// ── 20 §4.3.1 Apple로 계속하기(iOS) · 연결 · 삭제 전 다시 로그인 ──
+/** 애플 시스템 창 → POST /auth/apple/native {id_token, nonce, authorization_code} → 이메일 로그인과 같은 길 */
+export async function loginWithApple() {
+  const cred = await appleCredential()
+  await signInWithTokens(await api<TokenResponse>('/auth/apple/native', { body: cred }))
+}
+/** 08 §7.1 애플로만 가입한 계정 삭제 전 다시 로그인(구글과 같은 규칙: 같은 계정이면 토큰만 바꿈) */
+export async function reauthWithApple() {
+  if (!session) throw new ApiError('unauthorized', 401)
+  const me = session.user.id
+  const cred = await appleCredential()
+  const r = await api<TokenResponse>('/auth/apple/native', { body: cred })
+  if (r.user.id !== me || !session || session.user.id !== me) {
+    void api('/auth/logout', { body: { refresh_token: r.refresh_token } }).catch(() => {})
+    throw new Error('reauth: different account')
+  }
+  await save(toSession(r))
+}
+
 export type Provider = 'google' | 'apple'
 export type LinkedIdentity = { provider: Provider; email: string | null } // email은 서버가 가린 것
 export type LoginMethods = { hasPassword: boolean; identities: LinkedIdentity[] }
@@ -222,12 +242,24 @@ export async function linkGoogle(): Promise<LinkedIdentity[]> {
   const idToken = await googleIdToken()
   return toIdentities(await api('/auth/link/google', { body: { id_token: idToken }, token: await bearer() }))
 }
+/** 지금 계정에 애플을 붙인다(iOS). 서버 409 문구는 ApiError.message 그대로 */
+export async function linkApple(): Promise<LinkedIdentity[]> {
+  await bearer()
+  const cred = await appleCredential()
+  return toIdentities(await api('/auth/link/apple/native', { body: cred, token: await bearer() }))
+}
 export async function unlinkProvider(provider: Provider): Promise<LinkedIdentity[]> {
   return toIdentities(await api(`/auth/link/${provider}`, { method: 'DELETE', token: await bearer() }))
 }
 
 /** 소셜 로그인·연결 오류 → 화면 문구. 취소는 null(아무것도 안 띄움). 데스크톱 auth-social.ts MSG와 같은 뜻 */
-export function socialErrorText(e: unknown): string | null {
+export function socialErrorText(e: unknown, provider: Provider = e instanceof AppleSignInError ? 'apple' : 'google'): string | null {
+  const notReady = provider === 'apple' ? 'Apple 로그인 설정이 아직 없어요' : '구글 로그인 설정이 아직 없어요'
+  if (e instanceof AppleSignInError) {
+    if (e.code === 'cancelled' || e.code === 'busy') return null
+    if (e.code === 'not_configured') return notReady
+    return '로그인을 확인하지 못했어요. 다시 시도하세요.'
+  }
   if (e instanceof GoogleSignInError) {
     if (e.code === 'cancelled' || e.code === 'busy') return null
     if (e.code === 'not_configured') return '구글 로그인 설정이 아직 없어요'
@@ -236,9 +268,10 @@ export function socialErrorText(e: unknown): string | null {
   }
   if (e instanceof ApiError) {
     if (e.status === 0) return '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요'
-    if (e.status === 503 || /not configured/.test(e.message)) return '구글 로그인 설정이 아직 없어요'
+    if (e.status === 503 || /not configured/.test(e.message)) return notReady
     if (e.status === 429) return /분 뒤/.test(e.message) ? e.message : '잠시 뒤 다시 시도하세요'
     if (e.status === 409) return e.message // 연결: 서버 한국어 문구
+    if (provider === 'apple' && /email required/.test(e.message)) return 'Apple이 이메일을 보내지 않았어요. 설정 › Apple ID › Apple로 로그인에서 sprout를 지운 뒤 다시 시도하세요.'
     if (/not verified/.test(e.message)) return '이메일이 확인되지 않은 계정이에요. 이메일을 확인한 뒤 다시 시도하세요.'
     if (e.status === 401 && /^unauthorized$/.test(e.message)) return '로그인이 만료됐어요. 다시 로그인한 뒤 시도하세요'
     if (e.status >= 500) return '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요'

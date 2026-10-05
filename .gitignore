@@ -42,3 +42,24 @@ GoogleService-Info.plist
 *firebase-adminsdk*.json
 *service-account*.json
 fcm*.json
+
+# 출시 준비(2026-10-05, docs/release/HANDOVER.md §1): 서명 키·인증서·프로비저닝은 어디서든 git 밖
+*.p8
+*.p12
+*.pem
+*.key
+*.jks
+*.keystore
+*.mobileprovision
+*.provisionprofile
+*.cer
+AuthKey_*.p8
+# 패키지 앱을 띄워 보는 로컬 사본(지금은 .git/info/exclude에만 있음 — 다른 컴퓨터에서도 막는다)
+apps/desktop/.live*/
+# 네이티브 빌드 산출물(Expo 로컬 모듈의 Gradle build/ 등)
+apps/mobile/modules/*/android/build/
+apps/mobile/modules/*/ios/build/
+*.ipa
+*.aab
+*.apk
+*.xcarchive

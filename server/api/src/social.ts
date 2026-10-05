@@ -7,6 +7,10 @@
 // - 애플: 웹 흐름(response_mode=form_post)이라 돌아오는 주소가 https여야 한다 → API의 /auth/apple/callback 이 받아
 //   state 별로 잠깐(5분) 맡아 두고 sprout://auth/apple 로 앱을 깨운다. 앱은 POST /auth/apple {state, nonce}로 찾아간다.
 //   토큰은 URL에 싣지 않는다. 애플에는 nonce의 SHA-256만 보내므로, 원래 nonce를 아는 그 앱만 교환할 수 있다.
+// - 애플(iOS 기기, 20 §4.3.1): expo-apple-authentication이 받은 ID 토큰을 POST /auth/apple/native {id_token, nonce, authorization_code?}.
+//   aud = 앱 번들 id(APPLE_BUNDLE_IDS, 기본 app.sprout.mobile). nonce 규칙은 웹 흐름과 같다(앱은 sha256(nonce)를 애플에 보냄).
+// - 애플 토큰 폐기(심사 지침 5.1.1(v)): .p8 키가 있으면 인가 코드를 교환해 받은 refresh_token을 user_identities에 서버 전용으로 두고,
+//   계정 삭제·애플 연결 해제 때 POST https://appleid.apple.com/auth/revoke 로 폐기한다(revokeAppleToken).
 // - 계정 규칙: (공급자, subject)가 이미 있으면 그 계정 → 없으면 확인된 같은 이메일 계정에 연결 → 없으면 새 계정(비밀번호 없음).
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -31,7 +35,11 @@ export type SocialConfig = {
     keyId: string
     privateKey: string | null // .p8 내용(PEM). 있으면 코드 교환으로 한 번 더 확인한다
   }
+  /** iOS 기기 애플 로그인(ID 토큰 aud = 번들 id). 키는 공개키(JWKS)만 있으면 되고, key는 토큰 폐기·코드 확인용(없으면 null) */
+  appleNative: { bundleIds: string[]; key: AppleKey | null }
 }
+/** 애플 "Sign in with Apple" 키(.p8) — 웹(Services ID)·기기(번들 id) 둘 다 같은 키로 client_secret을 만든다 */
+export type AppleKey = { teamId: string; keyId: string; privateKey: string }
 
 export function socialConfigFromEnv(env: Record<string, string | undefined> = process.env): SocialConfig {
   const list = (v?: string) => (v ?? '').split(',').map((s) => s.trim()).filter(Boolean)
@@ -43,10 +51,16 @@ export function socialConfigFromEnv(env: Record<string, string | undefined> = pr
     try { privateKey = keyPath.includes('BEGIN PRIVATE KEY') ? keyPath : readFileSync(keyPath, 'utf8') } catch (e) { console.warn('[social] APPLE_PRIVATE_KEY를 읽지 못했어요:', (e as Error).message) }
   }
   const publicUrl = (env.API_PUBLIC_URL ?? 'https://macmini.tail425c97.ts.net').replace(/\/+$/, '')
+  const teamId = env.APPLE_TEAM_ID?.trim() || 'BU697KN34B'
+  const keyId = env.APPLE_KEY_ID?.trim() ?? ''
+  // 번들 id는 비밀이 아니고 검증에 애플 공개키만 쓰므로 기본으로 켠다. APPLE_BUNDLE_IDS=off 로 끈다
+  const bundleRaw = env.APPLE_BUNDLE_IDS?.trim()
+  const bundleIds = bundleRaw === 'off' ? [] : bundleRaw ? list(bundleRaw) : ['app.sprout.mobile']
   return {
     googleClientIds,
+    appleNative: { bundleIds, key: privateKey && keyId ? { teamId, keyId, privateKey } : null },
     apple: servicesId
-      ? { servicesId, redirectUri: env.APPLE_REDIRECT_URI?.trim() || `${publicUrl}/auth/apple/callback`, teamId: env.APPLE_TEAM_ID?.trim() || 'BU697KN34B', keyId: env.APPLE_KEY_ID?.trim() ?? '', privateKey }
+      ? { servicesId, redirectUri: env.APPLE_REDIRECT_URI?.trim() || `${publicUrl}/auth/apple/callback`, teamId, keyId, privateKey }
       : null
   }
 }
@@ -119,16 +133,18 @@ export async function verifyGoogleIdToken(
 }
 
 /** 애플 ID 토큰. 애플에는 sha256(nonce)를 보냈으므로 토큰의 nonce = sha256hex(앱이 가진 원래 nonce) */
-export async function verifyAppleIdToken(token: unknown, opts: { servicesId: string; keys: KeySource; rawNonce: unknown }): Promise<VerifiedIdentity> {
-  const p = await verify(token, opts.keys, ['https://appleid.apple.com'], [opts.servicesId])
+export async function verifyAppleIdToken(token: unknown, opts: { servicesId?: string; audiences?: string[]; keys: KeySource; rawNonce: unknown }): Promise<VerifiedIdentity & { audience: string }> {
+  const audiences = opts.audiences ?? (opts.servicesId ? [opts.servicesId] : [])
+  const p = await verify(token, opts.keys, ['https://appleid.apple.com'], audiences)
   if (typeof opts.rawNonce !== 'string' || typeof p.nonce !== 'string' || !sameText(p.nonce, sha256hex(opts.rawNonce))) throw new SocialError('invalid token')
   const email = typeof p.email === 'string' ? p.email.trim().toLowerCase() : null
-  return { provider: 'apple', subject: p.sub!, email, emailVerified: truthy(p.email_verified), privateRelay: truthy(p.is_private_email) || !!email?.endsWith('@privaterelay.appleid.com') }
+  const audience = (Array.isArray(p.aud) ? p.aud.find((a) => audiences.includes(a)) : p.aud) as string
+  return { provider: 'apple', subject: p.sub!, email, emailVerified: truthy(p.email_verified), privateRelay: truthy(p.is_private_email) || !!email?.endsWith('@privaterelay.appleid.com'), audience }
 }
 
 // ── 애플 client_secret(ES256, .p8) · 코드 교환 ──
 /** 애플 토큰 엔드포인트용 client_secret. 최대 6개월 유효 — 여기서는 5분짜리를 매번 만든다 */
-export async function appleClientSecret(a: { teamId: string; keyId: string; servicesId: string; privateKey: string }, ttlSec = 300): Promise<string> {
+export async function appleClientSecret(a: AppleKey & { servicesId: string }, ttlSec = 300): Promise<string> {
   const key = await importPKCS8(a.privateKey, 'ES256')
   return new SignJWT({})
     .setProtectedHeader({ alg: 'ES256', kid: a.keyId })
@@ -146,17 +162,59 @@ export async function exchangeAppleCode(
   code: string,
   fetchImpl: typeof fetch = fetch
 ): Promise<string> {
+  return (await appleTokenExchange({ ...a, privateKey: a.privateKey }, a.servicesId, code, a.redirectUri, fetchImpl)).subject
+}
+
+/**
+ * 인가 코드 → 애플 토큰(client_id = Services ID 또는 번들 id). 돌려받은 ID 토큰의 sub와 refresh_token(폐기용, 없을 수 있음).
+ * 기기 흐름은 redirect_uri를 보내지 않는다.
+ */
+export async function appleTokenExchange(
+  key: AppleKey,
+  clientId: string,
+  code: string,
+  redirectUri: string | undefined,
+  fetchImpl: typeof fetch = fetch
+): Promise<{ subject: string; refreshToken: string | null }> {
+  const body = new URLSearchParams({ client_id: clientId, client_secret: await appleClientSecret({ ...key, servicesId: clientId }), code, grant_type: 'authorization_code' })
+  if (redirectUri) body.set('redirect_uri', redirectUri)
   const res = await fetchImpl('https://appleid.apple.com/auth/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: a.servicesId, client_secret: await appleClientSecret(a), code, grant_type: 'authorization_code', redirect_uri: a.redirectUri }),
+    body,
     signal: AbortSignal.timeout(15_000)
   })
-  const json = (await res.json().catch(() => ({}))) as { id_token?: string }
+  const json = (await res.json().catch(() => ({}))) as { id_token?: string; refresh_token?: string }
   if (!res.ok || !json.id_token) throw new SocialError('apple code rejected')
   const sub = decodeJwt(json.id_token).sub // 애플 서버에서 TLS로 직접 받은 토큰이라 서명 재검증은 생략
   if (!sub) throw new SocialError('apple code rejected')
-  return sub
+  return { subject: sub, refreshToken: typeof json.refresh_token === 'string' && json.refresh_token ? json.refresh_token : null }
+}
+
+/** 애플 토큰 폐기(계정 삭제·연결 해제). 성공 = 200. 이미 폐기·만료된 토큰도 애플은 200을 준다 */
+export async function revokeAppleToken(key: AppleKey, clientId: string, token: string, fetchImpl: typeof fetch = fetch): Promise<boolean> {
+  const res = await fetchImpl('https://appleid.apple.com/auth/revoke', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: clientId, client_secret: await appleClientSecret({ ...key, servicesId: clientId }), token, token_type_hint: 'refresh_token' }),
+    signal: AbortSignal.timeout(15_000)
+  })
+  return res.ok
+}
+
+export type AppleToken = { clientId: string; refreshToken: string }
+/** 계정의 애플 토큰을 모두 폐기한다(최선 노력 — 실패해도 던지지 않고 실패 수만 센다). 키가 없으면 0건 */
+export async function revokeAppleTokens(key: AppleKey | null, tokens: AppleToken[], fetchImpl: typeof fetch = fetch): Promise<{ revoked: number; failed: number }> {
+  let revoked = 0
+  let failed = 0
+  if (!key) return { revoked, failed: tokens.length }
+  for (const t of tokens) {
+    const ok = await revokeAppleToken(key, t.clientId, t.refreshToken, fetchImpl).catch(() => false)
+    if (ok) revoked++
+    else failed++
+  }
+  if (tokens.length) console.log(`[social] 애플 토큰 폐기 ${revoked}건${failed ? ` · 실패 ${failed}건` : ''}`)
+  return { revoked, failed }
 }
 
 // ── 애플 콜백 맡김 칸(메모리, 5분, 한 번만) ──
@@ -218,6 +276,30 @@ export interface IdentityStore {
   /** 사용자와 기본함(lists kind='inbox', id inbox-<id>)을 함께 만든다. 같은 이메일이 동시에 만들어지면 null */
   createUser(email: string): Promise<UserRow | null>
   link(userId: string, id: VerifiedIdentity): Promise<void>
+}
+
+/** 애플 refresh_token 보관(서버 전용 칸 user_identities.apple_*, migrations/20261011-apple-tokens.sql). 칸이 아직 없는 서버에서도 로그인은 막지 않는다 */
+export interface AppleTokenStore {
+  save(subject: string, token: AppleToken): Promise<void>
+  /** 이 사용자의 애플 토큰(계정 삭제 전에 읽는다) */
+  forUser(userId: string): Promise<AppleToken[]>
+}
+export function pgAppleTokenStore(q: Q): AppleTokenStore {
+  return {
+    async save(subject, t) {
+      await q(`UPDATE user_identities SET apple_client_id = $2, apple_refresh_token = $3 WHERE provider = 'apple' AND subject = $1`, [subject, t.clientId, t.refreshToken])
+        .catch((e) => console.error('[social] 애플 토큰 저장 실패(마이그레이션 20261011 확인):', (e as Error).message))
+    },
+    async forUser(userId) {
+      try {
+        const r = await q(`SELECT apple_client_id, apple_refresh_token FROM user_identities WHERE user_id = $1 AND provider = 'apple' AND apple_refresh_token IS NOT NULL`, [userId])
+        return r.rows.map((x) => ({ clientId: x.apple_client_id as string, refreshToken: x.apple_refresh_token as string })).filter((x) => x.clientId && x.refreshToken)
+      } catch (e) {
+        console.error('[social] 애플 토큰 읽기 실패(마이그레이션 20261011 확인):', (e as Error).message)
+        return []
+      }
+    }
+  }
 }
 
 export type Resolved = { user: UserRow; created: boolean; linked: boolean }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createLocalJWKSet, decodeProtectedHeader, exportJWK, exportPKCS8, generateKeyPair, jwtVerify, SignJWT } from 'jose'
 import {
-  appleClientSecret, appleReturnPage, exchangeAppleCode, HandoffStore, memoryIdentityStore, NONCELESS_MAX_AGE_SEC, parseAppleCallback, ReplayGuard, resolveSocialUser,
+  appleClientSecret, appleReturnPage, appleTokenExchange, exchangeAppleCode, revokeAppleToken, revokeAppleTokens, HandoffStore, memoryIdentityStore, NONCELESS_MAX_AGE_SEC, parseAppleCallback, ReplayGuard, resolveSocialUser,
   socialConfigFromEnv, SocialError, verifyAppleIdToken, verifyGoogleIdToken
 } from './social.ts'
 
@@ -70,13 +70,26 @@ const raw = 'raw-nonce-123'
 const hashed = createHash('sha256').update(raw).digest('hex')
 const atok = await sign({ email: 'abc@privaterelay.appleid.com', email_verified: 'true', is_private_email: 'true', nonce: hashed }, { iss: 'https://appleid.apple.com', aud: A, sub: '001.apple' })
 const a = await verifyAppleIdToken(atok, { servicesId: A, keys, rawNonce: raw })
-assert.deepEqual(a, { provider: 'apple', subject: '001.apple', email: 'abc@privaterelay.appleid.com', emailVerified: true, privateRelay: true })
+assert.deepEqual(a, { provider: 'apple', subject: '001.apple', email: 'abc@privaterelay.appleid.com', emailVerified: true, privateRelay: true, audience: A })
 await rejects401(verifyAppleIdToken(atok, { servicesId: A, keys, rawNonce: hashed })) // 해시를 그대로 보내면 안 된다(원래 nonce만)
 await rejects401(verifyAppleIdToken(atok, { servicesId: A, keys, rawNonce: undefined }))
 await rejects401(verifyAppleIdToken(atok, { servicesId: 'other', keys, rawNonce: raw }))
 // 두 번째 로그인부터는 이메일이 없을 수 있다
 const a2 = await verifyAppleIdToken(await sign({ nonce: hashed }, { iss: 'https://appleid.apple.com', aud: A, sub: '001.apple' }), { servicesId: A, keys, rawNonce: raw })
 assert.equal(a2.email, null)
+
+// iOS 기기 애플 로그인(20 §4.3.1): aud = 앱 번들 id. 웹 Services ID용 토큰과 섞이지 않는다
+{
+  const B = 'app.sprout.mobile'
+  const ntok = await sign({ email: 'me@icloud.com', email_verified: true, nonce: hashed }, { iss: 'https://appleid.apple.com', aud: B, sub: '001.apple' })
+  const n = await verifyAppleIdToken(ntok, { audiences: [B, 'app.sprout.mobile.dev'], keys, rawNonce: raw })
+  assert.deepEqual([n.subject, n.email, n.audience, n.privateRelay], ['001.apple', 'me@icloud.com', B, false])
+  await rejects401(verifyAppleIdToken(ntok, { servicesId: A, keys, rawNonce: raw })) // 웹(Services ID) 자리에는 기기 토큰을 못 쓴다
+  await rejects401(verifyAppleIdToken(atok, { audiences: [B], keys, rawNonce: raw })) // 기기 자리에는 웹 토큰을 못 쓴다
+  await rejects401(verifyAppleIdToken(ntok, { audiences: [B], keys, rawNonce: 'other-nonce' }))
+  await rejects401(verifyAppleIdToken(ntok, { audiences: [B], keys, rawNonce: undefined })) // 기기도 nonce 필수
+  await assert.rejects(verifyAppleIdToken(ntok, { audiences: [], keys, rawNonce: raw }), (e: any) => e.status === 503) // 꺼짐
+}
 
 // ── 계정 규칙 ──
 const store = memoryIdentityStore()
@@ -134,9 +147,51 @@ assert.equal(sent!.get('code'), 'code-1')
 assert.equal(sent!.get('redirect_uri'), apple.redirectUri)
 await assert.rejects(exchangeAppleCode(apple, 'bad', (async () => new Response('{"error":"invalid_grant"}', { status: 400 })) as unknown as typeof fetch))
 
+// 기기 코드 교환: client_id = 번들 id, redirect_uri 없음, refresh_token 돌려받음(폐기용)
+{
+  const B = 'app.sprout.mobile'
+  const key = { teamId: apple.teamId, keyId: apple.keyId, privateKey: apple.privateKey }
+  let body: URLSearchParams | undefined
+  const f = (async (url: string, init: any) => {
+    assert.equal(url, 'https://appleid.apple.com/auth/token')
+    body = init.body
+    return new Response(JSON.stringify({ id_token: await sign({}, { iss: 'https://appleid.apple.com', aud: B, sub: '001.apple' }), refresh_token: 'rt-1' }), { status: 200 })
+  }) as unknown as typeof fetch
+  assert.deepEqual(await appleTokenExchange(key, B, 'code-2', undefined, f), { subject: '001.apple', refreshToken: 'rt-1' })
+  assert.equal(body!.get('client_id'), B)
+  assert.equal(body!.get('redirect_uri'), null)
+  await jwtVerify(body!.get('client_secret')!, ec.publicKey, { issuer: 'BU697KN34B', audience: 'https://appleid.apple.com', subject: B }) // client_secret sub = 번들 id
+
+  // 폐기: /auth/revoke 에 refresh_token 힌트로
+  const calls: URLSearchParams[] = []
+  const rf = (async (url: string, init: any) => {
+    assert.equal(url, 'https://appleid.apple.com/auth/revoke')
+    calls.push(init.body)
+    return new Response('', { status: init.body.get('token') === 'bad' ? 400 : 200 })
+  }) as unknown as typeof fetch
+  assert.equal(await revokeAppleToken(key, B, 'rt-1', rf), true)
+  assert.deepEqual([calls[0].get('client_id'), calls[0].get('token'), calls[0].get('token_type_hint')], [B, 'rt-1', 'refresh_token'])
+  // 여러 개 · 일부 실패 · 네트워크 오류도 던지지 않는다
+  const thrower = (async () => { throw new Error('offline') }) as unknown as typeof fetch
+  assert.deepEqual(await revokeAppleTokens(key, [{ clientId: B, refreshToken: 'rt-1' }, { clientId: A, refreshToken: 'bad' }], rf), { revoked: 1, failed: 1 })
+  assert.deepEqual(await revokeAppleTokens(key, [{ clientId: B, refreshToken: 'rt-1' }], thrower), { revoked: 0, failed: 1 })
+  assert.deepEqual(await revokeAppleTokens(null, [{ clientId: B, refreshToken: 'rt-1' }], rf), { revoked: 0, failed: 1 }) // 키 없음
+  assert.deepEqual(await revokeAppleTokens(key, [], rf), { revoked: 0, failed: 0 })
+}
+
 // ── 환경 변수 ──
 const cfg = socialConfigFromEnv({ GOOGLE_CLIENT_ID: 'a', GOOGLE_CLIENT_IDS: 'b, a', APPLE_SERVICES_ID: A, APPLE_KEY_ID: 'K', API_PUBLIC_URL: 'https://x.example/' })
 assert.deepEqual(cfg.googleClientIds, ['b', 'a'])
 assert.deepEqual(cfg.apple, { servicesId: A, redirectUri: 'https://x.example/auth/apple/callback', teamId: 'BU697KN34B', keyId: 'K', privateKey: null })
 assert.equal(socialConfigFromEnv({}).apple, null)
+// 기기 애플: 기본 번들 id app.sprout.mobile, 목록·끄기, 키는 .p8 + KEY_ID가 다 있을 때만
+assert.deepEqual(socialConfigFromEnv({}).appleNative, { bundleIds: ['app.sprout.mobile'], key: null })
+assert.deepEqual(socialConfigFromEnv({ APPLE_BUNDLE_IDS: 'a.b, c.d' }).appleNative.bundleIds, ['a.b', 'c.d'])
+assert.deepEqual(socialConfigFromEnv({ APPLE_BUNDLE_IDS: 'off' }).appleNative.bundleIds, [])
+{
+  const pem = apple.privateKey
+  const n = socialConfigFromEnv({ APPLE_PRIVATE_KEY: pem, APPLE_KEY_ID: 'K2', APPLE_TEAM_ID: 'TEAM9' }).appleNative
+  assert.deepEqual(n.key, { teamId: 'TEAM9', keyId: 'K2', privateKey: pem })
+  assert.equal(socialConfigFromEnv({ APPLE_PRIVATE_KEY: pem }).appleNative.key, null) // KEY_ID 없음
+}
 console.log('social: ok')
