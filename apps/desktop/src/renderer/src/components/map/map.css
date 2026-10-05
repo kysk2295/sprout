@@ -291,3 +291,6 @@
 
 .map-node--task.is-hl .map-card.is-blocked, .map-node--task.is-hl .map-card.is-faded { opacity: 1; }
 .map-node--task.is-hl .map-card { border-color: var(--color-accent); }
+
+/* 31 §12 머리 ⧉ 전체 지도(눌림 = 강조색) */
+.map-head .icon-btn.map-whole.is-on { color: var(--color-accent); background: var(--color-accent-subtle); }

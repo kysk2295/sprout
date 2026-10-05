@@ -88,7 +88,8 @@ const ctx0 = (): Ctx => ({
   assert.ok(!has('t4', 'gu'), '프로젝트 태그의 집(폴더) 안엔 안 붙음')
   assert.ok(!has('t5', 'gc') && has('t5', 'gs'), '리스트 이름과 같은 태그는 안 붙음')
   assert.ok(!plan.some((a) => a.taskId === 't6'), '두 태그가 같은 이름 = 애매 → 사전으로는 안 붙임')
-  assert.equal(plan.filter((a) => a.taskId === 't7').length, 2, '할 일당 자동 2개까지')
+  assert.equal(plan.filter((a) => a.taskId === 't7' && a.tagId !== 'gu').length, 2, '할 일당 자동 2개까지')
+  assert.ok(has('t7', 'gu'), '31 §12.1 프로젝트 태그는 자동 2개 상한과 따로(프로젝트 1개까지 더)')
   // 사람 끔
   const noPerson = { ...ctx0(), person: false }
   assert.ok(!planAssign(dictionaryPass(['t1'], noPerson), noPerson).length, '사람 태그 자동 끔')

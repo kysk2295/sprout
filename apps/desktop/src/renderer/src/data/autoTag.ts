@@ -165,7 +165,17 @@ type Chat = typeof aiChat
 /** AI에 한 묶음 묻기 → 검증된 결과 */
 export async function askTagAi(tasks: AtTask[], ctx: Ctx, opts: { signal: AbortSignal; chat?: Chat }) {
   const listName = new Map(ctx.lists.map((l) => [l.id, l.kind === 'inbox' ? null : l.name]))
-  const { payload, tagKeys, taskKeys } = buildTagPayload(ctx.tags, tasks.map((t) => ({ id: t.id, title: t.title, listName: t.list_id ? listName.get(t.list_id) ?? null : null })))
+  // 31 §12.1 ④ 프로젝트 태그엔 그 프로젝트 할 일 제목 3개를 예시로(이름이 없어도 단계면 붙이게)
+  const titleOf = new Map(ctx.tasks.map((t) => [t.id, t.title]))
+  const examples = new Map<string, string[]>()
+  for (const l of ctx.links) {
+    const tag = ctx.tags.find((g) => g.id === l.tag_id)
+    if (tag?.kind !== 'project' || (l.state ?? 'accepted') !== 'accepted') continue
+    const xs = examples.get(tag.id) ?? []
+    const title = titleOf.get(l.task_id)
+    if (title && xs.length < 3) examples.set(tag.id, [...xs, title])
+  }
+  const { payload, tagKeys, taskKeys } = buildTagPayload(ctx.tags, tasks.map((t) => ({ id: t.id, title: t.title, listName: t.list_id ? listName.get(t.list_id) ?? null : null })), examples)
   const raw = await (opts.chat ?? aiChat)({ purpose: 'tag', priority: 'background', format: TAG_SCHEMA as unknown as Record<string, unknown>, messages: [{ role: 'system', content: TAG_SYSTEM }, { role: 'user', content: JSON.stringify(payload) }] }, opts.signal)
   opts.signal.throwIfAborted()
   return validateTagAnswer(parseTagItemsLoose(raw), taskKeys, tagKeys, ctx)

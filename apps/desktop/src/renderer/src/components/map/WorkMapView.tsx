@@ -1,6 +1,7 @@
 // 14 작업 지도 v2.0 + 31 v3 — 머리(그래프·보드·타임라인 · 기간 · ⚡ 지금 · ✦ 기본함 정리 · 거름틀 · ⋯), AI 제안 카드, 지금 띠, 보기, 상세 패널(02와 같은 컴포넌트).
+// 31 §12 v2(2026-10-05): 모드 화면이 기본 — 계획 = plan/PlanHome(자동 프로젝트), 점검·정리 = modes.tsx 자리. 전체 나무(위 보기들)는 머리 ⧉ 전체 지도에서만.
 // 내 폴더 › 리스트 › 할 일을 틱틱처럼 직접 고친다. AI는 기본함 할 일에 대한 제안만(30 §B).
-import { Check, Columns3, FolderPlus, ListPlus, MoreHorizontal, Network, RotateCcw, Sparkles, X } from 'lucide-react'
+import { Check, Columns3, FolderPlus, ListPlus, Map as MapIcon, MoreHorizontal, Network, RotateCcw, Sparkles, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { localModels } from '../../../../shared/assistant'
 import { setGoalProgress, thisWeek, type GoalRow } from '../../data/growth'
@@ -40,6 +41,9 @@ import { SUGGEST } from '../../data/listSuggest'
 import type { MapTask } from '../../data/map'
 import type { MapActions } from './parts'
 import { DEFAULT_OPTIONS, useMapData, useStored, useStoredValue, type MapOptions } from './useMapData'
+import { ReviewSlot, TidySlot, type ModeSlotProps } from './modes'
+import { PlanHome } from './plan/PlanHome'
+import type { PlanOpen } from './plan/ProjectBoard'
 import './map.css'
 
 const DETAIL = { def: 298, min: 260, max: 560 }
@@ -55,6 +59,10 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const [mode, setModeRaw] = useStoredValue<MapMode>('mode', 'plan')
   const [planView, setPlanView] = useStoredValue<'graph' | 'board' | 'timeline'>('view', 'graph')
   const view = modeView(mode, planView)
+  // 31 §12 ⧉ 전체 지도(기기 기억 sprout.map.whole) — 꺼져 있으면 모드 화면(계획 = 프로젝트 보드)
+  const [wholeN, setWholeN] = useStoredValue<number>('whole', 0)
+  const whole = wholeN === 1
+  const [focusProject, setFocusProject] = useState<{ id: string; n: number } | null>(null)
   const [userOpts, setOpts] = useStored<MapOptions>('options', DEFAULT_OPTIONS)
   // 묶기·기간은 모드가 정한다(2026-10-05 정리): 점검 = 목표로 묶기(이번 주 목표가 없으면 리스트), 나머지 = 리스트 · 기간 전체
   const goalCount = useQuery<{ n: number }>('SELECT count(*) AS n FROM kpis WHERE week_start = ?', [thisWeek()])?.[0]?.n ?? 0
@@ -212,7 +220,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const onRecipe = (r: Recipe) => {
     if (r === 'morning') { applyMode('plan'); setFocusNow(true); return }
     applyMode(r === 'goal' ? 'review' : 'plan') // 34 §3: 해 보기 = 계획·점검 모드
-    if (r === 'split') openPlan(selected ?? undefined) // 31 §11: 큰 일 = 같이 계획 짜기
+    if (r === 'split') openPlan(selected ?? undefined, whole ? {} : { makeProject: true }) // 31 §11·§12.4: 큰 일 = 같이 계획 짜기(모드 화면에선 프로젝트로)
   }
   const noTasks = data.loaded && data.allOpen === 0 && data.tasks.length === 0 && data.lists.filter((l) => l.kind !== 'inbox' && !l.archived_at).length === 0
   const setOpt = <K extends keyof MapOptions>(k: K, v: MapOptions[K]) => setOpts((o) => ({ ...o, [k]: v }))
@@ -222,7 +230,9 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const revealTask = (id: string) => { setSelected(id); setReveal((r) => ({ id, n: (r?.n ?? 0) + 1 })) }
   /** 지도에서 그 노드로만 이동(상세는 안 연다 — 대화 칸이 옆에 있을 때) */
   const panTo = (id: string) => setReveal((r) => ({ id, n: (r?.n ?? 0) + 1 }))
-  const openPlan = (taskId?: string) => { setModeRaw('plan'); setFocusNow(false); setPlan({ key: Date.now(), taskId }) }
+  const openPlan = (taskId?: string, extra: { project?: { id: string; name: string }; makeProject?: boolean } = {}) => { setModeRaw('plan'); setFocusNow(false); setPlan({ key: Date.now(), taskId, ...extra }) }
+  const onPlanOpen: PlanOpen = (o = {}) => openPlan(o.taskId, { project: o.project, makeProject: o.makeProject })
+  const slot: ModeSlotProps = { lists, onSelectTask: setSelected, onMode: (m) => applyMode(m), notify: (text, action) => say(text, action), openPlanChat: (taskId) => openPlan(taskId) }
   const freshTimer = useRef(0)
   const addFresh = (tasks: string[], links: string[]) => {
     setFresh((m) => { const n = new Map(m); let i = 0; for (const id of tasks) n.set(id, i++); i = 0; for (const id of links) n.set(id, i++); return n })
@@ -241,6 +251,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const applyMode = useCallback((m: MapMode) => {
     const p = MODE_PRESET[m]
     setModeRaw(m)
+    setFocusProject(null)
     if (m !== 'plan') { setPlan(null); setLit(null); setPlanGoal(null) } // 대화 칸은 계획에서만(만든 것은 그대로)
     setOpts((o) => ({ ...o, showDone: p.showDone }))
     if (p.timeline) { tl.set('scale', p.timeline.scale); setTodayCmd((n) => n + 1) }
@@ -292,14 +303,17 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
             작업 지도
             <ModeSeg mode={mode} onMode={applyMode} tidyCount={inboxN > SUGGEST.inboxCard ? inboxN : 0} />
           </h1>
-          {mode === 'plan' && (
+          <span className="map-tip" data-tip={whole ? '모드 화면으로' : '전체 지도 — 폴더 › 리스트 › 할 일 나무'}>
+            <button className={`icon-btn map-whole${whole ? ' is-on' : ''}`} aria-label="전체 지도" aria-pressed={whole} onClick={() => { setWholeN(whole ? 0 : 1); setFocusProject(null) }}><MapIcon /></button>
+          </span>
+          {whole && mode === 'plan' && (
             <span className="map-tip" data-tip={view === 'board' ? '그래프로 보기' : '보드로 보기'}>
               <button className="icon-btn" aria-label={view === 'board' ? '그래프로 보기' : '보드로 보기'} onClick={() => setPlanView(view === 'board' ? 'graph' : 'board')}>
                 {view === 'board' ? <Network /> : <Columns3 />}
               </button>
             </span>
           )}
-          {mode === 'plan' && !plan && (
+          {whole && mode === 'plan' && !plan && (
             <span className="map-tip" data-tip="같이 계획 짜기">
               <button className="icon-btn pc-open" aria-label={`${buddy.name}와 같이 계획 짜기`} onClick={() => openPlan(selected ?? undefined)}>
                 <BuddyAvatar buddy={buddy} stage={stage} size={22} />
@@ -310,6 +324,11 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
           <button className="icon-btn" aria-label="더 보기" onClick={(e) => setPop({ kind: 'more', anchor: e.currentTarget })}><MoreHorizontal /></button>
         </header>
 
+        {!whole ? (
+          mode === 'plan' ? <PlanHome selected={selected} onSelect={setSelected} onPlan={onPlanOpen} onTidy={() => applyMode('tidy')} actions={taskActions} focusProject={focusProject} />
+            : mode === 'review' ? <ReviewSlot {...slot} />
+              : <TidySlot {...slot} />
+        ) : <>
         {data.loaded && mode === 'review' && <ReviewBand data={data} actions={taskActions} onOpen={revealTask} onGrowth={onGrowth} />}
         {data.loaded && mode === 'plan' && (
           <NowStrip data={data} actions={actions} focusNow={focusNow} onFocus={() => setFocusNow((f) => !f)} onReveal={revealTask}
@@ -336,6 +355,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
         )}
 
         {data.loaded && mode === 'tidy' && <TidyPanel aiOk={aiOk} onOpen={revealTask} />}
+        </>}
         {notice && (
           <div className="map-notice" key={notice.id} role="status">
             <Sparkles className="map-banner__icon" /><span>{notice.text}</span>
@@ -347,7 +367,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
 
       {plan && mode === 'plan' && (
         <PlanChat req={plan} lists={data.lists} aiOk={aiOk} actions={taskActions}
-          onLight={setLit} onReveal={panTo} onFresh={addFresh} onGoal={setPlanGoal} onClose={closePlan}
+          onLight={setLit} onReveal={panTo} onFresh={addFresh} onGoal={setPlanGoal} onClose={closePlan} onProject={(id) => { if (!whole) setFocusProject((f) => ({ id, n: (f?.n ?? 0) + 1 })) }}
           onUndone={(r) => { setPlan(null); setLit(null); setPlanGoal(null); toast.show(r.kept ? `계획을 되돌렸어요. 직접 고친 ${r.kept}개는 남겼어요` : '계획을 되돌렸어요') }} />
       )}
       {selected && (

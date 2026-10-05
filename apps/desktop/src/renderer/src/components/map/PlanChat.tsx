@@ -11,6 +11,7 @@ import {
   applyManualSteps, createGoalTask, journalChanged, loadPlanTask, newJournal, planCandidates, recordComplete, savePlanUndo, setPlanDue, splitWithAi, toGoal, toStep, undoLastSplit, undoPlanSession, type PlanJournal
 } from '../../data/planActions'
 import { useQuery } from '../../data/useQuery'
+import { addToProject, ensureProjectForGoal, projectOpenTasks } from '../../data/projects'
 import type { MapList } from '../../data/map'
 import type { TaskActions } from '../../lib/taskActions'
 import { dayKey } from '../../lib/dates'
@@ -46,10 +47,11 @@ export function BuddyAvatar({ buddy, stage, size = 30, mood = 'smile', busy }: {
   )
 }
 
-export type PlanRequest = { key: number; taskId?: string }
+/** 31 §12.4: project = 그 프로젝트로(새 큰 일·단계에 그 태그), makeProject = 정한 큰 일로 프로젝트를 만든다 */
+export type PlanRequest = { key: number; taskId?: string; project?: { id: string; name: string }; makeProject?: boolean }
 type KidRow = { id: string; title: string; status: number; due_at: string | null; deleted_at: string | null; parent_id: string | null }
 
-export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh, onClose, onUndone, onGoal }: {
+export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh, onClose, onUndone, onGoal, onProject }: {
   req: PlanRequest
   lists: MapList[]
   aiOk: boolean | null
@@ -65,6 +67,8 @@ export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh
   onUndone: (r: { removed: number; kept: number }) => void
   /** 같이 짜는 큰 할 일(지도에서 굵게 🎯) */
   onGoal: (id: string | null) => void
+  /** 31 §12.4 큰 일이 들어간 프로젝트(만들었거나 그 프로젝트) — 계획 화면이 그 프로젝트를 연다 */
+  onProject?: (tagId: string) => void
 }) {
   const { buddy, stage } = useBuddy()
   const reduced = useReducedMotion()
@@ -80,8 +84,16 @@ export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh
   const [typing, setTyping] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
-  const props = useRef({ lists, aiOk, actions, onLight, onReveal, onFresh, onClose })
-  props.current = { lists, aiOk, actions, onLight, onReveal, onFresh, onClose }
+  const props = useRef({ lists, aiOk, actions, onLight, onReveal, onFresh, onClose, req, onProject })
+  props.current = { lists, aiOk, actions, onLight, onReveal, onFresh, onClose, req, onProject }
+  /** 큰 일이 정해지면 프로젝트에 넣거나(그 프로젝트) 프로젝트를 만든다(보드 ＋ 같이 계획 짜기) */
+  const toProject = async (goal: { id: string; title: string }) => {
+    const { req: r, onProject: on } = props.current
+    try {
+      if (r.project) { await addToProject([goal.id], r.project.id); on?.(r.project.id) }
+      else if (r.makeProject) on?.(await ensureProjectForGoal(goal))
+    } catch (e) { console.warn('[plan-chat] 프로젝트 연결 보류', e) }
+  }
 
   const dispatch = useCallback((ev: PlanEvent) => {
     if (!alive.current) return
@@ -122,6 +134,7 @@ export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh
         case 'createGoal': {
           const goal = await createGoalTask(j, f.title, f.due)
           save()
+          await toProject(goal)
           p.onFresh([goal.id], [])
           dispatch({ type: 'goalReady', goal, steps: [] })
           break
@@ -130,6 +143,7 @@ export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh
           const r = await loadPlanTask(f.id)
           if (!r) { dispatch({ type: 'observed', goal: null, steps: [] }); break }
           j.title ||= r.goal.title
+          await toProject(r.goal)
           dispatch({ type: 'goalReady', goal: r.goal, steps: r.steps })
           break
         }
@@ -167,7 +181,8 @@ export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh
     ref.current = initPlan(buddy.name, today)
     setState(ref.current); setShown(0)
     void (async () => {
-      const [task, candidates] = await Promise.all([req.taskId ? loadPlanTask(req.taskId) : Promise.resolve(null), planCandidates(today)])
+      const [task, candidates] = await Promise.all([req.taskId ? loadPlanTask(req.taskId) : Promise.resolve(null), req.project ? projectOpenTasks(req.project.id, 3) : planCandidates(today)])
+      if (task && !off) await toProject(task.goal)
       if (off) return
       if (task) journal.current.title = task.goal.title
       dispatch({ type: 'start', goal: task?.goal ?? null, steps: task?.steps, candidates: candidates.filter((c) => c.id !== req.taskId) })
