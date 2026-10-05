@@ -1,6 +1,7 @@
-import { useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent as RPointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent as RPointerEvent } from 'react'
 import { addDays, datePart, daysBetween } from '@sprout/schema/time'
-import { isWeekend, packBars, weekHeadClass, weekendClass, type CalItem, type ItemStyle } from '../../lib/calendar'
+import { packBars, visibleDays, weekHeadClass, weekendClass, type CalItem, type ItemStyle } from '../../lib/calendar'
+import { monthAtCenter, monthTopWeek, snapTop, TOTAL_WEEKS, weekAt, weeksInMonth, windowRows } from '../../lib/monthScroll'
 import type { DayMarks } from '@sprout/schema/holidays'
 import { SideLabel } from './DayMark'
 import { monthMoveChanges, previewOf, resizeBar, spanDays } from '../../lib/calendarDrag'
@@ -11,14 +12,21 @@ import { popoverOpen, quickCreateOpen } from './dismiss'
 import { dragSession } from './dragSession'
 
 // 06 §5 월 보기(실측 research 17): 필요한 주만큼 · 칸 날짜 · 막대 · "+N" · 여러 날 막대 · 오늘 칸 칠
+// 06 §5.1 세로 스크롤(research 17 §17): 주 줄이 이어서 흐르는 가상 스크롤. 멈추면 주 경계에 맞추고, 제목 달은 화면 가운데 줄을 따른다
 const LANE = 19 // 막대 16 + 간격 3
 const BAR = 16
 const HEAD = 30 // 칸 위쪽 날짜 줄
 const WEEK = ['월', '화', '수', '목', '금', '토', '일'] // 주 시작 = 월요일(2026-10-05 사용자 결정)
 
 type Props = CalHandlers & {
-  days: string[] // 5주 또는 6주
-  month: string // YYYY-MM
+  /** 06 §8 주말 표시(끄면 한 줄 5칸) */
+  weekends: boolean
+  /** 기준 달(YYYY-MM) — navKey가 바뀔 때 이 달 첫 주로 스크롤한다 */
+  month: string
+  /** ‹ › ← → 오늘·달 고르기처럼 "이동"할 때만 늘어난다(스크롤로 바뀐 달은 늘리지 않음) */
+  navKey: number
+  /** 스크롤로 머리 제목 달이 바뀌었을 때 */
+  onMonthChange: (ym: string) => void
   items: CalItem[]
   today: string
   itemStyle: ItemStyle
@@ -35,31 +43,172 @@ type Drag =
   | { kind: 'resize'; item: CalItem; edge: 'start' | 'end'; grab: string; date: string; moved: boolean }
 const noop = () => {}
 
+const FADE_MS = 600 // 06 §5.1 떠 있는 달 이름: 멈추고 0.6초 뒤 흐려짐 [임시]
+const SMOOTH_ROWS = 8 // 이보다 멀면 부드럽게 말고 바로 이동
+const SNAP_WAIT_MS = 90
+const labelOf = (ym: string) => `${ym.slice(0, 4)}년 ${Number(ym.slice(5, 7))}월`
+
 export function MonthView(p: Props) {
-  const { month, items, today } = p
-  // 06 §8 주말 표시를 끄면 한 줄 5칸(토·일 빠짐)
-  const cols = p.days.some(isWeekend) ? 7 : 5
-  const nRows = p.days.length / cols
-  const rows = Array.from({ length: nRows }, (_, r) => p.days.slice(r * cols, r * cols + cols))
+  const { items, today } = p
+  const cols = p.weekends ? 7 : 5
+  const daysOf = (row: number) => visibleDays(Array.from({ length: 7 }, (_, i) => addDays(weekAt(row), i)), p.weekends)
   const bodyRef = useRef<HTMLDivElement>(null)
-  const [rowH, setRowH] = useState(100)
+  const [viewH, setViewH] = useState(0)
   useLayoutEffect(() => {
     const el = bodyRef.current
     if (!el) return
-    const ro = new ResizeObserver(() => setRowH(el.clientHeight / nRows))
+    const ro = new ResizeObserver(() => setViewH(el.clientHeight))
     ro.observe(el)
-    setRowH(el.clientHeight / nRows)
+    setViewH(el.clientHeight)
     return () => ro.disconnect()
-  }, [nRows])
+  }, [])
+
+  // 기준 달: 처음 열 때·이동할 때만 바뀐다 → 스크롤하는 동안 줄 높이가 그대로(research 17 §17.2)
+  const navSeen = useRef<number | undefined>(undefined)
+  const anchor = useRef(p.month)
+  const pending = useRef<{ month: string; first: boolean } | undefined>(undefined)
+  if (navSeen.current !== p.navKey) {
+    pending.current = { month: p.month, first: navSeen.current === undefined }
+    navSeen.current = p.navKey
+    anchor.current = p.month
+  }
+  const rowH = viewH ? viewH / weeksInMonth(anchor.current) : 100
+  const rowHRef = useRef(rowH)
+  const topIdx = useRef(monthTopWeek(p.month)) // 맨 윗줄 번호(소수) — 창 크기가 바뀌어도 같은 주가 맨 위에
+  const [win, setWin] = useState<[number, number]>(() => [topIdx.current - 2, topIdx.current + 8])
+  const [viewMonth, setViewMonth] = useState(p.month)
+  const viewMonthRef = useRef(p.month)
+  const programmatic = useRef<number | undefined>(undefined) // 이동 스크롤의 목표 위치 — 그동안 달 바뀜을 알리지 않음(닿으면 한 번)
+  const snapping = useRef(false)
+  const gesture = useRef<{ start: number; wheels: number; max: number } | undefined>(undefined)
+  const fade = useRef<number | undefined>(undefined)
+  const silentTop = useRef<number | undefined>(undefined) // 바로 이동(처음 열기·먼 이동)으로 생긴 scroll은 달 이름을 띄우지 않는다
+  const requestSnap = useRef<() => void>(() => {}) // 끌기가 끝나면 미뤄 둔 주 경계 맞춤
+  const onMonthChange = useRef(p.onMonthChange)
+  onMonthChange.current = p.onMonthChange
+
+  // 스크롤 위치 → 그릴 주·제목 달. 줄 경계를 넘거나 달이 바뀔 때만 상태를 바꾼다
+  const sync = (report: boolean) => {
+    const el = bodyRef.current
+    if (!el || !el.clientHeight) return
+    const h = rowHRef.current
+    const [a, b] = windowRows(el.scrollTop, el.clientHeight, h)
+    setWin((w) => (w[0] === a && w[1] === b ? w : [a, b]))
+    const m = monthAtCenter(el.scrollTop, el.clientHeight, h)
+    if (m !== viewMonthRef.current) {
+      viewMonthRef.current = m
+      setViewMonth(m)
+    }
+    if (report) onMonthChange.current(m)
+  }
+
+  // 줄 높이가 바뀌면(창 크기·이동) 같은 주를 맨 위에 두고, 이동 요청이 있으면 그 달 첫 주로
+  useLayoutEffect(() => {
+    const el = bodyRef.current
+    if (!el || !viewH) return
+    rowHRef.current = rowH
+    el.scrollTop = topIdx.current * rowH
+    const nav = pending.current
+    if (!nav) programmatic.current = undefined // 창 크기가 바뀌어 이동 움직임이 끊김
+    if (nav) {
+      pending.current = undefined
+      const target = monthTopWeek(nav.month)
+      const dist = Math.abs(target - el.scrollTop / rowH)
+      viewMonthRef.current = nav.month
+      setViewMonth(nav.month)
+      if (!nav.first && dist > 0.01 && dist <= SMOOTH_ROWS) {
+        programmatic.current = target * rowH
+        snapping.current = false
+        el.classList.add('is-scrolling')
+        el.scrollTo({ top: target * rowH, behavior: 'smooth' })
+      } else {
+        programmatic.current = undefined
+        el.scrollTop = target * rowH
+        topIdx.current = target
+      }
+    }
+    if (programmatic.current === undefined) silentTop.current = el.scrollTop
+    sync(false)
+  }, [rowH, viewH, p.navKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 스크롤·휠은 모두 passive(가로채지 않음 — 트랙패드 관성 그대로). 멈추면(scrollend) 주 경계에 맞춘다
+  useEffect(() => {
+    const el = bodyRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return
+      window.clearTimeout(snapTimer)
+      snapping.current = false
+      programmatic.current = undefined
+      silentTop.current = undefined
+      const g = gesture.current ?? (gesture.current = { start: el.scrollTop, wheels: 0, max: 0 })
+      g.wheels += 1
+      g.max = Math.max(g.max, Math.abs(e.deltaY))
+    }
+    const onScroll = () => {
+      topIdx.current = el.scrollTop / rowHRef.current
+      if (silentTop.current !== undefined && Math.abs(el.scrollTop - silentTop.current) < 0.5) { sync(false); return }
+      silentTop.current = undefined
+      if (!el.classList.contains('is-scrolling')) el.classList.add('is-scrolling')
+      window.clearTimeout(fade.current)
+      sync(programmatic.current === undefined)
+    }
+    const settle = () => { window.clearTimeout(fade.current); fade.current = window.setTimeout(() => el.classList.remove('is-scrolling'), FADE_MS) }
+    // 멈춤 맞춤은 scrollend 뒤 잠깐 기다렸다가 — 그사이 휠이 또 오면(같은 손짓·빠르게 굴린 휠) 취소하고 한 손짓으로 이어 센다
+    let snapTimer: number | undefined
+    const snap = () => {
+      snapTimer = undefined
+      const g = gesture.current
+      gesture.current = undefined
+      if (dragRef.current) { settle(); return } // 끄는 중에는 맞추지 않는다(놓일 칸이 흔들리지 않게)
+      const h = rowHRef.current
+      const top = el.scrollTop
+      // 휠 한 칸(이벤트 몇 개 · 큰 delta)은 움직인 방향의 다음 주로, 트랙패드는 가장 가까운 주로
+      const target = Math.max(0, Math.min((TOTAL_WEEKS - 1) * h, snapTop(top, g?.start ?? top, h, !!g && g.wheels <= 3 && g.max >= 30)))
+      if (Math.abs(target - top) > 0.5) {
+        snapping.current = true
+        el.scrollTo({ top: target, behavior: 'smooth' })
+        return
+      }
+      settle()
+    }
+    const onEnd = () => {
+      if (silentTop.current !== undefined) return
+      if (programmatic.current !== undefined) {
+        if (Math.abs(el.scrollTop - programmatic.current) > 1) return // 다음 이동이 앞 움직임을 끊었을 때 — 목표에 닿을 때까지 기다림
+        programmatic.current = undefined
+        sync(true)
+        settle()
+        return
+      }
+      if (snapping.current) { snapping.current = false; settle(); return }
+      window.clearTimeout(snapTimer)
+      snapTimer = window.setTimeout(snap, SNAP_WAIT_MS)
+    }
+    requestSnap.current = () => { window.clearTimeout(snapTimer); snapTimer = window.setTimeout(snap, SNAP_WAIT_MS) }
+    el.addEventListener('wheel', onWheel, { passive: true })
+    el.addEventListener('scroll', onScroll, { passive: true })
+    el.addEventListener('scrollend', onEnd)
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('scroll', onScroll)
+      el.removeEventListener('scrollend', onEnd)
+      window.clearTimeout(fade.current)
+      window.clearTimeout(snapTimer)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const maxLanes = Math.max(1, Math.floor((rowH - HEAD - 4) / LANE))
   const [drag, setDrag] = useState<Drag>()
   const dragRef = useRef<Drag | undefined>(undefined)
 
+  // 스크롤 위치를 반영한 칸(끄는 도중 스크롤해도 맞다)
   const dateAt = (x: number, y: number) => {
-    const r = bodyRef.current!.getBoundingClientRect()
-    const row = Math.max(0, Math.min(nRows - 1, Math.floor(((y - r.top) / r.height) * nRows)))
-    const col = Math.max(0, Math.min(cols - 1, Math.floor(((x - r.left) / r.width) * cols)))
-    return rows[row][col]
+    const el = bodyRef.current!
+    const r = el.getBoundingClientRect()
+    const row = Math.max(0, Math.min(TOTAL_WEEKS - 1, Math.floor((y - r.top + el.scrollTop) / rowHRef.current)))
+    const col = Math.max(0, Math.min(cols - 1, Math.floor(((x - r.left) / el.clientWidth) * cols)))
+    return daysOf(row)[col]
   }
   const start = (e: RPointerEvent, d: Drag) => {
     if (e.button !== 0) return
@@ -74,6 +223,7 @@ export function MonthView(p: Props) {
       const d2 = dragRef.current
       dragRef.current = undefined
       setDrag(undefined)
+      requestSnap.current()
       return d2
     }
     dragSession({
@@ -126,7 +276,7 @@ export function MonthView(p: Props) {
       return [s0, addDays(s0, spanDays(drag.item) - 1)]
     }
     const t = outside?.target
-    if (t && t.zone === 'day' && p.days.includes(t.day)) return [t.day, t.day]
+    if (t && t.zone === 'day') return [t.day, t.day]
     return undefined
   })()
   // 길이 바꾸기는 막대 자체를 바로 늘여 그린다(원래 자리 대신)
@@ -147,16 +297,19 @@ export function MonthView(p: Props) {
       <div className="mv__head" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
         {WEEK.slice(0, cols).map((w, i) => <span key={w} className={`mv__wd${weekHeadClass(i)}`}>{w}</span>)}
       </div>
-      <div className="mv__body" ref={bodyRef} style={{ gridTemplateRows: `repeat(${nRows}, minmax(0, 1fr))` }}>
-        {rows.map((row, r) => {
+      <div className="mv__body" ref={bodyRef}>
+        <div className="mv__track" style={{ height: TOTAL_WEEKS * rowH }}>
+        {Array.from({ length: Math.max(0, win[1] - win[0] + 1) }, (_, k) => win[0] + k).map((r) => {
+          const row = daysOf(r)
+          const first = Array.from({ length: 7 }, (_, i) => addDays(weekAt(r), i)).find((d) => d.endsWith('-01'))
           const bars = packBars(laidItems, row)
           const covering = row.map((_, c) => bars.filter((b) => b.col <= c && c < b.col + b.span))
           const overflow = covering.some((cv) => cv.length > maxLanes)
           const limit = overflow ? maxLanes - 1 : maxLanes
           return (
-            <div key={r} className="mv__row" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+            <div key={r} className="mv__row" style={{ top: r * rowH, height: rowH, gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
               {row.map((d, c) => {
-                const other = d.slice(0, 7) !== month
+                const other = d.slice(0, 7) !== viewMonth
                 const label = d.endsWith('-01') ? `${Number(d.slice(5, 7))}월 1일` : String(Number(d.slice(8)))
                 const hidden = covering[c].filter((b) => b.lane >= limit).length
                 const mk = p.marks?.(d, c === 0)
@@ -204,9 +357,11 @@ export function MonthView(p: Props) {
                   </div>
                 ))}
               </div>
+              {first && <div className="mv__monthlabel" aria-hidden>{labelOf(first.slice(0, 7))}</div>}
             </div>
           )
         })}
+        </div>
       </div>
       {drag?.kind === 'move' && drag.moved && !drag.item.virtual && (
         <div className="cal-drag-ghost" style={{ left: drag.x - drag.offX, top: drag.y - drag.offY, width: drag.w, height: drag.h }}>

@@ -53,3 +53,12 @@ html.is-cal-dragging, html.is-cal-dragging * { user-select: none !important; }
 html.is-cal-dragging * { cursor: inherit !important; }
 .arrange-task.is-drag-source { opacity: 0.4; }
 .arrange-task.arrange-ghost { position: fixed; z-index: 300; margin: 0; pointer-events: none; opacity: 0.92; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18); }
+
+/* 06 §5.1 월 보기 세로 스크롤(research 17 §17): 주 줄이 이어서 흐르는 가상 스크롤 — 줄은 트랙 안에 절대 위치 */
+.mv > .mv__body { display: block; position: relative; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
+.mv > .mv__body::-webkit-scrollbar { width: 0; }
+.mv__track { position: relative; }
+.mv__track > .mv__row { position: absolute; left: 0; right: 0; box-sizing: border-box; contain: layout paint; }
+/* 스크롤하는 동안 각 달 1일이 든 줄 첫 칸 위에 큰 달 이름(틱틱 "June 2025"), 멈추면 흐려짐 */
+.mv__monthlabel { position: absolute; top: 1px; z-index: 3; pointer-events: none; font: 700 24px/30px var(--font-family); color: var(--color-text-primary); left: 22px; opacity: 0; transition: opacity 300ms ease-out; white-space: nowrap; }
+.mv__body.is-scrolling .mv__monthlabel { opacity: 1; transition-duration: 120ms; }

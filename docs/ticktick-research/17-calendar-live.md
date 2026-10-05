@@ -201,3 +201,41 @@
 
 - 영상은 30fps라 33ms보다 짧은 차이는 보이지 않는다. 실제 길이는 120ms 안팎으로 본다.
 - 주·일 시간 칸 클릭의 선택 표시(옅은 파랑 한 줄/범위)는 끌기와 함께 바로 그려진다(§14, 같은 영상 f0022~0025).
+
+## 17. 세로 스크롤 — 월·주·일 (2026-10-06 조사 — 06 §5.1·§7.4의 근거)
+사용자 피드백 "캘린더 상하 스크롤도 틱틱처럼 자연스럽게 안 돼." → 공식 도움말 원문, 공식 영상 프레임, 설치된 Mac 앱(6.3.60) 안의 이름을 다시 봤다. 사용자 틱틱은 열거나 만지지 않았다. **[확인]** = 도움말 문장이나 영상 프레임으로 본 것, **[추정]** = 정황으로 고른 것.
+
+### 17.1 근거
+| 자료 | 내용 |
+|---|---|
+| 도움말 [Month View](https://help.ticktick.com/articles/7055782128335716352) 데스크톱 탭 | "Swipe up and down with two fingers on the computer touchpad, or switch using the left and right arrows in the calendar view." / "Click "Today" to quickly jump back to this month." 모바일 탭은 "Swipe up and down to switch months", 핀치로 주 수 조절(8.0, **모바일만** — What's New "Flexible Month View … Mobile only") |
+| 도움말 [Week View](https://help.ticktick.com/articles/7055782149730861056) 데스크톱 탭 | "swipe left or right with two fingers on your trackpad to navigate forward or backward through the displayed weeks … or use the keyboard arrow keys (left/right/up/down)". 모바일은 "any sliding" — 빠르게 밀면 한 주, 천천히 끌면 7일 범위를 자유롭게 |
+| 도움말 [Desktop Interaction Tips](https://help.ticktick.com/articles/7351523697951244288) | "In Day, Week, or Multi-Day view, hold down Shift and scroll your mouse wheel to move horizontally across dates" / "Hold Ctrl (or Command on Mac) and scroll your mouse wheel to zoom the timeline" |
+| 영상 [EUBxb9MgYWg](https://www.youtube.com/watch?v=EUBxb9MgYWg) (TickTick 공식, 2025-06, macOS) 1초 프레임 | 월 보기 위아래 스크롤 장면 0:25~0:31, 1:05~1:12 — [f0009](../ticktick-captures/_video/EUBxb9MgYWg/f0009.jpg) · [f0011](../ticktick-captures/_video/EUBxb9MgYWg/f0011.jpg) · [f0012](../ticktick-captures/_video/EUBxb9MgYWg/f0012.jpg) · [f0013](../ticktick-captures/_video/EUBxb9MgYWg/f0013.jpg) · [f0016](../ticktick-captures/_video/EUBxb9MgYWg/f0016.jpg) · [f0018](../ticktick-captures/_video/EUBxb9MgYWg/f0018.jpg). 30fps 원본은 이번엔 받지 못함(YouTube 403) |
+| `/Applications/TickTick.app` 6.3.60 실행 파일 이름(읽기만) | 월 보기 = `TTMonthCalViewController` + `TTCalendarCollectionView`/`TTMonthCollectionViewLayout`(세로로 이어지는 컬렉션), 주 = `TTWeekCalViewController` + `TTSingleDirectionScrollView`·`HorizontalOnlyScrollView`, `scrollWheel:` · `momentumPhase` · `hasPreciseScrollingDeltas` · `scrollViewDidEndLiveScroll:` · `handleScrollEnd` 사용 |
+
+### 17.2 월 보기
+| 항목 | 관찰 | 근거 |
+|---|---|---|
+| 넘기는 방식 | **[확인] 한 달씩 갈아 끼우지 않고 주 줄이 이어서 위아래로 흐른다.** 스크롤 중 프레임에서 줄이 화면 위·아래에서 반쯤 잘려 있고(f0011·f0012·f0018), 5월 5일~6월 15일처럼 달 경계와 상관없는 범위가 보인다(f0016) | EUB 프레임 |
+| 트랙패드 관성 | **[추정] 있다.** 줄이 픽셀 단위로 움직이고, 앱이 `momentumPhase`·`hasPreciseScrollingDeltas`를 본다. 한 번 밀면 여러 주가 흘러간다 | 프레임 + 앱 이름 |
+| 멈춘 자리 | **[추정] 주 줄 경계에 맞춰 멈춘다.** 멈춘 프레임(f0009·f0013·f0015·f0016)은 모두 맨 윗줄이 요일 줄 바로 아래에 딱 맞다. 움직이는 동안은 맞추지 않는다 | EUB 프레임 |
+| 줄 높이 | **[확인] 스크롤하는 동안 줄 높이는 그대로.** 6월(6줄)에서 5월(5줄) 쪽으로 가도 줄 높이가 같다(f0013 vs f0016, 약 123px). 멈춘 상태 줄 수는 그 달에 필요한 주만큼(§5) | EUB 프레임, §5 실측 |
+| 머리 제목 | **[확인] 스크롤하면서 바뀐다.** 화면에 가장 많이 보이는 달을 쓴다 — 5/12~6/22이 보이면 "June 2025"(f0009), 5/5~6/15이면 "May 2025"(f0016). 화면 가운데 줄의 달과 같다 | EUB 프레임 |
+| 이번 달 진하게 | **[확인] 제목 달이 바뀌면 진한 날짜도 따라 바뀐다.** "June"일 때 5월 숫자가 회색, "May"일 때 6월 숫자가 회색 | f0012 vs f0016 |
+| 떠 있는 달 이름 | **[확인] 스크롤하는 동안 각 달 1일이 든 줄 왼쪽 첫 칸 위에 큰 굵은 달 이름("June 2025", "July 2025")이 겹쳐 뜬다.** 날짜 숫자 줄 높이, 글자 약 26pt 굵게. **[추정] 멈추면 사라진다**(멈춘 f0013에는 없음, 멈춘 직후 f0009·f0015에는 아직 있음 → 잠깐 뒤 흐려짐) | EUB 프레임 |
+| ‹ › · ← → · 오늘 | **[확인] 한 달씩 / 이번 달로.** **[추정]** 움직임은 같은 세로 스크롤로 미끄러진다(애니메이션 길이는 미확인) | 도움말 |
+| 마우스 휠 | **[추정]** 한 칸(노치)마다 한 주씩 | 앱이 정밀/비정밀 휠을 나눔 |
+
+### 17.3 주·일 보기
+| 항목 | 관찰 | 근거 |
+|---|---|---|
+| 시간 칸 세로 | **[확인] 보통 스크롤**(관성 있음, 줄에 맞추지 않음). 종일 영역·날짜 줄은 위에 고정 | 도움말 Week View 그림 20~22, §3 |
+| 좌우 | **[확인] 두 손가락 좌우 = 이전·다음 주**, Shift+휠 = 가로로 날짜 넘김, ⌘/Ctrl+휠·핀치 = 시간 칸 확대 | 도움말 |
+| 처음 위치 | **[추정]** 오늘이 보이면 지금 시각 근처, 아니면 아침(06 §4.1 [임시] 그대로) | — |
+
+### 17.4 멀티데이 · 다중 주 · 일정(Agenda)
+- **[확인]** 멀티데이·다중 주는 데스크톱만("Multi-Day View and Multi-Week View are available on desktop only"). 스크롤 방식은 자료에 없다 → **[추정]** 멀티데이 = 주 보기와 같은 시간 칸, 다중 주 = 월 보기와 같은 이어지는 주 줄. Agenda는 `TTAgendaScrollView`·`TTAgendaCalLoadingDateCell`(끝에 닿으면 날짜를 더 불러오는 목록)로 보아 **[추정] 끝없는 세로 목록**. sprout v1에는 세 보기 모두 없음(06 §3 [후보]).
+
+### 17.5 sprout에 주는 결론
+- 월 보기는 **이어지는 주 줄 스크롤 + 멈추면 주 경계에 맞춤 + 제목·진한 달이 스크롤 따라 바뀜 + 스크롤 중 달 이름 겹침**으로 바꾼다. 휠 한 번에 한 달을 넘기던 sprout 방식(누적 60px → 한 달, 450ms 잠금)은 틱틱과 다르고, 트랙패드 관성 꼬리가 다음 달을 한 번 더 넘기는 원인이었다.

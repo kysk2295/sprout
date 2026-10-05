@@ -30,6 +30,7 @@ import { ExtEventMenu, ExtEventPopover } from '../calendars/ExtEventCard'
 import { CalendarConnectHost } from '../calendars/ConnectHost'
 import { deleteEvents, duplicateEvents, EV_PREFIX, isEventKey, OPEN_DATE, OPEN_EVENT, rescheduleEvents, takeCalendarDate, takeOpenEvent, useEvents } from '../../data/events'
 import { eventItems, evtOf } from '../../lib/calendarEvents'
+import { monthDataRange } from '../../lib/monthScroll'
 import { EventMenu, EventPopover } from '../events/EventCard'
 import { GuideButton, GuideLayer, useGuide } from '../guide/Guide'
 
@@ -72,6 +73,9 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
   const today = dayKey()
   const toast = useToast()
   const [cursor, setCursor] = useState(today)
+  // 06 §5.1 "이동"(‹ › ← → 오늘·달 고르기·작은 달력)만 센다 — 월 보기는 이 값이 바뀔 때만 그 달로 스크롤하고, 스크롤로 바뀐 커서는 따라가지 않는다
+  const [navKey, setNavKey] = useState(0)
+  const jump = useCallback((d: string) => { setCursor(d); setNavKey((k) => k + 1) }, [])
   const [selection, setSelection] = useState<string[]>([])
   const [pop, setPop] = useState<Pop>()
   const [menu, setMenu] = useState<'view' | 'more'>()
@@ -96,14 +100,17 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
   const days = visibleDays(range.days, opts.weekends !== 0)
   // 06 §16 휴일·음력·주 번호(설정 › 날짜 & 시간)
   const markPrefs = markPrefsOf(opts)
-  const marks = useDayMarks(range.days, markPrefs)
+  // 06 §5.1 월 보기는 스크롤로 앞뒤 주가 보이므로 기준 달 앞뒤 6주까지 읽는다
+  const monthKey = cursor.slice(0, 7)
+  const data = useMemo(() => (view === 'month' ? monthDataRange(monthKey) : range), [view, monthKey, range.from, range.to]) // eslint-disable-line react-hooks/exhaustive-deps
+  const marks = useDayMarks(data.days, markPrefs)
   const { sql, params } = useMemo(() => {
     const cond = ['t.due_at IS NOT NULL', 't.deleted_at IS NULL', 'l.archived_at IS NULL']
     const ps: unknown[] = []
     if (!opts.completed) cond.push('t.status = 0')
     let when = `(${S} <= ? AND ${E} >= ?)`
-    ps.push(range.to, range.from)
-    if (opts.repeats) { when = `(${when} OR (t.repeat_rule IS NOT NULL AND t.status = 0 AND ${S} <= ?))`; ps.push(range.to) }
+    ps.push(data.to, data.from)
+    if (opts.repeats) { when = `(${when} OR (t.repeat_rule IS NOT NULL AND t.status = 0 AND ${S} <= ?))`; ps.push(data.to) }
     cond.push(when)
     // 06 §6 필터: 고른 리스트에 속하거나 고른 태그가 붙은 태스크(합집합)
     if (opts.lists.length || opts.tags.length) {
@@ -113,7 +120,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
       cond.push(`(${parts.join(' OR ')})`)
     }
     return { sql: `SELECT ${TASK_COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE ${cond.join(' AND ')} ORDER BY t.due_at, t.priority DESC, t.sort_order`, params: ps }
-  }, [opts.completed, opts.repeats, opts.lists, opts.tags, range.from, range.to])
+  }, [opts.completed, opts.repeats, opts.lists, opts.tags, data.from, data.to])
   const taskRows = useQuery<TaskRow>(sql, params)
   const tasks = taskRows ?? []
   const guide = useGuide('calendar', { ready: taskRows !== undefined }) // 37 첫 둘러보기 · 머리 `?`
@@ -125,20 +132,20 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
   ) ?? []
   const busyDays = useMemo(() => new Set(busy.map((b) => b.d)), [busy])
   // 16: 구글·Apple 일정(보이기 + 왼쪽 패널 체크). "완료된 할일 보기"를 끄면 지난 외부 일정도 숨김
-  const extEvents = useExtEvents(range.from, range.to, { panel: true })
+  const extEvents = useExtEvents(data.from, data.to, { panel: true })
   useEffect(() => { void calendarsApi()?.refresh() }, []) // 화면에 들어오면 새로 고침(1분 안 중복은 메인이 건너뜀)
   // 06 §14.4.3 sprout 자체 일정("내 일정" 체크). 회차는 늘 계산, "완료된 할일 보기"를 끄면 지난 일정 숨김
-  const myEvents = useEvents(range.from, range.to, opts.myCal !== 0)
+  const myEvents = useEvents(data.from, data.to, opts.myCal !== 0)
   const evItems = useMemo(() => {
-    const all = eventItems(myEvents, range.from, range.to, opts.myColor)
+    const all = eventItems(myEvents, data.from, data.to, opts.myColor)
     return opts.completed ? all : all.filter((it) => !isPastExt({ end: it.end }))
-  }, [myEvents, range.from, range.to, opts.myColor, opts.completed])
-  const items = useMemo(() => [...itemsOf(tasks, range.from, range.to, !!opts.repeats), ...evItems, ...extItems(opts.completed ? extEvents : extEvents.filter((e) => !isPastExt(e)))], [tasks, range.from, range.to, opts.repeats, extEvents, opts.completed, evItems])
+  }, [myEvents, data.from, data.to, opts.myColor, opts.completed])
+  const items = useMemo(() => [...itemsOf(tasks, data.from, data.to, !!opts.repeats), ...evItems, ...extItems(opts.completed ? extEvents : extEvents.filter((e) => !isPastExt(e)))], [tasks, data.from, data.to, opts.repeats, extEvents, opts.completed, evItems])
   const tagColor = useCallback((id: string) => tags.find((t) => t.id === id)?.color, [tags])
   const filtered = opts.lists.length > 0 || opts.tags.length > 0
 
   // ── 동작 ──
-  const go = useCallback((n: number) => setCursor((c) => shiftCursor(view, c, n)), [view])
+  const go = useCallback((n: number) => { setCursor((c) => shiftCursor(view, c, n)); setNavKey((k) => k + 1) }, [view])
   const setView = (v: CalView) => { setOpts({ view: v }); setMenu(undefined) }
   const openTask = (it: CalItem, rect: Rect) => {
     const ext = extOf(it)
@@ -212,7 +219,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
     const take = () => {
       const req = takeOpenEvent()
       if (!req) return
-      setCursor(req.date)
+      jump(req.date)
       const r = bodyRef.current?.getBoundingClientRect()
       const x = r ? r.left + r.width / 2 : window.innerWidth / 2
       const y = r ? r.top + 80 : 120
@@ -228,7 +235,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
     const take = () => {
       const d = takeCalendarDate()
       if (!d) return
-      setCursor(d)
+      jump(d)
       setSelection([])
       setPop(undefined)
     }
@@ -250,7 +257,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
       const k = e.key.toLowerCase()
       if (e.key === 'ArrowLeft') go(-1)
       else if (e.key === 'ArrowRight') go(1)
-      else if (k === 't') setCursor(today)
+      else if (k === 't') jump(today)
       else if (k === 'd' || k === '1') setOpts({ view: 'day' })
       else if (k === 'w' || k === '2') setOpts({ view: 'week' })
       else if (k === 'm' || k === '3') setOpts({ view: 'month' })
@@ -261,22 +268,23 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  // 06 §7.4 트랙패드: 주·일은 좌우, 월은 위아래로 이전·다음. ⌘+휠은 시간 칸 확대
+  // 06 §7.4 트랙패드: 주·일은 좌우로 이전·다음. ⌘+휠은 시간 칸 확대.
+  // 월은 휠을 가로채지 않는다 — 주 줄이 이어서 스크롤된다(06 §5.1, MonthView가 passive로 처리)
   useEffect(() => {
     const el = bodyRef.current
-    if (!el) return
+    if (!el || view === 'month') return
     let acc = 0
     let lock = 0
     const onWheel = (e: WheelEvent) => {
-      if ((e.ctrlKey || e.metaKey) && view !== 'month') {
+      if (e.ctrlKey || e.metaKey) {
         e.preventDefault()
         const f = e.deltaY > 0 ? 0.92 : 1.08
         setHourH((h) => Math.max(36, Math.min(120, Math.round(h * f))))
         return
       }
-      const d = view === 'month' ? e.deltaY : Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : 0
+      const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : 0
       if (!d) return
-      if (view !== 'month') e.preventDefault()
+      e.preventDefault()
       if (Date.now() < lock) return
       acc += d
       if (Math.abs(acc) > 60) {
@@ -306,7 +314,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
             tags={tags}
             filterLists={opts.lists}
             filterTags={opts.tags}
-            onPick={(d) => { setCursor(d); if (narrow) setPanelOpen(false) }}
+            onPick={(d) => { jump(d); if (narrow) setPanelOpen(false) }}
             onFilter={(l, t) => setOpts({ lists: l, tags: t })}
             myCal={{ on: opts.myCal !== 0, color: opts.myColor, onChange: setOpts }}
             calendarCursor={cursor}
@@ -332,7 +340,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
             <button ref={viewBtn} className="cal__btn" onClick={() => setMenu(menu === 'view' ? undefined : 'view')}>{VIEW_LABEL[view]}<ChevronDown /></button>
             <div className="cal__seg">
               <button aria-label="이전" onClick={() => go(-1)}><ChevronLeft /></button>
-              <button onClick={() => setCursor(today)}>오늘</button>
+              <button onClick={() => jump(today)}>오늘</button>
               <button aria-label="다음" onClick={() => go(1)}><ChevronRight /></button>
             </div>
             <GuideButton guide={guide} />{/* 37 §3: ⋯ 왼쪽 */}
@@ -360,7 +368,8 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
         )}
         <div className="cal__body" ref={bodyRef}>
           {view === 'month' ? (
-            <MonthView {...handlers} days={days} month={cursor.slice(0, 7)} items={items} today={today} itemStyle={opts.style} marks={marks}
+            <MonthView {...handlers} weekends={opts.weekends !== 0} month={monthKey} navKey={navKey} items={items} today={today} itemStyle={opts.style} marks={marks}
+              onMonthChange={(ym) => setCursor(ym === today.slice(0, 7) ? today : `${ym}-01`)}
               onDayClick={(d) => { setCursor(d); setOpts({ view: 'day' }) }}
               onMore={(day, r) => setPop({ kind: 'more', day, rect: r })}
             />
@@ -411,7 +420,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
         <DatePicker initial={pop.initial} point={pop.point} onSave={(s) => void actions.applySchedule(pop.ids, s)} onClose={() => setPop(undefined)} />
       )}
       {pop?.kind === 'months' && (
-        <MonthPicker rect={pop.rect} cursor={cursor} today={today} onPick={(m) => { setCursor(`${m}-01`); setPop(undefined) }} onClose={() => setPop(undefined)} />
+        <MonthPicker rect={pop.rect} cursor={cursor} today={today} onPick={(m) => { jump(`${m}-01`); setPop(undefined) }} onClose={() => setPop(undefined)} />
       )}
       {pop?.kind === 'ext' && <ExtEventPopover ev={pop.ev} rect={pop.rect} onClose={() => setPop(undefined)} />}
       {pop?.kind === 'extmenu' && <ExtEventMenu ev={pop.ev} point={pop.point} onClose={() => setPop((cur) => (cur === pop ? undefined : cur))} onOpen={() => setPop({ kind: 'ext', ev: pop.ev, rect: { left: pop.point.x, top: pop.point.y, right: pop.point.x, bottom: pop.point.y } })} />}
