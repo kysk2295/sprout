@@ -40,7 +40,8 @@ assert.deepEqual(timeSelection('2026-10-07', 720, 660), { start_at: '2026-10-07T
 assert.equal(timeSelection('2026-10-07', 1380, 1425).due_at, '2026-10-07T23:59')
 
 // ── 할일 정렬 패널 → 캘린더: 시간 칸이면 1시간, 날짜 칸이면 종일 ──
-assert.deepEqual(scheduledDrop({ id: 'a', start_at: null, due_at: null }, { day: '2026-10-07', minute: 780 }), { id: 'a', start_at: '2026-10-07T13:00', due_at: '2026-10-07T14:00' })
+// 06 §9 (틱틱 실측, 2026-10-05 끌기 정리): 시간 칸에 놓으면 그 시각 한 점(한 줄 막대), 길이는 가장자리로 늘린다
+assert.deepEqual(scheduledDrop({ id: 'a', start_at: null, due_at: null }, { day: '2026-10-07', minute: 780, zone: 'grid' }), { id: 'a', start_at: null, due_at: '2026-10-07T13:00' })
 assert.deepEqual(scheduledDrop({ id: 'a', start_at: null, due_at: null }, { day: '2026-10-20' }), { id: 'a', start_at: null, due_at: '2026-10-20' })
 
 // ── 겹침: 같은 시간대 블록은 열을 나눈다 ──

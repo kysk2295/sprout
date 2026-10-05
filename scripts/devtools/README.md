@@ -12,6 +12,7 @@ cd apps/desktop && . ../../scripts/node22.sh && npx electron-vite dev --remoteDe
 | `shot.mjs` | `node shot.mjs out.png` — 현재 화면 캡처 |
 | `shot2.mjs` | `node shot2.mjs out.png 1378 884` — 뷰포트를 맞추고 캡처(틱틱 창과 같은 크기) |
 | `win.mjs` | `node win.mjs 1378 884` — 실제 창 크기 변경 |
+| `dragshot.mjs` | `dragshot.mjs 접두어 x1 y1 x2 y2 [걸음=12] [찍을걸음=6,12] [drop·esc·hold]` — 누른 채 나눠 움직이며 **끄는 도중** 캡처(`접두어-걸음.png`, 끝나면 `-after.png`). `ALT=1` = ⌥ 끌기, hold면 누른 채 둔다 |
 | `input.mjs` | `click x y` · `rclick x y` · `drag x1 y1 x2 y2`(HOLD=ms) · `key Escape` · `undo` · `type 글자` · `move x y` |
 
 메인 프로세스(src/main)는 핫 리로드가 안 된다 — 바꾸면 앱을 껐다 다시 띄운다. preload를 바꿔도 마찬가지(2026-10-04 AI 사용량 JSON 오류의 원인이었다).

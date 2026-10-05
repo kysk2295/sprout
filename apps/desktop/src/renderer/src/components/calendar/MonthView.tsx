@@ -1,9 +1,12 @@
-import { useLayoutEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
+import { useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent as RPointerEvent } from 'react'
 import { addDays, datePart, daysBetween } from '@sprout/schema/time'
 import { packBars, type CalItem, type ItemStyle } from '../../lib/calendar'
+import { monthMoveChanges, previewOf, resizeBar, spanDays } from '../../lib/calendarDrag'
+import { outsideDrag } from '../../lib/calendarDrop'
 import { Item } from './TimeGrid'
 import type { CalHandlers, Rect } from './types'
 import { popoverOpen, quickCreateOpen } from './dismiss'
+import { dragSession } from './dragSession'
 
 // 06 §5 월 보기(실측 research 17): 필요한 주만큼 · 칸 날짜 · 막대 · "+N" · 여러 날 막대 · 오늘 칸 칠
 const LANE = 19 // 막대 16 + 간격 3
@@ -20,9 +23,13 @@ type Props = CalHandlers & {
   onDayClick: (day: string) => void
   onMore: (day: string, rect: Rect) => void
 }
+// 06 §7.2 월 칸 끌기(틱틱 실측 — research 17 §끌기): 원래 막대와 같은 모양이 포인터를 따라 떠다니고(잡은 자리 유지·그림자),
+// 놓일 칸이 칠해지고, 원래 막대는 제자리에 옅게. 막대 왼쪽·오른쪽 끝 = 시작·끝 날짜(여러 날)
 type Drag =
   | { kind: 'create'; a: string; b: string }
-  | { kind: 'move'; item: CalItem; grab: string; date: string; moved: boolean; dup: boolean }
+  | { kind: 'move'; item: CalItem; grab: string; date: string; moved: boolean; dup: boolean; x: number; y: number; offX: number; offY: number; w: number; h: number }
+  | { kind: 'resize'; item: CalItem; edge: 'start' | 'end'; grab: string; date: string; moved: boolean }
+const noop = () => {}
 
 export function MonthView(p: Props) {
   const { month, items, today } = p
@@ -57,54 +64,75 @@ export function MonthView(p: Props) {
     setDrag(d)
     const x0 = e.clientX
     const y0 = e.clientY
-    const move = (ev: PointerEvent) => {
-      const cur = dragRef.current!
-      const date = dateAt(ev.clientX, ev.clientY)
-      const next: Drag = cur.kind === 'create' ? { ...cur, b: date } : { ...cur, date, moved: cur.moved || Math.hypot(ev.clientX - x0, ev.clientY - y0) > 4, dup: ev.altKey }
-      dragRef.current = next
-      setDrag(next)
-    }
-    const up = (ev: PointerEvent) => {
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
-      const d2 = dragRef.current!
+    const far = (x: number, y: number) => Math.hypot(x - x0, y - y0) > 4
+    const stop = () => {
+      const d2 = dragRef.current
       dragRef.current = undefined
       setDrag(undefined)
-      const rect = { left: ev.clientX, top: ev.clientY, right: ev.clientX, bottom: ev.clientY }
-      if (d2.kind === 'create') {
-        if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 4) return
-        const cell = bodyRef.current!.querySelector<HTMLElement>(`[data-cal-day="${d2.a}"]`)!
-        p.onCreate({ start_at: null, due_at: d2.a }, cell.getBoundingClientRect())
-        return
-      }
-      const it = d2.item
-      if (!d2.moved) {
-        if (ev.metaKey || ev.ctrlKey) p.onSelect(it.task.id, true)
-        else p.onOpen(it, (ev.target as HTMLElement).closest('.cal-item')?.getBoundingClientRect() ?? rect)
-        return
-      }
-      if (it.virtual) return
-      const listId = document.elementFromPoint(ev.clientX,ev.clientY)?.closest<HTMLElement>('[data-list-target]')?.dataset.listTarget
-      if(listId){p.onMoveToList(p.selection.includes(it.task.id)?p.selection:[it.task.id],listId);return}
-      const delta = daysBetween(d2.grab, d2.date)
-      if (!delta) return
-      // 06 §7.2: 날짜만 옮기고 시각·기간은 유지
-      const group = p.selection.includes(it.task.id) ? p.itemsById(p.selection) : [it]
-      p.onMove(group.map((g) => {
-        const shift = (f: string) => (f.includes('T') ? `${addDays(datePart(f), delta)}T${f.slice(11)}` : addDays(f, delta))
-        return { id: g.task.id, start_at: g.task.start_at ? shift(g.start) : null, due_at: shift(g.end) }
-      }), d2.dup)
+      return d2
     }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
+    dragSession({
+      cursor: d.kind === 'resize' ? 'ew-resize' : 'default',
+      onCancel: () => { stop() },
+      onMove: (ev) => {
+        const cur = dragRef.current
+        if (!cur) return
+        const date = dateAt(ev.clientX, ev.clientY)
+        const next: Drag = cur.kind === 'create' ? { ...cur, b: date }
+          : cur.kind === 'resize' ? { ...cur, date, moved: cur.moved || far(ev.clientX, ev.clientY) }
+          : { ...cur, date, moved: cur.moved || far(ev.clientX, ev.clientY), dup: ev.altKey, x: ev.clientX, y: ev.clientY }
+        dragRef.current = next
+        setDrag(next)
+      },
+      onUp: (ev) => {
+        const d2 = stop()
+        if (!d2) return
+        const rect = { left: ev.clientX, top: ev.clientY, right: ev.clientX, bottom: ev.clientY }
+        if (d2.kind === 'create') {
+          if (far(ev.clientX, ev.clientY)) return
+          const cell = bodyRef.current!.querySelector<HTMLElement>(`[data-cal-day="${d2.a}"]`)!
+          p.onCreate({ start_at: null, due_at: d2.a }, cell.getBoundingClientRect())
+          return
+        }
+        const it = d2.item
+        if (!d2.moved) {
+          if (ev.metaKey || ev.ctrlKey) p.onSelect(it.task.id, true)
+          else p.onOpen(it, (ev.target as HTMLElement).closest('.cal-item')?.getBoundingClientRect() ?? rect)
+          return
+        }
+        if (it.virtual) return
+        const delta = daysBetween(d2.grab, d2.date)
+        if (d2.kind === 'resize') { if (delta) p.onMove([resizeBar(it, d2.edge, delta)], false); return }
+        const listId = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('[data-list-target]')?.dataset.listTarget
+        if (listId) { p.onMoveToList(p.selection.includes(it.task.id) ? p.selection : [it.task.id], listId); return }
+        if (!delta) return
+        // 06 §7.2: 날짜만 옮기고 시각·기간은 유지
+        const group = p.selection.includes(it.task.id) ? p.itemsById(p.selection) : [it]
+        p.onMove(monthMoveChanges(group, delta), d2.dup)
+      }
+    })
   }
+
+  // 놓일 칸: 옮기는 막대가 새로 차지할 날들(여러 날 막대는 전부) · 할일 정렬 칸에서 끌어 오는 날
+  const outside = useSyncExternalStore(outsideDrag.subscribe, outsideDrag.get)
+  const dropRange = ((): [string, string] | undefined => {
+    if (drag?.kind === 'move' && drag.moved && !drag.item.virtual) {
+      const s0 = addDays(datePart(drag.item.start), daysBetween(drag.grab, drag.date))
+      return [s0, addDays(s0, spanDays(drag.item) - 1)]
+    }
+    const t = outside?.target
+    if (t && t.zone === 'day' && p.days.includes(t.day)) return [t.day, t.day]
+    return undefined
+  })()
+  // 길이 바꾸기는 막대 자체를 바로 늘여 그린다(원래 자리 대신)
+  const resized = drag?.kind === 'resize' && drag.moved ? previewOf(drag.item, resizeBar(drag.item, drag.edge, daysBetween(drag.grab, drag.date))) : undefined
+  const laidItems = resized ? items.map((it) => (it.key === (drag as { item: CalItem }).item.key ? resized : it)) : items
 
   const inCreate = (d: string) => {
     if (drag?.kind === 'create') {
       const [a, b] = drag.a <= drag.b ? [drag.a, drag.b] : [drag.b, drag.a]
       return a === b && d === a
     }
-    if (drag?.kind === 'move' && drag.moved) return d === drag.date
     const pd = p.pending
     return !!pd && !pd.due_at?.includes('T') && d >= (pd.start_at ?? pd.due_at!) && d <= pd.due_at!
   }
@@ -116,7 +144,7 @@ export function MonthView(p: Props) {
       </div>
       <div className="mv__body" ref={bodyRef} style={{ gridTemplateRows: `repeat(${nRows}, minmax(0, 1fr))` }}>
         {rows.map((row, r) => {
-          const bars = packBars(items, row)
+          const bars = packBars(laidItems, row)
           const covering = row.map((_, c) => bars.filter((b) => b.col <= c && c < b.col + b.span))
           const overflow = covering.some((cv) => cv.length > maxLanes)
           const limit = overflow ? maxLanes - 1 : maxLanes
@@ -130,7 +158,7 @@ export function MonthView(p: Props) {
                   <div
                     key={d}
                     data-cal-day={d}
-                    className={`mv__cell${other ? ' is-other' : ''}${d === today ? ' is-today' : ''}${inCreate(d) ? ' is-target' : ''}`}
+                    className={`mv__cell${other ? ' is-other' : ''}${d === today ? ' is-today' : ''}${inCreate(d) ? ' is-target' : ''}${dropRange && d >= dropRange[0] && d <= dropRange[1] ? ' is-drop' : ''}`}
                     onPointerDown={(e) => {
                       if ((e.target as HTMLElement).closest('.cal-item, .mv__num, .mv__more')) return
                       start(e, { kind: 'create', a: d, b: d })
@@ -153,11 +181,18 @@ export function MonthView(p: Props) {
                 {bars.filter((b) => b.lane < limit).map((b) => (
                   <div
                     key={b.item.key}
-                    className={`cal-item-wrap${drag?.kind === 'move' && drag.moved && drag.item.key === b.item.key ? ' is-drag-source' : ''}`}
+                    className={`cal-item-wrap${drag?.kind === 'move' && drag.moved && drag.item.key === b.item.key ? ' is-drag-source' : ''}${resized && resized.key === b.item.key ? ' is-live' : ''}`}
                     style={{ left: `calc(${(b.col / cols) * 100}% + 3px)`, width: `calc(${(b.span / cols) * 100}% - 6px)`, top: HEAD + b.lane * LANE, height: BAR }}
                   >
-                    <Item item={b.item} kind="bar" {...p} contLeft={b.contLeft} contRight={b.contRight}
-                      onDown={(e) => { e.stopPropagation(); start(e, { kind: 'move', item: b.item, grab: dateAt(e.clientX, e.clientY), date: dateAt(e.clientX, e.clientY), moved: false, dup: false }) }}
+                    <Item item={b.item} kind="bar" {...p} contLeft={b.contLeft} contRight={b.contRight} edges={resized ? undefined : 'horizontal'}
+                      onDown={(e) => {
+                        e.stopPropagation()
+                        const day = dateAt(e.clientX, e.clientY)
+                        const edge = (e.target as HTMLElement).dataset.edge as 'start' | 'end' | undefined
+                        if (edge && !b.item.virtual) return start(e, { kind: 'resize', item: b.item, edge, grab: day, date: day, moved: false })
+                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                        start(e, { kind: 'move', item: b.item, grab: day, date: day, moved: false, dup: false, x: e.clientX, y: e.clientY, offX: e.clientX - r.left, offY: e.clientY - r.top, w: r.width, h: r.height })
+                      }}
                     />
                   </div>
                 ))}
@@ -166,6 +201,11 @@ export function MonthView(p: Props) {
           )
         })}
       </div>
+      {drag?.kind === 'move' && drag.moved && !drag.item.virtual && (
+        <div className="cal-drag-ghost" style={{ left: drag.x - drag.offX, top: drag.y - drag.offY, width: drag.w, height: drag.h }}>
+          <Item item={drag.item} kind="bar" {...p} onDown={noop} />
+        </div>
+      )}
     </div>
   )
 }

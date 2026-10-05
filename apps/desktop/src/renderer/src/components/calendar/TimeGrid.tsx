@@ -1,12 +1,15 @@
 import { CalendarDays, Check, Repeat } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
-import { addDays, datePart, daysBetween } from '@sprout/schema/time'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent as RPointerEvent } from 'react'
+import { datePart, daysBetween } from '@sprout/schema/time'
 import { hourLabel, isBarItem, layoutDay, minutesOfDay, packBars, shortRange, type CalItem, type ItemStyle } from '../../lib/calendar'
 import { timeSelection } from '../../lib/calendarSelection'
 import { extOf } from '../../lib/calendarExt'
 import { evtOf } from '../../lib/calendarEvents'
+import { at, autoScrollDelta, freeLane, gridMoveChanges, previewOf, resizeBar, resizeTime, SNAP, snapMin as snap } from '../../lib/calendarDrag'
+import { outsideDrag, scheduledDrop } from '../../lib/calendarDrop'
 import type { CalHandlers } from './types'
 import { popoverOpen, quickCreateOpen } from './dismiss'
+import { dragSession, type DragPoint } from './dragSession'
 
 // 06 §4 주 보기 · 일 보기 (실측 research 17): 요일 줄 · 날짜 숫자 줄 · 종일 영역 · 시간 눈금 · 블록 · 현재 시각
 const GUTTER = 55
@@ -15,8 +18,9 @@ const LANE = 19 // 막대 16 + 간격 3
 const BAR = 16
 const BAND = 40 // 접힌 구간 높이
 const HIDDEN_END = 7 * 60 // 00:00–07:00
-const SNAP = 15
 const WEEK = ['일', '월', '화', '수', '목', '금', '토']
+const noop = () => {}
+const pad = (n: number) => String(n).padStart(2, '0')
 
 type Props = CalHandlers & {
   days: string[]
@@ -31,18 +35,9 @@ type Props = CalHandlers & {
 type Drag =
   | { kind: 'create-time'; day: string; a: number; b: number }
   | { kind: 'create-allday'; a: number; b: number }
-  | { kind: 'move'; item: CalItem; grabDate: string; grabMin: number; zone: 'grid' | 'allday'; date: string; min: number; moved: boolean; dup: boolean; x: number; y: number }
-  | { kind: 'resize'; item: CalItem; edge: 'top' | 'bottom'; min: number }
-
-const pad = (n: number) => String(n).padStart(2, '0')
-const at = (day: string, min: number) => `${day}T${pad(Math.floor(min / 60))}:${pad(min % 60)}`
-const snap = (m: number) => Math.max(0, Math.min(24 * 60 - SNAP, Math.round(m / SNAP) * SNAP))
-const shiftF = (f: string, days: number, mins: number) => {
-  if (!f.includes('T')) return addDays(f, days)
-  const total = minutesOfDay(f) + mins
-  const d = addDays(datePart(f), days + Math.floor(total / 1440))
-  return at(d, ((total % 1440) + 1440) % 1440)
-}
+  | { kind: 'move'; item: CalItem; grabDate: string; grabMin: number; zone: 'grid' | 'allday'; date: string; min: number; moved: boolean; dup: boolean }
+  | { kind: 'resize'; item: CalItem; edge: 'top' | 'bottom'; min: number; moved: boolean }
+  | { kind: 'resize-bar'; item: CalItem; edge: 'start' | 'end'; grabDate: string; date: string; moved: boolean }
 
 export function TimeGrid(p: Props) {
   const { days, items, today, hourH, collapsed } = p
@@ -54,6 +49,7 @@ export function TimeGrid(p: Props) {
   daysRef.current = days
   const [drag, setDrag] = useState<Drag>()
   const dragRef = useRef<Drag | undefined>(undefined)
+  const outside = useSyncExternalStore(outsideDrag.subscribe, outsideDrag.get)
   const [nowMin, setNowMin] = useState(() => new Date().getHours() * 60 + new Date().getMinutes())
   useEffect(() => {
     const t = setInterval(() => setNowMin(new Date().getHours() * 60 + new Date().getMinutes()), 30_000)
@@ -72,10 +68,6 @@ export function TimeGrid(p: Props) {
     el.scrollTop = Math.max(0, yOf(days.includes(today) ? nowMin - 60 : 8 * 60) - 8)
   }, [days[0], n]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const bars = packBars(items.filter(isBarItem), days)
-  const lanes = Math.max(1, ...bars.map((b) => b.lane + 1))
-  // 06 §4.1: 종일 영역 높이는 내용에 맞춰 자동(최대 화면의 40%)
-  const alldayH = Math.min(NUMROW + lanes * LANE + 6, Math.round(window.innerHeight * 0.4))
   const colOf = (clientX: number, el: HTMLElement | null) => {
     const r = el!.getBoundingClientRect()
     const x = clientX - r.left - GUTTER
@@ -87,8 +79,9 @@ export function TimeGrid(p: Props) {
     return !!r && clientY >= r.top && clientY <= r.bottom
   }
 
-  // ── 끌기 공통 ──
+  // ── 끌기 공통(06 §7.2): 15분 칸에 붙는 미리 보기, Esc 취소, 위·아래 가장자리 자동 스크롤, 좌우 가장자리 0.6초 = 이전·다음 범위 ──
   const edgeTimer = useRef<number>(undefined)
+  const clearEdge = () => { clearTimeout(edgeTimer.current); edgeTimer.current = undefined }
   const start = (e: RPointerEvent, d: Drag) => {
     if (e.button !== 0) return
     if (d.kind === 'create-time' || d.kind === 'create-allday' ? popoverOpen() : quickCreateOpen()) { e.stopPropagation(); return } // 06 §14.2
@@ -98,44 +91,74 @@ export function TimeGrid(p: Props) {
     setDrag(d)
     const x0 = e.clientX
     const y0 = e.clientY
-    const move = (ev: PointerEvent) => {
+    let last: DragPoint = { clientX: e.clientX, clientY: e.clientY, altKey: e.altKey }
+    const far = (ev: DragPoint) => Math.hypot(ev.clientX - x0, ev.clientY - y0) > 4
+    const move = (ev: DragPoint) => {
+      last = { clientX: ev.clientX, clientY: ev.clientY, altKey: ev.altKey }
       const cur = dragRef.current
       if (!cur) return
       let next: Drag = cur
       if (cur.kind === 'create-time') next = { ...cur, b: snap(minAt(ev.clientY)) }
       else if (cur.kind === 'create-allday') next = { ...cur, b: colOf(ev.clientX, alldayRef.current) }
-      else if (cur.kind === 'resize') next = { ...cur, min: snap(minAt(ev.clientY)) }
+      else if (cur.kind === 'resize') next = { ...cur, min: snap(minAt(ev.clientY)), moved: cur.moved || far(ev) }
+      else if (cur.kind === 'resize-bar') next = { ...cur, date: daysRef.current[colOf(ev.clientX, alldayRef.current)], moved: cur.moved || far(ev) }
       else if (cur.kind === 'move') {
-        const moved = cur.moved || Math.hypot(ev.clientX - x0, ev.clientY - y0) > 4
+        const moved = cur.moved || far(ev)
         const zone = inAllday(ev.clientY) ? 'allday' : 'grid'
         const date = daysRef.current[colOf(ev.clientX, zone === 'allday' ? alldayRef.current : gridRef.current)]
-        next = { ...cur, moved, zone, date, min: snap(minAt(ev.clientY) - cur.grabMin), dup: ev.altKey, x: ev.clientX, y: ev.clientY }
-        // 06 §7.2: 가장자리에 0.6초 머물면 이전·다음 범위로
+        next = { ...cur, moved, zone, date, min: snap(minAt(ev.clientY) - cur.grabMin), dup: ev.altKey }
         const r = gridRef.current!.getBoundingClientRect()
         const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom
         const edge = !inside ? 0 : ev.clientX < r.left + GUTTER + 16 ? -1 : ev.clientX > r.right - 16 ? 1 : 0
         if (moved && edge && !edgeTimer.current) edgeTimer.current = window.setTimeout(() => { edgeTimer.current = undefined; p.onEdgeShift(edge) }, 600)
-        if (!edge && edgeTimer.current) { clearTimeout(edgeTimer.current); edgeTimer.current = undefined }
+        if (!edge && edgeTimer.current) clearEdge()
       }
       dragRef.current = next
       setDrag(next)
     }
-    const up = (ev: PointerEvent) => {
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
-      clearTimeout(edgeTimer.current)
-      edgeTimer.current = undefined
+    // 시간 칸 위·아래 가장자리에 가면 저절로 스크롤(틱틱처럼 끌면서 보이지 않는 시각까지)
+    let raf = 0
+    let armed = false
+    const tick = () => {
+      const cur = dragRef.current
+      const sc = scrollRef.current
+      if (!cur || !sc) return
+      const vertical = cur.kind === 'create-time' || (cur.kind === 'resize' && cur.moved) || (cur.kind === 'move' && cur.moved && cur.zone === 'grid')
+      const r = sc.getBoundingClientRect()
+      const dy = autoScrollDelta(last.clientY, r.top, r.bottom)
+      // 가장자리 띠 안에서 시작했거나 종일 영역에서 내려오는 길이면 아직 스크롤하지 않는다(가운데를 한 번 지나야 켜짐)
+      if (last.clientY < r.top || last.clientY > r.bottom) armed = false
+      else if (!dy) armed = true
+      if (vertical && armed && dy) {
+        const before = sc.scrollTop
+        sc.scrollTop = before + dy
+        if (sc.scrollTop !== before) move(last)
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    const stop = () => {
+      cancelAnimationFrame(raf)
+      clearEdge()
       const d2 = dragRef.current
       dragRef.current = undefined
       setDrag(undefined)
-      if (d2) finish(d2, ev)
+      return d2
     }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
+    dragSession({
+      cursor: d.kind === 'resize' ? 'ns-resize' : d.kind === 'resize-bar' ? 'ew-resize' : 'default',
+      onMove: move,
+      onUp: (ev) => { const d2 = stop(); if (d2) finish(d2, ev) },
+      onCancel: () => { stop() }
+    })
   }
 
   const finish = (d: Drag, ev: PointerEvent) => {
     const rect = { left: ev.clientX, top: ev.clientY, right: ev.clientX, bottom: ev.clientY }
+    const openOrSelect = (it: CalItem) => {
+      if (ev.metaKey || ev.ctrlKey) p.onSelect(it.task.id, true)
+      else p.onOpen(it, (ev.target as HTMLElement).closest('.cal-item')?.getBoundingClientRect() ?? rect)
+    }
     if (d.kind === 'create-time') {
       const a = Math.min(d.a, d.b)
       const bounds = gridRef.current!.getBoundingClientRect()
@@ -147,66 +170,59 @@ export function TimeGrid(p: Props) {
       const b = Math.max(d.a, d.b)
       p.onCreate({ start_at: a === b ? null : days[a], due_at: days[b] }, rect)
     } else if (d.kind === 'resize') {
-      const t = d.item
-      const s = minutesOfDay(t.start)
-      const e = t.start !== t.end ? minutesOfDay(t.end) : s + 30
-      const day = datePart(t.start)
-      const ns = d.edge === 'top' ? Math.min(d.min, e - SNAP) : s
-      const ne = d.edge === 'bottom' ? Math.max(d.min, s + SNAP) : e
-      p.onMove([{ id: t.task.id, start_at: at(day, ns), due_at: at(day, ne) }], false)
+      if (!d.moved) return openOrSelect(d.item)
+      const r = resizeTime(d.item, d.edge, d.min)
+      p.onMove([{ id: d.item.task.id, start_at: at(r.day, r.a), due_at: at(r.day, r.b) }], false)
+    } else if (d.kind === 'resize-bar') {
+      if (!d.moved) return openOrSelect(d.item)
+      const delta = daysBetween(d.grabDate, d.date)
+      if (delta) p.onMove([resizeBar(d.item, d.edge, delta)], false)
     } else if (d.kind === 'move') {
       const it = d.item
-      if (!d.moved) {
-        if (ev.metaKey || ev.ctrlKey) p.onSelect(it.task.id, true)
-        else p.onOpen(it, (ev.target as HTMLElement).closest('.cal-item')?.getBoundingClientRect() ?? rect)
-        return
-      }
+      if (!d.moved) return openOrSelect(it)
       if (it.virtual) return
-      const listId = document.elementFromPoint(ev.clientX,ev.clientY)?.closest<HTMLElement>('[data-list-target]')?.dataset.listTarget
-      if(listId){p.onMoveToList(p.selection.includes(it.task.id)?p.selection:[it.task.id],listId);return}
-      const dayDelta = daysBetween(d.grabDate, d.date)
+      const listId = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('[data-list-target]')?.dataset.listTarget
+      if (listId) { p.onMoveToList(p.selection.includes(it.task.id) ? p.selection : [it.task.id], listId); return }
       const group = p.selection.includes(it.task.id) ? p.itemsById(p.selection) : [it]
-      const changes = group.map((g) => {
-        const isGrabbed = g.task.id === it.task.id
-        // 블록 → 종일 영역: 종일 태스크(날짜 유지)
-        if (d.zone === 'allday' && !g.allDay && isGrabbed) return { id: g.task.id, start_at: null, due_at: addDays(datePart(g.start), dayDelta) }
-        // 종일 막대 → 시간 칸: 그 시각부터 1시간
-        if (d.zone === 'grid' && g.allDay && isGrabbed) {
-          const s = at(addDays(datePart(g.start), dayDelta), d.min)
-          return { id: g.task.id, start_at: s, due_at: shiftF(s, 0, 60) }
-        }
-        const minDelta = !g.allDay && d.zone === 'grid' && !isBarItem(g) ? d.min - minutesOfDay(it.start) : 0
-        const hasRange = !!g.task.start_at
-        const ns = shiftF(g.start, dayDelta, minDelta)
-        const ne = shiftF(g.end, dayDelta, minDelta)
-        return { id: g.task.id, start_at: hasRange ? ns : null, due_at: hasRange ? ne : ns }
-      })
-      p.onMove(changes, d.dup)
+      p.onMove(gridMoveChanges(group, it, { dayDelta: daysBetween(d.grabDate, d.date), zone: d.zone, min: d.min }, (g) => !!evtOf(g)), d.dup)
     }
   }
 
-  // 끄는 동안 그릴 미리보기
-  const preview = (() => {
-    if (!drag) return null
-    if (drag.kind === 'create-time') {
-      const a = Math.min(drag.a, drag.b)
-      const b = drag.a === drag.b ? drag.a : Math.min(1439, Math.max(drag.a, drag.b) + SNAP)
-      return { kind: 'range' as const, day: drag.day, a, b }
+  // ── 끄는 동안 그릴 미리 보기: 원래 항목과 같은 모양(Item)을 놓일 자리에 그린다. 원래 자리는 옅게(옮기기) / 숨김(길이 바꾸기) ──
+  const preview = ((): { item: CalItem; live: boolean; key: string } | undefined => {
+    if (drag?.kind === 'move' && drag.moved && !drag.item.virtual) {
+      const c = gridMoveChanges([drag.item], drag.item, { dayDelta: daysBetween(drag.grabDate, drag.date), zone: drag.zone, min: drag.min }, (g) => !!evtOf(g))[0]
+      return { item: previewOf(drag.item, c), live: false, key: drag.item.key }
     }
-    if (drag.kind === 'resize') {
-      const s = minutesOfDay(drag.item.start)
-      const e = drag.item.start !== drag.item.end ? minutesOfDay(drag.item.end) : s + 30
-      return { kind: 'ghost' as const, item: drag.item, day: datePart(drag.item.start), a: drag.edge === 'top' ? Math.min(drag.min, e - SNAP) : s, b: drag.edge === 'bottom' ? Math.max(drag.min, s + SNAP) : e }
+    if (drag?.kind === 'resize' && drag.moved) {
+      const r = resizeTime(drag.item, drag.edge, drag.min)
+      return { item: previewOf(drag.item, { start_at: at(r.day, r.a), due_at: at(r.day, r.b) }), live: true, key: drag.item.key }
     }
-    if (drag.kind === 'move' && drag.moved && drag.zone === 'grid' && !drag.item.virtual) {
-      const len = drag.item.allDay ? 60 : drag.item.start !== drag.item.end ? minutesOfDay(drag.item.end) - minutesOfDay(drag.item.start) : 0
-      return { kind: 'ghost' as const, item: drag.item, day: drag.date, a: drag.min, b: drag.min + len }
+    if (drag?.kind === 'resize-bar' && drag.moved) return { item: previewOf(drag.item, resizeBar(drag.item, drag.edge, daysBetween(drag.grabDate, drag.date))), live: true, key: drag.item.key }
+    // 06 §9 할일 정렬 칸에서 끌어 오는 중: 시간 칸이면 15분 칸에 붙은 한 줄 막대, 종일 영역이면 막대
+    const t = outside?.target
+    if (outside && t && days.includes(t.day) && (t.zone === 'grid' || t.zone === 'allday')) {
+      const base: CalItem = { key: 'outside', task: outside.task, start: t.day, end: t.day, allDay: true, virtual: false }
+      return { item: previewOf(base, scheduledDrop(outside.task, t)), live: false, key: 'outside' }
     }
-    return null
+    return undefined
   })()
+  const sourceKey = drag && (drag.kind === 'move' ? (drag.moved ? drag.item.key : undefined) : drag.kind === 'resize' || drag.kind === 'resize-bar' ? (drag.moved ? drag.item.key : undefined) : undefined)
+  const hideSource = drag?.kind === 'resize' || drag?.kind === 'resize-bar'
+  const srcCls = (key: string) => (key === sourceKey ? (hideSource ? ' is-resize-source' : ' is-drag-source') : '')
+
+  const bars = packBars(items.filter(isBarItem), days)
+  const barPreview = preview && isBarItem(preview.item) ? packBars([preview.item], days)[0] : undefined
+  const barPreviewLane = barPreview ? freeLane(bars, barPreview.col, barPreview.span, preview!.key) : -1
+  const lanes = Math.max(1, barPreviewLane + 1, ...bars.map((b) => b.lane + 1))
+  // 06 §4.1: 종일 영역 높이는 내용에 맞춰 자동(최대 화면의 40%)
+  const alldayH = Math.min(NUMROW + lanes * LANE + 6, Math.round(window.innerHeight * 0.4))
+  const gridPreview = preview && !isBarItem(preview.item) ? preview : undefined
+
   const pendingStart = p.pending?.start_at ?? p.pending?.due_at
   const pendingDay = pendingStart?.includes('T') ? datePart(pendingStart) : null
   const hours = Array.from({ length: 24 }, (_, h) => h).filter((h) => !collapsed || h * 60 >= HIDDEN_END)
+  const range = drag?.kind === 'create-time' ? { day: drag.day, a: Math.min(drag.a, drag.b), b: drag.a === drag.b ? drag.a : Math.min(1439, Math.max(drag.a, drag.b) + SNAP) } : undefined
 
   return (
     <div className="tg">
@@ -229,9 +245,9 @@ export function TimeGrid(p: Props) {
           {days.map((d, i) => {
             const sel = drag?.kind === 'create-allday' && i >= Math.min(drag.a, drag.b) && i <= Math.max(drag.a, drag.b)
             const pend = p.pending && !p.pending.due_at?.includes('T') && d >= (p.pending.start_at ?? p.pending.due_at!) && d <= p.pending.due_at!
-            const moveHere = drag?.kind === 'move' && drag.moved && drag.zone === 'allday' && drag.date === d
+            const drop = !!barPreview && !preview!.live && i >= barPreview.col && i < barPreview.col + barPreview.span
             return (
-              <div key={d} data-cal-day={d} className={`tg__allday-col${sel || pend || moveHere ? ' is-target' : ''}`}>
+              <div key={d} data-cal-day={d} className={`tg__allday-col${sel || pend ? ' is-target' : ''}${drop ? ' is-drop' : ''}`}>
                 <button className={`tg__num${d === today ? ' is-today' : ''}`} onClick={() => p.onDayClick(d)}>{Number(d.slice(8))}</button>
               </div>
             )
@@ -239,12 +255,22 @@ export function TimeGrid(p: Props) {
         </div>
         <div className="tg__bars" style={{ left: GUTTER, top: NUMROW, height: lanes * LANE }}>
           {bars.map((b) => (
-            <div key={b.item.key} className="cal-item-wrap" style={{ left: `calc(${(b.col / n) * 100}% + 2px)`, width: `calc(${(b.span / n) * 100}% - 4px)`, top: b.lane * LANE, height: BAR }}>
-              <Item item={b.item} kind="bar" {...p} contLeft={b.contLeft} contRight={b.contRight}
-                onDown={(e) => start(e, { kind: 'move', item: b.item, grabDate: days[colOf(e.clientX, alldayRef.current)], grabMin: 0, zone: 'allday', date: days[colOf(e.clientX, alldayRef.current)], min: 0, moved: false, dup: false, x: e.clientX, y: e.clientY })}
+            <div key={b.item.key} className={`cal-item-wrap${srcCls(b.item.key)}`} style={{ left: `calc(${(b.col / n) * 100}% + 2px)`, width: `calc(${(b.span / n) * 100}% - 4px)`, top: b.lane * LANE, height: BAR }}>
+              <Item item={b.item} kind="bar" {...p} contLeft={b.contLeft} contRight={b.contRight} edges="horizontal"
+                onDown={(e) => {
+                  const day = days[colOf(e.clientX, alldayRef.current)]
+                  const edge = (e.target as HTMLElement).dataset.edge as 'start' | 'end' | undefined
+                  if (edge && !b.item.virtual) return start(e, { kind: 'resize-bar', item: b.item, edge, grabDate: day, date: day, moved: false })
+                  start(e, { kind: 'move', item: b.item, grabDate: day, grabMin: 0, zone: 'allday', date: day, min: 0, moved: false, dup: false })
+                }}
               />
             </div>
           ))}
+          {barPreview && (
+            <div className={`cal-item-wrap is-ghost${preview!.live ? ' is-live' : ''}`} style={{ left: `calc(${(barPreview.col / n) * 100}% + 2px)`, width: `calc(${(barPreview.span / n) * 100}% - 4px)`, top: barPreviewLane * LANE, height: BAR }}>
+              <Item item={barPreview.item} kind="bar" {...p} contLeft={barPreview.contLeft} contRight={barPreview.contRight} onDown={noop} />
+            </div>
+          )}
         </div>
       </div>
       <div className="tg__scroll" ref={scrollRef}>
@@ -257,74 +283,76 @@ export function TimeGrid(p: Props) {
               </span>
             ))}
           </div>
-          {days.map((d) => (
-            <div
-              key={d}
-              data-cal-day={d}
-              data-hour-height={hourH}
-              data-collapsed={collapsed}
-              className="tg__col"
-              onPointerDown={(e) => {
-                if ((e.target as HTMLElement).closest('.cal-item')) return
-                const m = snap(Math.floor(minAt(e.clientY) / SNAP) * SNAP)
-                start(e, { kind: 'create-time', day: d, a: m, b: m })
-              }}
-            >
-              {hours.map((h) => <div key={h} className="tg__line" style={{ top: yOf(h * 60) }} />)}
-              {collapsed && <div className="tg__band-fill" style={{ height: BAND }} />}
-              {layoutDay(items, d).map((b) => {
-                const isPoint = b.item.start === b.item.end
-                const isDragging = drag && (drag.kind === 'resize' || (drag.kind === 'move' && drag.moved)) && drag.item.key === b.item.key
-                return (
-                  <div
-                    key={b.item.key}
-                    className={`cal-item-wrap is-block${isDragging ? ' is-drag-source' : ''}`}
-                    style={{
-                      top: yOf(b.startMin),
-                      height: isPoint ? BAR : Math.max(yOf(b.endMin) - yOf(b.startMin) - 1, BAR),
-                      left: `calc(${(b.col / b.cols) * 100}% + 2px)`,
-                      width: `calc(${100 / b.cols}% - 4px)`
-                    }}
-                  >
-                    <Item
-                      item={b.item}
-                      kind={isPoint ? 'bar' : 'block'}
-                      {...p}
-                      onDown={(e) => {
-                        const edge = (e.target as HTMLElement).dataset.edge as 'top' | 'bottom' | undefined
-                        if (edge && !b.item.virtual) return start(e, { kind: 'resize', item: b.item, edge, min: edge === 'top' ? b.startMin : b.endMin })
-                        start(e, { kind: 'move', item: b.item, grabDate: d, grabMin: minAt(e.clientY) - b.startMin, zone: 'grid', date: d, min: b.startMin, moved: false, dup: false, x: e.clientX, y: e.clientY })
+          {days.map((d) => {
+            const gp = gridPreview && datePart(gridPreview.item.start) === d ? gridPreview : undefined
+            const gpPoint = gp && gp.item.start === gp.item.end
+            const gpS = gp ? minutesOfDay(gp.item.start) : 0
+            const gpE = gp && !gpPoint ? (datePart(gp.item.end) === d ? minutesOfDay(gp.item.end) : 24 * 60) : gpS
+            return (
+              <div
+                key={d}
+                data-cal-day={d}
+                data-hour-height={hourH}
+                data-collapsed={collapsed}
+                className="tg__col"
+                onPointerDown={(e) => {
+                  if ((e.target as HTMLElement).closest('.cal-item')) return
+                  const m = snap(Math.floor(minAt(e.clientY) / SNAP) * SNAP)
+                  start(e, { kind: 'create-time', day: d, a: m, b: m })
+                }}
+              >
+                {hours.map((h) => <div key={h} className="tg__line" style={{ top: yOf(h * 60) }} />)}
+                {collapsed && <div className="tg__band-fill" style={{ height: BAND }} />}
+                {layoutDay(items, d).map((b) => {
+                  const isPoint = b.item.start === b.item.end
+                  return (
+                    <div
+                      key={b.item.key}
+                      className={`cal-item-wrap is-block${srcCls(b.item.key)}`}
+                      style={{
+                        top: yOf(b.startMin),
+                        height: isPoint ? BAR : Math.max(yOf(b.endMin) - yOf(b.startMin) - 1, BAR),
+                        left: `calc(${(b.col / b.cols) * 100}% + 2px)`,
+                        width: `calc(${100 / b.cols}% - 4px)`
                       }}
-                    />
+                    >
+                      <Item
+                        item={b.item}
+                        kind={isPoint ? 'bar' : 'block'}
+                        edges="vertical"
+                        {...p}
+                        onDown={(e) => {
+                          const edge = (e.target as HTMLElement).dataset.edge as 'top' | 'bottom' | undefined
+                          if (edge && !b.item.virtual) return start(e, { kind: 'resize', item: b.item, edge, min: edge === 'top' ? b.startMin : b.endMin, moved: false })
+                          start(e, { kind: 'move', item: b.item, grabDate: d, grabMin: minAt(e.clientY) - b.startMin, zone: 'grid', date: d, min: b.startMin, moved: false, dup: false })
+                        }}
+                      />
+                    </div>
+                  )
+                })}
+                {range?.day === d && <div className="tg__select" style={{ top: yOf(range.a), height: Math.max(BAR, yOf(range.b) - yOf(range.a)) }} />}
+                {!drag && pendingDay === d && pendingStart && (
+                  <div className="tg__select" style={{ top: yOf(minutesOfDay(pendingStart)), height: Math.max(BAR, yOf(minutesOfDay(p.pending!.due_at!)) - yOf(minutesOfDay(pendingStart))) }} />
+                )}
+                {gp && (
+                  <div className={`cal-item-wrap is-block is-ghost${gp.live ? ' is-live' : ''}`} style={{ top: yOf(gpS), height: gpPoint ? BAR : Math.max(yOf(gpE) - yOf(gpS) - 1, BAR), left: 2, right: 2 }}>
+                    <Item item={gp.item} kind={gpPoint ? 'bar' : 'block'} {...p} onDown={noop} />
                   </div>
-                )
-              })}
-              {preview?.kind === 'range' && preview.day === d && <div className="tg__select" style={{ top: yOf(preview.a), height: Math.max(BAR, yOf(preview.b) - yOf(preview.a)) }} />}
-              {!drag && pendingDay === d && pendingStart && (
-                <div className="tg__select" style={{ top: yOf(minutesOfDay(pendingStart)), height: Math.max(BAR, yOf(minutesOfDay(p.pending!.due_at!)) - yOf(minutesOfDay(pendingStart))) }} />
-              )}
-              {preview?.kind === 'ghost' && preview.day === d && (
-                <div className="tg__ghost" style={{ top: yOf(preview.a), height: preview.b > preview.a ? Math.max(yOf(preview.b) - yOf(preview.a), BAR) : BAR, ['--item-color' as string]: p.colorOf(preview.item) }}>
-                  <span>{preview.item.task.title || '제목 없음'}</span>
-                  {preview.b > preview.a && <span className="tg__ghost-time">{shortRange(at(d, preview.a), at(d, preview.b), true)}</span>}
-                </div>
-              )}
-              {/* 06 §4.1 실측: 현재 시각은 오늘 열에만, 왼쪽 끝 점 */}
-              {d === today && <div className="tg__now" style={{ top: yOf(nowMin) }} />}
-            </div>
-          ))}
+                )}
+                {/* 06 §4.1 실측: 현재 시각은 오늘 열에만, 왼쪽 끝 점 */}
+                {d === today && <div className="tg__now" style={{ top: yOf(nowMin) }} />}
+              </div>
+            )
+          })}
         </div>
       </div>
-      {drag?.kind === 'move' && drag.moved && drag.zone === 'allday' && (
-        <div className="cal-drag-chip" style={{ left: drag.x + 12, top: drag.y + 8 }}>{drag.item.task.title || '제목 없음'}</div>
-      )}
     </div>
   )
 }
 
 /** 막대·블록 한 개(06 §4.2). 스타일 "간결한"은 체크박스 아이콘 없음, "상세한"은 있음.
  * 외부 일정(16 §3.1): 체크박스·가장자리 없음, 제목 앞 작은 캘린더 아이콘, 끌기·빈 칸 만들기 없이 누르면 읽기 전용 팝오버 */
-export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandlers & { item: CalItem; kind: 'block' | 'bar'; contLeft?: boolean; contRight?: boolean; onDown: (e: RPointerEvent) => void; itemStyle?: ItemStyle }) {
+export function Item({ item, kind, contLeft, contRight, edges, onDown, ...p }: CalHandlers & { item: CalItem; kind: 'block' | 'bar'; contLeft?: boolean; contRight?: boolean; edges?: 'vertical' | 'horizontal'; onDown: (e: RPointerEvent) => void; itemStyle?: ItemStyle }) {
   const t = item.task
   const ext = extOf(item)
   const evt = evtOf(item) // 06 §14.4 sprout 자체 일정: 구독 일정처럼 캘린더 아이콘, 하지만 끌기·길이·팝오버로 고친다
@@ -340,6 +368,9 @@ export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandl
   const detailed = !ext && !evt && (detailedStyle || !!p.showIcons)
   const calIcon = (!!ext || !!evt) && (detailedStyle || !!p.showCalIcons)
   const editable = !item.virtual && !ext
+  // 06 §7.2 가장자리 끌기: 시간 칸 블록 = 위·아래(한 점 막대는 아래만 — 늘리면 기간), 막대 = 왼쪽·오른쪽(여러 날)
+  const vEdges = editable && edges === 'vertical'
+  const hEdges = editable && edges === 'horizontal' && kind === 'bar'
   const cls = ['cal-item', `is-${kind}`, done && 'is-done', !done && (past || (item.virtual && !evt) || ext?.stale) && 'is-past', item.virtual && !evt && 'is-virtual', ext && 'is-ext', evt && 'is-event', p.selection.includes(t.id) && 'is-selected', contLeft && 'cont-left', contRight && 'cont-right']
   const extDown = (e: RPointerEvent) => { e.stopPropagation(); if (e.button !== 0) return; e.preventDefault() }
   return (
@@ -353,7 +384,8 @@ export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandl
       role={ext || evt ? 'button' : undefined}
       aria-label={ext ? `${ext.provider === 'google' ? '구글' : 'Apple'} 일정: ${ext.title}, ${ext.allDay ? ext.start : timeText || ext.start}, 읽기 전용` : evt ? `일정: ${t.title || '제목 없음'}, ${item.allDay ? item.start : timeText || item.start}` : undefined}
     >
-      {kind === 'block' && editable && <span className="cal-item__edge is-top" data-edge="top" />}
+      {vEdges && kind === 'block' && <span className="cal-item__edge is-top" data-edge="top" />}
+      {hEdges && !contLeft && <span className="cal-item__edge is-left" data-edge="start" />}
       <span className="cal-item__row">
         {detailed && (
           <button
@@ -372,7 +404,8 @@ export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandl
         {kind === 'bar' && timeText && <span className="cal-item__time">{timeText.replace(/-.*/, '')}</span>}
       </span>
       {kind === 'block' && hasRange && timeText && <span className="cal-item__sub">{timeText}</span>}
-      {kind === 'block' && editable && <span className="cal-item__edge is-bottom" data-edge="bottom" />}
+      {vEdges && <span className="cal-item__edge is-bottom" data-edge="bottom" />}
+      {hEdges && !contRight && <span className="cal-item__edge is-right" data-edge="end" />}
     </div>
   )
 }

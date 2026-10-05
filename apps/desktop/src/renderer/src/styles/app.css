@@ -475,7 +475,6 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .cal-item__edge { position: absolute; left: 0; right: 0; height: 6px; cursor: ns-resize; z-index: 1; }
 .cal-item__edge.is-top { top: 0; }
 .cal-item__edge.is-bottom { bottom: 0; }
-.cal-drag-chip { position: fixed; z-index: 300; pointer-events: none; padding: 4px 10px; border-radius: var(--radius-sm); background: var(--color-bg-popover); box-shadow: var(--shadow-popover); font: var(--text-small); }
 
 /* 월 보기 */
 .mv { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -526,8 +525,6 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .tg__now { position: absolute; left: 0; right: 0; height: 2px; margin-top: -1px; background: #E5484D; z-index: 3; pointer-events: none; }
 .tg__now.is-other { height: 1px; opacity: 0.35; }
 .tg__select { position: absolute; left: 2px; right: 2px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--color-accent) 16%, transparent); border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent); pointer-events: none; z-index: 2; }
-.tg__ghost { --c: var(--item-color); position: absolute; left: 2px; right: 2px; z-index: 4; pointer-events: none; padding: 3px 6px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--c) 30%, var(--color-bg-app)); border-left: 3px solid var(--c); box-shadow: var(--shadow-popover); font: var(--text-small); display: flex; flex-direction: column; overflow: hidden; }
-.tg__ghost-time { opacity: 0.75; font-size: 11px; }
 
 /* 팝오버: 태스크(상세와 같은 구성) · 빠른 만들기 · 날짜 목록 */
 .task-pop { padding: 0; overflow: hidden; }

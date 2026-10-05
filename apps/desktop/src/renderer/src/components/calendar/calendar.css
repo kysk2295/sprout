@@ -36,3 +36,20 @@
 @container (max-width: 48px) { .cal-item__check, .cal-item__kind { display: none; } }
 .vo__subhead { margin: 0 0 6px 4px; font: var(--text-meta); color: var(--color-text-tertiary); }
 .vo__cal { width: 10px; height: 10px; stroke-width: 2.2; color: var(--color-text-tertiary); }
+
+/* 06 §7.2 끌기(틱틱 실측 research 17 §끌기): 원래 모양 그대로의 미리 보기 + 옅은 원래 자리 + 놓일 칸 칠하기 */
+.cal-item-wrap.is-drag-source { opacity: 0.4; }
+.cal-item-wrap.is-resize-source { visibility: hidden; }
+.cal-item-wrap.is-ghost { pointer-events: none; z-index: 5; }
+.cal-item-wrap.is-ghost:not(.is-live) > .cal-item { opacity: 0.92; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.16); }
+.cal-drag-ghost { position: fixed; z-index: 300; pointer-events: none; }
+.cal-drag-ghost > .cal-item { height: 100%; opacity: 0.9; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18); }
+.mv__cell.is-drop, .tg__allday-col.is-drop { background: color-mix(in srgb, var(--color-text-primary) 6%, transparent); }
+.cal-item__edge.is-left, .cal-item__edge.is-right { top: 0; bottom: 0; width: 5px; height: auto; cursor: ew-resize; }
+.cal-item__edge.is-left { left: 0; right: auto; }
+.cal-item__edge.is-right { right: 0; left: auto; }
+.cal-item.is-bar .cal-item__edge.is-bottom { height: 4px; }
+html.is-cal-dragging, html.is-cal-dragging * { user-select: none !important; }
+html.is-cal-dragging * { cursor: inherit !important; }
+.arrange-task.is-drag-source { opacity: 0.4; }
+.arrange-task.arrange-ghost { position: fixed; z-index: 300; margin: 0; pointer-events: none; opacity: 0.92; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18); }

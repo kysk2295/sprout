@@ -147,7 +147,7 @@ assert.equal(isOverdue({ status: 1, due_at: '2026-10-01' }, '2026-10-05T09:00'),
 }
 
 // ── 할일 정렬 칸 → 타임라인 일 배율 칸: 놓은 시각부터 1시간(06 §9와 같은 scheduledDrop) ──
-assert.deepEqual(scheduledDrop({ id: 'n', start_at: null, due_at: null }, { day: '2026-10-05', minute: 600 }), { id: 'n', start_at: '2026-10-05T10:00', due_at: '2026-10-05T11:00' })
+assert.deepEqual(scheduledDrop({ id: 'n', start_at: null, due_at: null }, { day: '2026-10-05', minute: 600, zone: 'timeline' }), { id: 'n', start_at: '2026-10-05T10:00', due_at: '2026-10-05T11:00' })
 assert.deepEqual(scheduledDrop({ id: 'n', start_at: null, due_at: null }, { day: '2026-10-05' }), { id: 'n', start_at: null, due_at: '2026-10-05' })
 
 console.log('timeline tests passed')
