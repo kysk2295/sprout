@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ListSuggestSettings } from './listSuggest/ListSuggest'
-import { Bell, CircleUser, Keyboard, ListChecks, ListFilter, Palette, Plug, Settings2, X } from 'lucide-react'
+import { Bell, CircleUser, Keyboard, ListChecks, ListFilter, Palette, Pencil, Plug, Settings2, X } from 'lucide-react'
 import { OverdueSettings } from './overdue/OverdueBits'
 import { NotifySettings } from './NotifySettings'
 import { authApi, deleteErrorText, deleteMode, deleteReady, DELETE_WORD, providerLabel, useAuth, type DeleteMode } from '../data/auth'
@@ -8,6 +8,9 @@ import { LINK_NAME, linkErrorText, loginMethodRows, linkToast, unlinkToast, type
 import './account-delete.css'
 import { savePreferences, usePreferences, type Visibility } from '../data/preferences'
 import { Dialog } from './Dialog'
+import { useAvatar } from '../data/avatar'
+import { AvatarPicker } from './avatar/AvatarPicker'
+import { ProfileAvatar } from './avatar/ProfileAvatar'
 import { ThemePicker } from './ThemePicker'
 import { IntegrationsPane } from './calendars/IntegrationsPane'
 import { SETTINGS_TAB_KEY } from '../data/calendars'
@@ -85,7 +88,7 @@ function AccountPane() {
   if (!state) return <div className="account" />
   return <>
     <div className="account">
-      <span className="account__avatar">{(state?.user?.email?.[0] ?? '?').toUpperCase()}</span>
+      <AccountAvatar letter={(state?.user?.email?.[0] ?? '?').toUpperCase()} />
       <strong className="account__email">{state?.user?.email}</strong>
       <span className="account__sync">{status}</span>
       <button className="account__logout" disabled={busy} onClick={() => setConfirm(true)}>로그아웃</button>
@@ -100,6 +103,21 @@ function AccountPane() {
         <button disabled={busy} onClick={async () => { setBusy(true); await authApi()?.logout(); setBusy(false); setConfirm(false) }}>로그아웃</button>
       </footer>
     </Dialog>}
+  </>
+}
+
+/** 35 §3.3 설정 › 계정 맨 위 아바타: 누르거나 "프로필 이미지 바꾸기"를 누르면 고르기 팝오버 */
+function AccountAvatar({ letter }: { letter: string }) {
+  const ref = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  const { resolved } = useAvatar()
+  return <>
+    <button ref={ref} className="account__avatar" aria-label="프로필 이미지 바꾸기" title="프로필 이미지 바꾸기" onClick={() => setOpen((o) => !o)}>
+      <ProfileAvatar avatar={resolved} size={72} letter={letter} />
+      <span className="account__avatar-edit" aria-hidden="true"><Pencil /></span>
+    </button>
+    <button className="account__avatar-link" onClick={() => setOpen((o) => !o)}>프로필 이미지 바꾸기</button>
+    {open && <AvatarPicker anchor={ref.current} letter={letter} onClose={() => setOpen(false)} />}
   </>
 }
 

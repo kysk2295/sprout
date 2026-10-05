@@ -11,6 +11,9 @@ import {
   api, ApiError, freshToken, linkGoogle, loginMethods, logout, reauthWithGoogle, socialErrorText, unlinkProvider, useAuth,
   type LinkedIdentity, type LoginMethods, type Provider
 } from '../../../src/data/auth'
+import { AvatarSheet } from '../../../src/avatar/AvatarSheet'
+import { ProfileAvatar } from '../../../src/avatar/ProfileAvatar'
+import { useAvatar } from '../../../src/data/avatar'
 import { FONT, M } from '../../../src/theme/palette'
 import { usePalette } from '../../../src/theme/ThemeProvider'
 import { Cell, Cells } from '../../../src/ui/Cells'
@@ -40,6 +43,9 @@ export default function Account() {
   const router = useRouter()
   const toast = useToast()
   const { user } = useAuth()
+  const [avatarOpen, setAvatarOpen] = useState(false)
+  const avatar = useAvatar().resolved
+  const letter = (user?.email.slice(0, 1) ?? '?').toUpperCase()
 
   // ── 로그인 방법 ──
   const [methods, setMethods] = useState<LoginMethods | null>(null)
@@ -161,6 +167,11 @@ export default function Account() {
       <NavRow title="계정" left={<GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>} right={<View style={{ width: 40 }} />} />
       {/* 삭제 확인 칸은 화면 아래쪽이라 키보드에 가린다 → 키보드만큼 안쪽 여백을 늘리고(iOS) 키보드가 올라오면 맨 아래(입력·삭제 버튼)로 내린다(20 §3.1) */}
       <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets contentContainerStyle={{ paddingTop: 6, paddingBottom: space.pad }}>
+        {/* 35 §2: 맨 위 아바타 + "프로필 이미지 바꾸기" → 고르기 시트 */}
+        <Pressable accessibilityRole="button" accessibilityLabel="프로필 이미지 바꾸기" onPress={() => setAvatarOpen(true)} style={s.avatar}>
+          <ProfileAvatar avatar={avatar} size={64} letter={letter} />
+          <Text style={{ color: p.accent, fontSize: 15, marginTop: 8 }}>프로필 이미지 바꾸기</Text>
+        </Pressable>
         <Cells>
           <Cell first label="이메일" value={user?.email} chevron={false} />
         </Cells>
@@ -222,10 +233,12 @@ export default function Account() {
           </View>
         )}
       </ScrollView>
+      <AvatarSheet visible={avatarOpen} onClose={() => setAvatarOpen(false)} letter={letter} />
     </View>
   )
 }
 const s = StyleSheet.create({
+  avatar: { alignItems: 'center', paddingTop: 10, paddingBottom: 16 },
   btn: { marginHorizontal: M.cardInset, marginTop: 4, height: 48, borderRadius: M.radiusCard, alignItems: 'center', justifyContent: 'center' },
   link: { alignItems: 'center', paddingVertical: 22 },
   card: { marginHorizontal: M.cardInset, marginTop: 18, borderRadius: M.radiusCard, padding: 16, gap: 10 },

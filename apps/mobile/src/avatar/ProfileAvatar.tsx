@@ -1,0 +1,41 @@
+// 35 §2 프로필 이미지 한 개(휴대폰) — 데스크톱 components/avatar/ProfileAvatar.tsx와 같은 규칙:
+// 글자 · 성장 캐릭터(CharacterArt 재사용) · 알 · 얼굴(공용 도형 데이터 AVATAR_FACES).
+import { avatarCharBox, findFace, type FaceShape, type ResolvedAvatar } from '@sprout/schema/avatar'
+import { StyleSheet, Text, View } from 'react-native'
+import Svg, { Circle, Ellipse, Path, Rect } from 'react-native-svg'
+import { CharacterArt } from '../growth/art/CharacterArt'
+
+/** 글자 아바타 색 — 지금까지 설정·서랍에 쓰던 초록 그대로 */
+const LETTER_BG = '#4caf6a'
+
+function Shape({ s }: { s: FaceShape }) {
+  const paint = { fill: s.fill ?? 'none', stroke: s.stroke, strokeWidth: s.sw, opacity: s.o, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  if (s.t === 'circle') return <Circle cx={s.cx} cy={s.cy} r={s.r} {...paint} />
+  if (s.t === 'ellipse') return <Ellipse cx={s.cx} cy={s.cy} rx={s.rx} ry={s.ry} transform={s.rot ? `rotate(${s.rot} ${s.cx} ${s.cy})` : undefined} {...paint} />
+  if (s.t === 'rect') return <Rect x={s.x} y={s.y} width={s.w} height={s.h} rx={s.rx} {...paint} />
+  return <Path d={s.d} {...paint} />
+}
+
+export function ProfileAvatar({ avatar, size, letter }: { avatar: ResolvedAvatar; size: number; letter: string }) {
+  const round = { width: size, height: size, borderRadius: size / 2 }
+  if (avatar.type === 'letter') {
+    return <View style={[s.base, round, { backgroundColor: LETTER_BG }]}><Text style={{ color: '#fff', fontSize: Math.round(size * 0.38), fontWeight: '600' }}>{letter}</Text></View>
+  }
+  if (avatar.type === 'face') {
+    const face = findFace(avatar.faceId)
+    return (
+      <View style={[s.base, round, { backgroundColor: avatar.bg }]}>
+        <Svg width={size} height={size} viewBox="0 0 120 120">{face?.shapes.map((sh, i) => <Shape key={i} s={sh} />)}</Svg>
+      </View>
+    )
+  }
+  const box = avatarCharBox(size, avatar.type === 'char' ? avatar.stage : null)
+  return (
+    <View style={[s.base, round, { backgroundColor: avatar.bg }]}>
+      <View style={{ position: 'absolute', left: box.left, top: box.top }}>
+        <CharacterArt species={avatar.type === 'char' ? avatar.species : null} stage={avatar.type === 'char' ? avatar.stage : 1} size={box.art} />
+      </View>
+    </View>
+  )
+}
+const s = StyleSheet.create({ base: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' } })

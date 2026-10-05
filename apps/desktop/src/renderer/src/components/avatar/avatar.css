@@ -1,0 +1,38 @@
+/* 35 프로필 이미지 — 원 하나 + 그림. 배경색은 avatar_json 색(테마 무관) */
+.avatar { position: relative; display: inline-grid; place-items: center; border-radius: 50%; overflow: hidden; flex-shrink: 0; isolation: isolate; }
+.avatar--letter { background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 55%, #fff), var(--color-accent)); color: #fff; font-weight: 600; font-family: var(--font-family); line-height: 1; }
+.avatar svg { display: block; }
+.avatar__char { display: block; pointer-events: none; }
+.avatar__char .character { overflow: visible; }
+
+/* 고르기 팝오버(35 §3.2) */
+.avatar-picker { width: 320px; max-height: calc(100vh - 16px); overflow-y: auto; padding: 12px 12px 10px; box-sizing: border-box; }
+.avatar-picker__head { display: flex; align-items: center; gap: 12px; padding: 2px 2px 10px; }
+.avatar-picker__title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.avatar-picker__title strong { font: var(--text-body-strong); color: var(--color-text-primary); }
+.avatar-picker__title span { font: var(--text-caption); color: var(--color-text-tertiary); }
+.avatar-picker__close { width: 24px; height: 24px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--color-text-tertiary); align-self: flex-start; }
+.avatar-picker__close:hover { background: var(--color-bg-hover); }
+.avatar-picker__close svg { width: 16px; height: 16px; }
+.avatar-picker__caption { font: var(--text-caption); color: var(--color-text-tertiary); padding: 10px 2px 6px; }
+.avatar-picker__colors { display: flex; gap: 8px; padding: 0 2px; }
+.avatar-picker__color { width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08); }
+.avatar-picker__color.is-selected { box-shadow: 0 0 0 2px var(--color-bg-popover), 0 0 0 4px var(--color-accent); }
+.avatar-picker__grid { display: grid; grid-template-columns: repeat(5, 40px); justify-content: space-between; row-gap: 8px; padding: 0 2px; }
+.avatar-picker__grid--faces { grid-template-columns: repeat(4, 40px); justify-content: space-around; }
+.avatar-picker__cell { width: 40px; height: 40px; border-radius: 50%; padding: 0; display: grid; place-items: center; position: relative; }
+.avatar-picker__cell:hover .avatar { filter: brightness(1.04); }
+.avatar-picker__cell:hover { box-shadow: 0 0 0 3px var(--color-bg-hover); }
+.avatar-picker__cell.is-selected { box-shadow: 0 0 0 2px var(--color-bg-popover), 0 0 0 4px var(--color-accent); }
+.avatar-picker__cell:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.avatar-picker__follow { width: 100%; display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: var(--radius-md); text-align: left; }
+.avatar-picker__follow:hover { background: var(--color-bg-hover); }
+.avatar-picker__follow.is-selected { background: var(--color-accent-subtle); }
+.avatar-picker__follow strong { font: var(--text-body); color: var(--color-text-primary); display: block; }
+.avatar-picker__follow small { font: var(--text-caption); color: var(--color-text-tertiary); }
+.avatar-picker__badge { font: var(--text-caption); color: var(--color-accent); background: var(--color-accent-subtle); border-radius: 8px; padding: 0 6px; margin-left: 6px; }
+.avatar-picker__row-label { font: var(--text-caption); color: var(--color-text-secondary); padding: 4px 2px 2px; }
+.avatar-picker__reset { margin-top: 10px; width: 100%; height: 30px; border-radius: var(--radius-sm); font: var(--text-menu); color: var(--color-text-secondary); }
+.avatar-picker__reset:hover:not(:disabled) { background: var(--color-bg-hover); }
+.avatar-picker__reset:disabled { opacity: 0.45; }
+.popover.avatar-picker { padding: 12px 12px 10px; }

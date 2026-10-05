@@ -7,7 +7,10 @@ import { useRouter } from 'expo-router'
 import { CalendarDays, ChevronLeft, ChevronRight, Info, ListTree, Palette, RefreshCw } from 'lucide-react-native'
 import { useState } from 'react'
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { AvatarSheet } from '../../../src/avatar/AvatarSheet'
+import { ProfileAvatar } from '../../../src/avatar/ProfileAvatar'
 import { APP_VERSION } from '../../../src/config'
+import { useAvatar } from '../../../src/data/avatar'
 import { logout, syncNow, useAuth } from '../../../src/data/auth'
 import { NotificationCell } from '../../../src/notifications/NotificationCell'
 import { findTheme } from '../../../src/theme/themes'
@@ -34,6 +37,8 @@ export default function Settings() {
   const { user } = useAuth()
   const status = useStatus()
   const [syncing, setSyncing] = useState(false)
+  const [avatarOpen, setAvatarOpen] = useState(false)
+  const avatar = useAvatar().resolved
   const events = useQuery<{ amount: number; created_at: string }>('SELECT amount, created_at FROM xp_events').data
   const ch = useQuery<{ species: Species | null }>('SELECT species FROM characters WHERE species IS NOT NULL LIMIT 1').data[0]
   const level = progressFromEvents(events).level
@@ -52,7 +57,10 @@ export default function Settings() {
       <NavRow title="설정" left={<GlassButton label="뒤로" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/more'))}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>} right={<View style={{ width: 40 }} />} />
       <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: space.pad }}>
         <Pressable accessibilityRole="button" accessibilityLabel="계정" onPress={() => router.push('/settings/account')} style={({ pressed }) => [s.prof, { backgroundColor: pressed ? p.bgSelected : p.cardBg }]}>
-          <View style={s.av}><Text style={s.avText}>{name.slice(0, 1).toUpperCase()}</Text></View>
+          {/* 35 §2: 아바타 = 고르기 시트, 카드 나머지 = 계정 화면 */}
+          <Pressable accessibilityRole="button" accessibilityLabel="프로필 이미지 바꾸기" hitSlop={4} onPress={() => setAvatarOpen(true)}>
+            <ProfileAvatar avatar={avatar} size={48} letter={name.slice(0, 1).toUpperCase()} />
+          </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={[s.name, { color: p.textPrimary }]} numberOfLines={1}>{name}</Text>
             <Text style={{ fontSize: 12, color: p.textTertiary }} numberOfLines={1}>{user?.email}</Text>
@@ -84,13 +92,12 @@ export default function Settings() {
           <Text style={{ color: p.danger, fontSize: 16 }}>로그아웃</Text>
         </Pressable>
       </ScrollView>
+      <AvatarSheet visible={avatarOpen} onClose={() => setAvatarOpen(false)} letter={name.slice(0, 1).toUpperCase() || '?'} />
     </View>
   )
 }
 const s = StyleSheet.create({
   prof: { marginHorizontal: M.cardInset, marginBottom: M.cardGap, borderRadius: M.radiusCard, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  av: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#4caf6a', alignItems: 'center', justifyContent: 'center' },
-  avText: { color: '#fff', fontSize: 18, fontWeight: '600' },
   name: { fontSize: 17, lineHeight: 22, fontWeight: '600' },
   badges: { flexDirection: 'row', gap: 4, marginTop: 4 },
   badge: { fontSize: 10.5, lineHeight: 16, fontWeight: '600', paddingHorizontal: 6, borderRadius: 8, overflow: 'hidden' },

@@ -218,7 +218,8 @@ CREATE TABLE IF NOT EXISTS user_prefs (
   theme text,
   follow_system_dark integer,
   week_start integer,
-  notify_json text
+  notify_json text,
+  avatar_json text
 );
 CREATE INDEX IF NOT EXISTS user_prefs_owner_idx ON user_prefs (owner_id);
 

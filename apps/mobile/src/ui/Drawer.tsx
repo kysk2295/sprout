@@ -13,7 +13,10 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { scheduleOnRN } from 'react-native-worklets'
+import { AvatarSheet } from '../avatar/AvatarSheet'
+import { ProfileAvatar } from '../avatar/ProfileAvatar'
 import { useAuth } from '../data/auth'
+import { useAvatar } from '../data/avatar'
 import { useDrawerCounts, useFolders } from '../data/lists'
 import {
   archiveList, deleteFilter, deleteList, deleteTag, pinList, pinTag, ungroupFolder, useArchiveCounts, useFilters, useListsFull, useOrgCounts, useSmartVisibility, useTagsFull
@@ -54,6 +57,8 @@ export function Drawer() {
   const [openSec, setOpenSec] = useState<Record<string, boolean>>({ filters: true, tags: true })
   const [menu, setMenu] = useState<{ rect: Rect; items: MenuItem[] } | null>(null)
   const [edit, setEdit] = useState<Edit>(null)
+  const [avatarOpen, setAvatarOpen] = useState(false) // 35 §4: 계정 줄 아바타 → 고르기 시트
+  const avatar = useAvatar().resolved
 
   useEffect(() => {
     if (drawerOpen) {
@@ -81,6 +86,7 @@ export function Drawer() {
       <TagEditSheet open={edit?.kind === 'tag'} id={edit?.kind === 'tag' ? edit.id : null} onClose={() => setEdit(null)} />
       <FilterEditSheet open={edit?.kind === 'filter'} id={edit?.kind === 'filter' ? edit.id : null} onClose={() => setEdit(null)} onSaved={(id) => { if (!edit?.id) { setView(`filter:${id}`); setDrawerOpen(false) } }} />
       <PopMenu anchor={menu?.rect ?? null} onClose={() => setMenu(null)} items={menu?.items ?? []} width={200} align="left" />
+      <AvatarSheet visible={avatarOpen} onClose={() => setAvatarOpen(false)} letter={(user?.email.slice(0, 1) ?? '?').toUpperCase()} />
     </>
   )
   if (!mounted) return sheets
@@ -179,7 +185,9 @@ export function Drawer() {
       <GestureDetector gesture={drag}>
         <Animated.View style={[s.panel, { width, backgroundColor: p.drawerBg, paddingTop: insets.top }, panel]}>
           <View style={s.me}>
-            <View style={s.av}><Text style={s.avText}>{name.slice(0, 1).toUpperCase() || '?'}</Text></View>
+            <Pressable accessibilityRole="button" accessibilityLabel="프로필 이미지 바꾸기" hitSlop={6} onPress={() => setAvatarOpen(true)}>
+              <ProfileAvatar avatar={avatar} size={30} letter={name.slice(0, 1).toUpperCase() || '?'} />
+            </Pressable>
             <Text style={[FONT.bodyStrong, { color: p.textPrimary, flex: 1 }]} numberOfLines={1}>{name}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="설정" hitSlop={8} onPress={() => { setDrawerOpen(false); router.navigate('/settings') }} style={s.meBtn}>
               <Settings size={22} color={p.textSecondary} />
@@ -269,8 +277,6 @@ export function DrawerEdge() {
 const s = StyleSheet.create({
   panel: { position: 'absolute', top: 0, bottom: 0, left: 0, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 15, shadowOffset: { width: 8, height: 0 }, elevation: 20 },
   me: { height: 52, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 16, paddingRight: 8 },
-  av: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#4caf6a', alignItems: 'center', justifyContent: 'center' },
-  avText: { color: '#fff', fontSize: 13, fontWeight: '600' },
   meBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   dr: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 10, borderRadius: 10 },
   icon: { width: 22, alignItems: 'center' },
