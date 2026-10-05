@@ -1,8 +1,9 @@
-// 16 §7 구글 캘린더 읽기: OAuth(설치형 앱 + PKCE + 루프백) · calendarList · events(syncToken 증분, 410 → 전체 다시) · 백오프.
+// 16 §7 구글 캘린더: OAuth(설치형 앱 + PKCE + 루프백) · calendarList · events(syncToken 증분, 410 → 전체 다시) · 백오프.
+// 16 §12 쓰기: insert·patch·delete·get(If-Match etag, sendUpdates), 증분 동의(include_granted_scopes).
 // Electron을 가져오지 않는다(시험은 가짜 구글 서버로). Electron 연결은 main/calendars.ts.
 import { createServer } from 'node:http'
 import { createHash, randomBytes } from 'node:crypto'
-import { cacheFrom, mapGoogleEvent, SCOPES, type EventRow, type GoogleEvent } from '../shared/calendars'
+import { cacheFrom, canReadScope, canWriteScope, mapGoogleEvent, SCOPES, type EventRow, type GoogleEvent } from '../shared/calendars'
 import type { CalendarStore } from './calendarStore'
 
 export interface GoogleEndpoints { auth: string; token: string; revoke: string; api: string }
@@ -16,7 +17,7 @@ export interface Tokens { access_token: string; refresh_token: string; expires_a
 export interface TokenVault { get(accountId: string): Tokens | undefined; set(accountId: string, t: Tokens | undefined): void }
 export interface GoogleClient { clientId: string; clientSecret?: string }
 
-export type GoogleErrorKind = 'reauth' | 'scope' | 'offline' | 'rate' | 'gone' | 'forbidden' | 'notfound' | 'http' | 'cancelled' | 'timeout' | 'denied'
+export type GoogleErrorKind = 'reauth' | 'scope' | 'offline' | 'rate' | 'gone' | 'forbidden' | 'notfound' | 'http' | 'cancelled' | 'timeout' | 'denied' | 'conflict' | 'exists'
 export class GoogleError extends Error {
   constructor(message: string, readonly kind: GoogleErrorKind, readonly status = 0) { super(message) }
 }
@@ -37,7 +38,7 @@ const page = (ok: boolean) =>
 
 export interface OAuthHandle { promise: Promise<Tokens>; cancel: () => void; reopen: () => void }
 /** 루프백(127.0.0.1, 빈 포트) + PKCE로 인증 코드 → 토큰 */
-export function startOAuth(opts: { client: GoogleClient; endpoints?: GoogleEndpoints; openExternal: (url: string) => unknown; fetch?: typeof fetch; timeoutMs?: number; onStep?: (s: 'browser' | 'token') => void; loginHint?: string }): OAuthHandle {
+export function startOAuth(opts: { client: GoogleClient; endpoints?: GoogleEndpoints; openExternal: (url: string) => unknown; fetch?: typeof fetch; timeoutMs?: number; onStep?: (s: 'browser' | 'token') => void; loginHint?: string; incremental?: boolean }): OAuthHandle {
   const ep = opts.endpoints ?? GOOGLE_ENDPOINTS
   const f = opts.fetch ?? fetch
   const { verifier, challenge } = pkce()
@@ -97,7 +98,7 @@ export function startOAuth(opts: { client: GoogleClient; endpoints?: GoogleEndpo
         state,
         access_type: 'offline',
         prompt: 'consent',
-        include_granted_scopes: 'false',
+        include_granted_scopes: opts.incremental ? 'true' : 'false', // 16 §12.3.2 증분 동의
         ...(opts.loginHint ? { login_hint: opts.loginHint } : {})
       }).toString()
       authUrl = u.href
@@ -109,7 +110,9 @@ export function startOAuth(opts: { client: GoogleClient; endpoints?: GoogleEndpo
   return { promise, cancel: () => finish(new GoogleError('연결을 취소했어요.', 'cancelled')), reopen: () => { if (authUrl) void opts.openExternal(authUrl) } }
 }
 
-export const hasScopes = (scope: string) => SCOPES.every((s) => scope.split(/\s+/).includes(s))
+/** 읽기에 필요한 범위가 있다(v1 읽기 전용 토큰도 참). 쓰기는 canWriteScope */
+export const hasScopes = (scope: string) => canReadScope(scope)
+export { canWriteScope }
 
 // ── API 호출 ──
 interface Deps { store: CalendarStore; vault: TokenVault; client: GoogleClient; endpoints?: GoogleEndpoints; fetch?: typeof fetch; sleep?: (ms: number) => Promise<void>; timeZone: () => string; now?: () => Date; maxRetries?: number }
@@ -148,28 +151,36 @@ export class GoogleSync {
   }
 
   /** GET + 401 한 번 리프레시 + 429/403 rateLimit/5xx 지수 백오프(1·2·4·8초…, 무작위 지연) */
-  async get<T>(accountId: string | null, path: string, token?: string): Promise<T> {
+  get<T>(accountId: string | null, path: string, token?: string): Promise<T> { return this.request<T>(accountId, 'GET', path, { token }) }
+
+  async request<T>(accountId: string | null, method: string, path: string, o: { token?: string; body?: unknown; ifMatch?: string | null; maxRetries?: number } = {}): Promise<T> {
+    const token = o.token
     let refreshed = false
     for (let attempt = 0; ; attempt++) {
       const access = token ?? (await this.accessToken(accountId!))
       let res: Response
-      try { res = await this.f(`${this.ep.api}${path}`, { headers: { authorization: `Bearer ${access}`, accept: 'application/json' }, signal: AbortSignal.timeout(30_000) }) }
+      const headers: Record<string, string> = { authorization: `Bearer ${access}`, accept: 'application/json' }
+      if (o.body !== undefined) headers['content-type'] = 'application/json'
+      if (o.ifMatch) headers['if-match'] = o.ifMatch
+      try { res = await this.f(`${this.ep.api}${path}`, { method, headers, body: o.body === undefined ? undefined : JSON.stringify(o.body), signal: AbortSignal.timeout(method === 'GET' ? 30_000 : 15_000) }) }
       catch { throw new GoogleError('인터넷에 연결되어 있지 않아요.', 'offline') }
-      if (res.ok) return (await res.json()) as T
+      if (res.ok) return (res.status === 204 ? ({} as T) : ((await res.json().catch(() => ({}))) as T))
       const json = (await res.json().catch(() => ({}))) as { error?: { errors?: { reason?: string }[]; status?: string } }
       const reason = json.error?.errors?.[0]?.reason ?? ''
       if (res.status === 401 && !refreshed && accountId && !token) { refreshed = true; await this.accessToken(accountId, true); continue }
       if (res.status === 401) throw new GoogleError('다시 연결이 필요해요', 'reauth', 401)
-      if (res.status === 410) throw new GoogleError('동기화 토큰이 만료됐어요', 'gone', 410)
-      if (res.status === 404) throw new GoogleError('캘린더를 찾을 수 없어요', 'notfound', 404)
+      if (res.status === 410) throw new GoogleError(method === 'GET' ? '동기화 토큰이 만료됐어요' : '이미 삭제된 일정이에요', 'gone', 410)
+      if (res.status === 404) throw new GoogleError(method === 'GET' ? '캘린더를 찾을 수 없어요' : '이미 삭제된 일정이에요', 'notfound', 404)
+      if (res.status === 412) throw new GoogleError('다른 곳에서 먼저 바뀐 일정이에요', 'conflict', 412)
+      if (res.status === 409) throw new GoogleError('이미 있는 일정이에요', 'exists', 409)
       const rate = res.status === 429 || res.status >= 500 || (res.status === 403 && /rateLimitExceeded|userRateLimitExceeded|quotaExceeded/.test(reason))
       if (rate) {
-        if (attempt >= (this.d.maxRetries ?? 4)) throw new GoogleError('잠시 뒤 다시 시도할게요', 'rate', res.status)
+        if (attempt >= (o.maxRetries ?? (method === 'GET' ? this.d.maxRetries ?? 4 : 1))) throw new GoogleError('잠시 뒤 다시 시도할게요', 'rate', res.status)
         await this.sleep(Math.min(5 * 60_000, 1000 * 2 ** attempt) + Math.floor(Math.random() * 500))
         continue
       }
-      if (res.status === 403 && /insufficientPermissions|ACCESS_TOKEN_SCOPE_INSUFFICIENT/.test(reason + (json.error?.status ?? ''))) throw new GoogleError('일정 읽기 권한이 빠졌어요', 'scope', 403)
-      if (res.status === 403) throw new GoogleError('이 캘린더를 읽을 수 없어요', 'forbidden', 403)
+      if (res.status === 403 && /insufficientPermissions|ACCESS_TOKEN_SCOPE_INSUFFICIENT/.test(reason + (json.error?.status ?? ''))) throw new GoogleError(method === 'GET' ? '일정 읽기 권한이 빠졌어요' : '구글 캘린더에 쓰기 권한이 필요해요', 'scope', 403)
+      if (res.status === 403) throw new GoogleError(method === 'GET' ? '이 캘린더를 읽을 수 없어요' : '이 캘린더는 이제 보기만 할 수 있어요', 'forbidden', 403)
       throw new GoogleError(`구글 요청 실패(${res.status})`, 'http', res.status)
     }
   }
@@ -187,7 +198,7 @@ export class GoogleSync {
   }
 
   /** 토큰을 받은 뒤: 기본 캘린더 id = 이메일 → 계정 만들기(같은 계정이면 토큰만 바꿈) */
-  async addAccount(tokens: Tokens): Promise<{ accountId: string; email: string; existed: boolean }> {
+  async addAccount(tokens: Tokens): Promise<{ accountId: string; email: string; existed: boolean; canWrite: boolean }> {
     if (!hasScopes(tokens.scope)) throw new GoogleError('일정을 읽는 권한이 있어야 연결할 수 있어요.', 'scope')
     const list = await this.calendarList(null, tokens.access_token)
     const primary = list.find((c) => c.primary)
@@ -198,8 +209,35 @@ export class GoogleSync {
     if (old && old.refresh_token !== tokens.refresh_token) await this.revoke(old.refresh_token) // 16 §7.5 리프레시 토큰 100개 한도
     this.d.vault.set(accountId, tokens)
     const existed = this.d.store.upsertAccount(accountId, 'google', email)
+    this.d.store.setCanWrite(accountId, canWriteScope(tokens.scope))
     this.saveCalendars(accountId, list, !existed)
-    return { accountId, email, existed }
+    return { accountId, email, existed, canWrite: canWriteScope(tokens.scope) }
+  }
+
+  // ── 16 §12 쓰기 ──
+  private evPath = (calendarId: string, eventId?: string, q?: Record<string, string>) => `/calendars/${encodeURIComponent(calendarId)}/events${eventId ? `/${encodeURIComponent(eventId)}` : ''}${q && Object.keys(q).length ? `?${new URLSearchParams(q)}` : ''}`
+  getEvent(accountId: string, calendarId: string, eventId: string) { return this.request<GoogleEvent>(accountId, 'GET', this.evPath(calendarId, eventId)) }
+  insertEvent(accountId: string, calendarId: string, body: Record<string, unknown>, o: { notify?: boolean } = {}) {
+    return this.request<GoogleEvent>(accountId, 'POST', this.evPath(calendarId, undefined, { sendUpdates: o.notify ? 'all' : 'none' }), { body })
+  }
+  patchEvent(accountId: string, calendarId: string, eventId: string, body: Record<string, unknown>, o: { etag?: string | null; notify?: boolean } = {}) {
+    return this.request<GoogleEvent>(accountId, 'PATCH', this.evPath(calendarId, eventId, { sendUpdates: o.notify ? 'all' : 'none' }), { body, ifMatch: o.etag })
+  }
+  deleteEvent(accountId: string, calendarId: string, eventId: string, o: { etag?: string | null; notify?: boolean } = {}) {
+    return this.request<unknown>(accountId, 'DELETE', this.evPath(calendarId, eventId, { sendUpdates: o.notify ? 'all' : 'none' }), { ifMatch: o.etag })
+  }
+  /** 쓰기 범위가 있는 토큰인지(증분 동의 뒤 바뀜) */
+  canWrite(accountId: string) { const t = this.d.vault.get(accountId); return !!t && canWriteScope(t.scope) }
+  /** 증분 동의로 받은 새 토큰을 그 계정에 넣는다(같은 계정이어야 함) */
+  async replaceTokens(accountId: string, tokens: Tokens): Promise<boolean> {
+    const list = await this.calendarList(null, tokens.access_token)
+    const email = list.find((c) => c.primary)?.id
+    if (!email || accountKey(email) !== accountId) { await this.revoke(tokens.refresh_token); throw new GoogleError('다른 구글 계정으로 허용했어요. 같은 계정으로 다시 시도해 주세요.', 'http') }
+    const old = this.d.vault.get(accountId)
+    if (old && old.refresh_token !== tokens.refresh_token) await this.revoke(old.refresh_token)
+    this.d.vault.set(accountId, tokens)
+    this.d.store.setCanWrite(accountId, canWriteScope(tokens.scope))
+    return canWriteScope(tokens.scope)
   }
 
   private saveCalendars(accountId: string, list: GCalendarListEntry[], first: boolean) {
@@ -231,6 +269,7 @@ export class GoogleSync {
     const from = cacheFrom(this.d.now?.() ?? new Date(), tz)
     try {
       this.saveCalendars(accountId, await this.calendarList(accountId), false)
+      store.setCanWrite(accountId, this.canWrite(accountId))
       for (const cal of store.calendars(accountId).filter((c) => c.visibility === 'show')) {
         try { await this.syncCalendar(accountId, cal.calendar_id, cal.sync_token, from, tz) }
         catch (e) {

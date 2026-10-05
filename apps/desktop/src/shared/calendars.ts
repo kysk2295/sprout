@@ -1,4 +1,4 @@
-// 16 캘린더 연동(구글·Apple 읽기 전용) — 메인·화면·시험이 같이 쓰는 형태와 순수 변환 함수.
+// 16 캘린더 연동(구글·Apple — v1 읽기, v2 §12 양방향) — 메인·화면·시험이 같이 쓰는 형태와 순수 변환 함수.
 // Node·Electron 모듈을 가져오지 않는다(렌더러도 타입을 가져다 쓴다).
 
 export type Provider = 'google' | 'apple'
@@ -7,6 +7,7 @@ export type AccountStatus = 'ok' | 'syncing' | 'reauth' | 'scope_missing' | 'off
 export interface CalendarView {
   accountId: string
   calendarId: string
+  hash: string // 16 §12.0.1 events.ext_calendar 값
   name: string
   color: string
   colorFg: string
@@ -26,8 +27,30 @@ export interface AccountView {
   lastError: string | null
   errorSince: string | null
   memoryOnly: boolean // 토큰을 디스크에 못 둠(키체인 없음)
+  canWrite: boolean // 16 §12.3: 구글 쓰기 범위(calendar.events)를 받았음(Apple은 늘 참)
   calendars: CalendarView[]
 }
+/** 16 §12.4 빠른 만들기 캘린더 고르기·추가 바: 쓸 수 있고 보이는 캘린더 */
+export interface CalendarTarget {
+  key: string // `${accountId}|${calHash}` — localStorage·events.ext_* 와 같은 값
+  provider: Provider
+  accountId: string
+  accountLabel: string
+  calendarHash: string
+  name: string
+  color: string
+  group: string
+  primary: boolean
+  canWrite: boolean // 거짓이면 고를 때 쓰기 권한 대화(§12.3.2)
+}
+/** 16 §12.5 캐시 전용 외부 일정 고치기 */
+export interface ExtPatch { title?: string; description?: string | null; location?: string | null; start?: string; end?: string; allDay?: boolean }
+export type WriteScope = 'this' | 'following' | 'all'
+export type WriteCode = 'offline' | 'reauth' | 'scope' | 'readonly' | 'gone' | 'conflict' | 'rate' | 'helper' | 'http' | 'notfound'
+export type WriteResult = { ok: true; undo?: ExtSnapshot } | { ok: false; code: WriteCode; message: string }
+/** 지운 캐시 전용 일정 되돌리기(§12.6) */
+export interface ExtSnapshot { key: string; row: EventRow }
+export interface CalendarToast { message: string; kind?: 'info' | 'error' }
 export interface ProvidersInfo {
   google: { available: boolean; configured: boolean } // configured = GOOGLE_CLIENT_ID 있음
   apple: { available: boolean; helper: boolean } // available = macOS
@@ -52,11 +75,24 @@ export interface ExtEvent {
   accountLabel: string
   stale: boolean // 계정이 다시 연결 필요 → 옅게
   hasLink: boolean
+  // 16 §12.2 고칠 수 있는지(캐시 전용 외부 일정)
+  writable: boolean
+  readonlyReason: string | null
+  needsGrant: boolean // 구글 쓰기 권한이 아직 없음 → 고치기 전에 §12.3.2 대화
+  askNotify: boolean // 내가 주최자 + 다른 참석자 있음 → §12.8 메일 대화
 }
 export type ConnectResult = { ok: true; accountId: string; message?: string } | { ok: false; error: string; code?: string }
 export interface ConnectProgress { provider: Provider; step: 'browser' | 'token' | 'sync' | 'permission' | 'done' }
 
-export const SCOPES = ['https://www.googleapis.com/auth/calendar.calendarlist.readonly', 'https://www.googleapis.com/auth/calendar.events.readonly'] as const
+// 16 §12.3.1: 새 연결은 처음부터 읽기·쓰기. v1으로 받은 events.readonly 토큰도 읽기는 계속 된다
+export const SCOPE_LIST = 'https://www.googleapis.com/auth/calendar.calendarlist.readonly'
+export const SCOPE_EVENTS = 'https://www.googleapis.com/auth/calendar.events'
+export const SCOPE_EVENTS_READ = 'https://www.googleapis.com/auth/calendar.events.readonly'
+export const SCOPES = [SCOPE_LIST, SCOPE_EVENTS] as const
+const scopeSet = (scope: string) => new Set(scope.split(/\s+/))
+/** 읽기에 필요한 범위(목록 + 일정 읽기 또는 쓰기) */
+export const canReadScope = (scope: string) => { const s = scopeSet(scope); return s.has(SCOPE_LIST) && (s.has(SCOPE_EVENTS) || s.has(SCOPE_EVENTS_READ)) }
+export const canWriteScope = (scope: string) => scopeSet(scope).has(SCOPE_EVENTS)
 export const CACHE_MONTHS = 6
 export const MAX_EVENTS_PER_CAL = 5000
 export const APPLE_ACCOUNT_ID = 'apple'
@@ -75,6 +111,27 @@ export function addDaysStr(day: string, n: number): string {
   const dt = new Date(Date.UTC(y, m - 1, d + n))
   return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`
 }
+/** floating "YYYY-MM-DDTHH:mm"(또는 날짜) → 그 시간대의 절대 시각 */
+export function fromFloating(f: string, timeZone: string): Date {
+  const [d, t = '00:00'] = f.split('T')
+  const [y, mo, da] = d.split('-').map(Number)
+  const [h, mi] = t.split(':').map(Number)
+  const want = Date.UTC(y, mo - 1, da, h, mi)
+  let guess = want
+  for (let i = 0; i < 3; i++) {
+    const shown = floating(new Date(guess), timeZone)
+    const [sd, st] = shown.split('T')
+    const [sy, smo, sda] = sd.split('-').map(Number)
+    const [sh, smi] = st.split(':').map(Number)
+    const diff = want - Date.UTC(sy, smo - 1, sda, sh, smi)
+    if (!diff) break
+    guess += diff
+  }
+  return new Date(guess)
+}
+/** 도우미에 넘기는 ISO(밀리초 없음 — Swift ISO8601DateFormatter 기본값이 밀리초를 못 읽는다) */
+export const isoNoMs = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, 'Z')
+
 /** 오늘 − 6개월(기기 날짜 기준 "YYYY-MM-DD") */
 export function cacheFrom(now: Date, timeZone: string): string {
   const today = floating(now, timeZone).slice(0, 10)
@@ -121,7 +178,15 @@ export interface EventRow {
   time_zone: string | null
   link: string | null
   declined: number
-  updated: string | null
+  updated: string | null // 구글 updated · Apple lastModifiedDate
+  // 16 §12.10 (캐시 판 2)
+  base_id: string | null // 반복 원본 id(구글 recurringEventId, Apple eventIdentifier) 또는 자기 id
+  etag: string | null
+  event_type: string | null
+  organizer_self: number // 1 = 내가 주최자(주최자 정보가 없으면 1)
+  guests_can_modify: number
+  has_attendees: number // 나 말고 참석자가 있음
+  original_start: string | null // 구글 originalStartTime · Apple occurrenceDate (ISO)
 }
 
 // ── 구글 Events 자원 → 행 (null = 저장하지 않음 / 'delete' = 캐시에서 지움) ──
@@ -135,9 +200,14 @@ export interface GoogleEvent {
   recurringEventId?: string
   eventType?: string
   updated?: string
+  etag?: string
   start?: { date?: string; dateTime?: string; timeZone?: string }
   end?: { date?: string; dateTime?: string; timeZone?: string }
-  attendees?: { self?: boolean; responseStatus?: string }[]
+  attendees?: { self?: boolean; responseStatus?: string; resource?: boolean; email?: string }[]
+  organizer?: { self?: boolean; email?: string }
+  guestsCanModify?: boolean
+  recurrence?: string[]
+  originalStartTime?: { date?: string; dateTime?: string }
 }
 export function mapGoogleEvent(ev: GoogleEvent, accountId: string, calendarId: string, timeZone: string): EventRow | 'delete' | null {
   if (ev.status === 'cancelled') return 'delete'
@@ -174,13 +244,21 @@ export function mapGoogleEvent(ev: GoogleEvent, accountId: string, calendarId: s
     time_zone: ev.start.timeZone ?? null,
     link: ev.htmlLink ?? null,
     declined: self?.responseStatus === 'declined' ? 1 : 0,
-    updated: ev.updated ?? null
+    updated: ev.updated ?? null,
+    base_id: ev.recurringEventId ?? ev.id,
+    etag: ev.etag ?? null,
+    event_type: ev.eventType ?? null,
+    organizer_self: !ev.organizer || ev.organizer.self ? 1 : 0,
+    guests_can_modify: ev.guestsCanModify ? 1 : 0,
+    has_attendees: (ev.attendees ?? []).some((a) => !a.self && !a.resource) ? 1 : 0,
+    original_start: ev.originalStartTime?.dateTime ?? ev.originalStartTime?.date ?? null
   }
 }
 
 // ── Apple 도우미 JSON → 행 ──
-export interface AppleEvent { id: string; calendarId: string; title?: string; notes?: string | null; location?: string | null; url?: string | null; start: string; end: string; allDay?: boolean; timeZone?: string | null; recurring?: boolean; status?: string; declined?: boolean }
-export interface AppleCalendar { id: string; title: string; color?: string; source?: string; sourceType?: string; type?: string; allowsModify?: boolean }
+export interface AppleEvent { id: string; calendarId: string; title?: string; notes?: string | null; location?: string | null; url?: string | null; start: string; end: string; allDay?: boolean; timeZone?: string | null; recurring?: boolean; status?: string; declined?: boolean
+  modifiedAt?: string | null; occurrence?: string | null; organizerIsMe?: boolean; hasAttendees?: boolean; rrule?: string | null }
+export interface AppleCalendar { id: string; title: string; color?: string; source?: string; sourceType?: string; type?: string; allowsModify?: boolean; isDefault?: boolean }
 export function mapAppleEvent(ev: AppleEvent, timeZone: string): EventRow | null {
   const s = new Date(ev.start)
   const e = new Date(ev.end)
@@ -212,9 +290,30 @@ export function mapAppleEvent(ev: AppleEvent, timeZone: string): EventRow | null
     time_zone: ev.timeZone ?? null,
     link: ev.id,
     declined: ev.declined ? 1 : 0,
-    updated: null
+    updated: ev.modifiedAt ?? null,
+    base_id: ev.id,
+    etag: null,
+    event_type: null,
+    organizer_self: ev.organizerIsMe === false ? 0 : 1,
+    guests_can_modify: 0,
+    has_attendees: ev.hasAttendees ? 1 : 0,
+    original_start: ev.occurrence ?? ev.start
   }
 }
+
+// ── 16 §12.2 고칠 수 있는지 ──
+const STALE: AccountStatus[] = ['reauth', 'scope_missing', 'denied', 'restricted', 'helper_missing']
+export function judgeWritable(x: { provider: Provider; accessRole: string; calendarId: string; acctStatus: AccountStatus; eventType?: string | null; organizerSelf?: number; guestsCanModify?: number }): { writable: boolean; reason: string | null } {
+  if (STALE.includes(x.acctStatus)) return { writable: false, reason: x.provider === 'google' ? '구글 계정을 다시 연결해 주세요' : '캘린더 접근을 다시 허용해 주세요' }
+  if (x.provider === 'google' && /#holiday@group\.v\.calendar\.google\.com$|#contacts@group\.v\.calendar\.google\.com$/.test(x.calendarId)) return { writable: false, reason: '공휴일·생일 캘린더는 고칠 수 없어요' }
+  if (x.eventType === 'birthday') return { writable: false, reason: '공휴일·생일 캘린더는 고칠 수 없어요' }
+  if (!['owner', 'writer'].includes(x.accessRole)) return { writable: false, reason: '이 캘린더는 보기만 할 수 있어요' }
+  if (x.eventType && !['default', ''].includes(x.eventType)) return { writable: false, reason: '구글 캘린더에서만 고칠 수 있는 일정이에요' }
+  if (x.organizerSelf === 0 && !x.guestsCanModify) return { writable: false, reason: '주최자가 아니라 옮기거나 고칠 수 없어요' }
+  return { writable: true, reason: null }
+}
+/** 캘린더 단위(만들기 대상): 계정 상태·권한만 본다 */
+export const calendarWritable = (provider: Provider, accessRole: string, calendarId: string, acctStatus: AccountStatus) => judgeWritable({ provider, accessRole, calendarId, acctStatus }).writable
 
 /** 상태 → 설정 행 오른쪽 글자 (16 §3.2·§11.2). danger = 빨강 */
 export function statusText(a: Pick<AccountView, 'status' | 'lastSyncAt' | 'errorSince' | 'firstSync'>, now = Date.now()): { text: string; danger: boolean; action?: 'reconnect' | 'settings' } {

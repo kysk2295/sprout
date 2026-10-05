@@ -92,8 +92,8 @@ mac:
     LSHasLocalizedDisplayName: true
     LSApplicationCategoryType: public.app-category.productivity
     # 16 §11.4 Apple 캘린더 읽기 권한 창 문구(권한은 책임 프로세스인 앱 이름으로 묻는다)
-    NSCalendarsFullAccessUsageDescription: 꿈틀이 맥 캘린더 앱의 일정을 할 일과 함께 캘린더에 보여 주려고 읽어요. 일정은 이 Mac에만 저장되고 바꾸지 않아요.
-    NSCalendarsUsageDescription: 꿈틀이 맥 캘린더 앱의 일정을 할 일과 함께 캘린더에 보여 주려고 읽어요. 일정은 이 Mac에만 저장되고 바꾸지 않아요.
+    NSCalendarsFullAccessUsageDescription: 꿈틀이 맥 캘린더 앱의 일정을 할 일과 함께 보여 주고, 꿈틀에서 만들거나 고친 일정을 캘린더 앱에도 저장해요.
+    NSCalendarsUsageDescription: 꿈틀이 맥 캘린더 앱의 일정을 할 일과 함께 보여 주고, 꿈틀에서 만들거나 고친 일정을 캘린더 앱에도 저장해요.
 
 # Windows 대상을 만들 때 쓰는 앱 아이콘(로고 B, docs/release/brand/out/b)
 win:

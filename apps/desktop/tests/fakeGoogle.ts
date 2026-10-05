@@ -22,7 +22,11 @@ export interface FakeGoogle {
     pageSize: number
     requests: string[]
     accessTtl: number
+    failWrites: number // 16 §12: 앞으로 N번 쓰기에 500
+    writes: string[] // 'POST id' · 'PATCH id' · 'DELETE id' (+ sendUpdates)
   }
+  /** 16 §12: 지금 저장된 일정(지운 것 포함) */
+  latest(calendarId: string, id: string): GoogleEvent | undefined
   close(): Promise<void>
 }
 
@@ -35,8 +39,20 @@ export async function startFakeGoogle(opts: { email?: string } = {}): Promise<Fa
   let n = 0
   const state: FakeGoogle['state'] = {
     scope: 'https://www.googleapis.com/auth/calendar.calendarlist.readonly https://www.googleapis.com/auth/calendar.events.readonly',
-    revokedRefresh: new Set(), revoked: [], expireSyncTokens: false, rateLimit: 0, forbidCalendars: new Set(), insufficient: false, pageSize: 2500, requests: [], accessTtl: 3600
+    revokedRefresh: new Set(), revoked: [], expireSyncTokens: false, rateLimit: 0, forbidCalendars: new Set(), insufficient: false, pageSize: 2500, requests: [], accessTtl: 3600, failWrites: 0, writes: []
   }
+  let stamp = Date.parse('2026-10-05T00:00:00Z')
+  const put = (calendarId: string, ev: GoogleEvent) => {
+    seq++
+    stamp += 1000
+    const full = { ...ev, etag: `"e${seq}"`, updated: new Date(stamp).toISOString() }
+    const l = log.get(calendarId) ?? []
+    l.push({ seq, ev: full })
+    log.set(calendarId, l)
+    return full
+  }
+  const latest = (calendarId: string, id: string) => { let found: GoogleEvent | undefined; for (const e of log.get(calendarId) ?? []) if (e.ev.id === id) found = e.ev; return found }
+  const readJson = (req: import('node:http').IncomingMessage) => new Promise<Record<string, unknown>>((r) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => { try { r(b ? JSON.parse(b) : {}) } catch { r({}) } }) })
   const calendars: FakeCalendar[] = [
     { id: email, summary: email, backgroundColor: '#039be5', accessRole: 'owner', primary: true, selected: true },
     { id: 'family@group.calendar.google.com', summary: '가족', backgroundColor: '#7cb342', accessRole: 'owner', selected: false },
@@ -87,6 +103,37 @@ export async function startFakeGoogle(opts: { email?: string } = {}): Promise<Fa
     if (state.insufficient) return json(res, 403, { error: { code: 403, status: 'PERMISSION_DENIED', errors: [{ reason: 'insufficientPermissions' }] } })
     const path = u.pathname.slice(4)
     if (path === '/users/me/calendarList') return json(res, 200, { items: calendars })
+    // 16 §12 쓰기: 일정 하나
+    const one = /^\/calendars\/([^/]+)\/events(?:\/([^/]+))?$/.exec(path)
+    if (one && (req.method !== 'GET' || one[2])) {
+      const cal = decodeURIComponent(one[1])
+      const id = one[2] ? decodeURIComponent(one[2]) : undefined
+      const cur = id ? latest(cal, id) : undefined
+      if (req.method !== 'GET') {
+        state.writes.push(`${req.method} ${id ?? ''} ${u.searchParams.get('sendUpdates') ?? ''}`.trim())
+        if (state.failWrites > 0) { state.failWrites--; return json(res, 500, { error: { code: 500 } }) }
+      }
+      const ifMatch = req.headers['if-match']
+      if (req.method === 'GET') return cur ? json(res, 200, cur) : json(res, 404, { error: { code: 404, errors: [{ reason: 'notFound' }] } })
+      if (req.method === 'POST') {
+        const body = await readJson(req)
+        const newId = (body.id as string | undefined) ?? `gen${++n}`
+        if (latest(cal, newId)) return json(res, 409, { error: { code: 409, errors: [{ reason: 'duplicate' }] } })
+        return json(res, 200, put(cal, { ...(body as unknown as GoogleEvent), id: newId, status: 'confirmed', htmlLink: `https://www.google.com/calendar/event?eid=${newId}` }))
+      }
+      if (!cur) return json(res, 404, { error: { code: 404, errors: [{ reason: 'notFound' }] } })
+      if (ifMatch && ifMatch !== cur.etag) return json(res, 412, { error: { code: 412, errors: [{ reason: 'conditionNotMet' }] } })
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        return json(res, 200, put(cal, { ...cur, ...(body as unknown as GoogleEvent), id: cur.id }))
+      }
+      if (req.method === 'DELETE') {
+        if (cur.status === 'cancelled') return json(res, 410, { error: { code: 410, errors: [{ reason: 'deleted' }] } })
+        put(cal, { ...cur, status: 'cancelled' })
+        res.writeHead(204).end()
+        return
+      }
+    }
     const m = /^\/calendars\/([^/]+)\/events$/.exec(path)
     if (m) {
       const id = decodeURIComponent(m[1])
@@ -108,6 +155,7 @@ export async function startFakeGoogle(opts: { email?: string } = {}): Promise<Fa
         const timeMin = u.searchParams.get('timeMin')
         items = [...latest.values()].filter((e) => e.status !== 'cancelled' && (!timeMin || (e.end?.dateTime ?? `${e.end?.date}T00:00:00Z`) >= timeMin))
       }
+      items = items.filter((e) => !e.recurrence?.length) // singleEvents=true: 반복 원본은 회차로만 온다(시험은 회차를 따로 넣는다)
       const offset = Number(u.searchParams.get('pageToken') ?? 0)
       const page = items.slice(offset, offset + state.pageSize)
       const more = offset + state.pageSize < items.length
@@ -121,7 +169,8 @@ export async function startFakeGoogle(opts: { email?: string } = {}): Promise<Fa
     url,
     endpoints: { auth: `${url}/auth`, token: `${url}/token`, revoke: `${url}/revoke`, api: `${url}/api` },
     calendars,
-    put(calendarId, ev) { seq++; const l = log.get(calendarId) ?? []; l.push({ seq, ev }); log.set(calendarId, l) },
+    put(calendarId, ev) { put(calendarId, ev) },
+    latest,
     state,
     close: () => new Promise((r) => { server.closeAllConnections(); server.close(() => r()) })
   }
