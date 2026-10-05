@@ -8,6 +8,8 @@ import {
   setAutoSort, suggestStore, SUGGEST, topicCandidates, undoApply, LISTS_SQL, type Proposal, type SuggestList
 } from '../../data/listSuggest'
 import { useListSuggester } from '../../data/useListSuggester'
+import { useAutoTagger } from '../../data/useAutoTagger'
+import { openMap } from '../../data/mapMoments'
 import { useQuery } from '../../data/useQuery'
 import { withRo } from '../../lib/dates'
 import { Dialog } from '../Dialog'
@@ -30,9 +32,10 @@ type Open = 'organize' | 'review'
 export const openInboxOrganize = () => window.dispatchEvent(new CustomEvent(OPEN, { detail: 'organize' }))
 export const openSuggestReview = () => window.dispatchEvent(new CustomEvent(OPEN, { detail: 'review' }))
 
-/** App에 한 번: 새 할 일 자동 분류 + 리스트 공급 + 창 */
+/** App에 한 번: 새 할 일 자동 분류 + 자동 태그(33 §7) + 리스트 공급 + 창 */
 export function ListSuggestHost() {
   useListSuggester()
+  useAutoTagger()
   const rows = useQuery<SuggestList>(LISTS_SQL)
   useEffect(() => { if (rows) setLists(rows) }, [rows])
   const [open, setOpen] = useState<Open>()
@@ -110,6 +113,7 @@ export function InboxSuggestCard({ compact }: { compact?: boolean }) {
         <span className="ls-card__text">기본함에 할 일이 {ids.length.toLocaleString('ko-KR')}개 있어요. <span className="ls-card__meta">AI가 리스트로 나눠 볼게요 — 확인한 뒤에 만들어요</span></span>
         <span className="ls-card__acts">
           <button className="ls-btn ls-btn--primary" onClick={openInboxOrganize}>기본함 정리</button>
+          {!compact && <button className="ls-btn ls-btn--link" onClick={() => openMap({ mode: 'tidy' })}>지도에서 정리 ›</button>}{/* 31 §10.3 ④ */}
           <button className="ls-btn" onClick={() => suggestStore.later(new Date(Date.now() + 7 * 86400_000).toISOString())}>나중에</button>
         </span>
       </div>

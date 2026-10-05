@@ -17,6 +17,9 @@ import { DatePicker } from './DatePicker'
 import { loadSchedule } from '../data/schedule'
 import type { Schedule } from '../lib/taskActions'
 import { tagState } from './TaskMenu'
+import { WikiComplete } from './wiki/WikiComplete'
+import { removeTaskTag } from '../data/wiki'
+import { useToast } from './Toast'
 
 // 02-task-list §13: 머리(체크·날짜·깃발) · 제목 · 태그 · 본문/체크 항목 · 하위 태스크 · 하단 바. 편집은 300ms 디바운스로 바로 저장(§13.4).
 const SAVE_DEBOUNCE = 300
@@ -47,6 +50,12 @@ function DetailBody({ task, lists, tags, actions, onSelect, onClose }: Omit<Prop
   const moreRef = useRef<HTMLButtonElement>(null)
   const tagAddRef = useRef<HTMLButtonElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  const titleRef = useRef<HTMLDivElement>(null)
+  const toast = useToast()
+  // 33 §6.6: 자동(ai·rule) 태그는 알약 왼쪽 작은 ✦ + 툴팁, ✕ = 한 번에 떼기(dismissed — 다시 안 붙음)
+  const tagSources = useQuery<{ tag_id: string; source: string | null; confidence: number | null }>(
+    "SELECT tag_id, source, confidence FROM task_tags WHERE task_id = ? AND COALESCE(state, 'accepted') = 'accepted'", [task.id]
+  ) ?? []
   const [addingSub, setAddingSub] = useState(false)
   const parent = useQuery<{ id: string; title: string }>('SELECT id, title FROM tasks WHERE id = ?', [task.parent_id ?? ''])?.[0]
   const date = detailDateLabel(task, dayKey())
@@ -103,6 +112,7 @@ function DetailBody({ task, lists, tags, actions, onSelect, onClose }: Omit<Prop
         )}
         <div className="detail__title-row">
           <DebouncedText
+            ref={titleRef}
             className="detail__title"
             value={task.title}
             placeholder="제목 없음"
@@ -120,12 +130,26 @@ function DetailBody({ task, lists, tags, actions, onSelect, onClose }: Omit<Prop
         </div>
         {taskTags.length > 0 && (
           <div className="detail__tags">
-            {taskTags.map((t) => (
-              <span key={t.id} className="tag-pill" style={{ ['--tag-color' as string]: t.color ?? 'var(--color-priority-none)' }}>
-                {t.name}
-                <button className="tag-pill__x" aria-label={`${t.name} 태그 빼기`} onClick={() => actions.toggleTag([task.id], t.id, false)}><X /></button>
-              </span>
-            ))}
+            {taskTags.map((t) => {
+              const src = tagSources.find((x) => x.tag_id === t.id)
+              const auto = src && ['ai', 'rule'].includes(src.source ?? 'user')
+              const tip = auto ? `AI가 붙였어요${src.confidence != null ? ` · ${src.confidence}점` : ''} · ✕로 떼면 다시 안 붙여요` : src?.source === 'link' ? `[[${t.name}]] 링크로 붙었어요` : undefined
+              return (
+                <span key={t.id} className="tag-pill" title={tip} style={{ ['--tag-color' as string]: t.color ?? 'var(--color-priority-none)' }}>
+                  {auto && <span className="tag-pill__ai" aria-label="AI가 붙인 태그">✦</span>}
+                  {t.name}
+                  <button
+                    className="tag-pill__x"
+                    aria-label={`${t.name} 태그 빼기`}
+                    onClick={async () => {
+                      if (!src || (src.source ?? 'user') === 'user') return void actions.toggleTag([task.id], t.id, false)
+                      const undo = await removeTaskTag(task.id, t.id)
+                      toast.show(`'${t.name}' 태그를 뗐어요`, undo)
+                    }}
+                  ><X /></button>
+                </span>
+              )
+            })}
             <button ref={tagAddRef} className="detail__tag-add" aria-label="태그 추가" onClick={() => setMenu(menu === 'tag' ? undefined : 'tag')}><Plus /></button>
           </div>
         )}
@@ -134,6 +158,8 @@ function DetailBody({ task, lists, tags, actions, onSelect, onClose }: Omit<Prop
             <TagPickerBody tags={tags} state={(id) => tagState([task], id)} onToggle={(id, on) => void actions.toggleTag([task.id], id, on)} />
           </Popover>
         )}
+        <WikiComplete target={titleRef} modes={['[[']} />
+        {!checklist && <WikiComplete target={contentRef} modes={['[[']} />}
         {checklist ? (
           <CheckItems taskId={task.id} />
         ) : (

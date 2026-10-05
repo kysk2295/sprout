@@ -17,8 +17,12 @@ export interface CalOptions {
   calIcons: number
   lists: string[]
   tags: string[]
+  /** 06 §14.4.3 "내 일정"(sprout 자체 일정) 캘린더 보기에 보이기. 저장값이 없으면 켬 */
+  myCal: number
+  /** "내 일정" 색(없으면 MY_CAL_COLOR) */
+  myColor: string | null
 }
-export const DEFAULT_OPTIONS: CalOptions = { view: 'week', color: 'list', style: 'simple', completed: 1, repeats: 0, icons: 1, calIcons: 1, lists: [], tags: [] }
+export const DEFAULT_OPTIONS: CalOptions = { view: 'week', color: 'list', style: 'simple', completed: 1, repeats: 0, icons: 1, calIcons: 1, lists: [], tags: [], myCal: 1, myColor: null }
 
 /** 캘린더에 그리는 한 항목. 반복 미래 회차는 virtual(원래 태스크 id = task.id) */
 export interface CalItem {

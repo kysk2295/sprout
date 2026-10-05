@@ -131,7 +131,7 @@ export function useTaskActions() {
             copies.push(copy)
             const { id: _i, created_at: _c, modified_at: _m, ...rest } = t
             stmts.push(insert('tasks', { ...rest, id: copy, start_at: c.start_at, due_at: c.due_at, is_all_day: c.due_at && c.due_at.includes('T') ? 0 : 1, repeat_rule: null }))
-            for (const tag of await db.getAll<{ tag_id: string }>('SELECT tag_id FROM task_tags WHERE task_id = ?', [c.id])) stmts.push(insert('task_tags', { id: uuid(), task_id: copy, tag_id: tag.tag_id }))
+            for (const tag of await db.getAll<{ tag_id: string }>("SELECT tag_id FROM task_tags WHERE task_id = ? AND COALESCE(state, 'accepted') = 'accepted'", [c.id])) stmts.push(insert('task_tags', { id: uuid(), task_id: copy, tag_id: tag.tag_id }))
           }
           await run(...stmts)
           toast.show('복제했어요', () => deleteTasksHard(copies))
@@ -213,7 +213,7 @@ export function useTaskActions() {
           const copy = uuid()
           const { id: _old, created_at: _c, modified_at: _m, ...rest } = t
           stmts.push(insert('tasks', { ...rest, id: copy, sort_order: Number(t.sort_order ?? 0) + 0.001 }))
-          for (const tag of await db.getAll<{ tag_id: string }>('SELECT tag_id FROM task_tags WHERE task_id = ?', [id])) stmts.push(insert('task_tags', { id: uuid(), task_id: copy, tag_id: tag.tag_id }))
+          for (const tag of await db.getAll<{ tag_id: string }>("SELECT tag_id FROM task_tags WHERE task_id = ? AND COALESCE(state, 'accepted') = 'accepted'", [id])) stmts.push(insert('task_tags', { id: uuid(), task_id: copy, tag_id: tag.tag_id }))
           for (const c of await db.getAll<{ title: string; done: number; sort_order: number }>('SELECT title, done, sort_order FROM check_items WHERE task_id = ?', [id])) {
             stmts.push(insert('check_items', { id: uuid(), task_id: copy, title: c.title, done: c.done, sort_order: c.sort_order }))
           }

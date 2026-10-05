@@ -2,6 +2,7 @@ import { useAssistant } from './components/AssistantBody'
 import { WorkspaceView, AssistantLauncher } from './components/WorkspaceViews'
 import { NotesView } from './components/NotesView'
 import { WorkMapView } from './components/map/WorkMapView'
+import { isMapMode, openMap, OPEN_MAP } from './data/mapMoments'
 import { DiaryView } from './components/diary/DiaryView'
 import { TickTickImportHost, openTickTickImport } from './components/TickTickImport'
 import { OnboardingHost } from './components/onboarding/OnboardingHost'
@@ -37,6 +38,10 @@ import { DesktopSettings } from './components/DesktopSettings'
 import { ExtAgenda } from './components/calendars/ExtSidebar'
 import { CalendarConnectHost } from './components/calendars/ConnectHost'
 import { OverdueHost, openOverdueCleanup } from './components/overdue/OverdueBits'
+import { useLinkSync } from './components/wiki/LinkText'
+import type { OpenTarget } from './data/wiki'
+import { isEventKey, openEventById, requestOpenEvent } from './data/events'
+import { dayKey } from './lib/dates'
 
 const SIDEBAR = { def: 261, min: 200, max: 400 } // 실측 261
 const DETAIL = { def: 298, min: 260, max: 560 } // 02 §0 실측 298
@@ -109,6 +114,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   const openTask = (id: string) => { setView('tasks'); setSelected('smart:all'); setSelection([id]) }
   // 뒤에서 도는 정리: 수집함 AI 분류·링크 제목(11 v3-3), 새 할 일 영역 분류(14 §0.3)
   useCollector(lists)
+  useLinkSync() // 33 §6.4 [[링크]] 글 ↔ 관계
   const tags = useQuery<TagRow>('SELECT id, name, color FROM tags ORDER BY sort_order') ?? []
   const folder = useQuery<{name:string}>('SELECT name FROM folders WHERE id = ?', [selected.startsWith('folder:') ? selected.slice(7) : ''])?.[0]
   const selectedFilter = useQuery<{name:string}>('SELECT name FROM filters WHERE id=?',[selected.startsWith('filter:')?selected.slice(7):''])?.[0]
@@ -166,8 +172,8 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   useEffect(() => {
     const r = window.sprout?.reminders
     if (!r) return
-    const offOpen = r.onOpen((id) => { setView('tasks'); setSelection([id]) }) // 알림·미니 창에서 열기
-    const offDone = r.onComplete((id) => void actions.complete([id]))
+    const offOpen = r.onOpen((id) => { if (isEventKey(id)) { setView('calendar'); void openEventById(id); return } setView('tasks'); setSelection([id]) }) // 알림·미니 창에서 열기 (06 §14.4.7 일정은 캘린더에서)
+    const offDone = r.onComplete((id) => { if (!isEventKey(id)) void actions.complete([id]) })
     return () => { offOpen(); offDone() }
   }, [actions])
 
@@ -202,8 +208,29 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
     const views: RailView[] = ['tasks', 'calendar', 'growth', 'notes', 'watch', 'wiki', 'diary', 'assistant', 'map']
     if (!views.includes(to.view as RailView)) return
     setView(to.view as RailView)
+    if (to.view === 'map') { if (to.mode || to.task) openMap({ ...(isMapMode(to.mode) ? { mode: to.mode } : {}), ...(to.task ? { task: to.task } : {}) }); return } // 31 §10.4 sprout://map?mode=
     if (to.selected) { setSelected(to.selected); setSelection([]) }
   }), [setView, setSelected])
+  // 31 §10.4 순간 ①~④가 지도를 부르면 지도 보기로(요청은 지도가 뜰 때 적용)
+  useEffect(() => {
+    const go = () => setView('map')
+    window.addEventListener(OPEN_MAP, go)
+    return () => window.removeEventListener(OPEN_MAP, go)
+  }, [setView])
+  // 33: 행 [[링크]]·페이지 머리 알약 → 태그·리스트 페이지, 할 일, 수집함 위키
+  useEffect(() => {
+    const go = (e: Event) => {
+      const t = (e as CustomEvent<OpenTarget>).detail
+      if (t.view === 'notes') { setView('notes'); return }
+      setView('tasks')
+      const v = t.view.startsWith('list:') ? listView(t.view.slice(5)) : t.view
+      setSelected(v); setSelection(t.taskId ? [t.taskId] : []); setSidebarPeek(false)
+    }
+    const wiki = () => setView('wiki')
+    window.addEventListener('sprout:open-target', go)
+    window.addEventListener('sprout:open-wiki', wiki)
+    return () => { window.removeEventListener('sprout:open-target', go); window.removeEventListener('sprout:open-wiki', wiki) }
+  })
   // 25 §14: 위젯 체크로 메인 프로세스가 준 XP도 앱 안 완료처럼 "+1"(data/growth.ts announce와 같은 이벤트)
   useEffect(() => window.sprout?.desktop?.onXp?.((amount) => { if (amount > 0) window.dispatchEvent(new CustomEvent('sprout:xp', { detail: amount })) }), [])
   const commands:Command[] = [
@@ -231,10 +258,10 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
         <TickTickImportHost onOpenMap={() => setView('map')} onOpenCalendar={() => setView('calendar')} />
         <OverdueHost />
         <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}} offset={view === 'tasks' && (!drawer || selection.length > 0) ? detailW : undefined}/>
-        <ReminderCards onOpen={(id) => setSelection([id])} onComplete={(id) => void actions.complete([id])} />
+        <ReminderCards onOpen={(id) => { if (isEventKey(id)) { setView('calendar'); void openEventById(id) } else setSelection([id]) }} onComplete={(id) => void actions.complete([id])} />
         <Rail view={view} onView={setView} sync={sync} email={email} onSettings={settings} onHelp={()=>setOverlay('shortcuts')} />
         {overlay==='command' && <CommandMenu commands={commands} onClose={()=>setOverlay(undefined)} onSearch={(q)=>{setSearchQuery(q);setOverlay('search')}}/>}
-        {overlay==='search' && <SearchDialog initial={searchQuery} onClose={()=>setOverlay(undefined)} onPick={(r)=>{setView('tasks');if(r.kind==='task'){setSelected(r.list_id?listView(r.list_id):'smart:all');setSelection([r.id])}else selectView(`${r.kind}:${r.id}`)}}/>}
+        {overlay==='search' && <SearchDialog initial={searchQuery} onClose={()=>setOverlay(undefined)} onPick={(r)=>{if(r.kind==='event'){setView('calendar');requestOpenEvent(r.id,r.list_id??dayKey());return}setView('tasks');if(r.kind==='task'){setSelected(r.list_id?listView(r.list_id):'smart:all');setSelection([r.id])}else selectView(`${r.kind}:${r.id}`)}}/>}
         {overlay==='quick' && <QuickAdd lists={lists} tags={tags} inboxId={inboxId} onClose={()=>setOverlay(undefined)} onCreated={(id,listId)=>{setView('tasks');setSelected(listView(listId));setSelection([id])}}/>}
         {(overlay==='settings'||overlay==='shortcuts') && <DesktopSettings initial={overlay==='shortcuts'?'shortcuts':'smart'} onClose={()=>setOverlay(undefined)}/> }
         {view === 'growth' ? <GrowthView onSurvey={() => setSurvey(true)} /> : view === 'map' ? <WorkMapView lists={lists} onOpen={openTask} onTasks={() => setView('tasks')} onGrowth={() => setView('growth')}/> : view === 'diary' ? <DiaryView onOpen={openTask}/> : view === 'assistant' ? <WorkspaceView view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={openTask}/> : (view === 'notes' || view === 'watch' || view === 'wiki') ? <NotesView section={view} onSection={setView} lists={lists} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : view === 'calendar' ? (

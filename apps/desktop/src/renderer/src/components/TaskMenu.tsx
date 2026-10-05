@@ -1,5 +1,5 @@
 import {
-  ArrowUpToLine, CalendarDays, CalendarX, Copy, Link, ListTree, PinOff, SquareArrowRight, SquareX, Sun, Sunrise, Tag, Trash2
+  ArrowRightLeft, ArrowUpToLine, CalendarDays, CalendarX, Copy, Link, ListTree, PinOff, SquareArrowRight, SquareX, Sun, Sunrise, Tag, Trash2
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { ListRow, TagRow, TaskRow } from '../data/types'
@@ -8,6 +8,9 @@ import type { TaskActions } from '../lib/taskActions'
 import { ListPickerBody, PriorityRow, TagPickerBody } from './Pickers'
 import { MenuItem, Popover, SubMenu } from './Popover'
 import { CalendarPlus7 } from './icons'
+import { useToast } from './Toast'
+import { useQuery } from '../data/useQuery'
+import { convertTaskToEvent } from '../data/events'
 
 // 02 §0·§9 태스크 우클릭 메뉴(실측 문구). 여러 개를 고른 상태면 선택 전체에 적용한다.
 type Props = {
@@ -56,6 +59,15 @@ export function TaskMenu({ tasks, lists, tags, actions, point, anchor, onClose, 
   const allWontDo = tasks.every((t) => t.status === 2)
   const priority = tasks.every((t) => t.priority === tasks[0].priority) ? tasks[0].priority : undefined
   const done = (fn: () => unknown) => () => { onClose(); void fn() }
+  // 06 §14.4.6 할 일 → 일정: 한 개만, 하위 할 일이 없을 때
+  const toast = useToast()
+  const kids = useQuery<{ n: number }>('SELECT count(*) AS n FROM tasks WHERE parent_id = ? AND deleted_at IS NULL', [single?.id ?? ''])?.[0]?.n ?? 0
+  const toEvent = async () => {
+    if (!single) return
+    const r = await convertTaskToEvent(single.id, dayKey())
+    if (r === 'has-children') toast.show('하위 할 일이 있으면 일정으로 바꿀 수 없어요')
+    else if (r) toast.show('일정으로 바꿨어요', r.restore)
+  }
   return (
     <Popover point={point} anchor={anchor} onClose={onClose} width={194} className="menu">
       <DateRow tasks={tasks} actions={actions} onDone={onClose} onPick={() => { onClose(); onPickDate(ids, { point, anchor }) }} />
@@ -73,6 +85,7 @@ export function TaskMenu({ tasks, lists, tags, actions, point, anchor, onClose, 
       <div className="menu__divider" />
       <MenuItem icon={<Copy />} label="복사" onClick={done(() => actions.duplicate(ids))} />
       <MenuItem icon={<Link />} label="링크 복사" disabled={!single} onClick={done(() => single && actions.copyLink(single.id))} />
+      <MenuItem icon={<ArrowRightLeft />} label={single && kids ? '일정으로 바꾸기 (하위 할 일 있음)' : '일정으로 바꾸기'} disabled={!single || kids > 0} onClick={done(toEvent)} />
       <MenuItem icon={<Trash2 />} label="삭제" onClick={done(() => actions.trash(ids))} />
     </Popover>
   )

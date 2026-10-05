@@ -10,7 +10,11 @@ import { MenuItem, Popover } from './Popover'
 import { saveOrganization, type FolderRow, type OrganizationItem, type OrganizationKind } from '../data/organization'
 import { joinEmoji, splitEmoji } from '../../../shared/emoji'
 import './EmojiPicker.css'
+import './wiki/wiki.css'
 import { ORG_COLORS } from '../lib/orgColors'
+import { parseAliases } from '@sprout/schema/wikiLink'
+import { DESC_MAX, KIND_ICON, KIND_LABEL, TAG_KINDS, kindOf, linkRenameStmts, type TagKind } from '../data/wiki'
+import { useToast } from './Toast'
 
 const COLORS = ORG_COLORS
 const SMART: [string, string][] = [['all', '모든 작업'], ['none', '표시하지 않음']]
@@ -35,7 +39,8 @@ function Select<T extends string>({ label, value, options, onChange }: { label: 
   )
 }
 
-export function OrganizationEditor({ kind, item, folderId, folders, tags = [], onClose, onSaved }: { kind: OrganizationKind; item?: OrganizationItem; folderId?: string; folders: FolderRow[]; tags?: OrganizationItem[]; onClose: () => void; onSaved: (id: string) => void }) {
+type TagExtra = { kind?: string | null; aliases?: string | null; description?: string | null; source?: string | null }
+export function OrganizationEditor({ kind, item, folderId, folders, tags = [], onClose, onSaved }: { kind: OrganizationKind; item?: OrganizationItem & TagExtra; folderId?: string; folders: FolderRow[]; tags?: OrganizationItem[]; onClose: () => void; onSaved: (id: string) => void }) {
   // 폴더는 이름 앞 이모지를 아이콘으로 떼어 보여 준다
   const initial = kind === 'folder' ? splitEmoji(item?.name ?? '') : { emoji: item?.emoji ?? null, name: item?.name ?? '' }
   const [name, setName] = useState(initial.name)
@@ -44,6 +49,11 @@ export function OrganizationEditor({ kind, item, folderId, folders, tags = [], o
   const [folder, setFolder] = useState(item?.folder_id ?? folderId ?? '')
   const [parent, setParent] = useState(item?.parent_id ?? '')
   const [smart, setSmart] = useState(item?.show_in_smart ?? 'all')
+  // 33 §4.2 태그 편집 창: 종류 · 별칭(쉼표, 최대 5) · 설명
+  const [tagKind, setTagKind] = useState<TagKind>(kindOf(item?.kind))
+  const [aliases, setAliases] = useState(parseAliases(item?.aliases).join(', '))
+  const [desc, setDesc] = useState(item?.description ?? '')
+  const toast = useToast()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [picker, setPicker] = useState<HTMLElement | null>(null)
@@ -53,10 +63,24 @@ export function OrganizationEditor({ kind, item, folderId, folders, tags = [], o
     if (saving.current || !name.trim()) return
     saving.current = true; setBusy(true)
     try {
+      const aliasList = [...new Set(aliases.split(',').map((a) => a.trim()).filter((a) => a && a !== name.trim()))].slice(0, 5)
       const values = kind === 'list'
         ? { name, emoji: emoji || null, color: color || null, folder_id: folder || null, show_in_smart: smart }
-        : kind === 'tag' ? { name, color: color || null, parent_id: parent || null } : { name: joinEmoji(emoji, name) }
-      const id = await saveOrganization(kind, item?.id, values)
+        : kind === 'tag'
+          ? { name, color: color || null, parent_id: parent || null, kind: tagKind, aliases: aliasList.length ? JSON.stringify(aliasList) : null, description: desc.trim().slice(0, DESC_MAX) || null,
+              // 사용자가 이름·종류를 고친 AI 태그는 사용자 것(§7.6 사람이 이긴다)
+              ...(item?.source === 'ai' && (name.trim() !== item.name || tagKind !== kindOf(item.kind)) ? { source: 'user' } : {}) }
+          : { name: joinEmoji(emoji, name) }
+      // 33 §6.5: 리스트·태그 이름을 바꾸면 [[옛이름]] 링크 글도 같은 트랜잭션에서 고친다
+      const links = item && kind !== 'folder' ? await linkRenameStmts(kind, item.id, item.name, name.trim()) : { stmts: [], count: 0 }
+      const id = await saveOrganization(kind, item?.id, values, links.stmts)
+      if (links.count && item) {
+        const oldName = item.name
+        toast.show(`이름을 바꿨어요 · 링크 ${links.count}곳도 고쳤어요`, async () => {
+          const back = await linkRenameStmts(kind as 'list' | 'tag', id, name.trim(), oldName)
+          await saveOrganization(kind, id, { name: oldName }, back.stmts)
+        })
+      }
       onSaved(id); onClose()
     } catch (e) { setError(String(e)) } finally { saving.current = false; setBusy(false) }
   }
@@ -73,6 +97,15 @@ export function OrganizationEditor({ kind, item, folderId, folders, tags = [], o
       {kind === 'list' && <>
         <div className="settings-row"><span>폴더</span><Select label="폴더" value={folder} options={[['', '없음'], ...folders.map((f) => [f.id, (() => { const s = splitEmoji(f.name); return s.emoji ? `${s.emoji} ${s.name}` : s.name })()] as [string, string])]} onChange={setFolder} /></div>
         <div className="settings-row"><span>스마트 목록에 표시</span><Select label="스마트 목록에 표시" value={smart} options={SMART} onChange={setSmart} /></div>
+      </>}
+      {kind === 'tag' && <>
+        <div className="settings-row"><span>종류</span>
+          <div className="org-seg" role="radiogroup" aria-label="종류">
+            {TAG_KINDS.map((k) => <button type="button" key={k} role="radio" aria-checked={tagKind === k} className={tagKind === k ? 'is-on' : ''} onClick={() => setTagKind(k)}>{KIND_ICON[k] ? `${KIND_ICON[k]} ` : '# '}{KIND_LABEL[k]}</button>)}
+          </div>
+        </div>
+        <div className="settings-row"><span>별칭</span><input className="org-input" aria-label="별칭" placeholder="쉼표로 나눠요 (최대 5개)" value={aliases} onChange={(e) => setAliases(e.target.value)} /></div>
+        <div className="settings-row is-top"><span>설명</span><textarea className="org-input" aria-label="설명" rows={2} maxLength={DESC_MAX} placeholder="이 태그는 무엇인가요?" value={desc} onChange={(e) => setDesc(e.target.value)} /></div>
       </>}
       {kind === 'tag' && <div className="settings-row"><span>부모 태그</span><Select label="부모 태그" value={parent} options={[['', '없음'], ...tags.filter((t) => !t.parent_id && t.id !== item?.id).map((t) => [t.id, t.name] as [string, string])]} onChange={setParent} /></div>}
       {error && <p className="form-error" role="alert">{error}</p>}

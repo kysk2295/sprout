@@ -119,7 +119,7 @@ export function useCollector(lists: ListRow[]): void {
       abortCurrent = stop
       set({ working: true })
       try {
-        const raw = await aiChat({ purpose: 'classify', format: classifySchema(items.map((i) => i.id), listIds), messages: [{ role: 'user', content: prompt(items, listsRef.current, topics) }] }, call.signal)
+        const raw = await aiChat({ purpose: 'classify', priority: 'background', format: classifySchema(items.map((i) => i.id), listIds), messages: [{ role: 'user', content: prompt(items, listsRef.current, topics) }] }, call.signal)
         set({ aiDown: false })
         let out: Classified[] = []
         try { out = parseClassified(raw, items, listIds) } catch { /* 형식이 틀리면 묶음 전체를 한 번 실패로 센다 */ }

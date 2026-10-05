@@ -2,7 +2,9 @@ import { app, BrowserWindow, Notification, ipcMain } from 'electron'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { reminderFireTime } from '@sprout/schema/time'
+import { eventReminderTimes } from '@sprout/schema/events'
 import { db } from './db'
+import { displayTitle } from '@sprout/schema/wikiLink'
 
 // 03-date-picker §7 알림: 기기에서 예약한다(로컬 퍼스트, 서버 푸시 없음).
 // 로컬 DB를 watch해서 앞으로 48시간 안의 알림을 예약하고, 값이 바뀌면(다른 기기에서 동기화된 변경 포함) 다시 계산한다.
@@ -18,6 +20,10 @@ const statePath = () => join(app.getPath('userData'), 'reminder-state.json')
 let state: State = { fired: [], snoozes: [] }
 const timers = new Map<string, NodeJS.Timeout>()
 let rows: Item[] = []
+// 06 §14.4.7 sprout 자체 일정 알림(반복은 다음 회차 기준). taskId 자리에 'ev:<id>' — 완료 버튼 없음
+type EvItem = { id: string; title: string | null; start_at: string; end_at: string; repeat_rule: string | null; reminders: string | null }
+let evRows: EvItem[] = []
+const isEvent = (id: string) => id.startsWith('ev:')
 const live = new Set<Notification>() // 알림 객체가 GC되면 클릭이 안 오므로 붙잡아 둔다
 
 function load() {
@@ -55,10 +61,10 @@ function fire(f: Fired) {
   if (main && main.isVisible() && BrowserWindow.getFocusedWindow()) main.webContents.send('reminder:fired', f)
   if (!Notification.isSupported()) return
   const n = new Notification({
-    title: f.title || '제목 없음',
+    title: displayTitle(f.title) || '제목 없음', // 33 §6.6 [[링크]] 괄호 뺀 글
     body: f.body,
     // macOS: 첫 버튼은 그대로, 나머지는 드롭다운으로 묶인다
-    actions: [{ type: 'button', text: '완료' }, ...SNOOZE.map(([text]) => ({ type: 'button' as const, text }))]
+    actions: [...(isEvent(f.taskId) ? [] : [{ type: 'button' as const, text: '완료' }]), ...SNOOZE.map(([text]) => ({ type: 'button' as const, text }))]
   })
   live.add(n)
   n.on('click', async () => {
@@ -68,7 +74,8 @@ function fire(f: Fired) {
     w.focus()
   })
   n.on('action', (_e, index) => {
-    if (index === 0) void send('reminder:complete', f.taskId)
+    if (isEvent(f.taskId)) snooze(f, SNOOZE[index][1])
+    else if (index === 0) void send('reminder:complete', f.taskId)
     else snooze(f, SNOOZE[index - 1][1])
   })
   n.on('close', () => live.delete(n))
@@ -100,8 +107,19 @@ function reschedule() {
     if (at < now - MISSED_MS) continue
     arm(key, at, { key, taskId: it.tid, title: it.title, body: bodyOf(it) })
   }
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const d = new Date()
+  const today = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  for (const e of evRows) {
+    for (const r of eventReminderTimes(e, today)) {
+      const at = r.at.getTime()
+      const key = `ev:${e.id}@${r.trigger}@${r.occ.start}`
+      if (state.fired.includes(key) || at < now - MISSED_MS) continue
+      arm(key, at, { key, taskId: `ev:${e.id}`, title: e.title ?? '', body: bodyOf({ rid: '', trigger: r.trigger, tid: '', title: '', start_at: r.occ.start, due_at: r.occ.end, list_name: '내 일정' }) })
+    }
+  }
   // 완료·휴지통으로 사라진 태스크의 다시 알림은 버린다
-  const liveTasks = new Set(rows.map((r) => r.tid))
+  const liveTasks = new Set([...rows.map((r) => r.tid), ...evRows.map((e) => `ev:${e.id}`)])
   const before = state.snoozes.length
   state.snoozes = state.snoozes.filter((s) => liveTasks.has(s.taskId) && s.at > now - MISSED_MS && !state.fired.includes(s.key))
   for (const s of state.snoozes) arm(s.key, s.at, { key: s.key, taskId: s.taskId, title: s.title, body: s.body })
@@ -122,6 +140,17 @@ export function startReminders(windowGetter: WindowGetter) {
         reschedule()
       },
       onError: (e) => console.error('[reminders] watch failed', e)
+    }
+  )
+  db.watchWithCallback(
+    `SELECT id, title, start_at, end_at, repeat_rule, reminders FROM events WHERE deleted_at IS NULL AND reminders IS NOT NULL AND start_at IS NOT NULL AND end_at IS NOT NULL`,
+    [],
+    {
+      onResult: (r) => {
+        evRows = (r.rows?._array ?? []) as EvItem[]
+        reschedule()
+      },
+      onError: (e) => console.error('[reminders] event watch failed', e)
     }
   )
   // 48시간 창 안으로 들어오는 알림을 잡기 위해 30분마다 다시 계산

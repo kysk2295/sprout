@@ -1,6 +1,7 @@
 import { AlarmClock, ChevronDown, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { MenuItem, Popover } from './Popover'
+import { displayTitle } from '@sprout/schema/wikiLink'
 
 // 03 §7 앱이 앞에 있을 때 오른쪽 위 팝업 카드: 제목 · 날짜 · [닫기] [다시 알림 ▾] [완료]
 type Fired = { key: string; taskId: string; title: string; body: string }
@@ -25,13 +26,13 @@ function Card({ f, onClose, onOpen, onComplete }: { f: Fired; onClose: () => voi
     <div className="reminder-card" role="alert">
       <AlarmClock className="reminder-card__icon" />
       <button className="reminder-card__text" onClick={() => { onOpen(f.taskId); onClose() }}>
-        <strong>{f.title || '제목 없음'}</strong>
+        <strong>{displayTitle(f.title) || '제목 없음'}</strong>
         <span>{f.body}</span>
       </button>
       <button className="reminder-card__x" aria-label="닫기" onClick={onClose}><X /></button>
       <div className="reminder-card__actions">
         <button ref={ref} onClick={() => setMenu(!menu)}>다시 알림 <ChevronDown /></button>
-        <button className="is-primary" onClick={() => { onComplete(f.taskId); onClose() }}>완료</button>
+        {!f.taskId.startsWith('ev:') && <button className="is-primary" onClick={() => { onComplete(f.taskId); onClose() }}>완료</button>}{/* 06 §14.4.7 일정은 완료 없음 */}
       </div>
       {menu && (
         <Popover anchor={ref.current} onClose={() => setMenu(false)} width={140} className="menu">

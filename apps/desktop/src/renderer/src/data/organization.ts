@@ -1,10 +1,11 @@
-import { getDb } from './db'
+import { getDb, type Stmt } from './db'
 import { insert, now, remove, run, update, uuid } from './mutations'
 export interface FolderRow { id:string;name:string;sort_order:number }
 export interface OrganizationItem { id:string;name:string;emoji?:string|null;color?:string|null;folder_id?:string|null;parent_id?:string|null;show_in_smart?:string|null;pinned?:number|null;kind?:string;archived_at?:string|null }
 export type OrganizationKind='list'|'folder'|'tag'
 const tables={list:'lists',folder:'folders',tag:'tags'} as const
-export async function saveOrganization(kind:OrganizationKind,id:string|undefined,values:Record<string,unknown>) {
+/** extra = 같은 트랜잭션에서 함께 쓸 문장(33 §6.5 이름 바꾸기 때 [[링크]] 글 고침) */
+export async function saveOrganization(kind:OrganizationKind,id:string|undefined,values:Record<string,unknown>,extra:Stmt[]=[]) {
   if(!String(values.name??'').trim())throw new Error('이름을 입력해 주세요.')
   if(kind==='tag' && values.parent_id){
     const db=await getDb()
@@ -13,9 +14,10 @@ export async function saveOrganization(kind:OrganizationKind,id:string|undefined
     if(!parent || parent.parent_id || values.parent_id===id || children.length)throw new Error('태그는 최대 2단계로 정리할 수 있어요.')
   }
   const table=tables[kind]
-  const data={...values,name:String(values.name).trim()}
+  // 33 §7.6: 사용자가 고친 태그는 사용자 것(AI가 만든 태그라도 source를 user로 — 자동 합치기·되돌리기 대상에서 빠진다)
+  const data={...values,name:String(values.name).trim(),...(kind==='tag'&&id?{source:'user'}:{})}
   const next=id??uuid()
-  await run(id?update(table,id,data):insert(table,{id:next,sort_order:Date.now(),...(kind==='list'?{kind:'normal',pinned:0,show_in_smart:'all'}:{}),...data}))
+  await run(id?update(table,id,data):insert(table,{id:next,sort_order:Date.now(),...(kind==='list'?{kind:'normal',pinned:0,show_in_smart:'all'}:{}),...data}),...extra)
   return next
 }
 export async function pinOrganization(kind:'list'|'tag',id:string,on:boolean){await run(update(tables[kind],id,{pinned:on?1:0}))}

@@ -9,6 +9,7 @@ import { dayKey, rowDateLabel } from '../lib/dates'
 import { checkboxColor } from '../lib/priority'
 import { useTaskActions } from '../lib/taskActions'
 import { MenuItem, Popover } from './Popover'
+import { displayTitle } from '@sprout/schema/wikiLink' // 33 §6.6 메뉴바는 괄호 뺀 글
 
 // 09 메뉴바 미니 창: 목록 전환 · 추가 바 · 할 일(체크·누르면 메인 창에서 열기)
 const SMART = ['smart:today', 'smart:tomorrow', 'smart:next7', 'smart:inbox']
@@ -113,7 +114,7 @@ export function MiniWindow({ signedIn }: { signedIn: boolean }) {
                     aria-label="완료"
                     onClick={() => void actions.complete([t.id])}
                   />
-                  <button className="row__title mini__title" onClick={() => window.sprout?.mini?.openTask(t.id)}>{t.title || '제목 없음'}</button>
+                  <button className="row__title mini__title" onClick={() => window.sprout?.mini?.openTask(t.id)}>{displayTitle(t.title) || '제목 없음'}</button>
                   {date && <span className="row__meta"><span className={`row__date is-${date.tone}`}>{date.label}</span></span>}
                 </div>
               )

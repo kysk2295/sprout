@@ -163,7 +163,7 @@ async function weekData(week: string) {
     [addDays(week, -1), addDays(end, 1)]
   )
   const tags = rows.length
-    ? await db.getAll<{ task_id: string; name: string }>(`SELECT tt.task_id, g.name FROM task_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.task_id IN (${rows.map(() => '?').join(',')})`, rows.map((r) => r.id))
+    ? await db.getAll<{ task_id: string; name: string }>(`SELECT tt.task_id, g.name FROM task_tags tt JOIN tags g ON g.id = tt.tag_id WHERE COALESCE(tt.state, 'accepted') = 'accepted' AND tt.task_id IN (${rows.map(() => '?').join(',')})`, rows.map((r) => r.id))
     : []
   const tasks: WeekTask[] = rows.map((r) => ({
     title: r.title ?? '', list: r.list, tags: tags.filter((t) => t.task_id === r.id).map((t) => t.name), day: dayKey(0, new Date(r.completed_at)), start_at: r.start_at, due_at: r.due_at

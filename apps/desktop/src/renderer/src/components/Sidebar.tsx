@@ -16,6 +16,7 @@ import { OrganizationEditor } from './OrganizationEditor'
 import { ExtSidebarSection } from './calendars/ExtSidebar'
 import { splitEmoji } from '../../../shared/emoji'
 import './EmojiPicker.css'
+import { SidebarTagItems, TagKindIcon, TagSectionMenu, type TagMode } from './wiki/SidebarTags'
 const OPEN='t.status=0 AND t.deleted_at IS NULL AND t.parent_id IS NULL'
 type Menu={kind:OrganizationKind;item:OrganizationItem;point:{x:number;y:number}}
 export function Sidebar({selected,onSelect,lists,tags,onGrowth}:{selected:string;onSelect:(id:string)=>void;lists:ListRow[];tags:TagRow[];onGrowth?:()=>void}){
@@ -31,11 +32,12 @@ export function Sidebar({selected,onSelect,lists,tags,onGrowth}:{selected:string
  sum(CASE WHEN substr(COALESCE(t.start_at,t.due_at),1,10)<=? AND substr(t.due_at,1,10)>=? THEN 1 ELSE 0 END) AS next7_c
  FROM tasks t LEFT JOIN lists l ON l.id=t.list_id WHERE ${OPEN} AND l.archived_at IS NULL AND COALESCE(l.show_in_smart,'all')='all'`,[today,dayKey(1),dayKey(1),dayKey(6),today])?.[0]
  const counts=useQuery<{list_id:string;c:number}>(`SELECT t.list_id,count(*) AS c FROM tasks t WHERE ${OPEN} GROUP BY t.list_id`)??[]
- const tagCounts=useQuery<{tag_id:string;c:number}>(`SELECT tt.tag_id,count(*) AS c FROM task_tags tt JOIN tasks t ON t.id=tt.task_id WHERE ${OPEN} GROUP BY tt.tag_id`)??[]
+ const tagCounts=useQuery<{tag_id:string;c:number}>(`SELECT tt.tag_id,count(*) AS c FROM task_tags tt JOIN tasks t ON t.id=tt.task_id WHERE ${OPEN} AND COALESCE(tt.state,'accepted')='accepted' GROUP BY tt.tag_id`)??[]
  const archives=useQuery<{completed:number;wontdo:number;trash:number}>('SELECT sum(CASE WHEN status=1 AND deleted_at IS NULL THEN 1 ELSE 0 END) AS completed,sum(CASE WHEN status=2 AND deleted_at IS NULL THEN 1 ELSE 0 END) AS wontdo,sum(CASE WHEN deleted_at IS NOT NULL THEN 1 ELSE 0 END) AS trash FROM tasks')?.[0]
  const folders=useQuery<FolderRow>('SELECT id,name,sort_order FROM folders ORDER BY sort_order')??[]
  const allLists=useQuery<OrganizationItem>('SELECT id,name,emoji,color,folder_id,show_in_smart,pinned,kind,archived_at FROM lists ORDER BY pinned DESC,sort_order')??[]
- const allTags=useQuery<OrganizationItem>('SELECT id,name,color,parent_id,pinned FROM tags ORDER BY pinned DESC,sort_order')??[]
+ const allTags=useQuery<OrganizationItem&{kind?:string|null;aliases?:string|null;description?:string|null;source?:string|null}>('SELECT id,name,color,parent_id,pinned,kind,aliases,description,source FROM tags ORDER BY pinned DESC,sort_order')??[]
+ const [tagMode,setTagMode]=useLocalState<TagMode>('sprout.sidebar.tagMode','all') // 33 §4.2 보기: 전부 · 종류별(기기 기억)
  const [collapsed,setCollapsed]=useLocalState<string[]>('sprout.sidebar.collapsed',[])
  const toggle=(id:string)=>setCollapsed(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id])
  const [editor,setEditor]=useState<{kind:OrganizationKind;item?:OrganizationItem;folderId?:string}>()
@@ -51,7 +53,7 @@ export function Sidebar({selected,onSelect,lists,tags,onGrowth}:{selected:string
  const item=(key:string,label:string,icon:ReactNode,count=0,color?:string|null,org?:{kind:OrganizationKind;item:OrganizationItem})=><div key={key} className={`sidebar__item${selected===key?' is-active':''}`} role="button" tabIndex={0} onClick={()=>onSelect(key)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onSelect(key)}}} onContextMenu={org?e=>context(org.kind,org.item,e):undefined} data-drop={key.startsWith('list:')||key.startsWith('tag:')||['smart:today','smart:tomorrow','smart:next7','smart:inbox'].includes(key)?key:undefined}>
   <span className="sidebar__icon">{icon}</span><span className="sidebar__label">{label}</span><span className="sidebar__trail">{color&&<span className="sidebar__dot" style={{background:color}}/>}{count>0&&<span className="sidebar__count">{count}</span>}</span>{org&&<button className="sidebar__more" aria-label={`${label} 메뉴`} onClick={e=>context(org.kind,org.item,e)}><MoreHorizontal/></button>}
  </div>
- const section=(key:string,label:string,add?:()=>void)=><div className="sidebar__section"><button className="sidebar-section-toggle" onClick={()=>toggle(key)} aria-expanded={!collapsed.includes(key)}>{label}<ChevronDown size={12} style={{transform:collapsed.includes(key)?'rotate(-90deg)':undefined}}/></button><span className="sidebar__section-actions">{key==='lists'?<button aria-label="리스트 또는 폴더 추가" onClick={e=>setAddMenu(e.currentTarget)}><Plus/></button>:add&&<button aria-label={`${label} 추가`} onClick={add}><Plus/></button>}</span></div>
+ const section=(key:string,label:string,add?:()=>void)=><div className="sidebar__section"><button className="sidebar-section-toggle" onClick={()=>toggle(key)} aria-expanded={!collapsed.includes(key)}>{label}<ChevronDown size={12} style={{transform:collapsed.includes(key)?'rotate(-90deg)':undefined}}/></button><span className="sidebar__section-actions">{key==='tags'&&<TagSectionMenu mode={tagMode} onMode={setTagMode}/>}{key==='lists'?<button aria-label="리스트 또는 폴더 추가" onClick={e=>setAddMenu(e.currentTarget)}><Plus/></button>:add&&<button aria-label={`${label} 추가`} onClick={add}><Plus/></button>}</span></div>
  const listItem=(l:OrganizationItem)=>{const v=listView(l);return item(`list:${l.id}`,v.name,v.emoji?<span className="sidebar__emoji">{v.emoji}</span>:<span className="sidebar__glyph">≡</span>,countOf(l.id),l.color,{kind:'list',item:l})}
  const normals=allLists.filter(l=>l.kind!=='inbox'&&!l.archived_at)
  const archived=allLists.filter(l=>l.archived_at)
@@ -67,7 +69,7 @@ export function Sidebar({selected,onSelect,lists,tags,onGrowth}:{selected:string
   {archived.length>0&&<><button className="sidebar-archive" onClick={()=>toggle('archive')}><Archive size={16}/>보관 목록</button>{collapsed.includes('archive')&&archived.map(l=><div className="sidebar-archive-item" key={l.id}><button onClick={()=>onSelect(`list:${l.id}`)}>{l.name}</button><button onClick={()=>void perform(()=>archiveList(l.id,false))}>복원</button></div>)}</>}
   </>}
   {visible('filters',filters.length)&&<>{section('filters','필터',()=>setFilterEditor({}))}{!collapsed.includes('filters')&&filters.map(f=><div className="filter-sidebar-row" key={f.id} onContextMenu={e=>{e.preventDefault();setFilterMenu({item:f,point:{x:e.clientX,y:e.clientY}})}}>{item(`filter:${f.id}`,f.name,f.emoji||<ListFilter/>)}<button className="filter-row-menu" aria-label={`${f.name} 필터 메뉴`} onClick={e=>setFilterMenu({item:f,point:{x:e.clientX,y:e.clientY}})}><MoreHorizontal size={14}/></button></div>)}</>}
-  {visible('tags',allTags.length)&&<>{section('tags','태그',()=>setEditor({kind:'tag'}))}{!collapsed.includes('tags')&&allTags.filter(t=>!t.parent_id||!allTags.some(p=>p.id===t.parent_id)).map(t=><div key={t.id}>{item(`tag:${t.id}`,t.name,<Tag/>,tagCounts.find(c=>c.tag_id===t.id)?.c,t.color,{kind:'tag',item:t})}<div className="sidebar-folder-children">{allTags.filter(c=>c.parent_id===t.id).map(c=>item(`tag:${c.id}`,c.name,<Tag/>,tagCounts.find(n=>n.tag_id===c.id)?.c,c.color,{kind:'tag',item:c}))}</div></div>)}{!allTags.length&&<p className="sidebar-hint">#을 입력하여 태그를 선택할 수 있어요.</p>}</>}
+  {visible('tags',allTags.length)&&<>{section('tags','태그',()=>setEditor({kind:'tag'}))}{!collapsed.includes('tags')&&<SidebarTagItems tags={allTags} mode={tagMode} render={t=>item(`tag:${t.id}`,t.name,<TagKindIcon kind={t.kind}/>,tagCounts.find(c=>c.tag_id===t.id)?.c,t.color,{kind:'tag',item:t})}/>}{!allTags.length&&<p className="sidebar-hint">#을 입력하여 태그를 선택할 수 있어요.</p>}</>}
   <ExtSidebarSection item={(key,label,icon,count)=>item(key,label,icon,count)} collapsed={collapsed} toggle={toggle}/>{/* 16 G2 구독 캘린더 */}
   <div className="sidebar__divider"/>{visible('completed',archives?.completed??0)&&item('smart:completed','완료',<CheckSquare/>,archives?.completed)}{visible('wontdo',archives?.wontdo??0)&&item('smart:wontdo','계획 취소',<XSquare/>,archives?.wontdo)}{visible('trash',archives?.trash??0)&&item('smart:trash','휴지통',<Trash2/>,archives?.trash)}
   {error&&<p role="alert" className="form-error">{error}</p>}

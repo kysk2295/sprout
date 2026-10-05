@@ -73,13 +73,18 @@ export async function deleteTasksHard(ids: string[]) {
 // ── 태그 연결 ──
 export async function setTag(ids: string[], tagId: string, on: boolean) {
   const db = await getDb()
-  const rows = await db.getAll<{ id: string; task_id: string }>(
-    `SELECT id, task_id FROM task_tags WHERE tag_id = ? AND task_id IN (${marks(ids.length)})`, [tagId, ...ids]
+  const rows = await db.getAll<{ id: string; task_id: string; source: string | null; state: string | null }>(
+    `SELECT id, task_id, source, state FROM task_tags WHERE tag_id = ? AND task_id IN (${marks(ids.length)})`, [tagId, ...ids]
   )
+  // 33 §6.3·§7.6: 직접 붙이면 언제나 user·accepted(뗐던 자동 태그도 되살림). 떼면 user 행은 지우고,
+  // 자동(ai·rule)·링크 행은 dismissed로 남겨 다시 자동으로 붙지 않게 한다
   if (on) {
     const has = new Set(rows.map((r) => r.task_id))
-    await run(...ids.filter((id) => !has.has(id)).map((id) => insert('task_tags', { id: uuid(), task_id: id, tag_id: tagId })))
-  } else await run(...rows.map((r) => remove('task_tags', r.id)))
+    await run(
+      ...rows.filter((r) => (r.state ?? 'accepted') !== 'accepted').map((r) => update('task_tags', r.id, { source: 'user', state: 'accepted', confidence: null })),
+      ...ids.filter((id) => !has.has(id)).map((id) => insert('task_tags', { id: uuid(), task_id: id, tag_id: tagId, source: 'user', state: 'accepted' }))
+    )
+  } else await run(...rows.map((r) => ((r.source ?? 'user') === 'user' ? remove('task_tags', r.id) : update('task_tags', r.id, { state: 'dismissed' }))))
 }
 
 // ── 체크 항목(02 §13.2) ──

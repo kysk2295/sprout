@@ -30,12 +30,27 @@ import { INDENT, TaskRowView } from './TaskRow'
 import { useToast } from './Toast'
 import { FoldRow, OverdueCard, useFoldSetting, YesterdayBand } from './overdue/OverdueBits'
 import { InboxSuggestCard } from './listSuggest/ListSuggest'
+import { TodayMoments, useBigPick } from './map/MapMoments'
 import { isFolded } from '../data/overdue'
 import { useExtEvents, type ExtEvent } from '../data/calendars'
 import { extTimeGroup, smartExtRange, sortExt } from '../lib/calendarExt'
 import { ExtListRow } from './calendars/ExtListRow'
+import { useEvents, useMyCalColor } from '../data/events'
+import { eventListItems, type EventListItem } from '../lib/calendarEvents'
+import { EventListRow } from './events/EventCard'
+import { PageHeader, TagHeading, usePageOpen } from './wiki/PageHeader'
+import { LinkIndexProvider } from './wiki/LinkText'
+import { WikiComplete } from './wiki/WikiComplete'
+import { takeTagFilter } from '../data/wiki'
+import { tagFilterIds } from '../lib/wikiGraph'
+import { linkMoveTarget } from '../lib/addParse'
+import { PanelTop } from 'lucide-react'
+import { ro } from '../lib/josa'
 
 // 02-task-list §3~§12: 머리 · 추가 바 · 그룹 · 행 · 선택/키보드 · 끌어 놓기 · 우클릭 메뉴 · 완료 영역 · 빈 상태
+/** 06 §14.3.1·§14.4.3 목록 안 일정 한 줄: 구독 일정(ext) 또는 sprout 자체 일정(native) */
+type ListEv = { key: string; start: string; allDay: boolean; title: string; ext?: ExtEvent; native?: EventListItem }
+
 type Props = {
   view: ViewKey
   title: string
@@ -97,13 +112,17 @@ export function TaskListView(props: Props) {
   const tasks = useQuery<TaskRow>(openQ.sql, openQ.params)
   const showDone = !archive && settings.show_completed === 1
   const doneQ = useMemo(() => (showDone ? doneTasksSql(view, today) : { sql: 'SELECT 1 WHERE 0', params: [] }), [showDone, view, today])
-  const doneTasks = useQuery<TaskRow>(doneQ.sql, doneQ.params) ?? []
+  const doneAll = useQuery<TaskRow>(doneQ.sql, doneQ.params) ?? []
   // 06 §14.3.1: 오늘·내일·다음 7일에는 구독 캘린더 일정도 읽기 전용 행으로 함께 보인다(틱틱 "Today, Next 7 Days")
   const extRange = smartExtRange(view, today)
   const extAll = useExtEvents(extRange?.from ?? today, extRange?.to ?? today)
-  const extEvents = useMemo(() => (extRange ? sortExt(extAll) : []), [extRange?.from, extRange?.to, extAll]) // eslint-disable-line react-hooks/exhaustive-deps
+  // 06 §14.4.3: sprout 자체 일정도 같은 자리·같은 순서로(회차마다 한 줄, 누르면 고치는 팝오버)
+  const myEventRows = useEvents(extRange?.from ?? today, extRange?.to ?? today, !!extRange)
+  const myCalColor = useMyCalColor()
+  const extEvents = useMemo<ListEv[]>(() => (extRange ? sortExt<ListEv>([...extAll.map((e) => ({ key: e.key, start: e.start, allDay: e.allDay, title: e.title, ext: e })), ...eventListItems(myEventRows, extRange.from, extRange.to, myCalColor).map((n) => ({ key: n.key, start: n.start, allDay: n.allDay, title: n.title, native: n }))]) : []), [extRange?.from, extRange?.to, extAll, myEventRows, myCalColor]) // eslint-disable-line react-hooks/exhaustive-deps
+  const renderEv = (e: ListEv) => (e.ext ? <ExtListRow key={e.key} ev={e.ext} today={today} /> : <EventListRow key={e.key} ev={e.native!.evt} start={e.native!.start} end={e.native!.end} color={e.native!.color} today={today} myColor={myCalColor} inboxId={inboxId} />)
   const extByGroup = useMemo(() => {
-    const m = new Map<string, ExtEvent[]>()
+    const m = new Map<string, ListEv[]>()
     for (const e of extEvents) {
       const id = settings.group_by === 'time' ? extTimeGroup(e, today) : 'ext'
       m.set(id, [...(m.get(id) ?? []), e])
@@ -129,6 +148,36 @@ export function TaskListView(props: Props) {
   const cursor = useRef<string>(undefined)
   const suppressClick = useRef(false)
 
+  // ── 33 페이지 머리 · 리스트 안 태그 거르기(§3.4) ──
+  const pageView = view.startsWith('list:') && view.slice(5) !== inboxId || view.startsWith('tag:') ? view : ''
+  const [pageOpen, setPageOpen] = usePageOpen(view)
+  const [tagFilter, setTagFilter] = useState<string[]>(() => { const t = takeTagFilter(view); return t ? [t] : [] })
+  useEffect(() => { const t = takeTagFilter(view); setTagFilter(t ? [t] : []) }, [view])
+  const [narrowList, setNarrowList] = useState(false)
+  useEffect(() => {
+    const el = mainRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setNarrowList(el.offsetWidth < 480))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.isComposing || !pageView) return
+      // ⌘⇧I = 페이지 정보 접기·펼치기 [임시]
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'i') { e.preventDefault(); setPageOpen(!pageOpen); return }
+      if (e.key === 'Escape' && tagFilter.length && !(e.target as HTMLElement).closest('input, textarea, [contenteditable]') && !document.querySelector('.popover, [role=dialog]')) setTagFilter([])
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [pageView, pageOpen, setPageOpen, tagFilter.length])
+  const filteredTasks = useMemo(() => {
+    if (!tasks || !tagFilter.length) return tasks
+    const keep = tagFilterIds(tasks, tagFilter)
+    return tasks.filter((t) => keep.has(t.id))
+  }, [tasks, tagFilter])
+  const doneTasks = useMemo(() => (tagFilter.length ? doneAll.filter((t) => (t.tag_ids?.split(',') ?? []).some((id) => tagFilter.includes(id))) : doneAll), [doneAll, tagFilter])
+
   // ── 섹션(02 §0): 일반 리스트의 사용자 설정 그룹 ──
   const listId = viewIsList(view) ? view.slice(5) : ''
   const sectionRows = useQuery<SectionRow>('SELECT id, name, sort_order FROM sections WHERE list_id = ? ORDER BY sort_order', [listId])
@@ -142,8 +191,8 @@ export function TaskListView(props: Props) {
   const [foldSetting] = useFoldSetting()
   const fold = foldSetting && view === 'smart:today' && settings.group_by === 'time'
   const { groups, flat, overdueIds } = useMemo(() => {
-    if (!tasks) return { groups: [] as Group[], flat: [] as FlatRow[], overdueIds: [] as string[] }
-    const { roots, kids } = childrenMap(tasks)
+    if (!filteredTasks) return { groups: [] as Group[], flat: [] as FlatRow[], overdueIds: [] as string[] }
+    const { roots, kids } = childrenMap(filteredTasks)
     const g = archive ? grouping('none', lists, today) : grouping(settings.group_by, lists, today, tags, sections)
     const out: Group[] = []
     const push = (id: string, name: string, rs: TaskRow[], keep = false, folded = 0) => {
@@ -163,7 +212,7 @@ export function TaskListView(props: Props) {
     // 만료됨 머리 "미루기"는 접힌 것·접힌 묶음까지 만료 전부를 옮긴다(19 §2)
     const overdueIds = settings.group_by === 'time' && !archive ? roots.filter((r) => !r.pinned_at && g.of(r) === 'overdue').map((r) => r.id) : []
     return { groups: out, flat: out.flatMap((x) => x.rows), overdueIds }
-  }, [tasks, archive, settings.group_by, lists, tags, sections, today, collapsedGroups, collapsedTasks, fold, extByGroup])
+  }, [filteredTasks, archive, settings.group_by, lists, tags, sections, today, collapsedGroups, collapsedTasks, fold, extByGroup])
   const groupOf = useMemo(() => {
     const g = grouping(settings.group_by, lists, today, tags, sections)
     return (t: TaskRow) => (t.pinned_at ? PINNED_GROUP.id : g.of(t))
@@ -172,6 +221,7 @@ export function TaskListView(props: Props) {
   const doneCollapsed = collapsedGroups.has('done')
   const visible = useMemo(() => [...flat.map((r) => r.task), ...(showDone && !doneCollapsed ? doneShown : [])], [flat, showDone, doneCollapsed, doneShown])
   const visibleIds = useMemo(() => visible.map((t) => t.id), [visible])
+  const bigPick = useBigPick(!archive && !view.startsWith('search'), tasks, visibleIds, today) // 31 §10.3 ① 큰 일 칩(한 목록에 하나)
   const byId = useMemo(() => new Map(visible.map((t) => [t.id, t])), [visible])
 
   // ── 선택(02 §7) ──
@@ -486,8 +536,8 @@ export function TaskListView(props: Props) {
     window.addEventListener('pointerup', up)
   }
 
-  const empty = tasks && tasks.length === 0 && (!showDone || doneTasks.length === 0) && extEvents.length === 0
-  const allDone = tasks && tasks.length === 0 && showDone && doneTasks.length > 0 && extEvents.length === 0
+  const empty = filteredTasks && filteredTasks.length === 0 && (!showDone || doneTasks.length === 0) && extEvents.length === 0
+  const allDone = filteredTasks && filteredTasks.length === 0 && showDone && doneTasks.length > 0 && extEvents.length === 0
   const menuTasks = menu ? (menu.ids.map((id) => byId.get(id)).filter(Boolean) as TaskRow[]) : []
   const dragTitle = drag ? (drag.ids.length > 1 ? `${drag.ids.length}개 태스크` : (byId.get(drag.ids[0])?.title ?? '')) : ''
 
@@ -501,6 +551,8 @@ export function TaskListView(props: Props) {
         hasChildren={r.hasChildren}
         collapsed={collapsedTasks.has(t.id)}
         tags={tags}
+        hideTagId={view.startsWith('tag:') ? view.slice(4) : undefined}
+        bigChip={bigPick?.id === t.id ? bigPick.kind : undefined}
         today={today}
         showList={viewShowsListName(view)}
         showDetails={settings.show_details === 1}
@@ -527,12 +579,21 @@ export function TaskListView(props: Props) {
   }
 
   return (
+    <LinkIndexProvider tags={tags} lists={lists}>
     <main ref={mainRef} tabIndex={-1} onPointerDownCapture={(e)=>{if(!(e.target as HTMLElement).closest('input,textarea,select,[contenteditable],button'))mainRef.current?.focus({preventScroll:true})}} className="list" data-list-target={view.startsWith('list:')?view.slice(5):undefined}>
       <header className="pane-header">
         <button className="icon-btn" onClick={onToggleSidebar} aria-label="사이드바 접기 (⌘\)"><PanelLeft /></button>
-        <h1 className="pane-header__title">{title}</h1>
+        <h1 className="pane-header__title">
+          {view.startsWith('tag:') ? <TagHeading tagId={view.slice(4)} fallback={title} /> : title}
+          {tagFilter.length > 0 && (
+            <span className="wiki-filter">· {tagFilter.map((id) => `#${tags.find((t) => t.id === id)?.name ?? ''}`).join(' ')}
+              <button aria-label="거르기 해제 (Esc)" title="거르기 해제 (Esc)" onClick={() => setTagFilter([])}><X /></button>
+            </span>
+          )}
+        </h1>
         {!archive && (
           <div className="pane-header__actions">
+            {pageView && <button className={`icon-btn${pageOpen ? ' is-on' : ''}`} aria-label="페이지 정보 (⌘⇧I)" title="페이지 정보 (⌘⇧I)" aria-pressed={pageOpen} onClick={() => setPageOpen(!pageOpen)}><PanelTop /></button>}
             <button ref={sortRef} className="icon-btn" aria-label="그룹·정렬" onClick={() => setHeaderMenu(headerMenu === 'sort' ? undefined : 'sort')}><ArrowUpDown /></button>
             <button ref={moreRef} className="icon-btn" aria-label="리스트 메뉴" onClick={() => setHeaderMenu(headerMenu === 'more' ? undefined : 'more')}><MoreHorizontal /></button>
           </div>
@@ -586,14 +647,22 @@ export function TaskListView(props: Props) {
           <MenuItem label="삭제" onClick={() => { const id = sectionMenu.id; setSectionMenu(undefined); void deleteSection(id, (tasks ?? []).filter((t) => t.section_id === id).map((t) => t.id)) }} />
         </Popover>
       )}
+      {pageView && <PageHeader view={pageView} lists={lists} open={pageOpen} forced={pageOpen} onOpen={setPageOpen} filter={tagFilter} onFilter={setTagFilter} narrow={narrowList} />}
       {!archive && (inboxId || view.startsWith('list:')) && (
         <AddBar
-          placeholder={addbarPlaceholder(view)}
+          placeholder={view.startsWith('tag:') ? `"#${tags.find((t) => t.id === view.slice(4))?.name ?? ''}"에 할 일 추가` : addbarPlaceholder(view)}
           lists={lists}
           tags={tags}
           onCreate={async (title, content, schedule, priority, extra) => {
             const defaults = newTaskDefaults(view, inboxId ?? '')
-            const id = await createTask({ title, ...defaults, ...(extra?.list_id ? { list_id: extra.list_id } : {}), priority })
+            // 33 §6.3-4: 기본함으로 가는 새 할 일에 [[리스트]] 하나만 있으면 그 리스트로(토스트 ⟲)
+            const target = !extra?.list_id && defaults.list_id === inboxId ? extra?.moveTo : undefined
+            const id = await createTask({ title, ...defaults, ...(extra?.list_id ? { list_id: extra.list_id } : target ? { list_id: target } : {}), priority })
+            if (target) {
+              const l = lists.find((x) => x.id === target)
+              const n = l?.name ?? ''
+              toast.show(`'${n}'${ro(n).slice(n.length)} 옮겼어요`, () => updateTask(id, { list_id: inboxId, section_id: null }))
+            }
             if (content) await updateTask(id, { content })
             if (schedule?.due_at) await actions.applySchedule([id], schedule)
             for (const tagId of extra?.tag_ids ?? []) if (tagId !== defaults.tag_id) await setTag([id], tagId, true)
@@ -613,9 +682,11 @@ export function TaskListView(props: Props) {
       <div className="list__scroll" ref={scrollRef} onPointerDown={startBox}>
         {view === 'smart:inbox' && <InboxSuggestCard />}{/* 30 §B 기본함 정리·AI 제안 카드 */}
         {view === 'smart:today' && <YesterdayBand today={today} onMove={(ids) => void actions.moveDates(ids, today, `어제 못 한 ${ids.length}개를 오늘로 옮겼어요`)} />}
+        {view === 'smart:today' && <TodayMoments today={today} onPick={(id) => onSelectionChange([id])} />}{/* 31 §10.3 ②③ ⚡ 줄 · 이번 주 돌아보기 */}
         {empty && (
           view === 'smart:today' ? <EmptyState title="오늘 할 일이 없어요" hint="입력창을 눌러 추가하세요" />
             : archive ? <EmptyState title={view === 'smart:trash' ? '휴지통이 비어 있어요' : '태스크가 없어요'} />
+              : view.startsWith('tag:') && !tagFilter.length ? (() => { const n = tags.find((t) => t.id === view.slice(4))?.name ?? ''; return <EmptyState title="아직 이 태그가 붙은 할 일이 없어요" hint={`#${n} 이나 [[${n}]] 을 써 보세요`} /> })()
               : <EmptyState title="할 일이 없어요" hint="입력창을 눌러 추가하세요" />
         )}
         {allDone && <EmptyState variant="done" title="모두 완료했어요" />}
@@ -648,7 +719,7 @@ export function TaskListView(props: Props) {
               </div>
             )}
             {g.id === 'overdue' && (view === 'smart:today' || view === 'smart:all') && !collapsedGroups.has(g.id) && <OverdueCard today={today} />}
-            {!collapsedGroups.has(g.id) && extByGroup.get(g.id)?.map((e) => <ExtListRow key={e.key} ev={e} today={today} />)}
+            {!collapsedGroups.has(g.id) && extByGroup.get(g.id)?.map(renderEv)}
             {g.rows.map(renderRow)}
             {g.id === 'overdue' && !!g.folded && !collapsedGroups.has(g.id) && <FoldRow count={g.folded} />}
           </section>
@@ -657,10 +728,10 @@ export function TaskListView(props: Props) {
           <section className="group">
             <div className="group__header" onClick={() => toggleGroup('ext')}>
               <ChevronDown className={`group__chevron${collapsedGroups.has('ext') ? ' is-collapsed' : ''}`} />
-              <span className="group__name">구독 캘린더</span>
+              <span className="group__name">{extByGroup.get('ext')!.some((e) => !e.ext) ? '일정' : '구독 캘린더'}</span>
               <span className="group__count">{extByGroup.get('ext')!.length}</span>
             </div>
-            {!collapsedGroups.has('ext') && extByGroup.get('ext')!.map((e) => <ExtListRow key={e.key} ev={e} today={today} />)}
+            {!collapsedGroups.has('ext') && extByGroup.get('ext')!.map(renderEv)}
           </section>
         )}
         {showDone && doneTasks.length > 0 && (
@@ -720,6 +791,7 @@ export function TaskListView(props: Props) {
         <DatePicker initial={picker.initial} point={picker.point} anchor={picker.anchor} onSave={(s) => void actions.applySchedule(picker.ids, s)} onClose={() => setPicker(undefined)} />
       )}
     </main>
+    </LinkIndexProvider>
   )
 }
 
@@ -769,7 +841,7 @@ function PostponeLink({ ids, today, actions }: { ids: string[]; today: string; a
 
 /** 02 §4·§0 추가 바: 포커스되면 강조색 테두리 + 오른쪽 📅(날짜 선택기) · ⌄(우선순위).
  *  자연어 인식(02 §4): 날짜·시각 문구 하이라이트 + 결과 칩(문구는 제목에 남김), #태그(없으면 새로 만듦) · ~리스트 · !우선순위 */
-type AddExtra = { list_id?: string; tag_ids?: string[] }
+type AddExtra = { list_id?: string; tag_ids?: string[]; moveTo?: string }
 function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; lists: ListRow[]; tags: TagRow[]; onCreate: (title: string, content?: string, schedule?: Schedule, priority?: number, extra?: AddExtra) => Promise<void> }) {
   const input = useRef<HTMLInputElement>(null)
   const desc = useRef<HTMLTextAreaElement>(null)
@@ -796,7 +868,7 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
     saving.current = true
     try {
       const tagIds = p ? [...p.tag_ids, ...(await ensureTags(p.newTags))] : []
-      await onCreate(title, desc.current?.value.trim() || undefined, schedule ?? inferred, priority || p?.priority || undefined, { list_id: p?.list_id, tag_ids: tagIds })
+      await onCreate(title, desc.current?.value.trim() || undefined, schedule ?? inferred, priority || p?.priority || undefined, { list_id: p?.list_id, tag_ids: tagIds, moveTo: p ? linkMoveTarget(p, tags, lists) : undefined })
     } finally { saving.current = false }
     setRaw('')
     setScroll(0)
@@ -830,6 +902,7 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
             onScroll={(e) => setScroll(e.currentTarget.scrollLeft)}
             onKeyDown={(e) => {
               if (e.nativeEvent.isComposing) return // 한글 조합 중 Enter 무시
+              if (e.defaultPrevented) return // 33 §6.2 자동 완성이 키를 가져감
               if (e.key === 'Enter' && e.shiftKey) {
                 e.preventDefault()
                 setDescOpen(true)
@@ -843,6 +916,7 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
               }
             }}
           />
+          <WikiComplete target={input} />
         </span>
         {chip && (
           <button className={`addbar__chip is-${chip.tone}`} title="눌러서 인식 해제" onMouseDown={(e) => e.preventDefault()} onClick={() => { setRecognition(false); input.current?.focus() }}>

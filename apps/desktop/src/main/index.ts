@@ -75,6 +75,11 @@ async function openLink(url: string) {
   else if (/^sprout:\/\/quick-add\/?$/.test(url)) win.webContents.send('desktop:quick-add') // 25 위젯 `+` = ⌃⇧A와 같은 빠른 추가
   else if (/^sprout:\/\/growth\/?$/.test(url)) showView(win, 'growth') // 25 캐릭터 위젯
   else if (/^sprout:\/\/today\/?$/.test(url)) showView(win, 'tasks', 'smart:today') // 25 오늘 할 일 위젯 머리·"+N개 더"
+  else if (/^sprout:\/\/map\/?(\?.*)?$/.test(url)) { // 31 §10.4 sprout://map?mode=plan|review|tidy&task=<id>
+    const q = new URLSearchParams(url.split('?')[1] ?? '')
+    const mode = q.get('mode'); const task = q.get('task')
+    win.webContents.send('desktop:navigate', { view: 'map', ...(mode && /^(plan|review|tidy)$/.test(mode) ? { mode } : {}), ...(task && /^[\w-]{1,100}$/.test(task) ? { task } : {}) })
+  }
 }
 /** 레일 보기 전환(25 §14): 렌더러가 `desktop:navigate`를 받아 보기·목록만 바꾼다(다시 불러오지 않아 깜빡이지 않음) */
 function showView(win: BrowserWindow, view: string, selected?: string) {

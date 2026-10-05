@@ -23,7 +23,8 @@ export const viewShowsListName = (view: ViewKey) => !viewIsList(view)
 /** 02 §3 기본값: 일반 리스트 = Custom(섹션 — 아직 없으므로 None)/Date, 나머지 = Time/Date. Show Completed 기본 켬. */
 export function defaultSettings(view: ViewKey): ViewSettings {
   // 02 §0 실측: 일반 리스트 기본 정렬은 사용자 지정(새 태스크가 맨 위)
-  return { group_by: viewIsList(view) ? 'custom' : 'time', sort_by: viewIsList(view) ? 'custom' : 'date', sort_dir: 'asc', show_completed: 1, show_details: 0 }
+  // 33 §4.1: 태그 화면(태그 페이지) 기본 그룹 = 리스트
+  return { group_by: viewIsList(view) ? 'custom' : view.startsWith('tag:') ? 'list' : 'time', sort_by: viewIsList(view) ? 'custom' : 'date', sort_dir: 'asc', show_completed: 1, show_details: 0 }
 }
 /** 02 §0 실측: 메뉴에 보이는 그룹·정렬 값(일반 리스트 / 스마트 리스트) */
 export const groupOptions = (view: ViewKey): GroupBy[] => (viewIsList(view) ? ['custom', 'time', 'tag', 'priority', 'none'] : ['list', 'time', 'tag', 'priority', 'none'])
@@ -41,7 +42,7 @@ function scope(view: ViewKey, mode: 'open' | 'done', today: string): { where: st
   if (kind === 'filter') return filterScope(id,today,dayKey(1,new Date(`${today}T00:00`)),dayKey(6,new Date(`${today}T00:00`)))
   if (kind === 'folder') return { where: 'l.folder_id = ? AND l.archived_at IS NULL', params: [id] }
   if (kind === 'list') return { where: 't.list_id = ?', params: [id] }
-  if (kind === 'tag') return { where: 'EXISTS (SELECT 1 FROM task_tags tt WHERE tt.task_id = t.id AND tt.tag_id = ?)', params: [id] }
+  if (kind === 'tag') return { where: "EXISTS (SELECT 1 FROM task_tags tt WHERE tt.task_id = t.id AND tt.tag_id = ? AND COALESCE(tt.state, 'accepted') = 'accepted')", params: [id] }
   switch (id) {
     case 'today':
       return mode === 'open'
@@ -65,7 +66,7 @@ function orderBy(s: ViewSettings): string {
     case 'custom': return 't.sort_order, t.created_at'
     case 'title': return `t.title COLLATE NOCASE ${dir}, t.sort_order`
     case 'tag': {
-      const first = '(SELECT MIN(tg.name) FROM task_tags tt JOIN tags tg ON tg.id = tt.tag_id WHERE tt.task_id = t.id)'
+      const first = "(SELECT MIN(tg.name) FROM task_tags tt JOIN tags tg ON tg.id = tt.tag_id WHERE tt.task_id = t.id AND COALESCE(tt.state, 'accepted') = 'accepted')"
       return `${first} IS NULL, ${first}, ${byDate}, t.sort_order`
     }
     default: return `${byDate}, t.priority DESC, t.sort_order`

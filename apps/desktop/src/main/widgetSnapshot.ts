@@ -8,6 +8,7 @@ import { defaultSettings, openTasksSql } from '../renderer/src/data/views'
 import { rowDateLabel, timeGroup } from '../renderer/src/lib/dates'
 import { findTheme, parseTheme } from '../renderer/src/data/theme'
 import type { TaskRow } from '../renderer/src/data/types'
+import { displayTitle } from '@sprout/schema/wikiLink'
 
 export const SNAPSHOT_SCHEMA = 1
 /** 위젯에 넘기는 할 일 최대 수(크게 13행 + 여유, §8.3) */
@@ -79,7 +80,7 @@ export function todayItems(rows: TaskRow[], today: string): WidgetTask[] {
     const date = rowDateLabel(t, today)
     return {
       id: t.id,
-      title: t.title || '제목 없음',
+      title: displayTitle(t.title) || '제목 없음', // 33 §6.6
       priority: Math.max(0, Math.min(3, Number(t.priority) || 0)),
       depth,
       label: date?.label ?? null,
