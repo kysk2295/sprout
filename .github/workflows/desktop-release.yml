@@ -41,7 +41,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: mac
-          path: apps/desktop/release/Kkumteul-mac-*.dmg
+          path: apps/desktop/release-public/Kkumteul-mac-*.dmg
           if-no-files-found: error
 
   win:
@@ -61,7 +61,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: win
-          path: apps/desktop/release/Kkumteul-windows-*-setup.exe
+          path: apps/desktop/release-public/Kkumteul-windows-*-setup.exe
           if-no-files-found: error
 
   release:

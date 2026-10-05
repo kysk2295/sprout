@@ -3,6 +3,7 @@ dist/
 out/
 # 패키징 산출물(electron-builder: apps/desktop/release/)
 apps/desktop/release/
+apps/desktop/release-public/
 .vite/
 .webpack/
 *.log

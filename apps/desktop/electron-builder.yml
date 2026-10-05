@@ -60,7 +60,11 @@ afterPack: build/after-pack.cjs
 
 mac:
   category: public.app-category.productivity
+  # 제외만 적으면 electron-builder가 "**/*"를 앞에 붙여 앱 폴더 전체(node_modules/electron의 Electron.app까지)를 넣다가
+  # 심볼릭 링크에서 ENOENT로 깨진다(2026-10-05 확인) → 위쪽과 같은 포함 패턴을 다시 적는다
   files:
+    - out/**
+    - package.json
     - "!**/node_modules/@powersync/node/lib/*.dll"
     - "!**/node_modules/better-sqlite3/prebuilds/win32-*.node"
   extraResources:
@@ -103,6 +107,8 @@ win:
   icon: build/icon.ico
   # 맥 전용 바이너리(PowerSync .dylib, better-sqlite3 darwin 프리빌드)는 Windows 설치 파일에서 뺀다
   files:
+    - out/**
+    - package.json
     - "!**/node_modules/@powersync/node/lib/*.dylib"
     - "!**/node_modules/better-sqlite3/prebuilds/darwin-*.node"
 
