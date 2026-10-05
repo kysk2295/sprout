@@ -86,7 +86,16 @@
 
 
 ### 4-1. 친구(애플 개발자 계정)에게 부탁할 것 — 2026-10-05
-1. **아이폰 앱 출시 (필수):** 위 표의 [친구] 항목 → `SPROUT_APPLE_SIGN_IN=1 SPROUT_APPLE_TEAM_ID=<팀 ID> npx expo prebuild --platform ios` → Xcode 아카이브 → TestFlight → App Store Connect 등록(설명 [store/listing.md](store/listing.md), 개인정보 [store/privacy-answers.md](store/privacy-answers.md), 스크린샷 [store/screenshots.md](store/screenshots.md)) → 심사 제출(데모 계정은 사용자가 만들어 전달).
+1. **아이폰 앱 출시 (필수):** 위 표의 [친구] 항목 → 아래 순서 → TestFlight → App Store Connect 등록(설명 [store/listing.md](store/listing.md), 개인정보 [store/privacy-answers.md](store/privacy-answers.md), 스크린샷 [store/screenshots/ios/](store/screenshots/ios/)) → 심사 제출(메모·데모 계정 [store/review-notes.md](store/review-notes.md), 비밀번호는 사용자가 따로 전달).
+   ```bash
+   git clone … && cd sprout && . scripts/node22.sh && npm install      # Node 22 (시스템 Node 26 금지)
+   cd apps/mobile
+   SPROUT_APPLE_SIGN_IN=1 SPROUT_APPLE_TEAM_ID=<팀 ID> npx expo prebuild --platform ios --clean
+   open ios/app.xcworkspace   # 스킴 app · Any iOS Device · Product › Archive → Distribute › App Store Connect
+   ```
+   - `.env.local`은 **필요 없다**(구글 클라이언트 id는 공개 값이라 `app.config.ts` 기본값). 서버 주소도 `app.json` `extra`에 들어 있다.
+   - 서명: 타깃 3개(app·SproutShare·SproutWidget) 모두 Signing & Capabilities에서 팀 선택(자동 서명). App ID 3개(`app.sprout.mobile`·`.share`·`.widget`)에 App Group `group.app.sprout.mobile`, 본 앱에는 Sign in with Apple·Push Notifications(권한 파일에 `aps-environment`가 있음 — 서버 푸시는 아직 안 씀)도 켠다.
+   - 2026-10-05 이 맥에서 서명 없이 Release(`-sdk iphoneos`) 빌드 성공 확인: Hermes JS 번들 포함, 위젯·공유 확장 포함, 버전 1.0.0(1), 표시 이름 꿈틀.
 2. **애플 로그인 키 (필수):** Keys에서 Sign in with Apple 키 만들기 + Identifiers에서 Services ID 만들기(반환 URL `https://macmini.tail425c97.ts.net/auth/apple/callback`).
 3. **아이폰 푸시 키 APNs (선택):** Keys에서 APNs 키(.p8) → Firebase 프로젝트 `sprout-510614` › 클라우드 메시징 › Apple 앱 구성에 올리기. 없으면 아이폰은 폰 안 예약 알림만.
 4. **맥 앱 서명 Developer ID (선택):** dmg 배포용. 없으면 "확인되지 않은 개발자" 경고. [packaging.md](packaging.md) §3-1.

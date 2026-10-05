@@ -25,7 +25,7 @@ On the first screen, enter the email and password above and tap "로그인" (Log
 - Tasks tab > Today: today's tasks with priorities, one completed
 - Calendar tab: tasks and events for this month, Korean public holidays
 - More > Work Map: two projects ("제주 가족 여행", "포트폴리오 사이트") with ordered steps
-- Growth tab: a level 7 character, this week's goals
+- Growth tab: a level 6 character, this week's goals
 
 SIGN IN
 Email/password, Sign in with Apple and Google Sign-In are all available on the first screen. Sign in with Apple is offered as an equivalent option to Google Sign-In (Guideline 4.8).
@@ -48,6 +48,9 @@ Notifications only (task reminders, scheduled on the device). The app does not a
 SHARE EXTENSION
 From another app's share sheet, choose "꿈틀" to save text or a link to the app's Inbox (requires being logged in).
 
+WIDGETS
+Home Screen widgets show today's tasks, the month calendar and the character. They read data that the app saves on the device (App Group) and do not use the network.
+
 Contact: kysk2295@naver.com
 ```
 
@@ -55,4 +58,4 @@ Contact: kysk2295@naver.com
 - [ ] Mac mini 서버가 켜져 있고 `https://macmini.tail425c97.ts.net/health`가 `{"ok":true}` — 심사 기간 내내(잠자기 끔)
 - [ ] 위 계정으로 실기기(TestFlight)에서 로그인되는지 한 번 확인
 - [ ] Apple 로그인 버튼이 진짜로 동작(빌드할 때 `SPROUT_APPLE_SIGN_IN=1`, 서버 `.env`에 Apple 키 값) — 안 되면 위 "SIGN IN" 문단과 맞지 않으니 제출하지 않는다
-- [ ] 위젯 확장을 넣고 빌드했다면 "SHARE EXTENSION" 아래에 위젯 한 줄을 더한다
+- [ ] 위젯 확장(`app.sprout.mobile.widget`)·공유 확장(`app.sprout.mobile.share`) App ID에도 App Group `group.app.sprout.mobile`을 켰다
