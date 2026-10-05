@@ -38,8 +38,9 @@ Claude는 이 문서와 [CLAUDE.md](../../CLAUDE.md)·[HANDOFF.md](../../HANDOFF
 . scripts/node22.sh
 cd apps/mobile
 SPROUT_APPLE_SIGN_IN=1 SPROUT_APPLE_TEAM_ID=<팀 ID> npx expo prebuild --platform ios --clean
-open ios/*.xcworkspace     # Signing & Capabilities에서 팀 선택 → Product › Archive → TestFlight 업로드
+open ios/*.xcworkspace     # 타깃 3개(앱·SproutShare·SproutWidget) 모두 Signing & Capabilities에서 팀 선택(자동 서명) → Product › Archive → App Store Connect 업로드
 ```
+- 앱 App ID에는 **Push Notifications도 켜야** 서명됩니다(권한 파일에 `aps-environment`가 있음).
 - 버전 1.0.0 / 빌드 1. 다시 올릴 때는 빌드 번호만 올립니다(`app.json`의 `ios.buildNumber`).
 - 앱은 운영 서버(`https://macmini.tail425c97.ts.net`)에 붙습니다. 서버 쪽 설정은 필요 없습니다.
 
@@ -55,9 +56,9 @@ open ios/*.xcworkspace     # Signing & Capabilities에서 팀 선택 → Product
 ## 6. App Store Connect
 - 이름 **꿈틀**, 부제·설명·키워드: [store/listing.md](store/listing.md)
 - 개인정보(영양 성분표): [store/privacy-answers.md](store/privacy-answers.md)
-- 스크린샷: [store/screenshots](store/screenshots) (6.9"·6.5", 아이폰 전용)
+- 스크린샷: [store/screenshots/ios](store/screenshots/ios) — `6.9/`·`6.5/` 각 6장, 캡션 `captions.md` (아이폰 전용, iPad 없음)
 - 지원 URL `https://web-production-cd889.up.railway.app/support`, 개인정보 처리방침 `…/privacy`
-- 심사 메모(영문): [store/review-notes.md](store/review-notes.md). 데모 계정 비밀번호는 주인에게 따로 받습니다.
+- 심사 메모(영문): [store/review-notes.md](store/review-notes.md). 데모 계정 비밀번호는 주인에게 따로 받습니다. 데모 데이터는 2026-10-05 기준이라 심사가 늦어지면 주인에게 새로 넣어 달라고 합니다.
 - 심사 기간에는 주인 맥미니 서버가 켜져 있어야 합니다(AI·동기화). 제출 전에 주인에게 알려 주세요.
 
 ## 7. 막히면
