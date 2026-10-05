@@ -3,6 +3,7 @@
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
 ## ★ 2026-10-05 새벽 요약 (가장 최신 — 아래 표보다 우선)
+- **데스크톱 내려받기(2026-10-05 밤):** 사이트 Mac·Windows 버튼 = GitHub Release `desktop-v1.0.0`(kysk2295/sprout, `releases/latest/download/Kkumteul-mac-arm64.dmg`·`-mac-x64.dmg`·`-windows-x64-setup.exe`, 이름 고정). 서명 없음(맥 ad-hoc·위젯 없음 → 그래도 열기, Windows SmartScreen → 추가 정보 › 실행), 자동 업데이트 없음. CI `.github/workflows/desktop-release.yml`은 있으나 **GitHub 계정 결제 잠금으로 Actions가 안 돎** → 1.0.0은 이 Mac에서 세 파일 다 만듦. 절차·한계: [docs/release/desktop-download.md](docs/release/desktop-download.md).
 - **서버:** Mac mini + Tailscale Funnel `https://macmini.tail425c97.ts.net`(API)·`:8443`(PowerSync). 이 맥북 서버는 꺼 둠(`server/` compose stop, 데이터 그대로). 적용됨: identities(소셜), 로그인 시도 제한, 계정 삭제, 계정 연결(/auth/link), AI JSON 모양 지시. 구글 로그인 켜짐(Google Cloud 프로젝트 `sprout-510614`, 데스크톱 클라이언트 값은 `~/.config/sprout/google.env`, 서버 .env `GOOGLE_CLIENT_IDS`). 애플은 계정 준비 전.
 - **앱 실행:** `set -a; . ~/.config/sprout/google.env; set +a` 후 `npx electron-vite dev --remoteDebuggingPort 9229`. 9229 = 사용자 앱(E2E 금지).
 - **구조 결정:** 리스트와 AI 정리 하나로(30 확정) — 작업 지도 = 폴더 › 리스트 › 할 일, AI는 리스트 구조 제안(승인)·새 할 일 확실하면 자동 이동/애매하면 칩. AI 사용량(J) 기획 제외·코드 삭제. 주 시작 월요일. 추가 바도 날짜 문구 제거. 모바일 v1 = 데스크톱 기능 전부(20 D11).
