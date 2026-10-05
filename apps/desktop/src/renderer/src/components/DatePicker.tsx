@@ -20,6 +20,8 @@ type Props = {
   point?: { x: number; y: number }
   /** 'date-only': 날짜만 고른다(미루기 › 날짜 지정 등). 결과는 due_at의 날짜만 쓴다 */
   variant?: 'full' | 'date-only'
+  /** 16 §12.5 캐시 전용 외부 일정: 알림·반복 줄을 숨긴다(날짜·기간·종일만) */
+  datesOnly?: boolean
   onSave: (s: Schedule) => void
   onClose: () => void
 }
@@ -29,7 +31,7 @@ export const EMPTY_SCHEDULE: Schedule = { start_at: null, due_at: null, is_all_d
 const WEEK = ['월', '화', '수', '목', '금', '토', '일'] // 주 시작 = 월요일(2026-10-05 사용자 결정, 앱 전체 통일)
 const SLOTS = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`)
 
-export function DatePicker({ initial, anchor, point, variant = 'full', onSave, onClose }: Props) {
+export function DatePicker({ initial, anchor, point, variant = 'full', datesOnly, onSave, onClose }: Props) {
   const [d, setD] = useState<Schedule>(initial)
   const [tab, setTab] = useState<'date' | 'duration'>(initial.start_at ? 'duration' : 'date')
   const [panel, setPanel] = useState<Panel>(null)
@@ -156,13 +158,13 @@ export function DatePicker({ initial, anchor, point, variant = 'full', onSave, o
               {full && (
                 <div className="dp__rows">
                   <Row icon={<Clock />} label="시간" value={hasTime(d.due_at) ? formatTimeKo(timePart(d.due_at!)!) : undefined} onOpen={() => setPanel('time')} onClear={() => setTime(null)} />
-                  <Row icon={<AlarmClock />} label="알림" value={reminderText || undefined} onOpen={() => setPanel('reminder')} onClear={() => setD((p) => ({ ...p, reminders: [] }))} />
-                  <Row icon={<Repeat />} label="반복" value={rule ? ruleSummary(rule, sel) : undefined} onOpen={() => setPanel('repeat')} onClear={() => setD((p) => ({ ...p, repeat_rule: null, repeat_from: null }))} />
+                  {!datesOnly && <Row icon={<AlarmClock />} label="알림" value={reminderText || undefined} onOpen={() => setPanel('reminder')} onClear={() => setD((p) => ({ ...p, reminders: [] }))} />}
+                  {!datesOnly && <Row icon={<Repeat />} label="반복" value={rule ? ruleSummary(rule, sel) : undefined} onOpen={() => setPanel('repeat')} onClear={() => setD((p) => ({ ...p, repeat_rule: null, repeat_from: null }))} />}
                 </div>
               )}
             </>
           ) : (
-            <DurationTab d={d} setD={setD} reminderText={reminderText} ruleText={rule ? ruleSummary(rule, sel) : ''} onReminder={() => setPanel('reminder')} onRepeat={() => setPanel('repeat')} />
+            <DurationTab d={d} setD={setD} reminderText={reminderText} ruleText={rule ? ruleSummary(rule, sel) : ''} onReminder={() => setPanel('reminder')} onRepeat={() => setPanel('repeat')} datesOnly={datesOnly} />
           )}
           <div className="dp__actions">
             <button className="dp__clear" onClick={() => save(EMPTY_SCHEDULE)}>삭제</button>
@@ -447,8 +449,8 @@ function RepeatCustom({ anchorDate, rule, from, onApply, onBack }: { anchorDate:
 }
 
 /** 03 §4 기간 탭 */
-function DurationTab({ d, setD, reminderText, ruleText, onReminder, onRepeat }: {
-  d: Schedule; setD: React.Dispatch<React.SetStateAction<Schedule>>; reminderText: string; ruleText: string; onReminder: () => void; onRepeat: () => void
+function DurationTab({ d, setD, reminderText, ruleText, onReminder, onRepeat, datesOnly }: {
+  d: Schedule; setD: React.Dispatch<React.SetStateAction<Schedule>>; reminderText: string; ruleText: string; onReminder: () => void; onRepeat: () => void; datesOnly?: boolean
 }) {
   const allDay = !hasTime(d.due_at)
   const start = d.start_at ?? d.due_at ?? dayKey()
@@ -502,8 +504,8 @@ function DurationTab({ d, setD, reminderText, ruleText, onReminder, onRepeat }: 
         <option value="floating">유동 시간 (Floating)</option>
       </select>
       <div className="dp__rows">
-        <Row icon={<AlarmClock />} label="알림" value={reminderText || undefined} onOpen={onReminder} onClear={() => setD((p) => ({ ...p, reminders: [] }))} />
-        <Row icon={<Repeat />} label="반복" value={ruleText || undefined} onOpen={onRepeat} onClear={() => setD((p) => ({ ...p, repeat_rule: null, repeat_from: null }))} />
+        {!datesOnly && <Row icon={<AlarmClock />} label="알림" value={reminderText || undefined} onOpen={onReminder} onClear={() => setD((p) => ({ ...p, reminders: [] }))} />}
+        {!datesOnly && <Row icon={<Repeat />} label="반복" value={ruleText || undefined} onOpen={onRepeat} onClear={() => setD((p) => ({ ...p, repeat_rule: null, repeat_from: null }))} />}
       </div>
     </div>
   )

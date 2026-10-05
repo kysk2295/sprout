@@ -193,14 +193,14 @@ export function TimeGrid(p: Props) {
       const listId = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('[data-list-target]')?.dataset.listTarget
       if (listId) { p.onMoveToList(p.selection.includes(it.task.id) ? p.selection : [it.task.id], listId); return }
       const group = p.selection.includes(it.task.id) ? p.itemsById(p.selection) : [it]
-      p.onMove(gridMoveChanges(group, it, { dayDelta: daysBetween(d.grabDate, d.date), zone: d.zone, min: d.min }, (g) => !!evtOf(g)), d.dup)
+      p.onMove(gridMoveChanges(group, it, { dayDelta: daysBetween(d.grabDate, d.date), zone: d.zone, min: d.min }, (g) => !!evtOf(g) || !!extOf(g)), d.dup)
     }
   }
 
   // ── 끄는 동안 그릴 미리 보기: 원래 항목과 같은 모양(Item)을 놓일 자리에 그린다. 원래 자리는 옅게(옮기기) / 숨김(길이 바꾸기) ──
   const preview = ((): { item: CalItem; live: boolean; key: string } | undefined => {
     if (drag?.kind === 'move' && drag.moved && !drag.item.virtual) {
-      const c = gridMoveChanges([drag.item], drag.item, { dayDelta: daysBetween(drag.grabDate, drag.date), zone: drag.zone, min: drag.min }, (g) => !!evtOf(g))[0]
+      const c = gridMoveChanges([drag.item], drag.item, { dayDelta: daysBetween(drag.grabDate, drag.date), zone: drag.zone, min: drag.min }, (g) => !!evtOf(g) || !!extOf(g))[0]
       return { item: previewOf(drag.item, c), live: false, key: drag.item.key }
     }
     if (drag?.kind === 'resize' && drag.moved) {
@@ -377,7 +377,8 @@ export function Item({ item, kind, contLeft, contRight, edges, onDown, ...p }: C
   const detailedStyle = p.itemStyle === 'detailed'
   const detailed = !ext && !evt && (detailedStyle || !!p.showIcons)
   const calIcon = (!!ext || !!evt) && (detailedStyle || !!p.showCalIcons)
-  const editable = !item.virtual && !ext
+  const editable = !item.virtual && (!ext || ext.writable) // 16 §12.6 쓸 수 있는 외부 일정은 끌고 길이를 바꾼다
+  const lockedExt = !!ext && !ext.writable
   // 06 §7.2 가장자리 끌기: 시간 칸 블록 = 위·아래(한 점 막대는 아래만 — 늘리면 기간), 막대 = 왼쪽·오른쪽(여러 날)
   const vEdges = editable && edges === 'vertical'
   const hEdges = editable && edges === 'horizontal' && kind === 'bar'
@@ -387,12 +388,12 @@ export function Item({ item, kind, contLeft, contRight, edges, onDown, ...p }: C
     <div
       className={cls.filter(Boolean).join(' ')}
       style={{ ['--item-color' as string]: p.colorOf(item) }}
-      onPointerDown={ext ? extDown : onDown}
-      onClick={ext ? (e) => { e.stopPropagation(); p.onOpen(item, e.currentTarget.getBoundingClientRect()) } : undefined}
-      onDoubleClick={ext ? (e) => e.stopPropagation() : undefined}
+      onPointerDown={lockedExt ? extDown : onDown}
+      onClick={lockedExt ? (e) => { e.stopPropagation(); p.onOpen(item, e.currentTarget.getBoundingClientRect()) } : undefined}
+      onDoubleClick={lockedExt ? (e) => e.stopPropagation() : undefined}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); p.onContext(item, e) }}
       role={ext || evt ? 'button' : undefined}
-      aria-label={ext ? `${ext.provider === 'google' ? '구글' : 'Apple'} 일정: ${ext.title}, ${ext.allDay ? ext.start : timeText || ext.start}, 읽기 전용` : evt ? `일정: ${t.title || '제목 없음'}, ${item.allDay ? item.start : timeText || item.start}` : undefined}
+      aria-label={ext ? `${ext.provider === 'google' ? '구글' : 'Apple'} 일정: ${ext.title}, ${ext.allDay ? ext.start : timeText || ext.start}${ext.writable ? '' : ', 읽기 전용'}` : evt ? `일정: ${t.title || '제목 없음'}, ${item.allDay ? item.start : timeText || item.start}` : undefined}
     >
       {vEdges && kind === 'block' && <span className="cal-item__edge is-top" data-edge="top" />}
       {hEdges && !contLeft && <span className="cal-item__edge is-left" data-edge="start" />}

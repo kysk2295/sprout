@@ -105,3 +105,31 @@
 .ext-row.is-in-list .row__date:not(.is-today):not(.is-overdue) { color: var(--color-text-tertiary); }
 .ext-row.is-in-list.is-stale .ext-row__title { color: var(--color-text-tertiary); }
 .ext-row.is-in-list.is-stale { opacity: 1; }
+
+/* 16 §12 확인 대화(쓰기 권한·반복 범위·참석자 메일) */
+.cal-ask { width: 360px; padding: 22px 22px 16px; box-sizing: border-box; }
+.cal-ask h2 { margin: 0 0 10px; font: var(--text-body-strong); }
+.cal-ask p { margin: 0; font: var(--text-meta); color: var(--color-text-secondary); }
+.cal-ask footer { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
+.cal-ask footer button { padding: 6px 12px; border: 1px solid var(--color-border-divider); background: transparent; color: inherit; border-radius: 4px; }
+.cal-ask footer .entry-primary { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+.cal-scope__choices { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.cal-scope__choices button { width: 100%; padding: 8px 12px; border: 1px solid var(--color-border-divider); border-radius: 6px; background: transparent; color: var(--color-text-primary); font: var(--text-body); text-align: center; }
+.cal-scope__choices button:hover, .cal-scope__choices button:focus-visible { border-color: var(--color-accent); color: var(--color-accent); }
+/* 쓸 수 없는 이유 · 연결된 일정 오류(§12.2·§12.0.2) */
+.ext-card__why { margin: 0; font: var(--text-caption, 11px/16px var(--font-family)); color: var(--color-text-tertiary); }
+.ext-card__err { margin: 0; font: var(--text-caption, 11px/16px var(--font-family)); color: var(--color-text-danger); }
+/* 빠른 만들기 캘린더 고르기(§12.4.1) */
+.qc__target { display: inline-flex; align-items: center; gap: 6px; max-width: 200px; padding: 2px 6px; margin-left: -6px; border: 0; border-radius: 4px; background: transparent; color: var(--color-text-secondary); font: var(--text-meta); cursor: pointer; }
+.qc__target:hover { background: var(--color-bg-hover, rgba(0,0,0,.05)); }
+.qc__target i { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.qc__target span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qc__target svg { width: 12px; height: 12px; flex-shrink: 0; }
+.cal-target__dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.cal-target__need { margin-left: auto; font-size: 11px; color: var(--color-text-tertiary); }
+/* 사이드바 계정 목록 추가 바(§12.4.2) */
+.ext-agenda__add { display: flex; align-items: center; gap: 8px; margin: 4px 16px 8px; padding: 0 10px; height: 34px; border-radius: 6px; background: var(--color-bg-input, rgba(0,0,0,.04)); }
+.ext-agenda__add input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--color-text-primary); font: var(--text-body); outline: none; }
+.ext-agenda__add svg { width: 15px; height: 15px; color: var(--color-text-tertiary); }
+.ext-agenda__readonly { margin: 4px 16px 8px; font: var(--text-meta); color: var(--color-text-tertiary); }
+.ext-agenda__readonly button { border: 0; background: transparent; color: var(--color-accent); padding: 0 0 0 4px; font: inherit; }

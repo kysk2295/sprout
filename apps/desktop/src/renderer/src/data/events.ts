@@ -8,7 +8,15 @@ export interface EventRow extends EventRecord {
   time_zone: string | null
   created_at: string | null
   modified_at: string | null
+  // 16 §12.0 연결된 일정(구글·Apple에도 저장) — 데스크톱 메인의 다리가 맞춘다
+  ext_provider?: 'google' | 'apple' | null
+  ext_account?: string | null
+  ext_calendar?: string | null
+  ext_id?: string | null
+  ext_error?: string | null
 }
+/** 연결 대상 캘린더(빠른 만들기 고르기) */
+export interface EventLink { provider: 'google' | 'apple'; account: string; calendar: string; color: string }
 export type Restore = () => Promise<void>
 
 /** 캘린더 항목·선택 id에서 일정을 가리키는 앞붙이(태스크 id와 섞여도 구분) */
@@ -63,14 +71,15 @@ async function snapshotEvents(ids: string[]): Promise<Restore> {
   return () => run(...rows.map(({ id, ...rest }) => update('events', id as string, rest)))
 }
 
-export interface NewEvent { title: string; start_at: string | null; due_at: string; repeat_rule?: string | null; reminders?: string[]; notes?: string; location?: string }
+export interface NewEvent { title: string; start_at: string | null; due_at: string; repeat_rule?: string | null; reminders?: string[]; notes?: string; location?: string; link?: EventLink | null }
 /** 한 트랜잭션으로 만든다(06 §7.1 규칙). 시각 하나 = 1시간 */
 export async function createEvent(input: NewEvent): Promise<string> {
   if (!input.title.trim()) throw new Error('제목을 입력해 주세요.')
   const id = uuid()
   await run(insert('events', {
     id, title: input.title.trim(), notes: input.notes?.trim() || null, location: input.location?.trim() || null, ...eventSpan(input.start_at, input.due_at),
-    time_zone: 'floating', repeat_rule: input.repeat_rule ?? null, reminders: input.reminders?.length ? JSON.stringify(input.reminders) : null, color: null, deleted_at: null
+    time_zone: 'floating', repeat_rule: input.repeat_rule ?? null, reminders: input.reminders?.length ? JSON.stringify(input.reminders) : null, color: input.link?.color ?? null, deleted_at: null,
+    ...(input.link ? { ext_provider: input.link.provider, ext_account: input.link.account, ext_calendar: input.link.calendar } : {})
   }))
   return id
 }
@@ -105,7 +114,8 @@ export async function duplicateEvents(changes: { id: string; start_at: string | 
     if (!e) continue
     const copy = uuid()
     copies.push(copy)
-    const { id: _i, created_at: _c, modified_at: _m, ...rest } = e
+    // 연결된 일정의 복제는 같은 캘린더에 새 일정(외부 id·지문은 비운다 — 다리가 새로 올린다)
+    const { id: _i, created_at: _c, modified_at: _m, ext_id: _x, ext_etag: _t, ext_updated: _u, ext_hash: _h, ext_error: _r, ...rest } = e
     stmts.push(insert('events', { ...rest, id: copy, ...(c.due_at ? eventSpan(c.start_at, c.due_at) : {}) }))
   }
   await run(...stmts)

@@ -1,5 +1,5 @@
 import { RotateCcw } from 'lucide-react'
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 // 02 §0·§12: 아래 가운데 둥근 사각 토스트(모서리 8) + 주황 되돌리기 아이콘(약 2초). 02 §7: Cmd/Ctrl+Z는 마지막 동작을 되돌린다.
 type Undo = () => unknown
@@ -31,6 +31,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   // 토스트 없이 Cmd+Z로만 되돌릴 수 있게 등록(상세에서 바로 고친 값 등)
   const registerUndo = useCallback((undo: Undo) => { last.current = undo }, [])
   const value = useMemo(() => ({ show, undoLast, registerUndo }), [show, undoLast, registerUndo])
+  // 16 §12 캘린더 다리·쓰기 알림(메인 프로세스 → 화면): 충돌·올리기 실패
+  useEffect(() => window.sprout?.calendars?.onToast?.((t) => show(t.message, undefined, { ms: 4000 })), [show])
   return (
     <ToastCtx.Provider value={value}>
       {children}

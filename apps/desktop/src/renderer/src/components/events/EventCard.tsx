@@ -1,7 +1,7 @@
 import { ArrowRightLeft, CalendarDays, Clock, Copy, FileText, MapPin, PanelTopOpen, Repeat, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { eventToSchedule, MY_CAL_COLOR, parseReminders } from '@sprout/schema/events'
-import { eventWhen } from '../../data/calendars'
+import { eventWhen, useLinkedCalendars } from '../../data/calendars'
 import { applyEventSchedule, convertEventToTask, deleteEvents, duplicateEvents, updateEvent, useEvent, type EventRow } from '../../data/events'
 import { eventColor } from '../../lib/calendarEvents'
 import { isPastExt } from '../../lib/calendarExt'
@@ -21,6 +21,7 @@ type CardProps = { id: string; myColor?: string | null; onClose: () => void }
 export function EventCard({ id, myColor, onClose }: CardProps) {
   const ev = useEvent(id)
   const toast = useToast()
+  const linked = useLinkedCalendars() // 16 §12.0 연결된 일정의 캘린더 이름
   const [title, setTitle] = useState<string>()
   const [location, setLocation] = useState<string>()
   const [notes, setNotes] = useState<string>()
@@ -42,6 +43,7 @@ export function EventCard({ id, myColor, onClose }: CardProps) {
   if (!ev) return <div className="ext-card evt-card"><p className="evt-card__gone">일정을 찾을 수 없어요</p></div>
   if (ev.deleted_at) return null
   const color = eventColor(ev, myColor)
+  const link = ev.ext_provider ? linked.get(`${ev.ext_account}|${ev.ext_calendar}`) : undefined
   const sched = eventToSchedule(ev)
   const remove = async () => {
     onClose()
@@ -76,10 +78,11 @@ export function EventCard({ id, myColor, onClose }: CardProps) {
       </label>
       <footer className="ext-card__foot">
         <span className="ext-card__dot" style={{ background: color }} />
-        <span className="ext-card__cal">내 일정</span>
-        <span className="ext-card__acct" />
+        <span className="ext-card__cal">{ev.ext_provider ? (link?.name ?? (ev.ext_provider === 'google' ? '구글 캘린더' : 'Apple 캘린더')) : '내 일정'}</span>
+        <span className="ext-card__acct">{link && link.accountLabel !== link.name ? `· ${link.accountLabel}` : ''}</span>
         <button className="icon-btn evt-card__del" aria-label="일정 삭제" title="삭제" onClick={() => void remove()}><Trash2 /></button>
       </footer>
+      {ev.ext_error ? <p className="ext-card__err" role="status">{ev.ext_error}</p> : ev.ext_provider && !ev.ext_id ? <p className="ext-card__why">연결한 캘린더에 아직 올리지 않았어요</p> : null}
       {picker && (
         <DatePicker
           initial={{ start_at: sched.start_at, due_at: sched.due_at, is_all_day: ev.start_at.includes('T') ? 0 : 1, repeat_rule: ev.repeat_rule, repeat_from: ev.repeat_rule ? 'due' : null, reminders: parseReminders(ev.reminders) }}

@@ -58,7 +58,7 @@ export const GUIDES: Record<GuideTab, GuideContent> = {
     title: '캘린더 사용법',
     lead: '할 일과 일정을 시간 위에 놓고 보는 곳이에요.',
     sections: [
-      { id: 'kinds', ill: 'cal-kinds', title: '할 일과 일정', body: '모양은 같고 앞 아이콘으로 나눠요. **체크박스**는 할 일(누르면 완료), **달력 아이콘**은 일정이에요. 구글·Apple 일정은 읽기만 해요.' },
+      { id: 'kinds', ill: 'cal-kinds', title: '할 일과 일정', body: '모양은 같고 앞 아이콘으로 나눠요. **체크박스**는 할 일(누르면 완료), **달력 아이콘**은 일정이에요. 연결한 구글·Apple 캘린더 일정도 끌고 고치면 그 캘린더에 바로 저장돼요.' },
       { id: 'create', ill: 'cal-create', title: '빈 칸에서 만들기', body: '빈 칸을 누르면 그 시각에, **끌면** 그 길이만큼 만들어요. 팝오버에서 할 일·일정을 골라요. 막대를 끌어 옮기고 가장자리로 길이를 바꿔요. `⌘Z`로 되돌려요.' },
       { id: 'arrange', ill: 'cal-arrange', title: '할일 정렬 칸', body: '⋯ › **할일 정렬**을 켜면 오른쪽에 날짜 없는 할 일이 모여요. 끌어서 캘린더에 놓으면 그 시각으로 잡혀요.' },
       { id: 'views', ill: 'cal-views', title: '보기와 옵션', body: '머리 보기 단추로 **일** `D` · **주** `W` · **월** `M`을 바꿔요. ⋯ › **옵션 보기**에서 완료 표시·반복·색 기준·아이콘을 골라요.' },
@@ -163,7 +163,7 @@ export const GUIDES: Record<GuideTab, GuideContent> = {
     sections: [
       { id: 'page', ill: 'diary-page', title: '하루 한 장', body: '기분 얼굴을 고르고 적으면 저절로 저장돼요. 막막하면 **오늘의 질문**으로 시작해요. 그날 끝낸 할 일은 아래에 저절로 붙어요. `↑` `↓`로 하루씩, `T`는 오늘.' },
       { id: 'private', ill: 'diary-private', title: '나만 보기', body: '페이지 위 🔒을 켜면 그날 일기는 **AI가 읽지 않아요**. 캐릭터도 눈을 감아요. 다시 누르면 꺼져요.' },
-      { id: 'consent', ill: 'diary-consent', title: '나눌지는 내가 정해요', body: '처음 한 번 캐릭터와 나눌지 물어요. 나누면 일기 글이 꿈틀 AI(운영자의 Mac mini)에서 처리돼요. ⋯ 메뉴에서 언제든 끌 수 있어요.' },
+      { id: 'consent', ill: 'diary-consent', title: '나눌지는 내가 정해요', body: '처음 한 번 캐릭터와 나눌지 물어요. 나누면 캐릭터가 일기를 읽고 답해 줘요. ⋯ 메뉴에서 언제든 끌 수 있어요.' },
       { id: 'talk', ill: 'diary-talk', title: '캐릭터와 이야기', body: '다 쓰고 잠깐 쉬면 캐릭터가 먼저 공감하고 하나 물어요. 고민이 행동으로 이어지면 **할 일로** 칩이 생겨요. 친구처럼 들어 주지만 전문 상담은 아니에요.', aiOff: '지금은 캐릭터가 쉬고 있어요. 일기는 그대로 저장돼요' },
       { id: 'review', ill: 'diary-review', title: '돌아보기', body: '머리의 **돌아보기**에서 한 해 기분 칸, 이달 기록, 연속 쓴 날을 봐요. 날짜를 누르면 그날로 가요.' }
     ],

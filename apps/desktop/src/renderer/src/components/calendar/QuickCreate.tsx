@@ -1,7 +1,8 @@
-import { CalendarDays, Flag, Inbox, ListChecks, MapPin } from 'lucide-react'
+import { Check, ChevronDown, CalendarDays, Flag, Inbox, ListChecks, MapPin } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { createCalendarTask } from '../../data/calendarCreate'
 import { createEvent } from '../../data/events'
+import { askGrant, loadTarget, saveTarget, useCalendarTargets } from '../../data/calendars'
 import { eventSpan, MY_CAL_COLOR } from '@sprout/schema/events'
 import '../events/events.css'
 import { DatePicker, EMPTY_SCHEDULE } from '../DatePicker'
@@ -10,7 +11,7 @@ import { listLabel, type ListRow } from '../../data/types'
 import { dayKey, formatTime } from '../../lib/dates'
 import { flagColor } from '../../lib/priority'
 import { ListPickerBody, PriorityRow } from '../Pickers'
-import { Popover } from '../Popover'
+import { MenuItem, Popover } from '../Popover'
 import type { Draft, Rect } from './types'
 
 // 06 §7.1 빠른 만들기 팝오버: 📅 날짜 … ⚑ / "무엇을 할까요?" / ⇥ 리스트
@@ -55,17 +56,33 @@ export function QuickCreate({ draft, rect, lists, defaultListId, myColor, onClos
   const flagBtn = useRef<HTMLButtonElement>(null)
   const [listId, setListId] = useState(defaultListId)
   const [priority, setPriority] = useState(0)
-  const [menu, setMenu] = useState<'list' | 'priority' | 'date'>()
+  const [menu, setMenu] = useState<'list' | 'priority' | 'date' | 'target'>()
+  // 16 §12.4.1 일정을 저장할 캘린더: 내 일정 / 구글 / Apple — 이 기기에서 마지막으로 고른 것
+  const targets = useCalendarTargets()
+  const [targetKey, setTargetKey] = useState(loadTarget)
+  const target = targets.find((t) => t.key === targetKey)
+  const targetBtn = useRef<HTMLButtonElement>(null)
+  const asking = useRef(false)
+  const pickTarget = async (key: string) => {
+    const t = targets.find((x) => x.key === key)
+    if (t && !t.canWrite) {
+      asking.current = true // 권한 대화가 떠 있는 동안 바깥 클릭으로 저장되지 않게
+      const ok = await askGrant(t.accountId, t.accountLabel).finally(() => { asking.current = false })
+      if (!ok) { setMenu(undefined); input.current?.focus(); return }
+    }
+    setTargetKey(key); saveTarget(key); setMenu(undefined); input.current?.focus()
+  }
   const done = useRef(false)
   const list = lists.find((l) => l.id === listId)
   const create = async () => {
-    if (done.current || menu) return
+    if (done.current || menu || asking.current) return
     if (!title.trim()) return onClose()
     done.current = true
     setBusy(true);setError('')
     try {
       if (kind === 'event') {
-        const id = await createEvent({ title, start_at: schedule.start_at, due_at: schedule.due_at!, repeat_rule: schedule.repeat_rule, reminders: schedule.reminders, notes: content, location: place })
+        const link = target ? { provider: target.provider, account: target.accountId, calendar: target.calendarHash, color: target.color } : null
+        const id = await createEvent({ title, start_at: schedule.start_at, due_at: schedule.due_at!, repeat_rule: schedule.repeat_rule, reminders: schedule.reminders, notes: content, location: place, link })
         onCreatedEvent?.(id)
       } else {
         const id=await createCalendarTask(title,listId,priority,schedule,content)
@@ -119,10 +136,28 @@ export function QuickCreate({ draft, rect, lists, defaultListId, myColor, onClos
             <Inbox />{list ? listLabel(list) : '기본함'}
           </button>
         ) : (
-          <span className="qc__mycal"><i style={{ background: myColor || MY_CAL_COLOR }} />내 일정</span>
+          <button ref={targetBtn} className="qc__target" aria-label="저장할 캘린더" onClick={() => setMenu(menu === 'target' ? undefined : 'target')}>
+            <i style={{ background: target?.color ?? (myColor || MY_CAL_COLOR) }} /><span>{target?.name ?? '내 일정'}</span><ChevronDown />
+          </button>
         )}
       </div>
       {menu === 'date' && <DatePicker initial={schedule} anchor={dateBtn.current} onSave={setSchedule} onClose={()=>{setMenu(undefined);input.current?.focus()}}/>}
+      {menu === 'target' && (
+        <Popover anchor={targetBtn.current} onClose={() => setMenu(undefined)} width={240} className="menu cal-target">
+          <MenuItem icon={<span className="cal-target__dot" style={{ background: myColor || MY_CAL_COLOR }} />} label="내 일정" trail={!target ? <Check className="menu__check" /> : undefined} onClick={() => void pickTarget('sprout')} />
+          {[...new Set(targets.map((t) => t.group))].map((g) => (
+            <div key={g}>
+              <div className="menu__divider" />
+              <div className="menu__caption">{g}</div>
+              {targets.filter((t) => t.group === g).map((t) => (
+                <MenuItem key={t.key} icon={<span className="cal-target__dot" style={{ background: t.color }} />} label={t.name}
+                  trail={t.key === target?.key ? <Check className="menu__check" /> : !t.canWrite ? <span className="cal-target__need">권한 필요</span> : undefined}
+                  onClick={() => void pickTarget(t.key)} />
+              ))}
+            </div>
+          ))}
+        </Popover>
+      )}
       {menu === 'list' && (
         <Popover anchor={listBtn.current} onClose={() => setMenu(undefined)} width={240} className="menu">
           <ListPickerBody lists={lists} current={listId} onPick={(l) => { setListId(l.id); setMenu(undefined); input.current?.focus() }} />

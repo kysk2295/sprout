@@ -1,6 +1,6 @@
 import type { ChatInput } from '../shared/assistant'
 import type { TTBundle, TTConnectInput, TTProgress, TTResult, TTStatus } from '../shared/ticktick'
-import type { CalendarsStatus, ConnectProgress, ConnectResult, ExtEvent, Provider } from '../shared/calendars'
+import type { CalendarsStatus, ConnectProgress, ConnectResult, ExtEvent, Provider, CalendarTarget, CalendarToast, ExtPatch, ExtSnapshot, WriteResult, WriteScope } from '../shared/calendars'
 import type { Notice, NoticeInput } from '../shared/notices'
 import { contextBridge, ipcRenderer } from 'electron'
 
@@ -92,7 +92,7 @@ const ticktickApi = {
   onProgress: (cb: (p: TTProgress) => void) => on('ticktick:progress', cb)
 }
 export type SproutTickTickApi = typeof ticktickApi
-// 16 캘린더 연동(구글·Apple 읽기): 토큰은 메인 프로세스에만, 화면은 상태와 범위 일정만 받는다
+// 16 캘린더 연동(구글·Apple): 토큰은 메인 프로세스에만, 화면은 상태·범위 일정·쓰기 결과만 받는다
 const calendarsApi = {
   status: () => ipcRenderer.invoke('calendars:status') as Promise<CalendarsStatus>,
   connect: (provider: Provider) => ipcRenderer.invoke('calendars:connect', provider) as Promise<ConnectResult>,
@@ -107,7 +107,15 @@ const calendarsApi = {
   open: (accountId: string, calendarId: string, eventId: string) => ipcRenderer.invoke('calendars:open', accountId, calendarId, eventId) as Promise<void>,
   openPrivacy: () => ipcRenderer.invoke('calendars:openPrivacy') as Promise<void>,
   onChanged: (cb: () => void) => on('calendars:changed', cb),
-  onProgress: (cb: (p: ConnectProgress) => void) => on('calendars:progress', cb)
+  onProgress: (cb: (p: ConnectProgress) => void) => on('calendars:progress', cb),
+  // 16 §12 양방향
+  targets: () => ipcRenderer.invoke('calendars:targets') as Promise<CalendarTarget[]>,
+  grantWrite: (accountId: string) => ipcRenderer.invoke('calendars:grantWrite', accountId) as Promise<ConnectResult>,
+  event: (key: string) => ipcRenderer.invoke('calendars:event', key) as Promise<ExtEvent | null>,
+  update: (key: string, patch: ExtPatch, opts?: { scope?: WriteScope; notify?: boolean }) => ipcRenderer.invoke('calendars:update', key, patch, opts) as Promise<WriteResult>,
+  remove: (key: string, opts?: { scope?: WriteScope; notify?: boolean }) => ipcRenderer.invoke('calendars:delete', key, opts) as Promise<WriteResult>,
+  restore: (snap: ExtSnapshot) => ipcRenderer.invoke('calendars:restore', snap) as Promise<WriteResult>,
+  onToast: (cb: (t: CalendarToast) => void) => on('calendars:toast', cb)
 }
 export type SproutCalendarsApi = typeof calendarsApi
 const collectApi = { linkTitle: (url: string) => ipcRenderer.invoke('collect:link-title', url) as Promise<string> }

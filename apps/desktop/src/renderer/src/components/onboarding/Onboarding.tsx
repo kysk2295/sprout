@@ -127,7 +127,7 @@ function CalendarStep({ onNext, onSkip, onBusy, onOpenCalendar }: { onNext: (any
   return (
     <section className="onb__body">
       <h2 className="onb__title">캘린더를 연결할까요?</h2>
-      <p className="onb__lead">일정과 할 일을 한 화면에서 봐요. 일정은 읽기만 하고 이 기기에만 저장해요.</p>
+      <p className="onb__lead">일정과 할 일을 한 화면에서 봐요. 꿈틀에서 만들거나 고친 일정은 연결한 캘린더에도 저장돼요.</p>
       <div className="onb__rows">
         {row('google', 'Google 캘린더', 'Google 계정의 일정')}
         {row('apple', 'Apple 캘린더', 'Mac 캘린더 앱의 일정(iCloud 포함)')}

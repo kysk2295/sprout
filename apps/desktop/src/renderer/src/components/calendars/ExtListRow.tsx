@@ -7,7 +7,7 @@ import type { Rect } from '../calendar/types'
 import { ExtEventMenu, ExtEventPopover } from './ExtEventCard'
 import './calendars.css'
 
-// 06 §14.3.1: 오늘·내일·다음 7일 목록 안의 구독 일정 행(읽기 전용).
+// 06 §14.3.1: 오늘·내일·다음 7일 목록 안의 구독 일정 행(16 §12: 쓸 수 있으면 팝오버에서 고친다).
 // 체크박스 자리에 회색 캘린더 아이콘, 제목, 오른쪽 날짜(할 일 행과 같은 글자 규칙), 왼쪽 캘린더 색 줄.
 // 선택·끌기·키보드 이동·일괄 편집에 들어가지 않는다 — 누르면 읽기 전용 팝오버, 우클릭은 "…에서 열기"
 export function ExtListRow({ ev, today }: { ev: ExtEvent; today: string }) {
@@ -28,7 +28,7 @@ export function ExtListRow({ ev, today }: { ev: ExtEvent; today: string }) {
         onClick={(e) => { e.stopPropagation(); open(e.currentTarget) }}
         onKeyDown={(k) => { if (k.key === 'Enter') { k.stopPropagation(); open(k.currentTarget) } }}
         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setPop({ kind: 'menu', point: { x: e.clientX, y: e.clientY } }) }}
-        aria-label={`일정: ${ev.title}, ${eventWhen(ev)}, 읽기 전용`}
+        aria-label={`일정: ${ev.title}, ${eventWhen(ev)}${ev.writable ? '' : ', 읽기 전용'}`}
       >
         <CalendarDays className="ext-row__icon" aria-hidden />
         <span className="ext-row__title">{ev.title || '제목 없음'}</span>

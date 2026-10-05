@@ -20,6 +20,8 @@ export interface BridgeDeps {
   toast: (message: string, kind?: 'info' | 'error') => void
   /** 숨김 목록이 바뀌어 화면이 외부 일정을 다시 읽어야 할 때 */
   changed: () => void
+  /** 외부에 쓴 뒤(그 계정 캐시를 새로 고쳐 사이드바 목록에도 보이게) */
+  pushed?: (accountId: string) => void
   now?: () => Date
 }
 
@@ -248,6 +250,7 @@ export class CalendarBridge {
 
   // ── 꿈틀 쪽 기록 ──
   private async record(row: LinkedRow, r: { id: string | null; etag: string | null; updated: string | null; hash: string | null }) {
+    if (r.hash !== row.ext_hash && row.ext_account) this.d.pushed?.(row.ext_account)
     await this.d.db.execute('UPDATE events SET ext_id = ?, ext_etag = ?, ext_updated = ?, ext_hash = ?, ext_error = NULL WHERE id = ?', [r.id, r.etag, r.updated, r.hash, row.id])
   }
   private async pull(row: LinkedRow, remote: Remote) {
@@ -272,9 +275,10 @@ export class CalendarBridge {
       if (e.kind === 'offline' || e.kind === 'timeout') return
       if (e.kind === 'scope') this.d.store.setCanWrite(c.acct.id, false)
       if (e.kind === 'rate') return this.setError(c.row, '잠시 뒤 다시 올릴게요', false)
-      return this.setError(c.row, e.message, PERMANENT.has(e.kind))
+      // 사람이 읽는 이유만(상태 코드 같은 글자는 보이지 않는다)
+      return PERMANENT.has(e.kind) ? this.setError(c.row, e.message, true) : this.setError(c.row, '잠시 뒤 다시 올릴게요', false)
     }
-    if (e instanceof AppleWriteError) return this.setError(c.row, e.message, PERMANENT.has(e.code))
+    if (e instanceof AppleWriteError) return PERMANENT.has(e.code) ? this.setError(c.row, e.message, true) : this.setError(c.row, '캘린더 앱에 저장하지 못했어요. 잠시 뒤 다시 할게요', false)
     console.warn('[calendars] 다리 실패:', c.row.id, e)
     return this.setError(c.row, '잠시 뒤 다시 올릴게요', false)
   }

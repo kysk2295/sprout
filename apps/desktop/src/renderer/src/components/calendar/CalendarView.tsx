@@ -23,7 +23,8 @@ import type { CalHandlers, Change, Draft, Rect } from './types'
 import { ArrangePanel } from './ArrangePanel'
 import { ViewOptions } from './ViewOptions'
 import './calendar.css'
-import { calendarsApi, openCalendarSettings, useExtEvents, type ExtEvent } from '../../data/calendars'
+import { calendarsApi, deleteExt, editExt, openCalendarSettings, useExtEvents, type ExtEvent } from '../../data/calendars'
+import { eventSpan } from '@sprout/schema/events'
 import { extItems, extOf, isPastExt } from '../../lib/calendarExt'
 import { ExtEventMenu, ExtEventPopover } from '../calendars/ExtEventCard'
 import { CalendarConnectHost } from '../calendars/ConnectHost'
@@ -141,19 +142,31 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
   const setView = (v: CalView) => { setOpts({ view: v }); setMenu(undefined) }
   const openTask = (it: CalItem, rect: Rect) => {
     const ext = extOf(it)
-    if (ext) { setSelection([]); setPop({ kind: 'ext', ev: ext, rect }); return }
+    if (ext) { setSelection(ext.writable ? [it.task.id] : []); setPop({ kind: 'ext', ev: ext, rect }); return }
     const evt = evtOf(it)
     if (evt) { setSelection([it.task.id]); setPop({ kind: 'event', id: evt.id, rect }); return }
     setSelection([it.task.id]); setPop({ kind: 'task', id: it.task.id, rect })
   }
   // 06 §14.4.5 할 일·일정이 섞인 변경을 나눠 저장(일정은 events, 할 일은 기존 동작)
+  const extById = (id: string) => extOf(items.find((i) => i.task.id === id) ?? ({} as CalItem))
   const moveMixed = (changes: Change[], dup: boolean) => {
+    // 16 §12.6 캐시 전용 외부 일정: 끌기·길이 → 구글·Apple에 바로(반복 범위·메일은 editExt가 묻는다). ⌥ 복제는 하지 않는다
+    for (const c of changes.filter((x) => x.id.startsWith('ext:'))) {
+      const ext = extById(c.id)
+      if (!ext || !c.due_at) continue
+      if (dup) { toast.show('구글·Apple 캘린더 일정은 복제할 수 없어요'); continue }
+      const sp = eventSpan(c.start_at, c.due_at)
+      void editExt(ext, { start: sp.start_at, end: sp.end_at, allDay: !!sp.is_all_day }, toast)
+    }
+    changes = changes.filter((x) => !x.id.startsWith('ext:'))
     const evs = changes.filter((c) => isEventKey(c.id))
     const ts = changes.filter((c) => !isEventKey(c.id))
     if (ts.length) void actions.reschedule(ts, { duplicate: dup })
     if (evs.length) void (dup ? duplicateEvents(evs).then((r) => toast.show('복제했어요', r)) : rescheduleEvents(evs).then((r) => toast.registerUndo(r)))
   }
   const trashMixed = (ids: string[]) => {
+    for (const id of ids.filter((x) => x.startsWith('ext:'))) { const ext = extById(id); if (ext) void deleteExt(ext, toast) }
+    ids = ids.filter((x) => !x.startsWith('ext:'))
     const evs = ids.filter(isEventKey)
     const ts = ids.filter((id) => !isEventKey(id))
     if (ts.length) void actions.trash(ts)
@@ -401,7 +414,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
         <MonthPicker rect={pop.rect} cursor={cursor} today={today} onPick={(m) => { setCursor(`${m}-01`); setPop(undefined) }} onClose={() => setPop(undefined)} />
       )}
       {pop?.kind === 'ext' && <ExtEventPopover ev={pop.ev} rect={pop.rect} onClose={() => setPop(undefined)} />}
-      {pop?.kind === 'extmenu' && <ExtEventMenu ev={pop.ev} point={pop.point} onClose={() => setPop(undefined)} />}
+      {pop?.kind === 'extmenu' && <ExtEventMenu ev={pop.ev} point={pop.point} onClose={() => setPop((cur) => (cur === pop ? undefined : cur))} onOpen={() => setPop({ kind: 'ext', ev: pop.ev, rect: { left: pop.point.x, top: pop.point.y, right: pop.point.x, bottom: pop.point.y } })} />}
       {pop?.kind === 'event' && <EventPopover key={pop.id} id={pop.id} rect={pop.rect} myColor={opts.myColor} onClose={() => setPop(undefined)} />}
       {pop?.kind === 'evmenu' && (
         <EventMenu id={pop.id} point={pop.point} inboxId={inboxId} onClose={() => setPop((cur) => (cur === pop ? undefined : cur))}

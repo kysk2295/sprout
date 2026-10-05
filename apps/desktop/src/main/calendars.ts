@@ -113,8 +113,10 @@ let bridge: CalendarBridge | undefined
 const getBridge = () => (bridge ??= new CalendarBridge({
   db: { getAll: (sql, p) => db.getAll(sql, p ?? []), execute: (sql, p) => db.execute(sql, p ?? []) },
   store: getStore(), google, apple, timeZone: deviceTimeZone, online: () => net.isOnline(),
-  toast: (message, kind) => toast({ message, kind }), changed
+  toast: (message, kind) => toast({ message, kind }), changed,
+  pushed: (id) => { clearTimeout(pushTimers.get(id)); pushTimers.set(id, setTimeout(() => void refreshAccount(id, true), 1500)) }
 }))
+const pushTimers = new Map<string, NodeJS.Timeout>()
 let bridgeTimer: NodeJS.Timeout | undefined
 function scheduleBridge(ms = 400) {
   clearTimeout(bridgeTimer)
