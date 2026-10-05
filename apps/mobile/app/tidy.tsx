@@ -16,6 +16,7 @@ import { applyProposals, lateAction, putInto, sayNo, useTidyData, type TidyData 
 import { usePalette } from '../src/theme/ThemeProvider'
 import { closeOpenRow, SwipeRow } from '../src/ui/SwipeRow'
 import { useToast } from '../src/ui/Toast'
+import { SheetHead } from '../src/ui/SheetHead'
 
 type Target = { kind: 'list' | 'project'; id: string }
 /** 휴대폰엔 끌기가 없다 — 공용 문구의 '끌어다 놓으면'을 밀기·옮기기로 */
@@ -219,7 +220,7 @@ function MoveSheet({ ids, data, onClose, onPick }: { ids: string[] | null; data:
       <Pressable style={{ flex: 1, backgroundColor: p.scrim }} onPress={onClose} accessibilityLabel="닫기" />
       <View style={[s.sheet, { backgroundColor: p.sheetBg, paddingBottom: insets.bottom + 16 }]}>
         <View style={[s.grab, { backgroundColor: p.textQuaternary }]} />
-        <Text style={{ color: p.textPrimary, fontSize: 17, fontWeight: '700', textAlign: 'center', marginBottom: 6 }}>{ids && ids.length > 1 ? `${ids.length}개 옮기기` : '옮기기'}</Text>
+        <SheetHead compact title={ids && ids.length > 1 ? `${ids.length}개 옮기기` : '옮기기'} onClose={onClose} />
         <ScrollView style={{ maxHeight: 520 }}>
           {data.projects.length ? (
             <>

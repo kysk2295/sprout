@@ -10,6 +10,7 @@ import { FONT, M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { BottomSheet } from '../ui/BottomSheet'
 import { GlassButton } from '../ui/Glass'
+import { SheetHead } from '../ui/SheetHead'
 import { NavRow } from '../ui/Header'
 import { useToast } from '../ui/Toast'
 import {
@@ -173,7 +174,7 @@ export default function WikiPage() {
         {shown.includes('questions') ? section('questions') : null}
       </ScrollView>
 
-      <BottomSheet visible={history} onClose={() => setHistory(false)} mid={0.55} label="이력" head={<Text style={[FONT.nav, { color: p.textPrimary, paddingHorizontal: 16, paddingBottom: 8 }]}>이력</Text>}>
+      <BottomSheet visible={history} onClose={() => setHistory(false)} mid={0.55} label="이력" head={<SheetHead compact title="이력" onClose={() => setHistory(false)} />}>
         <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
           {versions.map((v) => {
             const on = preview?.version === v.version || (!preview && v.version === topic.version)

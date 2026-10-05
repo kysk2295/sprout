@@ -10,6 +10,7 @@ import { saveAvatar, useAvatar } from '../data/avatar'
 import { FONT } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { BottomSheet } from '../ui/BottomSheet'
+import { SheetHead } from '../ui/SheetHead'
 import { ProfileAvatar } from './ProfileAvatar'
 
 const CELL = 52
@@ -28,12 +29,8 @@ export function AvatarSheet({ visible, onClose, letter }: { visible: boolean; on
     )
   }
   const caption = (t: string) => <Text style={[FONT.meta, s.caption, { color: p.textTertiary }]}>{t}</Text>
-  const head = (
-    <View style={s.head}>
-      <Text style={[FONT.nav, { color: p.textPrimary, flex: 1 }]}>프로필 이미지</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="완료" hitSlop={10} onPress={onClose}><Text style={{ color: p.accent, fontSize: 16, fontWeight: '600' }}>완료</Text></Pressable>
-    </View>
-  )
+  // 20 §3.2: 왼쪽 위 ✕ · 가운데 제목(누르는 순간 저장돼서 ✓ 없음)
+  const head = <SheetHead compact title="프로필 이미지" onClose={onClose} />
   const follow = sameAvatar(pref, 'follow')
   return (
     <BottomSheet visible={visible} onClose={onClose} mid={0.72} head={head} label="프로필 이미지">
@@ -81,7 +78,6 @@ export function AvatarSheet({ visible, onClose, letter }: { visible: boolean; on
   )
 }
 const s = StyleSheet.create({
-  head: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 },
   preview: { alignItems: 'center', paddingVertical: 8 },
   caption: { marginTop: 14, marginBottom: 6, fontWeight: '600' },
   colors: { flexDirection: 'row', justifyContent: 'space-between' },

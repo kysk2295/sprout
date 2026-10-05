@@ -19,6 +19,7 @@ import { FONT, priorityColor } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { Checkbox } from '../ui/Checkbox'
 import { GlassButton } from '../ui/Glass'
+import { CloseButton } from '../ui/SheetHead'
 import { PopMenu, useAnchor } from '../ui/Menu'
 import { useToast } from '../ui/Toast'
 import { useEventActions } from '../ui/EventMenu'
@@ -86,7 +87,8 @@ export default function TaskDetail() {
       {/* iOS formSheet는 ScrollView를 시트 맨 위에 붙인다 — 머리를 형제로 두면 날짜 줄이 겹쳐서 안에 둔다(README 주의) */}
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 + kb.height }}>
         <View style={[s.top, { marginTop: full ? insets.top : 10 }]}>
-          {full ? <GlassButton label="닫기" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton> : null}
+          {/* 20 §3.2: 반 시트 = 둥근 ✕, 끌어 올린 전체 화면 = ‹ (틱틱 "‹ Inbox") — 둘 다 닫기 */}
+          {full ? <GlassButton label="닫기" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton> : <CloseButton />}
           <Pressable accessibilityRole="button" accessibilityLabel={`리스트: ${listName}, 이동`} onPress={() => openSheet('/move')} style={s.list}>
             {task.list_emoji ? <Text>{task.list_emoji}</Text> : <View style={[s.dot, { backgroundColor: task.list_color ?? (task.list_kind === 'inbox' ? p.slInbox : p.textQuaternary) }]} />}
             <Text style={[s.listText, { color: p.textSecondary }]} numberOfLines={1}>{listName}</Text>

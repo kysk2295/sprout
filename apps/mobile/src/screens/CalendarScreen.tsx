@@ -33,6 +33,7 @@ import { EventRowView } from '../ui/EventRow'
 import { afterMenu } from '../ui/Drawer'
 import { EmptyState } from '../ui/EmptyState'
 import { GlassButton } from '../ui/Glass'
+import { SheetHead } from '../ui/SheetHead'
 import { GroupCard } from '../ui/GroupCard'
 import { LongPressMenu, type LongPressAction } from '../ui/LongPressMenu'
 import { PopMenu, useAnchor, type Rect } from '../ui/Menu'
@@ -680,10 +681,7 @@ function UndatedSheet(props: { open: boolean; day: string; today: string; onClos
   return (
     <Modal visible={props.open} animationType="slide" presentationStyle="pageSheet" onRequestClose={props.onClose}>
       <View style={{ flex: 1, backgroundColor: p.pageBg }}>
-        <View style={s.sheetHead}>
-          <Text style={[FONT.nav, { color: p.textPrimary, flex: 1, textAlign: 'center' }]}>날짜 없는 할 일</Text>
-          <Pressable accessibilityRole="button" onPress={props.onClose} style={{ position: 'absolute', right: 16 }}><Text style={{ color: p.accent, fontSize: 16 }}>완료</Text></Pressable>
-        </View>
+        <SheetHead title="날짜 없는 할 일" onClose={props.onClose} />
         <Text style={[FONT.meta, { color: p.textTertiary, paddingHorizontal: 20, paddingBottom: 8 }]}>{`＋를 누르면 ${label}에 일정을 잡아요`}</Text>
         <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
           {rows.length ? (
@@ -730,7 +728,6 @@ const s = StyleSheet.create({
   now: { position: 'absolute', left: -4, right: 0, flexDirection: 'row', alignItems: 'center' },
   nowDot: { width: 8, height: 8, borderRadius: 4 },
   more: { alignItems: 'center', paddingVertical: 14 },
-  sheetHead: { height: 60, flexDirection: 'row', alignItems: 'center', paddingTop: 8 },
   card: { marginHorizontal: M.cardInset, borderRadius: M.radiusCard, overflow: 'hidden' },
   put: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 10 }
 })

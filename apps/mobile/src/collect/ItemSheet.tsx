@@ -14,6 +14,7 @@ import { BottomSheet } from '../ui/BottomSheet'
 import { DateSheet } from '../ui/DateSheet'
 import { EMPTY_SCHEDULE, type Schedule } from '../ui/dateSheetModel'
 import { GlassButton } from '../ui/Glass'
+import { CloseButton } from '../ui/SheetHead'
 import { PopMenu, useAnchor } from '../ui/Menu'
 import { useToast } from '../ui/Toast'
 import {
@@ -45,11 +46,12 @@ export function ItemSheet({ id, startConvert, onClose, onTopic }: { id: string |
   const kakao = item ? isKakao(item) : false
   const head = item ? (
     <View style={s.head}>
-      <Text style={[FONT.meta, { color: p.textTertiary, flex: 1 }]} numberOfLines={1}>
+      <CloseButton onPress={onClose} />
+      <Text style={[FONT.meta, { color: p.textTertiary, flex: 1, textAlign: 'center' }]} numberOfLines={1}>
         {kakao ? `${fullKo(sentAt(item))} · 카톡에서 가져옴` : `${fullKo(item.created_at)} 작성`}
       </Text>
       <View ref={more.ref} collapsable={false}>
-        <GlassButton label="항목 메뉴" plain onPress={more.open}><Ellipsis size={20} color={p.textSecondary} /></GlassButton>
+        <GlassButton label="항목 메뉴" onPress={more.open}><Ellipsis size={20} color={p.textPrimary} /></GlassButton>
       </View>
     </View>
   ) : null
@@ -333,7 +335,7 @@ function ConvertPanel({ item, onCancel, onDone }: { item: CollectItem; onCancel:
 }
 
 const s = StyleSheet.create({
-  head: { height: 44, flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 8 },
+  head: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingBottom: 4 },
   title: { fontSize: 20, lineHeight: 28, fontWeight: '700', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 4 },
   body: { fontSize: 15.5, lineHeight: 23, paddingHorizontal: 16, paddingBottom: 10, minHeight: 46 },
   link: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 6 },

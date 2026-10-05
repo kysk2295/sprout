@@ -13,6 +13,7 @@ import { FONT } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { useEventActions } from '../ui/EventMenu'
 import { GlassButton } from '../ui/Glass'
+import { CloseButton } from '../ui/SheetHead'
 import { PopMenu, useAnchor } from '../ui/Menu'
 
 export default function EventSheet() {
@@ -61,7 +62,7 @@ export default function EventSheet() {
     <View style={{ flex: 1, backgroundColor: p.sheetBg }}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 80 + insets.bottom }}>
         <View style={[s.top, { marginTop: full ? insets.top : 10 }]}>
-          {full ? <GlassButton label="닫기" onPress={close}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton> : null}
+          {full ? <GlassButton label="닫기" onPress={close}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton> : <CloseButton onPress={close} />}
           <View style={s.cal} accessibilityLabel="캘린더: 내 일정">
             <View style={[s.dot, { backgroundColor: color }]} />
             <Text style={[s.calText, { color: p.textSecondary }]}>내 일정</Text>

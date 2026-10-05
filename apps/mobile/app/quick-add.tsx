@@ -7,7 +7,7 @@
 // - 맨 위 `할 일 · 일정`(22 §3.5, 06 §14.4.2): 일정이면 장소 줄 + 날짜·"● 내 일정"만, 마지막으로 고른 쪽을 기기에 기억
 import * as Haptics from 'expo-haptics'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { ArrowUp, Calendar, Ellipsis, Flag, Hash, Inbox, List as ListIcon, MapPin, Sparkles, Square } from 'lucide-react-native'
+import { ArrowUp, Calendar, Ellipsis, Flag, Hash, Inbox, List as ListIcon, MapPin, Sparkles, Square, X } from 'lucide-react-native'
 import { File, Paths } from 'expo-file-system'
 import { MY_CAL_COLOR } from '@sprout/schema/events'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -178,7 +178,13 @@ export default function QuickAdd() {
         ) : null}
         {!dateOpen ? (
           <View style={[s.card, { backgroundColor: p.sheetBg }]}>
-            <Segmented small style={s.kind} value={kind} onChange={setKind} items={[{ key: 'task', label: '할 일' }, { key: 'event', label: '일정' }]} />
+            {/* 20 §3.2: 카드 오른쪽 위 작은 ✕(바깥 누르기·Android 뒤로와 같은 닫기 — 입력은 버린다) */}
+            <View style={s.kindRow}>
+              <Segmented small style={s.kind} value={kind} onChange={setKind} items={[{ key: 'task', label: '할 일' }, { key: 'event', label: '일정' }]} />
+              <Pressable accessibilityRole="button" accessibilityLabel="닫기" hitSlop={10} onPress={close} style={({ pressed }) => [s.close, { backgroundColor: p.bgSelected }, pressed && { opacity: 0.6 }]}>
+                <X size={15} color={p.textSecondary} />
+              </Pressable>
+            </View>
             {/* 하이라이트: Fabric TextInput은 안쪽 Text 배경을 그리지 않아서, 같은 글꼴의 Text를 위에 겹치고(글자는 투명·누름 통과) 인식 구간만 반투명 강조색으로 칠한다 */}
             <View>
               <TextInput
@@ -355,7 +361,9 @@ const s = StyleSheet.create({
   sChip: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 30, paddingHorizontal: 10, borderRadius: 15 },
   flash: { alignSelf: 'center', marginBottom: 10, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
   dateSheet: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopLeftRadius: 22, borderTopRightRadius: 22, overflow: 'hidden' },
-  kind: { alignSelf: 'flex-start', width: 132, height: 28, marginBottom: 10 },
+  kindRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  kind: { width: 132, height: 28 },
+  close: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   place: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   myCal: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 30, paddingHorizontal: 8 },
   myDot: { width: 8, height: 8, borderRadius: 4 },
