@@ -160,7 +160,7 @@ export function buildPlanView(i: PlanInput): PlanData {
       confirmed: pstore.confirmed[tag.id] !== undefined && pstore.confirmed[tag.id] >= members.length,
       via, autoCount: [...via.values()].filter((v) => v === 'auto').length,
       kindSet: new Set(members.filter((m) => overrides.has(m.id)).map((m) => m.id)),
-      mainList: [...perList].filter(([id]) => listOf.get(id)?.kind !== 'inbox').sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
+      mainList: mainListOf(members, (id) => listOf.get(id) ?? null),
       category: (catOver.has(tag.id) ? catOver.get(tag.id) || null : categoryOf(tag.name))
     })
   }
@@ -215,4 +215,39 @@ export function projectCardLine(p: Pick<ProjectView, 'members' | 'done' | 'deadl
   const dl = p.deadline ? `${p.deadline.word} ${Number(p.deadline.day.slice(5, 7))}/${Number(p.deadline.day.slice(8, 10))}` : null
   const left = p.deadline ? Math.round((Date.parse(`${p.deadline.day}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000) : null
   return { text: dl ? `${base} · ${dl}` : base, deadline: dl, hot: left !== null && left <= 3 && p.done < n, progress: n ? p.done / n : 0 }
+}
+
+// ── 31 §12.12 프로젝트 안에서 새 할 일 ──
+/** 주 리스트: 구성원이 가장 많은 일반 리스트(기본함·없는 리스트 제외) → 같으면 열린 구성원이 많은 쪽 → 이름 순. 없으면 null(기본함) */
+export function mainListOf(members: Pick<PTaskRow, 'list_id' | 'status'>[], listOf: (id: string) => Pick<ListRow, 'kind' | 'name'> | null): string | null {
+  const n = new Map<string, { all: number; open: number }>()
+  for (const m of members) {
+    if (!m.list_id) continue
+    const l = listOf(m.list_id)
+    if (!l || l.kind === 'inbox') continue
+    const c = n.get(m.list_id) ?? { all: 0, open: 0 }
+    c.all++; if (m.status === 0) c.open++
+    n.set(m.list_id, c)
+  }
+  const name = (id: string) => listOf(id)?.name ?? ''
+  return [...n].sort((a, b) => b[1].all - a[1].all || b[1].open - a[1].open || name(a[0]).localeCompare(name(b[0])) || a[0].localeCompare(b[0]))[0]?.[0] ?? null
+}
+
+/** 빠른 추가 인식 결과(데스크톱 parseAdd · 모바일 recognizeWith 공통 부분) */
+export type QuickParsed = { title: string; due_at: string | null; priority?: number; list_id?: string; repeat_rule?: string | null; tag_ids?: string[] }
+export type ProjectTaskInput = { title: string; due_at: string | null; list_id: string | null; priority: number; repeat_rule: string | null; tag_ids: string[]; kind: WorkKind | null }
+/** 인식 결과 + 넣은 자리의 기본값 → 새 할 일 값. 인식한 날짜·리스트가 자리 기본값을 이긴다.
+ * kind는 자리(줄·묶음)의 종류가 제목 분류와 다를 때만(덮어쓰기 행). 제목이 비면 null */
+export function projectTaskInput(r: QuickParsed, at: { day?: string | null; kind?: WorkKind | null; mainList: string | null }): ProjectTaskInput | null {
+  const title = r.title.replace(/\s+/g, ' ').trim()
+  if (!title) return null
+  return {
+    title,
+    due_at: r.due_at ?? at.day ?? null,
+    list_id: r.list_id || at.mainList || null,
+    priority: r.priority ?? 0,
+    repeat_rule: r.due_at ? (r.repeat_rule ?? null) : null,
+    tag_ids: r.tag_ids ?? [],
+    kind: at.kind && workKind(title) !== at.kind ? at.kind : null
+  }
 }

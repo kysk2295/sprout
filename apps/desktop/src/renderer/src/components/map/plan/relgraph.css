@@ -39,7 +39,7 @@
 .rg-task__body em.is-late { color: var(--color-text-danger); }
 .rg-rename { width: 100%; font: inherit; font-size: 13px; padding: 1px 4px; border: 1px solid var(--color-accent); border-radius: 4px; background: var(--color-bg-input, var(--color-bg-popover)); color: var(--color-text-primary); outline: none; }
 .rg-auto { position: absolute; top: -10px; right: 6px; display: none; gap: 2px; background: var(--color-bg-popover); border: 1px solid var(--color-border-popover); border-radius: 6px; padding: 1px; box-shadow: var(--shadow-popover); }
-.rg-node--task:hover .rg-auto { display: flex; }
+.rg-node--task:hover .rg-auto, .rg-node--task:focus-within .rg-auto { display: flex; }
 .rg-auto button { width: 20px; height: 18px; display: grid; place-items: center; color: var(--color-text-secondary); border-radius: 4px; }
 .rg-auto button:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
 .rg-auto svg { width: 12px; height: 12px; }
@@ -98,3 +98,4 @@
 .rg .react-flow__minimap .rg-mm { fill: var(--color-text-tertiary); opacity: .7; }
 .rg .react-flow__minimap .rg-mm--project { fill: var(--color-accent); opacity: 1; }
 .rg .react-flow__minimap .rg-mm--person, .rg .react-flow__minimap .rg-mm--note, .rg .react-flow__minimap .rg-mm--list, .rg .react-flow__minimap .rg-mm--other { opacity: .4; }
+.rg-auto button.is-danger:hover { color: var(--color-text-danger); }

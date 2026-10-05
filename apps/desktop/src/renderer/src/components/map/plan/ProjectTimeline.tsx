@@ -2,7 +2,7 @@
 // 가로 = 날짜, 세로 줄 = 일의 종류(회색 글), 선 = 순서(없으면 추정), 오늘·마감 세로선, 옆 칸(사람·메모·리스트).
 // 편집: 칩 가로 끌기 = 날짜 · 세로 끌기 = 줄(종류 덮어쓰기) · 오른쪽 핸들 → 다른 칩 = 순서 선 · 선 클릭 → Delete = 끊기 ·
 //       빈 곳 더블클릭 = 그 날짜·그 줄에 새 할 일 · 제목 더블클릭 = 이름 고치기 · 호버 ✓/✕ · 우클릭 메뉴 · 선택 + Delete = 프로젝트에서 빼기.
-import { Check, X } from 'lucide-react'
+import { Check, MoreHorizontal, Plus, Trash2, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent as RPointerEvent } from 'react'
 import { daysBetween, inferredChain, stackRows, taskDay, workKind, WORK_KINDS, WORK_LABEL, type WorkKind } from '@sprout/schema/projects'
 import { setWorkKind } from '../../../data/projectEdit'
@@ -13,7 +13,7 @@ import { MenuItem, Popover } from '../../Popover'
 import { TASK_DND } from './ProjectBoard'
 import { PanelClose } from '../../PanelClose'
 import { useLocalState } from '../../../data/preferences'
-import { ProjectTaskMenu, type ProjectEdit } from './edit'
+import { ProjectTaskMenu, QuickAddInput, type ProjectEdit } from './edit'
 import type { PlanData, ProjectView, PTaskRow } from './useProjects'
 
 const LANE_W = 96
@@ -32,9 +32,13 @@ type Drag = { id: string; sx: number; sy: number; dx: number; dy: number; on: bo
 type Linking = { from: string; x1: number; y1: number; x2: number; y2: number; over: string | null }
 type Path = { key: string; d: string; guess: boolean; link?: { id: string; a: string; b: string }; mid: { x: number; y: number } }
 
-export function ProjectTimeline({ p, data, selected, onSelect, edit, autoOnly }: {
+export function ProjectTimeline({ p, data, selected, onSelect, edit, autoOnly, picked = [], onPick }: {
   p: ProjectView; data: PlanData; selected: string | null; onSelect: (id: string | null) => void; edit: ProjectEdit; autoOnly: boolean
+  /** 31 §12.12.2 여러 개 고름 · 누름(⌘/Shift) */
+  picked?: PTaskRow[]; onPick?: (id: string, e: { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }) => void
 }) {
+  const pickedSet = useMemo(() => new Set(picked.map((t) => t.id)), [picked])
+  const [laneAdd, setLaneAdd] = useState<WorkKind | null>(null)
   const today = dayKey()
   const wrap = useRef<HTMLDivElement>(null)
   const lanesRef = useRef<HTMLDivElement>(null)
@@ -77,7 +81,8 @@ export function ProjectTimeline({ p, data, selected, onSelect, edit, autoOnly }:
     const dayAt = (x: number) => addDays(from, Math.max(0, Math.min(days - 1, Math.floor((x - LANE_W) / px))))
     const shown = WORK_KINDS.filter((k) => items.some((i) => i.kind === k))
     // 끄는 동안엔 빈 종류 줄도 보여 준다(어느 줄로든 옮길 수 있게)
-    const lanes = WORK_KINDS.filter((k) => shown.includes(k) || dragging).map((k) => ({ kind: k, items: items.filter((i) => i.kind === k) }))
+    // 31 §12.12.1 구성원이 없으면 `기타` 줄 하나(＋ 할 일 추가 자리)
+    const lanes = WORK_KINDS.filter((k) => shown.includes(k) || dragging || (!shown.length && k === 'other')).map((k) => ({ kind: k, items: items.filter((i) => i.kind === k) }))
     const placed: Placed[] = []
     const laneRows = new Map<WorkKind, number>()
     for (const lane of lanes) {
@@ -88,7 +93,7 @@ export function ProjectTimeline({ p, data, selected, onSelect, edit, autoOnly }:
       for (const i of d) { const r = rows.get(i.t.id)!; n = Math.max(n, r + 1); placed.push({ ...i, x: at(i), row: r, someday: false }) }
       const s = lane.items.filter((i) => !i.day)
       s.forEach((i, k) => placed.push({ ...i, x: LANE_W + trackW + 8, row: k, someday: true }))
-      laneRows.set(lane.kind, Math.max(1, n, s.length))
+      laneRows.set(lane.kind, Math.max(1, n, s.length) + 1) // +1 = 맨 아래 `＋ 할 일 추가` 행(§12.12.1)
     }
     const step = days <= 70 ? 7 : days <= 150 ? 14 : 30
     const ticks: { x: number; label: string }[] = []
@@ -148,9 +153,8 @@ export function ProjectTimeline({ p, data, selected, onSelect, edit, autoOnly }:
       }
       if (e.key !== 'Delete' && e.key !== 'Backspace') return
       if (typing(e.target) || document.querySelector('.popover,[aria-modal="true"]')) return
-      if (k.selLink) { e.preventDefault(); const id = k.selLink; setSelLink(null); void k.edit.unorder(id); return }
-      const t = k.selected ? k.p.members.find((m) => m.id === k.selected) : undefined
-      if (t) { e.preventDefault(); onSelect(null); void k.edit.out(t) }
+      if (k.selLink) { e.preventDefault(); const id = k.selLink; setSelLink(null); void k.edit.unorder(id) }
+      // 고른 할 일 Delete = 삭제(휴지통)는 프로젝트 화면이 맡는다(§12.12.2)
     }
     window.addEventListener('keydown', key, true)
     return () => window.removeEventListener('keydown', key, true)
@@ -263,7 +267,7 @@ export function ProjectTimeline({ p, data, selected, onSelect, edit, autoOnly }:
     const isRen = renaming === it.t.id && !float
     const cls = [
       'plan-tk', done ? 'is-done' : 'is-open', via === 'auto' ? 'is-auto' : '',
-      selected === it.t.id && !float ? 'is-selected' : '', float ? 'is-float' : '', !float && drag?.on && drag.id === it.t.id ? 'is-ghost' : '',
+      (selected === it.t.id || pickedSet.has(it.t.id)) && !float ? 'is-selected' : '', float ? 'is-float' : '', !float && drag?.on && drag.id === it.t.id ? 'is-ghost' : '',
       linking?.over === it.t.id ? 'is-target' : '', autoOnly && via !== 'auto' ? 'is-faded' : '', isRen ? 'is-renaming' : ''
     ].filter(Boolean).join(' ')
     return (
@@ -271,7 +275,7 @@ export function ProjectTimeline({ p, data, selected, onSelect, edit, autoOnly }:
         style={float ? { left: float.left, top: float.top } : { left: it.x, top: laneTop.m.get(it.kind)! + 6 + it.row * ROW }}
         role="button" tabIndex={float ? -1 : 0} aria-label={it.t.title}
         onPointerDown={float ? undefined : (e) => onChipDown(e, it)}
-        onClick={() => { if (!suppressClick.current) { setSelLink(null); onSelect(it.t.id) } }}
+        onClick={(e) => { if (!suppressClick.current) { setSelLink(null); if (onPick) onPick(it.t.id, e); else onSelect(it.t.id) } }}
         onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onSelect(it.t.id) }}
         onDoubleClick={(e) => { if ((e.target as HTMLElement).closest('.plan-tk__t')) { e.stopPropagation(); setRenaming(it.t.id) } }}
         onContextMenu={(e: MouseEvent) => { e.preventDefault(); setMenu({ t: it.t, point: { x: e.clientX, y: e.clientY } }) }}>
@@ -286,7 +290,9 @@ export function ProjectTimeline({ p, data, selected, onSelect, edit, autoOnly }:
         {!float && !isRen && <>
           <span className="plan-tk__acts">
             {via === 'auto' && <button aria-label="맞아" title="맞아 — 이 프로젝트에 둬요" onClick={(e) => { e.stopPropagation(); void edit.confirm(it.t) }}><Check /></button>}
-            <button aria-label="프로젝트에서 빼기" title="이 프로젝트에서 빼기(할 일은 그대로)" onClick={(e) => { e.stopPropagation(); void edit.out(it.t) }}><X /></button>
+            {via === 'auto' && <button aria-label="프로젝트에서 빼기" title="이 프로젝트에서 빼기 — 리스트엔 남아요" onClick={(e) => { e.stopPropagation(); void edit.out(it.t) }}><X /></button>}
+            <button aria-label="메뉴" title="메뉴 — 날짜·우선순위·빼기·삭제" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setMenu({ t: it.t, point: { x: r.left, y: r.bottom + 4 } }) }}><MoreHorizontal /></button>
+            <button aria-label="삭제" title="삭제 — 휴지통으로 (Delete)" className="is-danger" onClick={(e) => { e.stopPropagation(); void edit.trash(pickedSet.has(it.t.id) && picked.length > 1 ? picked : [it.t]) }}><Trash2 /></button>
           </span>
           <i className="plan-tk__h" title="끌어서 다음 일과 잇기" onPointerDown={(e) => onHandleDown(e, it)} />
         </>}
@@ -329,18 +335,27 @@ export function ProjectTimeline({ p, data, selected, onSelect, edit, autoOnly }:
               <div className="plan-lane__n">{WORK_LABEL[l.kind]}<small>{l.items.length}</small></div>
             </div>
           ))}
+          {!drag?.on && layout.lanes.map((l) => {
+            const top = (laneTop.m.get(l.kind) ?? 0) + 6 + (layout.laneRows.get(l.kind)! - 1) * ROW
+            return laneAdd === l.kind
+              ? <QuickAddInput key={`add-${l.kind}`} className="plan-qa--lane" placeholder={`${WORK_LABEL[l.kind]}에 새 할 일 · '내일'처럼 날짜도`}
+                  style={{ left: LANE_W + 6, top: top - 3 }} onClose={() => setLaneAdd(null)} onSubmit={(raw) => edit.quick(raw, { kind: l.kind })} />
+              : <button key={`add-${l.kind}`} className="plan-laneadd" style={{ left: LANE_W + 6, top }} onClick={(e) => { e.stopPropagation(); setLaneAdd(l.kind) }} onDoubleClick={(e) => e.stopPropagation()}>
+                  <Plus />할 일 추가
+                </button>
+          })}
           {layout.hasSomeday && <i className="plan-tl__somedayline" style={{ left: LANE_W + layout.trackW }} />}
           {xToday !== null && <div className="plan-vline is-today" style={{ left: xToday }}><span>오늘 {md(today)}</span></div>}
           {xDl !== null && p.deadline && <div className="plan-vline is-dl" style={{ left: xDl }}><span>⚑ {p.deadline.word} {md(p.deadline.day)}</span></div>}
           {layout.placed.map((it) => chip(it))}
           {floatEl}
-          {draft && <DraftInput draft={draft} onClose={() => setDraft(null)} onSave={async (title) => {
-            const kind = workKind(title) !== draft.kind ? draft.kind : null
+          {draft && <DraftInput draft={draft} onClose={() => setDraft(null)} onSave={async (raw) => {
             setDraft(null)
-            const id = await edit.create(title, draft.day, kind)
+            // 빠른 추가와 같은 인식 — 적은 날짜가 누른 날짜를 이긴다(§12.12.1)
+            const id = await edit.quick(raw, { day: draft.day, kind: draft.kind })
             if (id) onSelect(id)
           }} />}
-          {laneTop.height === 0 && <p className="plan-tl__hint">빈 곳을 두 번 눌러 할 일을 넣어요</p>}
+
         </div>
         <svg className="plan-rel" aria-hidden="true">
           <defs>
@@ -366,7 +381,7 @@ export function ProjectTimeline({ p, data, selected, onSelect, edit, autoOnly }:
           <span><i className="plan-lgd is-done" />끝냄</span><span><i className="plan-lgd" />남음</span>
           {p.autoCount > 0 && <span><i className="plan-lgd is-auto" />자동으로 넣음(확인 전)</span>}
           <span><i className="plan-lgd is-rel" />먼저 해야 함{pairs.some((x) => x.guess) ? ' · 점선 = 추정' : ''}</span>
-          <span className="plan-legend__tip">끌어서 날짜·줄 바꾸기 · 오른쪽 점을 끌어 잇기 · 빈 곳 두 번 눌러 새 할 일</span>
+          <span className="plan-legend__tip">＋로 추가 · 끌어서 날짜·줄 · 오른쪽 점으로 잇기 · 우클릭·⋯로 빼기·삭제 · ⌘누름 여러 개</span>
           {!sideOpen && <button className="plan-side__reopen" onClick={() => setSideOpen(true)}>관련 보기</button>}
         </div>
       </div>
@@ -378,7 +393,7 @@ export function ProjectTimeline({ p, data, selected, onSelect, edit, autoOnly }:
         {p.lists.length > 0 && <section><h6>리스트 {p.lists.length}곳에서 모음</h6><div className="plan-side__rows">{p.lists.map((l) => <button key={l.id} onClick={() => openTarget({ view: `list:${l.id}` })}><span>{l.emoji ? `${l.emoji} ` : ''}{l.name}</span><small>{l.count}</small></button>)}</div></section>}
         {!p.people.length && !p.memos.length && !p.lists.length && <p className="plan-side__none">관계도에서 사람·메모를 이을 수 있어요</p>}
       </aside>}
-      {menu && <ProjectTaskMenu all={data.projects} t={menu.t} p={p} edit={edit} point={menu.point} onOpen={() => onSelect(menu.t.id)} onClose={() => setMenu(undefined)} onRename={() => setRenaming(menu.t.id)} />}
+      {menu && <ProjectTaskMenu all={data.projects} t={menu.t} p={p} edit={edit} point={menu.point} many={picked} onOpen={() => onSelect(menu.t.id)} onClose={() => setMenu(undefined)} onRename={() => setRenaming(menu.t.id)} />}
       {linkMenu && (
         <Popover point={linkMenu.point} onClose={() => setLinkMenu(undefined)} className="menu" width={170}>
           <MenuItem label="방향 바꾸기" onClick={() => { const l = linkMenu; setLinkMenu(undefined); void edit.flip(l.id) }} />

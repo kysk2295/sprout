@@ -165,10 +165,20 @@ export async function unlinkNote(noteId: string, toId: string): Promise<Undo> {
 
 // ── 할 일 ──
 /** 프로젝트에 새 할 일: 주 리스트 · 그날 종일 마감(없으면 날짜 없음) · 프로젝트 태그 user · 줄 종류가 자동 분류와 다르면 덮어쓰기 */
-export async function addProjectTask(input: { title: string; projectTagId: string; listId: string | null; day?: string | null; kind?: WorkKind | null; parentId?: string | null }): Promise<{ id: string; undo: Undo }> {
+export async function addProjectTask(input: {
+  title: string; projectTagId: string; listId: string | null; day?: string | null; kind?: WorkKind | null; parentId?: string | null
+  /** 31 §12.12 빠른 추가 인식 값 */
+  priority?: number; repeatRule?: string | null; tagIds?: string[]
+}): Promise<{ id: string; undo: Undo }> {
   let listId = input.listId
   if (input.parentId) { const par = await (await getDb()).get<{ list_id: string | null }>('SELECT list_id FROM tasks WHERE id = ?', [input.parentId]); if (par?.list_id) listId = par.list_id }
-  const id = await createTask({ title: input.title.trim(), list_id: listId, due_at: input.day ?? null, parent_id: input.parentId ?? null, sort_order: input.parentId ? Date.now() : -Date.now() })
+  const due = input.day ?? null
+  const id = await createTask({ title: input.title.trim(), list_id: listId, due_at: due, priority: input.priority ?? 0, parent_id: input.parentId ?? null, sort_order: input.parentId ? Date.now() : -Date.now() })
+  const extra: Stmt[] = []
+  if (due && input.repeatRule) extra.push(update('tasks', id, { repeat_rule: input.repeatRule, repeat_from: 'due' }))
+  if (due?.includes('T')) extra.push(insert('reminders', { id: uuid(), task_id: id, trigger: '-PT0M' })) // 빠른 추가와 같게: 시각이 있으면 정시 알림
+  if (extra.length) await run(...extra)
+  for (const tagId of input.tagIds ?? []) if (tagId !== input.projectTagId) await setTag([id], tagId, true)
   await addToProject([id], input.projectTagId)
   if (input.kind) await setWorkKind(id, input.kind)
   return { id, undo: async () => { await run(remove('relations', kindRelId(id))); await deleteTasksHard([id]) } }

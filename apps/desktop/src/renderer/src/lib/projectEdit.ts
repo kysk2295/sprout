@@ -265,3 +265,12 @@ export function moveStep(ids: string[], from: number, to: number): string[] {
   out.splice(Math.max(0, Math.min(out.length, to)), 0, x)
   return out
 }
+
+// ── 31 §12.12.2 여러 개 고르기(⌘/Ctrl 누름 = 더하기·빼기, Shift 누름 = 더하기) ──
+/** 누름 처리: 고른 것 집합을 돌려준다. 보통 누름 = 하나만(오른쪽 상세) */
+export function pickNext(cur: string[], id: string, mods: { meta: boolean; shift: boolean }): string[] {
+  if (mods.meta) return cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]
+  if (mods.shift) return cur.includes(id) ? cur : [...cur, id]
+  return [id]
+}
+

@@ -171,3 +171,43 @@ console.log('project-edit ok')
   assert.equal(loop.steps.length, 4)
   console.log('steps ok')
 }
+
+// ── 31 §12.12 프로젝트 안에서 넣기·고르기: 주 리스트 · 인식 + 자리 기본값 · 여러 개 고르기 ──
+{
+  const { mainListOf, projectTaskInput } = await import('@sprout/schema/planView')
+  const { parseAdd } = await import('../src/renderer/src/lib/addParse')
+  const { pickNext } = await import('../src/renderer/src/lib/projectEdit')
+  const lists: Record<string, { kind: string | null; name: string }> = { in: { kind: 'inbox', name: '기본함' }, a: { kind: null, name: '가 공부' }, b: { kind: null, name: '나 교육' } }
+  const of = (id: string) => lists[id] ?? null
+  const m = (list_id: string | null, status = 0) => ({ list_id, status })
+  assert.equal(mainListOf([m('in'), m('in'), m('in'), m('a')], of), 'a', '기본함은 주 리스트가 아님')
+  assert.equal(mainListOf([m('a'), m('b'), m('b', 1)], of), 'b', '구성원이 가장 많은 리스트')
+  assert.equal(mainListOf([m('a', 1), m('b')], of), 'b', '같으면 열린 구성원이 많은 쪽')
+  assert.equal(mainListOf([m('b'), m('a')], of), 'a', '그것도 같으면 이름 순')
+  assert.equal(mainListOf([m('in'), m(null), m('gone')], of), null, '일반 리스트가 없으면 null(기본함) — 보관·없는 리스트 제외')
+
+  const now = new Date('2026-10-05T09:00:00')
+  const P = (raw: string) => parseAdd(raw, [{ id: 'a', name: '공부' }], [{ id: 't1', name: '중요' }], { keepDate: false, now })
+  const r1 = projectTaskInput(P('내일 오후 3시 자료 정리'), { kind: 'research', mainList: 'b' })!
+  assert.equal(r1.title, '자료 정리', '날짜 문구는 제목에서 뺌')
+  assert.equal(r1.due_at, '2026-10-06T15:00', '내일 오후 3시 → 15시')
+  assert.equal(r1.list_id, 'b', '주 리스트')
+  assert.equal(r1.kind, null, '제목 분류(조사·분석)와 줄이 같으면 덮어쓰기 안 함')
+  const r2 = projectTaskInput(P('발표 연습'), { day: '2026-10-09', kind: 'dev', mainList: null })!
+  assert.equal(r2.due_at, '2026-10-09', '적은 날짜가 없으면 누른 날짜')
+  assert.equal(r2.list_id, null, '주 리스트가 없으면 기본함(null → 안전망)')
+  assert.equal(r2.kind, 'dev', '줄 종류가 제목 분류와 다르면 덮어쓰기')
+  const r3 = projectTaskInput(P('금요일 제출 ~공부 #중요 !높음'), { day: '2026-10-07', mainList: 'b' })!
+  assert.equal(r3.due_at, '2026-10-09', '적은 날짜가 누른 날짜를 이김')
+  assert.equal(r3.list_id, 'a', '~리스트가 주 리스트를 이김')
+  assert.deepEqual(r3.tag_ids, ['t1'])
+  assert.equal(r3.priority, 3)
+  assert.equal(projectTaskInput(P('   '), { mainList: 'b' }), null, '빈 제목')
+
+  assert.deepEqual(pickNext(['a'], 'b', { meta: false, shift: false }), ['b'], '보통 누름 = 하나만')
+  assert.deepEqual(pickNext(['a'], 'b', { meta: true, shift: false }), ['a', 'b'], '⌘ = 더하기')
+  assert.deepEqual(pickNext(['a', 'b'], 'a', { meta: true, shift: false }), ['b'], '⌘ 다시 = 빼기')
+  assert.deepEqual(pickNext(['a'], 'a', { meta: false, shift: true }), ['a'], 'Shift = 더하기만')
+  assert.deepEqual(pickNext([], 'c', { meta: false, shift: true }), ['c'])
+  console.log('project quick add ok')
+}

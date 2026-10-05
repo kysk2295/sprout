@@ -112,6 +112,23 @@ await made.undo()
 assert.equal(all('SELECT count(*) AS c FROM tasks WHERE id = ?', [made.id])[0].c, 0)
 assert.equal(all('SELECT count(*) AS c FROM task_tags WHERE task_id = ?', [made.id])[0].c, 0)
 
+// 31 §12.12 빠른 추가 값: 주 리스트 없으면 기본함 · 시각 = 정시 알림 · 반복 · 우선순위 · #태그 · 되돌리기
+{
+  db.run("INSERT INTO tags (id, name, kind) VALUES ('tg', '중요', NULL)")
+  const q = await E.addProjectTask({ title: '자료 정리', projectTagId: pid, listId: null, day: '2026-10-06T15:00', priority: 5, repeatRule: 'FREQ=WEEKLY', tagIds: ['tg'] })
+  assert.deepEqual(all('SELECT list_id, due_at, is_all_day, priority, repeat_rule, deleted_at FROM tasks WHERE id = ?', [q.id])[0], { list_id: 'in', due_at: '2026-10-06T15:00', is_all_day: 0, priority: 5, repeat_rule: 'FREQ=WEEKLY', deleted_at: null }, '주 리스트가 없으면 기본함')
+  assert.deepEqual(all('SELECT trigger FROM reminders WHERE task_id = ?', [q.id]).map((r) => r.trigger), ['-PT0M'])
+  assert.deepEqual(all("SELECT tag_id, source FROM task_tags WHERE task_id = ? ORDER BY tag_id", [q.id]).map((r) => r.tag_id).sort(), [pid, 'tg'].sort())
+  // 프로젝트에서 빼기 = 연결만(리스트·휴지통 그대로) — 삭제와 다름
+  const o = await P.removeFromProject(q.id, pid)
+  assert.deepEqual(all('SELECT list_id, deleted_at FROM tasks WHERE id = ?', [q.id])[0], { list_id: 'in', deleted_at: null }, '뺀 할 일은 리스트에 남음')
+  assert.equal(all('SELECT state FROM task_tags WHERE task_id = ? AND tag_id = ?', [q.id, pid])[0].state, 'dismissed')
+  await o()
+  await q.undo()
+  assert.equal(all('SELECT count(*) AS c FROM tasks WHERE id = ?', [q.id])[0].c, 0)
+  assert.equal(all('SELECT count(*) AS c FROM reminders WHERE task_id = ?', [q.id])[0].c, 0, '되돌리면 알림·태그도 지움')
+}
+
 // 새 프로젝트(사람) · 이름 · 합치기 · 삭제 · 되돌리기
 const np = await E.createProject('ADsP', '📜')
 assert.deepEqual(all('SELECT name, kind, source FROM tags WHERE id = ?', [np.tagId])[0], { name: '📜 ADsP', kind: 'project', source: 'user' })

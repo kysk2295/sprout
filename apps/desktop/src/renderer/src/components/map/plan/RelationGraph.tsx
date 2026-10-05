@@ -7,7 +7,7 @@ import {
   Background, BackgroundVariant, BaseEdge, ConnectionMode, EdgeLabelRenderer, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, useInternalNode, useReactFlow,
   type Connection, type Edge, type EdgeProps, type InternalNode, type Node, type NodeChange, type NodeProps
 } from '@xyflow/react'
-import { Check, FileText, Folder, List, LocateFixed, Maximize2, Minus, Plus, RotateCcw, User, X } from 'lucide-react'
+import { Check, FileText, Folder, List, LocateFixed, Maximize2, Minus, MoreHorizontal, Plus, RotateCcw, Trash2, User, X } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent as RKeyboardEvent, type MouseEvent as RMouseEvent } from 'react'
 import { createNoteFor, ensurePerson, projectPersonId, unlinkRelation } from '../../../data/projectEdit'
 import { openTarget } from '../../../data/wiki'
@@ -16,7 +16,7 @@ import { buildRelationGraph, connectPlan, NID, overlapping, radialLayout, type R
 import type { TaskActions } from '../../../lib/taskActions'
 import { MenuItem, Popover } from '../../Popover'
 import { useToast } from '../../Toast'
-import { ProjectTaskMenu, type ProjectEdit } from './edit'
+import { ProjectTaskMenu, QuickAddInput, type ProjectEdit } from './edit'
 import { useRelationRows, type PlanData, type ProjectView, type PTaskRow } from './useProjects'
 import './relgraph.css'
 
@@ -43,6 +43,10 @@ type Ctx = {
   setRenaming: (id: string | null) => void
   cutEdge: (e: RelEdge) => void
   nodeOf: Map<string, RelNode>
+  /** 31 §12.12.2 여러 개 고름 · ⋯ 메뉴 · 휴지통 */
+  picked: Set<string>
+  openMenu: (n: RelNode, point: XY) => void
+  trash: (t: PTaskRow) => void
 }
 const GCtx = createContext<Ctx>(null as never)
 type RN = Node<{ n: RelNode }>
@@ -78,7 +82,7 @@ function TaskNode({ data: { n } }: NodeProps<RN>) {
   const editing = ctx.renaming === n.id
   useEffect(() => { if (editing) setDraft(t.title) }, [editing, t.title])
   const finish = (save: boolean) => { if (save) void ctx.edit.rename(t, draft); ctx.setRenaming(null) }
-  const cls = ['rg-node', 'rg-node--task', done && 'is-done', n.auto && 'is-auto', (ctx.selectedTask === t.id || ctx.sel?.id === n.id) && 'is-sel', dimmed(ctx, n) && 'is-dim'].filter(Boolean).join(' ')
+  const cls = ['rg-node', 'rg-node--task', done && 'is-done', n.auto && 'is-auto', (ctx.selectedTask === t.id || ctx.sel?.id === n.id || ctx.picked.has(t.id)) && 'is-sel', dimmed(ctx, n) && 'is-dim'].filter(Boolean).join(' ')
   return (
     <div className={cls} title={t.title}>
       <button className={`rg-ring nodrag${done ? ' is-on' : ''}`} aria-label={done ? '완료 취소' : '완료'} onClick={(e) => { e.stopPropagation(); void ctx.edit.complete(t) }}>{done && <Check strokeWidth={3} />}</button>
@@ -89,12 +93,14 @@ function TaskNode({ data: { n } }: NodeProps<RN>) {
           : <span className="rg-task__t">{t.title}</span>}
         {day && <em className={late ? 'is-late' : ''}>{md(day.slice(0, 10))}</em>}
       </div>
-      {n.auto && (
-        <span className="rg-auto nodrag">
+      <span className="rg-auto nodrag">
+        {n.auto && <>
           <button title="맞아 — 프로젝트에 둠" aria-label="맞아" onClick={(e) => { e.stopPropagation(); void ctx.edit.confirm(t) }}><Check /></button>
-          <button title="이건 아니야 — 프로젝트에서 빼기" aria-label="이건 아니야" onClick={(e) => { e.stopPropagation(); void ctx.edit.out(t) }}><X /></button>
-        </span>
-      )}
+          <button title="이건 아니야 — 프로젝트에서 빼기(리스트엔 남아요)" aria-label="이건 아니야" onClick={(e) => { e.stopPropagation(); void ctx.edit.out(t) }}><X /></button>
+        </>}
+        <button title="메뉴 — 날짜·우선순위·빼기·삭제" aria-label="메뉴" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); ctx.openMenu(n, { x: r.left, y: r.bottom + 4 }) }}><MoreHorizontal /></button>
+        <button title="삭제 — 휴지통으로 (Delete)" aria-label="삭제" className="is-danger" onClick={(e) => { e.stopPropagation(); ctx.trash(t) }}><Trash2 /></button>
+      </span>
       <Handles />
     </div>
   )
@@ -179,11 +185,13 @@ export function RelationGraph(props: {
   p: ProjectView; data: PlanData; edit: ProjectEdit; actions: TaskActions
   selected: string | null; onSelect: (taskId: string | null) => void
   autoOnly: boolean
+  picked?: PTaskRow[]; onPick?: (id: string, e: { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }) => void
 }) {
   return <ReactFlowProvider><Graph {...props} /></ReactFlowProvider>
 }
 
-function Graph({ p, data, edit, selected, onSelect, autoOnly }: Parameters<typeof RelationGraph>[0]) {
+function Graph({ p, data, edit, selected, onSelect, autoOnly, picked = [], onPick }: Parameters<typeof RelationGraph>[0]) {
+  const pickedSet = useMemo(() => new Set(picked.map((t) => t.id)), [picked])
   const toast = useToast()
   const flow = useReactFlow()
   const rows = useRelationRows()
@@ -283,9 +291,8 @@ function Graph({ p, data, edit, selected, onSelect, autoOnly }: Parameters<typeo
       if (sel?.type === 'edge') { const e = graph.edges.find((x) => x.id === sel.id); if (e) { ev.preventDefault(); cutEdge(e) } return }
       const nid = sel?.type === 'node' ? sel.id : selected ? NID.task(selected) : null
       const n = nid ? nodeOf.get(nid) : undefined
-      if (!n) return
+      if (!n || n.kind === 'task') return // 고른 할 일 Delete = 삭제(휴지통)는 프로젝트 화면이 맡는다(§12.12.2)
       ev.preventDefault()
-      if (n.kind === 'task') { const t = taskOf(n.ref); if (t) void edit.out(t); setSel(null); return }
       if (n.kind === 'person' || n.kind === 'note') { for (const e of graph.edges.filter((x) => x.source === n.id || x.target === n.id)) cutEdge(e); setSel(null) }
     }
     window.addEventListener('keydown', key, true) // 잡기 단계 — 프로젝트 화면의 Esc(모든 프로젝트)보다 먼저
@@ -311,7 +318,11 @@ function Graph({ p, data, edit, selected, onSelect, autoOnly }: Parameters<typeo
   const [menu, setMenu] = useState<{ n: RelNode; point: XY }>()
   const [pop, setPop] = useState<{ kind: 'task' | 'person' | 'note'; anchor: HTMLElement }>()
 
-  const ctx: Ctx = { p, edit, today, autoOnly, selectedTask: selected, sel, renaming, setRenaming, cutEdge, nodeOf }
+  const ctx: Ctx = {
+    p, edit, today, autoOnly, selectedTask: selected, sel, renaming, setRenaming, cutEdge, nodeOf, picked: pickedSet,
+    openMenu: (n, point) => setMenu({ n, point }),
+    trash: (t) => void edit.trash(pickedSet.has(t.id) && picked.length > 1 ? picked : [t])
+  }
   const empty = p.members.length === 0
 
   return (
@@ -324,7 +335,7 @@ function Graph({ p, data, edit, selected, onSelect, autoOnly }: Parameters<typeo
           onConnect={onConnect}
           connectionMode={ConnectionMode.Loose}
           isValidConnection={(c) => c.source !== c.target}
-          onNodeClick={(_, n) => { const r = n.data.n; setSel({ type: 'node', id: r.id }); if (r.kind === 'task') onSelect(r.ref) }}
+          onNodeClick={(e, n) => { const r = n.data.n; setSel({ type: 'node', id: r.id }); if (r.kind === 'task') { if (onPick) onPick(r.ref, e); else onSelect(r.ref) } }}
           onNodeDoubleClick={(_, n) => { if (n.data.n.kind === 'task') setRenaming(n.id) }}
           onNodeContextMenu={(e, n) => { e.preventDefault(); setSel({ type: 'node', id: n.id }); if (n.data.n.kind !== 'project') setMenu({ n: n.data.n, point: { x: e.clientX, y: e.clientY } }) }}
           onEdgeClick={(_, e) => setSel({ type: 'edge', id: e.id })}
@@ -359,7 +370,7 @@ function Graph({ p, data, edit, selected, onSelect, autoOnly }: Parameters<typeo
 
       {menu && menu.n.kind === 'task' && (() => {
         const t = taskOf(menu.n.ref)
-        return t && <ProjectTaskMenu all={data.projects} t={t} p={p} edit={edit} point={menu.point} onClose={() => setMenu(undefined)} onOpen={() => onSelect(t.id)} onRename={() => setRenaming(menu.n.id)} />
+        return t && <ProjectTaskMenu all={data.projects} t={t} p={p} edit={edit} point={menu.point} many={picked} onClose={() => setMenu(undefined)} onOpen={() => onSelect(t.id)} onRename={() => setRenaming(menu.n.id)} />
       })()}
       {menu && menu.n.kind !== 'task' && (
         <Popover point={menu.point} onClose={() => setMenu(undefined)} className="menu" width={180}>
@@ -373,7 +384,12 @@ function Graph({ p, data, edit, selected, onSelect, autoOnly }: Parameters<typeo
           </>}
         </Popover>
       )}
-      {pop?.kind === 'task' && <LineInput anchor={pop.anchor} placeholder="새 할 일 이름" onClose={() => setPop(undefined)} onSubmit={(v) => void edit.create(v, null, null)} />}
+      {pop?.kind === 'task' && (
+        <Popover anchor={pop.anchor} onClose={() => setPop(undefined)} width={320} className="rg-pop">
+          <QuickAddInput placeholder="새 할 일 · '내일'처럼 날짜도" onClose={() => setPop(undefined)} onSubmit={(raw) => edit.quick(raw)} />
+          <p className="rg-pop__hint">Enter로 계속 추가 · 프로젝트 주 리스트에 들어가요</p>
+        </Popover>
+      )}
       {pop?.kind === 'note' && <LineInput anchor={pop.anchor} placeholder="메모 한 줄 — 수집함에 저장하고 이어요" onClose={() => setPop(undefined)}
         onSubmit={(v) => void createNoteFor(v, { type: 'tag', id: pid }).then((r) => toast.show('메모를 만들어 이었어요', r.undo))} />}
       {pop?.kind === 'person' && <PersonPicker anchor={pop.anchor} persons={rows?.persons ?? []} target={selected ? taskOf(selected) : undefined} onClose={() => setPop(undefined)}
