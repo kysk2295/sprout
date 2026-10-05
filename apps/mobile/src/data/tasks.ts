@@ -8,6 +8,7 @@ import { ensureInbox } from '@sprout/schema/inbox'
 import { currentUserId, signedInUserId } from './auth'
 import { coreDb, db, run } from './db'
 import { taskDone, xpGained } from './events'
+import { addTaskTags, removeTaskTags } from '../wiki/data'
 
 export type Undo = () => Promise<void>
 const marks = (n: number) => Array.from({ length: n }, () => '?').join(',')
@@ -130,7 +131,7 @@ export async function duplicateTask(id: string): Promise<string | null> {
   const nid = uuid()
   const { id: _id, owner_id: _o, created_at: _c, modified_at: _m, completed_at: _d, pinned_at: _p, ...rest } = t
   const stmts: Stmt[] = [insert('tasks', { ...rest, id: nid, status: 0, sort_order: ((t.sort_order as number) ?? 0) + 0.5 })]
-  for (const tag of await db.getAll<{ tag_id: string }>('SELECT tag_id FROM task_tags WHERE task_id = ?', [id])) stmts.push(insert('task_tags', { id: uuid(), task_id: nid, tag_id: tag.tag_id }))
+  for (const tag of await db.getAll<{ tag_id: string }>("SELECT DISTINCT tag_id FROM task_tags WHERE task_id = ? AND COALESCE(state,'accepted') = 'accepted'", [id])) stmts.push(insert('task_tags', { id: uuid(), task_id: nid, tag_id: tag.tag_id }))
   for (const c of await db.getAll<{ title: string; done: number; sort_order: number }>('SELECT title, done, sort_order FROM check_items WHERE task_id = ?', [id])) {
     stmts.push(insert('check_items', { id: uuid(), task_id: nid, title: c.title, done: c.done, sort_order: c.sort_order }))
   }
@@ -218,12 +219,10 @@ export async function toggleContentMode(taskId: string) {
 }
 
 // ── 태그(21 §5, 20 M3) ──
+/** 33 §11: 켜기 = 없으면 넣고 뗀(dismissed) 자동 행은 user로 올림, 끄기 = 직접 붙인 것은 삭제·자동/링크는 dismissed(다시 안 붙음) */
 export async function setTag(ids: string[], tagId: string, on: boolean) {
-  const rows = await db.getAll<{ id: string; task_id: string }>(`SELECT id, task_id FROM task_tags WHERE tag_id = ? AND task_id IN (${marks(ids.length)})`, [tagId, ...ids])
-  if (on) {
-    const has = new Set(rows.map((r) => r.task_id))
-    await run(ids.filter((id) => !has.has(id)).map((id) => insert('task_tags', { id: uuid(), task_id: id, tag_id: tagId })))
-  } else await run(rows.map((r) => deleteStmt('task_tags', r.id)))
+  if (on) await addTaskTags(ids, tagId)
+  else await removeTaskTags(ids, tagId)
 }
 export async function createTag(name: string): Promise<string> {
   const max = await db.getOptional<{ m: number | null }>('SELECT max(sort_order) AS m FROM tags')

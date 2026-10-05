@@ -6,6 +6,7 @@
 // - 앱이 완전히 꺼진 상태에서 "완료"를 누르면 iOS가 JS를 깨우지 않을 수 있다 → 다음 실행 때 마지막 응답을 확인해 반영한다(맥 위젯과 같은 방식)
 //   Android는 배경·닫힘에서도 버튼 응답이 푸시 작업(push.ts)으로 와서 바로 반영된다
 // - 32 푸시: 서버 알림도 같은 채널·카테고리·id로 그린다(push.ts). 다시 계산할 때마다 onRescheduled 구독자(push.ts)가 로컬 예약 목록을 서버에 보고
+// - 20 §7.1 일정 알림(e:…): 같은 48시간·50개 안에 섞고, 버튼은 다시 알림만(카테고리 sprout-event), 누르면 sprout://event/<id>
 // - 설정 › 할 일 알림 꺼짐(notify_json.reminders=false)이면 로컬 할 일 알림도 예약하지 않는다(다시 알림은 그대로)
 import * as Notifications from 'expo-notifications'
 import { router } from 'expo-router'
@@ -18,11 +19,17 @@ import { syncNow } from '../data/auth'
 import { completeTasks } from '../data/tasks'
 import { ensureExactAlarm, exactAlarmChanged } from './exactAlarm'
 import { routeOf } from './pushLogic'
-import { ACTION_DONE, CATEGORY, diffSchedule, isReminderId, LEGACY_SNOOZE_ACTIONS, overdueIds, isSnoozeId, planReminders, SNOOZE_ACTIONS, snoozeAt, snoozeAtOf, snoozeId, staleSnoozes, type ReminderRow } from './plan'
+import {
+  ACTION_DONE, CATEGORY, diffSchedule, EVENT_CATEGORY, eventSnoozeId, isReminderId, LEGACY_SNOOZE_ACTIONS, mergePlans, overdueIds, isSnoozeId, planEventReminders, planReminders,
+  SNOOZE_ACTIONS, snoozeAt, snoozeAtOf, snoozeId, staleSnoozes, type EventReminderRow, type ReminderRow
+} from './plan'
 
 const QUERY = `SELECT r.id AS rid, r.trigger, t.id AS tid, t.title, t.start_at, t.due_at, l.name AS list_name, l.kind AS list_kind
   FROM reminders r JOIN tasks t ON t.id = r.task_id LEFT JOIN lists l ON l.id = t.list_id
   WHERE t.status = 0 AND t.deleted_at IS NULL AND t.due_at IS NOT NULL`
+// 20 §7.1 일정 알림: 알림이 있는 일정(반복이면 지난 시작도 — 다음 회차를 계산한다)
+const EVENT_QUERY = `SELECT id, title, start_at, end_at, repeat_rule, reminders, location FROM events
+  WHERE deleted_at IS NULL AND reminders IS NOT NULL AND start_at IS NOT NULL AND end_at IS NOT NULL`
 const HANDLED_KEY = 'sprout.notif.handled'
 const CHANNEL = CHANNELS.tasks
 
@@ -37,6 +44,8 @@ export function configureNotifications() {
       { identifier: ACTION_DONE, buttonTitle: '완료', options: { opensAppToForeground: false } },
       ...SNOOZE_ACTIONS.map((a) => ({ identifier: a.id, buttonTitle: a.label, options: { opensAppToForeground: false } }))
     ])
+    // 일정(06 §14.4.7): 완료 없이 다시 알림만
+    await Notifications.setNotificationCategoryAsync(EVENT_CATEGORY, SNOOZE_ACTIONS.map((a) => ({ identifier: a.id, buttonTitle: a.label, options: { opensAppToForeground: false } })))
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync(CHANNEL, { name: '할 일 알림', importance: Notifications.AndroidImportance.HIGH })
       // 32 §5·§8: 서버가 보내는 하루 요약·성장 소식(기본 중요도)
@@ -123,7 +132,8 @@ async function rescheduleOnce() {
   if ((await permissionState()) !== 'granted') return
   const prefs = parseNotifyPrefs((await db.getOptional<{ notify_json: string | null }>('SELECT notify_json FROM user_prefs ORDER BY created_at LIMIT 1').catch(() => null))?.notify_json)
   const rows = prefs.reminders ? await db.getAll<ReminderRow>(QUERY) : []
-  const planned = planReminders(rows, Date.now())
+  const evRows = prefs.reminders ? await db.getAll<EventReminderRow>(EVENT_QUERY).catch(() => []) : []
+  const planned = mergePlans(planReminders(rows, Date.now()), planEventReminders(evRows, Date.now()))
   const pending = (await Notifications.getAllScheduledNotificationsAsync()).map((n) => ({
     id: n.identifier, title: n.content.title, body: n.content.body, taskId: (n.content.data as { taskId?: string } | null)?.taskId
   }))
@@ -135,7 +145,9 @@ async function rescheduleOnce() {
   for (const p of add) {
     await Notifications.scheduleNotificationAsync({
       identifier: p.id,
-      content: { title: p.title, body: p.body, data: { taskId: p.taskId, url: `sprout://task/${p.taskId}` }, categoryIdentifier: CATEGORY, sound: 'default' },
+      content: p.eventId
+        ? { title: p.title, body: p.body, data: { eventId: p.eventId, url: `sprout://event/${p.eventId}` }, categoryIdentifier: EVENT_CATEGORY, sound: 'default' }
+        : { title: p.title, body: p.body, data: { taskId: p.taskId, url: `sprout://task/${p.taskId}` }, categoryIdentifier: CATEGORY, sound: 'default' },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(p.at), ...(Platform.OS === 'android' ? { channelId: CHANNEL } : {}) }
     })
   }
@@ -143,12 +155,12 @@ async function rescheduleOnce() {
   if (force) {
     const now = Date.now()
     for (const n of await Notifications.getAllScheduledNotificationsAsync()) {
-      const at = snoozeAtOf(n.identifier)
+      const at = snoozeAtOf(n.identifier) ?? snoozeAtOf(n.identifier.startsWith('se:') ? `s${n.identifier.slice(2)}` : '')
       if (at === null || at <= now) continue
       await Notifications.cancelScheduledNotificationAsync(n.identifier)
       await Notifications.scheduleNotificationAsync({
         identifier: n.identifier,
-        content: { title: n.content.title, body: n.content.body, data: n.content.data, categoryIdentifier: CATEGORY, sound: 'default' },
+        content: { title: n.content.title, body: n.content.body, data: n.content.data, categoryIdentifier: (n.content.data as { eventId?: string } | null)?.eventId ? EVENT_CATEGORY : CATEGORY, sound: 'default' },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at), ...(Platform.OS === 'android' ? { channelId: CHANNEL } : {}) }
       })
     }
@@ -178,8 +190,9 @@ async function alreadyHandled(key: string): Promise<boolean> {
 }
 export async function handleResponse(r: Notifications.NotificationResponse, opts: { navigate: boolean }) {
   const req = r.notification.request
-  const data = req.content.data as { taskId?: string; url?: string } | null
+  const data = req.content.data as { taskId?: string; eventId?: string; url?: string } | null
   const taskId = data?.taskId
+  if (data?.eventId) return handleEventResponse(r, data.eventId, opts)
   if (!taskId) {
     // 32 하루 요약·성장 소식: 누르면 그 화면(버튼 없음)
     const route = routeOf(data?.url)
@@ -213,6 +226,25 @@ export async function handleResponse(r: Notifications.NotificationResponse, opts
   if (req.identifier) await Notifications.dismissNotificationAsync(req.identifier).catch(() => {})
 }
 
+/** 일정 알림(20 §7.1): 다시 알림 · 누르면 일정 시트 */
+async function handleEventResponse(r: Notifications.NotificationResponse, eventId: string, opts: { navigate: boolean }) {
+  const req = r.notification.request
+  if (await alreadyHandled(`${req.identifier}|${r.actionIdentifier}`)) return
+  const snooze = [...SNOOZE_ACTIONS, ...LEGACY_SNOOZE_ACTIONS].find((a) => a.id === r.actionIdentifier)
+  if (snooze) {
+    const at = snoozeAt(snooze.minutes, Date.now())
+    await Notifications.scheduleNotificationAsync({
+      identifier: eventSnoozeId(eventId, at),
+      content: { title: req.content.title, body: req.content.body, data: { eventId, url: `sprout://event/${eventId}` }, categoryIdentifier: EVENT_CATEGORY, sound: 'default' },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at), ...(Platform.OS === 'android' ? { channelId: CHANNEL } : {}) }
+    })
+  } else if (r.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER && opts.navigate) {
+    if (router.canDismiss()) router.dismissAll()
+    router.push(`/event/${eventId}`)
+  }
+  if (req.identifier) await Notifications.dismissNotificationAsync(req.identifier).catch(() => {})
+}
+
 /**
  * 앱 뿌리(로그인 뒤)에서 한 번: 예약·감시·알림 응답. signedIn이 false가 되면 예약을 지운다.
  * 권한을 묻지는 않는다(첫 알림을 정할 때 ensurePermission).
@@ -222,7 +254,7 @@ export function useNotifications(signedIn: boolean) {
     if (!signedIn) { void cancelAll(); return }
     void configureNotifications().then(() => rescheduleNow())
     // 데이터가 바뀌면(이 기기·동기화) 다시 계산
-    const stopWatch = db.onChangeWithCallback({ onChange: () => void rescheduleNow() }, { tables: ['tasks', 'reminders', 'lists', 'user_prefs'], throttleMs: 1500 })
+    const stopWatch = db.onChangeWithCallback({ onChange: () => void rescheduleNow() }, { tables: ['tasks', 'reminders', 'lists', 'user_prefs', 'events'], throttleMs: 1500 })
     const app = AppState.addEventListener('change', (s) => { if (s === 'active') void rescheduleNow() })
     // 48시간 창 안으로 들어오는 알림을 잡으려고 앞에 있는 동안 30분마다
     const timer = setInterval(() => void rescheduleNow(), 30 * 60_000)

@@ -14,12 +14,12 @@ const uuid = () => crypto.randomUUID()
 const now = () => new Date().toISOString()
 const nextOrder = async (table: string) => ((await db.getOptional<{ m: number | null }>(`SELECT max(sort_order) AS m FROM ${table}`))?.m ?? 0) + 1
 
-export interface TagFull { id: string; name: string; color: string | null; parent_id: string | null; pinned: number | null; sort_order: number }
+export interface TagFull { id: string; name: string; color: string | null; parent_id: string | null; pinned: number | null; sort_order: number; kind?: string | null }
 export interface ListFull extends ListRow { pinned: number | null; show_in_smart: string | null; archived_at: string | null }
 
 // ── 읽기 ──
 export function useTagsFull(): TagFull[] {
-  return useQuery<TagFull>('SELECT id, name, color, parent_id, pinned, sort_order FROM tags ORDER BY COALESCE(pinned, 0) DESC, sort_order, name').data
+  return useQuery<TagFull>('SELECT id, name, color, parent_id, pinned, sort_order, kind FROM tags ORDER BY COALESCE(pinned, 0) DESC, sort_order, name').data
 }
 export function useFilters(): FilterRow[] {
   return useQuery<FilterRow>('SELECT id, name, emoji, rule_json, sort_order FROM filters ORDER BY sort_order, name').data
@@ -38,7 +38,7 @@ export function useListFull(id: string | null): ListFull | undefined {
 export function useOrgCounts(): { all: number; tags: Record<string, number> } {
   const all = useQuery<{ n: number }>(`SELECT count(*) AS n FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.status = 0 AND t.deleted_at IS NULL AND ${IN_SMART}`).data[0]?.n ?? 0
   const per = useQuery<{ tag_id: string; n: number }>(
-    'SELECT tt.tag_id, count(*) AS n FROM task_tags tt JOIN tasks t ON t.id = tt.task_id LEFT JOIN lists l ON l.id = t.list_id WHERE t.status = 0 AND t.deleted_at IS NULL AND l.archived_at IS NULL GROUP BY tt.tag_id'
+    "SELECT tt.tag_id, count(DISTINCT tt.task_id) AS n FROM task_tags tt JOIN tasks t ON t.id = tt.task_id LEFT JOIN lists l ON l.id = t.list_id WHERE t.status = 0 AND t.deleted_at IS NULL AND l.archived_at IS NULL AND COALESCE(tt.state,'accepted') = 'accepted' GROUP BY tt.tag_id"
   ).data
   return { all, tags: Object.fromEntries(per.map((r) => [r.tag_id, r.n])) }
 }

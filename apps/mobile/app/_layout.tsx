@@ -14,6 +14,7 @@ import { useShareInbox } from '../src/share/useShareInbox'
 import { useReminderNotifications } from '../src/notifications/background'
 import { ThemeProvider, usePalette } from '../src/theme/ThemeProvider'
 import { ToastProvider } from '../src/ui/Toast'
+import { WikiIndexProvider } from '../src/wiki/WikiIndex'
 
 export const unstable_settings = { anchor: '(tabs)' }
 
@@ -28,7 +29,10 @@ export default function Root() {
         <PowerSyncContext.Provider value={db}>
           <ThemeProvider>
             <ToastProvider>
-              <Screens signedIn={status === 'signedIn'} />
+              {/* 33 §11: 행 태그 알약·[[링크]]가 쓰는 색인 하나 */}
+              <WikiIndexProvider>
+                <Screens signedIn={status === 'signedIn'} />
+              </WikiIndexProvider>
             </ToastProvider>
           </ThemeProvider>
         </PowerSyncContext.Provider>
@@ -56,6 +60,8 @@ function Screens({ signedIn }: { signedIn: boolean }) {
           <Stack.Screen name="(tabs)" />
           {/* 상세: 반 시트 → 끌어 올리면 전체 화면(21 §5) */}
           <Stack.Screen name="task/[id]" options={sheet([0.6, 1])} />
+          {/* 일정 시트(20 §7.1): 상세와 같은 반 시트 */}
+          <Stack.Screen name="event/[id]" options={sheet([0.6, 1])} />
           <Stack.Screen name="move" options={{ ...sheet([0.8, 1]), contentStyle: { backgroundColor: p.pageBg } }} />
           <Stack.Screen name="tags" options={{ ...sheet([0.7, 1]), contentStyle: { backgroundColor: p.pageBg } }} />
           <Stack.Screen name="date" options={sheet([0.85, 1])} />

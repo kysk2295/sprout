@@ -2,6 +2,8 @@
 // 인식 자체는 데스크톱과 같은 @sprout/schema/recognition(모바일에서 따로 파싱하지 않는다 — 22 §3.1).
 // 순수 모듈(시험: quickAddModel.test.ts).
 import { recognize, type Recognition } from '@sprout/schema/recognition'
+import { linkMoveTarget } from '@sprout/schema/wikiGraph'
+import { maskLinks, matchRank, parseAliases } from '@sprout/schema/wikiLink'
 import { datePart, hasTime } from '@sprout/schema/time'
 import { monthDay } from '../lib/dates.ts'
 import { ON_TIME, type Schedule } from './dateSheetModel.ts'
@@ -9,10 +11,15 @@ import { ON_TIME, type Schedule } from './dateSheetModel.ts'
 /** 인식 취소한 글자를 정규식이 못 잡게 끼워 넣는 보이지 않는 글자(제목에서는 지운다) */
 const BLOCK = '⁠'
 type Named = { id: string; name: string }
+/** 태그 종류·별칭(33 §6.2 `#`·`[[` 제안) */
+type NamedTag = Named & { kind?: string | null; aliases?: string | null }
+type NamedList = Named & { kind?: string | null; emoji?: string | null }
 
 export type Range = { start: number; end: number; text: string }
 export interface Recognized extends Recognition {
   ranges: Range[]
+  /** 제목 속 `[[링크]]` 이름(33 §6) */
+  links: string[]
 }
 
 /** 원문에서 인식된 글자들의 위치(겹치지 않게 앞에서부터) */
@@ -32,13 +39,18 @@ export function tokenRanges(raw: string, tokens: string[]): Range[] {
   return out.sort((a, b) => a.start - b.start)
 }
 
-/** 인식 + 취소(22 §3.2: 하이라이트를 누르면 그 부분은 그냥 글자) */
+/**
+ * 인식 + 취소(22 §3.2: 하이라이트를 누르면 그 부분은 그냥 글자).
+ * 33 §6.3: `[[ … ]]`를 먼저 떼어 보호한다(안의 글자는 날짜·#·~·! 인식에서 빠지고 제목에 그대로 남는다 — 데스크톱 parseAdd와 같은 순서)
+ */
 export function recognizeWith(raw: string, lists: Named[], tags: Named[], ignored: string[] = [], now = new Date()): Recognized {
-  let masked = raw
+  const m = maskLinks(raw)
+  let masked = m.masked
   for (const ig of ignored) if (ig.length > 1) masked = masked.split(ig).join(ig[0] + BLOCK + ig.slice(1))
   const r = recognize(masked, lists, tags, now)
-  const tokens = r.recognized.map((t) => t.split(BLOCK).join(''))
-  return { ...r, title: r.title.split(BLOCK).join(''), recognized: tokens, ranges: tokenRanges(raw, tokens) }
+  const clean = (t: string) => m.restore(t.split(BLOCK).join(''))
+  const tokens = r.recognized.map(clean)
+  return { ...r, title: clean(r.title).replace(/\s+/g, ' ').trim(), recognized: tokens, ranges: tokenRanges(raw, [...tokens, ...m.tokens]), links: m.links }
 }
 
 /** 하이라이트 그리기용 조각 */
@@ -56,26 +68,43 @@ export function segments(raw: string, ranges: Range[]): { text: string; hl: bool
 /** 커서가 하이라이트 안쪽(양 끝 제외)에 놓였으면 그 구간 — 눌러서 인식 취소 */
 export const rangeAt = (ranges: Range[], pos: number) => ranges.find((r) => pos > r.start && pos < r.end) ?? null
 
-// ── # ~ ! 제안 줄(22 §2) ──
-export type Trigger = { kind: '#' | '~' | '!'; query: string; start: number; end: number }
-/** 커서 바로 앞 낱말이 # ~ ! 로 시작하면 제안 줄을 띄운다 */
+// ── # ~ ! [[ 제안 줄(22 §2, 33 §6.2) ──
+export type Trigger = { kind: '#' | '~' | '!' | '[['; query: string; start: number; end: number }
+/** 커서 바로 앞 낱말이 # ~ ! 로 시작하거나 닫히지 않은 `[[`가 있으면 제안 줄을 띄운다 */
 export function activeTrigger(raw: string, cursor = raw.length): Trigger | null {
   const before = raw.slice(0, cursor)
+  const link = before.match(/\[\[([^[\]\n]{0,40})$/)
+  if (link) return { kind: '[[', query: link[1], start: cursor - link[0].length, end: cursor }
   const m = before.match(/(?:^|\s)([#~!])([^\s#~!]*)$/)
   if (!m) return null
   const start = cursor - m[2].length - 1
   return { kind: m[1] as Trigger['kind'], query: m[2], start, end: cursor }
 }
-export type Suggestion = { key: string; label: string; insert: string; create?: boolean; priority?: number }
+export type Suggestion = { key: string; label: string; insert: string; create?: boolean; priority?: number; group?: 'tag' | 'list' | 'task'; kind?: string | null; sub?: string }
+const GROUP_MAX = 5
 const PRIORITIES: [string, number][] = [['높음', 3], ['중간', 2], ['낮음', 1], ['없음', 0]]
-/** 맞는 것 먼저(앞부분 일치 → 포함), 끝에 `새 태그 "<글자>"` */
-export function suggestions(t: Trigger, tags: Named[], lists: Named[]): Suggestion[] {
+/** 맞는 것 먼저(앞부분 일치 → 포함), 끝에 `새 태그 "<글자>"`. `[[`는 태그 → 리스트 → 할 일(묶음마다 5, 이름·별칭·초성) */
+export function suggestions(t: Trigger, tags: NamedTag[], lists: NamedList[], tasks: { id: string; title: string; list?: string | null }[] = []): Suggestion[] {
+  if (t.kind === '[[') {
+    const q = t.query.trim()
+    const pick = <T,>(items: T[], name: (x: T) => string, aliases: (x: T) => string[] = () => []) => items
+      .map((x) => ({ x, m: matchRank(q, name(x), aliases(x)) }))
+      .filter((r) => r.m.rank > 0)
+      .sort((a, b) => b.m.rank - a.m.rank)
+      .slice(0, GROUP_MAX)
+    const out: Suggestion[] = [
+      ...pick(tags, (x) => x.name, (x) => parseAliases(x.aliases)).map(({ x, m }) => ({ key: `tag:${x.id}`, label: x.name, sub: m.via ? `= ${m.via}` : undefined, insert: `[[${x.name}]]`, group: 'tag' as const, kind: x.kind ?? null })),
+      ...pick(lists.filter((l) => l.kind !== 'inbox'), (x) => x.name).map(({ x }) => ({ key: `list:${x.id}`, label: `${x.emoji ? `${x.emoji} ` : ''}${x.name}`, insert: `[[${x.name}]]`, group: 'list' as const })),
+      ...(q ? tasks.slice(0, GROUP_MAX).map((x) => ({ key: `task:${x.id}`, label: x.title, sub: x.list ?? undefined, insert: `[[${x.title}]]`, group: 'task' as const })) : [])
+    ]
+    return out
+  }
   const q = t.query.toLowerCase()
   const rank = (name: string) => (name.toLowerCase().startsWith(q) ? 0 : name.toLowerCase().includes(q) ? 1 : 2)
-  const pick = (items: Named[]) => items.filter((x) => rank(x.name) < 2).sort((a, b) => rank(a.name) - rank(b.name))
+  const pick = <T extends Named>(items: T[]) => items.filter((x) => rank(x.name) < 2).sort((a, b) => rank(a.name) - rank(b.name))
   if (t.kind === '!') return PRIORITIES.filter(([n]) => rank(n) < 2).map(([n, v]) => ({ key: `p${v}`, label: n, insert: `!${n}`, priority: v }))
   if (t.kind === '~') return pick(lists).map((l) => ({ key: l.id, label: l.name, insert: `~${l.name}` }))
-  const out: Suggestion[] = pick(tags).map((x) => ({ key: x.id, label: x.name, insert: `#${x.name}` }))
+  const out: Suggestion[] = pick(tags).map((x) => ({ key: x.id, label: x.name, insert: `#${x.name}`, kind: x.kind ?? null }))
   if (q && !tags.some((x) => x.name === t.query)) out.push({ key: 'new', label: `새 태그 "${t.query}"`, insert: `#${t.query}`, create: true })
   return out
 }
@@ -108,7 +137,7 @@ export interface QuickAddInput {
 export function buildInput(o: {
   r: Recognition
   description: string
-  defaults: { list_id: string; due_at: string | null }
+  defaults: { list_id: string; due_at: string | null; tag_id?: string }
   manual?: Schedule | null
   priority?: number | null
   listId?: string | null
@@ -126,7 +155,8 @@ export function buildInput(o: {
     content: o.description.trim(),
     list_id: o.listId ?? o.r.list_id ?? o.defaults.list_id,
     priority: o.priority ?? o.r.priority ?? 0,
-    tag_ids: o.r.tag_ids,
+    // 태그 화면에서 만든 할 일은 그 태그를 갖는다(02 §4 · 33 §4.1 [틱틱])
+    tag_ids: [...new Set([...o.r.tag_ids, ...(o.defaults.tag_id ? [o.defaults.tag_id] : [])])],
     start_at: sched.start_at,
     due_at: sched.due_at,
     is_all_day: hasTime(sched.due_at) ? 0 : 1,
@@ -134,6 +164,14 @@ export function buildInput(o: {
     repeat_from: sched.repeat_rule ? (sched.repeat_from ?? 'due') : null,
     reminders: sched.due_at ? sched.reminders : []
   }
+}
+/**
+ * 33 §6.3-4: 기본함으로 갈 새 할 일에 `[[리스트]]` 링크가 하나만 있고 `~`·리스트 메뉴로 고르지 않았으면 그 리스트(처음부터 거기에 만든다).
+ * 아니면 null(지금 값 그대로)
+ */
+export function linkListFor(r: Pick<Recognized, 'links' | 'list_id'>, chosen: string | null, defaultListId: string, inboxId: string | undefined, tags: NamedTag[], lists: NamedList[]): string | null {
+  if (chosen || r.list_id || !inboxId || defaultListId !== inboxId) return null
+  return linkMoveTarget({ links: r.links, list_id: null }, tags, lists) ?? null
 }
 /** 보낸 할 일이 지금 보기(오늘)에 안 보일 때 토스트(22 §3.4). 보이면 null */
 export function addedToast(view: string, due: string | null, start: string | null, today: string, listName?: string): string | null {

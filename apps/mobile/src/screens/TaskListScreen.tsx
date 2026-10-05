@@ -34,9 +34,16 @@ import { useToast } from '../ui/Toast'
 import { Fab } from '../ui/Fab'
 import { useTabBarSpace } from '../ui/tabBarSpace'
 import { TaskRowView } from '../ui/TaskRow'
+import { useEvents, useMyCalColor } from '../data/calEvents'
+import { eventItems, eventListRange, eventsByGroup, mergeEventGroups } from '../data/eventsModel'
+import { useEventMenu } from '../ui/EventMenu'
+import { EventRowView } from '../ui/EventRow'
 import { DrawerEdge } from '../ui/Drawer'
 import { afterMenu } from '../ui/Drawer'
 import { FilterEditSheet, ListEditSheet, TagEditSheet, TextPrompt } from '../ui/OrgSheets'
+import { tagFilterIds } from '@sprout/schema/wikiGraph'
+import { PageCard } from '../wiki/PageCard'
+import { takeTagFilter } from '../wiki/WikiIndex'
 
 /** 오늘 날짜(자정이 지나면 바뀐다) */
 function useToday() {
@@ -65,8 +72,18 @@ export default function TaskListScreen() {
 
   const openQ = useMemo(() => openSql(listView, today), [listView, today])
   const doneQ = useMemo(() => doneSql(listView, today), [listView, today])
-  const open = useQuery<TaskRow>(openQ.sql, openQ.params)
-  const done = useQuery<TaskRow>(doneQ.sql, doneQ.params)
+  const openAll = useQuery<TaskRow>(openQ.sql, openQ.params)
+  const doneAll = useQuery<TaskRow>(doneQ.sql, doneQ.params)
+  // 33 §11 리스트 페이지 카드의 태그 알약 = 이 리스트 안 거르기(여럿 = 그중 하나라도, 하위는 부모 아래로). 보기를 바꾸면 해제
+  const [tagFilter, setTagFilter] = useState<string[]>([])
+  const [descOpen, setDescOpen] = useState(false)
+  useEffect(() => { setTagFilter(takeTagFilter(view)) }, [view])
+  const open = useMemo(() => {
+    if (!tagFilter.length) return openAll
+    const keep = tagFilterIds(openAll.data, tagFilter)
+    return { ...openAll, data: openAll.data.filter((t) => keep.has(t.id)) }
+  }, [openAll, tagFilter])
+  const done = useMemo(() => (tagFilter.length ? { ...doneAll, data: doneAll.data.filter((t) => (t.tag_ids?.split(',') ?? []).some((x) => tagFilter.includes(x))) } : doneAll), [doneAll, tagFilter])
   const tags = useTagsFull()
   const filters = useFilters()
   const settings = useViewSettings(view)
@@ -75,6 +92,16 @@ export default function TaskListScreen() {
     () => buildGroups(listView, open.data, v.showCompleted ? done.data.filter((t) => t.id) : [], { today, sections, lists: groupLists, tags, settings }),
     [listView, open.data, done.data, today, sections, groupLists, tags, settings, v.showCompleted]
   )
+  // 20 §7.1 · 06 §14.3.1: 오늘·내일·다음 7일에는 sprout 일정도 — 날짜 묶음 맨 위(없는 날짜는 묶음을 새로), 날짜 묶기가 아니면 맨 아래 "일정"
+  const evRange = eventListRange(view, today)
+  const evRows = useEvents(evRange?.from ?? today, evRange?.to ?? today, !!evRange)
+  const myCalColor = useMyCalColor()
+  const evByGroup = useMemo(
+    () => (evRange ? eventsByGroup(eventItems(evRows, evRange.from, evRange.to, myCalColor), today, settings.group_by === 'time') : new Map<string, ReturnType<typeof eventItems>>()),
+    [evRows, evRange?.from, evRange?.to, myCalColor, today, settings.group_by] // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const shownGroups = useMemo(() => mergeEventGroups(groups, evByGroup, settings.group_by === 'time'), [groups, evByGroup, settings.group_by])
+  const evMenu = useEventMenu()
   const { title, emoji } = viewTitle(view, lists, folders, { tags, filters })
   const isToday = view === 'smart:today'
   const archive = isArchive(view)
@@ -136,6 +163,7 @@ export default function TaskListScreen() {
     else if (a === 'pin') await setPinned(ids, !t.pinned_at)
     else if (a === 'move') openSheet('/move', ids)
     else if (a === 'tag') openSheet('/tags', ids)
+    else if (a === 'toEvent') await evMenu.act.fromTask(t.id)
     else if (a === 'delete') await trash(ids)
     else if (a.startsWith('p')) await setPriority(ids, Number(a.slice(1)))
   }
@@ -198,6 +226,7 @@ export default function TaskListScreen() {
               expanded={expanded}
               flash={flash === t.id}
               pressed={lp?.task.id === t.id}
+              hideTag={view.startsWith('tag:') ? view.slice(4) : undefined}
               onToggleExpand={() => v.toggleExpand(t.id)}
               onCheck={t.deleted_at ? undefined : () => void complete(t)}
               onPress={() => openDetail(t)}
@@ -218,6 +247,8 @@ export default function TaskListScreen() {
       ...(listId ? [{ key: 'edit', label: '리스트 편집', onPress: () => afterMenu(() => setEditing('list')) }] : []),
       ...(view.startsWith('tag:') ? [{ key: 'edit', label: '태그 편집', onPress: () => afterMenu(() => setEditing('tag')) }] : []),
       ...(view.startsWith('filter:') ? [{ key: 'edit', label: '필터 편집', onPress: () => afterMenu(() => setEditing('filter')) }] : []),
+      // 33 §11: 머리 카드가 없을 때도 설명을 쓸 수 있게(기본함 제외)
+      ...((listId && lists.find((l) => l.id === listId)?.kind !== 'inbox') || view.startsWith('tag:') ? [{ key: 'desc', label: '설명 쓰기', onPress: () => afterMenu(() => setDescOpen(true)) }] : []),
       ...(listId && settings.group_by === 'custom' ? [{ key: 'section', label: '섹션 추가', onPress: () => afterMenu(() => setPrompt({ kind: 'add' })) }] : []),
       { key: 'group', label: `묶기 · ${GROUP_LABEL[settings.group_by]}`, onPress: () => openSub('group') },
       { key: 'sort', label: `정렬 · ${SORT_LABEL[settings.sort_by]}`, onPress: () => openSub('sort') },
@@ -251,14 +282,15 @@ export default function TaskListScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={p.textTertiary} />}
       >
         {firstLoad ? <Skeleton /> : null}
-        {!firstLoad && openCount === 0 && !archive ? (
+        {!archive ? <PageCard view={listView} lists={lists} filter={tagFilter} onFilter={setTagFilter} descOpen={descOpen} onDescClose={() => setDescOpen(false)} /> : null}
+        {!firstLoad && openCount === 0 && !archive && !evByGroup.size ? (
           isToday && doneCount > 0 ? <EmptyState title="모두 완료했어요" sub={`오늘 ${doneCount}개를 끝냈어요. 푹 쉬어요`} />
             : isToday ? <EmptyState title="오늘 할 일이 없어요" sub="+를 눌러 추가하세요" />
             : <EmptyState title="할 일이 없어요" sub="+를 눌러 추가하세요" />
         ) : null}
         {!firstLoad && archive && openCount === 0 ? <EmptyState title={view === 'smart:trash' ? '휴지통이 비어 있어요' : view === 'smart:wontdo' ? '계획 취소한 할 일이 없어요' : '완료한 할 일이 없어요'} /> : null}
         <View style={openCount === 0 && doneCount > 0 ? { marginTop: 28 } : undefined}>
-          {groups.map((g) => {
+          {shownGroups.map((g) => {
             const byDefault = g.done && (isListView(view) || openCount === 0)
             const collapsed = v.isCollapsed(g.id, !!byDefault)
             return (
@@ -271,6 +303,9 @@ export default function TaskListScreen() {
                 onPostpone={g.postpone ? postpone.open : undefined}
                 onLongPress={g.sectionId ? (e: GestureResponderEvent) => setSecMenu({ id: g.sectionId!, name: g.title, rect: { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, width: 0, height: 0 } }) : undefined}
               >
+                {evByGroup.get(g.id)?.map((it) => (
+                  <EventRowView key={it.key} evt={it.evt} start={it.start} end={it.end} color={it.color} onPress={() => evMenu.act.open(it.evt.id)} onLongPress={(rect) => evMenu.openMenu(it.evt.id, rect)} />
+                ))}
                 {g.rows.map((n) => renderNode(n))}
               </GroupCard>
             )
@@ -342,6 +377,7 @@ export default function TaskListScreen() {
       <ListEditSheet open={editing === 'list'} id={listId} onClose={() => setEditing(null)} />
       <TagEditSheet open={editing === 'tag'} id={view.startsWith('tag:') ? view.slice(4) : null} onClose={() => setEditing(null)} />
       <FilterEditSheet open={editing === 'filter'} id={view.startsWith('filter:') ? view.slice(7) : null} onClose={() => setEditing(null)} />
+      {evMenu.element}
       <LongPressMenu
         rect={lp?.rect ?? null}
         pinned={!!lp?.task.pinned_at}

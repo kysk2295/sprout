@@ -4,7 +4,7 @@
 import { useQuery } from '@powersync/react-native'
 import { progressFromEvents, SPECIES, STAGES, type Species } from '@sprout/schema/growth'
 import { useRouter, type Href } from 'expo-router'
-import { BookHeart, ChevronRight, Network, Search, Settings, Sparkles } from 'lucide-react-native'
+import { BookHeart, ChevronRight, Network, Search, Settings, Sparkles, Tag } from 'lucide-react-native'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { CharacterArt } from '../../../src/growth/art/CharacterArt'
 import { dayKey } from '../../../src/lib/dates'
@@ -50,6 +50,8 @@ export default function More() {
           <Cell label="AI 비서" icon={<Sparkles {...white} />} iconBg="#4e75f2" onPress={() => go('/assistant')} />
           <Cell label="작업 지도" icon={<Network {...white} />} iconBg="#3fb950" onPress={() => go('/map')} />
           <Cell label="검색" icon={<Search {...white} />} iconBg="#2bb3c0" onPress={() => go('/search')} />
+          {/* 33 §11: 태그 = 위키 페이지 목록(종류별) */}
+          <Cell label="태그" icon={<Tag {...white} />} iconBg="#e9a23b" onPress={() => go('/more/tags')} />
         </Cells>
         <Cells title="앱">
           <Cell first label="설정" icon={<Settings {...white} />} iconBg="#8a8f99" onPress={() => router.navigate('/settings')} />

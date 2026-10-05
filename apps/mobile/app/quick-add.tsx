@@ -2,15 +2,23 @@
 // - 인식은 데스크톱과 같은 recognize()(인식된 날짜 글자는 제목에서 빠진다 — 두 추가 경로 같음). 하이라이트를 누르면 인식 취소(22 §3.2)
 // - 날짜를 정하면 날짜 아이콘이 "내일, 15:00" 칩으로. 날짜 시트는 키보드 대신 올라온다(22 §3.3)
 // - # ~ ! 를 치면 키보드 위 제안 줄(태그·리스트·우선순위, 끝에 새 태그 만들기)
+// - 33 §11: `[[` = 태그 → 리스트 → 할 일 제안, `[[ ]]`는 인식에서 보호되어 제목에 남음, 기본함 + `[[리스트]]` 하나 = 그 리스트에 만든다, 저장 뒤 그 할 일 링크 관계
 // - 보내면 입력 창은 비운 채 열려 있다(연속 입력). 닫으면 쓴 글은 초안으로 남는다(22 §4)
+// - 맨 위 `할 일 · 일정`(22 §3.5, 06 §14.4.2): 일정이면 장소 줄 + 날짜·"● 내 일정"만, 마지막으로 고른 쪽을 기기에 기억
 import * as Haptics from 'expo-haptics'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { ArrowUp, Calendar, Ellipsis, Flag, Hash, Inbox, List as ListIcon, Sparkles } from 'lucide-react-native'
+import { ArrowUp, Calendar, Ellipsis, Flag, Hash, Inbox, List as ListIcon, MapPin, Sparkles, Square } from 'lucide-react-native'
+import { File, Paths } from 'expo-file-system'
+import { MY_CAL_COLOR } from '@sprout/schema/events'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
 import Animated, { FadeIn, FadeInDown, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useLists, useTags } from '../src/data/lists'
+import { useLists } from '../src/data/lists'
+import { syncTaskLinks, useLinkTaskCandidates, useTagMeta } from '../src/wiki/data'
+import { KindGlyph } from '../src/wiki/RowBits'
+import { createEvent, useMyCalColor } from '../src/data/calEvents'
+import { eventAddedToast, quickEventFields } from '../src/data/eventsModel'
 import { createTag, createTask } from '../src/data/tasks'
 import { newTaskDefaults } from '../src/data/views'
 import { dayKey } from '../src/lib/dates'
@@ -20,10 +28,21 @@ import { usePalette } from '../src/theme/ThemeProvider'
 import { DateSheet } from '../src/ui/DateSheet'
 import { chipLabel, EMPTY_SCHEDULE, type Schedule } from '../src/ui/dateSheetModel'
 import { PopMenu, useAnchor } from '../src/ui/Menu'
-import { activeTrigger, addedToast, applySuggestion, buildInput, rangeAt, recognizeWith, segments, suggestions, type Trigger } from '../src/ui/quickAddModel'
+import { Segmented } from '../src/ui/Segmented'
+import { activeTrigger, addedToast, applySuggestion, buildInput, linkListFor, rangeAt, recognizeWith, segments, suggestions, type Trigger } from '../src/ui/quickAddModel'
 
 /** 닫아도 남는 초안(22 §4 — 다음 + 때 그대로) */
-const draft = { text: '', desc: '' }
+const draft = { text: '', desc: '', place: '' }
+
+/** 22 §3.5: 마지막으로 고른 `할 일 · 일정`(이 기기에만) */
+type Kind = 'task' | 'event'
+const kindFile = () => new File(Paths.document, 'sprout-quick-add-kind.txt')
+function loadKind(): Kind {
+  try { const f = kindFile(); return f.exists && f.textSync().trim() === 'event' ? 'event' : 'task' } catch { return 'task' }
+}
+function saveKind(k: Kind) {
+  try { const f = kindFile(); if (!f.exists) f.create(); f.write(k) } catch { /* 기기 저장 실패는 무시 */ }
+}
 
 export default function QuickAdd() {
   const { view = 'smart:today' } = useLocalSearchParams<{ view?: string }>()
@@ -32,10 +51,15 @@ export default function QuickAdd() {
   const insets = useSafeAreaInsets()
   const win = useWindowDimensions()
   const lists = useLists()
-  const tags = useTags()
+  const tags = useTagMeta()
   const titleRef = useRef<TextInput>(null)
   const [text, setText] = useState(draft.text)
   const [desc, setDesc] = useState(draft.desc)
+  const [kind, setKindState] = useState<Kind>(loadKind)
+  const setKind = (k: Kind) => { setKindState(k); saveKind(k) }
+  const [place, setPlace] = useState(draft.place)
+  const myColor = useMyCalColor() ?? MY_CAL_COLOR
+  const isEvent = kind === 'event'
   const [cursor, setCursor] = useState(draft.text.length)
   const [ignored, setIgnored] = useState<string[]>([])
   const [manual, setManual] = useState<Schedule | null>(null)
@@ -48,7 +72,7 @@ export default function QuickAdd() {
   const listMenu = useAnchor()
   const more = useAnchor()
 
-  useEffect(() => { draft.text = text; draft.desc = desc }, [text, desc])
+  useEffect(() => { draft.text = text; draft.desc = desc; draft.place = place }, [text, desc, place])
   // 키보드가 없을 때(하드웨어 키보드·키보드 내림) 도구 막대가 홈 표시줄·둥근 화면 모서리에 붙지 않게 아래 안전 영역만큼 띄운다
   const [kb, setKb] = useState(false)
   useEffect(() => {
@@ -72,25 +96,43 @@ export default function QuickAdd() {
     lastDue.current = r.due_at
   }, [r.due_at])
   const defaults = newTaskDefaults(view, inbox?.id ?? '', today)
-  const input = buildInput({ r, description: desc, defaults, manual, priority, listId })
+  const linkList = linkListFor(r, listId, defaults.list_id, inbox?.id, tags, lists) // 33 §6.3-4
+  const input = buildInput({ r, description: desc, defaults, manual, priority, listId: listId ?? linkList })
   // 칩은 직접 정한 날짜(인식·시트)만 — 보기 기본값(오늘)은 칩으로 안 보인다(틱틱 캡처)
   const chip = manual ? chipLabel(manual, today) : r.due_at ? chipLabel({ start_at: null, due_at: r.due_at }, today) : null
   const trigger: Trigger | null = activeTrigger(text, cursor)
-  const sugg = trigger ? suggestions(trigger, tags, lists) : []
+  const linkTasks = useLinkTaskCandidates(trigger?.kind === '[[' ? trigger.query : null)
+  const sugg = trigger && !isEvent ? suggestions(trigger, tags, lists, linkTasks) : [] // 일정에는 태그·리스트·우선순위가 없다(22 §3.5)
   const list = lists.find((l) => l.id === input.list_id)
   const canSend = !!input.title // 기본함이 아직 없어도 보낸다 — createTask가 기본함을 만든다(02 §14.1)
 
   const close = () => { Keyboard.dismiss(); router.back() }
   const send = async () => {
     if (!canSend) return
+    if (isEvent) return sendEvent()
     try {
-      await createTask(input)
+      const newId = await createTask(input)
+      if (r.links.length) void syncTaskLinks(newId)
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-      const msg = addedToast(view, input.due_at, input.start_at, today, !list || list.kind === 'inbox' ? '기본함' : list.name)
+      const msg = linkList && list ? `${list.name}에 추가했어요` : addedToast(view, input.due_at, input.start_at, today, !list || list.kind === 'inbox' ? '기본함' : list.name)
       if (msg) setFlash({ msg, id: Date.now() })
       setText(''); setDesc(''); setCursor(0); setIgnored([]); setManual(null); setPriority(null); setListId(null)
       titleRef.current?.focus()
       if (input.reminders.length) void ensurePermission({ reminder: true })
+    } catch {
+      setFlash({ msg: '저장하지 못했어요. 다시 시도해 주세요', error: true, id: Date.now() })
+    }
+  }
+  // 22 §3.5: 일정 한 행(eventSpan — 시각 하나면 1시간, 날짜 없으면 오늘 종일)
+  const sendEvent = async () => {
+    try {
+      const f = quickEventFields(input, !!manual, today)
+      await createEvent({ title: input.title, notes: desc, location: place, ...f })
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      setFlash({ msg: eventAddedToast(f.start_at ?? f.due_at, today), id: Date.now() })
+      setText(''); setDesc(''); setPlace(''); setCursor(0); setIgnored([]); setManual(null)
+      titleRef.current?.focus()
+      if (f.reminders.length) void ensurePermission({ reminder: true })
     } catch {
       setFlash({ msg: '저장하지 못했어요. 다시 시도해 주세요', error: true, id: Date.now() })
     }
@@ -136,6 +178,7 @@ export default function QuickAdd() {
         ) : null}
         {!dateOpen ? (
           <View style={[s.card, { backgroundColor: p.sheetBg }]}>
+            <Segmented small style={s.kind} value={kind} onChange={setKind} items={[{ key: 'task', label: '할 일' }, { key: 'event', label: '일정' }]} />
             {/* 하이라이트: Fabric TextInput은 안쪽 Text 배경을 그리지 않아서, 같은 글꼴의 Text를 위에 겹치고(글자는 투명·누름 통과) 인식 구간만 반투명 강조색으로 칠한다 */}
             <View>
               <TextInput
@@ -152,7 +195,7 @@ export default function QuickAdd() {
                     if (hit) setIgnored((x) => [...x, hit.text])
                   }
                 }}
-                placeholder="무엇을 할까요?"
+                placeholder={isEvent ? '일정 제목' : '무엇을 할까요?'}
                 placeholderTextColor={p.textQuaternary}
                 multiline
                 scrollEnabled={false}
@@ -160,7 +203,7 @@ export default function QuickAdd() {
                 returnKeyType="send"
                 onSubmitEditing={() => void send()}
                 style={[s.title, { color: p.textPrimary, backgroundColor: 'transparent' }]}
-                accessibilityLabel="할 일 제목"
+                accessibilityLabel={isEvent ? '일정 제목' : '할 일 제목'}
               />
               <Text style={[s.title, s.under]} pointerEvents="none" accessible={false}>
                 {segments(text, r.ranges).map((g, i) => (
@@ -168,6 +211,12 @@ export default function QuickAdd() {
                 ))}
               </Text>
             </View>
+            {isEvent ? (
+              <View style={s.place}>
+                <MapPin size={15} color={p.textTertiary} />
+                <TextInput value={place} onChangeText={setPlace} placeholder="장소" placeholderTextColor={p.textQuaternary} style={[s.desc, { flex: 1, marginTop: 0, color: p.textSecondary }]} accessibilityLabel="장소" />
+              </View>
+            ) : null}
             <TextInput
               value={desc}
               onChangeText={setDesc}
@@ -186,22 +235,31 @@ export default function QuickAdd() {
               ) : (
                 <Tool label="날짜" onPress={openDate}><Calendar size={21} color={p.textSecondary} /></Tool>
               )}
-              <View ref={flag.ref} collapsable={false}>
-                <Tool label="우선순위" onPress={flag.open}><Flag size={21} color={input.priority ? priorityColor(p, input.priority) : p.textSecondary} fill={input.priority ? priorityColor(p, input.priority) : 'none'} /></Tool>
-              </View>
-              <Tool label="태그" onPress={() => insertTrigger('#')}><Hash size={21} color={input.tag_ids.length || trigger?.kind === '#' ? p.accent : p.textSecondary} /></Tool>
-              <View ref={listMenu.ref} collapsable={false}>
-                <Tool label="리스트" onPress={listMenu.open}><Inbox size={21} color={listId || r.list_id ? p.accent : p.textSecondary} /></Tool>
-              </View>
-              <View ref={more.ref} collapsable={false}>
-                <Tool label="더보기" onPress={more.open}><Ellipsis size={21} color={p.textSecondary} /></Tool>
-              </View>
+              {isEvent ? (
+                <View style={s.myCal} accessibilityLabel="캘린더: 내 일정">
+                  <View style={[s.myDot, { backgroundColor: myColor }]} />
+                  <Text style={{ fontSize: 13, color: p.textSecondary }}>내 일정</Text>
+                </View>
+              ) : (
+                <>
+                  <View ref={flag.ref} collapsable={false}>
+                    <Tool label="우선순위" onPress={flag.open}><Flag size={21} color={input.priority ? priorityColor(p, input.priority) : p.textSecondary} fill={input.priority ? priorityColor(p, input.priority) : 'none'} /></Tool>
+                  </View>
+                  <Tool label="태그" onPress={() => insertTrigger('#')}><Hash size={21} color={input.tag_ids.length || trigger?.kind === '#' ? p.accent : p.textSecondary} /></Tool>
+                  <View ref={listMenu.ref} collapsable={false}>
+                    <Tool label="리스트" onPress={listMenu.open}><Inbox size={21} color={listId || r.list_id || linkList ? p.accent : p.textSecondary} /></Tool>
+                  </View>
+                  <View ref={more.ref} collapsable={false}>
+                    <Tool label="더보기" onPress={more.open}><Ellipsis size={21} color={p.textSecondary} /></Tool>
+                  </View>
+                </>
+              )}
               <View style={{ flex: 1 }} />
-              {/* 27 §2.2: 도구 막대 ✦ AI에게. 날짜 칩이 자리를 차지하면 ✦만 */}
-              <Pressable accessibilityRole="button" accessibilityLabel="AI에게" onPress={askAI} hitSlop={4} style={({ pressed }) => [s.ai, { backgroundColor: p.accentSubtle }, pressed && { opacity: 0.6 }]}>
+              {/* 27 §2.2: 도구 막대 ✦ AI에게. 날짜 칩이 자리를 차지하면 ✦만. 일정에는 없음(22 §3.5) */}
+              {isEvent ? null : <Pressable accessibilityRole="button" accessibilityLabel="AI에게" onPress={askAI} hitSlop={4} style={({ pressed }) => [s.ai, { backgroundColor: p.accentSubtle }, pressed && { opacity: 0.6 }]}>
                 <Sparkles size={15} color={p.accent} />
                 {chip ? null : <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '600', color: p.accent }}>AI에게</Text>}
-              </Pressable>
+              </Pressable>}
               <Pressable accessibilityRole="button" accessibilityLabel="추가" disabled={!canSend} onPress={() => void send()} style={[s.send, { backgroundColor: p.accent, opacity: canSend ? 1 : 0.35 }]}>
                 <ArrowUp size={19} color="#fff" />
               </Pressable>
@@ -212,8 +270,12 @@ export default function QuickAdd() {
           <ScrollView horizontal keyboardShouldPersistTaps="always" showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, backgroundColor: p.bgInput }} contentContainerStyle={s.sugg}>
             {sugg.map((sg, i) => (
               <Pressable key={sg.key} accessibilityRole="button" onPress={() => void pickSuggestion(sg)} style={[s.sChip, { backgroundColor: i === 0 && !sg.create ? p.accentSubtle : p.cardBg }]}>
-                {trigger?.kind === '#' ? <Hash size={13} color={i === 0 && !sg.create ? p.accent : p.textSecondary} /> : trigger?.kind === '~' ? <ListIcon size={13} color={p.textSecondary} /> : <Flag size={13} color={priorityColor(p, sg.priority)} />}
-                <Text style={{ fontSize: 14, color: i === 0 && !sg.create ? p.accent : p.textPrimary }}>{sg.label}</Text>
+                {trigger?.kind === '#' || sg.group === 'tag' ? <KindGlyph kind={sg.kind} size={13} color={i === 0 && !sg.create ? p.accent : p.textSecondary} />
+                  : trigger?.kind === '~' || sg.group === 'list' ? <ListIcon size={13} color={p.textSecondary} />
+                  : sg.group === 'task' ? <Square size={13} color={p.textSecondary} />
+                  : <Flag size={13} color={priorityColor(p, sg.priority)} />}
+                <Text style={{ fontSize: 14, color: i === 0 && !sg.create ? p.accent : p.textPrimary, maxWidth: 200 }} numberOfLines={1}>{sg.label}</Text>
+                {sg.sub ? <Text style={{ fontSize: 12, color: p.textTertiary, maxWidth: 120 }} numberOfLines={1}>{sg.sub}</Text> : null}
               </Pressable>
             ))}
           </ScrollView>
@@ -293,5 +355,9 @@ const s = StyleSheet.create({
   sChip: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 30, paddingHorizontal: 10, borderRadius: 15 },
   flash: { alignSelf: 'center', marginBottom: 10, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
   dateSheet: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopLeftRadius: 22, borderTopRightRadius: 22, overflow: 'hidden' },
+  kind: { alignSelf: 'flex-start', width: 132, height: 28, marginBottom: 10 },
+  place: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  myCal: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 30, paddingHorizontal: 8 },
+  myDot: { width: 8, height: 8, borderRadius: 4 },
   grabber: { alignSelf: 'center', width: 36, height: 5, borderRadius: 3, marginTop: 6, opacity: 0.5 }
 })

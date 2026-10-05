@@ -1,6 +1,8 @@
 // 할 일 행(21 §2·§3): 체크박스 18 · 제목 16 · 오른쪽 날짜 12(강조색 / 만료 빨강) + 아이콘(⟲ 반복 · 🔔 알림 · ≡ 설명)
 // 스마트 목록이면 제목 아래 메타 줄(리스트 색 점 + 이름 · 체크리스트 진행 1/3). 행 46, 메타 줄 있으면 62. 행 사이 선 없음.
+// 33 §11: 메타 줄에 태그 알약 2개 + `+N`(accepted만 — tag_ids가 이미 거름), 제목 속 `[[링크]]`는 강조색 글자(src/wiki).
 import { AlignLeft, Bell, ChevronDown, ChevronRight, ListChecks, Repeat } from 'lucide-react-native'
+import { displayTitle } from '@sprout/schema/wikiLink'
 import { memo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { rowDateLabel } from '../lib/dates'
@@ -8,6 +10,8 @@ import type { TaskRow as Task } from '../data/views'
 import { FONT, M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { Checkbox } from './Checkbox'
+import { LinkTitle, RowTagPills } from '../wiki/RowBits'
+import { useWikiIndex } from '../wiki/WikiIndex'
 
 export type RowProps = {
   task: Task
@@ -24,6 +28,8 @@ export type RowProps = {
   onPress?: () => void
   onLongPress?: () => void
   pressed?: boolean
+  /** 태그 화면이면 그 태그 알약은 숨긴다(33 §6.6) */
+  hideTag?: string
 }
 
 export const TaskRowView = memo(function TaskRowView(props: RowProps) {
@@ -34,7 +40,9 @@ export const TaskRowView = memo(function TaskRowView(props: RowProps) {
   const listDot = t.list_color ?? (t.list_kind === 'inbox' ? p.slInbox : p.textQuaternary)
   const listName = t.list_kind === 'inbox' ? '기본함' : t.list_name
   const progress = t.check_total > 0 ? `${t.check_done}/${t.check_total}` : null
-  const meta = !done && ((props.showList && listName) || progress)
+  const idx = useWikiIndex()
+  const hasTags = !!idx && !!t.tag_ids && t.tag_ids.split(',').some((id) => id !== props.hideTag && idx.tags.has(id))
+  const meta = !done && ((props.showList && listName) || progress || hasTags)
   const details = props.showDetails && t.content_mode !== 'checklist' && t.content ? t.content.split('\n')[0] : null
   const two = !!meta || !!details
   return (
@@ -42,7 +50,7 @@ export const TaskRowView = memo(function TaskRowView(props: RowProps) {
       onPress={props.onPress}
       onLongPress={props.onLongPress}
       delayLongPress={350}
-      accessibilityLabel={t.title || '제목 없음'}
+      accessibilityLabel={displayTitle(t.title) || '제목 없음'}
       style={({ pressed }) => [
         s.row,
         two && s.two,
@@ -50,10 +58,10 @@ export const TaskRowView = memo(function TaskRowView(props: RowProps) {
       ]}
     >
       <View style={two ? { marginTop: -11 } : undefined}>
-        <Checkbox priority={t.priority} done={done} onPress={props.onCheck} label={`${t.title} 완료`} flash={props.flash} disabled={!!t.deleted_at} />
+        <Checkbox priority={t.priority} done={done} onPress={props.onCheck} label={`${displayTitle(t.title)} 완료`} flash={props.flash} disabled={!!t.deleted_at} />
       </View>
       <View style={s.tx}>
-        <Text style={[FONT.body, { color: done ? p.textTertiary : p.textPrimary }]} numberOfLines={1}>{t.title || '제목 없음'}</Text>
+        <LinkTitle taskId={t.id} text={t.title || '제목 없음'} done={done} style={[FONT.body, { color: done ? p.textTertiary : p.textPrimary }]} />
         {meta ? (
           <View style={s.sub}>
             {props.showList && listName ? (
@@ -68,6 +76,7 @@ export const TaskRowView = memo(function TaskRowView(props: RowProps) {
                 <Text style={[FONT.meta, { color: p.textTertiary }]}>{progress}</Text>
               </View>
             ) : null}
+            {hasTags ? <RowTagPills ids={t.tag_ids} hide={props.hideTag} /> : null}
           </View>
         ) : null}
         {details ? <Text style={[FONT.meta, { color: p.textTertiary }]} numberOfLines={1}>{details}</Text> : null}
@@ -95,7 +104,7 @@ const s = StyleSheet.create({
   row: { minHeight: M.rowH, flexDirection: 'row', alignItems: 'center', gap: 12, paddingRight: 14 },
   two: { minHeight: M.rowH2, paddingTop: 10, paddingBottom: 9 },
   tx: { flex: 1, minWidth: 0, gap: 3, justifyContent: 'center' },
-  sub: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sub: { flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden' },
   subItem: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
   dot: { width: 6, height: 6, borderRadius: 3 },
   right: { alignItems: 'flex-end', gap: 2, flexShrink: 0, maxWidth: 140 },

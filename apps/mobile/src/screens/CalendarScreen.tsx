@@ -4,10 +4,12 @@
 // - 일·3일: 위 주 줄(점 = 할 일 있음)·종일 줄·시간 칸(1시간 56). 빈 칸 누르면 그 시각으로 빠른 입력, 블록을 길게 눌러 끌면 옮김(15분 단위, 3일은 다른 날로도)
 // - 목록: 오늘부터 30일 날짜별 묶음 카드
 // - ⋯ → 완료 보기/숨기기 · 날짜 없는 할 일(누르면 고른 날에 일정 잡기 — 06 §9 할일 정렬 패널의 휴대폰판)
-// 구글·Apple 캘린더 일정은 컴퓨터의 기기 데이터(16)라 휴대폰에는 sprout 할 일만 보인다.
+// - sprout 일정(20 §7.1, 06 §14.4): 할 일과 같은 띠·블록·행에 섞어 그린다 — 체크박스 자리 캘린더 아이콘, 누르면 일정 시트, 길게 누르면 일정 메뉴
+// - 모양(06 §14.2): 취소선 없음. 완료 = 옅게 + 체크된 칸, 지난 미완료 = 옅은 채움 + 빈 칸 + 글자 한 단계 진하게, 색 = 리스트 색(없으면 강조색)
+// 구글·Apple 캘린더 일정은 컴퓨터의 기기 데이터(16)라 휴대폰에는 없다.
 import { useQuery } from '@powersync/react-native'
 import { useRouter, useScrollToTop } from 'expo-router'
-import { CalendarCheck, CalendarDays, CalendarRange, Columns3, Ellipsis, List, Plus, Square } from 'lucide-react-native'
+import { CalendarCheck, CalendarDays, CalendarRange, Check, Columns3, Ellipsis, List, Plus, Square } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
@@ -18,12 +20,16 @@ import {
   agendaTitle, blockTime, CAL_VIEWS, cellSummary, dragTarget, floatingAt, HOUR_H, hourLabel, isBarItem, itemsOf, itemsOnDay, layoutDay, minutesAtY,
   monthDays, monthTitle, moveTo, rangeOf, shiftCursor, WEEK_HEAD, weekStart, weekdayKo, type Block, type CalItem, type MobileCalView
 } from '../data/calendar'
+import { rescheduleEvent, useEvents, useMyCalColor } from '../data/calEvents'
+import { eventIdOf, eventItems, evtOf, isEventId, isPast } from '../data/eventsModel'
 import { scheduleOn } from '../data/organization'
 import { completeTasks, moveDates, reopenTasks, setPinned, setPriority, trashTasks, updateTask, type Undo } from '../data/tasks'
 import { COLUMNS, type TaskRow } from '../data/views'
 import { dayKey, nextMonday } from '../lib/dates'
-import { alpha, FONT, M } from '../theme/palette'
+import { alpha, FONT, M, mix, type Palette } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
+import { useEventMenu } from '../ui/EventMenu'
+import { EventRowView } from '../ui/EventRow'
 import { afterMenu } from '../ui/Drawer'
 import { EmptyState } from '../ui/EmptyState'
 import { GlassButton } from '../ui/Glass'
@@ -38,6 +44,22 @@ import { TaskRowView } from '../ui/TaskRow'
 type Item = CalItem<TaskRow>
 const VIEW_ICON: Record<MobileCalView, typeof List> = { list: List, day: Square, '3day': Columns3, month: CalendarDays }
 const GUTTER = 48
+
+/** 항목 모양(06 §14.2·§14.3): 일정 / 완료 / 지난 미완료 / 보통 */
+function lookOf(p: Palette, it: Item, now: Date) {
+  const ev = isEventId(it.task.id)
+  const done = !ev && it.task.status !== 0
+  const past = isPast(it.end, now)
+  const overdue = !ev && !done && past
+  const faded = done || past
+  const color = it.task.list_color ?? p.accent
+  return {
+    ev, done, overdue, faded, color,
+    text: done || (ev && past) ? p.textTertiary : overdue ? p.textSecondary : p.textPrimary,
+    /** 체크박스 테두리·일정 아이콘 색: 리스트 색 70% + 글자색(다크는 흰색 쪽) */
+    mark: ev && past ? p.textTertiary : mix(color.slice(0, 7), p.dark ? '#ffffff' : p.textSecondary, 0.7)
+  }
+}
 
 function useToday() {
   const [today, setToday] = useState(dayKey())
@@ -74,20 +96,29 @@ export default function CalendarScreen() {
        AND substr(COALESCE(t.start_at, t.due_at), 1, 10) <= ? AND substr(t.due_at, 1, 10) >= ?`,
     [showDone ? 1 : 0, range.to, range.from]
   ).data
-  const items = useMemo(() => itemsOf(tasks, range.from, range.to), [tasks, range])
+  const evRows = useEvents(range.from, range.to)
+  const myColor = useMyCalColor()
+  const items = useMemo<Item[]>(() => {
+    const now = new Date()
+    const evs = eventItems(evRows, range.from, range.to, myColor).filter((it) => showDone || !isPast(it.end, now)) // 완료 숨기기 = 지난 일정도 숨김(06 §14.3)
+    return [...itemsOf(tasks, range.from, range.to), ...evs]
+  }, [tasks, evRows, myColor, range, showDone])
+  const evMenu = useEventMenu()
 
   const withUndo = (msg: string, undo: Undo | null) => toast.show(msg, { undo: undo ?? undefined })
   const check = async (t: TaskRow) => {
+    if (isEventId(t.id)) return
     if (t.status !== 0) return void reopenTasks([t.id])
     const undo = await completeTasks([t.id])
     if (undo) withUndo('작업이 완료되었습니다.', undo)
   }
-  const openDetail = (t: TaskRow) => router.push(`/task/${t.id}`)
+  const openDetail = (t: TaskRow) => router.push(isEventId(t.id) ? `/event/${eventIdOf(t.id)}` : `/task/${t.id}`)
   const addAt = (due: string) => router.push({ pathname: '/quick-add', params: { view: `date:${due}` } })
   const openSheet = (path: '/move' | '/date' | '/tags', ids: string[]) => router.push({ pathname: path, params: { ids: ids.join(',') } })
 
   // 길게 누름(목록 행 · 블록): 할 일 탭과 같은 메뉴
-  const [lp, setLp] = useState<{ task: TaskRow; rect: Rect } | null>(null)
+  const [lp, setLpState] = useState<{ task: TaskRow; rect: Rect } | null>(null)
+  const setLp = (v: { task: TaskRow; rect: Rect } | null) => (v && isEventId(v.task.id) ? evMenu.openMenu(v.task.id, v.rect) : setLpState(v))
   const onAction = async (a: LongPressAction) => {
     const t = lp?.task
     if (!t) return
@@ -99,15 +130,17 @@ export default function CalendarScreen() {
     else if (a === 'pin') await setPinned(ids, !t.pinned_at)
     else if (a === 'move') openSheet('/move', ids)
     else if (a === 'tag') openSheet('/tags', ids)
+    else if (a === 'toEvent') await evMenu.act.fromTask(t.id)
     else if (a === 'delete') toast.show('휴지통으로 옮겼어요', { undo: await trashTasks(ids), duration: 5000 })
     else if (a.startsWith('p')) await setPriority(ids, Number(a.slice(1)))
   }
   // 블록 끌어 놓기 → 새 시각(길이 유지) + 되돌리기
   const drop = async (it: Item, dy: number, dCols: number) => {
     const t = it.task
-    const before = { start_at: t.start_at, due_at: t.due_at, is_all_day: t.is_all_day }
     const target = dragTarget(it.start, dy, dCols)
     if (target === it.start) return
+    if (evtOf(it)) return withUndo('옮겼어요', await rescheduleEvent(t.id, moveTo({ start_at: it.start, due_at: it.end }, target)))
+    const before = { start_at: t.start_at, due_at: t.due_at, is_all_day: t.is_all_day }
     await updateTask(t.id, moveTo(t, target))
     withUndo('옮겼어요', () => updateTask(t.id, before))
   }
@@ -191,6 +224,7 @@ export default function CalendarScreen() {
         onAction={(a) => void onAction(a)}
         row={lp ? <TaskRowView task={lp.task} today={today} showList /> : null}
       />
+      {evMenu.element}
       <UndatedSheet open={undatedOpen} day={cursor} today={today} onClose={() => setUndatedOpen(false)} onOpen={(t) => { setUndatedOpen(false); openDetail(t) }} />
     </View>
   )
@@ -214,6 +248,7 @@ function MonthView(props: { today: string; cursor: string; items: Item[]; onPick
   const fullH = weeks * rowH
   const range = fullH - rowH
   const selWeek = Math.max(0, Math.floor(days.indexOf(props.cursor) / 7))
+  const now = new Date()
   const { onShift, onPick, cursor } = props // 워클릿에는 함수만 넘긴다(props 통째로 넘기면 children을 복사하다 실패)
 
   // 0 = 달 전체, 1 = 고른 날의 한 주. 손가락을 따라가고, 놓으면 가까운 쪽(빠르게 튕기면 그 방향)으로 붙는다
@@ -295,10 +330,10 @@ function MonthView(props: { today: string; cursor: string; items: Item[]; onPick
                         <Text style={{ fontSize: 12, fontWeight: isToday || sel ? '700' : '500', color: isToday ? '#fff' : other && !collapsed ? p.textQuaternary : p.textPrimary }}>{Number(d.slice(8))}</Text>
                       </View>
                       {shown.map((it) => {
-                        const c = it.task.list_color ?? p.accent
+                        const k = lookOf(p, it, now)
                         return (
-                          <View key={it.key} style={[s.bar, { backgroundColor: alpha(c, it.task.status ? 0.08 : 0.18) }]}>
-                            <Text numberOfLines={1} style={{ fontSize: 10, lineHeight: 13, color: it.task.status ? p.textTertiary : p.textPrimary }}>{it.task.title}</Text>
+                          <View key={it.key} style={[s.bar, { backgroundColor: alpha(k.color.slice(0, 7), k.faded ? 0.08 : 0.18) }]}>
+                            <Text numberOfLines={1} style={{ fontSize: 10, lineHeight: 13, color: k.text }}>{it.task.title}</Text>
                           </View>
                         )
                       })}
@@ -334,7 +369,9 @@ function DayList(props: { day: string; today: string; items: Item[]; onCheck: (t
       >
         {props.items.length ? (
           <GroupCard title={agendaTitle(props.day, props.today)} count={props.items.length} collapsed={false} onToggle={() => {}}>
-            {props.items.map((it) => (
+            {props.items.map((it) => evtOf(it) ? (
+              <EventRowView key={it.key} evt={evtOf(it)!} start={it.start} end={it.end} color={it.task.list_color ?? ''} onPress={() => props.onOpen(it.task)} onLongPress={(rect) => props.onLong({ task: it.task, rect })} />
+            ) : (
               <View key={it.key} ref={(r) => { refs.current.set(it.key, r) }} collapsable={false}>
                 <TaskRowView
                   task={it.task}
@@ -349,7 +386,7 @@ function DayList(props: { day: string; today: string; items: Item[]; onCheck: (t
           </GroupCard>
         ) : (
           <Pressable accessibilityRole="button" onPress={props.onAdd} style={s.dayEmpty}>
-            <Text style={[FONT.sub, { color: p.textTertiary }]}>{agendaTitle(props.day, props.today)} · 할 일이 없어요</Text>
+            <Text style={[FONT.sub, { color: p.textTertiary }]}>{agendaTitle(props.day, props.today)} · 할 일·일정이 없어요</Text>
             <Text style={[FONT.sub, { color: p.accent, marginTop: 4 }]}>+ 추가</Text>
           </Pressable>
         )}
@@ -390,6 +427,7 @@ function Timeline(props: {
     else if (e.translationX > 50) scheduleOnRN(onShift, -1)
   })
   const bars = (d: string) => itemsOnDay(props.items, d).filter(isBarItem)
+  const now = new Date() // 1분마다 nowMin이 바뀌어 다시 그려진다 → 지난 항목 옅게도 따라 바뀜
   const week = Array.from({ length: 7 }, (_, i) => dayKey(i, new Date(`${weekStart(props.cursor)}T00:00`)))
   const weekSwipe = Gesture.Pan().activeOffsetX([-24, 24]).onEnd((e) => {
     if (e.translationX < -50) scheduleOnRN(onPick, nextWeek)
@@ -433,11 +471,15 @@ function Timeline(props: {
           const b = bars(d)
           return (
             <View key={d} style={{ width: colW, paddingHorizontal: 2, gap: 2 }}>
-              {b.slice(0, 3).map((it) => (
-                <Pressable key={it.key} onPress={() => props.onOpen(it.task)} onLongPress={(e) => props.onMenu(it.task, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, width: 0, height: 0 })} style={[s.chip, { backgroundColor: alpha(it.task.list_color ?? p.accent, 0.2) }]}>
-                  <Text numberOfLines={1} style={{ fontSize: 11, color: it.task.status ? p.textTertiary : p.textPrimary }}>{it.task.title}</Text>
-                </Pressable>
-              ))}
+              {b.slice(0, 3).map((it) => {
+                const k = lookOf(p, it, now)
+                return (
+                  <Pressable key={it.key} accessibilityLabel={`${k.ev ? '일정 ' : ''}${it.task.title}`} onPress={() => props.onOpen(it.task)} onLongPress={(e) => props.onMenu(it.task, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, width: 0, height: 0 })} style={[s.chip, { backgroundColor: alpha(k.color.slice(0, 7), k.faded ? 0.1 : 0.2) }]}>
+                    {colW >= 48 ? <Mark look={k} onCheck={() => props.onCheck(it.task)} /> : null}
+                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, color: k.text }}>{it.task.title}</Text>
+                  </Pressable>
+                )
+              })}
               {b.length > 3 ? <Text style={{ fontSize: 10, color: p.textTertiary }}>+{b.length - 3}</Text> : null}
             </View>
           )
@@ -459,7 +501,7 @@ function Timeline(props: {
                 onPress={(e) => props.onAddAt(floatingAt(d, minutesAtY(e.nativeEvent.locationY)))}
               />
               {layoutDay(props.items, d).map((b) => (
-                <DragBlock key={b.item.key} block={b} colW={colW} colIndex={ci} cols={days.length} onDragging={setDragging} onTap={() => props.onOpen(b.item.task)} onCheck={() => props.onCheck(b.item.task)} onDrop={(dx, dy) => props.onDrop(b.item, dy, Math.round(dx / colW))} onMenu={(rect) => props.onMenu(b.item.task, rect)} />
+                <DragBlock key={b.item.key} block={b} now={now} colW={colW} colIndex={ci} cols={days.length} onDragging={setDragging} onTap={() => props.onOpen(b.item.task)} onCheck={() => props.onCheck(b.item.task)} onDrop={(dx, dy) => props.onDrop(b.item, dy, Math.round(dx / colW))} onMenu={(rect) => props.onMenu(b.item.task, rect)} />
               ))}
               {d === props.today ? (
                 <View pointerEvents="none" style={[s.now, { top: (nowMin / 60) * HOUR_H }]}>
@@ -475,8 +517,25 @@ function Timeline(props: {
   )
 }
 
-/** 시각 블록: 누르면 상세, 길게 누른 채 끌면 옮기기(놓은 자리 15분 단위), 길게 누르고 그대로 놓으면 빠른 메뉴 */
-function DragBlock(props: { block: Block<TaskRow>; colW: number; colIndex: number; cols: number; onDragging: (on: boolean) => void; onTap: () => void; onCheck: () => void; onDrop: (dx: number, dy: number) => void; onMenu: (r: Rect) => void }) {
+/** 체크박스(할 일, 누르면 완료·완료 취소) 또는 캘린더 아이콘(일정) — 같은 자리·같은 크기 11(06 §14.3) */
+function Mark({ look: k, onCheck }: { look: ReturnType<typeof lookOf>; onCheck?: () => void }) {
+  if (k.ev) return <View style={s.mark}><CalendarDays size={11} color={k.mark} strokeWidth={2.4} /></View>
+  const box = [s.mark, s.box, { borderColor: k.done ? k.color : k.mark, backgroundColor: k.done ? k.color : 'transparent' }]
+  const check = k.done ? <Check size={8} color="#fff" strokeWidth={4} /> : null
+  // 시간 칸 블록은 블록 탭이 자리로 나눠 처리(onCheck 없음), 종일 칩은 Pressable
+  if (!onCheck) return <View style={box}>{check}</View>
+  return (
+    <Pressable hitSlop={8} onPress={onCheck} accessibilityRole="checkbox" accessibilityState={{ checked: k.done }} accessibilityLabel={k.done ? '완료 취소' : '완료'} style={box}>
+      {check}
+    </Pressable>
+  )
+}
+
+/**
+ * 시각 블록: 누르면 상세(일정이면 일정 시트), 길게 누른 채 끌면 옮기기, 길게 누르고 그대로 놓으면 빠른 메뉴.
+ * 끄는 동안 블록은 15분 칸·날 열에 붙어 움직이고 원래 자리는 옅게(0.4) 남는다(06 §7.2 v1.7의 휴대폰판 — 20 §7.1).
+ */
+function DragBlock(props: { block: Block<TaskRow>; colW: number; colIndex: number; cols: number; now: Date; onDragging: (on: boolean) => void; onTap: () => void; onCheck: () => void; onDrop: (dx: number, dy: number) => void; onMenu: (r: Rect) => void }) {
   const p = usePalette()
   const { block: b, colW } = props
   const t = b.item.task
@@ -495,29 +554,48 @@ function DragBlock(props: { block: Block<TaskRow>; colW: number; colIndex: numbe
   }, [props, menu])
   const minX = -props.colIndex * colW
   const maxX = (props.cols - 1 - props.colIndex) * colW
+  const q = HOUR_H / 4 // 15분
+  const minY = -top
+  const maxY = 24 * HOUR_H - q - top
   const { onDragging, onTap } = props
   const pan = Gesture.Pan()
     .enabled(!b.item.virtual)
     .activateAfterLongPress(320)
     .onStart(() => { lifted.value = 1; scheduleOnRN(onDragging, true) })
-    .onUpdate((e) => { tx.value = Math.max(minX, Math.min(maxX, e.translationX)); ty.value = e.translationY })
+    .onUpdate((e) => {
+      // 날 열·15분 칸에 붙는다(손가락을 그대로 따라가지 않음)
+      tx.value = Math.round(Math.max(minX, Math.min(maxX, e.translationX)) / colW) * colW
+      ty.value = Math.max(minY, Math.min(maxY, Math.round(e.translationY / q) * q))
+    })
     .onEnd(() => { scheduleOnRN(end, tx.value, ty.value) })
     .onFinalize(() => { tx.value = 0; ty.value = 0; lifted.value = 0 })
-  const tap = Gesture.Tap().onEnd(() => { scheduleOnRN(onTap) })
+  const k = lookOf(p, b.item, props.now)
+  const markShown = w >= 48
+  // 블록 왼쪽 체크박스 자리를 누르면 완료(상세는 열지 않는다), 나머지는 상세 — 체크박스를 Pressable로 두면 블록 탭과 둘 다 불린다
+  const tapAt = useCallback((x: number) => { if (markShown && !k.ev && x < 26) props.onCheck(); else onTap() }, [markShown, k.ev, props, onTap])
+  const tap = Gesture.Tap().onEnd((e) => { scheduleOnRN(tapAt, e.x) })
   const g = Gesture.Exclusive(pan, tap)
-  const style = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }], zIndex: lifted.value ? 10 : 1, opacity: lifted.value ? 0.9 : 1 }))
-  const c = t.list_color ?? p.accent
-  const done = t.status !== 0
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }], zIndex: lifted.value ? 10 : 1, opacity: lifted.value ? 0.9 : 1, shadowOpacity: lifted.value ? 0.25 : 0 }))
+  const ghost = useAnimatedStyle(() => ({ opacity: lifted.value ? 0.4 : 0 }))
+  const box = { top, height: h, left: b.col * w + 1, width: w - 3, backgroundColor: alpha(k.color.slice(0, 7), k.faded ? 0.1 : 0.22), borderLeftColor: k.faded ? alpha(k.color.slice(0, 7), 0.5) : k.color }
+  const body = (
+    <>
+      {markShown ? <Mark look={k} /> : null}
+      <View style={{ flex: 1 }}>
+        <Text numberOfLines={h > 36 ? 2 : 1} style={{ fontSize: 12, lineHeight: 15, fontWeight: '500', color: k.text }}>{t.title}</Text>
+        {h > 40 ? <Text numberOfLines={1} style={{ fontSize: 10, color: k.faded ? p.textTertiary : p.textSecondary }}>{blockTime(b.item.start, b.item.end)}</Text> : null}
+      </View>
+    </>
+  )
   return (
-    <GestureDetector gesture={g}>
-      <Animated.View ref={ref} collapsable={false} accessibilityRole="button" accessibilityLabel={`${t.title}, ${blockTime(b.item.start, b.item.end)}`} style={[s.block, { top, height: h, left: b.col * w + 1, width: w - 3, backgroundColor: alpha(c, done ? 0.1 : 0.22), borderLeftColor: c }, style]}>
-        <Pressable hitSlop={6} onPress={props.onCheck} accessibilityLabel={done ? '완료 취소' : '완료'} style={[s.blockCheck, { borderColor: c, backgroundColor: done ? c : 'transparent' }]} />
-        <View style={{ flex: 1 }}>
-          <Text numberOfLines={h > 36 ? 2 : 1} style={{ fontSize: 12, lineHeight: 15, fontWeight: '500', color: done ? p.textTertiary : p.textPrimary }}>{t.title}</Text>
-          {h > 40 ? <Text numberOfLines={1} style={{ fontSize: 10, color: p.textSecondary }}>{blockTime(b.item.start, b.item.end)}</Text> : null}
-        </View>
-      </Animated.View>
-    </GestureDetector>
+    <>
+      <Animated.View pointerEvents="none" style={[s.block, box, ghost]}>{body}</Animated.View>
+      <GestureDetector gesture={g}>
+        <Animated.View ref={ref} collapsable={false} accessibilityRole="button" accessibilityLabel={`${k.ev ? '일정 ' : ''}${t.title}, ${blockTime(b.item.start, b.item.end)}`} style={[s.block, box, s.shadow, style]}>
+          {body}
+        </Animated.View>
+      </GestureDetector>
+    </>
   )
 }
 
@@ -535,7 +613,9 @@ function Agenda(props: { today: string; cursor: string; items: Item[]; onCheck: 
       {!groups.length ? <EmptyState title="앞으로 30일 동안 일정이 없어요" sub="+를 눌러 추가하세요" /> : null}
       {groups.map((g) => (
         <GroupCard key={g.d} title={agendaTitle(g.d, props.today)} count={g.items.length} collapsed={false} onToggle={() => {}}>
-          {g.items.map((it) => (
+          {g.items.map((it) => evtOf(it) ? (
+            <EventRowView key={`${g.d}:${it.key}`} evt={evtOf(it)!} start={it.start} end={it.end} color={it.task.list_color ?? ''} onPress={() => props.onOpen(it.task)} onLongPress={(rect) => props.onLong({ task: it.task, rect })} />
+          ) : (
             <View key={`${g.d}:${it.key}`} ref={(r) => { refs.current.set(`${g.d}:${it.key}`, r) }} collapsable={false}>
               <TaskRowView
                 task={it.task}
@@ -609,11 +689,13 @@ const s = StyleSheet.create({
   colHead: { flexDirection: 'row' },
   allday: { flexDirection: 'row', minHeight: 28, paddingVertical: 3, borderBottomWidth: StyleSheet.hairlineWidth },
   alldayLabel: { width: GUTTER, fontSize: 10, textAlign: 'center', paddingTop: 4 },
-  chip: { borderRadius: 4, paddingHorizontal: 4, paddingVertical: 2 },
+  chip: { borderRadius: 4, paddingHorizontal: 4, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 3 },
   hour: { position: 'absolute', right: 6, fontSize: 10 },
   line: { position: 'absolute', left: 0, right: 0, borderTopWidth: StyleSheet.hairlineWidth },
   block: { position: 'absolute', borderRadius: 5, borderLeftWidth: 3, paddingHorizontal: 4, paddingVertical: 2, flexDirection: 'row', gap: 4, overflow: 'hidden' },
-  blockCheck: { width: 11, height: 11, borderRadius: 3, borderWidth: 1.5, marginTop: 2 },
+  mark: { width: 11, height: 11, marginTop: 2, alignItems: 'center', justifyContent: 'center' },
+  box: { borderRadius: 3, borderWidth: 1.2 },
+  shadow: { shadowColor: '#000', shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
   now: { position: 'absolute', left: -4, right: 0, flexDirection: 'row', alignItems: 'center' },
   nowDot: { width: 8, height: 8, borderRadius: 4 },
   more: { alignItems: 'center', paddingVertical: 14 },

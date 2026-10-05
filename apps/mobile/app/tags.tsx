@@ -1,10 +1,12 @@
 // 태그 시트(21 §5 · 20 M3 — 태그는 v1에서 붙이고 뗄 수 있다): 검색/새 태그 칸 + 태그 목록(체크 = 붙음). 누르면 바로 반영.
+// 33 §11: 체크 = accepted만, 끄면 자동 태그는 dismissed(다시 안 붙음), 켜면 user. 종류 아이콘(👤🚀📍)
 import { useQuery } from '@powersync/react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Check, Hash, Plus } from 'lucide-react-native'
 import { useState } from 'react'
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native'
-import { useTags } from '../src/data/lists'
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useTagsFull } from '../src/data/organization'
+import { KIND_ICON, kindOf } from '../src/wiki/data'
 import { createTag, setTag } from '../src/data/tasks'
 import { FONT, M } from '../src/theme/palette'
 import { usePalette } from '../src/theme/ThemeProvider'
@@ -16,8 +18,8 @@ export default function Tags() {
   const ids = (raw ?? '').split(',').filter(Boolean)
   const p = usePalette()
   const router = useRouter()
-  const tags = useTags()
-  const on = useQuery<{ tag_id: string; n: number }>(`SELECT tag_id, count(*) AS n FROM task_tags WHERE task_id IN (${ids.map(() => '?').join(',') || 'NULL'}) GROUP BY tag_id`, ids).data
+  const tags = useTagsFull()
+  const on = useQuery<{ tag_id: string; n: number }>(`SELECT tag_id, count(DISTINCT task_id) AS n FROM task_tags WHERE task_id IN (${ids.map(() => '?').join(',') || 'NULL'}) AND COALESCE(state,'accepted') = 'accepted' GROUP BY tag_id`, ids).data
   const all = new Set(on.filter((r) => r.n === ids.length).map((r) => r.tag_id))
   const [q, setQ] = useState('')
   const shown = tags.filter((t) => !q || t.name.toLowerCase().includes(q.trim().replace(/^#/, '').toLowerCase()))
@@ -52,7 +54,7 @@ export default function Tags() {
               key={t.id}
               first={i === 0 && !(name && !exact)}
               label={t.name}
-              icon={<Hash size={18} color={t.color ?? p.textSecondary} />}
+              icon={KIND_ICON[kindOf(t.kind)] ? <Text style={{ fontSize: 16 }}>{KIND_ICON[kindOf(t.kind)]}</Text> : <Hash size={18} color={t.color ?? p.textSecondary} />}
               iconBg="transparent"
               chevron={false}
               right={all.has(t.id) ? <Check size={18} color={p.accent} /> : null}

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { recognize } from '@sprout/schema/recognition'
 import { EMPTY_SCHEDULE } from './dateSheetModel.ts'
-import { activeTrigger, addedToast, applySuggestion, buildInput, rangeAt, recognizeWith, segments, suggestions, tokenRanges } from './quickAddModel.ts'
+import { activeTrigger, addedToast, applySuggestion, buildInput, linkListFor, rangeAt, recognizeWith, segments, suggestions, tokenRanges } from './quickAddModel.ts'
 
 const now = new Date('2026-10-04T10:00') // 일요일
 const lists = [{ id: 'inbox', name: 'Inbox' }, { id: 'work', name: '업무' }]
@@ -90,4 +90,45 @@ assert.equal(addedToast('smart:today', '2026-10-04T09:00', null, '2026-10-04'), 
 assert.equal(addedToast('smart:today', null, null, '2026-10-04', '업무'), '업무에 추가했어요')
 assert.equal(addedToast('list:work', '2026-10-12', null, '2026-10-04'), null)
 
+// ── 33 §6.3 `[[ ]]` 보호·제안·기본함 + [[리스트]] ──
+{
+  const wl = [{ id: 'inbox', name: 'Inbox', kind: 'inbox' }, { id: 'cert', name: '자격증', kind: 'normal' }, { id: 'work', name: '업무', kind: 'normal' }]
+  const wt = [{ id: 'study', name: '공부' }, { id: 'prof', name: '교수님', kind: 'person', aliases: '["지도교수님"]' }]
+  // 링크 안 글자(3월)는 날짜가 아니고 제목에 남는다, 링크 밖 `내일 #공부`는 인식
+  const x = recognizeWith('[[3월 SQLD]] 내일 #공부', wl, wt, [], now)
+  assert.equal(x.title, '[[3월 SQLD]]')
+  assert.equal(x.due_at!.slice(0, 10), '2026-10-05')
+  assert.deepEqual(x.tag_ids, ['study'])
+  assert.deepEqual(x.links, ['3월 SQLD'])
+  assert.ok(x.ranges.some((g) => g.text === '[[3월 SQLD]]'), '링크도 하이라이트')
+  assert.equal(segments('[[3월 SQLD]] 내일 #공부', x.ranges).map((g) => g.text).join(''), '[[3월 SQLD]] 내일 #공부')
+  // 닫히지 않은 [[는 글
+  assert.equal(recognizeWith('[[교수님 메일', wl, wt, [], now).links.length, 0)
+  // [[ 제안: 태그 → 리스트 → 할 일, 별칭·초성
+  const tr = activeTrigger('메일 [[ㄱㅅ')!
+  assert.equal(tr.kind, '[[')
+  assert.equal(tr.query, 'ㄱㅅ')
+  assert.equal(tr.start, 3)
+  assert.deepEqual(suggestions(tr, wt, wl).map((g) => g.key), ['tag:prof'])
+  const al = suggestions(activeTrigger('[[지도')!, wt, wl)
+  assert.equal(al[0].key, 'tag:prof')
+  assert.equal(al[0].sub, '= 지도교수님')
+  const all = suggestions(activeTrigger('[[')!, wt, wl, [{ id: 't1', title: '중간 보고' }])
+  assert.deepEqual(all.map((g) => g.group), ['tag', 'tag', 'list', 'list'], '빈 질의 = 태그·리스트(기본함 빼고), 할 일은 글자를 쳐야')
+  assert.deepEqual(suggestions(activeTrigger('[[중간')!, wt, wl, [{ id: 't1', title: '중간 보고', list: '업무' }]).map((g) => g.insert), ['[[중간 보고]]'])
+  const ap = applySuggestion('[[교수', activeTrigger('[[교수')!, '[[교수님]]')
+  assert.equal(ap.text, '[[교수님]] ')
+  assert.equal(ap.cursor, 8)
+  // 기본함 + [[리스트]] 하나 = 그 리스트, ~리스트·메뉴로 골랐거나 기본함이 아닌 보기면 그대로
+  const lk = recognizeWith('기출 3회 [[자격증]]', wl, wt, [], now)
+  assert.equal(linkListFor(lk, null, 'inbox', 'inbox', wt, wl), 'cert')
+  assert.equal(linkListFor(lk, 'work', 'inbox', 'inbox', wt, wl), null)
+  assert.equal(linkListFor(lk, null, 'work', 'inbox', wt, wl), null)
+  assert.equal(linkListFor(recognizeWith('기출 [[자격증]] [[교수님]]', wl, wt, [], now), null, 'inbox', 'inbox', wt, wl), null, '링크 둘이면 안 옮김')
+  assert.equal(linkListFor(recognizeWith('[[교수님]]께 메일', wl, wt, [], now), null, 'inbox', 'inbox', wt, wl), null, '태그 링크는 리스트 아님')
+  assert.equal(linkListFor(recognizeWith('기출 [[자격증]] ~업무', wl, wt, [], now), null, 'inbox', 'inbox', wt, wl), null, '~리스트가 이긴다')
+}
+
+// 태그 화면에서 만들면 그 태그(33 §4.1)
+assert.deepEqual(buildInput({ r: recognizeWith('메일 #업무', lists, tags, [], now), description: '', defaults: { list_id: 'inbox', due_at: null, tag_id: 'tr' } }).tag_ids, ['tw', 'tr'])
 console.log('quickAddModel.test ok')

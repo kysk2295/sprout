@@ -44,13 +44,14 @@ export interface TaskRow {
   check_total: number
   check_done: number
   reminder_count: number
-  /** 붙은 태그 id들(쉼표) — 태그 묶기·정렬·캘린더 색 */
+  /** 붙은 태그 id들(쉼표, accepted만 — 33 §8.1, 순서 = 직접 → 링크 → 자동 §6.6) — 행 알약·태그 묶기·정렬·캘린더 색 */
   tag_ids?: string | null
 }
 export interface ListRow { id: string; name: string; emoji: string | null; color: string | null; kind: string; folder_id: string | null; sort_order: number }
 export interface FolderRow { id: string; name: string; sort_order: number }
 export interface SectionRow { id: string; list_id: string; name: string; sort_order: number }
-export interface TagLite { id: string; name: string; color?: string | null; parent_id?: string | null }
+export interface TagLite { id: string; name: string; color?: string | null; parent_id?: string | null; kind?: string | null }
+const TAG_KIND_ICON: Record<string, string> = { person: '👤', project: '🚀', place: '📍' }
 
 export const SMART_IDS = ['today', 'tomorrow', 'next7', 'inbox', 'all', 'completed', 'wontdo', 'trash'] as const
 const ARCHIVE = ['smart:completed', 'smart:wontdo', 'smart:trash']
@@ -65,7 +66,8 @@ export const COLUMNS = `t.id, t.list_id, t.parent_id, t.section_id, t.title, t.c
   (SELECT count(*) FROM check_items c WHERE c.task_id = t.id) AS check_total,
   (SELECT count(*) FROM check_items c WHERE c.task_id = t.id AND c.done = 1) AS check_done,
   (SELECT count(*) FROM reminders r WHERE r.task_id = t.id) AS reminder_count,
-  (SELECT group_concat(x.tag_id) FROM task_tags x WHERE x.task_id = t.id) AS tag_ids`
+  (SELECT group_concat(tag_id) FROM (SELECT x.tag_id FROM task_tags x WHERE x.task_id = t.id AND COALESCE(x.state,'accepted') = 'accepted'
+    ORDER BY CASE COALESCE(x.source,'user') WHEN 'user' THEN 0 WHEN 'link' THEN 1 ELSE 2 END, x.created_at)) AS tag_ids`
 
 export const IN_SMART = "l.archived_at IS NULL AND COALESCE(l.show_in_smart, 'all') = 'all'"
 const S = 'substr(COALESCE(t.start_at, t.due_at), 1, 10)'
@@ -77,7 +79,7 @@ export function scope(view: ViewKey, mode: 'open' | 'done', today: string): { wh
   const d = (n: number) => dayKey(n, new Date(`${today}T00:00`))
   if (kind === 'list') return { where: 't.list_id = ?', params: [id] }
   if (kind === 'folder') return { where: 'l.folder_id = ? AND l.archived_at IS NULL', params: [id] }
-  if (kind === 'tag') return { where: 'l.archived_at IS NULL AND EXISTS (SELECT 1 FROM task_tags tt WHERE tt.task_id = t.id AND tt.tag_id = ?)', params: [id] }
+  if (kind === 'tag') return { where: "l.archived_at IS NULL AND EXISTS (SELECT 1 FROM task_tags tt WHERE tt.task_id = t.id AND tt.tag_id = ? AND COALESCE(tt.state,'accepted') = 'accepted')", params: [id] }
   if (kind === 'filter') return filterScope(id, today, d(1), d(6))
   switch (id) {
     case 'today':
@@ -121,6 +123,7 @@ export const SORT_LABEL: Record<SortBy, string> = { custom: '사용자 설정', 
 export function defaultSettings(view: ViewKey): ViewSettings {
   if (isListView(view)) return { group_by: 'custom', sort_by: 'custom' }
   if (view.startsWith('folder:')) return { group_by: 'list', sort_by: 'date' }
+  if (view.startsWith('tag:')) return { group_by: 'list', sort_by: 'date' } // 33 §4.1 태그 페이지 = 리스트별 묶음(데스크톱과 같음)
   return { group_by: 'time', sort_by: 'date' }
 }
 export const groupOptions = (view: ViewKey): GroupBy[] => (isListView(view) ? ['custom', 'time', 'tag', 'priority', 'none'] : ['list', 'time', 'tag', 'priority', 'none'])
@@ -295,7 +298,12 @@ export function viewTitle(
     return { title: l ? listTitle(l) : '', emoji: l?.emoji }
   }
   if (kind === 'folder') return { title: folders.find((f) => f.id === id)?.name ?? '' }
-  if (kind === 'tag') return { title: `#${more.tags?.find((g) => g.id === id)?.name ?? ''}` }
+  if (kind === 'tag') {
+    // 33 §4.1·§11: 종류 아이콘(사람 👤 · 프로젝트 🚀 · 장소 📍) + 이름, 주제는 `#이름`
+    const g = more.tags?.find((x) => x.id === id)
+    const icon = g?.kind ? TAG_KIND_ICON[g.kind] : undefined
+    return icon ? { title: g?.name ?? '', emoji: icon } : { title: `#${g?.name ?? ''}` }
+  }
   if (kind === 'filter') {
     const f = more.filters?.find((x) => x.id === id)
     return { title: f?.name ?? '', emoji: f?.emoji }

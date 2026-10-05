@@ -5,7 +5,7 @@
 // 편집 범위(20 M3 확정): 제목·설명·날짜·우선순위·리스트·체크리스트 체크·항목 추가·태그. 하위 할 일 만들기·반복 직접 설정은 v1.1.
 import { useQuery } from '@powersync/react-native'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
-import { Ban, Bell, ChevronLeft, ChevronsUpDown, Copy, Ellipsis, Flag, ListChecks, Pin, Plus, Repeat, Tag, Trash2 } from 'lucide-react-native'
+import { ArrowRightLeft, Ban, Bell, ChevronLeft, ChevronsUpDown, Copy, Ellipsis, Flag, ListChecks, Pin, Plus, Repeat, Tag, Trash2 } from 'lucide-react-native'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Dimensions, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type KeyboardEvent } from 'react-native'
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
@@ -22,6 +22,9 @@ import { Checkbox } from '../ui/Checkbox'
 import { GlassButton } from '../ui/Glass'
 import { PopMenu, useAnchor } from '../ui/Menu'
 import { useToast } from '../ui/Toast'
+import { useEventActions } from '../ui/EventMenu'
+import { syncTaskLinks } from '../wiki/data'
+import { DetailTags } from '../wiki/DetailTags'
 
 type CheckItem = { id: string; title: string; done: number; sort_order: number }
 
@@ -32,10 +35,11 @@ export default function TaskDetail() {
   const navigation = useNavigation()
   const insets = useSafeAreaInsets()
   const toast = useToast()
+  const evAct = useEventActions()
   const today = dayKey()
   const task = useQuery<TaskRow>(`SELECT ${COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.id = ?`, [id]).data[0]
   const items = useQuery<CheckItem>('SELECT id, title, done, sort_order FROM check_items WHERE task_id = ? ORDER BY sort_order', [id]).data
-  const tags = useQuery<{ id: string; name: string }>('SELECT g.id, g.name FROM task_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.task_id = ? ORDER BY g.sort_order', [id]).data
+  const tags = useQuery<{ id: string }>("SELECT DISTINCT tt.tag_id AS id FROM task_tags tt WHERE tt.task_id = ? AND COALESCE(tt.state,'accepted') = 'accepted'", [id]).data
   const subs = useQuery<TaskRow>(`SELECT ${COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.parent_id = ? AND t.deleted_at IS NULL ORDER BY t.status, t.sort_order`, [id]).data
   const [full, setFull] = useState(false)
   const root = useRef<View>(null)
@@ -54,7 +58,8 @@ export default function TaskDetail() {
     clearTimeout(timer.current)
     const patch = pending.current
     pending.current = {}
-    if (Object.keys(patch).length) void updateTask(id, patch).then(() => setSaved(true))
+    // 33 §11: 제목·설명의 [[링크]] → 그 할 일 하나만 relations·task_tags(link) 맞춤
+    if (Object.keys(patch).length) void updateTask(id, patch).then(() => { setSaved(true); if ('title' in patch || 'content' in patch) void syncTaskLinks(id) })
   }
   const edit = (patch: Record<string, unknown>) => {
     Object.assign(pending.current, patch)
@@ -160,15 +165,8 @@ export default function TaskDetail() {
           />
         )}
 
-        {tags.length ? (
-          <View style={s.tags}>
-            {tags.map((g) => (
-              <Pressable key={g.id} onPress={() => openSheet('/tags')} style={[s.chip, { backgroundColor: p.accentSubtle }]}>
-                <Text style={{ color: p.accent, fontSize: 13, fontWeight: '500' }}>#{g.name}</Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
+        {/* 33 §11: 자동 태그 ✦ · ✕ 떼기(자동은 dismissed) · 이름 = 태그 페이지 */}
+        <DetailTags taskId={id} onAdd={() => openSheet('/tags')} />
 
         {subs.length ? (
           <View>
@@ -212,7 +210,9 @@ export default function TaskDetail() {
           copy: () => void duplicateTask(id).then((nid) => nid && router.replace(`/task/${nid}`)),
           wontdo: () => void setWontDo([id]).then((u) => { router.back(); toast.show('하지 않음으로 표시했어요', { undo: u }) }),
           trash: () => void trashTasks([id]).then((u) => { router.back(); toast.show('휴지통으로 옮겼어요', { undo: u, duration: 5000 }) }),
-          tags: () => openSheet('/tags')
+          tags: () => openSheet('/tags'),
+          // 20 §7.1 · 06 §14.4.6: 상세를 닫고 새 일정 시트를 연다
+          toEvent: () => void evAct.fromTask(id).then((eid) => { if (eid) router.replace(`/event/${eid}`) })
         }}
       />
     </View>
@@ -251,7 +251,7 @@ function useKeyboardOverlap(root: { current: View | null }, safePad: number) {
 }
 
 /** 상세 ⋯(21 §5, 시안 F-3): 위 큰 아이콘 줄 고정·복사·하지 않음·삭제 + 목록(태그). "주간 목표에 연결"은 넣지 않음(20 M8) */
-function MoreSheet(props: { open: boolean; onClose: () => void; pinned: boolean; actions: Record<'pin' | 'copy' | 'wontdo' | 'trash' | 'tags', () => void> }) {
+function MoreSheet(props: { open: boolean; onClose: () => void; pinned: boolean; actions: Record<'pin' | 'copy' | 'wontdo' | 'trash' | 'tags' | 'toEvent', () => void> }) {
   const p = usePalette()
   const insets = useSafeAreaInsets()
   const big: [keyof typeof props.actions, string, ReactNode][] = [
@@ -279,6 +279,10 @@ function MoreSheet(props: { open: boolean; onClose: () => void; pinned: boolean;
             <Tag size={20} color={p.textSecondary} />
             <Text style={[FONT.body, { color: p.textPrimary }]}>태그</Text>
           </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => act('toEvent')} style={[s.cell, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }]}>
+            <ArrowRightLeft size={20} color={p.textSecondary} />
+            <Text style={[FONT.body, { color: p.textPrimary }]}>일정으로 바꾸기</Text>
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -296,8 +300,6 @@ const s = StyleSheet.create({
   body: { paddingHorizontal: 16, paddingVertical: 2, lineHeight: 24, minHeight: 80, textAlignVertical: 'top' },
   check: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 42, paddingHorizontal: 16 },
   checkText: { flex: 1, height: 42 },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 16, paddingVertical: 10 },
-  chip: { height: 28, borderRadius: 14, paddingHorizontal: 10, justifyContent: 'center' },
   subHead: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
   subRow: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 5, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4, borderTopWidth: StyleSheet.hairlineWidth },

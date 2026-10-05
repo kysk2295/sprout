@@ -4,6 +4,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { View } from 'react-native'
+import { applyEventSchedule, getEventSchedule } from '../src/data/calEvents'
 import { applySchedule, getSchedule } from '../src/data/tasks'
 import { dayKey } from '../src/lib/dates'
 import { ensurePermission } from '../src/notifications'
@@ -14,7 +15,8 @@ import { useToast } from '../src/ui/Toast'
 import { SheetScrollGuard } from '../src/ui/SheetScrollGuard'
 
 export default function DateRoute() {
-  const { ids: raw } = useLocalSearchParams<{ ids: string }>()
+  // event=<일정 id>면 일정의 날짜(20 §7.1 — 날짜는 지울 수 없다)
+  const { ids: raw, event } = useLocalSearchParams<{ ids: string; event?: string }>()
   const ids = (raw ?? '').split(',').filter(Boolean)
   const p = usePalette()
   const router = useRouter()
@@ -23,12 +25,20 @@ export default function DateRoute() {
   useEffect(() => {
     let alive = true
     void (async () => {
-      const s = ids[0] ? await getSchedule(ids[0]) : null
+      const s = event ? await getEventSchedule(event) : ids[0] ? await getSchedule(ids[0]) : null
       if (alive) setInitial(s ?? EMPTY_SCHEDULE)
     })()
     return () => { alive = false }
-  }, [raw]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [raw, event]) // eslint-disable-line react-hooks/exhaustive-deps
   const done = async (s: Schedule) => {
+    if (event) {
+      router.back()
+      if (!s.due_at) return void toast.show('일정은 날짜를 지울 수 없어요')
+      const undo = await applyEventSchedule(event, s)
+      toast.show(`${chipLabel(s, dayKey())} · 날짜를 바꿨어요`, { undo })
+      if (initial && addsReminder(initial.reminders, s.reminders)) void ensurePermission({ reminder: true })
+      return
+    }
     const undo = await applySchedule(ids, s)
     router.back()
     const label = chipLabel(s, dayKey())

@@ -88,3 +88,33 @@ assert.deepEqual(SNOOZE_ACTIONS.map((a) => a.minutes), [10, 60])
 assert.equal(LEGACY_SNOOZE_ACTIONS[0].id, 'snooze-tomorrow')
 
 console.log('plan.test ok')
+
+// ── 일정 알림(20 §7.1) ──
+{
+  const { planEventReminders, mergePlans, isEventReminderId, eventSnoozeId } = await import('./plan.ts')
+  const evs = [
+    { id: 'e1', title: '피부과', start_at: '2026-10-04T15:00', end_at: '2026-10-04T16:00', repeat_rule: null, reminders: '["-PT0M","-PT15M"]', location: '강남' },
+    { id: 'e2', title: '회의', start_at: '2026-09-28T10:00', end_at: '2026-09-28T11:00', repeat_rule: 'FREQ=WEEKLY', reminders: '["-PT0M"]', location: null },
+    { id: 'e3', title: '알림 없음', start_at: '2026-10-04T16:00', end_at: '2026-10-04T17:00', repeat_rule: null, reminders: null, location: null },
+    { id: 'e4', title: '지난 일', start_at: '2026-10-04T09:00', end_at: '2026-10-04T10:00', repeat_rule: null, reminders: '["-PT0M"]', location: null }
+  ]
+  const ep = planEventReminders(evs, now)
+  assert.deepEqual(ep.map((x) => [x.eventId, new Date(x.at).getHours(), new Date(x.at).getMinutes()]), [['e1', 15, 0], ['e1', 14, 45], ['e2', 10, 0]], '반복 일정은 다음 회차(10/5 월 10:00), 알림 없음·지난 일정은 빠짐')
+  assert.equal(ep[0].body, '오늘 오후 3:00 · 📍 강남')
+  assert.ok(isEventReminderId(ep[0].id) && !ep[0].id.startsWith('r:'), '서버 보고(r:)에 섞이지 않음')
+  // 반복 일정: 지난 회차의 다음 회차(10/5 10:00)
+  const rep = planEventReminders([evs[1]], new Date('2026-10-04T20:00').getTime())
+  assert.equal(rep.length, 1)
+  assert.equal(rep[0].at, new Date('2026-10-05T10:00').getTime())
+  assert.equal(rep[0].body, '오늘 오전 10:00 · 내 일정', '울리는 날 기준(할 일 알림과 같음)')
+  // 합치기: 시각순, 최대 개수
+  const merged = mergePlans(plan, ep, 3)
+  assert.equal(merged.length, 3)
+  assert.ok(merged.every((x, i) => i === 0 || merged[i - 1].at <= x.at))
+  // 차이 계산은 e: 예약도 본다
+  const d = diffSchedule([{ id: 'e:old:-PT0M@1', title: 'x', body: 'y' }], ep)
+  assert.deepEqual(d.cancel, ['e:old:-PT0M@1'])
+  assert.equal(d.add.length, 3)
+  assert.ok(eventSnoozeId('e1', 5).startsWith('se:'))
+}
+console.log('plan(일정) ok')
