@@ -67,9 +67,9 @@
 |---|---|---|
 | Expo 앱·시뮬레이터 동작 | [완료] | apps/mobile, HANDOFF |
 | Apple Developer Program($99/년, 맥과 공용) | [사용자] | |
-| App ID·App Group(`group.app.sprout.mobile`)·공유 확장 프로비저닝 | [할 일] | 유료 팀에서 App ID 2개(앱 + 공유 확장) 등록. 팀 ID 바뀌면 `app.json`의 `teamId` |
-| **Sign in with Apple** | [진행] 서버·데스크톱 구현(`server/api/src/social.ts`), 모바일은 "준비 중" 버튼만 / [사용자] 키 | **구글 로그인이 있으므로 심사 지침 4.8에 따라 애플 로그인(또는 동등한 개인정보 보호형 로그인) 필수.** Services ID·Key(.p8)·반환 URL(https) 필요 → 고정 도메인(D3)과 연결. 대안은 iOS에서 구글 로그인 빼기 |
-| 앱 안 계정 삭제 | [완료] 서버 `DELETE /auth/account` + 데스크톱·모바일 화면 / [할 일] 2가지 | 지침 5.1.1(v). 남은 것: ① 모바일에서 애플로만 가입한 계정은 재확인 수단이 없어 삭제 불가 ② 애플 사용자 삭제 때 애플 토큰 폐기(REST revoke) 미구현 |
+| App ID·App Group(`group.app.sprout.mobile`)·공유 확장·위젯 프로비저닝 | [친구] | 앱 `app.sprout.mobile` + 공유 확장 `app.sprout.mobile.share` + 위젯 확장(apps/mobile 위젯 플러그인의 번들 ID), 셋 다 같은 App Group. 빌드할 때 `SPROUT_APPLE_TEAM_ID=<팀 ID>` |
+| **Sign in with Apple** | [완료] 코드(서버 `/auth/apple/native`·웹 흐름, 모바일 `SPROUT_APPLE_SIGN_IN=1`일 때 켜짐) / [친구] 키 | **구글 로그인이 있으므로 심사 지침 4.8에 따라 필수.** App ID에 Sign in with Apple 켜기, 키(.p8)·Services ID 만들기 → 아래 "친구에게 받을 값" |
+| 앱 안 계정 삭제 | [완료] | 지침 5.1.1(v). 애플로만 가입한 계정도 "Apple로 다시 로그인" 후 삭제, 삭제 때 애플 토큰 폐기(키가 있을 때) |
 | 푸시(APNs) | [할 일] | 지금 `pushIos: false`. APNs 인증 키(.p8) 발급 → FCM에 등록하거나 서버가 APNs 직접. 로컬 알림만으로 v1 내도 됨(결정) |
 | 개인정보 매니페스트(PrivacyInfo.xcprivacy) | [할 일] | 필수 사유 API(UserDefaults·파일 시각 등) 선언. Expo `ios.privacyManifests` + 라이브러리 매니페스트 확인 |
 | 암호화 수출 규정 | [완료] | `ITSAppUsesNonExemptEncryption: false`(HTTPS만) |
@@ -78,9 +78,26 @@
 | 연령 등급 설문 | [진행] 초안 | listing.md. AI 대화(일기·비서)가 있어 "사용자 생성 콘텐츠/AI" 관련 질문 답변 주의 |
 | 스크린샷 6.9"/6.5"(+ iPad 13", `supportsTablet: true`라 필수) | [할 일] | [store/screenshots.md](store/screenshots.md). iPad를 안 낼 거면 `supportsTablet: false` |
 | 심사용 데모 계정 | [할 일] | 심사관용 로그인 계정 + 메모(AI는 Mac mini가 켜져 있어야 함 — 심사 기간 서버 상시 가동) |
-| 지원 URL·개인정보 처리방침 URL | [사용자]+[할 일] | 웹사이트 필요(§7) |
+| 지원 URL·개인정보 처리방침 URL | [완료] | https://web-production-cd889.up.railway.app/support · /privacy · /terms · /account-deletion (`?lang=en` 영어) |
 | TestFlight 외부 테스트 | [할 일] | 베타 심사 1회 |
 | EU 디지털서비스법 트레이더 신고 | [사용자] | D4·D6 |
+
+
+### 4-1. 친구(애플 개발자 계정)에게 부탁할 것 — 2026-10-05
+1. **아이폰 앱 출시 (필수):** 위 표의 [친구] 항목 → `SPROUT_APPLE_SIGN_IN=1 SPROUT_APPLE_TEAM_ID=<팀 ID> npx expo prebuild --platform ios` → Xcode 아카이브 → TestFlight → App Store Connect 등록(설명 [store/listing.md](store/listing.md), 개인정보 [store/privacy-answers.md](store/privacy-answers.md), 스크린샷 [store/screenshots.md](store/screenshots.md)) → 심사 제출(데모 계정은 사용자가 만들어 전달).
+2. **애플 로그인 키 (필수):** Keys에서 Sign in with Apple 키 만들기 + Identifiers에서 Services ID 만들기(반환 URL `https://macmini.tail425c97.ts.net/auth/apple/callback`).
+3. **아이폰 푸시 키 APNs (선택):** Keys에서 APNs 키(.p8) → Firebase 프로젝트 `sprout-510614` › 클라우드 메시징 › Apple 앱 구성에 올리기. 없으면 아이폰은 폰 안 예약 알림만.
+4. **맥 앱 서명 Developer ID (선택):** dmg 배포용. 없으면 "확인되지 않은 개발자" 경고. [packaging.md](packaging.md) §3-1.
+
+**친구에게 받을 값 → 넣을 곳**
+| 값 | 넣을 곳 |
+|---|---|
+| 팀 ID | 서버 `.env` `APPLE_TEAM_ID`, iOS 빌드 `SPROUT_APPLE_TEAM_ID`, 구글 클라우드 iOS OAuth 클라이언트의 팀 ID 칸 |
+| Sign in with Apple Key ID + .p8 파일 | 서버 `.env` `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`(파일 경로) |
+| Services ID | 서버 `.env` `APPLE_SERVICES_ID` |
+| (선택) APNs 키 | Firebase 콘솔에 친구가 직접 올림 → 서버 `.env` `PUSH_IOS=1` |
+| (선택) 번들 ID를 바꿨다면 새 값 | 구글 iOS OAuth 클라이언트 새로 만들기, 서버 `APPLE_BUNDLE_IDS` |
+값을 받으면 서버(맥미니)에 넣고 `docker compose up -d --build api`.
 
 ## 5. Android (Google Play)
 | 항목 | 상태 | 메모 |
