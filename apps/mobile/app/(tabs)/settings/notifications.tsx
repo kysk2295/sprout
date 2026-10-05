@@ -23,7 +23,7 @@ import { Wheel } from '../../../src/ui/Wheel'
 
 const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1))
 const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
-const NOT_READY = '서버 알림 준비 중 · 할 일 알림은 이 휴대폰에서 울려요'
+const NOT_READY = '할 일 알림은 이 휴대폰에서 울려요'
 
 function ago(ms: number | null): string {
   if (!ms) return ''
@@ -77,7 +77,7 @@ export default function NotificationSettings() {
     setTesting(true)
     try {
       const r = await sendTestPush()
-      toast.show(r === 'sent' ? '시험 알림을 보냈어요' : r === 'limited' ? '잠시 뒤에 다시 해 주세요' : r === 'disabled' ? NOT_READY : '서버에 연결되면 알림을 등록해요')
+      toast.show(r === 'sent' ? '시험 알림을 보냈어요' : r === 'limited' ? '잠시 뒤에 다시 해 주세요' : r === 'disabled' ? NOT_READY : '인터넷에 연결되면 알림을 켜요')
     } finally { setTesting(false) }
   }
   const openBattery = () =>
@@ -91,9 +91,9 @@ export default function NotificationSettings() {
   const permValue = perm === 'granted' ? '켜짐' : perm === 'denied' ? undefined : perm === 'undetermined' ? '꺼짐' : undefined
   const status = !showServer ? null
     : serverOff ? NOT_READY
-    : push.state === 'ok' ? `서버 알림 연결됨${push.checkedAt ? ` · ${ago(push.checkedAt)}` : ''}`
-    : push.state === 'offline' ? '서버에 연결되면 알림을 등록해요'
-    : '서버 알림 확인 중…'
+    : push.state === 'ok' ? `알림 켜짐${push.checkedAt ? ` · ${ago(push.checkedAt)}` : ''}`
+    : push.state === 'offline' ? '인터넷에 연결되면 알림을 켜요'
+    : '알림 확인 중…'
 
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
@@ -122,7 +122,7 @@ export default function NotificationSettings() {
           ) : null}
         </Cells>
         {exact === 'denied' ? (
-          <Text style={[s.foot, { color: p.textTertiary }]}>허용하면 인터넷이 없어도 할 일 알림이 제시간에 울려요. 지금은 연결돼 있을 때 서버가 제때 알려 드려요</Text>
+          <Text style={[s.foot, { color: p.textTertiary }]}>허용하면 인터넷이 없어도 할 일 알림이 제시간에 울려요</Text>
         ) : null}
 
         <View style={{ opacity: dim }}>
@@ -130,7 +130,7 @@ export default function NotificationSettings() {
             <Cell first label="할 일 알림" right={sw(prefs.reminders, (v) => void saveNotifyPrefs({ reminders: v }), '할 일 알림')} />
             <Cell label="알림에 제목 숨기기" right={sw(prefs.hideTitles, (v) => void saveNotifyPrefs({ hideTitles: v }), '알림에 제목 숨기기')} />
           </Cells>
-          <Text style={[s.foot, { color: p.textTertiary }]}>잠금 화면·서버 전송에 할 일 제목을 넣지 않아요</Text>
+          <Text style={[s.foot, { color: p.textTertiary }]}>잠금 화면 알림에 할 일 제목을 보이지 않아요</Text>
 
           {/* 32 §4.4: 알림의 `다시 알림` 버튼이 미루는 시간(틱틱 설정의 다시 알림 시간, research 30 §6). 누르면 아래에 고르기 칸 */}
           <Cells>

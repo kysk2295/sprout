@@ -151,7 +151,7 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
       ) : null}
       {notice ? <Text style={[s.notice, { backgroundColor: p.toastBg }]}>{notice}</Text> : null}
       <Composer a={a} autoFocus={autoFocus} onSubmit={() => void submit()} />
-      {variant === 'full' ? <Text style={[s.foot, { color: p.textTertiary }]}>꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 결과는 카드에서 되돌릴 수 있어요</Text> : null}
+      {variant === 'full' ? <Text style={[s.foot, { color: p.textTertiary }]}>결과는 카드에서 되돌릴 수 있어요</Text> : null}
     </View>
   )
 }

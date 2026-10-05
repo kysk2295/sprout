@@ -208,7 +208,7 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
             : <button className="assistant-send" aria-label="보내기" title="보내기" disabled={!a.model || !draft.trim() || a.connecting} onClick={() => void submit()}><ArrowUp /></button>}
         </div>
       </div>
-      {variant === 'full' && <p className="assistant-footnote">꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 등록 결과는 카드에서 확인하고 되돌릴 수 있어요</p>}
+      {variant === 'full' && <p className="assistant-footnote">등록 결과는 카드에서 확인하고 되돌릴 수 있어요</p>}
     </div>
   )
 }

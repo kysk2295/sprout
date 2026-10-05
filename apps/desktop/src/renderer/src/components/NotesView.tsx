@@ -27,7 +27,6 @@ type Props = { lists: ListRow[]; onOpen: (id: string) => void; section: Section;
 type Group = { id: string; name: string; items: CollectItem[]; closedByDefault: boolean; showTime: boolean }
 const APP_GROUPS: [string, string][] = [['today', '오늘'], ['yesterday', '어제'], ['week', '이번 주'], ['older', '이전']]
 const SECTIONS: [Section, string][] = [['notes', '수집'], ['watch', '볼 것'], ['wiki', '위키']]
-const NOTICE_KEY = 'sprout.collect.aiNotice'
 
 function appGroupOf(iso: string, today: string) {
   const day = localDay(iso)
@@ -114,9 +113,6 @@ export function NotesView({ lists, onOpen, section, onSection }: Props) {
     try {
       const id = await saveItem(text)
       setSelected(id)
-      let noticed = true
-      try { noticed = !!localStorage.getItem(NOTICE_KEY); localStorage.setItem(NOTICE_KEY, '1') } catch { /* 안내만 한 번 더 */ }
-      if (status.auto && !noticed) toast.show('수집함 글은 외부 AI가 아니라 오너의 Mac mini AI가 정리해요')
     } catch {
       setDraft(text)
       toast.show('저장하지 못했어요. 다시 시도해 주세요.')

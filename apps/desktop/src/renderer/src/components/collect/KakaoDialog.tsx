@@ -64,7 +64,7 @@ export function KakaoDialog({ onClose, onDone }: { onClose: () => void; onDone: 
       >
         {preview ? <FileText /> : <Upload />}
         <div className="kakao-dialog__file">
-          {preview ? <><b>{preview.name}</b><span>{sizeLabel(preview.size)}</span></> : <><b>파일을 여기에 놓으세요</b><span>.txt · .csv — 서버에 올리지 않고 이 기기에서만 읽어요</span></>}
+          {preview ? <><b>{preview.name}</b><span>{sizeLabel(preview.size)}</span></> : <><b>파일을 여기에 놓으세요</b><span>.txt · .csv — 이 기기에서만 읽어요</span></>}
         </div>
         <button className="kakao-dialog__pick" onClick={() => input.current?.click()}>{preview ? '다른 파일' : '파일 고르기'}</button>
         <input ref={input} type="file" accept=".txt,.csv,text/plain,text/csv" hidden onChange={(e) => { void read(e.target.files?.[0]); e.target.value = '' }} />

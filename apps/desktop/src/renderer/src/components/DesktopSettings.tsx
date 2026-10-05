@@ -99,7 +99,7 @@ function AccountPane() {
     <DeleteAccount />
     {confirm && <Dialog label="로그아웃" className="organization-dialog" onClose={() => { if (!busy) setConfirm(false) }}>
       <h2>로그아웃할까요?</h2>
-      <p>로그아웃하면 이 기기의 데이터가 지워지고 서버에만 남아요.</p>
+      <p>다시 로그인하면 데이터가 그대로 돌아와요.</p>
       <footer>
         <button disabled={busy} onClick={() => setConfirm(false)}>취소</button>
         <button disabled={busy} onClick={async () => { setBusy(true); await authApi()?.logout(); setBusy(false); setConfirm(false) }}>로그아웃</button>
@@ -165,7 +165,7 @@ function DeleteAccount() {
   const ready = !!info && deleteReady({ mode: info.mode, confirmText, password, reauthed, busy })
   return <form className="account-delete settings-card account-delete--open" noValidate onSubmit={(e) => { e.preventDefault(); void submit() }}>
     <h3>계정을 삭제할까요?</h3>
-    <p>모든 할 일·일기·수집함·캐릭터와 성장 기록이 서버와 모든 기기에서 지워져요. <strong>되돌릴 수 없어요.</strong></p>
+    <p>모든 할 일·일기·수집함·캐릭터와 성장 기록이 모든 기기에서 지워져요. <strong>되돌릴 수 없어요.</strong></p>
     {!info && !error && <p className="account-delete__muted">확인하는 중…</p>}
     {info?.mode === 'password' && <label className="account-delete__field"><span>비밀번호</span>
       <input type="password" autoComplete="current-password" autoFocus value={password} disabled={busy} onChange={(e) => setPassword(e.target.value)} placeholder="비밀번호" /></label>}

@@ -62,7 +62,7 @@ export default function Diary() {
             <View style={{ alignItems: 'center' }}><BuddyArt buddy={buddy} stage={buddy.stage} size={96} mood="smile" still={reduced} /></View>
             <Text style={[s.title, { color: p.textPrimary }]}>일기를 {josa(buddy.name, '와', '과')} 나눌까요?</Text>
             {[
-              { icon: <Cloud size={18} color={p.textSecondary} />, text: '일기 글이 꿈틀 AI(운영자의 Mac mini)에서 처리돼요' },
+              { icon: <Cloud size={18} color={p.textSecondary} />, text: `${josa(buddy.name, '가', '이')} 일기를 읽고 답해 줘요` },
               { icon: <Lock size={18} color={p.textSecondary} />, text: '나만 보기로 둔 날은 보내지 않아요' },
               { icon: <RotateCcw size={18} color={p.textSecondary} />, text: '언제든 일기 ⋯ 메뉴에서 끌 수 있어요' }
             ].map((f) => <View key={f.text} style={s.fact}>{f.icon}<Text style={[s.factText, { color: p.textPrimary }]}>{f.text}</Text></View>)}

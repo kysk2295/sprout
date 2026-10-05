@@ -103,7 +103,7 @@ function RailAvatar({ email, onSettings, onGrowth }: { email?: string; onSetting
     {open === 'picker' && <AvatarPicker anchor={ref.current} letter={letter} onClose={close} />}
     {confirm && <Dialog label="로그아웃" className="organization-dialog" onClose={() => { if (!busy) setConfirm(false) }}>
       <h2>로그아웃할까요?</h2>
-      <p>로그아웃하면 이 기기의 데이터가 지워지고 서버에만 남아요.</p>
+      <p>다시 로그인하면 데이터가 그대로 돌아와요.</p>
       <footer>
         <button disabled={busy} onClick={() => setConfirm(false)}>취소</button>
         <button disabled={busy} onClick={async () => { setBusy(true); await authApi()?.logout(); setBusy(false); setConfirm(false) }}>로그아웃</button>

@@ -61,7 +61,7 @@ export function ensureExactAlarm(): Promise<void> {
     const ok = await new Promise<boolean>((resolve) =>
       Alert.alert(
         '정한 시각에 바로 울리게 할까요?',
-        '‘알람 및 리마인더’를 허용하면 인터넷이 없어도 할 일 알림이 제시간에 울려요. 허용하지 않아도 연결돼 있으면 서버가 제때 알려 드려요.',
+        '‘알람 및 리마인더’를 허용하면 인터넷이 없어도 할 일 알림이 제시간에 울려요.',
         [
           { text: '나중에', style: 'cancel', onPress: () => resolve(false) },
           { text: '허용하러 가기', onPress: () => resolve(true) }

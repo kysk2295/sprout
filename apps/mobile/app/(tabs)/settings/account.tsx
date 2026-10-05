@@ -31,7 +31,7 @@ function deleteErrorText(error: string, status: number, provider: Provider = 'go
   if (/reauth required/.test(error)) return `보안을 위해 ${NAME[provider]}로 다시 로그인한 뒤 10분 안에 삭제해 주세요`
   if (status === 429 || /시도가 너무 많아요/.test(error)) return /분 뒤/.test(error) ? error : '잠시 뒤 다시 시도하세요'
   if (status === 401 || /unauthorized/.test(error)) return '로그인이 만료됐어요. 다시 로그인한 뒤 시도하세요'
-  return '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요'
+  return '연결할 수 없어요. 인터넷을 확인하고 다시 시도하세요'
 }
 
 export default function Account() {
@@ -67,7 +67,7 @@ export default function Account() {
   useEffect(() => { void appleAvailable().then(setAppleReady) }, [])
   const loadMethods = useCallback(async () => {
     setMethodsError('')
-    try { setMethods(await loginMethods()) } catch (e) { setMethodsError(socialErrorText(e) ?? '서버에 연결할 수 없어요. 잠시 뒤 다시 시도하세요') }
+    try { setMethods(await loginMethods()) } catch (e) { setMethodsError(socialErrorText(e) ?? '연결할 수 없어요. 인터넷을 확인하고 다시 시도하세요') }
   }, [])
   useEffect(() => { void loadMethods() }, [loadMethods])
   const setIdentities = (identities: LinkedIdentity[]) => setMethods((m) => (m ? { ...m, identities } : m))
@@ -173,7 +173,7 @@ export default function Account() {
     }
   }
   const confirmLogout = () =>
-    Alert.alert('로그아웃할까요?', '이 기기의 데이터가 지워져요. 다시 로그인하면 서버에서 내려받아요.', [
+    Alert.alert('로그아웃할까요?', '이 기기의 데이터가 지워져요. 다시 로그인하면 그대로 돌아와요.', [
       { text: '취소', style: 'cancel' },
       { text: '로그아웃', style: 'destructive', onPress: () => void logout() }
     ])
@@ -220,7 +220,7 @@ export default function Account() {
         ) : (
           <View style={[s.card, { backgroundColor: p.cardBg }]}>
             <Text style={[FONT.bodyStrong, { color: p.textPrimary }]}>계정을 삭제할까요?</Text>
-            <Text style={[FONT.sub, { color: p.textSecondary }]}>모든 할 일·일기·수집함·캐릭터와 성장 기록이 서버와 모든 기기에서 지워져요. <Text style={{ fontWeight: '700' }}>되돌릴 수 없어요.</Text></Text>
+            <Text style={[FONT.sub, { color: p.textSecondary }]}>모든 할 일·일기·수집함·캐릭터와 성장 기록이 모든 기기에서 지워져요. <Text style={{ fontWeight: '700' }}>되돌릴 수 없어요.</Text></Text>
             {!mode && !error ? <ActivityIndicator color={p.textTertiary} /> : null}
             {mode === 'apple-only' ? <Text style={[FONT.sub, { color: p.textSecondary }]}>Apple로만 가입한 계정은 iPhone 앱이나 컴퓨터 앱(설정 › 계정)에서 삭제할 수 있어요.</Text> : null}
             {mode === 'password' ? (

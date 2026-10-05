@@ -23,7 +23,7 @@ export function NotifySettings() {
     <h3 style={head}>휴대폰으로 받는 알림</h3>
     <div className="settings-card" aria-busy={!ready}>
       {row('할 일 알림', '정한 시간에 휴대폰으로 할 일을 알려 드려요', sw(reminders, '할 일 알림', { reminders: !reminders }))}
-      {row('알림에 제목 숨기기', '잠금 화면·서버 전송에 할 일 제목을 넣지 않아요', sw(hideTitles, '알림에 제목 숨기기', { hideTitles: !hideTitles }))}
+      {row('알림에 제목 숨기기', '잠금 화면 알림에 할 일 제목을 보이지 않아요', sw(hideTitles, '알림에 제목 숨기기', { hideTitles: !hideTitles }))}
     </div>
     <div className="settings-card">
       {row('하루 요약', '정한 시각에 오늘 할 일을 한 번에 알려 드려요', sw(daily.on, '하루 요약', { daily: { on: !daily.on } }))}

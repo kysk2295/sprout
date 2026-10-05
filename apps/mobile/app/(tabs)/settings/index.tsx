@@ -47,7 +47,7 @@ export default function Settings() {
     : status.dataFlowStatus?.uploadError || status.dataFlowStatus?.downloadError ? '실패 — 다시 시도하는 중'
     : !status.connected ? '오프라인' : ago(status.lastSyncedAt)
   const confirmLogout = () =>
-    Alert.alert('로그아웃할까요?', '이 기기의 데이터가 지워져요. 다시 로그인하면 서버에서 내려받아요.', [
+    Alert.alert('로그아웃할까요?', '이 기기의 데이터가 지워져요. 다시 로그인하면 그대로 돌아와요.', [
       { text: '취소', style: 'cancel' },
       { text: '로그아웃', style: 'destructive', onPress: () => void logout() }
     ])

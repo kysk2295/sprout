@@ -460,7 +460,7 @@ function ConsentDialog({ buddy, stage, onAnswer }: { buddy: Buddy; stage: number
       </div>
       <h2>일기를 {josa(name, '와', '과')} 나눌까요?</h2>
       <div className="diary-consent__facts">
-        <div><CloudIcon /><span>일기 글이 꿈틀 AI(운영자의 Mac mini)에서 처리돼요. {josa(name, '가', '이')} 읽고 공감하며 이야기를 들어 줘요.</span></div>
+        <div><CloudIcon /><span>{josa(name, '가', '이')} 읽고 공감하며 이야기를 들어 줘요.</span></div>
         <div><Lock /><span>나만 보기로 둔 날은 보내지 않아요.</span></div>
         <div><Undo2 /><span>언제든 ⋯ 메뉴에서 끌 수 있어요.</span></div>
       </div>
