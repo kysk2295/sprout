@@ -37,7 +37,7 @@
 | 항목 | 틱틱 | 근거 |
 |---|---|---|
 | 끌어 옮기기·길이 바꾸기 | 구독 일정도 된다(도움말 "modify", 주최자 아님 안내 문구가 "move"를 말한다). 끄는 모양은 할 일과 같다고 본다 | Google Calendar 문서, `event_move_non_organizer_hint` → 모양은 [추정] |
-| 반복 회차 범위 | 할 일용 대화창 `Edit Recurring Task`/`Delete Recurring Task`: 본문 "You are changing the time of a recurring task. Please confirm the range of changes." 선택지 **`Only This Recurrence`(이번만) · `All Future Recurrences`(이후 모든 회차) · `All Unfinished Recurrences`(완료 안 된 모든 회차)**. 구독 일정 전용 대화창 문자열은 찾지 못했다 → 일정도 같은 대화창에서 "이번만 / 이후 모든 회차"를 쓴다고 본다(일정은 완료가 없어서 세 번째는 맞지 않음) | 앱 문자열, research 17 §14 `MhYkPy6xK4M/f0230` → 일정 쪽은 **[추정]** |
+| 반복 회차 범위 | 할 일용 대화창 `Edit Recurring Task`/`Delete Recurring Task`: 본문 "You are changing the time of a recurring task. Please confirm the range of changes." 선택지 **`Only This Recurrence`(이번만) · `All Future Recurrences`(이후 모든 회차) · `All Unfinished Recurrences`(완료 안 된 모든 회차)**. 구독 일정 전용 대화창 문자열은 찾지 못했다 → 일정도 같은 대화창에서 "이번만 / 이후 모든 회차"를 쓴다고 본다(일정은 완료가 없어서 세 번째는 맞지 않음) | 앱 문자열, research 17 §14 `MhYkPy6xK4M/f0230` → 일정 쪽은 **[추정]**. 2026-10-05 다시 확인: 실행 파일·모든 화면 파일에 "recurring event"·"following events"·"this event" 같은 일정용 문구가 **하나도 없다** → 일정용 반복 범위 대화는 없다고 본다. 한국어 문자열은 `지금 반복`·`지금부터 모든 반복`·`모든 미완료 주기`(기계 번역 모양) |
 | 지우기 | "add, modify, and delete" — 지운 일정은 구글에서도 지워진다. 확인 대화 여부는 모름 | Google Calendar 문서 → 확인 대화 **[미확인]** |
 
 ## 5. 구독 설정(편집 모달) — 19 §6의 1번 일부 해결
