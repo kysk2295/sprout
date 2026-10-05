@@ -34,4 +34,4 @@
 - 소개 사이트 "위젯" 카드는 맥 데스크톱 위젯을 말하지만 내려받기 판에는 위젯이 없다(서명 후 넣음).
 - 자동 업데이트 없음(`electron-updater` + zip/blockmap + `latest*.yml` 필요). 지금은 사이트에서 새로 받아 덮어 설치(데이터는 그대로).
 - Developer ID 서명·공증(맥), 코드 서명(Windows)으로 경고 없애기.
-- Windows 앱은 CI 빌드만 확인 — 실제 Windows PC에서 설치·로그인·동기화 확인 남음.
+- Windows 앱은 만들어지는 것만 확인 — 실제 Windows PC에서 설치·로그인·동기화 확인 남음.
