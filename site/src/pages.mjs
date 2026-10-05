@@ -25,6 +25,11 @@ const win = (inner) => `<div class="win"><div class="win-bar" aria-hidden="true"
 export function landing({ cfg, T, esc, val, page }) {
   const N = esc(cfg.name), NE = esc(cfg.nameEn)
   const dlBtn = (ic, label) => `<button class="dl-btn" type="button" aria-disabled="true" disabled>${ic}<span><small>${T('곧 출시', 'Coming soon')}</small>${label}</span></button>`
+  // 데스크톱 설치 파일 = GitHub Release(이름 고정, docs/release/desktop-download.md). app.js가 내 컴퓨터에 맞는 버튼을 앞에 세운다.
+  const REL = 'https://github.com/kysk2295/sprout/releases/latest/download/'
+  const DL = { macArm: REL + 'Kkumteul-mac-arm64.dmg', macIntel: REL + 'Kkumteul-mac-x64.dmg', win: REL + 'Kkumteul-windows-x64-setup.exe' }
+  const dlLink = (os, href, ic, label) => `<a class="dl-btn is-live" href="${href}" data-dl="${os}" rel="noopener">${ic}<span><small>${T('내려받기', 'Download')}</small>${label}</span></a>`
+  const step = (k, e) => `<li>${T(k, e)}</li>`
   const ticks = (pairs) => `<ul class="ticks">${pairs.map(([k, e]) => `<li>${T(k, e)}</li>`).join('')}</ul>`
   const card = (ic, hk, he, pk, pe) => `<div class="card">${ic}<div><h3>${T(hk, he)}</h3><p>${T(pk, pe)}</p></div></div>`
   const faq = (qk, qe, ak, ae) => `<details><summary>${T(qk, qe)}</summary><div class="a">${T(ak, ae)}</div></details>`
@@ -42,9 +47,9 @@ export function landing({ cfg, T, esc, val, page }) {
 <h1 id="hero-title">${T('해낸 만큼 자라는<br>할 일·캘린더', 'The to-do list<br>that grows with you')}</h1>
 <p class="lead">${T('말하듯 적으면 날짜와 태그가 알아서 들어가고, AI가 리스트까지 정리해요. 하나씩 끝낼 때마다 내 캐릭터가 자라요. 광고 없이 무료예요.', 'Type the way you talk and the date and tags fill themselves in, then AI files it in the right list. Every finished task helps your character grow. Free, with no ads.')}</p>
 <div class="dl" role="group" aria-label="다운로드" data-aria-ko="다운로드" data-aria-en="Downloads">
-${dlBtn(I.laptop, 'Mac')}${dlBtn(I.laptop, 'Windows')}${dlBtn(I.phone, 'App Store')}${dlBtn(I.phone, 'Google Play')}
+${dlLink('mac', DL.macArm, I.laptop, 'Mac')}${dlLink('win', DL.win, I.laptop, 'Windows')}${dlBtn(I.phone, 'App Store')}${dlBtn(I.phone, 'Google Play')}
 </div>
-<p class="dl-note">${T('지금 출시를 준비하고 있어요. 그동안 이 페이지에서 먼저 써 보세요.', 'We are getting ready to launch. Until then, try it right on this page.')}</p>
+<p class="dl-note">${T('무료예요. 처음 열 때 보안 확인이 한 번 떠요 — <a href="#install">여는 방법</a>', 'Free. You will see a security prompt the first time you open it — <a href="#install">how to open it</a>')}</p>
 </div>
 <div class="hero-demo">
 ${demo('hero', `${N} — 할 일`, `${NE} — Tasks`)}
@@ -136,12 +141,42 @@ ${card(I.trash, '언제든 완전히 삭제', 'Delete everything, anytime', '앱
 </div>
 </section>
 
+<section id="install" aria-labelledby="install-title">
+<div class="wrap">
+<div class="sec-head center"><div class="kicker">${T('설치', 'Install')}</div><h2 id="install-title">${T('내려받고 여는 방법', 'Download and open')}</h2><p>${T('아직 Apple · Microsoft 인증을 받기 전이라 처음 한 번은 직접 열어 줘야 해요. 그다음부터는 그냥 열려요.', 'The app is not yet certified by Apple or Microsoft, so you need to allow it once. After that it opens normally.')}</p></div>
+<div class="install">
+<div class="card install-card" data-os="mac">
+<h3>${I.laptop}Mac</h3>
+<ol class="steps">
+${step('dmg 파일을 열고 꿈틀을 <b>응용 프로그램</b> 폴더로 끌어 넣어요.', 'Open the dmg and drag Kkumteul into the <b>Applications</b> folder.')}
+${step('꿈틀을 열어요. "확인할 수 없음" 창이 뜨면 <b>완료</b>를 눌러요.', 'Open Kkumteul. If it says it can’t be verified, click <b>Done</b>.')}
+${step('<b>시스템 설정 › 개인정보 보호 및 보안</b> 맨 아래에서 <b>그래도 열기</b>를 누르고, 한 번 더 <b>열기</b>를 눌러요.', 'In <b>System Settings › Privacy &amp; Security</b>, scroll down, click <b>Open Anyway</b>, then <b>Open</b>.')}
+</ol>
+<p class="install-sub">${T('macOS 14 이하는 꿈틀을 Control-클릭 › <b>열기</b>로도 돼요.', 'On macOS 14 or earlier you can also Control-click the app › <b>Open</b>.')}</p>
+<p class="install-files"><a href="${DL.macArm}" data-dl="mac">${T('Apple 칩(M1 이후)', 'Apple chip (M1 or later)')}</a><a href="${DL.macIntel}" data-dl="mac-intel">${T('인텔 칩', 'Intel chip')}</a></p>
+</div>
+<div class="card install-card" data-os="win">
+<h3>${I.laptop}Windows</h3>
+<ol class="steps">
+${step('내려받은 설치 파일을 열어요.', 'Open the installer you downloaded.')}
+${step('"Windows의 PC 보호" 창이 뜨면 <b>추가 정보</b>를 눌러요.', 'If “Windows protected your PC” appears, click <b>More info</b>.')}
+${step('<b>실행</b>을 누르면 설치가 끝나고 꿈틀이 열려요.', 'Click <b>Run anyway</b>. It installs and opens Kkumteul.')}
+</ol>
+<p class="install-sub">${T('Windows 10 · 11 (64비트)', 'Windows 10 and 11 (64-bit)')}</p>
+<p class="install-files"><a href="${DL.win}" data-dl="win">${T('Windows 설치 파일', 'Windows installer')}</a></p>
+</div>
+</div>
+<p class="more-link">${T('새 버전은 이 페이지에서 다시 받아 덮어 설치하면 돼요. 할 일은 그대로 남아요.', 'To update, download again from this page and install over the old one. Your tasks stay.')}<br><a href="https://github.com/kysk2295/sprout/releases/latest" rel="noopener">${T('모든 설치 파일 보기 →', 'All download files →')}</a></p>
+</div>
+</section>
+
 <section id="faq" class="soft" aria-labelledby="faq-title">
 <div class="wrap">
 <div class="sec-head center"><h2 id="faq-title">${T('자주 묻는 질문', 'FAQ')}</h2></div>
 <div class="faq">
 ${faq('정말 무료예요?', 'Is it really free?', `<p>네. ${N}은 무료이고 앱 안 결제나 광고가 없어요.</p>`, `<p>Yes. ${NE} is free, with no in-app purchases and no ads.</p>`)}
-${faq('언제 받을 수 있어요?', 'When can I get it?', '<p>지금 출시를 준비하고 있어요. Mac · Windows · iPhone · Android 앱이 열리면 이 페이지 맨 위 버튼으로 받을 수 있어요.</p>', '<p>We are preparing the launch. When the Mac, Windows, iPhone and Android apps are ready, the buttons at the top of this page will work.</p>')}
+${faq('어디서 받아요?', 'Where can I get it?', '<p>Mac · Windows 앱은 이 페이지 맨 위 버튼으로 지금 받을 수 있어요(<a href="#install">여는 방법</a>). iPhone · Android 앱은 출시를 준비하고 있어요.</p>', '<p>The Mac and Windows apps are available now from the buttons at the top of this page (<a href="#install">how to open them</a>). The iPhone and Android apps are on the way.</p>')}
+${faq('열 때 경고가 떠요. 괜찮아요?', 'I see a warning when opening it. Is that OK?', '<p>네. 아직 Apple · Microsoft 인증서로 서명하기 전이라 처음 한 번 뜨는 확인이에요. 이 페이지의 버튼으로 받은 파일이면 <a href="#install">여는 방법</a>대로 열면 돼요.</p>', '<p>Yes. The app is not signed with an Apple or Microsoft certificate yet, so you see this once. If you downloaded it from this page, follow <a href="#install">these steps</a>.</p>')}
 ${faq('AI가 내 글을 읽거나 저장하나요?', 'Does AI read or keep what I write?', '<p>자동 분류·태그처럼 AI 기능을 쓸 때만 그 내용을 우리 서버의 모델로 보내 처리해요. 처리한 원문은 저장하지 않고, 외부 AI 회사로 보내지도 않아요.</p>', '<p>Only when you use an AI feature such as auto-sorting, the relevant text goes to the model on our own server. The text is not stored afterwards and never goes to third-party AI companies.</p>')}
 ${faq('인터넷이 없어도 되나요?', 'Does it work offline?', '<p>네. 할 일 추가·수정·완료는 기기에 먼저 저장돼서 오프라인에서도 그대로 돼요. 다시 연결되면 다른 기기와 자동으로 맞춰요. AI 기능만 연결이 필요해요.</p>', '<p>Yes. Adding, editing and completing tasks are saved on the device first, so they work offline and sync when you reconnect. Only AI features need a connection.</p>')}
 ${faq('캐릭터는 어떻게 자라요?', 'How does the character grow?', '<p>할 일을 끝내면 1 XP(하루 10 XP까지), 이번 주 목표를 이루면 30 XP, 주간 점검은 30 XP, 정리는 20 XP를 받아요. 레벨 3 · 6 · 10 · 15에서 다음 모습으로 자라요. 이 페이지의 체험은 빨리 보여 드리려고 레벨이 훨씬 빨리 올라요.</p>', '<p>1 XP per finished task (up to 10 a day), 30 XP per weekly goal, 30 XP for a weekly review and 20 XP for a tidy-up. It evolves at levels 3, 6, 10 and 15. The demo on this page levels up much faster so you can see it.</p>')}

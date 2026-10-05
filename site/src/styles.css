@@ -110,6 +110,30 @@ section.tight { padding: 64px 0; }
 .dl-btn small { display: block; font-size: 11.5px; font-weight: 600; color: var(--brand-ink); line-height: 1.2; }
 .dl-btn span { line-height: 1.25; }
 .dl-note { margin-top: 14px; font-size: 13.5px; color: var(--text-3); }
+/* 받을 수 있는 버튼(Mac·Windows). 내 컴퓨터에 맞는 것은 app.js가 is-primary + 맨 앞으로 */
+.dl-btn.is-live { cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
+.dl-btn.is-live:hover { border-color: var(--brand); text-decoration: none; }
+.dl-btn.is-live:active { transform: translateY(1px); }
+.dl-btn.is-primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.dl-btn.is-primary svg, .dl-btn.is-primary small { color: rgba(255,255,255,.88); }
+.dl-btn.is-primary:hover { background: var(--brand-ink); border-color: var(--brand-ink); }
+:root[data-theme-resolved="dark"] .dl-btn.is-primary { color: #06140c; }
+:root[data-theme-resolved="dark"] .dl-btn.is-primary svg, :root[data-theme-resolved="dark"] .dl-btn.is-primary small { color: rgba(6,20,12,.75); }
+:root[data-theme-resolved="dark"] .dl-btn.is-primary:hover { background: var(--brand-ink); }
+
+/* 설치 방법 */
+.install { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; max-width: 920px; margin: 0 auto; }
+@media (max-width: 760px) { .install { grid-template-columns: 1fr; } }
+.install-card { transition: border-color .3s, box-shadow .3s; }
+.install-card.is-here { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.install-card h3 { display: flex; align-items: center; gap: 8px; font-size: 18px; margin-bottom: 12px; }
+.install-card h3 svg { width: 22px; height: 22px; color: var(--brand); }
+.steps { margin: 0; padding-left: 1.3em; color: var(--text-2); font-size: 15px; }
+.steps li { margin-bottom: 8px; padding-left: 2px; }
+.steps b { color: var(--text); font-weight: 650; }
+.install-sub { margin: 4px 0 0; font-size: 13.5px; color: var(--text-3); }
+.install-files { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; font-weight: 600; }
+.install-files a::before { content: "↓ "; }
 @media (max-width: 980px) {
   .hero { padding-top: 40px; }
   .hero-grid { grid-template-columns: 1fr; gap: 36px; }

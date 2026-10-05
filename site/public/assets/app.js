@@ -61,5 +61,36 @@
     var onScroll = function () { top.classList.toggle('is-scrolled', window.scrollY > 8) }
     window.addEventListener('scroll', onScroll, { passive: true }); onScroll()
   }
+  // 내려받기: 내 컴퓨터(Mac·Windows)에 맞는 버튼을 맨 앞에 칠해 두고, 누르면 설치 방법 카드로 내려 준다
+  var dl = document.querySelector('.dl')
+  if (dl) {
+    var ua = navigator.userAgent || ''
+    var plat = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ''
+    var touch = navigator.maxTouchPoints > 1
+    var os = /Win/i.test(plat) || /Windows/i.test(ua) ? 'win' : (/Mac/i.test(plat) || /Macintosh/i.test(ua)) && !touch ? 'mac' : ''
+    // 인텔 Mac: 브라우저가 칩을 알려 주지 않아 그래픽 이름으로 짐작한다(모르면 Apple 칩 파일 — 인텔용은 설치 방법 카드에 따로 있음)
+    if (os === 'mac') {
+      try {
+        var gl = document.createElement('canvas').getContext('webgl')
+        var ext = gl && gl.getExtension('WEBGL_debug_renderer_info')
+        var gpu = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : ''
+        if (/Intel|AMD|Radeon/i.test(gpu) && !/Apple/i.test(gpu)) {
+          var macBtn = dl.querySelector('[data-dl="mac"]'), intel = document.querySelector('[data-dl="mac-intel"]')
+          if (macBtn && intel) macBtn.setAttribute('href', intel.getAttribute('href'))
+        }
+      } catch (e) {}
+    }
+    var mine = os && dl.querySelector('[data-dl="' + os + '"]')
+    if (mine) { mine.classList.add('is-primary'); dl.insertBefore(mine, dl.firstChild) }
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest('a[data-dl]')
+      if (!a) return
+      var card = document.querySelector('.install-card[data-os="' + (a.getAttribute('data-dl') === 'win' ? 'win' : 'mac') + '"]')
+      if (!card || card.contains(a)) return
+      document.querySelectorAll('.install-card.is-here').forEach(function (c) { c.classList.remove('is-here') })
+      setTimeout(function () { card.classList.add('is-here'); card.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, 400)
+    })
+  }
+
   applyTheme(); applyLang()
 })()
