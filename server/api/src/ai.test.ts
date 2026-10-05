@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { aiConfigFromEnv, AiQueue, createAi, dayKey, localModelNames, memoryUsageStore, pgUsageStore, weekKey, type AiConfig } from './ai.ts'
+import { aiConfigFromEnv, AiError, AiQueue, createAi, priorityOf, dayKey, localModelNames, memoryUsageStore, pgUsageStore, weekKey, type AiConfig } from './ai.ts'
 import { backendFromEnv, directBackend, workerBackend, type AiBackend } from './ai-backend.ts'
 import { startWorker } from '../../ai-worker/worker.ts'
 
@@ -168,7 +168,11 @@ assert.deepEqual(localModelNames({ models: [{ name: 'a' }, { name: 'b' }] }, ['b
   assert.equal(st.available, true)
   assert.deepEqual(st.models, ['qwen3.5:9b', 'llama3:8b'])
   assert.equal(st.default_model, 'qwen3.5:9b')
-  assert.deepEqual(st.queue, { running: 0, waiting: 0, concurrency: 1, max: 20 })
+  assert.deepEqual(st.queue, {
+    running: 0, waiting: 0, concurrency: 1, max: 20,
+    interactive: { running: 0, waiting: 0 },
+    background: { running: 0, waiting: 0, concurrency: 1, max: 10 }
+  }, '갈래별 길이만(사용자 정보 없음)')
   assert.equal(st.usage.today, 3)
   assert.deepEqual(st.usage.weekly['kpi-draft'], { used: 0, limit: 1 })
 
@@ -537,6 +541,226 @@ assert.deepEqual(localModelNames({ models: [{ name: 'a' }, { name: 'b' }] }, ['b
   ;(await ps[1])()
   assert.deepEqual(order, [2, 3])
   assert.equal(q.running, 0)
+}
+
+// ── 우선순위·공정 대기열 ──
+// 용도 기본 갈래 + 헤더로는 낮추기만
+{
+  assert.equal(priorityOf('tag', undefined), 'background')
+  assert.equal(priorityOf('map', undefined), 'background')
+  assert.equal(priorityOf('tag', 'interactive'), 'background', '헤더로 올릴 수 없다')
+  for (const ep of ['assistant', 'classify', 'diary', 'breakdown', 'kpi-draft', 'weekly-report'] as const) assert.equal(priorityOf(ep, undefined), 'interactive', ep)
+  assert.equal(priorityOf('classify', 'background'), 'background', '수집함 자동 분류는 앱이 낮춘다')
+  assert.equal(priorityOf('assistant', ' Background '), 'background')
+  assert.equal(priorityOf('assistant', 'urgent'), 'interactive', '모르는 값은 무시')
+  assert.equal(priorityOf('assistant', ['background']), 'background')
+  assert.deepEqual(aiConfigFromEnv({}).background, ['tag', 'map'])
+  assert.deepEqual(aiConfigFromEnv({ AI_BACKGROUND_PURPOSES: 'tag, nope ,classify' }).background, ['tag', 'classify'])
+  const c = aiConfigFromEnv({})
+  assert.deepEqual([c.queueMaxBg, c.bgConcurrency, c.userBgConcurrent, c.bgRetryAfter], [10, 1, 1, 60])
+  assert.equal(aiConfigFromEnv({ AI_CONCURRENCY: '3' }).bgConcurrency, 2, 'interactive 자리를 하나 남긴다')
+  assert.equal(aiConfigFromEnv({ AI_CONCURRENCY: '3', AI_BG_CONCURRENCY: '3' }).bgConcurrency, 3)
+}
+const sig = () => new AbortController().signal
+const take = (q: AiQueue, label: string, user: string, priority: 'interactive' | 'background', order: string[], signal = sig()) =>
+  q.acquire(signal, undefined, { user, priority }).then((rel) => { order.push(label); return rel })
+// interactive 먼저, background는 그 뒤
+{
+  const q = new AiQueue(1, 20, { maxBg: 10 })
+  const order: string[] = []
+  const hold = await q.acquire(sig(), undefined, { user: 'a', priority: 'interactive' })
+  const pb1 = take(q, 'bg-b', 'b', 'background', order)
+  const pb2 = take(q, 'bg-c', 'c', 'background', order)
+  const pi = take(q, 'int-d', 'd', 'interactive', order)
+  assert.deepEqual(q.stats().interactive, { running: 1, waiting: 1 })
+  assert.deepEqual(q.stats().background, { running: 0, waiting: 2, concurrency: 1, max: 10 })
+  hold()
+  ;(await pi)()
+  ;(await pb1)()
+  ;(await pb2)()
+  assert.deepEqual(order, ['int-d', 'bg-b', 'bg-c'], '나중에 온 interactive가 먼저')
+  assert.equal(q.running, 0)
+}
+// 같은 갈래 안에서는 사용자별 돌아가며(한 사람이 줄을 세워도 다른 사람이 한 바퀴 안에)
+{
+  const q = new AiQueue(1, 20)
+  const order: string[] = []
+  const pos = new Map<string, number[]>()
+  const hold = await q.acquire(sig())
+  const ps = [['a1', 'a'], ['a2', 'a'], ['a3', 'a'], ['b1', 'b'], ['c1', 'c']].map(([label, user]) =>
+    q.acquire(sig(), (p) => pos.set(label, [...(pos.get(label) ?? []), p]), { user, priority: 'interactive' }).then((rel) => { order.push(label); rel() }))
+  assert.equal(q.waiting.length, 5)
+  assert.deepEqual(pos.get('c1'), [3], 'c는 a의 둘째보다 앞(3번째)')
+  assert.deepEqual(pos.get('a3'), [3, 4, 5], '뒤 사람이 끼어들면 순서가 밀린다')
+  hold()
+  await Promise.all(ps)
+  assert.deepEqual(order, ['a1', 'b1', 'c1', 'a2', 'a3'])
+  // background도 같은 방식
+  const q2 = new AiQueue(1, 20)
+  const o2: string[] = []
+  const h2 = await q2.acquire(sig())
+  const bs = [['x1', 'x'], ['x2', 'x'], ['y1', 'y']].map(([l, u]) => take(q2, l, u, 'background', o2).then((rel) => rel()))
+  h2()
+  await Promise.all(bs)
+  assert.deepEqual(o2, ['x1', 'y1', 'x2'])
+}
+// background: 사용자당 실행 1개, 전체 background 실행 자리 제한(interactive 자리를 남긴다)
+{
+  const q = new AiQueue(3, 20, { bgConcurrency: 3, bgPerUser: 1 })
+  const order: string[] = []
+  const a1 = take(q, 'a1', 'a', 'background', order)
+  const a2 = take(q, 'a2', 'a', 'background', order)
+  const b1 = take(q, 'b1', 'b', 'background', order)
+  await tick(10)
+  assert.deepEqual(order, ['a1', 'b1'], '같은 사용자 둘째는 자리가 있어도 기다린다')
+  assert.equal(q.running, 2)
+  ;(await a1)()
+  await tick(10)
+  assert.deepEqual(order, ['a1', 'b1', 'a2'])
+  ;(await a2)(); (await b1)()
+  // 기본 bgConcurrency = concurrency-1 → 동시 2면 background는 1개만, 남은 자리는 interactive가 바로 쓴다
+  const q2 = new AiQueue(2, 20)
+  const o2: string[] = []
+  const x = take(q2, 'x', 'x', 'background', o2)
+  const y = take(q2, 'y', 'y', 'background', o2)
+  const i = take(q2, 'i', 'i', 'interactive', o2)
+  await tick(10)
+  assert.deepEqual(o2, ['x', 'i'])
+  ;(await x)(); (await i)(); (await y)()
+  assert.deepEqual(o2, ['x', 'i', 'y'])
+}
+// 줄이 차면 interactive가 가장 늦게 온 background를 밀어낸다(bg_deferred + Retry-After), background만 꽉 차면 background 거절
+{
+  const q = new AiQueue(1, 2, { maxBg: 2, bgRetryAfter: 45 })
+  const order: string[] = []
+  const hold = await q.acquire(sig(), undefined, { user: 'h' })
+  const bx = take(q, 'bx', 'x', 'background', order)
+  const by = take(q, 'by', 'y', 'background', order).catch((e) => e)
+  await assert.rejects(q.acquire(sig(), undefined, { user: 'z', priority: 'background' }), (e: AiError) => e.code === 'bg_deferred' && e.status === 503 && e.retryAfter === 45)
+  assert.equal(q.admitError('interactive'), null, 'background를 밀어낼 수 있으면 interactive는 받는다')
+  const i1 = take(q, 'i1', 'i', 'interactive', order)
+  const ey = await by
+  assert.ok(ey instanceof AiError && ey.code === 'bg_deferred' && ey.retryAfter === 45, '가장 늦게 온 background가 밀려난다')
+  const i2 = take(q, 'i2', 'j', 'interactive', order)
+  const ex = await bx.catch((e) => e)
+  assert.equal((ex as AiError).code, 'bg_deferred')
+  assert.equal(q.waitingOf('background'), 0)
+  assert.equal(q.full, true)
+  await assert.rejects(q.acquire(sig(), undefined, { user: 'k' }), (e: AiError) => e.code === 'queue_full', 'interactive만 꽉 차면 그때 거절')
+  hold()
+  ;(await i1)(); (await i2)()
+  assert.deepEqual(order, ['i1', 'i2'])
+  // 대기 중에 끊으면 background 줄에서도 빠진다
+  const q3 = new AiQueue(1, 5)
+  const h3 = await q3.acquire(sig())
+  const ctl = new AbortController()
+  const p = q3.acquire(ctl.signal, undefined, { user: 'b', priority: 'background' }).catch(() => 'aborted')
+  assert.equal(q3.waitingOf('background'), 1)
+  ctl.abort()
+  assert.equal(await p, 'aborted')
+  assert.equal(q3.waitingOf('background'), 0)
+  h3()
+  assert.equal(q3.running, 0)
+}
+
+// HTTP: 우선순위·헤더·밀어내기·Retry-After
+{
+  const callH = (base: string, path: string, body: unknown, user: string, headers: Record<string, string> = {}) =>
+    fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${user}`, ...headers }, body: JSON.stringify(body) })
+  const bgHeader = { 'x-sprout-priority': 'background' }
+  {
+    const { base, ai } = await proxy({ concurrency: 1 })
+    started.length = 0
+    const p1 = call(base, '/ai/assistant', { messages: msg('gate:p1') }, 'user-a')
+    await tick(50)
+    const pt = call(base, '/ai/tag', { messages: msg('gate:pt') }, 'user-b') // 기본 background
+    await tick(50)
+    const pc = callH(base, '/ai/classify', { messages: msg('gate:pc') }, 'user-c', bgHeader) // 헤더로 낮춤
+    await tick(50)
+    const pd = call(base, '/ai/diary', { messages: msg('gate:pd') }, 'user-d')
+    await tick(50)
+    const st = await (await fetch(base + '/ai/status', { headers: { authorization: 'Bearer user-a' } })).json()
+    assert.deepEqual(st.queue.interactive, { running: 1, waiting: 1 })
+    assert.equal(st.queue.background.waiting, 2)
+    assert.ok(!JSON.stringify(st.queue).includes('user-'), '대기열 상태에 사용자 정보 없음')
+    // 같은 사용자의 background는 1개만(대기 포함) → 429 bg_busy + Retry-After. 헤더로 interactive라 해도 tag는 background
+    let r = await callH(base, '/ai/tag', { messages: msg('x') }, 'user-b', { 'x-sprout-priority': 'interactive' })
+    assert.equal(r.status, 429)
+    assert.equal(Number(r.headers.get('retry-after')), 60)
+    const j = await r.json()
+    assert.equal(j.code, 'bg_busy')
+    assert.equal(j.retry_after, 60)
+    assert.match(j.error, /잠시/, '앱의 isUnavailable이 알아듣는 문구(조용히 나중에)')
+    r = await callH(base, '/ai/map', { messages: msg('x') }, 'user-b', bgHeader)
+    assert.equal((await r.json()).code, 'bg_busy', '용도가 달라도 사용자당 background 1개')
+    // background가 있어도 같은 사용자의 interactive는 따로
+    const pb = call(base, '/ai/assistant', { messages: msg('gate:pb') }, 'user-b')
+    await tick(50)
+    for (const g of ['p1', 'pd', 'pb', 'pt', 'pc']) await openGate(g)
+    const rs = await Promise.all([p1, pt, pc, pd, pb])
+    assert.deepEqual(rs.map((x) => x.status), [200, 200, 200, 200, 200])
+    assert.deepEqual(started, ['gate:p1', 'gate:pd', 'gate:pb', 'gate:pt', 'gate:pc'], 'interactive 먼저, background는 들어온 사용자 순')
+    assert.equal(ai.queue.running, 0)
+    // 끝나면 다시 background를 받는다
+    assert.equal((await call(base, '/ai/tag', { messages: msg('again') }, 'user-b')).status, 200)
+  }
+  {
+    // 줄 1칸: 기다리던 background를 interactive가 밀어낸다 → 503 bg_deferred + Retry-After, 사용량·분 상한 되돌림
+    const { base, ai, store } = await proxy({ concurrency: 1, queueMax: 1, perMinute: 2, bgRetryAfter: 90 })
+    const p1 = call(base, '/ai/assistant', { messages: msg('gate:e1') }, 'user-a')
+    await tick(50)
+    const pt = call(base, '/ai/tag', { messages: msg('evicted') }, 'user-b')
+    await tick(50)
+    assert.equal(ai.queue.waitingOf('background'), 1)
+    const pi = call(base, '/ai/breakdown', { messages: msg('gate:e2') }, 'user-c')
+    const rt = await pt
+    assert.equal(rt.status, 503)
+    assert.equal(Number(rt.headers.get('retry-after')), 90)
+    const jt = await rt.json()
+    assert.equal(jt.code, 'bg_deferred')
+    assert.equal(jt.retry_after, 90)
+    assert.match(jt.error, /잠시/)
+    const tagRow = [...store.rows.values()].find((x) => x.endpoint === 'tag')!
+    assert.deepEqual([tagRow.requests, tagRow.failures], [0, 1], '밀려난 요청은 상한에서 되돌린다')
+    // 줄이 interactive로 차 있으면 background는 바로 503(줄에 서지 않음)
+    const r = await callH(base, '/ai/classify', { messages: msg('x') }, 'user-d', bgHeader)
+    assert.equal(r.status, 503)
+    assert.equal((await r.json()).code, 'bg_deferred')
+    await openGate('e1')
+    await openGate('e2')
+    assert.equal((await p1).status, 200)
+    assert.equal((await pi).status, 200)
+    // 밀려난 두 번은 분 상한(2)을 쓰지 않았다
+    assert.equal((await call(base, '/ai/tag', { messages: msg('t1') }, 'user-b')).status, 200)
+    assert.equal((await call(base, '/ai/tag', { messages: msg('t2') }, 'user-b')).status, 200)
+    assert.equal((await call(base, '/ai/tag', { messages: msg('t3') }, 'user-b')).status, 429)
+  }
+  {
+    // 스트림으로 기다리다 밀려나면 오류 줄에 retry_after
+    const { base } = await proxy({ concurrency: 1, queueMax: 1 })
+    const p1 = call(base, '/ai/assistant', { messages: msg('gate:s1') }, 'user-a')
+    await tick(50)
+    const pt = call(base, '/ai/map', { messages: msg('x'), stream: true }, 'user-b')
+    await tick(50)
+    const pi = call(base, '/ai/assistant', { messages: msg('y') }, 'user-c')
+    const lines = await ndjson(await pt)
+    assert.deepEqual(lines.at(-1), { error: '지금은 AI가 바빠서 자동 작업을 미뤘어요. 잠시 뒤 다시 시도해 주세요.', code: 'bg_deferred', retry_after: 60 })
+    await openGate('s1')
+    assert.equal((await p1).status, 200)
+    assert.equal((await pi).status, 200)
+  }
+  {
+    // background 대기 시간 초과도 bg_deferred(재시도 가능)
+    const { base } = await proxy({ concurrency: 1, queueWaitMs: 200 })
+    const p1 = call(base, '/ai/assistant', { messages: msg('gate:w1') }, 'user-a')
+    await tick(50)
+    const r = await call(base, '/ai/tag', { messages: msg('x') }, 'user-b')
+    assert.equal(r.status, 503)
+    assert.equal((await r.json()).code, 'bg_deferred')
+    assert.equal(Number(r.headers.get('retry-after')), 60)
+    await openGate('w1')
+    assert.equal((await p1).status, 200)
+  }
 }
 
 for (const s of servers) await close(s)

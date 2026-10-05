@@ -60,7 +60,8 @@ npm start                                                                       
 | 경로 | 쓰임 | 주간 상한 |
 |---|---|---|
 | `GET /ai/status` | 쓸 수 있는지·모델·대기열·내 오늘/이번 주 사용량 | — |
-| `POST /ai/assistant` · `/ai/classify` · `/ai/map` · `/ai/diary` | AI 비서·수집함 분류·작업 지도·일기 | — |
+| `POST /ai/assistant` · `/ai/classify` · `/ai/map` · `/ai/diary` | AI 비서·수집함 분류·새 할 일 리스트 분류·일기 | — |
+| `POST /ai/breakdown` · `/ai/tag` | 31 쪼개기 · 33 자동 태그 | 하루 상한(아래 `AI_DAILY_*`) |
 | `POST /ai/kpi-draft` · `/ai/weekly-report` | 성장 주간 목표 초안·주간 리포트 | 각 1회(월요일 0시 한국 시각에 초기화) |
 
 - 본문: `{messages:[{role,content}], format?(JSON 스키마 또는 "json"), model?, stream?, options?:{temperature}}`. 프롬프트는 앱이 만든다.
@@ -72,6 +73,15 @@ npm start                                                                       
 - **원문은 저장·로그하지 않는다.** `ai_usage`(사용자·경로·날짜별 요청 수·실패 수·토큰 수·처리 시간)만 남는다. 동기화 대상 아님.
 - 대기열·분당 상한은 프로세스 메모리에 있다(`api`는 한 개만 띄운다).
 
+**대기열 우선순위(공정 대기열).** Mac mini 한 대(동시 1)를 모두가 나눠 쓰므로, 한 사람의 뒷일이 다른 사람의 대화를 몇 분씩 막지 않게 한다.
+- 갈래 두 개: **interactive**(사람이 답을 기다림 — assistant·breakdown·diary·kpi-draft·weekly-report·classify) / **background**(앱이 저절로 부르는 뒷일 — `tag` 자동 태그, `map` 새 할 일 리스트 분류). 기본은 용도로 정한다(`AI_BACKGROUND_PURPOSES`).
+- 앱은 `X-Sprout-Priority: background` 헤더로 **낮추기만** 할 수 있다(데스크톱: 자동 태그·리스트 분류·수집함 자동 분류). `interactive`라고 보내도 background 용도는 올라가지 않는다.
+- 차례: interactive가 늘 먼저 → 같은 갈래 안에서는 **사용자별 돌아가며**(라운드 로빈. 한 사람이 줄을 길게 세워도 다른 사람은 한 바퀴 안에 차례가 온다). 대기 순서 줄(`queue.position`)도 이 순서로 센다.
+- background 제한: 사용자당 대기+실행 `AI_USER_BG_CONCURRENT`(1)개, 대기 `AI_QUEUE_MAX_BG`(10)개, 동시 실행 `AI_BG_CONCURRENCY`(기본 `AI_CONCURRENCY-1`, 최소 1 — 동시 2 이상이면 interactive 자리를 하나 남긴다). interactive의 `AI_USER_CONCURRENT`와는 따로 센다.
+- 줄(`AI_QUEUE_MAX`, 두 갈래 합)이 꽉 찼을 때 interactive가 오면 **가장 늦게 들어온 background를 밀어내고** 받는다. interactive만으로 꽉 찼을 때만 `queue_full`.
+- background가 부하로 못 하면 재시도 가능한 오류 + `Retry-After`(`AI_BG_RETRY_AFTER`초): 사용자당 1개 넘음 `429 bg_busy`, 줄 참·밀려남·대기 시간 초과 `503 bg_deferred`(스트림 중이면 `{"error","code","retry_after"}` 줄). 사용량·분 상한은 되돌린다. 문구에 "잠시 뒤"가 있어 데스크톱(`isUnavailable`)은 알리지 않고 나중에 다시 한다(자동 태그·리스트 분류 10분, 수집함 1분).
+- `GET /ai/status`의 `queue`: `{running, waiting, concurrency, max, interactive:{running, waiting}, background:{running, waiting, concurrency, max}}` — 길이만, 누가 기다리는지는 없다.
+
 | 환경 변수 | 기본값 | 뜻 |
 |---|---|---|
 | `AI_BACKEND` | (비움 → `AI_WORKER_TOKEN` 있으면 worker, 없으면 direct) | 백엔드 고르기 |
@@ -81,7 +91,10 @@ npm start                                                                       
 | `AI_CONCURRENCY` | 1 | 동시에 돌리는 요청 수(모든 사용자 공용) |
 | `AI_QUEUE_MAX` · `AI_QUEUE_WAIT_MS` | 20 · 180000 | 대기열 길이(넘으면 503) · 최대 대기 |
 | `AI_TIMEOUT_MS` | 120000 | 생성 제한 시간(넘으면 504) |
-| `AI_USER_CONCURRENT` | 2 | 사용자당 동시(대기+실행) |
+| `AI_USER_CONCURRENT` | 2 | 사용자당 interactive 동시(대기+실행) |
+| `AI_QUEUE_MAX_BG` · `AI_BG_CONCURRENCY` | 10 · (`AI_CONCURRENCY-1`, 최소 1) | background 대기 상한(전체 `AI_QUEUE_MAX` 안) · background 동시 실행 |
+| `AI_USER_BG_CONCURRENT` · `AI_BG_RETRY_AFTER` | 1 · 60 | 사용자당 background 동시(대기+실행) · 부하로 미룰 때 `Retry-After`(초) |
+| `AI_BACKGROUND_PURPOSES` | `tag,map` | 기본이 background인 용도(쉼표). 앱 헤더로 다른 용도도 낮출 수 있다 |
 | `AI_USER_PER_MINUTE` · `AI_USER_PER_DAY` | 6 · 100 | 사용자당 상한 [임시] |
 | `AI_WEEKLY_KPI_DRAFT` · `AI_WEEKLY_REPORT` | 1 · 1 | 주간 상한(PRD) |
 | `AI_DAILY_BREAKDOWN` · `AI_DAILY_TAG` | 10 · 40 | 용도별 하루 상한(31 쪼개기 · 33 자동 태그) |

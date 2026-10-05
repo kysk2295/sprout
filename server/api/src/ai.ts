@@ -4,6 +4,8 @@
 //        {messages, format?, model?, stream?, options?: {temperature}}
 //        stream=false → {model, message:{role,content}, done, ...숫자}
 //        stream=true  → NDJSON: 대기 중 {"queue":{"position":n,"waiting":m}} → Ollama 줄 그대로 → 오류면 {"error","code"}
+// 우선순위: 용도별 기본 갈래(interactive | background, BACKGROUND_DEFAULT) — 앱은 `X-Sprout-Priority: background`로 낮출 수만 있다(올릴 수 없음).
+//   대기열은 interactive 먼저 → 같은 갈래 안에서는 사용자별 돌아가며. background는 사용자당 1개, 대기 상한 따로, 줄이 차면 밀려난다(bg_deferred + Retry-After)
 // 규칙: 동시 실행 수 + 대기열(공용), 사용자별 분·일 상한, 성장 주간 AI(kpi-draft·weekly-report) 주 1+1, 용도별 하루 상한(breakdown 10 · tag 40),
 //       용도별 출력 상한(tag 1600 — 할 일 40개 답이 700토큰을 넘는다, 33 §9),
 //       컨텍스트 4096·출력 700 토큰·제한 시간, 클라우드·원격 모델 금지. 요청·응답 원문은 저장도 기록도 하지 않는다(숫자만).
@@ -13,6 +15,16 @@ import type { AiBackend } from './ai-backend.ts'
 export const ENDPOINTS = ['assistant', 'classify', 'map', 'diary', 'kpi-draft', 'weekly-report', 'breakdown', 'tag'] as const
 export type Endpoint = (typeof ENDPOINTS)[number]
 const isEndpoint = (s: string): s is Endpoint => (ENDPOINTS as readonly string[]).includes(s)
+/** 사람이 기다리지 않는 용도(앱이 저절로 부르는 뒷일): 33 자동 태그, 30 §B.3 새 할 일 리스트 분류.
+ *  classify는 수집함 자동 분류(뒷일)와 밀린 일 정리(사람이 누름)가 같이 써서 기본은 interactive — 수집함은 앱이 헤더로 낮춘다 */
+export const BACKGROUND_DEFAULT: readonly Endpoint[] = ['tag', 'map']
+export const PRIORITY_HEADER = 'x-sprout-priority'
+/** 용도 기본값과 앱 헤더 중 낮은 쪽. 헤더로 background → interactive로 올릴 수는 없다 */
+export function priorityOf(endpoint: Endpoint, header: string | string[] | undefined, background: readonly Endpoint[] = BACKGROUND_DEFAULT): Priority {
+  if (background.includes(endpoint)) return 'background'
+  const h = (Array.isArray(header) ? header[0] : header)?.trim().toLowerCase()
+  return h === 'background' ? 'background' : 'interactive'
+}
 
 // ── 설정 (상한 숫자는 [임시] — Mac mini 부하 측정 뒤 정한다) ──
 export type AiConfig = {
@@ -22,7 +34,18 @@ export type AiConfig = {
   queueMax: number
   queueWaitMs: number
   timeoutMs: number
+  /** interactive 사용자당 동시(대기+실행) */
   userConcurrent: number
+  /** background 대기 상한(전체 queueMax 안에서) */
+  queueMaxBg: number
+  /** background가 동시에 쓸 수 있는 실행 자리(기본 concurrency-1, 최소 1) */
+  bgConcurrency: number
+  /** background 사용자당 동시(대기+실행) */
+  userBgConcurrent: number
+  /** background를 부하로 거절·밀어낼 때 Retry-After(초) */
+  bgRetryAfter: number
+  /** 기본이 background인 용도 */
+  background: Endpoint[]
   perMinute: number
   perDay: number
   weekly: Partial<Record<Endpoint, number>>
@@ -53,6 +76,13 @@ export function aiConfigFromEnv(env: Record<string, string | undefined> = proces
     queueWaitMs: n('AI_QUEUE_WAIT_MS', 180_000),
     timeoutMs: n('AI_TIMEOUT_MS', 120_000),
     userConcurrent: Math.max(1, n('AI_USER_CONCURRENT', 2)),
+    queueMaxBg: n('AI_QUEUE_MAX_BG', 10),
+    bgConcurrency: Math.max(1, n('AI_BG_CONCURRENCY', Math.max(1, n('AI_CONCURRENCY', 1) - 1))),
+    userBgConcurrent: Math.max(1, n('AI_USER_BG_CONCURRENT', 1)),
+    bgRetryAfter: Math.max(1, n('AI_BG_RETRY_AFTER', 60)),
+    background: env.AI_BACKGROUND_PURPOSES !== undefined
+      ? env.AI_BACKGROUND_PURPOSES.split(',').map((s) => s.trim()).filter(isEndpoint)
+      : [...BACKGROUND_DEFAULT],
     perMinute: n('AI_USER_PER_MINUTE', 6),
     perDay: n('AI_USER_PER_DAY', 100),
     weekly: { 'kpi-draft': n('AI_WEEKLY_KPI_DRAFT', 1), 'weekly-report': n('AI_WEEKLY_REPORT', 1) },
@@ -83,12 +113,17 @@ const MESSAGES = {
   daily: [429, '오늘은 이 AI 기능을 다 썼어요. 내일 다시 쓸 수 있어요.'],
   queue_full: [503, '지금은 AI를 쓰는 사람이 많아요. 잠시 뒤 다시 시도해 주세요.'],
   queue_timeout: [503, '지금은 AI를 쓰는 사람이 많아요. 잠시 뒤 다시 시도해 주세요.'],
+  // background(앱이 저절로 부르는 뒷일)만 받는다 — 앱은 조용히 Retry-After 뒤에 다시
+  bg_busy: [429, '자동 AI 작업이 이미 돌고 있어요. 잠시 뒤 다시 시도해 주세요.'],
+  bg_deferred: [503, '지금은 AI가 바빠서 자동 작업을 미뤘어요. 잠시 뒤 다시 시도해 주세요.'],
   unavailable: [503, '지금은 AI를 쓸 수 없어요. 잠시 뒤 다시 시도해 주세요.'],
   timeout: [504, 'AI 응답이 너무 오래 걸려요. 다시 시도해 주세요.'],
   aborted: [499, '요청이 취소됐어요.'],
   server: [500, '서버 오류가 났어요. 잠시 뒤 다시 시도해 주세요.']
 } as const
 export type AiCode = keyof typeof MESSAGES
+/** 서버 부하로 못 한 것(분 상한에서 되돌린다) */
+const LOAD_CODES = new Set<AiCode>(['queue_full', 'queue_timeout', 'bg_deferred'])
 
 export class AiError extends Error {
   code: AiCode
@@ -180,57 +215,197 @@ export function memoryUsageStore() {
   return store
 }
 
-// ── 대기열: 모든 사용자가 같은 Mac mini를 나눠 쓴다. 들어온 순서대로 ──
-type Waiter = { start: () => void; onPosition?: (position: number, waiting: number) => void }
+// ── 대기열: 모든 사용자가 같은 Mac mini를 나눠 쓴다 ──
+// 두 갈래(Priority): interactive(사람이 기다리는 요청) 먼저, background(자동 태그·분류 같은 뒷일)는 남는 자리에서만.
+// 같은 갈래 안에서는 사용자별 돌아가며(라운드 로빈) — 한 사람이 줄을 길게 세워도 다른 사람은 한 바퀴 안에 차례가 온다.
+// background는 동시에 bgConcurrency개까지만 돌고(기본: 전체-1, 최소 1), 사용자당 bgPerUser개까지만 돈다.
+// 줄이 꽉 찼을 때 interactive가 오면 가장 늦게 들어온 background를 밀어낸다(bg_deferred + Retry-After, 앱이 나중에 다시).
+export type Priority = 'interactive' | 'background'
+type Waiter = {
+  seq: number
+  user: string
+  cls: Priority
+  start: () => void
+  reject: (e: unknown) => void
+  onPosition?: (position: number, waiting: number) => void
+  shown?: number
+}
+export type QueueOptions = { maxBg?: number; bgConcurrency?: number; bgPerUser?: number; bgRetryAfter?: number }
+type Lane = { ring: string[]; byUser: Map<string, Waiter[]>; size: number }
+const lane = (): Lane => ({ ring: [], byUser: new Map(), size: 0 })
+
 export class AiQueue {
   running = 0
-  waiting: Waiter[] = []
+  runningBg = 0
+  private bgByUser = new Map<string, number>()
+  private lanes: Record<Priority, Lane> = { interactive: lane(), background: lane() }
+  private seq = 0
   concurrency: number
+  /** 대기 전체 상한(두 갈래 합) */
   max: number
-  constructor(concurrency: number, max: number) {
+  /** background 대기 상한 */
+  maxBg: number
+  bgConcurrency: number
+  bgPerUser: number
+  bgRetryAfter: number
+  constructor(concurrency: number, max: number, opts: QueueOptions = {}) {
     this.concurrency = concurrency
     this.max = max
+    this.maxBg = Math.min(max, opts.maxBg ?? max)
+    this.bgConcurrency = Math.max(1, Math.min(concurrency, opts.bgConcurrency ?? Math.max(1, concurrency - 1)))
+    this.bgPerUser = Math.max(1, opts.bgPerUser ?? 1)
+    this.bgRetryAfter = opts.bgRetryAfter ?? 60
   }
-  get full() { return this.running >= this.concurrency && this.waiting.length >= this.max }
-  /** 차례가 오면 release 함수를 돌려준다. signal이 끊기면 줄에서 빠진다 */
-  acquire(signal: AbortSignal, onPosition?: Waiter['onPosition']): Promise<() => void> {
-    if (signal.aborted) return Promise.reject(signal.reason)
-    if (this.running < this.concurrency && !this.waiting.length) {
-      this.running++
-      return Promise.resolve(this.releaser())
+  /** 차례 순서대로 늘어선 대기 목록(사용자 정보는 밖으로 내보내지 않는다 — 길이·순서 확인용) */
+  get waiting(): Waiter[] { return this.order() }
+  waitingOf(cls: Priority) { return this.lanes[cls].size }
+  /** interactive도 더 받을 수 없다(밀어낼 background도 없다) */
+  get full() { return this.admitError('interactive') !== null }
+
+  /** 지금 이 갈래 요청을 줄에 세울 수 있는지(못 세우면 그 오류). 바로 돌 수 있으면 언제나 null */
+  admitError(cls: Priority): AiError | null {
+    const total = this.lanes.interactive.size + this.lanes.background.size
+    if (cls === 'interactive') {
+      if (total < this.max || this.lanes.background.size > 0) return null
+      return new AiError('queue_full', 10)
     }
-    if (this.waiting.length >= this.max) return Promise.reject(new AiError('queue_full', 10))
+    if (this.lanes.background.size >= this.maxBg || total >= this.max) return new AiError('bg_deferred', this.bgRetryAfter)
+    return null
+  }
+
+  /** 차례가 오면 release 함수를 돌려준다. signal이 끊기면 줄에서 빠진다 */
+  acquire(signal: AbortSignal, onPosition?: Waiter['onPosition'], opts: { user?: string; priority?: Priority } = {}): Promise<() => void> {
+    if (signal.aborted) return Promise.reject(signal.reason)
+    const cls = opts.priority ?? 'interactive'
+    const user = opts.user ?? ''
+    const err = this.admitError(cls)
+    // 꽉 찼어도 바로 돌 수 있으면 받는다(대기 0)
+    if (err && !this.runnableNow(cls, user)) return Promise.reject(err)
+    if (cls === 'interactive' && this.lanes.interactive.size + this.lanes.background.size >= this.max && !this.runnableNow(cls, user)) this.evictNewestBg()
     return new Promise((resolve, reject) => {
       const onAbort = () => {
-        const i = this.waiting.indexOf(entry)
-        if (i >= 0) this.waiting.splice(i, 1)
-        reject(signal.reason)
-        this.notify()
+        if (this.remove(entry)) { reject(signal.reason); this.notify() }
       }
       const entry: Waiter = {
-        onPosition,
+        seq: this.seq++, user, cls, onPosition,
         start: () => {
           signal.removeEventListener('abort', onAbort)
           this.running++
-          resolve(this.releaser())
-        }
+          if (cls === 'background') { this.runningBg++; this.bgByUser.set(user, (this.bgByUser.get(user) ?? 0) + 1) }
+          resolve(this.releaser(cls, user))
+        },
+        reject: (e) => { signal.removeEventListener('abort', onAbort); reject(e) }
       }
       signal.addEventListener('abort', onAbort, { once: true })
-      this.waiting.push(entry)
-      onPosition?.(this.waiting.length, this.waiting.length)
+      this.push(entry)
+      this.pump()
+      this.notify()
     })
   }
-  private releaser() {
+
+  /** 운영 상태(사용자 정보 없음) */
+  stats() {
+    return {
+      running: this.running, waiting: this.lanes.interactive.size + this.lanes.background.size, concurrency: this.concurrency, max: this.max,
+      interactive: { running: this.running - this.runningBg, waiting: this.lanes.interactive.size },
+      background: { running: this.runningBg, waiting: this.lanes.background.size, concurrency: this.bgConcurrency, max: this.maxBg }
+    }
+  }
+
+  private runnableNow(cls: Priority, user: string) {
+    if (this.running >= this.concurrency) return false
+    if (cls === 'interactive') return this.lanes.interactive.size === 0
+    return this.lanes.interactive.size === 0 && this.lanes.background.size === 0 && this.bgCanRun(user)
+  }
+  private bgCanRun(user: string) { return this.runningBg < this.bgConcurrency && (this.bgByUser.get(user) ?? 0) < this.bgPerUser }
+  private push(w: Waiter) {
+    const l = this.lanes[w.cls]
+    const list = l.byUser.get(w.user)
+    if (list) list.push(w)
+    else { l.byUser.set(w.user, [w]); l.ring.push(w.user) }
+    l.size++
+  }
+  private remove(w: Waiter): boolean {
+    const l = this.lanes[w.cls]
+    const list = l.byUser.get(w.user)
+    const i = list ? list.indexOf(w) : -1
+    if (!list || i < 0) return false
+    list.splice(i, 1)
+    l.size--
+    if (!list.length) { l.byUser.delete(w.user); l.ring.splice(l.ring.indexOf(w.user), 1) }
+    return true
+  }
+  /** 이 갈래에서 다음 차례(라운드 로빈). 돌 수 있는 사람이 없으면 undefined */
+  private take(cls: Priority): Waiter | undefined {
+    const l = this.lanes[cls]
+    for (let i = 0; i < l.ring.length; i++) {
+      const user = l.ring[i]
+      if (cls === 'background' && !this.bgCanRun(user)) continue
+      const list = l.byUser.get(user)!
+      const w = list.shift()!
+      l.size--
+      l.ring.splice(i, 1)
+      if (list.length) l.ring.push(user) // 남은 요청이 있으면 한 바퀴 뒤로
+      else l.byUser.delete(user)
+      return w
+    }
+    return undefined
+  }
+  private pump() {
+    while (this.running < this.concurrency) {
+      const w = this.take('interactive') ?? (this.lanes.interactive.size ? undefined : this.take('background'))
+      if (!w) break
+      w.start()
+    }
+  }
+  private evictNewestBg() {
+    let newest: Waiter | undefined
+    for (const list of this.lanes.background.byUser.values()) for (const w of list) if (!newest || w.seq > newest.seq) newest = w
+    if (!newest) return
+    this.remove(newest)
+    newest.reject(new AiError('bg_deferred', this.bgRetryAfter))
+  }
+  /** 지금 상태에서 차례가 올 순서(흉내만, 바꾸지 않는다) */
+  private order(): Waiter[] {
+    const out: Waiter[] = []
+    for (const cls of ['interactive', 'background'] as const) {
+      const l = this.lanes[cls]
+      const ring = [...l.ring]
+      const lists = new Map([...l.byUser].map(([u, ws]) => [u, [...ws]]))
+      while (ring.length) {
+        const user = ring.shift()!
+        const list = lists.get(user)!
+        out.push(list.shift()!)
+        if (list.length) ring.push(user)
+      }
+    }
+    return out
+  }
+  private releaser(cls: Priority, user: string) {
     let done = false
     return () => {
       if (done) return
       done = true
       this.running--
-      while (this.running < this.concurrency && this.waiting.length) this.waiting.shift()!.start()
+      if (cls === 'background') {
+        this.runningBg--
+        const n = (this.bgByUser.get(user) ?? 1) - 1
+        if (n > 0) this.bgByUser.set(user, n)
+        else this.bgByUser.delete(user)
+      }
+      this.pump()
       this.notify()
     }
   }
-  private notify() { this.waiting.forEach((w, i) => w.onPosition?.(i + 1, this.waiting.length)) }
+  /** 앞 순서가 바뀐 사람에게만 알린다 */
+  private notify() {
+    const all = this.order()
+    all.forEach((w, i) => {
+      if (w.shown === i + 1) return
+      w.shown = i + 1
+      w.onPosition?.(i + 1, all.length)
+    })
+  }
 }
 
 // ── 요청 검사 ──
@@ -316,9 +491,13 @@ export function createAi(deps: AiDeps) {
   const cfg = deps.config
   const now = deps.now ?? Date.now
   const log = deps.log ?? ((l: string) => console.error(l))
-  const queue = new AiQueue(cfg.concurrency, cfg.queueMax)
+  const queue = new AiQueue(cfg.concurrency, cfg.queueMax, {
+    maxBg: cfg.queueMaxBg, bgConcurrency: cfg.bgConcurrency, bgPerUser: cfg.userBgConcurrent, bgRetryAfter: cfg.bgRetryAfter
+  })
   const minute = new Map<string, number[]>()
-  const inflight = new Map<string, number>()
+  const inflight = new Map<string, number>() // interactive
+  const bgInflight = new Map<string, number>()
+  const counter = (cls: Priority) => (cls === 'background' ? bgInflight : inflight)
   const locks = new Map<string, Promise<unknown>>()
 
   // 같은 사용자의 상한 확인 + 예약을 한 번에 하나씩(동시 요청으로 주간 상한을 넘지 못하게)
@@ -337,10 +516,12 @@ export function createAi(deps: AiDeps) {
     }
   }
 
-  async function reserve(userId: string, endpoint: Endpoint) {
+  async function reserve(userId: string, endpoint: Endpoint, cls: Priority) {
     return withLock(userId, async () => {
       const t = now()
-      if ((inflight.get(userId) ?? 0) >= cfg.userConcurrent) throw new AiError('user_busy', 5)
+      if (cls === 'background') {
+        if ((bgInflight.get(userId) ?? 0) >= cfg.userBgConcurrent) throw new AiError('bg_busy', cfg.bgRetryAfter)
+      } else if ((inflight.get(userId) ?? 0) >= cfg.userConcurrent) throw new AiError('user_busy', 5)
       const recent = (minute.get(userId) ?? []).filter((x) => t - x < 60_000)
       if (recent.length >= cfg.perMinute) throw new AiError('rate_minute', (recent[0] + 60_000 - t) / 1000)
       const day = dayKey(t, cfg.tzOffsetMin)
@@ -353,19 +534,27 @@ export function createAi(deps: AiDeps) {
       if (dailyCap !== undefined && (await deps.store.count(userId, day, endpoint)) >= dailyCap) {
         throw new AiError('daily', secsToNextDay(t, cfg.tzOffsetMin))
       }
-      if (queue.full) throw new AiError('queue_full', 10)
+      const full = queue.admitError(cls)
+      if (full) throw full
       await deps.store.add(userId, endpoint, day, { requests: 1 })
       recent.push(t)
       minute.set(userId, recent)
-      inflight.set(userId, (inflight.get(userId) ?? 0) + 1)
-      return day
+      const c = counter(cls)
+      c.set(userId, (c.get(userId) ?? 0) + 1)
+      return { day, at: t }
     })
+  }
+  /** 서버가 바빠서 못 한 요청은 분 상한에서도 되돌린다(앱 잘못이 아니다) */
+  function refundMinute(userId: string, at: number) {
+    const list = minute.get(userId)
+    const i = list?.indexOf(at) ?? -1
+    if (list && i >= 0) list.splice(i, 1)
   }
 
   function sendError(res: ServerResponse, e: AiError) {
     if (res.destroyed || res.writableEnded) return
     if (res.headersSent) {
-      res.end(JSON.stringify({ error: e.message, code: e.code }) + '\n')
+      res.end(JSON.stringify({ error: e.message, code: e.code, ...(e.retryAfter ? { retry_after: e.retryAfter } : {}) }) + '\n')
       return
     }
     const headers: Record<string, string> = { 'content-type': 'application/json; charset=utf-8' }
@@ -399,7 +588,7 @@ export function createAi(deps: AiDeps) {
       models: names,
       default_model: names.includes(cfg.defaultModel) ? cfg.defaultModel : names[0] ?? null,
       backend: deps.backend.name,
-      queue: { running: queue.running, waiting: queue.waiting.length, concurrency: cfg.concurrency, max: cfg.queueMax },
+      queue: queue.stats(), // 갈래별 길이만(누가 기다리는지는 없다)
       limits: { per_minute: cfg.perMinute, per_day: cfg.perDay, num_ctx: cfg.numCtx, num_predict: cfg.numPredict, timeout_ms: cfg.timeoutMs },
       usage: { today: await deps.store.count(userId, today), weekly, daily }
     }))
@@ -412,7 +601,8 @@ export function createAi(deps: AiDeps) {
     if (!names.length) throw new AiError('unavailable', 30)
     const model = input.model ?? (names.includes(cfg.defaultModel) ? cfg.defaultModel : names[0])
     if (!names.includes(model)) throw new AiError('model')
-    const day = await reserve(userId, endpoint)
+    const cls = priorityOf(endpoint, req.headers[PRIORITY_HEADER], cfg.background)
+    const { day, at } = await reserve(userId, endpoint, cls)
 
     // 클라이언트가 끊으면 대기열에서 빠지고 Ollama 요청도 멈춘다
     const client = new AbortController()
@@ -431,8 +621,9 @@ export function createAi(deps: AiDeps) {
         ? (position: number, waiting: number) => write(JSON.stringify({ queue: { position, waiting } }) + '\n')
         : undefined
       const waitSignal = AbortSignal.any([client.signal, AbortSignal.timeout(cfg.queueWaitMs)])
-      release = await queue.acquire(waitSignal, onPosition).catch((e) => {
-        throw e instanceof Error && e.name === 'TimeoutError' ? new AiError('queue_timeout', 10) : e
+      release = await queue.acquire(waitSignal, onPosition, { user: userId, priority: cls }).catch((e) => {
+        if (e instanceof Error && e.name === 'TimeoutError') throw cls === 'background' ? new AiError('bg_deferred', cfg.bgRetryAfter) : new AiError('queue_timeout', 10)
+        throw e
       })
       if (input.stream) write(JSON.stringify({ queue: { position: 0, waiting: queue.waiting.length } }) + '\n')
 
@@ -495,11 +686,14 @@ export function createAi(deps: AiDeps) {
       ok = true
     } catch (e) {
       if (client.signal.aborted) throw new AiError('aborted')
-      throw toAiError(e, 'server')
+      const err = toAiError(e, 'server')
+      if (!release && LOAD_CODES.has(err.code)) refundMinute(userId, at)
+      throw err
     } finally {
       release?.()
-      inflight.set(userId, Math.max(0, (inflight.get(userId) ?? 1) - 1))
-      if (!inflight.get(userId)) inflight.delete(userId)
+      const c = counter(cls)
+      c.set(userId, Math.max(0, (c.get(userId) ?? 1) - 1))
+      if (!c.get(userId)) c.delete(userId)
       // 실패·중단은 상한에서 되돌린다(주간 1회를 날리지 않게). 숫자만 남긴다
       const delta: UsageDelta = ok ? usage : { requests: -1, failures: 1 }
       await deps.store.add(userId, endpoint, day, delta).catch(() => log(`ai usage write failed (${endpoint})`))
