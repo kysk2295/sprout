@@ -6,7 +6,7 @@ import { TABLES } from './index.ts'
 // 스키마: 동기화 테이블 events
 assert.ok('events' in TABLES)
 assert.deepEqual(Object.keys(TABLES.events.columns).filter((c) => !['owner_id', 'created_at', 'modified_at'].includes(c)).sort(),
-  ['color', 'deleted_at', 'end_at', 'is_all_day', 'location', 'notes', 'reminders', 'repeat_rule', 'start_at', 'time_zone', 'title'])
+  ['color', 'deleted_at', 'end_at', 'ext_account', 'ext_calendar', 'ext_error', 'ext_etag', 'ext_hash', 'ext_id', 'ext_provider', 'ext_updated', 'is_all_day', 'location', 'notes', 'reminders', 'repeat_rule', 'start_at', 'time_zone', 'title'])
 
 // 시작·끝: 한 시각 = 1시간, 범위 그대로, 종일
 assert.deepEqual(eventSpan(null, '2026-10-06T14:00'), { start_at: '2026-10-06T14:00', end_at: '2026-10-06T15:00', is_all_day: 0 })

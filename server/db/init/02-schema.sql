@@ -359,11 +359,20 @@ CREATE TABLE IF NOT EXISTS events (
   location text,
   reminders text,
   color text,
-  deleted_at text
+  deleted_at text,
+  ext_provider text,
+  ext_account text,
+  ext_calendar text,
+  ext_id text,
+  ext_etag text,
+  ext_updated text,
+  ext_hash text,
+  ext_error text
 );
 CREATE INDEX IF NOT EXISTS events_owner_idx ON events (owner_id);
 CREATE INDEX IF NOT EXISTS events_start_idx ON events (owner_id, start_at);
 CREATE INDEX IF NOT EXISTS events_end_idx ON events (owner_id, end_at);
+CREATE INDEX IF NOT EXISTS events_ext_idx ON events (owner_id, ext_provider);
 
 CREATE TABLE IF NOT EXISTS diary_entries (
   id text PRIMARY KEY,

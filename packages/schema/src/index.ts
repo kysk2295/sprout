@@ -160,9 +160,19 @@ export const TABLES = {
       location: 'text',
       reminders: 'text',
       color: 'text',
-      deleted_at: 'text'
+      deleted_at: 'text',
+      // 16 §12.0 연결된 일정(꿈틀 + 구글·Apple 양쪽 저장). ext_provider 'google'|'apple' · ext_account = 기기 캐시 계정 id(이메일 해시) ·
+      // ext_calendar = 캘린더 id 해시('c_'…) · ext_id = 외부 일정 id(올리기 전 null) · ext_hash = 마지막으로 맞춘 내용 지문 · ext_error = 마지막 올리기 오류
+      ext_provider: 'text',
+      ext_account: 'text',
+      ext_calendar: 'text',
+      ext_id: 'text',
+      ext_etag: 'text',
+      ext_updated: 'text',
+      ext_hash: 'text',
+      ext_error: 'text'
     },
-    indexes: { start: ['start_at'], end: ['end_at'] }
+    indexes: { start: ['start_at'], end: ['end_at'], ext: ['ext_provider'] }
   },
   // 15 일기: id = 'diary-<날짜>'(사용자당 하루 1개)
   diary_entries: {
