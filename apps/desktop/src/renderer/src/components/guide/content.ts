@@ -44,7 +44,7 @@ export const GUIDES: Record<GuideTab, GuideContent> = {
       { id: 'tidy', title: '기본함 비우기', steps: ['기본함 카드 › 정리하기', 'AI가 고른 자리를 보고 고치기', '다 정리했어! — XP 받기'], cta: '기본함 정리하기' }
     ],
     steps: [
-      { targets: ['@all:.sidebar__item[data-view^="smart:"]', '.app__sidebar', '.list .pane-header'], title: '오늘 할 일만 보면 돼요',
+      { targets: ['@all:' + ['all', 'today', 'tomorrow', 'next7', 'inbox'].map((v) => `.sidebar__item[data-view="smart:${v}"]`).join(', '), '.app__sidebar', '.list .pane-header'], title: '오늘 할 일만 보면 돼요',
         body: '**오늘 · 내일 · 다음 7일**은 날짜를 보고 저절로 모여요. 리스트를 고르지 않고 적어도 기본함에 들어가요.' },
       { targets: ['.list .addbar', '.list .pane-header'], title: '말하듯이 적어요',
         body: '"**내일 오후 3시** 치과 **#건강**"처럼 적으면 날짜와 태그를 알아봐요. 앱 밖에서도 `⌃⇧A`로 빠른 추가가 떠요.', ill: 'tasks-natural' },
@@ -61,7 +61,7 @@ export const GUIDES: Record<GuideTab, GuideContent> = {
       { id: 'kinds', ill: 'cal-kinds', title: '할 일과 일정', body: '모양은 같고 앞 아이콘으로 나눠요. **체크박스**는 할 일(누르면 완료), **달력 아이콘**은 일정이에요. 구글·Apple 일정은 읽기만 해요.' },
       { id: 'create', ill: 'cal-create', title: '빈 칸에서 만들기', body: '빈 칸을 누르면 그 시각에, **끌면** 그 길이만큼 만들어요. 팝오버에서 할 일·일정을 골라요. 막대를 끌어 옮기고 가장자리로 길이를 바꿔요. `⌘Z`로 되돌려요.' },
       { id: 'arrange', ill: 'cal-arrange', title: '할일 정렬 칸', body: '⋯ › **할일 정렬**을 켜면 오른쪽에 날짜 없는 할 일이 모여요. 끌어서 캘린더에 놓으면 그 시각으로 잡혀요.' },
-      { id: 'views', ill: 'cal-views', title: '보기와 옵션', body: '머리 보기 단추로 **일 `D` · 주 `W` · 월 `M`**을 바꿔요. ⋯ › **옵션 보기**에서 완료 표시·반복·색 기준·아이콘을 골라요.' },
+      { id: 'views', ill: 'cal-views', title: '보기와 옵션', body: '머리 보기 단추로 **일** `D` · **주** `W` · **월** `M`을 바꿔요. ⋯ › **옵션 보기**에서 완료 표시·반복·색 기준·아이콘을 골라요.' },
       { id: 'holiday', ill: 'cal-holiday', title: '공휴일 · 다른 캘린더', body: '공휴일과 일요일은 빨강, 토요일은 파랑이에요. 휴일 표시·음력·주 번호는 **설정 › 날짜 & 시간**, 구글·Apple 연결은 ⋯ › **캘린더 구독**에서.' }
     ],
     recipes: [

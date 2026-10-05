@@ -22,7 +22,7 @@ export function WorkspaceView({view,onView,draft,onDraft,assistant,onOpen}:Props
 const AI_RECIPES:Record<string,string>={add:'내일 오후 3시 치과 예약 할 일로 넣어 줘',week:'이번 주에 끝낸 일 정리해 줘',plan:'오늘 할 일 중 먼저 할 3가지 골라 줘'}
 function AssistantView({draft,onDraft,assistant,onOpen}:AssistantProps & {draft:string;onDraft:(text:string)=>void}){
  const guide=useGuide('assistant',{ready:!assistant.connecting})
- const tryRecipe=(r:string)=>{const text=AI_RECIPES[r];if(!text)return;onDraft(text);requestAnimationFrame(()=>{const el=document.querySelector<HTMLTextAreaElement>('.assistant-view .assistant-composer textarea');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}})}
+ const tryRecipe=(r:string)=>{const text=AI_RECIPES[r];if(!text)return;onDraft(text);window.setTimeout(()=>{const el=document.querySelector<HTMLTextAreaElement>('.assistant-view .assistant-composer textarea');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}},80)}
  return <main className="workspace assistant-view"><header className="pane-header"><h1 className="pane-header__title assistant-view__title">AI 비서</h1><AssistantHeaderActions assistant={assistant} help={<GuideButton guide={guide}/>}/></header><AssistantBody draft={draft} onDraft={onDraft} assistant={assistant} onOpen={onOpen}/><GuideLayer guide={guide} onTry={tryRecipe} aiOk={assistant.connecting?null:assistant.models.length>0}/></main>
 }
 /** offset = 오른쪽에 붙은 상세 패널 폭(px). 그만큼 왼쪽으로 비켜서 상세 바닥의 ⋯ 버튼을 가리지 않는다 */

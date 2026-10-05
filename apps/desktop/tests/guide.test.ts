@@ -91,6 +91,7 @@ const RECIPES: Record<string, string[]> = {
 const balanced = (t: string, where: string) => {
   assert.equal((t.match(/\*\*/g) ?? []).length % 2, 0, `${where}: ** 짝`)
   assert.equal((t.match(/`/g) ?? []).length % 2, 0, `${where}: \` 짝`)
+  for (const [, b] of t.matchAll(/\*\*([^*]+)\*\*/g)) assert.ok(!b.includes('`'), `${where}: 굵게 안에 키 표시를 겹치지 않는다(그대로 보임)`)
 }
 for (const tab of GUIDE_TABS) {
   const g = GUIDES[tab]

@@ -68,7 +68,7 @@ export function NotesView({ lists, onOpen, section, onSection }: Props) {
   const tryRecipe = (r: string) => {
     if (r === 'watch' || r === 'wiki') { onSection(r); return }
     setSearch(null); onSection('notes')
-    requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('.notes__addbar-input')?.focus())
+    window.setTimeout(() => document.querySelector<HTMLTextAreaElement>('.notes__addbar-input')?.focus(), 80)
   }
   const pendingKakao = useQuery<{ n: number }>("SELECT COUNT(*) AS n FROM notes WHERE source = 'kakao_import' AND ai_state = 'pending'")?.[0]?.n ?? 0
   const today = dayKey()
