@@ -1,13 +1,14 @@
 // 상세 시트(21 §5, 시안 F): 반 시트 → 끌어 올리면 전체 화면(네이티브 formSheet, 높이 0.6 / 1).
 // 위: 리스트 이름 ⌃⌄(이동 시트) · 둥근 깃발(우선순위) · 둥근 ⋯ / 체크박스 + 날짜 글자(→ 날짜 시트) / 제목 20/600 / 설명 또는 체크리스트
-// / 태그 칩 / 하위 할 일 / 아래 도구 줄(태그 · 체크리스트로 바꾸기) + "저장됨".
+// / 태그 칩 / 하위 할 일 / 아래 도구 줄(태그 · 체크리스트로 바꾸기) + "저장됨" — 키보드가 올라오면 도구 줄이 키보드 바로 위에 붙는다(21 §5-6, research 24 §7).
 // 편집은 0.6초 뒤 자동 저장(02 §13). 제목을 비우고 닫으면 이전 제목으로 되돌린다.
 // 편집 범위(20 M3 확정): 제목·설명·날짜·우선순위·리스트·체크리스트 체크·항목 추가·태그. 하위 할 일 만들기·반복 직접 설정은 v1.1.
 import { useQuery } from '@powersync/react-native'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { Ban, Bell, ChevronLeft, ChevronsUpDown, Copy, Ellipsis, Flag, ListChecks, Pin, Plus, Repeat, Tag, Trash2 } from 'lucide-react-native'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Dimensions, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type KeyboardEvent } from 'react-native'
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   addCheckItem, duplicateTask, removeCheckItem, renameCheckItem, setPinned, setPriority, setWontDo, toggleCheckItem, toggleContentMode, toggleDone, trashTasks, updateTask
@@ -37,6 +38,8 @@ export default function TaskDetail() {
   const tags = useQuery<{ id: string; name: string }>('SELECT g.id, g.name FROM task_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.task_id = ? ORDER BY g.sort_order', [id]).data
   const subs = useQuery<TaskRow>(`SELECT ${COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.parent_id = ? AND t.deleted_at IS NULL ORDER BY t.status, t.sort_order`, [id]).data
   const [full, setFull] = useState(false)
+  const root = useRef<View>(null)
+  const kb = useKeyboardOverlap(root, Math.max(insets.bottom, 8) - 8)
   useEffect(() => navigation.addListener('sheetDetentChange' as never, ((e: { data: { index: number } }) => setFull(e.data.index === 1)) as never), [navigation])
 
   // 제목·설명: 입력 중에는 로컬 값, 0.6초 뒤 저장
@@ -75,10 +78,10 @@ export default function TaskDetail() {
   const openSheet = (path: '/move' | '/date' | '/tags') => router.push({ pathname: path, params: { ids: id } })
 
   return (
-    <View style={{ flex: 1, backgroundColor: p.sheetBg }}>
+    <View ref={root} collapsable={false} style={{ flex: 1, backgroundColor: p.sheetBg }}>
       {/* iOS formSheet는 ScrollView를 시트 맨 위에 붙인다 — 머리를 형제로 두면 날짜 줄이 겹쳐서 안에 둔다(README 주의) */}
       <SheetScrollGuard />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 + kb.height }}>
         <View style={[s.top, { marginTop: full ? insets.top : 10 }]}>
           {full ? <GlassButton label="닫기" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton> : null}
           <Pressable accessibilityRole="button" accessibilityLabel={`리스트: ${listName}, 이동`} onPress={() => openSheet('/move')} style={s.list}>
@@ -181,12 +184,12 @@ export default function TaskDetail() {
         ) : null}
       </ScrollView>
 
-      <View style={[s.bottom, { paddingBottom: Math.max(insets.bottom, 8), borderTopColor: p.borderDivider, backgroundColor: p.sheetBg }]}>
+      <Animated.View style={[s.bottom, { paddingBottom: Math.max(insets.bottom, 8), borderTopColor: p.borderDivider, backgroundColor: p.sheetBg }, kb.style]}>
         <GlassButton plain label="태그" onPress={() => openSheet('/tags')}><Tag size={21} color={tags.length ? p.accent : p.textSecondary} /></GlassButton>
         <GlassButton plain label={checklist ? '본문으로 바꾸기' : '체크리스트로 바꾸기'} onPress={() => void toggleContentMode(id)}><ListChecks size={21} color={checklist ? p.accent : p.textSecondary} /></GlassButton>
         <View style={{ flex: 1 }} />
         <Text style={[FONT.meta, { color: p.textTertiary, paddingRight: 6 }]}>{saved ? '저장됨' : '저장 중…'}</Text>
-      </View>
+      </Animated.View>
 
       <PopMenu
         anchor={priority.rect}
@@ -214,6 +217,37 @@ export default function TaskDetail() {
       />
     </View>
   )
+}
+
+/**
+ * 키보드가 이 시트 아래쪽을 얼마나 덮는지(21 §5-6). iOS formSheet는 화면 바닥에 붙어 있어 키보드 높이 그대로,
+ * Android는 시트 바닥(창 좌표)과 키보드 윗변의 차이라서 시트가 이미 키보드 위로 올라가 있으면 0이 된다.
+ * 도구 줄은 키보드와 같은 시간으로 따라 오르내린다. 키보드 위에서는 안전 영역 여백(safePad)이 필요 없어 그만큼 덜 올린다
+ * (여백 부분은 키보드 밑으로 들어가 도구 줄 글자가 키보드 위 8에 온다).
+ */
+function useKeyboardOverlap(root: { current: View | null }, safePad: number) {
+  const [height, setHeight] = useState(0)
+  const lift = useSharedValue(0)
+  useEffect(() => {
+    const ease = Easing.bezier(0.17, 0.59, 0.4, 0.77) // iOS 키보드 곡선 근사
+    const go = (h: number, ms: number) => {
+      lift.value = withTiming(h ? Math.max(0, h - safePad) : 0, { duration: ms || 250, easing: ease })
+      setHeight(h)
+    }
+    const show = (e: KeyboardEvent) => {
+      const top = e.endCoordinates.screenY
+      // iOS formSheet는 늘 화면 바닥에 붙어 있고(키보드가 오면 시트가 커질 뿐), 시트 안 measureInWindow는 시트 기준이라 화면 높이로 잰다
+      if (Platform.OS === 'ios') return go(Math.max(0, Math.round(Dimensions.get('screen').height - top)), e.duration)
+      root.current?.measureInWindow((_x, y, _w, hgt) => go(Math.max(0, Math.round(y + hgt - top)), e.duration))
+    }
+    const hide = (e: KeyboardEvent) => go(0, e?.duration ?? 0)
+    const subs = Platform.OS === 'ios'
+      ? [Keyboard.addListener('keyboardWillChangeFrame', show), Keyboard.addListener('keyboardWillHide', hide)]
+      : [Keyboard.addListener('keyboardDidShow', show), Keyboard.addListener('keyboardDidHide', hide)]
+    return () => subs.forEach((x) => x.remove())
+  }, [root, lift, safePad])
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: -lift.value }] }))
+  return { height, style }
 }
 
 /** 상세 ⋯(21 §5, 시안 F-3): 위 큰 아이콘 줄 고정·복사·하지 않음·삭제 + 목록(태그). "주간 목표에 연결"은 넣지 않음(20 M8) */

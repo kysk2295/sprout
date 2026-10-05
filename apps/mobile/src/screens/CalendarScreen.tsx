@@ -1,5 +1,6 @@
 // 캘린더 탭(06 데스크톱 캘린더의 휴대폰판 — 시안 G): 머리 = 왼쪽 보기 전환(목록·일·3일·월) · 가운데 달 · 오른쪽 오늘로 · ⋯
 // - 월: 월요일 시작 칸, 칸 안에 리스트 색 옅은 띠 + 제목(넘치면 +n), 오늘 = 강조색 원. 날짜를 누르면 아래에 그날 목록. 위아래로 밀면 달이 바뀜
+//   아래 목록을 위로 끌면 달이 고른 날의 한 주 줄로 접히고, 접힌 채 목록 맨 위에서 아래로 끌면 펼침(틱틱 목록 캘린더 — 20 §7, research 24 §10)
 // - 일·3일: 위 주 줄(점 = 할 일 있음)·종일 줄·시간 칸(1시간 56). 빈 칸 누르면 그 시각으로 빠른 입력, 블록을 길게 눌러 끌면 옮김(15분 단위, 3일은 다른 날로도)
 // - 목록: 오늘부터 30일 날짜별 묶음 카드
 // - ⋯ → 완료 보기/숨기기 · 날짜 없는 할 일(누르면 고른 날에 일정 잡기 — 06 §9 할일 정렬 패널의 휴대폰판)
@@ -10,7 +11,7 @@ import { CalendarCheck, CalendarDays, CalendarRange, Columns3, Ellipsis, List, P
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
+import Animated, { Easing, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { scheduleOnRN } from 'react-native-worklets'
 import {
@@ -133,9 +134,15 @@ export default function CalendarScreen() {
       </View>
 
       {view === 'month' ? (
-        <MonthView today={today} cursor={cursor} items={items} onPick={setCursor} onShift={shift} onAdd={addAt}>
-          <DayList day={cursor} today={today} items={itemsOnDay(items, cursor)} onCheck={check} onOpen={openDetail} onLong={setLp} onAdd={() => addAt(cursor)} bottomPad={bottomPad} />
-        </MonthView>
+        <MonthView
+          today={today}
+          cursor={cursor}
+          items={items}
+          onPick={setCursor}
+          onShift={shift}
+          onAdd={addAt}
+          list={(fold) => <DayList day={cursor} today={today} items={itemsOnDay(items, cursor)} onCheck={check} onOpen={openDetail} onLong={setLp} onAdd={() => addAt(cursor)} bottomPad={bottomPad} fold={fold} />}
+        />
       ) : null}
       {timeline ? (
         <Timeline
@@ -190,92 +197,164 @@ export default function CalendarScreen() {
 }
 
 // ── 월 ──
-function MonthView(props: { today: string; cursor: string; items: Item[]; onPick: (d: string) => void; onShift: (n: number) => void; onAdd: (d: string) => void; children: ReactNode }) {
+/** 달 접기(20 §7): 아래 목록이 쓰는 끌기 · 스크롤 상태 */
+type Fold = { gesture: ReturnType<typeof Gesture.Simultaneous>; scrollEnabled: boolean; scrollY: SharedValue<number> }
+const FOLD_MS = 220
+const snapTo = (to: number) => {
+  'worklet'
+  return withTiming(to, { duration: FOLD_MS, easing: Easing.out(Easing.cubic) })
+}
+
+function MonthView(props: { today: string; cursor: string; items: Item[]; onPick: (d: string) => void; onShift: (n: number) => void; onAdd: (d: string) => void; list: (fold: Fold) => ReactNode }) {
   const p = usePalette()
   const days = monthDays(props.cursor)
   const weeks = days.length / 7
   const rowH = weeks > 5 ? 58 : 66
   const month = props.cursor.slice(0, 7)
-  const { onShift } = props // 워클릿에는 함수만 넘긴다(props 통째로 넘기면 children을 복사하다 실패)
-  const swipe = Gesture.Pan().activeOffsetY([-24, 24]).failOffsetX([-20, 20]).onEnd((e) => {
+  const fullH = weeks * rowH
+  const range = fullH - rowH
+  const selWeek = Math.max(0, Math.floor(days.indexOf(props.cursor) / 7))
+  const { onShift, onPick, cursor } = props // 워클릿에는 함수만 넘긴다(props 통째로 넘기면 children을 복사하다 실패)
+
+  // 0 = 달 전체, 1 = 고른 날의 한 주. 손가락을 따라가고, 놓으면 가까운 쪽(빠르게 튕기면 그 방향)으로 붙는다
+  const [collapsed, setCollapsed] = useState(false)
+  const prog = useSharedValue(0)
+  const from = useSharedValue(0)
+  const startScroll = useSharedValue(0)
+  const scrollY = useSharedValue(0)
+  const settle = (c: boolean) => setCollapsed(c)
+  const begin = () => {
+    'worklet'
+    from.value = prog.value
+    startScroll.value = scrollY.value
+  }
+  const follow = (ty: number) => {
+    'worklet'
+    if (range <= 0) return
+    if (from.value < 0.5) prog.value = Math.min(1, Math.max(0, -ty / range))
+    else if (startScroll.value <= 0 && ty > 0) prog.value = Math.min(1, Math.max(0, 1 - ty / range))
+  }
+  const release = (vy: number) => {
+    'worklet'
+    let to = prog.value > 0.5 ? 1 : 0
+    if (from.value < 0.5 && vy < -500) to = 1
+    if (from.value >= 0.5 && startScroll.value <= 0 && vy > 500) to = 0
+    prog.value = snapTo(to)
+    scheduleOnRN(settle, to === 1)
+  }
+  // 아래 목록: 펼친 동안은 스크롤 대신 접기, 접힌 뒤 맨 위에서 아래로 끌면 펼치기
+  const native = Gesture.Native()
+  const listPan = Gesture.Pan().activeOffsetY([-10, 10]).failOffsetX([-25, 25]).onStart(begin).onUpdate((e) => follow(e.translationY)).onEnd((e) => release(e.velocityY))
+  const listGesture = Gesture.Simultaneous(listPan, native)
+
+  // 달 칸: 펼침 = 위아래로 밀어 달 넘기기 / 접힘 = 아래로 끌어 펼치기 · 좌우로 밀어 앞뒤 주
+  const monthSwipe = Gesture.Pan().activeOffsetY([-24, 24]).failOffsetX([-20, 20]).onEnd((e) => {
     if (e.translationY < -50) scheduleOnRN(onShift, 1)
     else if (e.translationY > 50) scheduleOnRN(onShift, -1)
   })
+  const nextWeek = dayKey(7, new Date(`${cursor}T00:00`))
+  const prevWeek = dayKey(-7, new Date(`${cursor}T00:00`))
+  const pullDown = Gesture.Pan().activeOffsetY([-12, 12]).failOffsetX([-20, 20]).onStart(begin).onUpdate((e) => follow(e.translationY)).onEnd((e) => release(e.velocityY))
+  const weekSwipe = Gesture.Pan().activeOffsetX([-24, 24]).failOffsetY([-16, 16]).onEnd((e) => {
+    if (e.translationX < -50) scheduleOnRN(onPick, nextWeek)
+    else if (e.translationX > 50) scheduleOnRN(onPick, prevWeek)
+  })
+  const gridGesture = collapsed ? Gesture.Race(pullDown, weekSwipe) : monthSwipe
+
+  const frame = useAnimatedStyle(() => ({ height: fullH - range * prog.value }))
+  const slide = useAnimatedStyle(() => ({ transform: [{ translateY: -selWeek * rowH * prog.value }] }))
   return (
     <View style={{ flex: 1 }}>
       <View style={s.wd}>
         {WEEK_HEAD.map((w, i) => <Text key={w} style={[s.wdText, { color: i === 6 ? p.danger : p.textTertiary }]}>{w}</Text>)}
       </View>
-      <GestureDetector gesture={swipe}>
-        <View style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: p.borderDivider }}>
-          {Array.from({ length: weeks }, (_, w) => (
-            <View key={w} style={[s.week, { height: rowH, borderTopColor: p.borderDivider }]}>
-              {days.slice(w * 7, w * 7 + 7).map((d) => {
-                const { shown, more } = cellSummary(props.items, d, rowH > 60 ? 3 : 2)
-                const isToday = d === props.today
-                const sel = d === props.cursor
-                const other = d.slice(0, 7) !== month
-                return (
-                  <Pressable
-                    key={d}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${Number(d.slice(8))}일 ${weekdayKo(d)}요일, 할 일 ${shown.length + more}개`}
-                    accessibilityState={{ selected: sel }}
-                    onPress={() => props.onPick(d)}
-                    onLongPress={() => props.onAdd(d)}
-                    style={[s.cell, sel && { backgroundColor: p.bgSelected }]}
-                  >
-                    <View style={[s.num, isToday && { backgroundColor: p.accent }]}>
-                      <Text style={{ fontSize: 12, fontWeight: isToday || sel ? '700' : '500', color: isToday ? '#fff' : other ? p.textQuaternary : p.textPrimary }}>{Number(d.slice(8))}</Text>
-                    </View>
-                    {shown.map((it) => {
-                      const c = it.task.list_color ?? p.accent
-                      return (
-                        <View key={it.key} style={[s.bar, { backgroundColor: alpha(c, it.task.status ? 0.08 : 0.18) }]}>
-                          <Text numberOfLines={1} style={{ fontSize: 10, lineHeight: 13, color: it.task.status ? p.textTertiary : p.textPrimary }}>{it.task.title}</Text>
-                        </View>
-                      )
-                    })}
-                    {more ? <Text style={{ fontSize: 10, lineHeight: 13, color: p.textTertiary, paddingLeft: 3 }}>+{more}</Text> : null}
-                  </Pressable>
-                )
-              })}
-            </View>
-          ))}
-        </View>
+      <GestureDetector gesture={gridGesture}>
+        <Animated.View
+          accessibilityHint={collapsed ? '아래로 끌면 달 전체를 펼쳐요' : undefined}
+          style={[{ overflow: 'hidden', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: p.borderDivider }, frame]}
+        >
+          <Animated.View style={slide}>
+            {Array.from({ length: weeks }, (_, w) => (
+              <View key={w} style={[s.week, { height: rowH, borderTopColor: p.borderDivider }]} importantForAccessibility={collapsed && w !== selWeek ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={collapsed && w !== selWeek}>
+                {days.slice(w * 7, w * 7 + 7).map((d) => {
+                  const { shown, more } = cellSummary(props.items, d, rowH > 60 ? 3 : 2)
+                  const isToday = d === props.today
+                  const sel = d === props.cursor
+                  const other = d.slice(0, 7) !== month
+                  return (
+                    <Pressable
+                      key={d}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${Number(d.slice(8))}일 ${weekdayKo(d)}요일, 할 일 ${shown.length + more}개`}
+                      accessibilityState={{ selected: sel }}
+                      onPress={() => props.onPick(d)}
+                      onLongPress={() => props.onAdd(d)}
+                      style={[s.cell, sel && { backgroundColor: p.bgSelected }]}
+                    >
+                      <View style={[s.num, isToday && { backgroundColor: p.accent }]}>
+                        <Text style={{ fontSize: 12, fontWeight: isToday || sel ? '700' : '500', color: isToday ? '#fff' : other && !collapsed ? p.textQuaternary : p.textPrimary }}>{Number(d.slice(8))}</Text>
+                      </View>
+                      {shown.map((it) => {
+                        const c = it.task.list_color ?? p.accent
+                        return (
+                          <View key={it.key} style={[s.bar, { backgroundColor: alpha(c, it.task.status ? 0.08 : 0.18) }]}>
+                            <Text numberOfLines={1} style={{ fontSize: 10, lineHeight: 13, color: it.task.status ? p.textTertiary : p.textPrimary }}>{it.task.title}</Text>
+                          </View>
+                        )
+                      })}
+                      {more ? <Text style={{ fontSize: 10, lineHeight: 13, color: p.textTertiary, paddingLeft: 3 }}>+{more}</Text> : null}
+                    </Pressable>
+                  )
+                })}
+              </View>
+            ))}
+          </Animated.View>
+        </Animated.View>
       </GestureDetector>
-      {props.children}
+      {props.list({ gesture: listGesture, scrollEnabled: collapsed, scrollY })}
     </View>
   )
 }
 
-function DayList(props: { day: string; today: string; items: Item[]; onCheck: (t: TaskRow) => void; onOpen: (t: TaskRow) => void; onLong: (v: { task: TaskRow; rect: Rect }) => void; onAdd: () => void; bottomPad: number }) {
+function DayList(props: { day: string; today: string; items: Item[]; onCheck: (t: TaskRow) => void; onOpen: (t: TaskRow) => void; onLong: (v: { task: TaskRow; rect: Rect }) => void; onAdd: () => void; bottomPad: number; fold: Fold }) {
   const p = usePalette()
   const refs = useRef(new Map<string, View | null>())
+  const { scrollY } = props.fold
+  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y })
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: p.pageBg }} contentContainerStyle={{ paddingTop: 10, paddingBottom: props.bottomPad }}>
-      {props.items.length ? (
-        <GroupCard title={agendaTitle(props.day, props.today)} count={props.items.length} collapsed={false} onToggle={() => {}}>
-          {props.items.map((it) => (
-            <View key={it.key} ref={(r) => { refs.current.set(it.key, r) }} collapsable={false}>
-              <TaskRowView
-                task={it.task}
-                today={props.today}
-                showList
-                onCheck={() => props.onCheck(it.task)}
-                onPress={() => props.onOpen(it.task)}
-                onLongPress={() => refs.current.get(it.key)?.measureInWindow((x, y, width, height) => props.onLong({ task: it.task, rect: { x, y, width, height } }))}
-              />
-            </View>
-          ))}
-        </GroupCard>
-      ) : (
-        <Pressable accessibilityRole="button" onPress={props.onAdd} style={s.dayEmpty}>
-          <Text style={[FONT.sub, { color: p.textTertiary }]}>{agendaTitle(props.day, props.today)} · 할 일이 없어요</Text>
-          <Text style={[FONT.sub, { color: p.accent, marginTop: 4 }]}>+ 추가</Text>
-        </Pressable>
-      )}
-    </ScrollView>
+    <GestureDetector gesture={props.fold.gesture}>
+      <Animated.ScrollView
+        style={{ flex: 1, backgroundColor: p.pageBg }}
+        contentContainerStyle={{ paddingTop: 10, paddingBottom: props.bottomPad, flexGrow: 1 }}
+        scrollEnabled={props.fold.scrollEnabled}
+        bounces={false}
+        overScrollMode="never"
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+      >
+        {props.items.length ? (
+          <GroupCard title={agendaTitle(props.day, props.today)} count={props.items.length} collapsed={false} onToggle={() => {}}>
+            {props.items.map((it) => (
+              <View key={it.key} ref={(r) => { refs.current.set(it.key, r) }} collapsable={false}>
+                <TaskRowView
+                  task={it.task}
+                  today={props.today}
+                  showList
+                  onCheck={() => props.onCheck(it.task)}
+                  onPress={() => props.onOpen(it.task)}
+                  onLongPress={() => refs.current.get(it.key)?.measureInWindow((x, y, width, height) => props.onLong({ task: it.task, rect: { x, y, width, height } }))}
+                />
+              </View>
+            ))}
+          </GroupCard>
+        ) : (
+          <Pressable accessibilityRole="button" onPress={props.onAdd} style={s.dayEmpty}>
+            <Text style={[FONT.sub, { color: p.textTertiary }]}>{agendaTitle(props.day, props.today)} · 할 일이 없어요</Text>
+            <Text style={[FONT.sub, { color: p.accent, marginTop: 4 }]}>+ 추가</Text>
+          </Pressable>
+        )}
+      </Animated.ScrollView>
+    </GestureDetector>
   )
 }
 

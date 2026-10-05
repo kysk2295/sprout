@@ -70,6 +70,7 @@
 - **[확인] 행을 누르면 아래에서 반쯤 올라오는 시트**(위 모서리 둥글게, 뒤는 어둡게). 위로 끌면 **전체 화면**(머리가 "‹ Inbox ⌃⌄"로 바뀜).
 - **[확인] 위에서부터**: 왼쪽 **리스트 이름 ⌃⌄**(누르면 이동 시트) · 오른쪽 **둥근 깃발**(우선순위 팝오버: High · Medium · Low · No Priority, 깃발 색, 지금 값 ✓) · **둥근 ⋯** → 다음 줄 **체크박스 + 날짜**(강조색 "Sat, 17 Jan" / "Tomorrow, 15 Jan, 09:00", 비면 회색 "Date & Reminder") → **제목**(약 20, 중간 굵기) → **설명**(회색 자리 표시) → 맨 아래 도구 줄: **태그 · 체크리스트로 바꾸기(≡) · 첨부(클립)**.
 - **[확인] 체크리스트 모드**: 체크 아이콘이 목록 아이콘으로, 항목마다 작은 체크박스 + 오른쪽 끌기 손잡이(≡).
+- **[확인] 아래 도구 줄은 키보드가 올라오면 키보드 바로 위에 붙는다**: Help "Task Details" 모바일 탭 — Check Items "Click the toggle button located just above the right side of the keyboard to switch", Tags "Click the icon in the lower left corner"(키보드가 없을 때는 화면 맨 아래), 체크 항목 편집 중 "click the clock button above the keyboard". 캡처(`7a33ea59…png`)에서 줄 순서 = 태그 · 체크리스트 전환 · 첨부. 출처: [Task Details](https://help.ticktick.com/articles/7055782408586526720) (페이지 `__NEXT_DATA__` 본문, 2026-10-05 확인).
 - **[확인] 설명 편집 중 키보드 위 서식 막대**(제목 크기·굵게·인용·체크·목록 등, 마크다운). v1은 [다음] 후보.
 - **[확인] 상세 ⋯ (iOS, Android 모두 아래 시트)**: 위 **큰 아이콘 줄** Pin · Share · Won't Do · Delete, 아래 목록 Add Subtask · Link Parent Task · Start Focus · Convert to Note · Attachment · Tags · Task Activities · Add to Live Activity, "More" 아래 Comment · Location Reminder · Copy Link…, 위 "Edit"로 순서·표시를 바꾼다.
 - **[확인] 이동 시트 "Move to"**: ✕ · 제목 · 검색 칸 · 리스트 목록(이모지, 지금 리스트에 ✓) · "+ Add List".
@@ -92,6 +93,9 @@
 - **[확인] 머리**: 왼쪽 **둥근 보기 전환 버튼**(칸 모양 아이콘), 가운데 **월 이름**("October"/"January"), 오른쪽 **오늘로 가기**(달력 아이콘) + **⋯**.
 - **[확인] ⋯ 메뉴**: Filter View Range · View Options · Arrange Tasks · Calendar Subscription · Share · Print.
 - **[확인] 월 보기**: 칸마다 날짜 숫자(오늘 = 강조색 원) + 리스트 색 옅은 띠에 제목(잘림), 주 번호(W22) 표시 옵션.
+- **[확인] 목록 캘린더(List View)**: 위에 **한 주 줄**(요일 + 날짜, 고른 날 = 강조색 채운 원, 할 일 있는 날 아래 점) + 아래 그날 할 일 묶음 카드. FAQ: "In the list view, press and hold your finger on the first row of calendars and **pull down to expand** a small panorama of calendars" — 한 주 줄을 끌어 내리면 달 전체가 펼쳐진다(반대로 올리면 다시 한 주). 출처: [List View - View Tasks by Day](https://help.ticktick.com/articles/7055782110086299648) 캡처 `8410b8bc…png`, [FAQ - Calendar](https://help.ticktick.com/articles/7063851189372190720) (2026-10-05 확인).
+  - 남는 주 = 고른 날이 든 주 [확인 캡처: 고른 날 5일이 든 주]. 멈춤 자리는 두 곳(한 주 / 달 전체), 손을 놓으면 가까운 쪽으로 붙는다 [추정 — iOS 관례, 수치 없음].
+- **[확인] 월 보기 넘기기**: "Swipe up and down to switch months", 달 이름 두 번 누르면 이번 달. 8.0부터 두 손가락 벌리기로 주 수를 줄이는 "Multi-week View"(오른쪽 위 Reset to Default) — [Month View](https://help.ticktick.com/articles/7055782128335716352), [What's New](https://help.ticktick.com/articles/7082552170989486080).
 - **[확인] 주 보기**: 위에 주 번호 W20 + 요일·날짜, 종일 줄(빨간 테두리로 강조된 캡처), 시간 칸에 색 블록.
 - **[확인] View Options 시트**: Color › · Style › · Show Details · Show Completed · Show Check Items · Show All Repeat Cycles · Show Habit · Show Focus Records · Show Countdown · Additional Time Zone · Apple Health Data.
 - **[확인] 보기 종류**: 일 · 3일 · 주 · 월(+ 목록/일정, 연·주 목록 — What's New "Switch between days, weeks, years").
