@@ -11,6 +11,7 @@ import { planCompleteWithXp, planReopenWithXp, type CoreDb } from '@sprout/schem
 import { db } from './db'
 import { actionTooOld, buildSnapshot, MAX_APPLIED, parseAction, snapshotKey, type WidgetAction, type WidgetSnapshot } from './widgetSnapshot'
 import { bakeArt } from './widgetArt'
+import { onCalendarsChanged, panelEvents } from './calendars'
 
 /** App Group 이름 = 팀 ID + 번들 ID. 팀 ID는 서명 인증서의 OU(지금 개발 인증서: BU697KN34B).
  *  같은 값이 build/entitlements.mac.plist, native/widget/SproutWidget/SproutWidget.entitlements, native/widget/build.sh에 있다 */
@@ -94,7 +95,7 @@ function writeAtomic(file: string, text: string) {
 }
 async function writeSnapshot(force = false) {
   const isIn = signedIn()
-  const snap: WidgetSnapshot = await buildSnapshot(coreDb, { today: localDay(), now: new Date(), signedIn: isIn, appliedActions: applied })
+  const snap: WidgetSnapshot = await buildSnapshot(coreDb, { today: localDay(), now: new Date(), signedIn: isIn, appliedActions: applied, extEvents: panelEvents })
   mkdirSync(root(), { recursive: true })
   if (snap.growth) {
     const g = snap.growth
@@ -223,8 +224,9 @@ export function startWidget(opts: { isSignedIn: () => boolean }) {
   signedIn = opts.isSignedIn
   loadApplied()
   try { mkdirSync(root(), { recursive: true }) } catch (e) { console.warn('[widget] 저장 칸을 만들 수 없음:', e); started = false; return }
-  // 할 일·XP·캐릭터·목표·테마·리스트가 바뀌면(앱 화면·미니 창·동기화로 들어온 변경 모두) 다시 쓴다
-  db.onChangeWithCallback({ onChange: () => scheduleWidgetWrite() }, { tables: ['tasks', 'lists', 'xp_events', 'characters', 'kpis', 'user_prefs', 'check_items'], throttleMs: 200 })
+  // 할 일·XP·캐릭터·목표·테마·리스트·일정·캘린더 보기 설정이 바뀌면(앱 화면·미니 창·동기화로 들어온 변경 모두) 다시 쓴다
+  db.onChangeWithCallback({ onChange: () => scheduleWidgetWrite() }, { tables: ['tasks', 'lists', 'xp_events', 'characters', 'kpis', 'user_prefs', 'check_items', 'events', 'view_settings', 'tags', 'task_tags'], throttleMs: 200 })
+  onCalendarsChanged(() => scheduleWidgetWrite()) // §15 구글·Apple 일정(월 캘린더 위젯)
   // 로그인·로그아웃은 표 변경 없이 바뀔 수 있다 → 상태가 바뀌면 다시 쓰기(로그아웃 자체는 sync.ts가 clearWidget을 부른다)
   setInterval(() => { if (lastSignedIn !== undefined && lastSignedIn !== signedIn()) scheduleWidgetWrite(true) }, 5_000).unref()
   powerMonitor.on('resume', () => { scheduleWidgetWrite(true); queueActions(); scheduleMidnight() })

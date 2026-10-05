@@ -115,8 +115,8 @@ export type SproutCollectApi = typeof collectApi
 const desktopApi = {
   openSettings: () => ipcRenderer.send('desktop:settings'),
   onQuickAdd: (cb: () => void) => on('desktop:quick-add', cb),
-  // 25 §14: 위젯 딥 링크(sprout://today·growth) → 다시 불러오지 않고 레일 보기·목록만 바꾼다
-  onNavigate: (cb: (to: { view: string; selected?: string; mode?: string; task?: string }) => void) => on('desktop:navigate', cb),
+  // 25 §14·§15: 위젯 딥 링크(sprout://today·growth·calendar/<날짜>·event/<id>) → 다시 불러오지 않고 레일 보기·목록만 바꾼다
+  onNavigate: (cb: (to: { view: string; selected?: string; mode?: string; task?: string; date?: string; event?: string }) => void) => on('desktop:navigate', cb),
   // 25 §14: 메인 프로세스(위젯 체크)가 준 XP → 앱 안 완료와 같은 "+1"
   onXp: (cb: (amount: number) => void) => on('growth:xp', cb),
   // 25 D4·§14: 설정 › 일반 "로그인할 때 sprout 열기"(패키지 앱만 바꿀 수 있다)

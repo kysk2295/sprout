@@ -24,6 +24,11 @@ struct Palette {
     var secondary: Color { Color(hex: dark ? "#CDCDCD" : "#7D7D7D") }
     var tertiary: Color { Color(hex: dark ? "#606060" : "#A3A4A7") }
     var danger: Color { Color(hex: "#D44343") }
+    // §15 월 캘린더(00 토큰 · 06 §16): 공휴일·일요일 빨강, 토요일 파랑, 다른 달 날짜, 칸 구분선
+    var holiday: Color { Color(hex: dark ? "#F2555A" : "#E5484D") }
+    var saturday: Color { Color(hex: dark ? "#6B9CFF" : "#3D74E0") }
+    var calOther: Color { Color(hex: dark ? "#666666" : "#B5B6B8") }
+    var grid: Color { Color(hex: dark ? "#2A2A2A" : "#EBEBEC") }
     func priority(_ p: Int) -> Color {
         switch p {
         case 3: return Color(hex: "#C53C31")
@@ -39,6 +44,9 @@ enum Links {
     static let quickAdd = URL(string: "sprout://quick-add")!
     static let growth = URL(string: "sprout://growth")!
     static func task(_ id: String) -> URL { URL(string: "sprout://task/\(id)") ?? today }
+    /// §15.4 월 캘린더 위젯: 날짜 칸 → 앱 캘린더 그 날, 내 일정 막대 → 일정 팝오버
+    static func calendar(_ day: String) -> URL { URL(string: "sprout://calendar/\(day)") ?? today }
+    static func event(_ id: String) -> URL { URL(string: "sprout://event/\(id)") ?? today }
 }
 
 /// 09 §2 빈 상태 한 줄 [임시]: 시간대별 — 앱 미니 창과 같은 문구

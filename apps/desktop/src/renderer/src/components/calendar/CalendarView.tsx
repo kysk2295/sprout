@@ -27,7 +27,7 @@ import { calendarsApi, openCalendarSettings, useExtEvents, type ExtEvent } from 
 import { extItems, extOf, isPastExt } from '../../lib/calendarExt'
 import { ExtEventMenu, ExtEventPopover } from '../calendars/ExtEventCard'
 import { CalendarConnectHost } from '../calendars/ConnectHost'
-import { deleteEvents, duplicateEvents, EV_PREFIX, isEventKey, OPEN_EVENT, rescheduleEvents, takeOpenEvent, useEvents } from '../../data/events'
+import { deleteEvents, duplicateEvents, EV_PREFIX, isEventKey, OPEN_DATE, OPEN_EVENT, rescheduleEvents, takeCalendarDate, takeOpenEvent, useEvents } from '../../data/events'
 import { eventItems, evtOf } from '../../lib/calendarEvents'
 import { EventMenu, EventPopover } from '../events/EventCard'
 
@@ -206,6 +206,19 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
     take()
     window.addEventListener(OPEN_EVENT, take)
     return () => window.removeEventListener(OPEN_EVENT, take)
+  }, [])
+  // 25 §15 월 캘린더 위젯 날짜 칸 → 그 날로(보기 종류는 그대로, 열린 팝오버·선택은 닫는다)
+  useEffect(() => {
+    const take = () => {
+      const d = takeCalendarDate()
+      if (!d) return
+      setCursor(d)
+      setSelection([])
+      setPop(undefined)
+    }
+    take()
+    window.addEventListener(OPEN_DATE, take)
+    return () => window.removeEventListener(OPEN_DATE, take)
   }, [])
 
   // 06 §7.4 단축키 — 입력 중·팝오버가 열려 있을 때는 동작하지 않는다

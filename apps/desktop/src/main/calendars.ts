@@ -65,10 +65,21 @@ const apple = () => new AppleSync({ store: getStore(), run: helperRunner(helperP
 
 // ── 알림 ──
 let changedTimer: NodeJS.Timeout | undefined
+const changeListeners = new Set<() => void>()
 function changed() {
   clearTimeout(changedTimer)
-  changedTimer = setTimeout(() => { for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('calendars:changed') }, 50)
+  changedTimer = setTimeout(() => {
+    for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('calendars:changed')
+    for (const cb of changeListeners) { try { cb() } catch (e) { console.warn('[calendars] 변경 알림 실패:', e) } }
+  }, 50)
 }
+/** 25 §15 월 캘린더 위젯: 구글·Apple 일정이 바뀌면(새로 고침·연결·끊기) 저장 파일을 다시 쓴다 */
+export function onCalendarsChanged(cb: () => void): () => void {
+  changeListeners.add(cb)
+  return () => changeListeners.delete(cb)
+}
+/** 25 §15: 앱 캘린더와 같은 외부 일정(왼쪽 패널에 체크된 캘린더) */
+export const panelEvents = (from: string, to: string) => getStore().events(from, to, { panel: true })
 const progress = (p: ConnectProgress) => { for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('calendars:progress', p) }
 
 // ── 새로 고침 ──

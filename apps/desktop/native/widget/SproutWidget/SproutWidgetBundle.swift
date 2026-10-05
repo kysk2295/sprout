@@ -1,4 +1,4 @@
-// 25 맥 위젯(macOS 14+): ① 오늘 할 일(작게·중간·크게) ② 캐릭터(작게·중간). 설정 없음(StaticConfiguration, D2).
+// 25 맥 위젯(macOS 14+): ① 오늘 할 일(작게·중간·크게) ② 캐릭터(작게·중간) ③ 월 캘린더(중간·크게, §15 — MonthWidget.swift). 설정 없음(StaticConfiguration, D2).
 // 위젯은 앱이 쓴 저장 파일만 읽어 그리고, 체크는 대기열 파일로 앱에 넘긴다(§8.1).
 import SwiftUI
 import WidgetKit
@@ -8,6 +8,7 @@ struct SproutWidgetBundle: WidgetBundle {
     var body: some Widget {
         TodayWidget()
         CharacterWidget()
+        MonthWidget()
     }
 }
 

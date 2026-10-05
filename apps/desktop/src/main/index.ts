@@ -72,10 +72,13 @@ async function openLink(url: string) {
   win.show(); win.focus()
   if (url.startsWith('sprout://auth/')) { handleAuthLink(url); return } // 08 §3.1 애플 로그인에서 돌아옴
   const task = /^sprout:\/\/task\/([\w-]{1,100})\/?$/.exec(url)
+  let m: RegExpExecArray | null
   if (task) win.webContents.send('reminder:open', task[1]) // 알림·미니 창과 같은 "할 일 열기" 통로
   else if (/^sprout:\/\/quick-add\/?$/.test(url)) win.webContents.send('desktop:quick-add') // 25 위젯 `+` = ⌃⇧A와 같은 빠른 추가
   else if (/^sprout:\/\/growth\/?$/.test(url)) showView(win, 'growth') // 25 캐릭터 위젯
   else if (/^sprout:\/\/today\/?$/.test(url)) showView(win, 'tasks', 'smart:today') // 25 오늘 할 일 위젯 머리·"+N개 더"
+  else if ((m = /^sprout:\/\/calendar(?:\/(\d{4}-\d{2}-\d{2}))?\/?$/.exec(url))) win.webContents.send('desktop:navigate', m[1] ? { view: 'calendar', date: m[1] } : { view: 'calendar' }) // 25 §15 월 캘린더 위젯 날짜 칸
+  else if ((m = /^sprout:\/\/event\/([\w-]{1,100})\/?$/.exec(url))) win.webContents.send('desktop:navigate', { view: 'calendar', event: m[1] }) // 25 §15 내 일정 막대
   else if (/^sprout:\/\/map\/?(\?.*)?$/.test(url)) { // 31 §10.4 sprout://map?mode=plan|review|tidy&task=<id>
     const q = new URLSearchParams(url.split('?')[1] ?? '')
     const mode = q.get('mode'); const task = q.get('task')

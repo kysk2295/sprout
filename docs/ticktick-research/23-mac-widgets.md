@@ -27,7 +27,7 @@
 | Today Habits | "Get quick access to today's habits." | S · M · L | 습관 카드(아이콘 원 · 이름 · "20 days"/"0/3 Cup") [그림] |
 | Monthly Calendar View | "Quick view of this month's schedule" | M · L | 월 달력 칸 안에 색 막대 [그림] |
 - **extra large(XL)**: 도움말은 "iOS 27 이후 일부 위젯이 extra-large 지원"만 말한다. 맥 XL 언급 없음 [확인].
-- sprout v1과 관계: 할 일 위젯(Tasks)만 따르고, 매트릭스·습관·달력 위젯은 sprout v1 기능 밖이라 만들지 않는다. 캐릭터 위젯은 틱틱에 없다(→ 틱틱 디자인 언어로 새로).
+- sprout v1과 관계: 할 일 위젯(Tasks)을 따르고, **월 캘린더 위젯(Monthly Calendar View)도 2026-10-05 사용자 요청으로 추가**(§8, 25 §15). 매트릭스·습관 위젯은 sprout v1 기능 밖이라 만들지 않는다. 캐릭터 위젯은 틱틱에 없다(→ 틱틱 디자인 언어로 새로).
 
 ## 3. Tasks 위젯 모양 (크기별)
 ### 3.1 작게 (macOS 갤러리 그림, 13 이전) [그림]
@@ -66,3 +66,15 @@
 3. 위젯 편집 화면의 항목 이름(테마 목록, 리스트 고르기, 완료 보기 여부).
 4. 다크 모드에서 위젯 바탕색(시스템 기본인지 틱틱 다크 `#1B1B1B`인지).
 5. macOS 26의 "착색/투명" 위젯 스타일에서 어떻게 보이는지.
+
+## 8. 월 캘린더 위젯 "Monthly Calendar View" (2026-10-05 보강 — 25 §15)
+| 출처 | 본 것 | 신뢰도 |
+|---|---|---|
+| 틱틱 도움말 [Widgets](https://help.ticktick.com/articles/7055780404896202752) macOS 탭 | "Monthly Calendar View: All the events of the month are instantly displayed, so you can easily scan to know when you are busy and when you are free." | 높음 |
+| 같은 글 macOS 탭 그림(위젯 갤러리 "Monthly Calendar View · Quick view of this month's schedule") | 크기 선택 **M · L** 두 가지(S 없음). **중간 그림 = 머리 "May"(굵게, 왼쪽) + 요일 줄 `M T W T F S S`(월요일 시작, `S S` 강조색 파랑) + 이번 주 한 줄**(7칸 세로 구분선). 오늘 칸 = **강조색 채운 원 안 흰 숫자 "4"** + 칸 오른쪽 위 **"+2"(강조색 작은 글자)**. 칸 안 막대는 위에서부터 쌓인 **한 줄 막대(리스트 색 옅은 면 + 진한 글자, 모서리 2~3)**, 오늘 칸에 7개, 막대 앞 작은 아이콘(⏰·🎉 — 습관·이모지), 제목은 칸 폭에서 잘림(… 없이 자름) | 높음(그림) |
+| 같은 글 iOS 탭 그림(Monthly Calendar View 중간 · Today's Calendar) | iOS 중간 = 머리 `‹ September ›`(가운데, 강조색) + `S M T W T F S` + 이번 주 한 줄, 막대 = 왼쪽 색 띠 + 옅은 면, **지난 날 막대는 흐림**, 오른쪽 아래 강조색 원 `+`. Today's Calendar = 왼쪽 작은 월 달력(오늘 원) + 오른쪽 오늘 할 일 + "+ 9 more" | 높음(iOS) |
+| 같은 글 Android 탭 | 캘린더 위젯 "Timeline", "Week", "Month" — "Monthly View: All your activities for the month are presented instantly" | 높음(Android) |
+| 사용자 스크린샷(2026-10-05, 맥 크게 · 다크) | 다크 둥근 면, 왼쪽 위 "10월", 요일 `일 월 화 수 목 금 토`(일·토 파랑 계열), 5~6주 줄, 오늘 = 파란 채운 원, **다른 달 날짜 흐림**, 칸마다 막대 최대 3개(**리스트·캘린더 색 면 + 흰 글자**, 할 일 파랑 · 공휴일 일정 초록 "국군의날"·"한글날"), **칸 오른쪽 위 "+N"**, 반복 종일 항목 앞 아이콘(예 "⭐ 주말"), **완료 항목 흐림** | 높음(실물) |
+- **누르면** [추정 — 도움말에 없음]: 위젯 칸을 누르면 앱 캘린더가 그 날로, 막대를 누르면 그 항목이 열린다(Daily View "click on tasks to quickly access" 문장과 같은 계열). 위젯 안에서 달 넘기기(iOS `‹ ›`)는 맥 그림에 없다.
+- 위젯 편집 설정(Theme · View · Auto Dark Mode, §5)은 Tasks와 같은 FAQ 문장 — 월 위젯 고유 항목은 확인 못 함.
+- 틱틱 공휴일은 **구독 캘린더 일정(초록 막대)** 으로 들어온 것(research 17 §15: 한국 계정엔 "휴일 표시" 스위치 없음).

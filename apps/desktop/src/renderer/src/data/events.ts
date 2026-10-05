@@ -40,6 +40,15 @@ export async function openEventById(id: string) {
   if (e) requestOpenEvent(eventIdOf(id), e.start_at)
 }
 export function takeOpenEvent() { const p = pendingOpen; pendingOpen = undefined; return p }
+// 25 §15 월 캘린더 위젯 날짜 칸(sprout://calendar/<날짜>): 캘린더 보기가 (지금 또는 열릴 때) 그 날로 간다(보기 종류는 그대로)
+export const OPEN_DATE = 'sprout:calendar-date'
+let pendingDate: string | undefined
+export function requestCalendarDate(date: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(`${date}T00:00`).getTime())) return
+  pendingDate = date
+  window.dispatchEvent(new CustomEvent(OPEN_DATE))
+}
+export function takeCalendarDate() { const d = pendingDate; pendingDate = undefined; return d }
 
 /** "내 일정" 색(캘린더 보기 설정 options_json.myColor, 동기화) */
 export function useMyCalColor(): string | null {

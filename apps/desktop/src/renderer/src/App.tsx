@@ -43,7 +43,7 @@ import { CalendarConnectHost } from './components/calendars/ConnectHost'
 import { OverdueHost, openOverdueCleanup } from './components/overdue/OverdueBits'
 import { useLinkSync } from './components/wiki/LinkText'
 import type { OpenTarget } from './data/wiki'
-import { isEventKey, openEventById, requestOpenEvent } from './data/events'
+import { isEventKey, openEventById, requestCalendarDate, requestOpenEvent } from './data/events'
 import { dayKey } from './lib/dates'
 
 const SIDEBAR = { def: 261, min: 200, max: 400 } // 실측 261
@@ -214,13 +214,14 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
     return ()=>window.removeEventListener('keydown',key)
   })
   useEffect(() => window.sprout?.desktop?.onQuickAdd(() => setOverlay('quick')), [])
-  // 25 §14: 위젯 딥 링크(sprout://today·growth) — 다시 불러오지 않고 보기만 바꾼다
+  // 25 §14·§15: 위젯 딥 링크(sprout://today·growth·calendar/<날짜>·event/<id>) — 다시 불러오지 않고 보기만 바꾼다
   useEffect(() => window.sprout?.desktop?.onNavigate?.((to) => {
     const views: RailView[] = ['tasks', 'calendar', 'growth', 'notes', 'watch', 'wiki', 'diary', 'assistant', 'map']
     if (!views.includes(to.view as RailView)) return
     if (to.view === 'map' && (to.mode === 'review' || to.mode === 'tidy')) { openMap({ mode: to.mode }); return } // 예전 sprout://map?mode=review·tidy → 성장 › 주간 점검 · 정리 화면(2026-10-05)
     setView(to.view as RailView)
     if (to.view === 'map') { if (to.mode || to.task) openMap({ ...(isMapMode(to.mode) ? { mode: to.mode } : {}), ...(to.task ? { task: to.task } : {}) }); return } // 31 §10.4 sprout://map?mode=
+    if (to.view === 'calendar') { if (to.event) void openEventById(to.event); else if (to.date) requestCalendarDate(to.date); return } // 25 §15 월 캘린더 위젯
     if (to.selected) { setSelected(to.selected); setSelection([]) }
   }), [setView, setSelected])
   // 31 §10.4 순간 ①~④가 지도를 부르면 지도 보기로(요청은 지도가 뜰 때 적용)

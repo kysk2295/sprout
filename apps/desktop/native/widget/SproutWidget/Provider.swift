@@ -81,7 +81,44 @@ enum Sample {
      "appliedActions":[]}
     """
     static var snapshot: Snapshot {
-        let text = json.replacingOccurrences(of: "__TODAY__", with: Store.localDay(Date()))
+        let now = Date()
+        var text = json.replacingOccurrences(of: "__TODAY__", with: Store.localDay(now))
+        // §15.3 갤러리 월 캘린더: 이번 달 격자 + 가짜 막대(실제 일정 아님)
+        text = text.replacingOccurrences(of: "\"appliedActions\":[]", with: "\"calendar\":\(calendarJSON(now)),\"appliedActions\":[]")
         return try! JSONDecoder().decode(Snapshot.self, from: Data(text.utf8))
+    }
+
+    /// 이번 달(월요일 시작, 필요한 주만큼) 격자를 예시 막대로 채운 JSON
+    static func calendarJSON(_ now: Date) -> String {
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 2
+        let comps = cal.dateComponents([.year, .month], from: now)
+        let first = cal.date(from: comps)!
+        let lead = (cal.component(.weekday, from: first) + 5) % 7 // 월 = 0
+        let start = cal.date(byAdding: .day, value: -lead, to: first)!
+        let daysInMonth = cal.range(of: .day, in: .month, for: first)!.count
+        let weeks = Int(ceil(Double(lead + daysInMonth) / 7))
+        let samples: [(Int, String, String, Bool)] = [ // (날, 제목, 색, 완료)
+            (2, "주간 회의", "#4E75F2", true), (5, "기획서 초안", "#4E75F2", false), (5, "디자인 리뷰", "#4E75F2", false), (5, "독서 30분", "#E58E3C", false),
+            (8, "병원 예약", "#33B679", false), (12, "출장", "#4E75F2", false), (13, "출장", "#4E75F2", false), (15, "세금 납부", "#E58E3C", false),
+            (16, "스프린트 회고", "#4E75F2", false), (20, "제안서 마감", "#C53C31", false), (22, "치과", "#E58E3C", false), (24, "친구 결혼식", "#C4286A", false), (30, "월간 정리", "#4E75F2", false)
+        ]
+        let month = String(format: "%04d-%02d", comps.year!, comps.month!)
+        var days: [String] = []
+        for i in 0..<(weeks * 7) {
+            let d = cal.date(byAdding: .day, value: i, to: start)!
+            let key = Store.localDay(d)
+            let inMonth = key.hasPrefix(month)
+            let n = cal.component(.day, from: d)
+            var items: [String] = []
+            if inMonth {
+                for s in samples where s.0 == n {
+                    items.append("{\"id\":null,\"kind\":\"task\",\"title\":\"\(s.1)\",\"color\":\"\(s.2)\",\"done\":\(s.3),\"allDay\":true,\"repeat\":false}")
+                }
+                if cal.component(.weekday, from: d) == 4 { items.append("{\"id\":null,\"kind\":\"event\",\"title\":\"요가\",\"color\":\"#E9A23B\",\"done\":false,\"allDay\":false,\"repeat\":true}") }
+            }
+            days.append("{\"d\":\"\(key)\",\(inMonth ? "" : "\"other\":true,")\"count\":\(items.count),\"items\":[\(items.joined(separator: ","))]}")
+        }
+        return "{\"month\":\"\(month)\",\"title\":\"\(comps.month!)월\",\"days\":[\(days.joined(separator: ","))]}"
     }
 }

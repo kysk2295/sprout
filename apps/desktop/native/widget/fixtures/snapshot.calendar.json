@@ -1,0 +1,607 @@
+{
+ "schema": 1,
+ "generatedAt": "2026-10-05T09:12:03+09:00",
+ "day": "2026-10-05",
+ "account": {
+  "signedIn": true
+ },
+ "prefs": {
+  "clock24h": false
+ },
+ "theme": {
+  "accentLight": "#4E75F2",
+  "accentDark": "#545DFA"
+ },
+ "today": {
+  "count": 7,
+  "tasks": [
+   {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "title": "보고서 제출",
+    "priority": 2,
+    "depth": 0,
+    "label": "10월 2일",
+    "labelTone": "danger",
+    "overdueAt": null,
+    "repeat": false
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "title": "아침 스트레칭",
+    "priority": 1,
+    "depth": 0,
+    "label": "오전 8:00",
+    "labelTone": "accent",
+    "overdueAt": null,
+    "repeat": true
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000003",
+    "title": "기획서 초안 쓰기",
+    "priority": 3,
+    "depth": 0,
+    "label": "오전 9:30",
+    "labelTone": "accent",
+    "overdueAt": null,
+    "repeat": false
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000004",
+    "title": "자료 조사",
+    "priority": 0,
+    "depth": 1,
+    "label": null,
+    "labelTone": "accent",
+    "overdueAt": null,
+    "repeat": false
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000005",
+    "title": "독서 30분",
+    "priority": 0,
+    "depth": 0,
+    "label": "오늘",
+    "labelTone": "accent",
+    "overdueAt": null,
+    "repeat": false
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000006",
+    "title": "점심 약속",
+    "priority": 0,
+    "depth": 0,
+    "label": "오후 12:30",
+    "labelTone": "accent",
+    "overdueAt": null,
+    "repeat": false
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000007",
+    "title": "메일 답장",
+    "priority": 1,
+    "depth": 0,
+    "label": "오늘",
+    "labelTone": "accent",
+    "overdueAt": null,
+    "repeat": false
+   }
+  ]
+ },
+ "growth": {
+  "hasCharacter": true,
+  "name": "미미",
+  "species": "cat",
+  "level": 4,
+  "stage": 2,
+  "stageName": "꼬마",
+  "xpInto": 20,
+  "xpToNext": 100,
+  "todayTaskXp": 3,
+  "todayTaskXpCap": 10,
+  "mood": "happy",
+  "art": "art/cat-2-happy@2x.png"
+ },
+ "appliedActions": [],
+ "calendar": {
+  "month": "2026-10",
+  "title": "10월",
+  "days": [
+   {
+    "d": "2026-09-28",
+    "count": 0,
+    "items": [],
+    "other": true
+   },
+   {
+    "d": "2026-09-29",
+    "count": 0,
+    "items": [],
+    "other": true
+   },
+   {
+    "d": "2026-09-30",
+    "count": 0,
+    "items": [],
+    "other": true
+   },
+   {
+    "d": "2026-10-01",
+    "count": 2,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "kind": "task",
+      "title": "분기 보고서",
+      "color": "#4E75F2",
+      "done": true,
+      "allDay": true,
+      "repeat": false
+     },
+     {
+      "id": null,
+      "kind": "ext",
+      "title": "국군의 날",
+      "color": "#33B679",
+      "done": false,
+      "allDay": true,
+      "repeat": false
+     }
+    ]
+   },
+   {
+    "d": "2026-10-02",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "kind": "task",
+      "title": "주간 회의",
+      "color": "#4E75F2",
+      "done": true,
+      "allDay": false,
+      "repeat": false
+     }
+    ]
+   },
+   {
+    "d": "2026-10-03",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "kind": "task",
+      "title": "⭐ 주말",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": true,
+      "repeat": true
+     }
+    ],
+    "holiday": "개천절"
+   },
+   {
+    "d": "2026-10-04",
+    "count": 2,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "kind": "task",
+      "title": "⭐ 주말",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": true,
+      "repeat": true
+     },
+     {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "kind": "task",
+      "title": "장보기",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": true,
+      "repeat": false
+     }
+    ]
+   },
+   {
+    "d": "2026-10-05",
+    "count": 4,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000007",
+      "kind": "task",
+      "title": "메일 답장",
+      "color": "#4E75F2",
+      "done": false,
+      "allDay": true,
+      "repeat": false
+     },
+     {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "kind": "task",
+      "title": "기획서 초안",
+      "color": "#4E75F2",
+      "done": false,
+      "allDay": false,
+      "repeat": false
+     },
+     {
+      "id": "00000000-0000-4000-8000-000000000006",
+      "kind": "task",
+      "title": "디자인 리뷰",
+      "color": "#4E75F2",
+      "done": false,
+      "allDay": false,
+      "repeat": false
+     },
+     {
+      "id": "00000000-0000-4000-8000-000000000008",
+      "kind": "task",
+      "title": "독서 30분",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": false,
+      "repeat": false
+     }
+    ],
+    "holiday": "대체공휴일"
+   },
+   {
+    "d": "2026-10-06",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000009",
+      "kind": "task",
+      "title": "발표 준비",
+      "color": "#4E75F2",
+      "done": false,
+      "allDay": true,
+      "repeat": false
+     }
+    ]
+   },
+   {
+    "d": "2026-10-07",
+    "count": 1,
+    "items": [
+     {
+      "id": "ev-yoga",
+      "kind": "event",
+      "title": "요가",
+      "color": "#E9A23B",
+      "done": false,
+      "allDay": false,
+      "repeat": true
+     }
+    ]
+   },
+   {
+    "d": "2026-10-08",
+    "count": 1,
+    "items": [
+     {
+      "id": null,
+      "kind": "ext",
+      "title": "병원 예약",
+      "color": "#33B679",
+      "done": false,
+      "allDay": false,
+      "repeat": false
+     }
+    ]
+   },
+   {
+    "d": "2026-10-09",
+    "count": 0,
+    "items": [],
+    "holiday": "한글날"
+   },
+   {
+    "d": "2026-10-10",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "kind": "task",
+      "title": "⭐ 주말",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": true,
+      "repeat": true
+     }
+    ]
+   },
+   {
+    "d": "2026-10-11",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "kind": "task",
+      "title": "⭐ 주말",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": true,
+      "repeat": true
+     }
+    ]
+   },
+   {
+    "d": "2026-10-12",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000010",
+      "kind": "task",
+      "title": "출장",
+      "color": "#4E75F2",
+      "done": false,
+      "allDay": true,
+      "repeat": false
+     }
+    ]
+   },
+   {
+    "d": "2026-10-13",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000010",
+      "kind": "task",
+      "title": "출장",
+      "color": "#4E75F2",
+      "done": false,
+      "allDay": true,
+      "repeat": false
+     }
+    ]
+   },
+   {
+    "d": "2026-10-14",
+    "count": 1,
+    "items": [
+     {
+      "id": "ev-yoga",
+      "kind": "event",
+      "title": "요가",
+      "color": "#E9A23B",
+      "done": false,
+      "allDay": false,
+      "repeat": true
+     }
+    ]
+   },
+   {
+    "d": "2026-10-15",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "kind": "task",
+      "title": "세금 납부",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": true,
+      "repeat": false
+     }
+    ]
+   },
+   {
+    "d": "2026-10-16",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000012",
+      "kind": "task",
+      "title": "스프린트 회고",
+      "color": "#4E75F2",
+      "done": false,
+      "allDay": false,
+      "repeat": false
+     }
+    ]
+   },
+   {
+    "d": "2026-10-17",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "kind": "task",
+      "title": "⭐ 주말",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": true,
+      "repeat": true
+     }
+    ]
+   },
+   {
+    "d": "2026-10-18",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "kind": "task",
+      "title": "⭐ 주말",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": true,
+      "repeat": true
+     }
+    ]
+   },
+   {
+    "d": "2026-10-19",
+    "count": 0,
+    "items": []
+   },
+   {
+    "d": "2026-10-20",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000013",
+      "kind": "task",
+      "title": "제안서 마감",
+      "color": "#4E75F2",
+      "done": false,
+      "allDay": true,
+      "repeat": false
+     }
+    ]
+   },
+   {
+    "d": "2026-10-21",
+    "count": 1,
+    "items": [
+     {
+      "id": "ev-yoga",
+      "kind": "event",
+      "title": "요가",
+      "color": "#E9A23B",
+      "done": false,
+      "allDay": false,
+      "repeat": true
+     }
+    ]
+   },
+   {
+    "d": "2026-10-22",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000014",
+      "kind": "task",
+      "title": "치과",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": false,
+      "repeat": false
+     }
+    ]
+   },
+   {
+    "d": "2026-10-23",
+    "count": 0,
+    "items": []
+   },
+   {
+    "d": "2026-10-24",
+    "count": 2,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "kind": "task",
+      "title": "⭐ 주말",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": true,
+      "repeat": true
+     },
+     {
+      "id": "ev-wed",
+      "kind": "event",
+      "title": "친구 결혼식",
+      "color": "#C4286A",
+      "done": false,
+      "allDay": true,
+      "repeat": false
+     }
+    ]
+   },
+   {
+    "d": "2026-10-25",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "kind": "task",
+      "title": "⭐ 주말",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": true,
+      "repeat": true
+     }
+    ]
+   },
+   {
+    "d": "2026-10-26",
+    "count": 0,
+    "items": []
+   },
+   {
+    "d": "2026-10-27",
+    "count": 0,
+    "items": []
+   },
+   {
+    "d": "2026-10-28",
+    "count": 1,
+    "items": [
+     {
+      "id": "ev-yoga",
+      "kind": "event",
+      "title": "요가",
+      "color": "#E9A23B",
+      "done": false,
+      "allDay": false,
+      "repeat": true
+     }
+    ]
+   },
+   {
+    "d": "2026-10-29",
+    "count": 0,
+    "items": []
+   },
+   {
+    "d": "2026-10-30",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000015",
+      "kind": "task",
+      "title": "월간 정리",
+      "color": "#4E75F2",
+      "done": false,
+      "allDay": true,
+      "repeat": false
+     }
+    ]
+   },
+   {
+    "d": "2026-10-31",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "kind": "task",
+      "title": "⭐ 주말",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": true,
+      "repeat": true
+     }
+    ]
+   },
+   {
+    "d": "2026-11-01",
+    "count": 1,
+    "items": [
+     {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "kind": "task",
+      "title": "⭐ 주말",
+      "color": "#E58E3C",
+      "done": false,
+      "allDay": true,
+      "repeat": true
+     }
+    ],
+    "other": true
+   }
+  ]
+ }
+}

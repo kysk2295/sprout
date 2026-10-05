@@ -1,20 +1,28 @@
 // 25 맥 위젯 §8.3 — 위젯에 넘기는 저장 파일(snapshot.json v1)을 만드는 순수 함수와 대기열 파일 검사.
 // Electron에 기대지 않아 시험(tests/widget.test.ts)이 sql.js로 그대로 돌린다. 쓰기·감시는 main/widget.ts.
+// 15 월 캘린더 위젯의 `calendar`(이번 달 격자)도 여기서 만든다(앱 06 캘린더와 같은 보기 설정·쿼리).
 // Swift 쪽 Codable: native/widget/SproutWidget/Snapshot.swift — 두 쪽이 같은 예시 native/widget/fixtures/snapshot.v1.json을 읽는다.
 import { progressFromEvents, SPECIES, STAGES, type Species } from '@sprout/schema/growth'
-import { daysBetween } from '@sprout/schema/time'
 import type { CoreDb } from '@sprout/schema/taskCore'
 import { defaultSettings, openTasksSql } from '../renderer/src/data/views'
 import { rowDateLabel, timeGroup } from '../renderer/src/lib/dates'
 import { findTheme, parseTheme } from '../renderer/src/data/theme'
 import type { TaskRow } from '../renderer/src/data/types'
 import { displayTitle } from '@sprout/schema/wikiLink'
+import { MY_CAL_COLOR, occurrences } from '@sprout/schema/events'
+import { holidayMap } from '@sprout/schema/holidays'
+import { addDays, datePart, daysBetween, hasTime } from '@sprout/schema/time'
+import { colorOf, DEFAULT_OPTIONS, itemsOf, rangeOf, type CalOptions } from '../renderer/src/lib/calendar'
+import { TASK_COLUMNS } from '../renderer/src/data/taskQueries'
+import type { ExtEvent } from '../shared/calendars'
 
 export const SNAPSHOT_SCHEMA = 1
 /** 위젯에 넘기는 할 일 최대 수(크게 13행 + 여유, §8.3) */
 export const MAX_TASKS = 20
 /** 반영한 대기열 id를 기억하는 수(§8.3 appliedActions) */
 export const MAX_APPLIED = 50
+/** 월 캘린더 위젯: 하루에 넣는 막대 최대 수(중간 크기 6줄, §15.5) */
+export const MAX_DAY_ITEMS = 6
 /** 이보다 오래된 대기열 항목은 반영하지 않고 버린다(§8.5 [임시]) */
 export const ACTION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -43,6 +51,18 @@ export type WidgetGrowth = {
   mood: WidgetMood
   art: string
 }
+/** 15 월 캘린더 위젯 — 칸 하나의 막대 */
+export type WidgetCalItem = {
+  id: string | null // task·event만(ext는 null — 날짜 링크)
+  kind: 'task' | 'event' | 'ext'
+  title: string
+  color: string | null // null = 테마 강조색
+  done: boolean
+  allDay: boolean
+  repeat: boolean
+}
+export type WidgetCalDay = { d: string; other?: true; holiday?: string; count: number; items: WidgetCalItem[] }
+export type WidgetCalendar = { month: string; title: string; days: WidgetCalDay[] }
 export type WidgetSnapshot = {
   schema: 1
   generatedAt: string
@@ -52,6 +72,7 @@ export type WidgetSnapshot = {
   theme?: { accentLight: string; accentDark: string }
   today?: { count: number; tasks: WidgetTask[] }
   growth?: WidgetGrowth
+  calendar?: WidgetCalendar
   appliedActions?: string[]
 }
 
@@ -127,7 +148,7 @@ export function growthOf(character: { name: string | null; species: string | nul
 const CHARACTER_SQL = 'SELECT name, species FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1'
 
 /** DB → 저장 파일. 로그아웃이면 로그아웃 형태만(§8.3·§8.8) */
-export async function buildSnapshot(db: CoreDb, opts: { today: string; now: Date; signedIn: boolean; appliedActions?: string[] }): Promise<WidgetSnapshot> {
+export async function buildSnapshot(db: CoreDb, opts: { today: string; now: Date; signedIn: boolean; appliedActions?: string[]; extEvents?: (from: string, to: string) => ExtEvent[] }): Promise<WidgetSnapshot> {
   const generatedAt = isoLocal(opts.now)
   if (!opts.signedIn) return { schema: 1, generatedAt, account: { signedIn: false } }
   const q = openTasksSql('smart:today', defaultSettings('smart:today'), opts.today)
@@ -145,6 +166,7 @@ export async function buildSnapshot(db: CoreDb, opts: { today: string; now: Date
     theme: widgetAccents(prefs?.theme),
     today: { count: items.length, tasks: items.slice(0, MAX_TASKS) },
     growth: growthOf(character, events, opts.today),
+    calendar: await calendarOf(db, opts.today, opts.extEvents),
     appliedActions: (opts.appliedActions ?? []).slice(-MAX_APPLIED)
   }
 }
@@ -177,3 +199,87 @@ export function parseAction(raw: string): WidgetAction | null {
   }
 }
 export const actionTooOld = (a: WidgetAction, now: Date) => now.getTime() - Date.parse(a.at) > ACTION_MAX_AGE_MS
+
+// ── 15 월 캘린더 위젯 ──
+type EvRow = { id: string; title: string | null; start_at: string; end_at: string; repeat_rule: string | null; color: string | null }
+const CAL_S = 'substr(COALESCE(t.start_at, t.due_at), 1, 10)'
+const CAL_E = 'substr(t.due_at, 1, 10)'
+
+/** 06 캘린더 보기 설정(동기화 view_settings 'calendar') — 앱 월 보기와 같은 항목을 고른다 */
+export async function calendarOptionsOf(db: CoreDb): Promise<CalOptions> {
+  const row = await db.get<{ options_json: string | null }>("SELECT options_json FROM view_settings WHERE view_key = 'calendar'")
+  try { return { ...DEFAULT_OPTIONS, ...(row?.options_json ? JSON.parse(row.options_json) : {}) } } catch { return DEFAULT_OPTIONS }
+}
+
+/** 칸 안 순서(§15.2): 종일(여러 날 먼저) → 시각 순. 같은 자리는 들어온 순서 */
+type Raw = WidgetCalItem & { start: string; end: string; seq: number }
+const order = (a: Raw, b: Raw) => {
+  if (a.allDay !== b.allDay) return a.allDay ? -1 : 1
+  if (a.allDay) return a.start.localeCompare(b.start) || b.end.localeCompare(a.end) || a.seq - b.seq
+  return a.start.localeCompare(b.start) || a.seq - b.seq
+}
+
+/** 이번 달 격자(월요일 시작, 그 달에 필요한 주만큼) + 날마다 막대. 앱 06 CalendarView의 쿼리·옵션과 같은 규칙 */
+export async function calendarOf(db: CoreDb, today: string, extEvents?: (from: string, to: string) => ExtEvent[]): Promise<WidgetCalendar> {
+  const opts = await calendarOptionsOf(db)
+  const { from, to, days } = rangeOf('month', today)
+  // 할 일 — CalendarView와 같은 조건(보관한 리스트 제외 · 완료 보기 · 반복 회차 · 리스트/태그 필터)
+  const cond = ['t.due_at IS NOT NULL', 't.deleted_at IS NULL', 'l.archived_at IS NULL']
+  const ps: unknown[] = []
+  if (!opts.completed) cond.push('t.status = 0')
+  let when = `(${CAL_S} <= ? AND ${CAL_E} >= ?)`
+  ps.push(to, from)
+  if (opts.repeats) { when = `(${when} OR (t.repeat_rule IS NOT NULL AND t.status = 0 AND ${CAL_S} <= ?))`; ps.push(to) }
+  cond.push(when)
+  if (opts.lists.length || opts.tags.length) {
+    const parts: string[] = []
+    if (opts.lists.length) { parts.push(`t.list_id IN (${opts.lists.map(() => '?').join(',')})`); ps.push(...opts.lists) }
+    if (opts.tags.length) { parts.push(`EXISTS (SELECT 1 FROM task_tags tt WHERE tt.task_id = t.id AND tt.tag_id IN (${opts.tags.map(() => '?').join(',')}))`); ps.push(...opts.tags) }
+    cond.push(`(${parts.join(' OR ')})`)
+  }
+  const tasks = await db.getAll<TaskRow>(`SELECT ${TASK_COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE ${cond.join(' AND ')} ORDER BY t.due_at, t.priority DESC, t.sort_order`, ps)
+  const tagRows = opts.color === 'tag' ? await db.getAll<{ id: string; color: string | null }>('SELECT id, color FROM tags') : []
+  const tagColor = (id: string) => tagRows.find((t) => t.id === id)?.color
+  const raws: Raw[] = []
+  let seq = 0
+  const hex = (c: string | null | undefined) => (c && /^#[0-9A-Fa-f]{6}$/.test(c) ? c : null) // 'var(--color-accent)' 등은 null → 위젯 강조색
+  for (const it of itemsOf(tasks, from, to, !!opts.repeats)) {
+    raws.push({ id: it.task.id, kind: 'task', title: displayTitle(it.task.title) || '제목 없음', color: hex(colorOf(it.task, opts.color, tagColor)), done: it.task.status !== 0 && !it.virtual, allDay: !hasTime(it.end), repeat: !!it.task.repeat_rule, start: it.start, end: it.end, seq: seq++ })
+  }
+  // 내 일정(06 §14.4) — "내 일정" 체크를 끄면 없음
+  if (opts.myCal !== 0) {
+    const evs = await db.getAll<EvRow>(`SELECT id, title, start_at, end_at, repeat_rule, color FROM events WHERE deleted_at IS NULL AND start_at IS NOT NULL AND end_at IS NOT NULL
+      AND ((substr(start_at, 1, 10) <= ? AND substr(end_at, 1, 10) >= ?) OR (repeat_rule IS NOT NULL AND substr(start_at, 1, 10) <= ?)) ORDER BY start_at`, [to, from, to])
+    for (const e of evs) {
+      const color = hex(e.color || opts.myColor || MY_CAL_COLOR)
+      for (const o of occurrences(e, from, to)) raws.push({ id: e.id, kind: 'event', title: e.title || '제목 없음', color, done: false, allDay: !hasTime(o.start), repeat: !!e.repeat_rule, start: o.start, end: o.end, seq: seq++ })
+    }
+  }
+  // 구글·Apple(16) — 왼쪽 패널에 체크된 캘린더만(앱 캘린더와 같다)
+  let ext: ExtEvent[] = []
+  try { ext = extEvents?.(from, to) ?? [] } catch { ext = [] }
+  for (const e of ext) raws.push({ id: null, kind: 'ext', title: e.title || '제목 없음', color: hex(e.color), done: false, allDay: e.allDay, repeat: e.recurring, start: e.start, end: e.end, seq: seq++ })
+  raws.sort(order)
+
+  const holidays = opts.holidays !== 0 ? holidayMap(from, to) : new Map<string, string>()
+  const month = today.slice(0, 7)
+  const byDay = new Map<string, Raw[]>(days.map((d) => [d, []]))
+  for (const r of raws) {
+    // 여러 날 항목은 날마다 막대 하나(§15.2). 시각 항목이 자정을 넘기면 끝 날짜까지
+    const s = datePart(r.start) < from ? from : datePart(r.start)
+    const e = datePart(r.end) > to ? to : datePart(r.end)
+    for (let d = s, i = 0; d <= e && i < 60; d = addDays(d, 1), i++) byDay.get(d)?.push(r)
+  }
+  return {
+    month,
+    title: `${Number(month.slice(5, 7))}월`,
+    days: days.map((d) => {
+      const list = byDay.get(d) ?? []
+      const day: WidgetCalDay = { d, count: list.length, items: list.slice(0, MAX_DAY_ITEMS).map(({ start: _s, end: _e, seq: _q, ...it }) => it) }
+      if (d.slice(0, 7) !== month) day.other = true
+      const h = holidays.get(d)
+      if (h) day.holiday = h
+      return day
+    })
+  }
+}

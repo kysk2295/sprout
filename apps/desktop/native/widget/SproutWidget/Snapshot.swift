@@ -31,6 +31,28 @@ struct Snapshot: Codable {
         let mood: String
         let art: String
     }
+    /// 25 §15.5 월 캘린더 위젯 — 이번 달 격자(월요일 시작, 35 또는 42칸)
+    struct CalItem: Codable, Hashable {
+        let id: String?     // task·event만(ext는 null → 날짜 링크)
+        let kind: String    // "task" | "event" | "ext"
+        let title: String
+        let color: String?  // null = 테마 강조색
+        let done: Bool
+        let allDay: Bool
+        let `repeat`: Bool
+    }
+    struct CalDay: Codable, Hashable {
+        let d: String       // YYYY-MM-DD
+        let other: Bool?    // 다른 달 칸
+        let holiday: String?
+        let count: Int      // 그 날 전체 항목 수(items는 최대 6개)
+        let items: [CalItem]
+    }
+    struct CalMonth: Codable {
+        let month: String   // YYYY-MM
+        let title: String   // "10월"
+        let days: [CalDay]
+    }
     let schema: Int
     let generatedAt: String
     let day: String?
@@ -39,6 +61,7 @@ struct Snapshot: Codable {
     let theme: Theme?
     let today: Today?
     let growth: Growth?
+    let calendar: CalMonth?
     let appliedActions: [String]?
 }
 
