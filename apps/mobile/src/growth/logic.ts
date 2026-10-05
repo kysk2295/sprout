@@ -195,7 +195,7 @@ export function gainedSince(events: Pick<XpRow, 'kind' | 'amount' | 'created_at'
     sorted.forEach((e, i) => { if (total < from) start = i + 1; total += e.amount })
     rows = sorted.slice(Math.max(0, start - 1))
   }
-  const label = (k: string) => (k.startsWith('task') ? '할 일 완료' : k === 'kpi_all' ? '모두 달성 보너스' : '목표 달성')
+  const label = (k: string) => (k.startsWith('task') ? '할 일 완료' : k === 'kpi_all' ? '모두 달성 보너스' : k === 'review' ? '주간 점검' : k === 'tidy' ? '정리 보너스' : '목표 달성')
   const sums = new Map<string, number>()
   for (const e of rows) sums.set(label(e.kind), (sums.get(label(e.kind)) ?? 0) + e.amount)
   return [...sums].filter(([, n]) => n > 0).map(([l, n]) => ({ label: l, amount: n }))
@@ -223,6 +223,8 @@ export function xpLabel(e: Pick<XpRow, 'kind' | 'amount'>, title: string | undef
   if (e.kind === 'task_revoke') return of('완료 취소')
   if (e.kind === 'kpi') return of('목표 달성')
   if (e.kind === 'kpi_revoke') return of('목표 취소')
+  if (e.kind === 'review') return '주간 점검 완료'
+  if (e.kind === 'tidy') return '정리 보너스'
   return e.amount > 0 ? '이번 주 목표 모두 달성' : '모두 달성 취소'
 }
 /** 날짜 묶음(오늘·어제·요일), 최근 날부터. 상한 날은 머리 문구 */

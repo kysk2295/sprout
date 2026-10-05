@@ -339,12 +339,14 @@
 | 완료 취소(같은 날) | −1 | 그날 그 할 일로 받은 XP를 되돌린다. 다음 날 취소는 되돌리지 않는다 [임시] |
 | KPI 1개 달성 | +30 | **달성하는 순간**. 같은 주에 목표 아래로 내려가면 되돌림 |
 | KPI 전부 달성 | +20 | 확정한 KPI가 2개 이상이고 모두 이룬 순간 [임시] |
+| 주간 점검 완료 | +30 | 주간 점검(성장 탭 — 31 R.5)에서 `점검 끝내기 ✓`를 누른 순간. **점검한 주(ISO 주, 월요일 시작)마다 한 번** — 다시 고르고 다시 끝내도, 두 기기에서 끝내도 한 번. 끝내기 되돌리기(만든 목표 지움)는 XP를 되돌리지 않는다 (2026-10-05 사용자 결정 "XP를 줘") |
+| 정리 완료 | +20 | 정리(기본함 정리 카드에서 열림 — 31 T.7)에서 네 더미가 모두 0이 되어 `다 정리했어!`에 닿고, **그 정리에서 1개 이상 처리했을 때**(옮김·묶음·기한 지난 일 동작 — 처음부터 비어 있으면 없음). **하루(로컬 날짜) 한 번**. 할 일 XP 하루 상한(+10)과 따로 센다. `이번 정리 되돌리기`는 XP를 되돌리지 않는다(같은 날 다시 정리해도 또 받지 않으므로) (2026-10-05 사용자 결정) |
 - XP는 줄어들어도 **레벨은 내려가지 않는다**(되돌림은 다음 레벨까지 거리만 늘린다) [임시 — 박탈감 방지].
 
 ## 7. 데이터
 | 테이블(동기화) | 칸 | 비고 |
 |---|---|---|
-| `xp_events` | id, owner_id, kind(`task`·`task_revoke`·`kpi`·`kpi_revoke`·`kpi_all`), amount, ref_id, day, created_at | **id를 사건에서 만든다**(`task:<taskId>:<day>`, `kpi:<kpiId>`, 주 단위는 `kpi-all:<캐릭터 id>:<주>` — 사용자끼리 겹치지 않게) → 두 기기가 같은 완료로 XP를 이중 지급하지 않는다(같은 id로 합쳐짐) |
+| `xp_events` | id, owner_id, kind(`task`·`task_revoke`·`kpi`·`kpi_revoke`·`kpi_all`·`review`·`tidy`), amount, ref_id, day, created_at | **id를 사건에서 만든다**(`task:<taskId>:<day>`, `kpi:<kpiId>`, 주 단위는 `kpi-all:<캐릭터 id>:<주>` — 사용자끼리 겹치지 않게; 점검 `review:<캐릭터 id>:<ISO 주 월요일>`·ref `review:<월요일>`, 정리 `tidy:<캐릭터 id>:<day>`·ref `tidy:<day>` — 만드는 곳은 `@sprout/schema/growth` `reviewXpEvent`·`tidyXpEvent`, 넣는 곳은 `@sprout/schema/taskCore` `planReviewXp`·`planTidyXp`(같은 id가 있으면 안 넣는다)) → 두 기기가 같은 완료로 XP를 이중 지급하지 않는다(같은 id로 합쳐짐) |
 | `characters` (Postgres 예약어 피함) | id, owner_id, name, species(`turtle`·`squirrel`·`cat`·`otter`), type_code(예 `plan-deep`), answers_json, assessed_at, created_at | 레벨·단계는 저장하지 않고 계산. 다시 조사하면 species·type만 바뀐다 |
 | `kpis` (주간 목표) | id, owner_id, week_start, title, target(기본 1), progress(직접 센 수), link_kind(`none`·`task`·`tag`·`list`), link_id, status(`active`·`achieved`·`missed`), source(`manual`·`ai`), achieved_at, sort_order | 연결이 있으면 진행은 계산, 없으면 progress. 다음 주에 적은 목표는 week_start가 다음 주 |
 | `weekly_reports` | id(`report:<캐릭터 id>:<week_start>`), owner_id, week_start, stats_json, text_json, xp_total, seen_at | 숫자(stats)는 앱이 계산해 저장, 문장(text)은 AI. `text_json` = `{ report?: {done, goals, next[]}, reportTried?, draft?: [{title, target}], draftTried?, draftWeek?, dismissed?: [] }` — 이 주 마감 때 쓴 AI 시도 기록(리포트 1 · 다음 주 초안 1)도 여기 둔다(스키마 추가 없음) |
@@ -365,6 +367,7 @@
 - [x] 주간 리포트가 오른쪽 칸에 쌓이고, 숫자는 앱 계산과 같다(로직 테스트: 숫자 계산·AI 답 검사·주 1회 한도·다시 마감해도 XP 그대로).
 - [x] AI가 없으면 숫자만 있는 리포트 + "지금은 AI를 쓸 수 없어요"·다시 시도, 연결되면 문장을 채운다(로직 테스트).
 - [ ] 서버가 AI 호출을 주 2회로 막는다(3번째는 429).
+- [x] 주간 점검을 끝내면 +30, 같은 주에 다시 끝내도 그대로(로직 테스트 `taskCore.test.ts` ⑥). 정리에서 1개 이상 처리하고 다 비우면 +20, 같은 날 두 번째는 없음(⑦). XP 내역 이름 `주간 점검 완료`·`정리 보너스`.
 - [ ] 라이트·다크에서 틱틱 디자인 언어(카드·그룹 머리·강조색·간격)와 어긋나지 않는다.
 
 ## 9. 실제 서버 E2E 메모 (2026-10-04, 새 가입 계정 · Mac mini AI 프록시)

@@ -94,7 +94,7 @@
 | 채널 | `tasks` "할 일 알림"(높음) — 이미 있음 |
 | 제목 | 할 일 제목(없으면 `제목 없음`) |
 | 본문 | `오늘 오후 3:00 · 기본함`(plan.ts `bodyOf` — 서버도 같은 함수를 `packages/schema`로 옮겨 씀) |
-| 버튼 | **완료 · 10분 뒤 다시 알림 · 1시간 뒤 다시 알림**(카테고리 `sprout-task`, 앱을 열지 않음). Android는 버튼을 3개까지만 그린다 — 틱틱 Android 기본도 `Done`·`Snooze` 두 종류(research 30 §6) → `내일`은 뺐다(§17.6, 2026-10-05). 예전 판 알림의 `내일` 응답은 계속 처리 |
+| 버튼 | **완료 · 다시 알림** 두 개(카테고리 `sprout-task`, 앱을 열지 않음) — 틱틱 Android 기본 `Done`·`Snooze`와 같다(research 30 §6, **2026-10-05 사용자 결정 "틱틱과 동일하게"**). `다시 알림` = 설정 › 소리와 알림 › **다시 알림 시간**(기본 15분, 15분·30분·1시간·3시간 — §7.1) 뒤 다시 울림. iOS 카테고리도 같은 두 개. 일정 알림(`sprout-event`)은 `다시 알림` 하나. 예전 판에서 이미 떠 있는 알림의 버튼(`snooze-10`·`snooze-60`·`snooze-tomorrow`)은 계속 그 분(10분·1시간·내일)으로 처리 |
 | 누르기 | `sprout://task/<id>` |
 | "알림에 제목 숨기기" 켬 | 제목 `할 일 알림`, 본문 `오늘 오후 3:00` — 서버 페이로드에 제목·리스트 이름이 **아예 없다**. 앱이 로컬 DB에서 제목을 찾을 수 있으면 화면에는 제목을 보인다(기기 안 데이터라 괜찮음) |
 - 버튼 동작은 지금 `handleResponse` 그대로: 완료 = 로컬 DB에 완료 + XP(공용 `completeTasks`) → 연결되면 업로드(오프라인 OK). API를 직접 부르지 않는다(로컬 퍼스트 한 길만 유지).
@@ -144,6 +144,8 @@
 ┌ 할 일 알림 ─────────────── ● ┐   켬: 로컬 예약 + 서버 알림
 │ 알림에 제목 숨기기 ──────── ○ │   설명: "잠금 화면·서버 전송에 할 일 제목을 넣지 않아요"
 └──────────────────────────────┘
+┌ 다시 알림 시간 ────────── 15분 ┐   [틱틱 설정의 다시 알림 시간, research 30 §6] 누르면 아래에 15분·30분·1시간·3시간(고른 것 ✓)
+└──────────────────────────────┘   설명: "알림의 다시 알림 버튼을 누르면 이만큼 뒤에 다시 울려요" · 값 notify_json.snoozeMinutes(동기화)
 ┌ 하루 요약 ──────────────── ○ ┐   [틱틱]
 │ 받을 시각 ───────── 오전 8:00 │   휠 시트(22 시간 휠 재사용)
 │ 주말 건너뛰기 ───────────── ○ │
@@ -215,7 +217,7 @@ CREATE INDEX IF NOT EXISTS tasks_open_due_idx ON tasks (due_at) WHERE status = 0
 - 원문(할 일 제목 등)은 이 테이블들에 **저장하지 않는다**. 로그도 "사용자 1명·기기 2대에 1건"처럼 숫자만.
 
 ### 9.2 동기화 테이블 한 칸 추가 — `user_prefs.notify_json` (text) [승인]
-- `{ "reminders": true, "hideTitles": false, "daily": {"on": false, "time": "08:00", "skipWeekends": false}, "growth": {"evolve": true, "report": true, "goalDue": true, "inboxCleanup": false} }` — 없으면 이 기본값.
+- `{ "reminders": true, "hideTitles": false, "daily": {"on": false, "time": "08:00", "skipWeekends": false}, "growth": {"evolve": true, "report": true, "goalDue": true, "inboxCleanup": false}, "snoozeMinutes": 15 }` — 없으면 이 기본값. `snoozeMinutes`(2026-10-05)는 15·30·60·180 밖이면 15(`@sprout/schema/notify` `SNOOZE_MINUTES`). 서버는 이 칸을 쓰지 않는다(다시 알림은 기기에서만, §4.4).
 - 사용자 단위라 데스크톱 설정에서도 바꾼다: 데스크톱 설정에 **`알림` 탭**(DesktopSettings의 탭 줄, `일반` 앞)을 더하고 위 칸들을 `휴대폰으로 받는 알림` 머리 아래 같은 순서로 둔다(시험 알림·배터리 줄 없음). 데스크톱 자기 OS 알림은 지금처럼 늘 켜짐(03 §7) — 이 탭에 `이 컴퓨터의 할 일 알림` 스위치를 둘지는 [다음]. → 구현 §16.
 - 바꾸는 곳: `packages/schema` TABLES → `npm run server:schema`(gen-sql·sync-config 다시 생성) → `ALTER TABLE user_prefs ADD COLUMN IF NOT EXISTS notify_json text`. **서버를 먼저 배포**하고 앱을 낸다(모르는 칸 = 409, upload.ts 규칙).
 - 기기별 값(이 휴대폰의 권한·`push_reminders`)은 `device_tokens`에만.
@@ -277,7 +279,8 @@ CREATE INDEX IF NOT EXISTS tasks_open_due_idx ON tasks (due_at) WHERE status = 0
 | 8. iOS (계정 생긴 뒤) | §11 1~5, N3 다시 | iPhone에서 1~9 |
 
 ## 14. 완료 기준
-- [ ] 1. 휴대폰 앱을 **설치 후 한 번도 다시 안 연 상태**(백그라운드·닫힘)에서 데스크톱으로 "10분 뒤" 알림 할 일을 만들면 휴대폰에 제때(±1분) 알림이 뜨고, 버튼 **완료 · 10분 뒤 · 1시간 뒤**(3개 — Android 한도, 틱틱 Android 기본 `Done`·`Snooze`처럼 완료가 맨 앞)가 잠금 화면에서 바로 보인다(틱틱 Android와 나란히 — research 20 §4·30 §6). 로컬 알림도 같은 3개.
+- [ ] 1. 휴대폰 앱을 **설치 후 한 번도 다시 안 연 상태**(백그라운드·닫힘)에서 데스크톱으로 "10분 뒤" 알림 할 일을 만들면 휴대폰에 제때(±1분) 알림이 뜨고, 버튼 **완료 · 다시 알림**(틱틱 Android 기본 `Done`·`Snooze`와 같은 2개, 완료가 맨 앞)이 잠금 화면에서 바로 보인다(틱틱 Android와 나란히 — research 20 §4·30 §6). 로컬 알림도 같은 2개. `다시 알림` → 설정의 다시 알림 시간 뒤 다시 울림.
+  - **2026-10-05 바뀜(사용자 결정 "틱틱과 동일하게", 전: 완료 · 10분 뒤 · 1시간 뒤)**: 버튼은 **완료 · 다시 알림** 두 개(로컬·서버 알림 같음, iOS 카테고리 같음). `다시 알림`을 누르면 설정의 다시 알림 시간(기본 15분) 뒤에 다시 울린다. 일정 알림은 `다시 알림` 하나. 이미 떠 있던 예전 알림의 `10분 뒤`·`1시간 뒤`·`내일`도 계속 동작.
 - [ ] 2. 휴대폰이 이미 아는 할 일(로컬 예약 있음)은 **한 번만** 울린다 — 같은 할 일 20개로 확인, 겹침 0.
 - [ ] 3. 서버 알림의 완료 버튼 → 앱을 열지 않고 완료 + XP(하루 상한 그대로), 데스크톱에 동기화된다. 비행기 모드에서 눌러도 다시 연결되면 올라간다.
 - [ ] 4. 데스크톱에서 완료·삭제·시각 변경 → 휴대폰에 떠 있던 알림이 몇 초 안에 사라진다(서버 알림·로컬 알림 둘 다).
@@ -422,7 +425,7 @@ CREATE INDEX IF NOT EXISTS tasks_open_due_idx ON tasks (due_at) WHERE status = 0
 | # | 결정 | 근거 |
 |---|---|---|
 | E1 정확한 알람 | **ⓐ + ⓒ**: `SCHEDULE_EXACT_ALARM`을 선언하고 사용자가 허용하게 안내(설정 줄 + 첫 알림 때 한 번). 허용이 없으면 **로컬 예약 보고를 빈 목록**으로 → 서버가 모든 할 일 알림을 정시에. `USE_EXACT_ALARM`은 쓰지 않는다 | 틱틱도 제시간 문제는 소리와 알림 안의 칸(Advanced Settings › Alert Mode)으로 안내한다. 허용하지 않은 사용자도 손댈 것 없이 제때 받는다(인터넷 연결 때). Play 정책 위험 없음 |
-| E2 알림 버튼 | **완료 · 10분 뒤 다시 알림 · 1시간 뒤 다시 알림**(로컬·서버 같음) | Android 한도 3. 틱틱 Android 기본은 `Done`·`Snooze` 2개(설정 › Notification & Status Bar에서 바꿈) — 완료 맨 앞 + 다시 알림. `내일`은 빠짐(누르면 상세에서 날짜를 옮김) |
+| E2 알림 버튼 | ~~완료 · 10분 뒤 · 1시간 뒤~~ → **완료 · 다시 알림**(2026-10-05 사용자 결정 "틱틱과 동일하게", §4.4 — 다시 알림 시간은 설정) (로컬·서버 같음) | Android 한도 3. 틱틱 Android 기본은 `Done`·`Snooze` 2개(설정 › Notification & Status Bar에서 바꿈) — 완료 맨 앞 + 다시 알림. `내일`은 빠짐(누르면 상세에서 날짜를 옮김) |
 | E3 서버: 지우기 있는 `sync`를 high로 | **하지 않음** | 지우기는 데스크톱에서 할 일을 완료·삭제할 때마다 그 사용자의 모든 Android 기기로 간다(§4.5) — 보이는 알림이 없는 high 메시지가 잦으면 FCM이 그 앱의 high 메시지를 낮춘다(§4.3 "왜 2번이 필요한가"와 같은 이유) → 정작 할 일 알림이 늦어질 위험이 더 크다. Doze가 아니면 지금도 몇 초 안에 지워진다(§17.5 A'). 다음에 한다면 "그 기기에 최근 24시간 서버 알림을 보낸 할 일"(`push_sent`)일 때만 high로 좁힌다 [다음]. 서버 코드·배포 변경 없음 |
 
 **구현 (휴대폰만 — 서버·데스크톱·schema 변경 없음)**
@@ -438,3 +441,10 @@ CREATE INDEX IF NOT EXISTS tasks_open_due_idx ON tasks (due_at) WHERE status = 0
 
 **확인**: `npm run typecheck:mobile` · `npm run test:mobile` · `npm test` · `npm run test:api` 통과. `expo prebuild --platform android` → 자동 링크에 `sprout-alarms` 잡힘, `:sprout-alarms:compileDebugKotlin` 성공, 합친 매니페스트에 `SCHEDULE_EXACT_ALARM`(그 뒤 `apps/mobile/android` 지움). **에뮬레이터 실측은 안 함** — 완료 기준 14(허용 켬/끔 시 정시 울림·`local_keys` 다시 보고)는 다음 기기 확인 때 본다.
 
+
+### 17.8 알림 버튼 = 틱틱 (2026-10-05 사용자 결정 "틱틱과 동일하게")
+- 할 일 알림 버튼 **완료 · 다시 알림**(`done`·`snooze`), 일정 알림 **다시 알림**(`snooze`) — Android·iOS 카테고리 같음. 서버는 카테고리 이름(`sprout-task`)만 보내므로 **서버 변경·배포 없음**.
+- `다시 알림` 분 = `user_prefs.notify_json.snoozeMinutes`(설정 › 소리와 알림 › 다시 알림 시간, 15분·30분·1시간·3시간, 기본 15분). 틱틱은 "다시 알림 시간을 앱 설정에서 바꿀 수 있다"까지만 공식 글에 있고 기본값은 [미확인] → 앱 안 다시 알림 시트(research 24 §11)의 첫 칸 15분을 기본으로 [추정].
+- 예전 버튼 id(`snooze-10`·`snooze-60`·`snooze-tomorrow`)는 `LEGACY_SNOOZE_ACTIONS`로 계속 처리(이미 떠 있는 Android 알림은 띄울 때의 버튼을 그대로 가진다).
+- 코드: `apps/mobile/src/notifications/plan.ts`(`ACTION_SNOOZE`·`SNOOZE_LABEL`·`snoozeMinutesOf`) · `index.ts`(카테고리·응답) · `app/(tabs)/settings/notifications.tsx`(다시 알림 시간 줄) · `packages/schema/src/notify.ts`(`snoozeMinutes`·`SNOOZE_MINUTES`). 시험 `plan.test`·`notify.test`.
+- 데스크톱 OS 알림(`main/reminders.ts`, 완료 + `5분 후`…`내일` 드롭다운)·앱 안 알림 카드는 그대로 — 틱틱 데스크톱 OS 알림 버튼은 조사(research 09: 팝업 = 닫기·집중 시작·완료·다시 알림)에 없어서 바꾸지 않았다. 실기기 확인 남음(완료 기준 1).

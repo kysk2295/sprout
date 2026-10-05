@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import initSqlJs from 'sql.js'
 import { TABLES } from './index.ts'
-import { planComplete, planCompleteWithXp, planGrantTaskXp, planReopen, planReopenWithXp, planRevokeTaskXp, insertStmt, type CoreDb, type Stmt } from './taskCore.ts'
+import { planComplete, planCompleteWithXp, planGrantTaskXp, planReviewXp, planTidyXp, planReopen, planReopenWithXp, planRevokeTaskXp, insertStmt, type CoreDb, type Stmt } from './taskCore.ts'
 
 const SQL = await initSqlJs()
 const sqldb = new SQL.Database()
@@ -83,5 +83,35 @@ run(w.stmts)
 assert.equal(task('w').status, 1)
 assert.equal(xpSum(), before + 1)
 assert.equal((await planCompleteWithXp(db, ['w'], env)).stmts.length, 0)
+
+// ⑥ 주간 점검 +30: 같은 ISO 주는 한 번(점검한 주의 아무 날을 줘도 월요일로 맞춘다), 다른 주는 또
+{
+  const before = xpSum()
+  const r1 = await planReviewXp(db, 'ch1', '2026-09-30', env) // 9/28(월) 주
+  assert.equal(r1.granted, 30)
+  run(r1.stmts)
+  assert.equal(xpSum(), before + 30)
+  const row = all("SELECT * FROM xp_events WHERE kind = 'review'")[0]
+  assert.equal(row.id, 'review:ch1:2026-09-28')
+  assert.equal(row.ref_id, 'review:2026-09-28')
+  assert.equal(row.day, env.today)
+  assert.equal((await planReviewXp(db, 'ch1', '2026-10-04', env)).stmts.length, 0) // 같은 주(일요일)
+  const r2 = await planReviewXp(db, 'ch1', '2026-10-05', env) // 다음 주(월)
+  assert.equal(r2.granted, 30)
+  run(r2.stmts)
+  assert.equal(xpSum(), before + 60)
+}
+// ⑦ 정리 +20: 하루 한 번, 다음 날은 또
+{
+  const before = xpSum()
+  const t1 = await planTidyXp(db, 'ch1', env)
+  assert.equal(t1.granted, 20)
+  run(t1.stmts)
+  assert.equal((await planTidyXp(db, 'ch1', env)).stmts.length, 0)
+  run((await planTidyXp(db, 'ch1', { ...env, today: '2026-10-05' })).stmts)
+  assert.equal(xpSum(), before + 40)
+  // 할 일 XP 하루 상한(10)과 따로 센다
+  assert.equal(all("SELECT id FROM xp_events WHERE kind = 'tidy'").length, 2)
+}
 
 console.log('taskCore: ok')

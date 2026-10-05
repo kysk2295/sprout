@@ -2,8 +2,9 @@
 // 성장 소식 · 시험 알림 · 배터리 안내 · 서버 알림 상태 줄. 값은 동기화되는 user_prefs.notify_json(데스크톱 설정 › 알림과 같음).
 // 이 휴대폰의 권한·등록(push_reminders)은 서버 device_tokens에만 — 바꾸면 push.ts가 다시 등록한다.
 import { formatTimeKo } from '@sprout/schema/time'
+import { SNOOZE_MINUTES, snoozeLabel } from '@sprout/schema/notify'
 import { useFocusEffect, useRouter } from 'expo-router'
-import { AlarmClock, Bell, ChevronLeft } from 'lucide-react-native'
+import { AlarmClock, Bell, Check, ChevronLeft } from 'lucide-react-native'
 import { useCallback, useState } from 'react'
 import { AppState, Linking, Platform, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
 import { saveNotifyPrefs, useNotifyPrefs } from '../../../src/data/notifyPrefs'
@@ -40,6 +41,7 @@ export default function NotificationSettings() {
   const [perm, setPerm] = useState<PermissionState | null>(null)
   const [exact, setExact] = useState<ExactAlarmState>(() => exactAlarmState())
   const [wheel, setWheel] = useState(false)
+  const [snoozeOpen, setSnoozeOpen] = useState(false)
   const [testing, setTesting] = useState(false)
 
   const refresh = useCallback(() => {
@@ -129,6 +131,17 @@ export default function NotificationSettings() {
             <Cell label="알림에 제목 숨기기" right={sw(prefs.hideTitles, (v) => void saveNotifyPrefs({ hideTitles: v }), '알림에 제목 숨기기')} />
           </Cells>
           <Text style={[s.foot, { color: p.textTertiary }]}>잠금 화면·서버 전송에 할 일 제목을 넣지 않아요</Text>
+
+          {/* 32 §4.4: 알림의 `다시 알림` 버튼이 미루는 시간(틱틱 설정의 다시 알림 시간, research 30 §6). 누르면 아래에 고르기 칸 */}
+          <Cells>
+            <Cell first label="다시 알림 시간" value={snoozeLabel(prefs.snoozeMinutes)} chevron={false} onPress={() => setSnoozeOpen((o) => !o)} />
+            {snoozeOpen ? SNOOZE_MINUTES.map((m) => (
+              <Cell key={m} label={snoozeLabel(m)} chevron={false}
+                onPress={() => { void saveNotifyPrefs({ snoozeMinutes: m }); setSnoozeOpen(false) }}
+                right={prefs.snoozeMinutes === m ? <Check size={18} color={p.accent} /> : undefined} />
+            )) : null}
+          </Cells>
+          <Text style={[s.foot, { color: p.textTertiary }]}>알림의 다시 알림 버튼을 누르면 이만큼 뒤에 다시 울려요</Text>
 
           {showServer ? (
             <>

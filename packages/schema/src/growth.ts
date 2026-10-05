@@ -2,9 +2,10 @@
 // 레벨은 저장하지 않고 XP 원장에서 계산한다(규칙을 바꿔도 다시 계산된다, PRD §7.3).
 
 // ── XP 규칙 (10 §6) ──
-export const XP = { task: 1, taskDailyCap: 10, kpi: 30, kpiAll: 20, kpiXpLimit: 3, goalsPerWeek: 5 } as const
+export const XP = { task: 1, taskDailyCap: 10, kpi: 30, kpiAll: 20, kpiXpLimit: 3, goalsPerWeek: 5, review: 30, tidy: 20 } as const
 
-export type XpKind = 'task' | 'task_revoke' | 'kpi' | 'kpi_revoke' | 'kpi_all'
+/** review = 주간 점검 완료(ISO 주 한 번), tidy = 정리 모드 "다 정리했어!"(하루 한 번) — 10 §6, 2026-10-05 사용자 결정 */
+export type XpKind = 'task' | 'task_revoke' | 'kpi' | 'kpi_revoke' | 'kpi_all' | 'review' | 'tidy'
 export type XpEvent = { id: string; kind: XpKind; amount: number; ref_id: string; day: string; created_at: string }
 
 /** 사건에서 id를 만든다 — 두 기기가 같은 사건으로 XP를 두 번 주지 않게(같은 id로 합쳐진다) */
@@ -15,7 +16,40 @@ export const xpEventId = {
   kpi: (kpiId: string, seq = 0) => (seq ? `kpi:${kpiId}:${seq}` : `kpi:${kpiId}`),
   // 주 단위 사건은 사용자마다 겹치지 않게 캐릭터 id(uuid)를 붙인다(서버는 남의 행을 덮어쓰지 않는다)
   kpiAll: (characterId: string, weekStart: string) => `kpi-all:${characterId}:${weekStart}`,
-  report: (characterId: string, weekStart: string) => `report:${characterId}:${weekStart}`
+  report: (characterId: string, weekStart: string) => `report:${characterId}:${weekStart}`,
+  /** 주간 점검 완료 — 점검한 주(ISO 주, 월요일 시작)마다 한 번 */
+  review: (characterId: string, isoWeek: string) => `review:${characterId}:${isoWeek}`,
+  /** 정리 완료 — 하루(로컬 날짜) 한 번 */
+  tidy: (characterId: string, day: string) => `tidy:${characterId}:${day}`
+}
+
+/** 'YYYY-MM-DD'가 든 ISO 주의 월요일(사용자 주 시작 설정과 상관없이 월요일) */
+export function isoWeekStart(day: string): string {
+  const d = new Date(`${day.slice(0, 10)}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7))
+  return d.toISOString().slice(0, 10)
+}
+
+export type XpEventRow = { id: string; kind: XpKind; amount: number; ref_id: string; day: string }
+/** 주간 점검 완료 XP 행(+30). week = 점검한 주의 아무 날(월요일로 맞춘다), today = 받은 날.
+ *  같은 주는 id가 같아 두 기기·다시 끝내기에도 한 번만 쌓인다 — 넣기 전에 id가 없는지 보고 넣는다(planReviewXp) */
+export const reviewXpEvent = (characterId: string, week: string, today: string): XpEventRow => {
+  const w = isoWeekStart(week)
+  return { id: xpEventId.review(characterId, w), kind: 'review', amount: XP.review, ref_id: `review:${w}`, day: today }
+}
+/** 정리 완료 XP 행(+20). 하루 한 번 — "다 정리했어!"에 닿았고 이번 정리에서 1개 이상 처리했을 때만 부른다 */
+export const tidyXpEvent = (characterId: string, day: string): XpEventRow =>
+  ({ id: xpEventId.tidy(characterId, day), kind: 'tidy', amount: XP.tidy, ref_id: `tidy:${day}`, day })
+
+/** XP 내역 이름(성장 화면·레벨업 내역) — 종류만. 할 일·목표 제목은 부르는 쪽이 붙인다 */
+export function xpKindLabel(kind: string, amount = 1): string {
+  if (kind === 'task') return '할 일 완료'
+  if (kind === 'task_revoke') return '완료 취소'
+  if (kind === 'kpi') return '목표 달성'
+  if (kind === 'kpi_revoke') return '목표 취소'
+  if (kind === 'review') return '주간 점검'
+  if (kind === 'tidy') return '정리 보너스'
+  return amount > 0 ? '이번 주 목표 모두 달성' : '모두 달성 취소'
 }
 
 /** 오늘 할 일로 받은 XP(되돌림 반영)가 상한 아래면 +1을 줄 수 있다 */

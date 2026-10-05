@@ -5,7 +5,7 @@
 // 함수들은 DB를 읽기만 하고, 실행할 SQL 문 목록을 돌려준다. 부르는 쪽이 한 트랜잭션으로 실행한다.
 import { LOCAL_OWNER } from './index.ts'
 import { addDays, datePart, daysBetween, nextOccurrence, parseRule, stringifyRule, withDate } from './time.ts'
-import { canGrantTaskXp, XP, xpEventId } from './growth.ts'
+import { canGrantTaskXp, reviewXpEvent, tidyXpEvent, XP, xpEventId, type XpEventRow } from './growth.ts'
 
 export type Row = Record<string, unknown>
 export type Stmt = { sql: string; params?: unknown[] }
@@ -168,6 +168,16 @@ export async function planGrantTaskXp(db: CoreDb, taskIds: string[], env: CoreEn
   }
   return { stmts, granted: stmts.length * XP.task }
 }
+
+/** 사건 XP 한 줄(이미 같은 id가 있으면 아무것도 안 한다 — 두 기기·다시 끝내기에도 한 번) */
+async function planOnce(db: CoreDb, ev: XpEventRow, env: CoreEnv): Promise<{ stmts: Stmt[]; granted: number }> {
+  if (await db.get('SELECT id FROM xp_events WHERE id = ?', [ev.id])) return { stmts: [], granted: 0 }
+  return { stmts: [insertStmt('xp_events', ev, nowOf(env))], granted: ev.amount }
+}
+/** 주간 점검 완료 +30(10 §6) — 점검한 주(ISO 주)마다 한 번. week = 점검한 주의 아무 날. 모바일도 이것을 부른다(31 R.5) */
+export const planReviewXp = (db: CoreDb, characterId: string, week: string, env: CoreEnv) => planOnce(db, reviewXpEvent(characterId, week, env.today), env)
+/** 정리 완료 +20(10 §6) — 하루 한 번. "다 정리했어!"에 닿고 이번 정리에서 1개 이상 처리했을 때만 부른다(31 T.7) */
+export const planTidyXp = (db: CoreDb, characterId: string, env: CoreEnv) => planOnce(db, tidyXpEvent(characterId, env.today), env)
 
 /** 같은 날 완료를 취소하면 그날 받은 XP를 되돌린다(다음 날 취소는 되돌리지 않는다) */
 export async function planRevokeTaskXp(db: CoreDb, taskIds: string[], env: CoreEnv): Promise<Stmt[]> {

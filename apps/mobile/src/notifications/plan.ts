@@ -8,17 +8,25 @@ import { dateKey, reminderFireTime } from '@sprout/schema/time'
 export const HORIZON_MS = 48 * 3600_000
 export const MAX_SCHEDULED = 50
 /**
- * 알림 동작(카테고리 sprout-task) — 완료 · 10분 뒤 · 1시간 뒤 (32 §17.6 결정: Android 알림은 버튼을 3개까지만 그린다.
- * 틱틱 Android 기본도 완료·다시 알림 두 종류뿐 — research 30 §6). `내일`은 뺀다(알림을 눌러 상세에서 날짜를 옮긴다).
+ * 알림 동작(카테고리 sprout-task) — **완료 · 다시 알림** 두 개(틱틱 Android 기본 `Done`·`Snooze`와 같음 — research 30 §6,
+ * 2026-10-05 사용자 결정 "틱틱과 동일하게"). 다시 알림은 설정 › 소리와 알림 › `다시 알림 시간`(기본 15분)만큼 미룬다.
+ * 일정 알림(sprout-event)은 다시 알림 하나.
  */
 export const CATEGORY = 'sprout-task'
 export const ACTION_DONE = 'done'
-export const SNOOZE_ACTIONS: { id: string; label: string; minutes: number }[] = [
+export const ACTION_SNOOZE = 'snooze'
+export const SNOOZE_LABEL = '다시 알림'
+/** 예전 판에서 이미 떠 있던 알림(Android는 띄울 때 단 버튼을 그대로 가진다)의 응답도 처리한다 */
+export const LEGACY_SNOOZE_ACTIONS: { id: string; label: string; minutes: number }[] = [
   { id: 'snooze-10', label: '10분 뒤 다시 알림', minutes: 10 },
-  { id: 'snooze-60', label: '1시간 뒤 다시 알림', minutes: 60 }
+  { id: 'snooze-60', label: '1시간 뒤 다시 알림', minutes: 60 },
+  { id: 'snooze-tomorrow', label: '내일 다시 알림', minutes: 24 * 60 }
 ]
-/** 예전 판(버튼 4개)에서 이미 떠 있던 알림의 `내일` 응답도 처리한다 */
-export const LEGACY_SNOOZE_ACTIONS: { id: string; label: string; minutes: number }[] = [{ id: 'snooze-tomorrow', label: '내일 다시 알림', minutes: 24 * 60 }]
+/** 누른 버튼이 다시 알림이면 미룰 분(지금 `다시 알림` = 설정 값, 예전 버튼 = 그 버튼의 분), 아니면 null */
+export function snoozeMinutesOf(actionId: string, settingMinutes: number): number | null {
+  if (actionId === ACTION_SNOOZE) return settingMinutes
+  return LEGACY_SNOOZE_ACTIONS.find((a) => a.id === actionId)?.minutes ?? null
+}
 /** 알림에 다는 버튼 수(Android 시스템 한도 3) */
 export const MAX_ACTIONS = 3
 

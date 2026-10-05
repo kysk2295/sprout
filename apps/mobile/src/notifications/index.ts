@@ -20,8 +20,8 @@ import { completeTasks } from '../data/tasks'
 import { ensureExactAlarm, exactAlarmChanged } from './exactAlarm'
 import { routeOf } from './pushLogic'
 import {
-  ACTION_DONE, CATEGORY, diffSchedule, EVENT_CATEGORY, eventSnoozeId, isReminderId, LEGACY_SNOOZE_ACTIONS, mergePlans, overdueIds, isSnoozeId, planEventReminders, planReminders,
-  SNOOZE_ACTIONS, snoozeAt, snoozeAtOf, snoozeId, staleSnoozes, type EventReminderRow, type ReminderRow
+  ACTION_DONE, ACTION_SNOOZE, CATEGORY, diffSchedule, EVENT_CATEGORY, eventSnoozeId, isReminderId, mergePlans, overdueIds, isSnoozeId, planEventReminders, planReminders,
+  SNOOZE_LABEL, snoozeAt, snoozeAtOf, snoozeId, snoozeMinutesOf, staleSnoozes, type EventReminderRow, type ReminderRow
 } from './plan'
 
 const QUERY = `SELECT r.id AS rid, r.trigger, t.id AS tid, t.title, t.start_at, t.due_at, l.name AS list_name, l.kind AS list_kind
@@ -40,12 +40,14 @@ export function configureNotifications() {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false })
     })
+    // 틱틱 Android 기본처럼 완료 · 다시 알림 두 개(research 30 §6, 32 §4.4). iOS 카테고리도 같다
+    const snooze = { identifier: ACTION_SNOOZE, buttonTitle: SNOOZE_LABEL, options: { opensAppToForeground: false } }
     await Notifications.setNotificationCategoryAsync(CATEGORY, [
       { identifier: ACTION_DONE, buttonTitle: '완료', options: { opensAppToForeground: false } },
-      ...SNOOZE_ACTIONS.map((a) => ({ identifier: a.id, buttonTitle: a.label, options: { opensAppToForeground: false } }))
+      snooze
     ])
     // 일정(06 §14.4.7): 완료 없이 다시 알림만
-    await Notifications.setNotificationCategoryAsync(EVENT_CATEGORY, SNOOZE_ACTIONS.map((a) => ({ identifier: a.id, buttonTitle: a.label, options: { opensAppToForeground: false } })))
+    await Notifications.setNotificationCategoryAsync(EVENT_CATEGORY, [snooze])
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync(CHANNEL, { name: '할 일 알림', importance: Notifications.AndroidImportance.HIGH })
       // 32 §5·§8: 서버가 보내는 하루 요약·성장 소식(기본 중요도)
@@ -130,7 +132,7 @@ export function rescheduleNow(): Promise<void> {
 async function rescheduleOnce() {
   await configureNotifications()
   if ((await permissionState()) !== 'granted') return
-  const prefs = parseNotifyPrefs((await db.getOptional<{ notify_json: string | null }>('SELECT notify_json FROM user_prefs ORDER BY created_at LIMIT 1').catch(() => null))?.notify_json)
+  const prefs = await readPrefs()
   const rows = prefs.reminders ? await db.getAll<ReminderRow>(QUERY) : []
   const evRows = prefs.reminders ? await db.getAll<EventReminderRow>(EVENT_QUERY).catch(() => []) : []
   const planned = mergePlans(planReminders(rows, Date.now()), planEventReminders(evRows, Date.now()))
@@ -182,6 +184,12 @@ export async function scheduledIds(): Promise<string[]> {
   return (await Notifications.getAllScheduledNotificationsAsync()).map((n) => n.identifier)
 }
 
+const readPrefs = async () =>
+  parseNotifyPrefs((await db.getOptional<{ notify_json: string | null }>('SELECT notify_json FROM user_prefs ORDER BY created_at LIMIT 1').catch(() => null))?.notify_json)
+/** 누른 버튼이 다시 알림이면 미룰 분 — `다시 알림`은 설정 › 소리와 알림 › 다시 알림 시간, 예전 버튼(10분·1시간·내일)은 그 분 */
+const snoozeMinutes = async (actionId: string) =>
+  actionId === ACTION_SNOOZE ? snoozeMinutesOf(actionId, (await readPrefs()).snoozeMinutes) : snoozeMinutesOf(actionId, 0)
+
 async function alreadyHandled(key: string): Promise<boolean> {
   const last = await SecureStore.getItemAsync(HANDLED_KEY).catch(() => null)
   if (last === key) return true
@@ -204,15 +212,15 @@ export async function handleResponse(r: Notifications.NotificationResponse, opts
   }
   // 같은 알림·같은 버튼은 한 번만(Android 배경 작업에서 이미 처리한 응답이 다음 실행 때 마지막 응답으로 다시 보인다)
   if (await alreadyHandled(`${req.identifier}|${r.actionIdentifier}`)) return
-  const snooze = [...SNOOZE_ACTIONS, ...LEGACY_SNOOZE_ACTIONS].find((a) => a.id === r.actionIdentifier)
+  const minutes = await snoozeMinutes(r.actionIdentifier)
   if (r.actionIdentifier === ACTION_DONE) {
     // 32 §4.4: 서버 알림으로 처음 안 할 일(아직 내려받지 못함)이면 먼저 동기화(최대 8초)
     if (!(await db.getOptional('SELECT id FROM tasks WHERE id = ?', [taskId]))) await syncNow().catch(() => {})
     // 공용 완료 경로: 하위 함께·반복 다음 회차·XP 하루 10(같은 할 일을 다른 기기에서 완료해도 XP는 한 번 — taskCore)
     await completeTasks([taskId])
     void rescheduleNow()
-  } else if (snooze) {
-    const at = snoozeAt(snooze.minutes, Date.now())
+  } else if (minutes != null) {
+    const at = snoozeAt(minutes, Date.now())
     await Notifications.scheduleNotificationAsync({
       identifier: snoozeId(taskId, at),
       content: { title: req.content.title, body: req.content.body, data: { taskId, url: `sprout://task/${taskId}` }, categoryIdentifier: CATEGORY, sound: 'default' },
@@ -230,9 +238,9 @@ export async function handleResponse(r: Notifications.NotificationResponse, opts
 async function handleEventResponse(r: Notifications.NotificationResponse, eventId: string, opts: { navigate: boolean }) {
   const req = r.notification.request
   if (await alreadyHandled(`${req.identifier}|${r.actionIdentifier}`)) return
-  const snooze = [...SNOOZE_ACTIONS, ...LEGACY_SNOOZE_ACTIONS].find((a) => a.id === r.actionIdentifier)
-  if (snooze) {
-    const at = snoozeAt(snooze.minutes, Date.now())
+  const minutes = await snoozeMinutes(r.actionIdentifier)
+  if (minutes != null) {
+    const at = snoozeAt(minutes, Date.now())
     await Notifications.scheduleNotificationAsync({
       identifier: eventSnoozeId(eventId, at),
       content: { title: req.content.title, body: req.content.body, data: { eventId, url: `sprout://event/${eventId}` }, categoryIdentifier: EVENT_CATEGORY, sound: 'default' },

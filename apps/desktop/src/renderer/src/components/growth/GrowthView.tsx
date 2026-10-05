@@ -240,7 +240,7 @@ function LogCard({ events }: { events: XpRow[] }) {
   const name = (id: string) => titles.find((t) => t.id === id)?.title ?? ''
   // 지운 할 일·목표는 제목 없이 종류만
   const of = (what: string, id: string) => (name(id) ? `${what} · ${name(id)}` : what)
-  const label = (e: XpRow) => e.kind === 'task' ? of('할 일 완료', e.ref_id) : e.kind === 'task_revoke' ? of('완료 취소', e.ref_id) : e.kind === 'kpi' ? of('퀘스트 달성', e.ref_id) : e.kind === 'kpi_revoke' ? of('퀘스트 취소', e.ref_id) : e.amount > 0 ? '이번 주 퀘스트 모두 달성' : '모두 달성 취소'
+  const label = (e: XpRow) => e.kind === 'task' ? of('할 일 완료', e.ref_id) : e.kind === 'task_revoke' ? of('완료 취소', e.ref_id) : e.kind === 'kpi' ? of('퀘스트 달성', e.ref_id) : e.kind === 'kpi_revoke' ? of('퀘스트 취소', e.ref_id) : e.kind === 'review' ? '주간 점검 완료' : e.kind === 'tidy' ? '정리 보너스' : e.amount > 0 ? '이번 주 퀘스트 모두 달성' : '모두 달성 취소'
   const toggle = () => { setOpen(!open); writeLogOpen(!open) }
   return (
     <section className={`growth-card gs-log${open ? ' is-open' : ''}`}>

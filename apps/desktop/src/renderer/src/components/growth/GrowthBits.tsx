@@ -92,7 +92,7 @@ function gainedSince(events: XpRow[], seenLevel: number, since: string | null) {
   let start = 0
   events.forEach((e, i) => { if (total < from) start = i + 1; total += e.amount })
   if (since) { const i = events.findIndex((e) => e.created_at > since); start = i < 0 ? events.length + 1 : i + 1 }
-  const label = (k: string) => (k.startsWith('task') ? '할 일 완료' : k === 'kpi_all' ? '목표 모두 달성 보너스' : '주간 목표 달성')
+  const label = (k: string) => (k.startsWith('task') ? '할 일 완료' : k === 'kpi_all' ? '목표 모두 달성 보너스' : k === 'review' ? '주간 점검' : k === 'tidy' ? '정리 보너스' : '주간 목표 달성')
   const sums = new Map<string, number>()
   for (const e of events.slice(Math.max(0, start - 1))) sums.set(label(e.kind), (sums.get(label(e.kind)) ?? 0) + e.amount)
   return [...sums].filter(([, n]) => n > 0).map(([l, n]) => ({ label: l, amount: n }))

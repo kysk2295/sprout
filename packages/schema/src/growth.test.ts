@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import {
   aiLeft, canGrantTaskXp, cumulativeXp, kpiEarnsXp, levelFromXp, levelsToNextStage, parseGoalDraft, parseReportText, progressFromEvents, QUESTIONS, readTextJson,
-  scoreSurvey, speciesFrom, stageOf, weekHasActivity, weekLabel, weeklyStats, xpEventId, xpToNext
+  scoreSurvey, speciesFrom, stageOf, weekHasActivity, weekLabel, weeklyStats, xpEventId, xpToNext, isoWeekStart, reviewXpEvent, tidyXpEvent, xpKindLabel
 } from './growth.ts'
 
 // 레벨 곡선: 40, 60, 80 …
@@ -27,6 +27,17 @@ assert.ok(canGrantTaskXp([...day(10), { kind: 'task_revoke', amount: -1 }]))
 
 // 같은 사건은 같은 id (두 기기 이중 지급 방지)
 assert.equal(xpEventId.task('t1', '2026-10-04'), xpEventId.task('t1', '2026-10-04'))
+
+// 점검·정리 XP(10 §6): ISO 주(월요일 시작)·하루 단위 id
+assert.equal(isoWeekStart('2026-10-05'), '2026-10-05') // 월
+assert.equal(isoWeekStart('2026-10-11'), '2026-10-05') // 일 → 그 주 월요일
+assert.equal(isoWeekStart('2026-10-04'), '2026-09-28')
+assert.equal(isoWeekStart('2027-01-01'), '2026-12-28') // 해 넘김
+assert.deepEqual(reviewXpEvent('c1', '2026-10-08', '2026-10-11'), { id: 'review:c1:2026-10-05', kind: 'review', amount: 30, ref_id: 'review:2026-10-05', day: '2026-10-11' })
+assert.equal(reviewXpEvent('c1', '2026-10-05', 'x').id, reviewXpEvent('c1', '2026-10-11', 'y').id)
+assert.deepEqual(tidyXpEvent('c1', '2026-10-05'), { id: 'tidy:c1:2026-10-05', kind: 'tidy', amount: 20, ref_id: 'tidy:2026-10-05', day: '2026-10-05' })
+assert.equal(xpKindLabel('review'), '주간 점검')
+assert.equal(xpKindLabel('tidy'), '정리 보너스')
 
 // 레벨은 내려가지 않는다: 40 받아 Lv2 → 되돌림 −1 → 여전히 Lv2, 진행 0
 const ev = (amount: number, t: string) => ({ amount, created_at: `2026-10-04T0${t}` })

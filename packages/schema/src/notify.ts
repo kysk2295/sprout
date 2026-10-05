@@ -8,12 +8,19 @@ export type NotifyPrefs = {
   hideTitles: boolean
   daily: { on: boolean; time: string; skipWeekends: boolean }
   growth: { evolve: boolean; report: boolean; goalDue: boolean; inboxCleanup: boolean }
+  /** 알림 `다시 알림` 버튼이 미루는 분(32 §4.4 — 틱틱 설정 › Sounds & Notifications의 다시 알림 시간, research 30 §6) */
+  snoozeMinutes: number
 }
+/** 다시 알림 시간 고르기 = 틱틱 앱 안 다시 알림 시트의 시간 칸(research 24 §11: 15분·30분·1시간·3시간). 기본 15분 [추정 — 시트 첫 칸, 공식 기본값 미확인] */
+export const SNOOZE_MINUTES = [15, 30, 60, 180] as const
+export const DEFAULT_SNOOZE_MINUTES = 15
+export const snoozeLabel = (m: number) => (m % 60 === 0 ? `${m / 60}시간` : `${m}분`)
 export const DEFAULT_NOTIFY: NotifyPrefs = {
   reminders: true,
   hideTitles: false,
   daily: { on: false, time: '08:00', skipWeekends: false },
-  growth: { evolve: true, report: true, goalDue: true, inboxCleanup: false }
+  growth: { evolve: true, report: true, goalDue: true, inboxCleanup: false },
+  snoozeMinutes: DEFAULT_SNOOZE_MINUTES
 }
 const bool = (v: unknown, d: boolean) => (typeof v === 'boolean' ? v : d)
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -27,7 +34,8 @@ export function parseNotifyPrefs(raw: string | null | undefined): NotifyPrefs {
     reminders: bool(v.reminders, DEFAULT_NOTIFY.reminders),
     hideTitles: bool(v.hideTitles, DEFAULT_NOTIFY.hideTitles),
     daily: { on: bool(d.on, false), time: typeof d.time === 'string' && TIME_RE.test(d.time) ? d.time : '08:00', skipWeekends: bool(d.skipWeekends, false) },
-    growth: { evolve: bool(g.evolve, true), report: bool(g.report, true), goalDue: bool(g.goalDue, true), inboxCleanup: bool(g.inboxCleanup, false) }
+    growth: { evolve: bool(g.evolve, true), report: bool(g.report, true), goalDue: bool(g.goalDue, true), inboxCleanup: bool(g.inboxCleanup, false) },
+    snoozeMinutes: (SNOOZE_MINUTES as readonly number[]).includes(v.snoozeMinutes) ? v.snoozeMinutes : DEFAULT_SNOOZE_MINUTES
   }
 }
 

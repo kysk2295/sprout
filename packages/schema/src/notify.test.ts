@@ -62,6 +62,11 @@ assert.equal(p.hideTitles, true)
 assert.deepEqual(p.daily, { on: true, time: '07:30', skipWeekends: false })
 assert.deepEqual(p.growth, { evolve: false, report: true, goalDue: true, inboxCleanup: false })
 assert.equal(parseNotifyPrefs(JSON.stringify({ daily: { time: '25:00' } })).daily.time, '08:00')
+// 다시 알림 시간: 고르기 칸 밖이면 기본 15분
+assert.equal(DEFAULT_NOTIFY.snoozeMinutes, 15)
+assert.equal(parseNotifyPrefs(JSON.stringify({ snoozeMinutes: 60 })).snoozeMinutes, 60)
+assert.equal(parseNotifyPrefs(JSON.stringify({ snoozeMinutes: 7 })).snoozeMinutes, 15)
+assert.equal(parseNotifyPrefs(JSON.stringify({ snoozeMinutes: '30' })).snoozeMinutes, 15)
 
 // ── 조사 ──
 assert.equal(josa('거북이', '이/가'), '거북이가')

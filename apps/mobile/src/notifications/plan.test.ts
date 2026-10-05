@@ -1,6 +1,6 @@
 // 로컬 알림 예약 계획 시험(20 §4.4: 48시간 창 · 최대 50개 · 본문 · 차이 계산)
 import assert from 'node:assert/strict'
-import { bodyOf, diffSchedule, HORIZON_MS, LEGACY_SNOOZE_ACTIONS, MAX_ACTIONS, MAX_SCHEDULED, overdueIds, planReminders, reminderId, snoozeAt, snoozeAtOf, SNOOZE_ACTIONS, staleSnoozes, type ReminderRow } from './plan.ts'
+import { bodyOf, diffSchedule, HORIZON_MS, ACTION_DONE, ACTION_SNOOZE, LEGACY_SNOOZE_ACTIONS, MAX_ACTIONS, MAX_SCHEDULED, overdueIds, planReminders, reminderId, snoozeAt, snoozeAtOf, snoozeMinutesOf, staleSnoozes, type ReminderRow } from './plan.ts'
 
 const now = new Date('2026-10-04T14:00').getTime()
 let n = 0
@@ -82,10 +82,15 @@ assert.equal(snoozeAtOf('s:task-1@1760000000000'), 1760000000000)
 assert.equal(snoozeAtOf('r:x@1'), null)
 assert.equal(snoozeAtOf('s:bad'), null)
 
-// 알림 버튼: 완료 + 다시 알림 ≤ Android 한도 3, 예전 `내일` 응답도 처리
-assert.ok(1 + SNOOZE_ACTIONS.length <= MAX_ACTIONS)
-assert.deepEqual(SNOOZE_ACTIONS.map((a) => a.minutes), [10, 60])
-assert.equal(LEGACY_SNOOZE_ACTIONS[0].id, 'snooze-tomorrow')
+// 알림 버튼: 틱틱처럼 완료 · 다시 알림 둘(≤ Android 한도 3). 다시 알림은 설정 분, 예전 버튼(10분·1시간·내일) 응답도 처리
+assert.ok([ACTION_DONE, ACTION_SNOOZE].length <= MAX_ACTIONS)
+assert.equal(snoozeMinutesOf('snooze', 15), 15)
+assert.equal(snoozeMinutesOf('snooze', 60), 60)
+assert.equal(snoozeMinutesOf('snooze-10', 15), 10)
+assert.equal(snoozeMinutesOf('snooze-60', 15), 60)
+assert.equal(snoozeMinutesOf('snooze-tomorrow', 15), 24 * 60)
+assert.equal(snoozeMinutesOf('done', 15), null)
+assert.deepEqual(LEGACY_SNOOZE_ACTIONS.map((a) => a.id), ['snooze-10', 'snooze-60', 'snooze-tomorrow'])
 
 console.log('plan.test ok')
 

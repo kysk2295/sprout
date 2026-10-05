@@ -4,7 +4,7 @@ import {
   aiLeft, kpiEarnsXp, parseGoalDraft, parseReportText, progressFromEvents, readTextJson, SPECIES, weekHasActivity, weekLabel, weeklyStats, XP, xpEventId, xpToNext,
   type GoalDraft, type ReportTextJson, type Species, type WeeklyStats, type WeekTask
 } from '@sprout/schema/growth'
-import { planGrantTaskXp, planRevokeTaskXp } from '@sprout/schema/taskCore'
+import { planGrantTaskXp, planReviewXp, planRevokeTaskXp, planTidyXp } from '@sprout/schema/taskCore'
 import { askGrowthAi } from './growth-ai'
 import { getDb } from './db'
 import { insert, run, update, uuid } from './mutations'
@@ -56,6 +56,24 @@ export async function grantTaskXp(taskIds: string[]) {
 /** 같은 날 완료를 취소하면 그날 받은 XP를 되돌린다(다음 날 취소는 되돌리지 않는다) */
 export async function revokeTaskXp(taskIds: string[]) {
   await run(...(await planRevokeTaskXp(await getDb(), taskIds, { today: dayKey() })))
+}
+
+// ── 점검·정리 XP (10 §6, 31 R.5·T.7) ──
+/** 주간 점검을 끝내면 +30 — 점검한 주(ISO 주)마다 한 번. 새로 받았으면 받은 양(아니면 0) */
+export async function grantReviewXp(week: string): Promise<number> {
+  const c = await ensureCharacter()
+  const { stmts, granted } = await planReviewXp(await getDb(), c.id, week, { today: dayKey() })
+  if (stmts.length) await run(...stmts)
+  announce(granted)
+  return granted
+}
+/** 정리에서 "다 정리했어!"에 닿으면 +20 — 하루 한 번. 이번 정리에서 1개 이상 처리했을 때만 부른다 */
+export async function grantTidyXp(): Promise<number> {
+  const c = await ensureCharacter()
+  const { stmts, granted } = await planTidyXp(await getDb(), c.id, { today: dayKey() })
+  if (stmts.length) await run(...stmts)
+  announce(granted)
+  return granted
 }
 
 // ── 주간 목표 (10 §4) ──
