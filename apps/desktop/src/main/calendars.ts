@@ -12,7 +12,7 @@ import { AppleSync, helperRunner } from './appleSync'
 
 const DIR = () => join(app.getPath('userData'), 'calendars')
 const dev = !app.isPackaged
-const client = () => ({ clientId: process.env.GOOGLE_CLIENT_ID?.trim() ?? '', clientSecret: process.env.GOOGLE_CLIENT_SECRET?.trim() || undefined })
+const client = () => ({ clientId: (process.env.GOOGLE_CLIENT_ID?.trim() || (typeof __BUILD_GOOGLE_CLIENT_ID__ === 'string' ? __BUILD_GOOGLE_CLIENT_ID__ : '')), clientSecret: (process.env.GOOGLE_CLIENT_SECRET?.trim() || (typeof __BUILD_GOOGLE_CLIENT_SECRET__ === 'string' ? __BUILD_GOOGLE_CLIENT_SECRET__ : '') || undefined) })
 const endpoints = (): GoogleEndpoints => {
   if (dev && process.env.SPROUT_GOOGLE_ENDPOINTS) { try { return { ...GOOGLE_ENDPOINTS, ...JSON.parse(process.env.SPROUT_GOOGLE_ENDPOINTS) } } catch { /* 기본값 */ } }
   return GOOGLE_ENDPOINTS

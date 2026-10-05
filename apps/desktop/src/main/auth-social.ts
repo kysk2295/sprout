@@ -26,7 +26,7 @@ const POLL_MS = 2000
 
 const b64url = (b: Buffer) => b.toString('base64url')
 const sha256 = (s: string) => createHash('sha256').update(s)
-const googleClient = () => ({ id: process.env.GOOGLE_CLIENT_ID?.trim() ?? '', secret: process.env.GOOGLE_CLIENT_SECRET?.trim() || undefined })
+const googleClient = () => ({ id: (process.env.GOOGLE_CLIENT_ID?.trim() || (typeof __BUILD_GOOGLE_CLIENT_ID__ === 'string' ? __BUILD_GOOGLE_CLIENT_ID__ : '')), secret: (process.env.GOOGLE_CLIENT_SECRET?.trim() || (typeof __BUILD_GOOGLE_CLIENT_SECRET__ === 'string' ? __BUILD_GOOGLE_CLIENT_SECRET__ : '') || undefined) })
 
 class SocialFail extends Error {
   code: string
