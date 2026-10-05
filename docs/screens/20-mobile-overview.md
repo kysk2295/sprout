@@ -55,7 +55,7 @@
 |---|---|
 | 캘린더, 리스트·태그·필터 편집, 하위 할 일, 체크리스트 편집, 반복 편집 UI(인식으로 생긴 반복은 보존) | [다음] — PRD "모바일을 틱틱 동급으로 확장" |
 | 수집함·위키 목록 보기, AI 비서, 일기, 작업 지도, AI 사용량 | [다음] |
-| 위젯, Android 상주 알림, 음성 입력, Siri·단축어, 계속 알림, 위치 알림 | [다음] (research 20 §5) |
+| ~~위젯~~ → **[36 모바일 위젯](36-mobile-widgets.md)**(2026-10-05: 월 캘린더 · 오늘 할 일 · 캐릭터, iOS·Android). Android 상주 알림, 음성 입력, Siri·단축어, 계속 알림, 위치 알림 | [다음] (research 20 §5) |
 | 스와이프 사용자 지정, 탭 바 사용자 지정, + 버튼 끌어 놓기 | [다음] |
 | 서버 푸시(주간 리포트 도착 알림 등) | [다음] (D3) |
 | 태블릿 전용 배치 | [다음] — 태블릿은 휴대폰 배치를 가운데 최대 폭 600으로 |
@@ -153,7 +153,7 @@
   - 문구: **"Apple로 계속하기"** · **"Google로 계속하기"**(08 §3.1과 같음). 로고: 구글 4색 "G"(원본 모양·색 그대로, 구글 브랜딩 지침), 애플 로고 단색 글자색(Sign in with Apple HIG — 흰 테두리 스타일).
   - **순서 [틱틱 모바일 · 애플 지침]**: iOS = **Apple 위, Google 아래**. 애플 App Review 4.8 · HIG: 다른 소셜 로그인을 주면 Apple 로그인도 줘야 하고, Apple 버튼은 다른 버튼보다 작거나 덜 눈에 띄면 안 된다 → 같은 크기·같은 모양·맨 위.
   - **Android = Google만**. Android에서 Apple 로그인은 웹 흐름이라 [다음](틱틱 Android도 Google이 먼저).
-- **Apple — 빌드 설정으로 켜짐 [v1.4 초안, 2026-10-05 구현]**: `SPROUT_APPLE_SIGN_IN=1`로 만든 iOS 빌드(App ID에 Sign in with Apple을 켠 팀 — 출시 절차 [docs/release/HANDOVER.md](../release/HANDOVER.md))만 진짜 버튼. 그 밖(설정 없는 빌드·iOS 13 미만)은 지금처럼 흐리게(0.5) + 오른쪽 "준비 중", 누르면 "Apple 로그인은 준비 중이에요. Google이나 이메일로 계속하세요." ⚠ App Store에 내는 빌드는 반드시 켜서 낸다(4.8).
+- **Apple — 빌드 설정으로 켜짐 [v1.4 초안, 2026-10-05 구현]**: `SPROUT_APPLE_SIGN_IN=1`로 만든 iOS 빌드(App ID에 Sign in with Apple을 켠 팀 — 출시 절차 [docs/release/RELEASE-CHECKLIST.md](../release/RELEASE-CHECKLIST.md))만 진짜 버튼. 그 밖(설정 없는 빌드·iOS 13 미만)은 지금처럼 흐리게(0.5) + 오른쪽 "준비 중", 누르면 "Apple 로그인은 준비 중이에요. Google이나 이메일로 계속하세요." ⚠ App Store에 내는 빌드는 반드시 켜서 낸다(4.8).
   - 흐름: 누르면 그 버튼 안 스피너 + 잠금 → 애플 시스템 창(이메일 범위만 — 이름은 받지 않음) → `POST /auth/apple/native {id_token, nonce, authorization_code}` → 이메일 로그인과 같은 처리. nonce = 앱이 만든 무작위 값, 애플에는 SHA-256(hex)만(`src/data/apple.ts`).
   - 오류: 창 닫음 = 표시 없음 · 권한 없는 빌드/서버 503 = "Apple 로그인 설정이 아직 없어요" · 애플이 이메일을 안 줌(첫 로그인인데 email 없음, 400 `email required`) = "Apple이 이메일을 보내지 않았어요. 설정 › Apple ID › Apple로 로그인에서 sprout를 지운 뒤 다시 시도하세요." · 나머지는 Google과 같은 표.
   - 설정 › 계정 › 로그인 방법: Apple 칸 = 연결 안 됨이면 `연결`(같은 시스템 창 → `POST /auth/link/apple/native`), 연결됨이면 `연결 해제`(서버가 애플 토큰도 폐기). 애플 로그인 없는 빌드는 "준비 중".

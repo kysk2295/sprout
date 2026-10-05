@@ -1,0 +1,12 @@
+{
+  "name": "sprout-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs && node scripts/serve.mjs",
+    "characters": "node scripts/gen-characters.mjs",
+    "og": "node scripts/og.mjs",
+    "deploy": "node build.mjs && railway up --service web --detach"
+  }
+}

@@ -14,7 +14,7 @@ npx expo run:ios               # 빌드 + 설치 + Metro. 기기 지정: --devic
 - 이미 설치돼 있으면 `npm run mobile`(뿌리) = `expo start --dev-client`만 띄우고 앱을 연다.
 - Android: `ANDROID_HOME=~/Library/Android/sdk JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home npx expo prebuild --platform android` → `npx expo run:android --device <AVD 이름> --port <내 Metro 포트>`. SDK 패키지: platform 36 · build-tools 36 · NDK 27.1.12297006 · CMake 3.22.1. 2026-10-05 에뮬레이터(API 35)에서 가입·동기화·5칸 탭 확인, iOS와 다른 점은 [20 §11](../../docs/screens/20-mobile-overview.md).
 - **구글 로그인(20 §4.3.1)**: `apps/mobile/.env.local`(git 제외)에 `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=…`(웹 애플리케이션 클라이언트) · `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=…`(iOS 클라이언트). `app.config.ts`가 iOS URL 스킴을 만든다 → 값을 넣거나 바꾸면 `npx expo prebuild --platform ios`(Android도 같은) 후 다시 빌드. 값이 없으면 버튼은 "구글 로그인 설정이 아직 없어요". 서버 `.env`의 `GOOGLE_CLIENT_IDS`에 웹 클라이언트 id를 더한다.
-- **애플 로그인(20 §4.3.1)**: App ID에 Sign in with Apple을 켠 팀에서 `SPROUT_APPLE_SIGN_IN=1 SPROUT_APPLE_TEAM_ID=<팀 ID> npx expo prebuild --platform ios` → 빌드. 없으면 권한 없이 빌드되고 버튼은 "준비 중". 출시 절차: [docs/release/HANDOVER.md](../../docs/release/HANDOVER.md).
+- **애플 로그인(20 §4.3.1)**: App ID에 Sign in with Apple을 켠 팀에서 `SPROUT_APPLE_SIGN_IN=1 SPROUT_APPLE_TEAM_ID=<팀 ID> npx expo prebuild --platform ios` → 빌드. 없으면 권한 없이 빌드되고 버튼은 "준비 중". 출시 절차: [docs/release/RELEASE-CHECKLIST.md](../../docs/release/RELEASE-CHECKLIST.md).
 - 서버 주소 기본값은 Mac mini 공개 주소(app.json `extra`). 바꾸려면 `EXPO_PUBLIC_API_URL=… EXPO_PUBLIC_SYNC_URL=… npx expo start --dev-client`.
 
 ## 검사
