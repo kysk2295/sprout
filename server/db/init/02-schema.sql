@@ -71,7 +71,8 @@ CREATE TABLE IF NOT EXISTS lists (
   sort_order double precision,
   pinned integer,
   archived_at text,
-  show_in_smart text
+  show_in_smart text,
+  description text
 );
 CREATE INDEX IF NOT EXISTS lists_owner_idx ON lists (owner_id);
 
@@ -84,7 +85,15 @@ CREATE TABLE IF NOT EXISTS tags (
   color text,
   parent_id text,
   sort_order double precision,
-  pinned integer
+  pinned integer,
+  kind text,
+  aliases text,
+  description text,
+  topic_id text,
+  home_type text,
+  home_id text,
+  source text,
+  run_id text
 );
 CREATE INDEX IF NOT EXISTS tags_owner_idx ON tags (owner_id);
 
@@ -163,7 +172,11 @@ CREATE TABLE IF NOT EXISTS task_tags (
   created_at text,
   modified_at text,
   task_id text,
-  tag_id text
+  tag_id text,
+  source text,
+  state text,
+  confidence integer,
+  run_id text
 );
 CREATE INDEX IF NOT EXISTS task_tags_owner_idx ON task_tags (owner_id);
 CREATE INDEX IF NOT EXISTS task_tags_task_idx ON task_tags (owner_id, task_id);
@@ -313,6 +326,44 @@ CREATE INDEX IF NOT EXISTS map_links_owner_idx ON map_links (owner_id);
 CREATE INDEX IF NOT EXISTS map_links_from_idx ON map_links (owner_id, from_id);
 CREATE INDEX IF NOT EXISTS map_links_to_idx ON map_links (owner_id, to_id);
 
+CREATE TABLE IF NOT EXISTS relations (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  from_type text,
+  from_id text,
+  to_type text,
+  to_id text,
+  source text,
+  state text,
+  field text
+);
+CREATE INDEX IF NOT EXISTS relations_owner_idx ON relations (owner_id);
+CREATE INDEX IF NOT EXISTS relations_from_idx ON relations (owner_id, from_id);
+CREATE INDEX IF NOT EXISTS relations_to_idx ON relations (owner_id, to_id);
+
+CREATE TABLE IF NOT EXISTS events (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  title text,
+  notes text,
+  start_at text,
+  end_at text,
+  is_all_day integer,
+  time_zone text,
+  repeat_rule text,
+  location text,
+  reminders text,
+  color text,
+  deleted_at text
+);
+CREATE INDEX IF NOT EXISTS events_owner_idx ON events (owner_id);
+CREATE INDEX IF NOT EXISTS events_start_idx ON events (owner_id, start_at);
+CREATE INDEX IF NOT EXISTS events_end_idx ON events (owner_id, end_at);
+
 CREATE TABLE IF NOT EXISTS diary_entries (
   id text PRIMARY KEY,
   owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -343,4 +394,4 @@ CREATE INDEX IF NOT EXISTS diary_messages_entry_idx ON diary_messages (owner_id,
 
 -- PowerSync는 이 publication으로 변경분을 읽는다
 DROP PUBLICATION IF EXISTS powersync;
-CREATE PUBLICATION powersync FOR TABLE notes, wiki_topics, wiki_versions, folders, lists, tags, filters, sections, tasks, check_items, task_tags, reminders, view_settings, user_prefs, xp_events, characters, kpis, weekly_reports, map_areas, task_areas, map_links, diary_entries, diary_messages;
+CREATE PUBLICATION powersync FOR TABLE notes, wiki_topics, wiki_versions, folders, lists, tags, filters, sections, tasks, check_items, task_tags, reminders, view_settings, user_prefs, xp_events, characters, kpis, weekly_reports, map_areas, task_areas, map_links, relations, events, diary_entries, diary_messages;

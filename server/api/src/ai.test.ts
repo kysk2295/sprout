@@ -323,6 +323,40 @@ assert.deepEqual(localModelNames({ models: [{ name: 'a' }, { name: 'b' }] }, ['b
   assert.equal((await r.json()).code, 'rate_minute')
 }
 
+// 33 자동 태그: 용도 tag, 하루 40회(용도별, breakdown과 따로), 출력 상한 1600(용도별), 형식 지시, 원문 저장 없음
+{
+  clock = Date.parse('2026-10-08T03:00:00Z')
+  assert.equal(aiConfigFromEnv({}).daily.tag, 40)
+  assert.equal(aiConfigFromEnv({ AI_DAILY_TAG: '5' }).daily.tag, 5)
+  assert.equal(aiConfigFromEnv({}).predict?.tag, 1600)
+  assert.equal(aiConfigFromEnv({ AI_PREDICT_TAG: '900' }).predict?.tag, 900)
+  const { base, store } = await proxy({ daily: { tag: 2, breakdown: 1 }, predict: { tag: 1600 } })
+  const schema = { type: 'object', properties: { items: { type: 'array' } }, required: ['items'] }
+  let r = await call(base, '/ai/tag', { messages: [{ role: 'system', content: 'tagger' }, ...msg('교수님께 중간 보고 메일')], format: schema })
+  assert.equal(r.status, 200)
+  assert.equal(bodies.at(-1).options.num_predict, 1600, 'tag는 용도별 출력 상한')
+  assert.ok(bodies.at(-1).messages[0].content.includes('"required":["items"]'), '지시문에 형식(스키마)')
+  assert.deepEqual(bodies.at(-1).format, schema)
+  assert.equal(bodies.at(-1).think, false)
+  assert.equal((await call(base, '/ai/breakdown', { messages: msg('b') })).status, 200)
+  assert.equal(bodies.at(-1).options.num_predict, 700, '다른 용도는 기본 출력 상한 그대로')
+  assert.equal((await call(base, '/ai/tag', { messages: msg('fail') })).status, 503)
+  assert.equal((await call(base, '/ai/tag', { messages: msg('t2') })).status, 200, '실패한 1회는 돌려준다')
+  r = await call(base, '/ai/tag', { messages: msg('t3') })
+  assert.equal(r.status, 429)
+  assert.equal((await r.json()).code, 'daily')
+  assert.equal((await call(base, '/ai/assistant', { messages: msg('a') })).status, 200, '다른 용도는 태그 상한과 무관')
+  const st = await (await fetch(base + '/ai/status', { headers: { authorization: 'Bearer user-a' } })).json()
+  assert.deepEqual(st.usage.daily.tag, { used: 2, limit: 2 })
+  const row = [...store.rows.values()].find((x) => x.endpoint === 'tag')!
+  assert.equal(row.requests, 2)
+  assert.equal(row.failures, 1)
+  const dump = JSON.stringify([...store.rows.values(), ...store.calls])
+  for (const secret of ['교수님', 'tagger', 't2', 'items']) assert.ok(!dump.includes(secret), `저장소에 원문 없음: ${secret}`)
+  clock += 13 * 3600_000 // 다음 날
+  assert.equal((await call(base, '/ai/tag', { messages: msg('t4') })).status, 200)
+}
+
 // 시간 초과 → 504, 실패로 기록(원문 없이)
 {
   const { base, store } = await proxy({ timeoutMs: 200 })

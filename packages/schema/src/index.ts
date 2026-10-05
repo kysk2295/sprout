@@ -46,10 +46,31 @@ export const TABLES = {
       sort_order: 'real',
       pinned: 'integer',
       archived_at: 'text',
-      show_in_smart: 'text' // 'all' | 'none'
+      show_in_smart: 'text', // 'all' | 'none'
+      description: 'text' // 33 리스트 페이지 머리 설명(500자)
     }
   },
-  tags: { columns: { ...common, name: 'text', color: 'text', parent_id: 'text', sort_order: 'real', pinned: 'integer' } },
+  // 33 태그 = 위키 페이지. kind 'topic'|'person'|'project'|'place'(없으면 topic) · aliases JSON 글 배열 ·
+  // topic_id = wiki_topics.id(1:1) · home_type 'folder'|'list' + home_id(프로젝트의 집) ·
+  // source 'user'|'ai'(AI가 자동으로 만든 태그 = ai, 사용자가 이름·종류를 고치면 user) · run_id = 만든 일괄 태그 묶음
+  tags: {
+    columns: {
+      ...common,
+      name: 'text',
+      color: 'text',
+      parent_id: 'text',
+      sort_order: 'real',
+      pinned: 'integer',
+      kind: 'text',
+      aliases: 'text',
+      description: 'text',
+      topic_id: 'text',
+      home_type: 'text',
+      home_id: 'text',
+      source: 'text',
+      run_id: 'text'
+    }
+  },
   filters: { columns: { ...common, name: 'text', emoji: 'text', rule_json: 'text', sort_order: 'real' } },
   sections: { columns: { ...common, list_id: 'text', name: 'text', sort_order: 'real' }, indexes: { list: ['list_id'] } },
   tasks: {
@@ -81,7 +102,12 @@ export const TABLES = {
     columns: { ...common, task_id: 'text', title: 'text', done: 'integer', sort_order: 'real', completed_at: 'text' },
     indexes: { task: ['task_id'] }
   },
-  task_tags: { columns: { ...common, task_id: 'text', tag_id: 'text' }, indexes: { task: ['task_id'], tag: ['tag_id'] } },
+  // 33: source 'user'|'link'|'rule'|'ai'(없으면 user) · state 'accepted'|'suggested'|'dismissed'(없으면 accepted) ·
+  // confidence 0~100(ai만) · run_id 일괄 태그 묶음. 태그를 세는 곳은 state가 없거나 'accepted'인 행만 본다
+  task_tags: {
+    columns: { ...common, task_id: 'text', tag_id: 'text', source: 'text', state: 'text', confidence: 'integer', run_id: 'text' },
+    indexes: { task: ['task_id'], tag: ['tag_id'] }
+  },
   reminders: { columns: { ...common, task_id: 'text', trigger: 'text' }, indexes: { task: ['task_id'] } },
   view_settings: {
     columns: { ...common, view_key: 'text', group_by: 'text', sort_by: 'text', sort_dir: 'text', show_completed: 'integer', show_details: 'integer', options_json: 'text' },
@@ -110,6 +136,32 @@ export const TABLES = {
     // kind 'sequence'|'goal', from_type 'task'|'kpi', state 'suggested'|'accepted'|'dismissed'
     columns: { ...common, kind: 'text', from_type: 'text', from_id: 'text', to_id: 'text', source: 'text', state: 'text' },
     indexes: { from: ['from_id'], to: ['to_id'] }
+  },
+  // 33 [[링크]]·리스트 고정 쌍·메모 ↔ 태그. from_type 'task'|'note'|'list'|'tag' · to_type 'task'|'list'|'tag' ·
+  // source 'link'|'manual'|'ai' · state 'accepted'|'dismissed' · field 'title'|'content'|'description'.
+  // id = relationId(from_id, to_id, field) — 두 기기가 같은 링크를 만들어도 한 행
+  relations: {
+    columns: { ...common, from_type: 'text', from_id: 'text', to_type: 'text', to_id: 'text', source: 'text', state: 'text', field: 'text' },
+    indexes: { from: ['from_id'], to: ['to_id'] }
+  },
+  // 06 §14.4 sprout 자체 일정(2026-10-05 사용자 결정). start_at·end_at은 태스크와 같은 floating 표기(늘 둘 다, 종일은 날짜만·끝 포함) ·
+  // repeat_rule = 태스크 반복 형식 · reminders = 트리거 JSON 배열('-PT0M' …) · color 비면 "내 일정" 색 · deleted_at = 되돌리기용 삭제
+  events: {
+    columns: {
+      ...common,
+      title: 'text',
+      notes: 'text',
+      start_at: 'text',
+      end_at: 'text',
+      is_all_day: 'integer',
+      time_zone: 'text',
+      repeat_rule: 'text',
+      location: 'text',
+      reminders: 'text',
+      color: 'text',
+      deleted_at: 'text'
+    },
+    indexes: { start: ['start_at'], end: ['end_at'] }
   },
   // 15 일기: id = 'diary-<날짜>'(사용자당 하루 1개)
   diary_entries: {

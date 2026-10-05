@@ -1,15 +1,16 @@
 // AI 프록시: 앱 → (JWT) → 여기(대기열·상한) → 백엔드(ai-backend.ts: 직접 URL 또는 Mac mini 워커) → Ollama. PRD "AI 사용 원칙"
 //   GET  /ai/status                       → 쓸 수 있는지·모델·대기열·내 사용량
-//   POST /ai/assistant|classify|map|diary|kpi-draft|weekly-report|breakdown
+//   POST /ai/assistant|classify|map|diary|kpi-draft|weekly-report|breakdown|tag
 //        {messages, format?, model?, stream?, options?: {temperature}}
 //        stream=false → {model, message:{role,content}, done, ...숫자}
 //        stream=true  → NDJSON: 대기 중 {"queue":{"position":n,"waiting":m}} → Ollama 줄 그대로 → 오류면 {"error","code"}
-// 규칙: 동시 실행 수 + 대기열(공용), 사용자별 분·일 상한, 성장 주간 AI(kpi-draft·weekly-report) 주 1+1, 용도별 하루 상한(breakdown 10),
+// 규칙: 동시 실행 수 + 대기열(공용), 사용자별 분·일 상한, 성장 주간 AI(kpi-draft·weekly-report) 주 1+1, 용도별 하루 상한(breakdown 10 · tag 40),
+//       용도별 출력 상한(tag 1600 — 할 일 40개 답이 700토큰을 넘는다, 33 §9),
 //       컨텍스트 4096·출력 700 토큰·제한 시간, 클라우드·원격 모델 금지. 요청·응답 원문은 저장도 기록도 하지 않는다(숫자만).
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AiBackend } from './ai-backend.ts'
 
-export const ENDPOINTS = ['assistant', 'classify', 'map', 'diary', 'kpi-draft', 'weekly-report', 'breakdown'] as const
+export const ENDPOINTS = ['assistant', 'classify', 'map', 'diary', 'kpi-draft', 'weekly-report', 'breakdown', 'tag'] as const
 export type Endpoint = (typeof ENDPOINTS)[number]
 const isEndpoint = (s: string): s is Endpoint => (ENDPOINTS as readonly string[]).includes(s)
 
@@ -27,6 +28,8 @@ export type AiConfig = {
   weekly: Partial<Record<Endpoint, number>>
   /** 용도별 하루 상한(전체 공용 perDay와 별도) — 31 작업 지도 AI 쪼개기 */
   daily: Partial<Record<Endpoint, number>>
+  /** 용도별 출력 토큰 상한(없으면 numPredict) — 33 자동 태그는 한 번에 할 일 40개라 답이 길다 */
+  predict?: Partial<Record<Endpoint, number>>
   numCtx: number
   numPredict: number
   keepAlive: string
@@ -53,7 +56,8 @@ export function aiConfigFromEnv(env: Record<string, string | undefined> = proces
     perMinute: n('AI_USER_PER_MINUTE', 6),
     perDay: n('AI_USER_PER_DAY', 100),
     weekly: { 'kpi-draft': n('AI_WEEKLY_KPI_DRAFT', 1), 'weekly-report': n('AI_WEEKLY_REPORT', 1) },
-    daily: { breakdown: n('AI_DAILY_BREAKDOWN', 10) },
+    daily: { breakdown: n('AI_DAILY_BREAKDOWN', 10), tag: n('AI_DAILY_TAG', 40) },
+    predict: { tag: n('AI_PREDICT_TAG', 1600) },
     numCtx: n('AI_NUM_CTX', 4096),
     numPredict: n('AI_NUM_PREDICT', 700),
     keepAlive: env.AI_KEEP_ALIVE || '5m',
@@ -442,7 +446,7 @@ export function createAi(deps: AiDeps) {
         stream: true,
         think: false,
         keep_alive: cfg.keepAlive,
-        options: { temperature: input.temperature, num_ctx: cfg.numCtx, num_predict: cfg.numPredict }
+        options: { temperature: input.temperature, num_ctx: cfg.numCtx, num_predict: cfg.predict?.[endpoint] ?? cfg.numPredict }
       }, signal).catch((e) => { throw toAiError(e, 'unavailable') })
       if (!upstream.ok || !upstream.body) {
         await upstream.body?.cancel().catch(() => {})

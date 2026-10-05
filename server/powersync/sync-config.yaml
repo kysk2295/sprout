@@ -28,5 +28,7 @@ streams:
       - SELECT * FROM map_areas WHERE owner_id = auth.user_id()
       - SELECT * FROM task_areas WHERE owner_id = auth.user_id()
       - SELECT * FROM map_links WHERE owner_id = auth.user_id()
+      - SELECT * FROM relations WHERE owner_id = auth.user_id()
+      - SELECT * FROM events WHERE owner_id = auth.user_id()
       - SELECT * FROM diary_entries WHERE owner_id = auth.user_id()
       - SELECT * FROM diary_messages WHERE owner_id = auth.user_id()

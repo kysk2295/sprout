@@ -84,6 +84,8 @@ npm start                                                                       
 | `AI_USER_CONCURRENT` | 2 | 사용자당 동시(대기+실행) |
 | `AI_USER_PER_MINUTE` · `AI_USER_PER_DAY` | 6 · 100 | 사용자당 상한 [임시] |
 | `AI_WEEKLY_KPI_DRAFT` · `AI_WEEKLY_REPORT` | 1 · 1 | 주간 상한(PRD) |
+| `AI_DAILY_BREAKDOWN` · `AI_DAILY_TAG` | 10 · 40 | 용도별 하루 상한(31 쪼개기 · 33 자동 태그) |
+| `AI_PREDICT_TAG` | 1600 | `tag` 용도 출력 토큰 상한(할 일 40개 답) |
 | `AI_NUM_CTX` · `AI_NUM_PREDICT` · `AI_TZ_OFFSET_MIN` | 4096 · 700 · 540 | 토큰 제한 · 날짜/주 경계 시간대(한국) |
 
 `ai_usage` 테이블은 새 DB면 `db/init/03-ai-usage.sql`로, 이미 있는 DB면 마이그레이션으로 만든다(다시 돌려도 안전):

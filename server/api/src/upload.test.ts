@@ -25,4 +25,9 @@ assert.throws(() => toStatement({ op: 'PUT', table: 'tasks', id: '', data: {} },
 assert.throws(() => toStatement({ op: 'NOPE' as never, table: 'tasks', id: 'x' }, me), UploadError)
 assert.throws(() => toStatements('nope', me), UploadError)
 assert.equal(toStatement({ op: 'PATCH', table: 'tasks', id: 'x', data: {} }, me).sql, 'SELECT 1')
+// 33 관계 위키: 새 칸·새 표 relations를 받는다
+assert.ok(toStatement({ op: 'PUT', table: 'relations', id: 'rel-1', data: { from_type: 'task', from_id: 't', to_type: 'tag', to_id: 'g', source: 'link', state: 'accepted', field: 'title' } }, me).sql.startsWith('INSERT INTO relations'))
+assert.ok(toStatement({ op: 'PATCH', table: 'task_tags', id: 'tt', data: { source: 'ai', state: 'dismissed', confidence: 92, run_id: 'r' } }, me).sql.startsWith('UPDATE task_tags'))
+assert.ok(toStatement({ op: 'PATCH', table: 'tags', id: 'g', data: { kind: 'person', aliases: '["지도교수님"]', description: 'd', topic_id: 'w', home_type: 'folder', home_id: 'f', source: 'ai', run_id: 'r' } }, me).sql.startsWith('UPDATE tags'))
+assert.ok(toStatement({ op: 'PATCH', table: 'lists', id: 'l', data: { description: '설명' } }, me).sql.startsWith('UPDATE lists'))
 console.log('upload: ok')
