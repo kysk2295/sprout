@@ -1,6 +1,9 @@
-import { CalendarDays, Flag, Inbox, ListChecks } from 'lucide-react'
+import { CalendarDays, Flag, Inbox, ListChecks, MapPin } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { createCalendarTask } from '../../data/calendarCreate'
+import { createEvent } from '../../data/events'
+import { eventSpan, MY_CAL_COLOR } from '@sprout/schema/events'
+import '../events/events.css'
 import { DatePicker, EMPTY_SCHEDULE } from '../DatePicker'
 import type { Schedule } from '../../lib/taskActions'
 import { listLabel, type ListRow } from '../../data/types'
@@ -27,9 +30,20 @@ function draftLabel(d: Draft): string {
   return `${md(s)}, ${formatTime(s.slice(11, 16))}${d.start_at ? ` - ${formatTime(d.due_at.slice(11, 16)).replace(formatTime(s.slice(11, 16)).slice(0, 3), '')}` : ''}`
 }
 
-type Props = { draft: Draft; rect: Rect; lists: ListRow[]; defaultListId: string; onClose: () => void; onCreated: (id: string) => void }
+/** 일정은 시각 하나 = 1시간(06 §14.4.2) — 머리 날짜 글자도 그 길이로 */
+const eventDraft = (d: Schedule): Draft => { const s = eventSpan(d.start_at, d.due_at!); return { start_at: s.start_at === s.end_at ? null : s.start_at, due_at: s.end_at } }
 
-export function QuickCreate({ draft, rect, lists, defaultListId, onClose, onCreated }: Props) {
+type Props = { draft: Draft; rect: Rect; lists: ListRow[]; defaultListId: string; myColor?: string | null; onClose: () => void; onCreated: (id: string) => void; onCreatedEvent?: (id: string) => void }
+// 06 §14.4.2: 할 일 · 일정 — 이 기기에서 마지막으로 고른 쪽을 기억한다
+export type CreateKind = 'task' | 'event'
+const KIND_KEY = 'sprout.cal.qc.kind'
+const loadKind = (): CreateKind => { try { return localStorage.getItem(KIND_KEY) === 'event' ? 'event' : 'task' } catch { return 'task' } }
+const saveKind = (k: CreateKind) => { try { localStorage.setItem(KIND_KEY, k) } catch { /* 기억만 못 함 */ } }
+
+export function QuickCreate({ draft, rect, lists, defaultListId, myColor, onClose, onCreated, onCreatedEvent }: Props) {
+  const [kind, setKindState] = useState<CreateKind>(loadKind)
+  const setKind = (k: CreateKind) => { setKindState(k); saveKind(k); input.current?.focus() }
+  const [place, setPlace] = useState('')
   const input = useRef<HTMLInputElement>(null)
   const dateBtn = useRef<HTMLButtonElement>(null)
   const [title,setTitle] = useState('')
@@ -50,8 +64,13 @@ export function QuickCreate({ draft, rect, lists, defaultListId, onClose, onCrea
     done.current = true
     setBusy(true);setError('')
     try {
-      const id=await createCalendarTask(title,listId,priority,schedule,content)
-      onCreated(id)
+      if (kind === 'event') {
+        const id = await createEvent({ title, start_at: schedule.start_at, due_at: schedule.due_at!, repeat_rule: schedule.repeat_rule, reminders: schedule.reminders, notes: content, location: place })
+        onCreatedEvent?.(id)
+      } else {
+        const id=await createCalendarTask(title,listId,priority,schedule,content)
+        onCreated(id)
+      }
       onClose()
     } catch {
       done.current=false
@@ -60,12 +79,16 @@ export function QuickCreate({ draft, rect, lists, defaultListId, onClose, onCrea
   }
   const cancel = () => { if(busy)return;done.current = true; onClose() }
   return (
-    <Popover rect={rect} placement="side" onClose={() => void create()} onEscape={cancel} width={400} className="qc">
+    <Popover rect={rect} placement="side" onClose={() => void create()} onEscape={cancel} width={400} className={`qc${kind === 'event' ? ' is-event' : ''}`}>
+      <div className="qc__kind" role="tablist" aria-label="만들 종류">
+        <button role="tab" aria-selected={kind === 'task'} className={kind === 'task' ? 'is-on' : ''} onClick={() => setKind('task')}>할 일</button>
+        <button role="tab" aria-selected={kind === 'event'} className={kind === 'event' ? 'is-on' : ''} onClick={() => setKind('event')}>일정</button>
+      </div>
       <div className="qc__head">
-        <button ref={dateBtn} className="qc__date" aria-label="일정 날짜·시간" onClick={()=>setMenu(menu==='date'?undefined:'date')}><CalendarDays />{draftLabel(schedule)||'날짜 선택'}</button>
-        <button ref={flagBtn} className="icon-btn" aria-label="우선순위" style={{ color: flagColor(priority) }} onClick={() => setMenu(menu === 'priority' ? undefined : 'priority')}>
+        <button ref={dateBtn} className="qc__date" aria-label="일정 날짜·시간" onClick={()=>setMenu(menu==='date'?undefined:'date')}><CalendarDays />{(kind === 'event' && schedule.due_at ? draftLabel(eventDraft(schedule)) : draftLabel(schedule))||'날짜 선택'}</button>
+        {kind === 'task' && <button ref={flagBtn} className="icon-btn" aria-label="우선순위" style={{ color: flagColor(priority) }} onClick={() => setMenu(menu === 'priority' ? undefined : 'priority')}>
           <Flag fill={priority ? 'currentColor' : 'none'} />
-        </button>
+        </button>}
       </div>
       <div className="qc__title-row">
       <input
@@ -75,22 +98,29 @@ export function QuickCreate({ draft, rect, lists, defaultListId, onClose, onCrea
         value={title}
         onChange={e=>setTitle(e.target.value)}
         disabled={busy}
-        placeholder="무엇을 하고 싶으신가요?"
+        placeholder={kind === 'event' ? '일정 제목' : '무엇을 하고 싶으신가요?'}
         onKeyDown={(e) => {
           if (e.nativeEvent.isComposing) return
+          if ((e.metaKey || e.ctrlKey) && (e.key === '1' || e.key === '2')) { e.preventDefault(); setKind(e.key === '1' ? 'task' : 'event'); return }
           if (menu) return
           if (e.key === 'Enter') { e.preventDefault(); void create() }
-          if (e.key === 'ArrowDown') { e.preventDefault(); setMenu('list') }
+          if (e.key === 'ArrowDown' && kind === 'task') { e.preventDefault(); setMenu('list') }
         }}
       />
-      <ListChecks className="qc__checklist" aria-hidden />
+      {kind === 'task' && <ListChecks className="qc__checklist" aria-hidden />}
       </div>
+      {kind === 'event' && <label className="qc__place"><MapPin /><input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="장소" aria-label="장소" disabled={busy}
+        onKeyDown={(e) => { if (e.nativeEvent.isComposing) return; if (e.key === 'Enter') { e.preventDefault(); void create() } }} /></label>}
       <textarea className="qc__notes" aria-label="설명" placeholder={title ? '설명' : ''} value={content} onChange={e=>setContent(e.target.value)} disabled={busy} />
       {error&&<p role="alert" className="form-error">{error}</p>}
       <div className="qc__foot">
-        <button ref={listBtn} className="detail__list" onClick={() => setMenu(menu === 'list' ? undefined : 'list')}>
-          <Inbox />{list ? listLabel(list) : '기본함'}
-        </button>
+        {kind === 'task' ? (
+          <button ref={listBtn} className="detail__list" onClick={() => setMenu(menu === 'list' ? undefined : 'list')}>
+            <Inbox />{list ? listLabel(list) : '기본함'}
+          </button>
+        ) : (
+          <span className="qc__mycal"><i style={{ background: myColor || MY_CAL_COLOR }} />내 일정</span>
+        )}
       </div>
       {menu === 'date' && <DatePicker initial={schedule} anchor={dateBtn.current} onSave={setSchedule} onClose={()=>{setMenu(undefined);input.current?.focus()}}/>}
       {menu === 'list' && (

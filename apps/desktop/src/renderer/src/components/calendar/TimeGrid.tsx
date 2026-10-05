@@ -4,6 +4,7 @@ import { addDays, datePart, daysBetween } from '@sprout/schema/time'
 import { hourLabel, isBarItem, layoutDay, minutesOfDay, packBars, shortRange, type CalItem, type ItemStyle } from '../../lib/calendar'
 import { timeSelection } from '../../lib/calendarSelection'
 import { extOf } from '../../lib/calendarExt'
+import { evtOf } from '../../lib/calendarEvents'
 import type { CalHandlers } from './types'
 import { popoverOpen, quickCreateOpen } from './dismiss'
 
@@ -326,6 +327,7 @@ export function TimeGrid(p: Props) {
 export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandlers & { item: CalItem; kind: 'block' | 'bar'; contLeft?: boolean; contRight?: boolean; onDown: (e: RPointerEvent) => void; itemStyle?: ItemStyle }) {
   const t = item.task
   const ext = extOf(item)
+  const evt = evtOf(item) // 06 §14.4 sprout 자체 일정: 구독 일정처럼 캘린더 아이콘, 하지만 끌기·길이·팝오버로 고친다
   const done = t.status !== 0
   const now = new Date()
   const nowF = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
@@ -335,10 +337,10 @@ export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandl
   // 06 §14.2·§14.3 항목 아이콘(종류별): 할 일 = 체크박스, 구독 일정 = 같은 자리·같은 크기의 회색 캘린더 아이콘
   // ("상세한" 스타일은 늘, 아니면 종류별 토글·⌥ 누르는 동안)
   const detailedStyle = p.itemStyle === 'detailed'
-  const detailed = !ext && (detailedStyle || !!p.showIcons)
-  const calIcon = !!ext && (detailedStyle || !!p.showCalIcons)
+  const detailed = !ext && !evt && (detailedStyle || !!p.showIcons)
+  const calIcon = (!!ext || !!evt) && (detailedStyle || !!p.showCalIcons)
   const editable = !item.virtual && !ext
-  const cls = ['cal-item', `is-${kind}`, done && 'is-done', !done && (past || item.virtual || ext?.stale) && 'is-past', item.virtual && 'is-virtual', ext && 'is-ext', p.selection.includes(t.id) && 'is-selected', contLeft && 'cont-left', contRight && 'cont-right']
+  const cls = ['cal-item', `is-${kind}`, done && 'is-done', !done && (past || (item.virtual && !evt) || ext?.stale) && 'is-past', item.virtual && !evt && 'is-virtual', ext && 'is-ext', evt && 'is-event', p.selection.includes(t.id) && 'is-selected', contLeft && 'cont-left', contRight && 'cont-right']
   const extDown = (e: RPointerEvent) => { e.stopPropagation(); if (e.button !== 0) return; e.preventDefault() }
   return (
     <div
@@ -348,8 +350,8 @@ export function Item({ item, kind, contLeft, contRight, onDown, ...p }: CalHandl
       onClick={ext ? (e) => { e.stopPropagation(); p.onOpen(item, e.currentTarget.getBoundingClientRect()) } : undefined}
       onDoubleClick={ext ? (e) => e.stopPropagation() : undefined}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); p.onContext(item, e) }}
-      role={ext ? 'button' : undefined}
-      aria-label={ext ? `${ext.provider === 'google' ? '구글' : 'Apple'} 일정: ${ext.title}, ${ext.allDay ? ext.start : timeText || ext.start}, 읽기 전용` : undefined}
+      role={ext || evt ? 'button' : undefined}
+      aria-label={ext ? `${ext.provider === 'google' ? '구글' : 'Apple'} 일정: ${ext.title}, ${ext.allDay ? ext.start : timeText || ext.start}, 읽기 전용` : evt ? `일정: ${t.title || '제목 없음'}, ${item.allDay ? item.start : timeText || item.start}` : undefined}
     >
       {kind === 'block' && editable && <span className="cal-item__edge is-top" data-edge="top" />}
       <span className="cal-item__row">

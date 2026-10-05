@@ -27,6 +27,9 @@ import { calendarsApi, openCalendarSettings, useExtEvents, type ExtEvent } from 
 import { extItems, extOf, isPastExt } from '../../lib/calendarExt'
 import { ExtEventMenu, ExtEventPopover } from '../calendars/ExtEventCard'
 import { CalendarConnectHost } from '../calendars/ConnectHost'
+import { deleteEvents, duplicateEvents, EV_PREFIX, isEventKey, OPEN_EVENT, rescheduleEvents, takeOpenEvent, useEvents } from '../../data/events'
+import { eventItems, evtOf } from '../../lib/calendarEvents'
+import { EventMenu, EventPopover } from '../events/EventCard'
 
 // 06-calendar: 머리글 · 일/주/월 보기 · 왼쪽 패널 · 팝오버 · 단축키
 type Props = { lists: ListRow[]; tags: TagRow[]; inboxId?: string; actions: TaskActions }
@@ -39,6 +42,8 @@ type Pop =
   | { kind: 'months'; rect: Rect }
   | { kind: 'ext'; ev: ExtEvent; rect: Rect }
   | { kind: 'extmenu'; ev: ExtEvent; point: { x: number; y: number } }
+  | { kind: 'event'; id: string; rect: Rect }
+  | { kind: 'evmenu'; id: string; point: { x: number; y: number }; rect: Rect }
 const VIEW_LABEL: Record<CalView, string> = { day: '일', week: '주', month: '월' }
 const VIEW_KEYS: [CalView, string][] = [['day', 'D/1'], ['week', 'W/2'], ['month', 'M/3']]
 // 실측 메뉴의 나머지 항목(일정·멀티데이·다중 주)은 [후보] — 보이되 비활성
@@ -118,14 +123,39 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
   // 16: 구글·Apple 일정(보이기 + 왼쪽 패널 체크). "완료된 할일 보기"를 끄면 지난 외부 일정도 숨김
   const extEvents = useExtEvents(range.from, range.to, { panel: true })
   useEffect(() => { void calendarsApi()?.refresh() }, []) // 화면에 들어오면 새로 고침(1분 안 중복은 메인이 건너뜀)
-  const items = useMemo(() => [...itemsOf(tasks, range.from, range.to, !!opts.repeats), ...extItems(opts.completed ? extEvents : extEvents.filter((e) => !isPastExt(e)))], [tasks, range.from, range.to, opts.repeats, extEvents, opts.completed])
+  // 06 §14.4.3 sprout 자체 일정("내 일정" 체크). 회차는 늘 계산, "완료된 할일 보기"를 끄면 지난 일정 숨김
+  const myEvents = useEvents(range.from, range.to, opts.myCal !== 0)
+  const evItems = useMemo(() => {
+    const all = eventItems(myEvents, range.from, range.to, opts.myColor)
+    return opts.completed ? all : all.filter((it) => !isPastExt({ end: it.end }))
+  }, [myEvents, range.from, range.to, opts.myColor, opts.completed])
+  const items = useMemo(() => [...itemsOf(tasks, range.from, range.to, !!opts.repeats), ...evItems, ...extItems(opts.completed ? extEvents : extEvents.filter((e) => !isPastExt(e)))], [tasks, range.from, range.to, opts.repeats, extEvents, opts.completed, evItems])
   const tagColor = useCallback((id: string) => tags.find((t) => t.id === id)?.color, [tags])
   const filtered = opts.lists.length > 0 || opts.tags.length > 0
 
   // ── 동작 ──
   const go = useCallback((n: number) => setCursor((c) => shiftCursor(view, c, n)), [view])
   const setView = (v: CalView) => { setOpts({ view: v }); setMenu(undefined) }
-  const openTask = (it: CalItem, rect: Rect) => { const ext = extOf(it); if (ext) { setSelection([]); setPop({ kind: 'ext', ev: ext, rect }); return } setSelection([it.task.id]); setPop({ kind: 'task', id: it.task.id, rect }) }
+  const openTask = (it: CalItem, rect: Rect) => {
+    const ext = extOf(it)
+    if (ext) { setSelection([]); setPop({ kind: 'ext', ev: ext, rect }); return }
+    const evt = evtOf(it)
+    if (evt) { setSelection([it.task.id]); setPop({ kind: 'event', id: evt.id, rect }); return }
+    setSelection([it.task.id]); setPop({ kind: 'task', id: it.task.id, rect })
+  }
+  // 06 §14.4.5 할 일·일정이 섞인 변경을 나눠 저장(일정은 events, 할 일은 기존 동작)
+  const moveMixed = (changes: Change[], dup: boolean) => {
+    const evs = changes.filter((c) => isEventKey(c.id))
+    const ts = changes.filter((c) => !isEventKey(c.id))
+    if (ts.length) void actions.reschedule(ts, { duplicate: dup })
+    if (evs.length) void (dup ? duplicateEvents(evs).then((r) => toast.show('복제했어요', r)) : rescheduleEvents(evs).then((r) => toast.registerUndo(r)))
+  }
+  const trashMixed = (ids: string[]) => {
+    const evs = ids.filter(isEventKey)
+    const ts = ids.filter((id) => !isEventKey(id))
+    if (ts.length) void actions.trash(ts)
+    if (evs.length) void deleteEvents(evs).then((r) => toast.show(ts.length ? '삭제했어요' : '일정을 삭제했어요', r))
+  }
   // 06 §14.2: 항목 아이콘을 꺼도 ⌥(Option)을 누르고 있는 동안은 보인다(틱틱 데스크톱)
   const [altHeld, setAltHeld] = useState(false)
   useEffect(() => {
@@ -141,23 +171,42 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
     pending: pop?.kind === 'create' ? pop.draft : undefined,
     showIcons: opts.icons !== 0 || altHeld,
     showCalIcons: opts.calIcons !== 0 || altHeld,
-    colorOf: (it) => extOf(it)?.color ?? colorOf(it.task, opts.color, tagColor),
+    colorOf: (it) => extOf(it)?.color ?? (evtOf(it) ? it.task.list_color! : colorOf(it.task, opts.color, tagColor)),
     itemsById: (ids) => items.filter((i) => !i.virtual && !extOf(i) && ids.includes(i.task.id)),
     onSelect: (id, toggle) => id.startsWith('ext:') ? undefined : setSelection((s) => (toggle ? (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]) : [id])),
     onOpen: openTask,
     onContext: (it, e) => {
       const ext = extOf(it)
       if (ext) { setPop({ kind: 'extmenu', ev: ext, point: { x: e.clientX, y: e.clientY } }); return }
+      const evt = evtOf(it)
+      if (evt) { setSelection([it.task.id]); setPop({ kind: 'evmenu', id: evt.id, point: { x: e.clientX, y: e.clientY }, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() }); return }
       const ids = selection.includes(it.task.id) ? selection : [it.task.id]
       if (!selection.includes(it.task.id)) setSelection([it.task.id])
       setPop({ kind: 'menu', ids, point: { x: e.clientX, y: e.clientY } })
     },
-    onToggle: (it) => extOf(it) ? undefined : void (it.task.status === 0 ? actions.complete([it.task.id]) : actions.reopen([it.task.id])),
+    onToggle: (it) => extOf(it) || evtOf(it) ? undefined : void (it.task.status === 0 ? actions.complete([it.task.id]) : actions.reopen([it.task.id])),
     onCreate: (draft, rect) => { setSelection([]); setPop({ kind: 'create', draft, rect }) },
-    onMove: (changes: Change[], dup) => void actions.reschedule(changes, { duplicate: dup }),
-    onMoveToList: (ids,listId) => { const l=lists.find(x=>x.id===listId);if(l)void actions.move(ids,l) },
+    onMove: moveMixed,
+    onMoveToList: (ids,listId) => { const l=lists.find(x=>x.id===listId);const ts=ids.filter((id)=>!isEventKey(id));if(l&&ts.length)void actions.move(ts,l) },
     onEdgeShift: go
   }
+
+  // 06 §14.4.3 ⌘F 검색에서 고른 일정: 그 날짜로 가서 팝오버를 연다
+  useEffect(() => {
+    const take = () => {
+      const req = takeOpenEvent()
+      if (!req) return
+      setCursor(req.date)
+      const r = bodyRef.current?.getBoundingClientRect()
+      const x = r ? r.left + r.width / 2 : window.innerWidth / 2
+      const y = r ? r.top + 80 : 120
+      setSelection([`${EV_PREFIX}${req.id}`])
+      setPop({ kind: 'event', id: req.id, rect: { left: x - 200, right: x + 200, top: y, bottom: y } })
+    }
+    take()
+    window.addEventListener(OPEN_EVENT, take)
+    return () => window.removeEventListener(OPEN_EVENT, take)
+  }, [])
 
   // 06 §7.4 단축키 — 입력 중·팝오버가 열려 있을 때는 동작하지 않는다
   useEffect(() => {
@@ -177,7 +226,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
       else if (k === 'w' || k === '2') setOpts({ view: 'week' })
       else if (k === 'm' || k === '3') setOpts({ view: 'month' })
       else if (e.key === 'Escape') setSelection([])
-      else if ((e.key === 'Delete' || e.key === 'Backspace') && selection.length) { e.preventDefault(); void actions.trash(selection); setSelection([]) }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && selection.length) { e.preventDefault(); trashMixed(selection); setSelection([]) }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -230,6 +279,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
             filterTags={opts.tags}
             onPick={(d) => { setCursor(d); if (narrow) setPanelOpen(false) }}
             onFilter={(l, t) => setOpts({ lists: l, tags: t })}
+            myCal={{ on: opts.myCal !== 0, color: opts.myColor, onChange: setOpts }}
             calendarCursor={cursor}
           />
         </div>
@@ -298,7 +348,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
         </Popover>
       )}
       {pop?.kind === 'create' && inboxId && (
-        <QuickCreate key={`${pop.draft.start_at}:${pop.draft.due_at}:${pop.rect.left}:${pop.rect.top}`} draft={pop.draft} rect={pop.rect} lists={lists} defaultListId={defaultList ?? inboxId} onClose={() => setPop(current=>current===pop?undefined:current)} onCreated={(id) => setSelection([id])} />
+        <QuickCreate key={`${pop.draft.start_at}:${pop.draft.due_at}:${pop.rect.left}:${pop.rect.top}`} draft={pop.draft} rect={pop.rect} lists={lists} defaultListId={defaultList ?? inboxId} myColor={opts.myColor} onClose={() => setPop(current=>current===pop?undefined:current)} onCreated={(id) => setSelection([id])} onCreatedEvent={(id) => setSelection([`${EV_PREFIX}${id}`])} />
       )}
       {pop?.kind === 'more' && (
         <Popover rect={pop.rect} placement="side" width={260} className="menu day-pop" onClose={() => setPop(undefined)}>
@@ -334,9 +384,15 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
       )}
       {pop?.kind === 'ext' && <ExtEventPopover ev={pop.ev} rect={pop.rect} onClose={() => setPop(undefined)} />}
       {pop?.kind === 'extmenu' && <ExtEventMenu ev={pop.ev} point={pop.point} onClose={() => setPop(undefined)} />}
+      {pop?.kind === 'event' && <EventPopover key={pop.id} id={pop.id} rect={pop.rect} myColor={opts.myColor} onClose={() => setPop(undefined)} />}
+      {pop?.kind === 'evmenu' && (
+        <EventMenu id={pop.id} point={pop.point} inboxId={inboxId} onClose={() => setPop((cur) => (cur === pop ? undefined : cur))}
+          onOpen={() => setPop({ kind: 'event', id: pop.id, rect: pop.rect })}
+          onConverted={(taskId) => setSelection([taskId])} />
+      )}
       <CalendarConnectHost />
       {optionsOpen && <ViewOptions opts={opts} lists={lists} tags={tags} onChange={setOpts} onClose={() => setOptionsOpen(false)} />}
-      {tasks.length === 0 && extEvents.length === 0 && view === 'month' && !filtered && <div className="cal__empty">이번 달 일정이 없어요</div>}
+      {tasks.length === 0 && extEvents.length === 0 && evItems.length === 0 && view === 'month' && !filtered && <div className="cal__empty">이번 달 일정이 없어요</div>}
     </div>
   )
 }

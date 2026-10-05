@@ -5,6 +5,7 @@ import { listView, type ListRow, type TagRow } from '../../data/types'
 import { weekStart } from '../../lib/calendar'
 import { dayKey } from '../../lib/dates'
 import { ExtPanelFilter } from '../calendars/ExtPanelFilter'
+import { MyCalRow } from '../events/MyCalRow'
 
 // 06 §6 왼쪽 패널(실측 research 17 §8): 작은 달력(이번 주 띠 · 태스크 점) + 필터(전체 · 리스트 · 태그 · 캘린더 구독)
 type Props = {
@@ -19,6 +20,8 @@ type Props = {
   onPick: (day: string) => void
   onFilter: (lists: string[], tags: string[]) => void
   calendarCursor?: string
+  /** 06 §14.4.3 "내 일정" 보이기·색 */
+  myCal?: { on: boolean; color: string | null | undefined; onChange: (patch: { myCal?: number; myColor?: string | null }) => void }
 }
 const WEEK = ['월', '화', '수', '목', '금', '토', '일'] // 주 시작 = 월요일(2026-10-05 사용자 결정)
 
@@ -80,6 +83,7 @@ export function CalendarSide(p: Props) {
         {open.tags && p.tags.map((t) => (
           <Row key={t.id} indent icon="#" label={t.name} on={p.filterTags.includes(t.id)} onClick={() => p.onFilter(p.filterLists, toggle(p.filterTags, t.id))} />
         ))}
+        {p.myCal && <MyCalRow on={p.myCal.on} color={p.myCal.color} onChange={p.myCal.onChange} />}
         <ExtPanelFilter open={open.subs} onOpen={() => setOpen((o) => ({ ...o, subs: !o.subs }))} cursor={p.calendarCursor ?? p.cursor} />
       </div>
     </aside>
