@@ -44,7 +44,11 @@ export class CalendarStore {
       this.setMeta('schema', CACHE_VERSION)
     } else db.exec(EVENTS_SCHEMA)
   }
+  /** 38 §7 휴대폰이 연결한 꿈틀 일정(device-*)과 제목·시작·끝이 같은 캐시 일정 — 휴대폰이 iCloud·구글에 쓴 것을 맥이 다시 읽어도 한 번만 */
+  private lookalike = new Set<string>()
   setHidden(keys: Iterable<string>) { this.hidden = new Set(keys) }
+  setLookalike(keys: Iterable<string>) { this.lookalike = new Set(keys) }
+  isLookalike(title: string | null, start: string, end: string) { return this.lookalike.size > 0 && this.lookalike.has(lookKey(title, start, end)) }
   isHidden(accountId: string, calendarId: string, baseId: string | null) { return !!baseId && this.hidden.has(`${accountId}|${calendarId}|${baseId}`) }
   setCanWrite(id: string, on: boolean) { this.db.run('UPDATE ext_accounts SET can_write = ? WHERE id = ?', [on ? 1 : 0, id]) }
   /** 해시(events.ext_calendar)로 이 기기 캐시의 캘린더 찾기 */
@@ -197,7 +201,7 @@ export class CalendarStore {
       `SELECT e.*, c.color_bg, c.name, c.access_role, a.label, a.provider, a.status AS acct_status, a.can_write FROM ext_events e JOIN ext_calendars c ON c.account_id = e.account_id AND c.calendar_id = e.calendar_id JOIN ext_accounts a ON a.id = e.account_id WHERE ${cond.join(' AND ')} ORDER BY e.start`,
       params
     )
-    const shown = opts.includeLinked || opts.accountId ? rows : rows.filter((r) => !this.isHidden(r.account_id, r.calendar_id, r.base_id ?? r.event_id))
+    const shown = opts.includeLinked || opts.accountId ? rows : rows.filter((r) => !this.isHidden(r.account_id, r.calendar_id, r.base_id ?? r.event_id) && !this.isLookalike(r.title, r.start, r.end))
     return shown.map((r) => this.toView(r))
   }
   /** 캐시 행 → 화면 모양(§12.2 판정 포함) */
@@ -267,3 +271,6 @@ export class CalendarStore {
     }))
   }
 }
+
+/** 38 §7 같은 모양 열쇠(휴대폰 src/calendars/link.ts lookKey와 같은 규칙): 제목(앞뒤 공백 없음)|시작|끝(꿈틀 모양) */
+export const lookKey = (title: string | null | undefined, start: string, end: string) => `${(title ?? '').replace(/\r\n/g, '\n').trim()}|${start}|${end}`

@@ -1,7 +1,7 @@
 // 16 §12.0.2 연결된 일정 다리 — 꿈틀 events(ext_*) ⇄ 구글·Apple. 데스크톱 메인 프로세스에서만 돈다(휴대폰에서 고친 것도 동기화로 여기 와서 올라간다).
 // 꿈틀 쪽이 바뀌면 올리고, 외부 쪽이 바뀌면 꿈틀 행을 고치고, 양쪽 다 바뀌면 나중에 고친 쪽으로 맞춘다. Electron 없음(시험은 sql.js + 가짜 구글·도우미).
 import { addDaysStr, cacheFrom, floating } from '../shared/calendars'
-import type { AccountRow, CalendarRow, CalendarStore } from './calendarStore'
+import { lookKey, type AccountRow, type CalendarRow, type CalendarStore } from './calendarStore'
 import { appleInput, fieldsFromApple, fieldsFromGoogle, fingerprint, googleBody, googleIdFor, type LinkFields, type LinkedRow } from './calendarLink'
 import { GoogleError, type GoogleSync } from './googleSync'
 import { AppleWriteError, type AppleSync } from './appleSync'
@@ -35,6 +35,7 @@ export class CalendarBridge {
   private running = false
   private again = false
   private hiddenKey = ''
+  private lookKeySig = ''
   private missingChecked = new Map<string, number>()
   private toasted = new Set<string>()
   constructor(private d: BridgeDeps) {}
@@ -56,6 +57,10 @@ export class CalendarBridge {
     const rows = await this.d.db.getAll<LinkedRow>('SELECT * FROM events WHERE ext_provider IS NOT NULL')
     const ctxs: Ctx[] = []
     const hidden: string[] = []
+    // 38 §6.2: device-ios·device-android(휴대폰이 연결한 일정)는 그 휴대폰만 올린다 — 여기서는 같은 모양 숨김(§7)만
+    const looks = rows.filter((r) => !r.deleted_at && (r.ext_provider as string | null)?.startsWith('device-')).map((r) => lookKey(r.title, r.start_at, r.end_at))
+    const lookSig = looks.sort().join('\n')
+    if (lookSig !== this.lookKeySig) { this.lookKeySig = lookSig; this.d.store.setLookalike(looks); this.d.changed() }
     for (const row of rows) {
       if (!row.ext_account || !row.ext_calendar || (row.ext_provider !== 'google' && row.ext_provider !== 'apple')) continue
       const acct = this.d.store.account(row.ext_account)

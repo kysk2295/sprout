@@ -176,6 +176,17 @@ await bridge.pass()
 assert.ok(!evs().some((e) => e.eventId === GID), '연결된 일정의 캐시 사본은 그리지 않는다')
 assert.ok(store.events('2026-10-01', '2026-10-31', { accountId: ACC }).some((e) => e.eventId === GID), '계정 목록 보기에는 보인다')
 assert.ok(changes > 0)
+// 38 §6.2·§7 휴대폰이 연결한 일정(device-ios)은 데스크톱이 올리지 않고, 같은 제목·시작·끝인 캐시 일정은 숨긴다
+const PH = '3f2a1b4c-0000-4000-8000-0000000fe0e1'
+const writesBefore = fake.state.writes.length
+await bdb.execute(`INSERT INTO events (id, created_at, modified_at, title, notes, start_at, end_at, is_all_day, time_zone, location, ext_provider, ext_account, ext_calendar) VALUES (?, ?, ?, ' 남의 초대', NULL, '2026-10-13T10:00', '2026-10-13T11:00', 0, 'floating', NULL, 'device-ios', 'd_0123456789abcdef', 'c_0123456789abcdef')`, [PH, t0, t0])
+await bridge.pass()
+assert.equal(fake.state.writes.length, writesBefore, '휴대폰 연결 일정은 구글에 올리지 않는다')
+assert.equal((await row(PH)).ext_id, null); assert.equal((await row(PH)).ext_error, null)
+assert.ok(!evs().some((e) => e.eventId === 'inv'), '휴대폰이 연결한 일정과 같은 모양의 캐시 일정은 그리지 않는다')
+await bdb.execute('UPDATE events SET deleted_at = ? WHERE id = ?', [t0, PH])
+await bridge.pass()
+assert.ok(evs().some((e) => e.eventId === 'inv'), '지우면 다시 보인다')
 // 꿈틀(또는 휴대폰)에서 고침 → 구글에
 await bdb.execute("UPDATE events SET start_at = '2026-10-20T17:00', end_at = '2026-10-20T18:00', modified_at = ? WHERE id = ?", ['2026-10-05T02:00:00.000Z', EV])
 await bridge.pass()

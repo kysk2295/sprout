@@ -9,7 +9,7 @@ export interface EventRow extends EventRecord {
   created_at: string | null
   modified_at: string | null
   // 16 §12.0 연결된 일정(구글·Apple에도 저장) — 데스크톱 메인의 다리가 맞춘다
-  ext_provider?: 'google' | 'apple' | null
+  ext_provider?: 'google' | 'apple' | 'device-ios' | 'device-android' | null
   ext_account?: string | null
   ext_calendar?: string | null
   ext_id?: string | null

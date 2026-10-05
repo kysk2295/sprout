@@ -78,7 +78,7 @@ export function EventCard({ id, myColor, onClose }: CardProps) {
       </label>
       <footer className="ext-card__foot">
         <span className="ext-card__dot" style={{ background: color }} />
-        <span className="ext-card__cal">{ev.ext_provider ? (link?.name ?? (ev.ext_provider === 'google' ? '구글 캘린더' : 'Apple 캘린더')) : '내 일정'}</span>
+        <span className="ext-card__cal">{ev.ext_provider ? (link?.name ?? (ev.ext_provider === 'google' ? '구글 캘린더' : ev.ext_provider === 'apple' ? 'Apple 캘린더' : ev.ext_provider === 'device-ios' ? 'iPhone 캘린더' : 'Android 캘린더')) : '내 일정'}</span>
         <span className="ext-card__acct">{link && link.accountLabel !== link.name ? `· ${link.accountLabel}` : ''}</span>
         <button className="icon-btn evt-card__del" aria-label="일정 삭제" title="삭제" onClick={() => void remove()}><Trash2 /></button>
       </footer>

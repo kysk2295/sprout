@@ -17,7 +17,8 @@ export interface LinkedRow extends LinkFields {
   id: string
   deleted_at: string | null
   modified_at: string | null
-  ext_provider: 'google' | 'apple' | null
+  /** 'google'|'apple' = 데스크톱이 올림 · 'device-ios'|'device-android' = 그 휴대폰만 올림(38 §6.2) */
+  ext_provider: 'google' | 'apple' | 'device-ios' | 'device-android' | null
   ext_account: string | null
   ext_calendar: string | null
   ext_id: string | null
