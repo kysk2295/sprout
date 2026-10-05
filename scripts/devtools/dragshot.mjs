@@ -42,4 +42,5 @@ if (end !== 'hold') await call('Input.dispatchMouseEvent', { type: 'mouseRelease
 await wait(400)
 const r = await call('Page.captureScreenshot', { format: 'png' })
 writeFileSync(`${prefix}-after.png`, Buffer.from(r.data, 'base64'))
+await call('Emulation.clearDeviceMetricsOverride', {}) // 캡처 뒤 원래 창 크기로(남겨 두면 창 안 화면이 잘려 보인다)
 ws.close()
