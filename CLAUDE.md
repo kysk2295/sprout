@@ -5,6 +5,9 @@
 ## 이어받기
 - 새 세션·다른 계정은 먼저 [HANDOFF.md](HANDOFF.md)(현재 상태·다음 할 일·사용자 규칙)를 읽는다. 큰 작업을 마치면 HANDOFF.md를 갱신한다.
 
+## 외부 기여자(iOS 출시 담당)
+- iOS를 자기 Apple 계정으로 출시하는 기여자는 [docs/release/CONTRIBUTOR-IOS.md](docs/release/CONTRIBUTOR-IOS.md)부터 읽는다. `release/ios` 브랜치 + PR, iOS 빌드 설정·스토어 자료만 고치고 서버·공용 코드는 건드리지 않는다. 비밀 값(.p8·인증서)은 커밋하지 않고 저장소 주인에게 따로 보낸다.
+
 ## 정본 문서
 - 제품 범위·결정: [PRD-sprout.md](PRD-sprout.md) — v1 범위 밖 기능은 만들지 않고 백로그로 보낸다.
 - 틱틱 조사 자료: `docs/ticktick-research/` — UI·UX·인터랙션의 근거.
