@@ -3,7 +3,7 @@
 import { parseAliases } from './wikiLink.ts'
 import { tagKey } from './autoTag.ts'
 import {
-  blockedSet, findProjectClusters, nextSteps, projectDeadline, projectEmoji, projectMembers, projectSpan, projectTitle, taskDay, workKind,
+  blockedSet, categoryOf, daysBetween, findProjectClusters, specificName, EXAM_CATEGORY, nextSteps, projectDeadline, projectEmoji, projectMembers, projectSpan, projectTitle, taskDay, workKind,
   WORK_KINDS, type Proposal, type PTask, type WorkKind
 } from './projects.ts'
 
@@ -37,7 +37,21 @@ export type ProjectView = {
   finished: boolean
   /** 빠진 거 없어 이후 그대로면 말풍선 숨김 */
   confirmed: boolean
+  /** 31 §12.9.2 구성원이 들어온 길: user = 사람이 넣음 · auto = AI·규칙(✦, 확인 전) · home = 집(리스트·폴더)·하위 할 일 */
+  via: Map<string, MemberVia>
+  /** AI·규칙이 넣고 아직 확인 안 한 구성원 수 */
+  autoCount: number
+  /** 일의 종류를 사람이 정한 할 일(relations work_kind) */
+  kindSet: Set<string>
+  /** 주 리스트(구성원이 가장 많은 리스트 — 새 할 일이 들어갈 곳). 없으면 null(기본함) */
+  mainList: string | null
+  /** 31 §12.10 분류(사람이 고른 것 → 이름 안 분류 낱말 → null) */
+  category: string | null
 }
+/** §12.10.3 막연한 할 일(분류 낱말만 있고 아직 그 분류 프로젝트에 없음) — 고르기 알약은 가까운 순 */
+export type LooseItem = { task: PTaskRow; choices: string[] }
+export type CategoryGroup = { word: string; projects: ProjectView[]; loose: LooseItem[] }
+export type MemberVia = 'user' | 'auto' | 'home'
 export type TodayItem = { task: PTaskRow; why: 'today' | 'step'; project?: string }
 export type PlanData = {
   loaded: boolean
@@ -51,6 +65,8 @@ export type PlanData = {
   openTasks: PTaskRow[]
   byId: Map<string, PTaskRow>
   listName: (id: string | null) => string
+  /** §12.10 보드 분류 묶음(분류 있는 프로젝트) — 분류 없는 프로젝트는 projects에서 category null */
+  categories: CategoryGroup[]
 }
 
 export type PlanInput = {
@@ -69,6 +85,12 @@ export type PlanInput = {
   today: string
   /** 제안 카드 계산(데스크톱만) */
   suggest?: boolean
+  /** 31 §12.9.2 사람이 정한 일의 종류(relations from_type task · to_type work_kind) — 결정적 분류보다 먼저 */
+  kindOverrides?: { task_id: string; kind: string }[] | null
+  /** §12.10 사람이 고른 분류(relations tag → category) */
+  categoryOverrides?: { tag_id: string; word: string }[] | null
+  /** §12.10.3 고르기에서 `아니`한 할 일 */
+  skip?: string[]
 }
 export function buildPlanView(i: PlanInput): PlanData {
   const { tasks, tags, links, lists, folders, seq, topics, notes, pstore, today } = i
@@ -76,13 +98,17 @@ export function buildPlanView(i: PlanInput): PlanData {
   const byId = new Map((tasks ?? []).map((t) => [t.id, t]))
   const listOf = new Map((lists ?? []).map((l) => [l.id, l]))
   const listName = (id: string | null) => { const l = id ? listOf.get(id) : undefined; return l ? (l.kind === 'inbox' ? '기본함' : l.name) : '' }
-  const empty: PlanData = { loaded: false, projects: [], suggestion: null, today: [], todayTotal: 0, overdue: 0, openTasks: [], byId, listName }
+  const empty: PlanData = { loaded: false, projects: [], suggestion: null, today: [], todayTotal: 0, overdue: 0, openTasks: [], byId, listName, categories: [] }
+  const catOver = new Map((i.categoryOverrides ?? []).map((c) => [c.tag_id, c.word]))
   if (!tasks || !tags || !links || !lists || !folders || !seq) return empty
   const accepted = (l: LinkRow) => (l.state ?? 'accepted') === 'accepted'
   const tagById = new Map(tags.map((t) => [t.id, t]))
   const openIds = new Set(tasks.filter((t) => t.status === 0).map((t) => t.id))
   const blocked = blockedSet(seq, openIds)
   const projectOf = new Map<string, string>() // 할 일 → 첫 프로젝트 이름(⚡ 칩)
+  const overrides = new Map<string, WorkKind>()
+  for (const o of i.kindOverrides ?? []) if ((WORK_KINDS as string[]).includes(o.kind)) overrides.set(o.task_id, o.kind as WorkKind)
+  const linkOf = new Map(links.map((l) => [`${l.task_id}|${l.tag_id}`, l]))
 
   const projects: ProjectView[] = []
   for (const tag of tags.filter((t) => t.kind === 'project')) {
@@ -90,7 +116,12 @@ export function buildPlanView(i: PlanInput): PlanData {
     const members = [...ids].map((id) => byId.get(id)!).filter(Boolean)
     const title = projectTitle(tag.name)
     for (const m of members) if (!projectOf.has(m.id)) projectOf.set(m.id, title)
-    const kindOf = new Map(members.map((m) => [m.id, workKind(m.title)]))
+    const kindOf = new Map(members.map((m) => [m.id, overrides.get(m.id) ?? workKind(m.title)]))
+    const via = new Map<string, MemberVia>()
+    for (const m of members) {
+      const l = linkOf.get(`${m.id}|${tag.id}`)
+      via.set(m.id, l && accepted(l) ? ((l.source ?? 'user') === 'user' ? 'user' : 'auto') : 'home')
+    }
     const count = new Map<WorkKind, number>()
     for (const k of kindOf.values()) count.set(k, (count.get(k) ?? 0) + 1)
     const deadline = projectDeadline(members)
@@ -126,7 +157,11 @@ export function buildPlanView(i: PlanInput): PlanData {
       lists: [...perList].sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ id, name: listName(id), emoji: listOf.get(id)?.emoji ?? null, count: n })),
       people: [...people].map(([id, m]) => ({ id, name: tagById.get(id)!.name, label: [...m].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, n]) => `${KIND_SHORT[k]} ${n}`).join(' · ') })),
       memos, seq: seq.filter((l) => ids.has(l.from_id) && ids.has(l.to_id)), finished,
-      confirmed: pstore.confirmed[tag.id] !== undefined && pstore.confirmed[tag.id] >= members.length
+      confirmed: pstore.confirmed[tag.id] !== undefined && pstore.confirmed[tag.id] >= members.length,
+      via, autoCount: [...via.values()].filter((v) => v === 'auto').length,
+      kindSet: new Set(members.filter((m) => overrides.has(m.id)).map((m) => m.id)),
+      mainList: [...perList].filter(([id]) => listOf.get(id)?.kind !== 'inbox').sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
+      category: (catOver.has(tag.id) ? catOver.get(tag.id) || null : categoryOf(tag.name))
     })
   }
   // 순서: 끝난 것 맨 뒤 → 마감 가까운 순 → 열린 일 많은 순
@@ -151,8 +186,33 @@ export function buildPlanView(i: PlanInput): PlanData {
   todayItems.sort((a, b) => (a.why === 'today' ? 0 : 1) - (b.why === 'today' ? 0 : 1) || (a.task.due_at ?? '9999').localeCompare(b.task.due_at ?? '9999') || (b.task.priority ?? 0) - (a.task.priority ?? 0))
   const overdue = open.filter((t) => { const d = day(t.due_at); return !!d && d < today }).length
 
-  return { loaded: true, projects, suggestion, today: todayItems.slice(0, 3), todayTotal: todayItems.length, overdue, openTasks: open, byId, listName }
+  // §12.10 분류 묶음 + 막연한 할 일 고르기
+  const skip = new Set(i.skip ?? [])
+  const groups = new Map<string, CategoryGroup>()
+  for (const p of projects) if (p.category) (groups.get(p.category) ?? groups.set(p.category, { word: p.category, projects: [], loose: [] }).get(p.category)!).projects.push(p)
+  for (const t of open) {
+    if (skip.has(t.id)) continue
+    const cat = categoryOf(t.title)
+    if (!cat || cat === EXAM_CATEGORY || specificName(t.title, cat)) continue
+    const g = groups.get(cat)
+    if (!g || g.projects.some((p) => p.members.some((m) => m.id === t.id))) continue
+    const d = day(t.due_at) ?? day(t.start_at) ?? day(t.created_at)
+    const dist = (p: ProjectView) => { const ds = p.members.map((m) => taskDay(m)).filter((x): x is string => !!x); return d && ds.length ? Math.min(...ds.map((x) => Math.abs(daysBetween(x, d)))) : 9999 }
+    g.loose.push({ task: t, choices: [...g.projects].sort((a, b) => dist(a) - dist(b)).map((p) => p.tag.id) })
+  }
+  const categories = [...groups.values()].sort((a, b) => (a.projects[0]?.deadline?.day ?? '9999').localeCompare(b.projects[0]?.deadline?.day ?? '9999') || a.word.localeCompare(b.word))
+
+  return { loaded: true, projects, suggestion, today: todayItems.slice(0, 3), todayTotal: todayItems.length, overdue, openTasks: open, byId, listName, categories }
 }
 
 const KIND_SHORT: Record<WorkKind, string> = { research: '분석', meeting: '미팅', dev: '개발', admin: '제출', other: '일' }
 const addDays = (d: string, n: number) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10) }
+
+/** 31 §12.9.0 차분한 카드 한 줄(데스크톱·모바일 같은 글): `14개 중 5개 완료 · 제출 10/10`. hot = 마감이 지났거나 3일 안(빨강) */
+export function projectCardLine(p: Pick<ProjectView, 'members' | 'done' | 'deadline'>, today: string): { text: string; deadline: string | null; hot: boolean; progress: number } {
+  const n = p.members.length
+  const base = `${n}개 중 ${p.done}개 완료`
+  const dl = p.deadline ? `${p.deadline.word} ${Number(p.deadline.day.slice(5, 7))}/${Number(p.deadline.day.slice(8, 10))}` : null
+  const left = p.deadline ? Math.round((Date.parse(`${p.deadline.day}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000) : null
+  return { text: dl ? `${base} · ${dl}` : base, deadline: dl, hot: left !== null && left <= 3 && p.done < n, progress: n ? p.done / n : 0 }
+}

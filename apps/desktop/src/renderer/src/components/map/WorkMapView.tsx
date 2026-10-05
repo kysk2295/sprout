@@ -41,6 +41,7 @@ import type { MapTask } from '../../data/map'
 import type { MapActions } from './parts'
 import { DEFAULT_OPTIONS, useMapData, useStored, useStoredValue, type MapOptions } from './useMapData'
 import { PlanHome } from './plan/PlanHome'
+import { autoProjectsOn, projectStore } from '../../data/projects'
 import type { PlanOpen } from './plan/ProjectBoard'
 import './map.css'
 
@@ -229,6 +230,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const panTo = (id: string) => setReveal((r) => ({ id, n: (r?.n ?? 0) + 1 }))
   const openPlan = (taskId?: string, extra: { project?: { id: string; name: string }; makeProject?: boolean } = {}) => { setFocusNow(false); setPlan({ key: Date.now(), taskId, ...extra }) }
   const onPlanOpen: PlanOpen = (o = {}) => openPlan(o.taskId, { project: o.project, makeProject: o.makeProject })
+  const [chatClose, setChatClose] = useState(0)
   const freshTimer = useRef(0)
   const addFresh = (tasks: string[], links: string[]) => {
     setFresh((m) => { const n = new Map(m); let i = 0; for (const id of tasks) n.set(id, i++); i = 0; for (const id of links) n.set(id, i++); return n })
@@ -319,7 +321,8 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
         </header>
 
         {!whole ? (
-          <PlanHome selected={selected} onSelect={setSelected} onPlan={onPlanOpen} onTidy={openTidy} actions={taskActions} focusProject={focusProject} />
+          <PlanHome selected={selected} onSelect={setSelected} onPlan={onPlanOpen} onTidy={openTidy} actions={taskActions} focusProject={focusProject}
+            chatOpen={!!plan} onCloseChat={() => setChatClose((n) => n + 1)} />
         ) : <>
         {data.loaded && (
           <NowStrip data={data} actions={actions} focusNow={focusNow} onFocus={() => setFocusNow((f) => !f)} onReveal={revealTask}
@@ -356,7 +359,7 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
       </div>
 
       {plan && (
-        <PlanChat req={plan} lists={data.lists} aiOk={aiOk} actions={taskActions}
+        <PlanChat req={plan} lists={data.lists} aiOk={aiOk} actions={taskActions} closeSignal={chatClose}
           onLight={setLit} onReveal={panTo} onFresh={addFresh} onGoal={setPlanGoal} onClose={closePlan} onProject={(id) => { if (!whole) setFocusProject((f) => ({ id, n: (f?.n ?? 0) + 1 })) }}
           onUndone={(r) => { setPlan(null); setLit(null); setPlanGoal(null); toast.show(r.kept ? `계획을 되돌렸어요. 직접 고친 ${r.kept}개는 남겼어요` : '계획을 되돌렸어요') }} />
       )}
@@ -374,6 +377,8 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
           <div className="menu__divider" />
           {/* 보기 옵션(예전 거름틀) — 묶기·기간은 모드가 정해서 뺐다 */}
           {view === 'timeline' && <TimelineScaleItems nav={tl} close={() => setPop(undefined)} />}
+          {!whole && <MenuItem label="자동으로 프로젝트 만들기" onClick={() => { const on = !autoProjectsOn(); projectStore.set({ auto: on }); setPop(undefined); toast.show(on ? '자동으로 프로젝트를 만들어요' : '자동으로 프로젝트를 만들지 않아요. 있는 프로젝트는 그대로예요') }} trail={autoProjectsOn() ? <Check className="map-check" /> : undefined} />}
+          {!whole && <div className="menu__divider" />}
           <MenuItem label="완료한 항목 보이기" onClick={() => setOpt('showDone', !userOpts.showDone)} trail={userOpts.showDone ? <Check className="map-check" /> : undefined} />
           <MenuItem label="날짜 없는 항목 보이기" onClick={() => setOpt('showNoDate', !userOpts.showNoDate)} trail={userOpts.showNoDate ? <Check className="map-check" /> : undefined} />
           {view === 'timeline' && <TimelineOptionItems nav={tl} />}

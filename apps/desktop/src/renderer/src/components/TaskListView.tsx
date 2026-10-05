@@ -2,6 +2,8 @@ import { ArrowUpDown, CalendarDays, ChartGantt, Check, Columns3, List, Rows3, Sq
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent } from 'react'
 import { useQuery } from '../data/useQuery'
 import type { Stmt } from '../data/db'
+import { ProjectChips } from './map/plan/ProjectChips'
+import { addToProject } from '../data/projects'
 import { createTask, run, setTag, setViewSetting, snapshot, update, updateTask, withDescendants } from '../data/mutations'
 import { ensureTags } from '../data/organization'
 import { parseAdd } from '../lib/addParse'
@@ -668,6 +670,7 @@ export function TaskListView(props: Props) {
             if (content) await updateTask(id, { content })
             if (schedule?.due_at) await actions.applySchedule([id], schedule)
             for (const tagId of extra?.tag_ids ?? []) if (tagId !== defaults.tag_id) await setTag([id], tagId, true)
+            for (const tagId of extra?.project_ids ?? []) await addToProject([id], tagId) // 31 §12.10.4 프로젝트 알약
           }}
         />
       )}
@@ -843,7 +846,7 @@ function PostponeLink({ ids, today, actions }: { ids: string[]; today: string; a
 
 /** 02 §4·§0 추가 바: 포커스되면 강조색 테두리 + 오른쪽 📅(날짜 선택기) · ⌄(우선순위).
  *  자연어 인식(02 §4): 날짜·시각 문구 하이라이트 + 결과 칩(문구는 제목에 남김), #태그(없으면 새로 만듦) · ~리스트 · !우선순위 */
-type AddExtra = { list_id?: string; tag_ids?: string[]; moveTo?: string }
+type AddExtra = { list_id?: string; tag_ids?: string[]; moveTo?: string; project_ids?: string[] }
 function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; lists: ListRow[]; tags: TagRow[]; onCreate: (title: string, content?: string, schedule?: Schedule, priority?: number, extra?: AddExtra) => Promise<void> }) {
   const input = useRef<HTMLInputElement>(null)
   const desc = useRef<HTMLTextAreaElement>(null)
@@ -858,6 +861,7 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
   const [schedule, setSchedule] = useState<Schedule>()
   const [priority, setPriority] = useState(0)
   const [pop, setPop] = useState<'date' | 'priority'>()
+  const [projects, setProjects] = useState<string[]>([]) // 31 §12.10.4 고른 프로젝트 알약
   const parsed = useMemo(() => parseAdd(raw, lists.map((l) => ({ id: l.id, name: l.kind === 'inbox' ? '기본함' : l.name })), tags, { keepDate: false }), [raw, lists, tags]) // 날짜 문구도 제목에서 뺀다(빠른 추가와 같게, 2026-10-05 사용자 결정)
   const p = recognition ? parsed : undefined
   const inferred: Schedule | undefined = p?.due_at
@@ -870,8 +874,9 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
     saving.current = true
     try {
       const tagIds = p ? [...p.tag_ids, ...(await ensureTags(p.newTags))] : []
-      await onCreate(title, desc.current?.value.trim() || undefined, schedule ?? inferred, priority || p?.priority || undefined, { list_id: p?.list_id, tag_ids: tagIds, moveTo: p ? linkMoveTarget(p, tags, lists) : undefined })
+      await onCreate(title, desc.current?.value.trim() || undefined, schedule ?? inferred, priority || p?.priority || undefined, { list_id: p?.list_id, tag_ids: tagIds, moveTo: p ? linkMoveTarget(p, tags, lists) : undefined, project_ids: projects })
     } finally { saving.current = false }
+    setProjects([])
     setRaw('')
     setScroll(0)
     setRecognition(true)
@@ -932,6 +937,7 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
           </span>
         )}
       </div>
+      {active && raw.trim() && <ProjectChips title={raw} picked={projects} onToggle={(id) => setProjects((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]))} />}
       {descOpen && (
         <textarea
           ref={desc}

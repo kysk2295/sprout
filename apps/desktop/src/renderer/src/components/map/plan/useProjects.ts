@@ -16,6 +16,10 @@ const LISTS_SQL = 'SELECT id, name, emoji, folder_id, kind FROM lists WHERE arch
 const FOLDERS_SQL = 'SELECT id, name FROM folders'
 const SEQ_SQL = "SELECT id, from_id, to_id, kind, state FROM map_links WHERE kind = 'sequence' AND state = 'accepted'"
 const TOPICS_SQL = 'SELECT id, name FROM wiki_topics'
+// 31 §12.10 사람이 고른 분류
+const CATS_SQL = "SELECT from_id AS tag_id, to_id AS word FROM relations WHERE from_type = 'tag' AND to_type = 'category' AND COALESCE(state, 'accepted') = 'accepted'"
+// 31 §12.9.2 사람이 정한 일의 종류
+const KINDS_SQL = "SELECT from_id AS task_id, to_id AS kind FROM relations WHERE from_type = 'task' AND to_type = 'work_kind' AND COALESCE(state, 'accepted') = 'accepted'"
 const NOTES_SQL = `SELECT r.to_id AS tag_id, n.id, n.content, n.link_title FROM relations r JOIN notes n ON n.id = r.from_id
   WHERE r.from_type = 'note' AND r.to_type = 'tag' AND COALESCE(r.state, 'accepted') = 'accepted'`
 
@@ -32,10 +36,39 @@ export function usePlanData(): PlanData {
   const seq = useQuery<SeqRow>(SEQ_SQL)
   const topics = useQuery<{ id: string; name: string }>(TOPICS_SQL)
   const notes = useQuery<{ tag_id: string; id: string; content: string | null; link_title: string | null }>(NOTES_SQL)
+  const kinds = useQuery<{ task_id: string; kind: string }>(KINDS_SQL)
+  const cats = useQuery<{ tag_id: string; word: string }>(CATS_SQL)
   const pstore = useStore(projectStore)
   const astore = useStore(autoTagStore)
   const today = dayKey()
 
-  return useMemo<PlanData>(() => buildPlanView({ tasks, tags, links, lists, folders, seq, topics, notes, pstore, blocked: astore.blocked, today }), [tasks, tags, links, lists, folders, seq, topics, notes, pstore, astore, today])
+  return useMemo<PlanData>(() => buildPlanView({ tasks, tags, links, lists, folders, seq, topics, notes, pstore, blocked: astore.blocked, today, kindOverrides: kinds, categoryOverrides: cats, skip: pstore.skip, suggest: pstore.auto !== false }), [tasks, tags, links, lists, folders, seq, topics, notes, kinds, cats, pstore, astore, today])
 }
 
+
+// ── 31 §12.9.5 관계도가 더 읽는 것(그 프로젝트) ──
+const PERSON_SQL = `SELECT tt.task_id, tt.tag_id, g.name FROM task_tags tt JOIN tags g ON g.id = tt.tag_id
+  WHERE g.kind = 'person' AND COALESCE(tt.state, 'accepted') = 'accepted'`
+const PPEOPLE_SQL = `SELECT r.from_id AS project_id, r.to_id AS tag_id, g.name FROM relations r JOIN tags g ON g.id = r.to_id
+  WHERE r.from_type = 'tag' AND r.to_type = 'tag' AND r.field = 'project' AND COALESCE(r.state, 'accepted') = 'accepted'`
+const RNOTES_SQL = `SELECT n.id, n.content, n.link_title, r.to_type, r.to_id FROM relations r JOIN notes n ON n.id = r.from_id
+  WHERE r.from_type = 'note' AND r.to_type IN ('tag', 'task') AND COALESCE(r.state, 'accepted') = 'accepted'`
+const RELATED_SQL = "SELECT id, from_id, to_id FROM relations WHERE from_type = 'task' AND to_type = 'task' AND field = 'related' AND COALESCE(state, 'accepted') = 'accepted'"
+export type RelRows = {
+  personLinks: { task_id: string; tag_id: string; name: string }[]
+  projectPeople: { project_id: string; tag_id: string; name: string }[]
+  notes: { id: string; title: string; to_type: 'tag' | 'task'; to_id: string }[]
+  related: { id: string; from_id: string; to_id: string }[]
+  persons: { id: string; name: string }[]
+}
+export function useRelationRows(): RelRows | null {
+  const personLinks = useQuery<{ task_id: string; tag_id: string; name: string }>(PERSON_SQL)
+  const projectPeople = useQuery<{ project_id: string; tag_id: string; name: string }>(PPEOPLE_SQL)
+  const notes = useQuery<{ id: string; content: string | null; link_title: string | null; to_type: 'tag' | 'task'; to_id: string }>(RNOTES_SQL)
+  const related = useQuery<{ id: string; from_id: string; to_id: string }>(RELATED_SQL)
+  const persons = useQuery<{ id: string; name: string }>("SELECT id, name FROM tags WHERE kind = 'person' ORDER BY name")
+  return useMemo(() => (!personLinks || !projectPeople || !notes || !related || !persons) ? null : {
+    personLinks, projectPeople, related, persons,
+    notes: notes.map((n) => ({ id: n.id, to_type: n.to_type, to_id: n.to_id, title: (n.link_title || (n.content ?? '').split('\n')[0] || '메모').slice(0, 40) }))
+  }, [personLinks, projectPeople, notes, related, persons])
+}

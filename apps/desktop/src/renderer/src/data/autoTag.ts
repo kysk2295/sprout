@@ -8,6 +8,7 @@ import {
   parseTagItemsLoose, readyCandidates, TAG_SCHEMA, TAG_SYSTEM, tagKey, titlePrint, validateTagAnswer, withAlias,
   type Assign, type AtFolder, type AtLink, type AtList, type AtTag, type AtTask, type Candidates, type Ctx
 } from '@sprout/schema/autoTag'
+import { inboxCtx } from './mutations'
 import { getDb, type Stmt } from './db'
 import { insert, now, remove, run, update } from './mutations'
 import { aiChat, isUnavailable } from './ai'
@@ -87,7 +88,12 @@ export function autoTagSince(): string {
 
 // ── 읽기 ──
 const marks = (n: number) => Array.from({ length: n }, () => '?').join(',') || 'NULL'
+// AI 태그 id의 사용자 범위(aiTagId scope) — 문맥을 읽을 때 채운다
+let scope: string | null = null
+export const tagScope = () => scope
+export async function loadTagScope() { if (!scope) scope = (await inboxCtx().catch(() => ({ userId: null }))).userId; return scope }
 export async function readTagContext(at = new Date()): Promise<Ctx> {
+  await loadTagScope()
   const db = await getDb()
   const cutoff = new Date(at.getTime() - AUTO_TAG.doneDays * 86_400_000).toISOString()
   const [tags, lists, folders, tasks, links] = await Promise.all([
@@ -122,7 +128,7 @@ export function createTagStmts(ready: { name: string; kind: string; taskIds: str
     const syn = findSynonym(r.name, ctx.tags)
     let tag = syn?.tag
     if (!tag) {
-      tag = { id: aiTagId(r.name), name: r.name, kind: r.kind, aliases: null, source: 'ai', home_type: null, home_id: null, created_at: at, run_id: runId }
+      tag = { id: aiTagId(r.name, tagScope()), name: r.name, kind: r.kind, aliases: null, source: 'ai', home_type: null, home_id: null, created_at: at, run_id: runId }
       ctx.tags.push(tag)
       created.push(tag)
       stmts.push(insert('tags', { id: tag.id, name: r.name, color: null, parent_id: null, sort_order: order++, pinned: 0, kind: r.kind, source: 'ai', run_id: runId, created_at: at, modified_at: at }))

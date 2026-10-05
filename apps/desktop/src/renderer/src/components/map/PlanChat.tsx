@@ -51,7 +51,7 @@ export function BuddyAvatar({ buddy, stage, size = 30, mood = 'smile', busy }: {
 export type PlanRequest = { key: number; taskId?: string; project?: { id: string; name: string }; makeProject?: boolean }
 type KidRow = { id: string; title: string; status: number; due_at: string | null; deleted_at: string | null; parent_id: string | null }
 
-export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh, onClose, onUndone, onGoal, onProject }: {
+export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh, onClose, onUndone, onGoal, onProject, closeSignal }: {
   req: PlanRequest
   lists: MapList[]
   aiOk: boolean | null
@@ -69,6 +69,8 @@ export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh
   onGoal: (id: string | null) => void
   /** 31 §12.4 큰 일이 들어간 프로젝트(만들었거나 그 프로젝트) — 계획 화면이 그 프로젝트를 연다 */
   onProject?: (tagId: string) => void
+  /** 31 §12.9.3 바깥 단추로 닫기(값이 바뀌면 닫기와 같음 — 만든 것 기록은 넘긴다) */
+  closeSignal?: number
 }) {
   const { buddy, stage } = useBuddy()
   const reduced = useReducedMotion()
@@ -172,6 +174,11 @@ export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh
     props.current.onLight(null)
     props.current.onClose(journalChanged(journal.current) ? journal.current : null)
   }
+
+  const closeRef = useRef(close)
+  closeRef.current = close
+  const signal0 = useRef(closeSignal)
+  useEffect(() => { if (closeSignal !== signal0.current) closeRef.current() }, [closeSignal])
 
   // 시작(입구가 바뀌면 새 대화). 할 일이 정해졌으면 ①을 건너뛴다
   useEffect(() => {

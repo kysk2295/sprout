@@ -155,6 +155,137 @@ export function projectSpan(members: PTask[], deadline?: string | null): { from:
   return { from: days[0], to: days[days.length - 1] }
 }
 
+
+// ── 31 §12.10 분류 · 특정 프로젝트(하나하나) ──
+/** 분류 낱말 — 그 자체로는 프로젝트가 아니다(`공모전`은 분류, `K 인공지능 제조 데이터 공모전`이 프로젝트) */
+export const CATEGORY_WORDS = ['공모전', '경진대회', '아이디어톤', '해커톤', '챌린지', '대회', '지원사업', '창업', '졸업작품', '캡스톤', '논문', '학회']
+export const EXAM_CATEGORY = '시험'
+export const INSTANCE = {
+  /** 막연한 할 일을 닻(이름이 든 할 일) 날짜 이 일 수 안의 프로젝트에 */
+  near: 14,
+  /** 같은 이름이라도 날짜가 이만큼 떨어지면 다른 회차 */
+  gap: 120,
+  /** 강한 이름(앞 낱말 수) — 할 일 하나여도 자동으로 만든다 */
+  strongQuals: 2,
+  assignScore: 90
+} as const
+const compactKey = (s: string) => tagKey(projectTitle(s)).replace(/\s+/g, '')
+/** 이름·제목 → 분류: 가장 오른쪽(끝이 가장 뒤, 같으면 긴) 분류 낱말 · 시험 이름이면 `시험` · 없으면 null */
+export function categoryOf(name: string): string | null {
+  const k = compactKey(name)
+  let best: { w: string; end: number } | null = null
+  for (const w of CATEGORY_WORDS) {
+    const i = k.lastIndexOf(w)
+    if (i < 0) continue
+    const end = i + w.length
+    if (!best || end > best.end || (end === best.end && w.length > best.w.length)) best = { w, end }
+  }
+  if (best) return best.w
+  return EXAMS.some((e) => k.includes(e)) ? EXAM_CATEGORY : null
+}
+/** 이름이 분류 낱말·막연한 말 하나뿐인가(`공모전`·`창업`·`프로젝트`) — 프로젝트 이름으로 자동으로 쓰지 않는다 */
+export const isBareCategory = (name: string) => { const k = compactKey(name); return CATEGORY_WORDS.includes(k) || PROJECT_STOP.has(k) }
+const QUAL_STOP = new Set(['위한', '대한', '관련', '같은', '및', '등', '최종', '본선', '예선', '결선', '팀', '우리', '이번', '다음', '올해', '내년'])
+const OBJ_JOSA = /(을|를|에서|에게|으로)$/
+const JOSA_TAIL = /(에서|으로|에게|까지|부터|이랑|랑|을|를|이|가|은|는|에|로|와|과|도|께)$/
+/**
+ * 제목 → 특정 이름(§12.10.2 ①). 분류 낱말 앞에 붙은 낱말(최대 5개, 흔한 낱말·막연한 말·숫자·목적어 조사에서 멈춤) + 분류 낱말.
+ * 분류 낱말이 더 긴 낱말 안에 있으면(`창업지원장학금`) 그 낱말 통째. 앞 낱말이 없고 분류 낱말 그대로면 null(막연한 할 일).
+ */
+export function specificName(title: string, cat: string): { name: string; quals: number } | null {
+  const parts = displayTitle(title).replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean)
+  let at = -1
+  for (let i = parts.length - 1; i >= 0; i--) if (tagKey(parts[i]).includes(cat)) { at = i; break }
+  if (at < 0) return null
+  const tok = parts[at]
+  const tk = tagKey(tok)
+  const core = tk.replace(JOSA_TAIL, '')
+  const base = core === cat || tk === cat ? cat : tok.replace(JOSA_TAIL, '')
+  const quals: string[] = []
+  for (let j = at - 1; j >= 0 && quals.length < 5; j--) {
+    const p = parts[j], k = tagKey(p)
+    if (STOP_WORDS.has(k) || PROJECT_STOP.has(k) || QUAL_STOP.has(k) || GENERIC.has(k) || /^\d/.test(p) || OBJ_JOSA.test(p) || [...k].length < 1) break
+    quals.unshift(/^[a-z]$/.test(p) ? p.toUpperCase() : p)
+  }
+  if (!quals.length && base === cat) return null
+  while (quals.length && [...[...quals, base].join(' ')].length > PROJECT.nameMax) quals.shift()
+  return { name: [...quals, base].join(' '), quals: quals.length + (base !== cat ? 1 : 0) }
+}
+/** 특정 이름끼리 같은 프로젝트인가: nearSameName인데 짧은 쪽이 분류 낱말 하나면 아님 */
+export function sameInstance(a: string, b: string): boolean {
+  if (isBareCategory(a) || isBareCategory(b)) return compactKey(a) === compactKey(b)
+  const x = compactKey(a), y = compactKey(b)
+  if (x === y) return true
+  const [sh, lo] = x.length <= y.length ? [x, y] : [y, x]
+  return [...sh].length >= 2 && lo.endsWith(sh)
+}
+export type Instance = { cat: string; name: string; aliases: string[]; anchors: string[]; generic: string[]; strong: boolean; days: string[] }
+export type LooseTask = { taskId: string; cat: string; day: string | null; choices: number[] }
+/**
+ * §12.10.2: 분류 낱말이 든 할 일을 특정 프로젝트(인스턴스)로 나눈다. 막연한 할 일은 닻 날짜 14일 안 프로젝트가 하나일 때만 붙이고, 아니면 loose(고르기).
+ * 결정적: 같은 입력 = 같은 결과(이름 순·날짜 순).
+ */
+export function findInstances(tasks: PTask[]): { instances: Instance[]; loose: LooseTask[] } {
+  type A = { id: string; name: string; quals: number; day: string | null }
+  const anchors = new Map<string, A[]>()
+  const generics: { id: string; cat: string; day: string | null }[] = []
+  for (const t of [...tasks].sort((a, b) => a.id.localeCompare(b.id))) {
+    if (t.deleted_at) continue
+    const cat = categoryOf(t.title)
+    if (!cat || cat === EXAM_CATEGORY) continue
+    const sn = specificName(t.title, cat)
+    const day = anyDay(t)
+    if (sn) (anchors.get(cat) ?? anchors.set(cat, []).get(cat)!).push({ id: t.id, name: sn.name, quals: sn.quals, day })
+    else generics.push({ id: t.id, cat, day })
+  }
+  const instances: Instance[] = []
+  for (const [cat, as] of [...anchors].sort((a, b) => a[0].localeCompare(b[0]))) {
+    // 이름으로 묶기(긴 이름부터 — 짧은 이름이 긴 이름의 끝이면 같은 것)
+    const groups: { names: string[]; items: A[] }[] = []
+    for (const a of [...as].sort((x, y) => [...y.name].length - [...x.name].length || x.name.localeCompare(y.name))) {
+      const g = groups.find((x) => x.names.some((n) => sameInstance(n, a.name)))
+      if (g) { g.items.push(a); if (!g.names.some((n) => compactKey(n) === compactKey(a.name))) g.names.push(a.name) }
+      else groups.push({ names: [a.name], items: [a] })
+    }
+    for (const g of groups) {
+      // 날짜로 회차 나누기(120일 넘게 떨어지면 따로)
+      const dated = g.items.filter((x) => x.day).sort((x, y) => x.day!.localeCompare(y.day!))
+      const runs: A[][] = []
+      for (const a of dated) { const last = runs[runs.length - 1]; if (last && daysBetween(last[last.length - 1].day!, a.day!) <= INSTANCE.gap) last.push(a); else runs.push([a]) }
+      const undated = g.items.filter((x) => !x.day)
+      if (!runs.length) runs.push([])
+      runs[runs.length - 1].push(...undated)
+      const base = g.names[0]
+      runs.forEach((items, k) => {
+        if (!items.length) return
+        let name = base
+        if (runs.length > 1) {
+          const d = items.find((x) => x.day)?.day
+          const years = new Set(runs.map((r) => r.find((x) => x.day)?.day?.slice(0, 4)))
+          if (d) name = years.size === runs.length ? `${base} ${d.slice(0, 4)}` : `${base} ${Number(d.slice(5, 7))}월`
+          if (k > 0 && name === base) name = `${base} ${k + 1}`
+        }
+        instances.push({ cat, name, aliases: g.names.slice(1), anchors: items.map((x) => x.id), generic: [], strong: Math.max(...items.map((x) => x.quals)) >= INSTANCE.strongQuals, days: [...new Set(items.map((x) => x.day).filter((x): x is string => !!x))] })
+      })
+    }
+  }
+  const loose: LooseTask[] = []
+  for (const g of generics) {
+    const idx = instances.map((ins, i) => ({ i, ins })).filter((x) => x.ins.cat === g.cat)
+    const dist = (ins: Instance) => (g.day && ins.days.length ? Math.min(...ins.days.map((d) => Math.abs(daysBetween(d, g.day!)))) : Infinity)
+    const near = idx.filter((x) => dist(x.ins) <= INSTANCE.near)
+    if (near.length === 1) { near[0].ins.generic.push(g.id); continue }
+    loose.push({ taskId: g.id, cat: g.cat, day: g.day, choices: idx.sort((a, b) => dist(a.ins) - dist(b.ins) || a.i - b.i).map((x) => x.i) })
+  }
+  return { instances, loose }
+}
+/** 인스턴스를 자동으로 만들까: (닻 + 붙은 막연한 일) 2개 이상 · 날짜 2개 이상, 또는 강한 이름 */
+export const instanceAuto = (ins: Instance, tasks: Map<string, PTask>) => {
+  const ids = [...ins.anchors, ...ins.generic]
+  const days = new Set(ids.map((id) => tasks.get(id)).filter((t): t is PTask => !!t).map(anyDay).filter(Boolean))
+  return (ids.length >= 2 && days.size >= 2) || ins.strong
+}
+
 // ── ① 덩어리 찾기 ──
 export type Proposal = {
   /** 낱말 열쇠(tagKey) */
@@ -169,7 +300,9 @@ export type Proposal = {
   home?: { type: 'list' | 'folder'; id: string }
   /** 이미 있는 사용자 topic 태그를 프로젝트로 보자는 제안 */
   tagId?: string
-  reason: 'project' | 'home' | 'plain' | 'tag'
+  reason: 'project' | 'home' | 'plain' | 'tag' | 'instance'
+  /** §12.10 특정 프로젝트의 분류 낱말 */
+  category?: string
   /** 이름이 거의 같아 합친 다른 제안의 낱말·이름(별칭으로) */
   aliases?: string[]
 }
@@ -249,8 +382,20 @@ export function findProjectClusters(ctx: FindCtx, blocked: Set<string> = new Set
   const inHome = (t: PTask, h: { type: 'list' | 'folder'; id: string }) => h.type === 'list' ? t.list_id === h.id : listOf.get(t.list_id ?? '')?.folder_id === h.id
 
   const auto: Proposal[] = [], suggest: Proposal[] = []
+  // §12.10 분류 낱말이 든 할 일 → 특정 프로젝트(하나하나)
+  const { instances } = findInstances(ctx.tasks)
+  for (const ins of instances) {
+    const key = tagKey(ins.name)
+    if (blocked.has(key) || isBareCategory(ins.name)) continue
+    const ids = [...ins.anchors, ...ins.generic]
+    const tasks = ids.map((id) => byId.get(id)!).filter(Boolean)
+    const prop: Proposal = { key, word: ins.name, name: ins.name, taskIds: ids, listIds: [...new Set(tasks.map((t) => t.list_id ?? ''))].filter(Boolean), reason: 'instance', category: ins.cat, aliases: ins.aliases }
+    if (instanceAuto(ins, byId)) auto.push(prop)
+    else if (!tagKeys.has(key) && ids.filter((id) => !taken.has(id)).length >= 1 && ins.anchors.length >= 1 && ids.length >= PROJECT.suggestMin) suggest.push(prop)
+  }
   for (const [w, ids] of hits) {
     if (STOP_WORDS.has(w) || isWorkWord(w) || tagKeys.has(w) || blocked.has(w) || [...w].length < 2) continue
+    if (categoryOf(w) && categoryOf(w) !== EXAM_CATEGORY) continue // 분류 낱말이 든 낱말은 위 인스턴스가 맡는다
     const tasks = [...ids].map((id) => byId.get(id)!).filter(Boolean)
     const word = tasks.map((t) => surface(t.title, w)).find(Boolean) ?? w
     const listIds = [...new Set(tasks.map((t) => t.list_id ?? ''))].filter(Boolean)
@@ -300,6 +445,8 @@ export function nearSameName(a: string, b: string): boolean {
   const x = tagKey(projectTitle(a)).replace(/\s+/g, ''), y = tagKey(projectTitle(b)).replace(/\s+/g, '')
   if (!x || !y) return false
   if (x === y) return true
+  // §12.10: 분류 낱말 하나(`공모전`)는 특정 공모전과 같은 이름이 아니다 — 예전엔 `신한 … 공모전`이 `공모전`에 합쳐졌다
+  if (isBareCategory(a) || isBareCategory(b)) return false
   const [s, l] = x.length <= y.length ? [x, y] : [y, x]
   return [...s].length >= 2 && (l.startsWith(s) || l.endsWith(s))
 }
@@ -317,7 +464,7 @@ function mergeNearNames(xs: Proposal[]): Proposal[] {
 }
 
 /** AI가 만든 topic 태그 중 프로젝트 같은 이름 → project로 바꿀 id */
-export const upgradeToProject = (tags: AtTag[]) => tags.filter((t) => t.source === 'ai' && !isProject(t) && (t.kind ?? 'topic') === 'topic' && projectish(projectTitle(t.name))).map((t) => t.id)
+export const upgradeToProject = (tags: AtTag[]) => tags.filter((t) => t.source === 'ai' && !isProject(t) && (t.kind ?? 'topic') === 'topic' && projectish(projectTitle(t.name)) && !isBareCategory(t.name)).map((t) => t.id)
 
 // ── ③ 넓히기 ──
 /**
@@ -350,6 +497,9 @@ export function expandProject(tag: AtTag, members: Set<string>, ctx: FindCtx): s
     const near = mem.some((m) => m.list_id === t.list_id && (() => { const md = anyDay(m); return !!md && Math.abs(daysBetween(md, d)) <= PROJECT.expandNear })())
     if (c.m / c.all < PROJECT.expandShare && !near) continue
     if (workKind(t.title) === 'other') continue
+    // §12.10: 분류 낱말이 든 할 일(`창업 멘토 상담`·`공모전 회의`)은 넓히기로 붙이지 않는다 — 분류 규칙(가까운 프로젝트·고르기)이 맡는다
+    const tc = categoryOf(t.title)
+    if (tc && tc !== EXAM_CATEGORY) continue
     out.push(t.id)
   }
   return out
@@ -417,9 +567,11 @@ export type CleanupPlan = {
   removeLinks: string[]
   addLinks: { task_id: string; tag_id: string; source: string; state: string; confidence: number | null }[]
   updateTags: { id: string; name?: string; aliases?: string | null }[]
+  /** §12.10.5 지운 막연한 프로젝트에 사람이 넣었던 할 일 — 새 특정 프로젝트가 잡으면 그 연결을 user로 */
+  carryUser: string[]
 }
 export function planProjectCleanup(ctx: FindCtx): CleanupPlan {
-  const out: CleanupPlan = { removeTags: [], removeLinks: [], addLinks: [], updateTags: [] }
+  const out: CleanupPlan = { removeTags: [], removeLinks: [], addLinks: [], updateTags: [], carryUser: [] }
   const auto = (t: AtTag) => t.kind === 'project' && (t.source === 'ai' || t.source === 'rule')
   const autoLink = (l: AtLink) => l.source === 'ai' || l.source === 'rule'
   const tags = ctx.tags.filter(auto)
@@ -437,6 +589,14 @@ export function planProjectCleanup(ctx: FindCtx): CleanupPlan {
   let live: AtTag[] = []
   // ①
   for (const t of tags) {
+    // §12.10.5 분류(공모전·창업…)에 드는 AI 자동 프로젝트는 지우고 제목에서 다시 나눈다(findInstances가 같은 이름이면 같은 id로 다시 만든다).
+    // 사람이 넣은 할 일이 있어도 — 그 할 일은 carryUser로 새 특정 프로젝트에 user로 옮긴다. 사람이 만든 태그는 건드리지 않는다
+    if (t.source === 'ai' && CATEGORY_WORDS.includes(categoryOf(t.name) ?? '')) {
+      out.carryUser.push(...ctx.links.filter((l) => l.tag_id === t.id && !autoLink(l) && accepted(l)).map((l) => l.task_id))
+      out.removeTags.push(t.id)
+      for (const l of ctx.links) if (l.tag_id === t.id && !out.removeLinks.includes(l.id)) out.removeLinks.push(l.id)
+      continue
+    }
     const generic = PROJECT_STOP.has(tagKey(projectTitle(t.name)))
     const areaHome = !!t.home_id && !projectish(homeName(t) ?? t.name)
     if ((generic || areaHome) && drop(t)) continue
@@ -456,7 +616,7 @@ export function planProjectCleanup(ctx: FindCtx): CleanupPlan {
       const word = aliases[0]
       const titles = linksOf(t.id).filter(accepted).map((l) => taskOf.get(l.task_id)?.title ?? '').filter((x) => x && tagKey(x).includes(tagKey(word)))
       const fresh = titles.length ? fullProjectName(word, titles) : word
-      if (tagKey(fresh) !== tagKey(name) && !ctx.tags.some((o) => o.id !== t.id && tagKey(o.name) === tagKey(fresh))) name = fresh
+      if (tagKey(fresh) !== tagKey(name) && !isBareCategory(fresh) && !ctx.tags.some((o) => o.id !== t.id && tagKey(o.name) === tagKey(fresh))) name = fresh
     }
     names.set(t.id, { name, aliases })
   }

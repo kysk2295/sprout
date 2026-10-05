@@ -44,15 +44,16 @@ task('b1', '블로그 글 쓰기', 'la', null); task('b2', '블로그 이미지 
 
 const r = await P.runProjectPass({ at, force: true })
 const tags = all("SELECT id, name, kind, aliases, source, home_type, home_id, run_id FROM tags WHERE kind = 'project' ORDER BY name")
-assert.deepEqual(tags.map((t) => t.name).sort(), ['공모전', 'SQLD', 'UniPort'].sort(), '손 없이 프로젝트 3개(이름 = 제목 절반 넘게 같이 쓰는 이름)')
+assert.deepEqual(tags.map((t) => t.name).sort(), ['K 인공지능 제조 데이터 공모전', 'SQLD', 'UniPort'].sort(), '손 없이 프로젝트 3개 — §12.10 공모전은 분류, 프로젝트는 특정 공모전')
 assert.equal(r.created, 3)
 const comp = tags.find((t) => t.name.includes('공모전'))!
 assert.equal(comp.source, 'ai')
-assert.equal(comp.aliases, null, '이름이 곧 낱말이면 별칭 없음')
+assert.equal(comp.aliases, null, '다른 이름이 없으면 별칭 없음')
 const uni = tags.find((t) => t.name === 'UniPort')!
 assert.equal(uni.home_type, 'folder'); assert.equal(uni.home_id, 'fu')
 const linked = (tagId: string) => all("SELECT task_id, source, state FROM task_tags WHERE tag_id = ? AND COALESCE(state,'accepted') = 'accepted' ORDER BY task_id", [tagId])
-assert.deepEqual(linked(comp.id).map((l) => l.task_id), ['c1', 'c2', 'c3', 'c4', 'c5'], '이름 4개 + 넓히기 1개(최종 제출)')
+assert.deepEqual(linked(comp.id).map((l) => l.task_id), ['c1', 'c2', 'c3', 'c4', 'c5'], '닻 1개 + 14일 안 막연한 공모전 일 3개(rule 90) + 넓히기 1개(최종 제출)')
+assert.equal(linked(comp.id).find((l) => l.task_id === 'c3')!.source, 'rule')
 assert.equal(linked(comp.id).find((l) => l.task_id === 'c5')!.source, 'rule')
 assert.ok(!linked(uni.id).some((l) => l.task_id === 'u3'), '집 안 할 일엔 태그 행을 쓰지 않는다')
 const ctx = await P.readProjectCtx(new Date(at))

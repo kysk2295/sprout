@@ -168,12 +168,12 @@ export function MapGuidePanel({ guide, aiOk, onTry }: { guide: MapGuide; aiOk: b
 // ── 첫 둘러보기 ──
 type Step = { targets: string[]; title: string; body: ReactNode; ill?: GuideSection }
 const STEPS: Step[] = [
-  { targets: ['.plan-grid', '.plan-empty', '.map-canvas', '.map-board', '.map__main .tl', '.map-empty'], title: '흩어진 일을 프로젝트로 묶어 줘요',
-    body: <>공모전·시험·사이드 프로젝트처럼 여러 리스트에 흩어진 일을 제목을 보고 <b>저절로</b> 묶어요. 카드를 누르면 분석·회의·개발·제출이 날짜순으로 이어진 타임라인이 열려요.</> },
+  { targets: ['.pc-card[data-project]', '.plan-grid', '.plan-empty', '.map-canvas', '.map-board', '.map__main .tl', '.map-empty'], title: '카드를 누르면 열려요',
+    body: <>여러 리스트에 흩어진 일을 프로젝트로 묶어요. 카드를 누르면 <b>타임라인</b>과 <b>관계도</b>가 열리고, 끌어서 날짜·순서를 바꾸고 사람·메모를 직접 이을 수 있어요.</> },
   { targets: ['.plan-now', '.map-now'], title: '지금 할 일',
     body: <>오늘 마감인 일과 지금 시작할 수 있는 계획 단계만 3개까지 올려요. 기한이 지난 일은 <b>정리하기</b>에서 한꺼번에 봐요.</> },
   { targets: ['.pc-card--new', '.plan-empty__go', '.plan-grid'], title: '큰 일은 같이 짜요', ill: 'split',
-    body: <><b>＋ 같이 계획 짜기</b>를 누르면 캐릭터가 무엇을·언제까지를 물어 프로젝트와 단계를 만들어 줘요. 잘못 묶인 일은 타임라인에서 <b>✕ 이건 아니야</b>로 빼요. 한 주 점검은 <b>성장</b> 탭에, 폴더 나무는 머리 <b>전체 지도</b> 아이콘에 있어요. 사용법은 <b>?</b>에서 언제든.</> }
+    body: <><b>＋ 같이 계획 짜기</b>를 누르면 캐릭터가 무엇을·언제까지를 물어 프로젝트와 단계를 만들어 줘요. 잘못 묶인 일은 칩의 <b>✕</b>로 빼고, 빠진 일은 <b>할 일 넣기</b>로 넣어요. 손으로 고친 건 자동 묶기가 다시 바꾸지 않아요. 한 주 점검은 <b>성장</b> 탭에, 폴더 나무는 머리 <b>전체 지도</b> 아이콘에 있어요. 사용법은 <b>?</b>에서 언제든.</> }
 ]
 type Box = TourBox
 const visible = (r: DOMRect) => r.width > 2 && r.height > 2 && r.bottom > 0 && r.right > 0 && r.top < window.innerHeight && r.left < window.innerWidth

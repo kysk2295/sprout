@@ -57,8 +57,9 @@ export const TAG_ACCEPTED = tagAccepted()
 
 /** 자동 task_tags 행 id — 두 기기가 같은 할 일에 같은 태그를 붙여도 한 행(동기화 때 합쳐짐) */
 export const autoTagRowId = (taskId: string, tagId: string) => `tta-${sha1(`${taskId}>${tagId}`).slice(0, 24)}`
-/** AI가 만든 태그 id — 두 기기가 같은 이름을 만들어도 한 태그 */
-export const aiTagId = (name: string) => `tag-ai-${sha1(tagKey(name)).slice(0, 20)}`
+/** AI가 만든 태그 id — 두 기기가 같은 이름을 만들어도 한 태그.
+ * scope(사용자 id)를 넣는다(2026-10-05): 이름만으로 만들면 다른 사용자의 같은 이름 태그와 서버 기본 키가 겹쳐 업로드가 거절되고 태그가 사라졌다(`adsp`). */
+export const aiTagId = (name: string, scope?: string | null) => `tag-ai-${sha1(scope ? `${scope}>${tagKey(name)}` : tagKey(name)).slice(0, 20)}`
 
 // ── 정규화 ──
 const EMOJI = /(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|‍\p{Extended_Pictographic}|\p{Emoji_Modifier}|\p{Regional_Indicator})*/gu

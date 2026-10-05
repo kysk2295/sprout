@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import {
   blockedSet, expandProject, findProjectClusters, fullProjectName, inferredChain, nextSteps, projectDeadline, projectEmoji, projectish, projectMembers,
-  projectSpan, stackRows, taskDay, upgradeToProject, workKind, nearSameName, planProjectCleanup, type FindCtx, type PTask
+  projectSpan, stackRows, taskDay, upgradeToProject, workKind, nearSameName, planProjectCleanup, categoryOf, isBareCategory, specificName, sameInstance, findInstances, type FindCtx, type PTask
 } from './projects.ts'
 import { planAssign, type Ctx } from './autoTag.ts'
 
@@ -67,15 +67,16 @@ const base = (): FindCtx => ({
 {
   const { auto, suggest } = findProjectClusters(base())
   const names = auto.map((p) => p.name).sort()
-  assert.deepEqual(names, ['공모전', 'SQLD', 'UniPort'].sort())
+  assert.deepEqual(names, ['K 인공지능 제조 데이터 공모전', 'SQLD', 'UniPort'].sort(), '§12.10: 공모전은 분류 — 프로젝트는 특정 공모전')
   const uni = auto.find((p) => p.name === 'UniPort')!
   assert.equal(uni.reason, 'home')
   assert.deepEqual(uni.home, { type: 'folder', id: 'fu' }, '폴더 이름이 다른 리스트 제목에 2번 = 집')
-  const comp = auto.find((p) => p.key === '공모전')!
-  assert.equal(comp.word, '공모전')
-  assert.equal(comp.taskIds.length, 5)
+  const comp = auto.find((p) => p.category === '공모전')!
+  assert.equal(comp.reason, 'instance')
+  assert.deepEqual([...comp.taskIds].sort(), ['c1', 'c2', 'c3', 'c4', 'c5'], '닻(c4·데이터 공모전 c5) + 14일 안 막연한 공모전 일')
+  assert.deepEqual(comp.aliases, ['데이터 공모전'])
   assert.ok(suggest.some((p) => p.key === '블로그' && p.reason === 'plain'), '프로젝트 같지 않은 낱말 3개·리스트 3곳 = 제안')
-  assert.ok(suggest.some((p) => p.key === '해커톤' && p.reason === 'project'), '프로젝트 같은 말 2개 = 제안')
+  assert.ok(!auto.some((p) => p.key === '해커톤') && !suggest.some((p) => p.key === '해커톤'), '막연한 해커톤 일만 있으면 프로젝트·제안 아님(분류에서 고르기)')
   assert.ok(!auto.some((p) => p.key === '데이터') && !suggest.some((p) => p.key === '데이터'), '일의 종류 낱말은 덩어리 아님')
   assert.equal(suggest.find((p) => p.key === '블로그')!.name, '블로그', '그냥 낱말 제안은 낱말 그대로 이름')
   // 이미 프로젝트 구성원인 할 일은 제안에서 세지 않는다 · 막연한 낱말(계획)은 제안 안 함
@@ -87,10 +88,10 @@ const base = (): FindCtx => ({
   const b2 = base()
   b2.tags.push({ id: 'gs', name: 'SQLD', kind: 'topic', source: 'user' })
   b2.links = ['s1', 's2', 's3'].map((t, i) => ({ id: `x${i}`, task_id: t, tag_id: 'gs', source: 'user' }))
-  const r2 = findProjectClusters(b2, new Set(['공모전']))
+  const r2 = findProjectClusters(b2, new Set(['k인공지능제조데이터공모전']))
   assert.ok(!r2.auto.some((p) => p.key === 'sqld'), '이미 있는 태그 이름은 새로 안 만듦')
   assert.ok(r2.suggest.some((p) => p.reason === 'tag' && p.tagId === 'gs'), '사용자 topic 태그가 프로젝트 같으면 제안')
-  assert.ok(!r2.auto.some((p) => p.key === '공모전'), '막은 이름')
+  assert.ok(!r2.auto.some((p) => p.category === '공모전'), '막은 이름')
 }
 assert.deepEqual(upgradeToProject([{ id: 'a', name: 'SQLD', kind: 'topic', source: 'ai' }, { id: 'b', name: 'SQLD2', kind: 'topic', source: 'user' }, { id: 'c', name: '헬스', kind: 'topic', source: 'ai' }]), ['a'])
 
@@ -182,12 +183,13 @@ assert.deepEqual(inferredChain([
   assert.ok(!names.includes('근무'), '영역 리스트(🏠생활 › 근무) 이름은 집 프로젝트 아님')
   assert.ok(!auto.some((p) => p.key === '프로젝트'), '막연한 말(프로젝트)은 자동 프로젝트 아님')
   assert.ok(!projectish('프로젝트') && !projectish('계획') && !projectish('🏠생활') && projectish('사이드프로젝트'))
-  assert.ok(names.includes('공모전') && names.includes('창업'), `공모전·창업은 따로, 이름은 함께 쓰는 핵심 말: ${names}`)
-  assert.ok(!names.some((n) => n.startsWith('신한')), '제목 하나의 긴 이름이 덩어리 이름이 되지 않음')
+  assert.ok(!names.includes('공모전') && !names.includes('창업'), `§12.10: 공모전·창업은 분류 — 프로젝트 아님: ${names}`)
+  assert.ok(names.includes('신한 스퀘어브릿지 대학생 창업 공모전'), '강한 이름(앞 낱말 2개 이상)은 할 일 하나여도 프로젝트')
+  assert.ok(!names.includes('모두의 창업'), '약한 이름 + 할 일 하나는 자동 아님')
   assert.ok(names.includes('adsp') || names.includes('ADsP') || auto.some((p) => p.key === 'adsp'), '날짜 다른 3개 = 자동')
   assert.ok(!auto.some((p) => p.key === 'sqlp'), '날짜가 하루뿐이면(3개라도) 자동 아님')
   assert.ok(nearSameName('신한 스퀘어브릿지 대학생 창업', '신한 스퀘어브릿지 대학생 창업 공모전'))
-  assert.ok(nearSameName('공모전', '공모전 자료조사') && !nearSameName('공모전', '창업'))
+  assert.ok(!nearSameName('공모전', '공모전 자료조사') && !nearSameName('공모전', '신한 스퀘어브릿지 대학생 창업 공모전') && !nearSameName('공모전', '창업'), '분류 낱말 하나는 특정 이름과 같지 않음')
 
   // 한 번 정리: 예전 규칙이 만든 태그들
   const c = real()
@@ -216,14 +218,73 @@ assert.deepEqual(inferredChain([
   assert.ok(!plan.removeTags.includes('tu') && !plan.removeLinks.includes('lu0'), '사용자 태그·연결은 그대로')
   assert.ok(plan.removeLinks.includes('la3') && !plan.removeLinks.includes('la0'), '기본함 넓히기(rule 75)만 뗌')
   assert.ok(!plan.removeTags.includes('ta'), 'adsp는 남음(날짜 다른 3개)')
-  assert.deepEqual(plan.updateTags.find((u) => u.id === 'tg'), { id: 'tg', name: '공모전', aliases: JSON.stringify(['공모전 자료조사']) }, '이름 다시 짓고 거의 같은 이름(공모전 자료조사)은 별칭으로')
-  assert.equal(plan.updateTags.find((u) => u.id === 'tc')?.name, '창업')
-  assert.ok(plan.removeTags.includes('tz') && !plan.removeTags.includes('tc'), '공모전 자료조사는 공모전으로 합침, 창업은 따로')
-  assert.deepEqual(plan.addLinks.map((a) => [a.task_id, a.tag_id]), [['x2', 'tg']], '합친 쪽 할 일은 옮김(이미 있는 g2는 다시 안 넣음)')
+  // §12.10.5: 분류(공모전·창업)에 든 자동 프로젝트는 지우고 제목에서 다시 나눈다 — 예전 합치기·이름 바꾸기 안 함
+  for (const id of ['tg', 'tc', 'tz']) assert.ok(plan.removeTags.includes(id), `분류 자동 프로젝트 지움 ${id}`)
+  assert.deepEqual(plan.updateTags, [], '분류 낱말로 이름 바꾸기 없음')
+  assert.deepEqual(plan.addLinks, [], '합치기 없음')
+  {
+    const u = real()
+    u.tags = [{ id: 'gc', name: '창업', kind: 'project', source: 'ai', run_id: 'proj-x' }, { id: 'lot', name: '롯데리아', kind: 'project', source: 'user' }]
+    u.links = [L('a', 'c1', 'gc'), L('b', 'c3', 'gc', 100, 'user'), L('c', 'c2', 'lot', 100, 'user')]
+    const pl = planProjectCleanup(u)
+    assert.deepEqual(pl.removeTags, ['gc'], '사람이 넣은 할 일이 있어도 막연한 자동 프로젝트는 지움 · 사용자 태그는 그대로')
+    assert.deepEqual(pl.carryUser, ['c3'], '사람이 넣은 할 일은 기억')
+    assert.deepEqual(pl.removeLinks.sort(), ['a', 'b'])
+  }
   assert.deepEqual(planProjectCleanup({ ...real(), tags: [{ id: 'ok', name: 'adsp', kind: 'project', source: 'ai', run_id: 'proj-x' }], links: ['a1', 'a2', 'a3'].map((t, i) => L(`k${i}`, t, 'ok')) }),
-    { removeTags: [], removeLinks: [], addLinks: [], updateTags: [] }, '고칠 것 없으면 빈 계획')
+    { removeTags: [], removeLinks: [], addLinks: [], updateTags: [], carryUser: [] }, '고칠 것 없으면 빈 계획')
   // 날짜 하루뿐인 자동 덩어리 → 지움
   const one = planProjectCleanup({ ...real(), tags: [{ id: 'sq', name: 'SQLP', kind: 'project', source: 'ai', run_id: 'proj-x' }], links: ['one1', 'one2', 'one3'].map((t, i) => L(`s${i}`, t, 'sq')) })
   assert.deepEqual(one.removeTags, ['sq'])
+}
+
+// ── §12.10 프로젝트는 하나하나 · 분류 ──
+{
+  assert.equal(categoryOf('K 인공지능 제조 데이터 공모전'), '공모전')
+  assert.equal(categoryOf('창업 아이디어 경진대회'), '경진대회', '가장 오른쪽 · 경진대회 > 대회')
+  assert.equal(categoryOf('SK 하이닉스 AI 해커톤'), '해커톤')
+  assert.equal(categoryOf('adsp 시험'), '시험')
+  assert.equal(categoryOf('UniPort'), null)
+  assert.ok(isBareCategory('공모전') && isBareCategory('🏆 창업') && !isBareCategory('데이터 공모전'))
+  assert.deepEqual(specificName('k 인공지능 제조 데이터 공모전 신청', '공모전'), { name: 'K 인공지능 제조 데이터 공모전', quals: 4 })
+  assert.deepEqual(specificName('신한 스퀘어브릿지 대학생 창업 공모전 신청', '공모전'), { name: '신한 스퀘어브릿지 대학생 창업 공모전', quals: 4 })
+  assert.equal(specificName('공모전 회의', '공모전'), null, '막연한 할 일')
+  assert.equal(specificName('공모전 관련 데이터 분석', '공모전'), null)
+  assert.deepEqual(specificName('창업지원장학금 신청', '창업'), { name: '창업지원장학금', quals: 1 }, '붙은 낱말 통째')
+  assert.equal(specificName('소상공인을 위한 창업 아이템 기획', '창업'), null, '목적어 조사·위한에서 멈춤')
+  assert.ok(sameInstance('데이터 공모전', 'K 인공지능 제조 데이터 공모전') && !sameInstance('공모전', 'K 인공지능 제조 데이터 공모전') && !sameInstance('SK 하이닉스 AI 해커톤', 'K 인공지능 제조 데이터 공모전'))
+
+  const D = (id: string, title: string, due: string | null, extra: Partial<PTask> = {}): PTask => ({ id, title, list_id: 'l', status: 0, due_at: due, created_at: '2026-08-01T00:00:00Z', ...extra })
+  const tasks = [
+    D('k1', 'K 인공지능 제조 데이터 공모전 신청', '2026-09-05'),
+    D('k2', '데이터 공모전 최종 제출', '2026-09-20'),
+    D('h1', 'SK 하이닉스 AI 공모전 접수', '2026-11-10'),
+    D('h2', 'SK 하이닉스 AI 공모전 발표', '2026-11-24'),
+    D('g1', '공모전 회의', '2026-09-12'),
+    D('g2', '공모전 자료조사', '2026-11-03'),
+    D('g3', '공모전 아이디어 정리', '2026-10-20'),
+    D('g4', '공모전 팀 모집', null),
+    D('r1', '토익 접수', '2026-09-01')
+  ]
+  const { instances, loose } = findInstances(tasks)
+  assert.deepEqual(instances.map((i) => i.name).sort(), ['K 인공지능 제조 데이터 공모전', 'SK 하이닉스 AI 공모전'])
+  const k = instances.find((i) => i.name.startsWith('K'))!, h = instances.find((i) => i.name.startsWith('SK'))!
+  assert.deepEqual([...k.anchors].sort(), ['k1', 'k2'])
+  assert.deepEqual(k.aliases, ['데이터 공모전'])
+  assert.deepEqual(k.generic, ['g1'], '9/12 공모전 회의 → 9월 공모전(닻 9/5·9/20, 14일 안)')
+  assert.deepEqual(h.generic, ['g2'], '11/3 자료조사 → 11월 공모전')
+  assert.deepEqual(loose.map((x) => x.taskId).sort(), ['g3', 'g4'], '가운데 날짜·날짜 없는 막연한 일은 고르기')
+  const g3 = loose.find((x) => x.taskId === 'g3')!
+  assert.equal(instances[g3.choices[0]].name, 'SK 하이닉스 AI 공모전', '고르기 알약은 가까운 순(10/20 → 11/10이 9/20보다 가까움)')
+  assert.equal(g3.cat, '공모전')
+  // 같은 이름이라도 120일 넘게 떨어지면 다른 회차
+  const rep = findInstances([D('a', '데이터 청년 캠퍼스 공모전 신청', '2025-03-01'), D('b', '데이터 청년 캠퍼스 공모전 제출', '2025-03-20'), D('c', '데이터 청년 캠퍼스 공모전 신청', '2026-03-02')]).instances
+  assert.deepEqual(rep.map((i) => i.name), ['데이터 청년 캠퍼스 공모전 2025', '데이터 청년 캠퍼스 공모전 2026'])
+  // 덩어리 찾기에 반영: 두 공모전이 따로 자동 프로젝트, 막연한 `공모전`은 없음
+  const fc = findProjectClusters({ tags: [], folders: [], lists: [{ id: 'l', name: '할 일' }], tasks, links: [] })
+  assert.deepEqual(fc.auto.filter((p) => p.reason === 'instance').map((p) => p.name).sort(), ['K 인공지능 제조 데이터 공모전', 'SK 하이닉스 AI 공모전'])
+  assert.ok(!fc.auto.some((p) => p.name === '공모전') && !fc.suggest.some((p) => p.name === '공모전'))
+  assert.deepEqual([...fc.auto.find((p) => p.name.startsWith('K'))!.taskIds].sort(), ['g1', 'k1', 'k2'])
+  assert.deepEqual(upgradeToProject([{ id: 'x', name: '공모전', kind: 'topic', source: 'ai' }]), [], '분류 낱말 태그는 프로젝트로 안 올림')
 }
 console.log('projects ok')
