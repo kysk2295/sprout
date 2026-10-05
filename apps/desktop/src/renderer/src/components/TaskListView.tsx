@@ -882,6 +882,11 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
   const [priority, setPriority] = useState(0)
   const [pop, setPop] = useState<'date' | 'priority'>()
   const [projects, setProjects] = useState<string[]>([]) // 31 §12.10.4 고른 프로젝트 알약
+  // 알약 줄 닫기(✕·Esc): 이 입력 동안 기억 — 입력을 비우면(추가·지움) 다시 뜬다
+  const [chipsOff, setChipsOff] = useState(false)
+  const [chipsOn, setChipsOn] = useState(false)
+  useEffect(() => { if (!raw.trim()) setChipsOff(false) }, [raw])
+  const dismissChips = useCallback(() => { setChipsOff(true); setProjects([]); input.current?.focus() }, [])
   const parsed = useMemo(() => parseAdd(raw, lists.map((l) => ({ id: l.id, name: l.kind === 'inbox' ? '기본함' : l.name })), tags, { keepDate: false }), [raw, lists, tags]) // 날짜 문구도 제목에서 뺀다(빠른 추가와 같게, 2026-10-05 사용자 결정)
   const p = recognition ? parsed : undefined
   const inferred: Schedule | undefined = p?.due_at
@@ -909,7 +914,7 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
   const active = focused || !!pop || descOpen
   return (
     <div
-      className={`addbar${descOpen ? ' has-desc' : ''}${active ? ' is-active' : ''}`}
+      className={`addbar${descOpen ? ' has-desc' : ''}${chipsOn && !chipsOff ? ' has-projects' : ''}${active ? ' is-active' : ''}`}
       onFocus={() => setFocused(true)}
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setFocused(false) }}
     >
@@ -935,7 +940,10 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
                 setDescOpen(true)
                 requestAnimationFrame(() => desc.current?.focus())
               } else if (e.key === 'Enter') void submit()
-              else if (e.key === 'Escape') {
+              else if (e.key === 'Escape' && chipsOn && !chipsOff) {
+                e.preventDefault()
+                dismissChips() // 먼저 프로젝트 알약 줄만 닫는다
+              } else if (e.key === 'Escape') {
                 setRaw('')
                 setRecognition(true)
                 setDescOpen(false)
@@ -957,7 +965,7 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
           </span>
         )}
       </div>
-      {active && raw.trim() && <ProjectChips title={raw} picked={projects} onToggle={(id) => setProjects((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]))} />}
+      {active && raw.trim() && !chipsOff && <ProjectChips title={raw} picked={projects} onToggle={(id) => setProjects((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]))} onDismiss={dismissChips} onVisible={setChipsOn} />}
       {descOpen && (
         <textarea
           ref={desc}

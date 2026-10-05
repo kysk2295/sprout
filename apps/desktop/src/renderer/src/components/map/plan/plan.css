@@ -57,10 +57,10 @@
 .pc-next small.is-late { color: var(--color-text-danger); }
 .pc-next--none { color: var(--color-text-tertiary); cursor: inherit; }
 .pc-next--none:hover { background: none; }
-.pc-open { position: absolute; right: 14px; bottom: 10px; font: 400 12px/1 var(--font-family); color: var(--color-text-tertiary); opacity: 0; transition: opacity var(--motion-fast, .12s); pointer-events: none; }
+/* `열기 ›`는 카드 맨 아래 제 줄(흐름 안, 높이 고정) — 다음 할 일 행의 날짜와 겹치지 않게(2026-10-06 사용자 신고: 8/24가 열기 › 위에 겹침) */
+.pc-open { align-self: flex-end; margin-top: auto; height: 12px; font: 400 12px/12px var(--font-family); color: var(--color-text-tertiary); white-space: nowrap; opacity: 0; transition: opacity var(--motion-fast, .12s); pointer-events: none; }
 .pc-card:hover .pc-open, .pc-card:focus-visible .pc-open, .pc-card.is-drop .pc-open { opacity: 1; }
 .pc-card.is-drop .pc-open { color: var(--color-accent); }
-.pc-card:hover .pc-next--none { padding-right: 46px; }
 .pc-card__acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
 .pc-card--sugg { background: var(--color-bg-app); border-style: dashed; cursor: default; }
 .pc-card--sugg:hover { transform: none; box-shadow: none; }

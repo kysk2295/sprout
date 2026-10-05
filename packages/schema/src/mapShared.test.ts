@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { keywordPick, keywords } from './keywords.ts'
 import { reviewTarget, reviewWindowWeek, weekStartMon } from './review.ts'
 import { breakdownRows, manualSteps, planUndoPick } from './breakdown.ts'
-import { buildPlanView } from './planView.ts'
+import { buildPlanView, projectEnded } from './planView.ts'
 import { planReduce, initPlan } from './planChat.ts'
 
 // 낱말 검사: 한 리스트 최근 3개와 겹치면 그 리스트, 다른 리스트 이름이 제목에 있으면 없음
@@ -54,6 +54,19 @@ assert.equal(view.projects[0].deadline?.day, '2026-10-10')
 assert.equal(view.projects[0].kinds.find(([k]) => k === 'research')?.[1], 1)
 assert.equal(view.suggestion, null)
 assert.deepEqual(view.today.map((x) => x.task.id), ['t3'])
+
+// 끝난 프로젝트(31 §12.10.4 빠른 추가 알약에서 뺌): 다 끝남 · 마감 지남 · 남은 일이 모두 지난 날짜 · 집 리스트 보관
+const P0 = view.projects[0]
+const m = (id: string, status: number, due_at: string | null) => ({ ...P0.members[0], id, status, due_at })
+assert.equal(projectEnded(P0, today), false, '앞으로 할 일이 있으면 진행 중')
+assert.equal(P0.archived, false)
+assert.equal(projectEnded({ ...P0, members: [m('a', 1, '2026-10-07')], open: 0, deadline: null }, today), true, '다 끝남')
+assert.equal(projectEnded(P0, '2026-10-11'), true, '마감 지남')
+assert.equal(projectEnded({ ...P0, members: [m('a', 0, '2026-09-20')], open: 1, deadline: null }, today), true, '남은 일이 모두 지난 날짜')
+assert.equal(projectEnded({ ...P0, members: [m('a', 0, '2026-09-20'), m('b', 0, null)], open: 2, deadline: null }, today), false, '날짜 없는 열린 일이 있으면 진행 중')
+assert.equal(projectEnded({ ...P0, archived: true }, today), true, '집 리스트 보관')
+const homed = buildPlanView({ tasks: [], tags: [{ id: 'Q', name: '창업 공모전', kind: 'project', aliases: null, source: 'user', home_type: 'list', home_id: 'gone', topic_id: null }], links: [], lists: [], folders: [], seq: [], pstore: { dismissed: [], confirmed: {} }, today, suggest: false })
+assert.equal(homed.projects[0].archived, true, '집 리스트가 보관 리스트(질의에 없음)')
 
 // 대화 상태 기계(공용): ① 제목 + 날짜 한 번에 → createGoal 효과
 const st = planReduce(planReduce(initPlan('새싹', today), { type: 'start' }).state, { type: 'answer', text: '사업계획서 다음 주 금요일까지' })

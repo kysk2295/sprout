@@ -35,6 +35,8 @@ export type ProjectView = {
   seq: SeqRow[]
   /** 다 끝났고 마감 7일 지남 */
   finished: boolean
+  /** 집 리스트가 보관됨(보관 리스트는 lists 질의에 없다) */
+  archived: boolean
   /** 빠진 거 없어 이후 그대로면 말풍선 숨김 */
   confirmed: boolean
   /** 31 §12.9.2 구성원이 들어온 길: user = 사람이 넣음 · auto = AI·규칙(✦, 확인 전) · home = 집(리스트·폴더)·하위 할 일 */
@@ -53,6 +55,17 @@ export type LooseItem = { task: PTaskRow; choices: string[] }
 export type CategoryGroup = { word: string; projects: ProjectView[]; loose: LooseItem[] }
 export type MemberVia = 'user' | 'auto' | 'home'
 export type TodayItem = { task: PTaskRow; why: 'today' | 'step'; project?: string }
+/**
+ * 31 §12.10.4 "끝난 프로젝트"(빠른 추가 알약에 안 띄움): 보드의 끝남(finished) · 집 리스트 보관 · 구성원이 다 끝남 ·
+ * 마감 지남 · 남은 열린 일이 모두 날짜가 지남(앞으로 할 일이 없음). 날짜 없는 열린 일이 있으면 아직 진행 중으로 본다.
+ */
+export function projectEnded(p: Pick<ProjectView, 'finished' | 'archived' | 'members' | 'open' | 'deadline'>, today: string): boolean {
+  if (p.finished || p.archived) return true
+  if (p.members.length > 0 && p.open === 0) return true
+  if (p.deadline && p.deadline.day < today) return true
+  const open = p.members.filter((m) => m.status === 0)
+  return open.length > 0 && open.every((m) => { const d = taskDay(m); return !!d && d < today })
+}
 export type PlanData = {
   loaded: boolean
   projects: ProjectView[]
@@ -157,6 +170,7 @@ export function buildPlanView(i: PlanInput): PlanData {
       lists: [...perList].sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ id, name: listName(id), emoji: listOf.get(id)?.emoji ?? null, count: n })),
       people: [...people].map(([id, m]) => ({ id, name: tagById.get(id)!.name, label: [...m].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, n]) => `${KIND_SHORT[k]} ${n}`).join(' · ') })),
       memos, seq: seq.filter((l) => ids.has(l.from_id) && ids.has(l.to_id)), finished,
+      archived: tag.home_type === 'list' && !!tag.home_id && !listOf.has(tag.home_id),
       confirmed: pstore.confirmed[tag.id] !== undefined && pstore.confirmed[tag.id] >= members.length,
       via, autoCount: [...via.values()].filter((v) => v === 'auto').length,
       kindSet: new Set(members.filter((m) => overrides.has(m.id)).map((m) => m.id)),
