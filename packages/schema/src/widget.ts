@@ -59,7 +59,7 @@ export type WidgetCalDay = {
   items: WidgetCalItem[]
 }
 export type WidgetMonth = { month: string; title: string; weeks: WidgetCalDay[][] }
-export type WidgetCalendar = { weekStart: 1; weekHead: string[]; current: number; months: WidgetMonth[] }
+export type WidgetCalendar = { weekStart: 0; weekHead: string[]; current: number; months: WidgetMonth[] }
 
 export type WidgetSnapshot = {
   schema: 1
@@ -74,12 +74,13 @@ export type WidgetSnapshot = {
   appliedActions?: string[]
 }
 
-export const WIDGET_WEEK_HEAD = ['월', '화', '수', '목', '금', '토', '일']
+/** 주 시작 = 일요일(2026-10-06 사용자 결정, 앱 캘린더와 같음). weekStart 0 = 일요일 */
+export const WIDGET_WEEK_HEAD = ['일', '월', '화', '수', '목', '금', '토']
 
-/** 'YYYY-MM' 달의 칸(월요일 시작, 그 달에 필요한 5줄 또는 6줄) — 모바일 캘린더 monthDays와 같은 규칙 */
+/** 'YYYY-MM' 달의 칸(일요일 시작, 그 달에 필요한 5줄 또는 6줄) — 모바일 캘린더 monthDays와 같은 규칙 */
 export function widgetMonthDays(month: string): string[] {
   const first = `${month}-01`
-  const from = addDays(first, -((toDate(first).getDay() + 6) % 7))
+  const from = addDays(first, -toDate(first).getDay())
   const last = addDays(shiftMonth(month, 1) + '-01', -1)
   const weeks = Math.ceil((daysBetween(from, last) + 1) / 7)
   return Array.from({ length: weeks * 7 }, (_, i) => addDays(from, i))
@@ -156,7 +157,7 @@ export function buildWidgetCalendar(input: {
   const r = widgetCalendarRange(input.today, offsets)
   const holidays = input.showHolidays ? holidayMap(r.from, r.to) : null
   return {
-    weekStart: 1,
+    weekStart: 0,
     weekHead: WIDGET_WEEK_HEAD,
     current: Math.max(0, offsets.indexOf(0)),
     months: r.months.map((month) => buildWidgetMonth({ month, today: input.today, dayItems: input.dayItems, holidays }))

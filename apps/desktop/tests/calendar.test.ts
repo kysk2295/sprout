@@ -1,6 +1,6 @@
 // 06 캘린더 계산 · 13 AI 비서 서버 경로(대기열 줄·느슨한 JSON) — 2026-10-04 E2E 점검에서 고친 것 포함
 import assert from 'node:assert/strict'
-import { colorOf, DEFAULT_OPTIONS, FALLBACK_COLOR, hourLabel, itemsOf, layoutDay, rangeOf, shiftCursor, shortRange, titleOf } from '../src/renderer/src/lib/calendar'
+import { CAL_WEEK_HEAD, colorOf, DEFAULT_OPTIONS, FALLBACK_COLOR, hourLabel, itemsOf, layoutDay, rangeOf, shiftCursor, shortRange, titleOf, weekendClass, weekHeadClass, weekStart } from '../src/renderer/src/lib/calendar'
 import { timeSelection } from '../src/renderer/src/lib/calendarSelection'
 import { scheduledDrop } from '../src/renderer/src/lib/calendarDrop'
 import { parseIntent, readChatStream } from '../src/shared/assistant'
@@ -8,12 +8,18 @@ import { extSpan, extTimeGroup, smartExtRange, sortExt } from '../src/renderer/s
 import { rowDateLabel } from '../src/renderer/src/lib/dates'
 import type { TaskRow } from '../src/renderer/src/data/types'
 
-// ── 범위: 월요일 시작(2026-10-05 사용자 결정), 월 보기는 필요한 주만큼 ──
-assert.deepEqual(rangeOf('week', '2026-10-07').days, ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10', '2026-10-11'])
-assert.deepEqual(rangeOf('week', '2026-10-11').days[0], '2026-10-05', '일요일은 그 주의 마지막 날')
-assert.equal(rangeOf('month', '2026-10-15').days[0], '2026-09-28')
-assert.equal(rangeOf('month', '2026-10-15').days.length, 35) // 2026-10: 9/28 ~ 11/1, 5주
-assert.equal(rangeOf('month', '2026-08-01').days.length, 42) // 2026-08: 7/27 ~ 9/6, 6주
+// ── 범위: 일요일 시작(2026-10-06 사용자 결정 "일부터" — 틱틱 기본), 월 보기는 필요한 주만큼 ──
+assert.deepEqual(rangeOf('week', '2026-10-07').days, ['2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10'])
+assert.deepEqual(rangeOf('week', '2026-10-11').days[0], '2026-10-11', '일요일은 그 주의 첫날')
+assert.deepEqual(rangeOf('week', '2026-10-10').days[6], '2026-10-10', '토요일은 그 주의 마지막 날')
+assert.equal(rangeOf('month', '2026-10-15').days[0], '2026-09-27')
+assert.equal(rangeOf('month', '2026-10-15').days.length, 35) // 2026-10: 9/27 ~ 10/31, 5주
+assert.equal(rangeOf('month', '2026-08-01').days.length, 42) // 2026-08: 7/26 ~ 9/5, 6주
+assert.deepEqual(CAL_WEEK_HEAD, ['일', '월', '화', '수', '목', '금', '토'])
+assert.deepEqual(CAL_WEEK_HEAD.map((_, i) => weekHeadClass(i)), [' is-sun', '', '', '', '', '', ' is-sat']) // 일 빨강 · 토 파랑이 머리 순서와 맞음
+assert.equal(weekendClass('2026-10-04'), ' is-sun')
+assert.equal(weekendClass('2026-10-10'), ' is-sat')
+assert.equal(weekStart('2026-10-04'), '2026-09-28', '성장 주(목표·리포트)는 월요일 시작 그대로')
 assert.equal(shiftCursor('month', '2026-01-31', 1), '2026-02-01')
 assert.equal(shiftCursor('week', '2026-10-04', -1), '2026-09-27')
 assert.equal(titleOf('week', '2026-10-03'), '2026년 10월')

@@ -2,7 +2,7 @@ import { Check, ChevronLeft, ChevronRight, Circle } from 'lucide-react'
 import { useState } from 'react'
 import { addDays, toDate } from '@sprout/schema/time'
 import { listView, type ListRow, type TagRow } from '../../data/types'
-import { weekHeadClass, weekendClass, weekStart } from '../../lib/calendar'
+import { CAL_WEEK_HEAD as WEEK, calWeekStart, weekHeadClass, weekendClass } from '../../lib/calendar'
 import { dayKey } from '../../lib/dates'
 import { ExtPanelFilter } from '../calendars/ExtPanelFilter'
 import { MyCalRow } from '../events/MyCalRow'
@@ -29,7 +29,6 @@ type Props = {
   markPrefs?: MarkPrefs
 }
 const NO_MARKS: MarkPrefs = { holidays: false, lunar: false, weekNumbers: false }
-const WEEK = ['월', '화', '수', '목', '금', '토', '일'] // 주 시작 = 월요일(2026-10-05 사용자 결정)
 
 export function CalendarSide(p: Props) {
   const [month, setMonth] = useState(p.cursor.slice(0, 7))
@@ -44,7 +43,7 @@ export function CalendarSide(p: Props) {
     setMonth(dayKey(0, d).slice(0, 7))
   }
   const first = toDate(`${month}-01`)
-  const start = weekStart(`${month}-01`)
+  const start = calWeekStart(`${month}-01`)
   // 실측: 작은 달력은 항상 6줄
   const weeks = Array.from({ length: 6 }, (_, w) => Array.from({ length: 7 }, (_, i) => addDays(start, w * 7 + i)))
   const inRange = (d: string) => p.rangeDays.includes(d)

@@ -1,18 +1,19 @@
 // 캘린더 범위·배치·옮기기 시험(06 휴대폰판)
 import assert from 'node:assert/strict'
-import { agendaTitle, blockTime, cellSummary, dragTarget, floatingAt, itemsOf, layoutDay, minutesAtY, monthDays, monthTitle, moveTo, rangeOf, shiftCursor, weekStart, type CalTask } from './calendar.ts'
+import { agendaTitle, blockTime, cellSummary, dragTarget, floatingAt, itemsOf, layoutDay, minutesAtY, monthDays, monthTitle, moveTo, rangeOf, shiftCursor, WEEK_HEAD, weekStart, type CalTask } from './calendar.ts'
 
 const today = '2026-10-04' // 일요일
-// 주 시작 월요일
-assert.equal(weekStart('2026-10-04'), '2026-09-28')
-assert.equal(weekStart('2026-10-05'), '2026-10-05')
-// 2026년 10월: 9/28(월)부터 11/1(일)까지 5주
+// 주 시작 일요일(2026-10-06 사용자 결정)
+assert.equal(weekStart('2026-10-04'), '2026-10-04')
+assert.equal(weekStart('2026-10-10'), '2026-10-04')
+assert.deepEqual(WEEK_HEAD, ['일', '월', '화', '수', '목', '금', '토'])
+// 2026년 10월: 9/27(일)부터 10/31(토)까지 5주
 const m = monthDays('2026-10-15')
-assert.equal(m[0], '2026-09-28')
+assert.equal(m[0], '2026-09-27')
 assert.equal(m.length, 35)
-assert.equal(m[m.length - 1], '2026-11-01')
-// 2026년 3월: 1일이 일요일 → 2/23부터 6주
-assert.equal(monthDays('2026-03-01').length, 42)
+assert.equal(m[m.length - 1], '2026-10-31')
+// 2026년 8월: 1일이 토요일 → 7/26부터 6주
+assert.equal(monthDays('2026-08-01').length, 42)
 assert.deepEqual(rangeOf('3day', today).days, ['2026-10-04', '2026-10-05', '2026-10-06'])
 assert.equal(rangeOf('list', today).to, '2026-11-02')
 assert.equal(shiftCursor('month', '2026-12-20', 1), '2027-01-01')

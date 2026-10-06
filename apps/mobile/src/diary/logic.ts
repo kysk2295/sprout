@@ -162,16 +162,17 @@ export function insightOf(entries: Pick<DiaryEntry, 'date' | 'mood'>[], doneByDa
 }
 
 // ── 15 §9 v1 디자인 계산 ──
-export const WEEK_MON = ['월', '화', '수', '목', '금', '토', '일'] as const
-export const weekdayMon = (date: string) => (new Date(`${date}T00:00:00`).getDay() + 6) % 7
+/** 주 시작 = 일요일(2026-10-06 사용자 결정, 캘린더와 같음). 일=0 … 토=6 */
+export const WEEK_DAYS = ['일', '월', '화', '수', '목', '금', '토'] as const
+export const weekdayIdx = (date: string) => new Date(`${date}T00:00:00`).getDay()
 export function monthGrid(month: string): string[] {
   const first = `${month}-01`
-  const start = addDays(first, -weekdayMon(first))
+  const start = addDays(first, -weekdayIdx(first))
   return Array.from({ length: 42 }, (_, i) => addDays(start, i))
 }
 export function weekOf(date: string): string[] {
-  const mon = addDays(date, -weekdayMon(date))
-  return Array.from({ length: 7 }, (_, i) => addDays(mon, i))
+  const sun = addDays(date, -weekdayIdx(date))
+  return Array.from({ length: 7 }, (_, i) => addDays(sun, i))
 }
 export function longestStreak(dates: Iterable<string>): number {
   const sorted = [...new Set(dates)].sort()

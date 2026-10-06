@@ -1,4 +1,4 @@
-// 25 맥 위젯 §15 월 캘린더: 이번 달 격자(월요일 시작) · 날마다 막대(할 일·내 일정·구글/Apple) · 순서 · 상한 · 공휴일 · 보기 설정 · 예시 파일 형식
+// 25 맥 위젯 §15 월 캘린더: 이번 달 격자(일요일 시작) · 날마다 막대(할 일·내 일정·구글/Apple) · 순서 · 상한 · 공휴일 · 보기 설정 · 예시 파일 형식
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import initSqlJs from 'sql.js'
@@ -42,11 +42,11 @@ const extFn = (from: string, to: string) => ext.filter((e) => e.start.slice(0, 1
 const cal = await calendarOf(db, today, extFn)
 assert.equal(cal.month, '2026-10')
 assert.equal(cal.title, '10월')
-assert.equal(cal.days.length, 35) // 9/28(월) ~ 11/1(일), 5주
-assert.equal(cal.days[0].d, '2026-09-28')
-assert.equal(cal.days.at(-1)!.d, '2026-11-01')
+assert.equal(cal.days.length, 35) // 9/27(일) ~ 10/31(토), 5주
+assert.equal(cal.days[0].d, '2026-09-27')
+assert.equal(cal.days.at(-1)!.d, '2026-10-31')
 assert.equal(cal.days[0].other, true)
-assert.equal(cal.days.at(-1)!.other, true)
+assert.equal(cal.days.at(-1)!.other, undefined) // 10/31 = 그 달 마지막 날(토)
 const day = (d: string) => cal.days.find((x) => x.d === d)!
 assert.equal(day('2026-10-01').other, undefined)
 // 다른 달 칸에도 그 날 항목이 들어간다(앱 월 보기와 같다)
@@ -96,14 +96,14 @@ assert.ok(!day2('2026-10-05').items.some((i) => i.id === 'b'))
 assert.equal(day2('2026-10-03').holiday, undefined)
 assert.ok(!cal2.days.some((dd) => dd.items.some((i) => i.kind === 'event')))
 assert.ok(day2('2026-10-11').items.some((i) => i.id === 'f')) // 반복 미래 회차(원래 할 일 id로 링크)
-assert.ok(day2('2026-11-01').items.some((i) => i.id === 'f'))
+assert.ok(day2('2026-10-31').items.some((i) => i.id === 'f'))
 assert.equal(day2('2026-10-01').items[0].color, '#C53C31') // 높음 = 빨강
 setOpts({ lists: ['l2'] })
 const cal3 = await calendarOf(db, today)
 assert.deepEqual([...new Set(cal3.days.flatMap((dd) => dd.items.filter((i) => i.kind === 'task').map((i) => i.id)))], ['c'])
 setOpts({})
 
-// 6주 달: 2026년 8월(1일 토요일, 31일 월요일) → 7/27 ~ 9/6
+// 6주 달: 2026년 8월(1일 토요일, 31일 월요일) → 7/26 ~ 9/5
 assert.equal((await calendarOf(db, '2026-08-15')).days.length, 42)
 
 // ── 저장 파일: 로그인이면 calendar가 있고, 로그아웃이면 없다 ──
@@ -118,6 +118,7 @@ const fixture = JSON.parse(readFileSync('apps/desktop/native/widget/fixtures/sna
 assert.equal(fixture.schema, 1)
 assert.match(fixture.calendar.month, /^\d{4}-\d{2}$/)
 assert.ok([35, 42].includes(fixture.calendar.days.length))
+assert.equal(new Date(`${fixture.calendar.days[0].d}T00:00`).getDay(), 0) // 일요일 시작
 const fItem = fixture.calendar.days.flatMap((dd: { items: unknown[] }) => dd.items)[0] as Record<string, unknown>
 assert.deepEqual(Object.keys(fItem).sort(), Object.keys(x).sort())
 console.log('widget calendar tests ok')

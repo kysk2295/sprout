@@ -107,6 +107,12 @@
   "title": "10월",
   "days": [
    {
+    "d": "2026-09-27",
+    "count": 0,
+    "items": [],
+    "other": true
+   },
+   {
     "d": "2026-09-28",
     "count": 0,
     "items": [],
@@ -585,22 +591,6 @@
       "repeat": true
      }
     ]
-   },
-   {
-    "d": "2026-11-01",
-    "count": 1,
-    "items": [
-     {
-      "id": "00000000-0000-4000-8000-000000000001",
-      "kind": "task",
-      "title": "⭐ 주말",
-      "color": "#E58E3C",
-      "done": false,
-      "allDay": true,
-      "repeat": true
-     }
-    ],
-    "other": true
    }
   ]
  }

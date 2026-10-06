@@ -1,13 +1,13 @@
 // 06 §5.1 월 보기 세로 스크롤(research 17 §17): 주 줄이 이어서 흐르고, 멈추면 주 경계에 맞춘다.
 // 순수 계산만 — 화면(MonthView)은 이 값으로 그릴 주와 스크롤 위치를 정한다.
 import { addDays, daysBetween } from '@sprout/schema/time'
-import { shiftCursor, weekStart } from './calendar'
+import { calWeekStart, shiftCursor } from './calendar'
 
-/** 0번 주(월요일). 2000-01-03 ~ 2060년까지 그린다 */
-export const EPOCH = '2000-01-03'
+/** 0번 주(일요일 — 캘린더 주 시작). 2000-01-02 ~ 2060년까지 그린다 */
+export const EPOCH = '2000-01-02'
 export const TOTAL_WEEKS = 3200 // 2061년 초까지
 
-export const weekIndexOf = (day: string) => Math.floor(daysBetween(EPOCH, weekStart(day)) / 7)
+export const weekIndexOf = (day: string) => Math.floor(daysBetween(EPOCH, calWeekStart(day)) / 7)
 export const weekAt = (index: number) => addDays(EPOCH, index * 7)
 
 /** 그 달에 필요한 주 수(5 또는 6, 2월은 4도) — rangeOf('month')와 같다 */
@@ -20,7 +20,7 @@ export function weeksInMonth(ym: string): number {
 /** 그 달 1일이 든 주의 번호 */
 export const monthTopWeek = (ym: string) => weekIndexOf(`${ym}-01`)
 
-/** 머리 제목 달: 화면 가운데 줄(그 주 목요일)의 달 — research 17 §17.2 "가장 많이 보이는 달" */
+/** 머리 제목 달: 화면 가운데 줄(그 주 수요일 — 일~토의 가운데)의 달 — research 17 §17.2 "가장 많이 보이는 달" */
 export function monthAtCenter(scrollTop: number, viewH: number, rowH: number): string {
   const row = Math.max(0, Math.floor((scrollTop + viewH / 2) / rowH))
   return addDays(weekAt(row), 3).slice(0, 7)

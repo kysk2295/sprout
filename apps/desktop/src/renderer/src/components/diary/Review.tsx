@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useQuery } from '../../data/useQuery'
 import {
-  averageMood, dayRange, highlightsOf, insightOf, isWritten, longestStreak, monthGrid, moodOf, moodTrend, MOODS, WEEK_MON, weekdayMon,
+  averageMood, dayRange, highlightsOf, insightOf, isWritten, longestStreak, monthGrid, moodOf, moodTrend, MOODS, WEEK_DAYS, weekdayIdx,
   type Buddy, type DiaryEntry
 } from '../../data/diary'
 import { dayKey } from '../../lib/dates'
@@ -104,8 +104,8 @@ export function Review({ entries, byDate, today, streak, initialMonth, buddy, st
             <section className="diary-rcard">
               <h4>기분 달력<small>칸을 누르면 그날 쓰기</small></h4>
               <div className="diary-mgrid">
-                {WEEK_MON.map((w) => <b key={w}>{w}</b>)}
-                {Array.from({ length: weekdayMon(`${month}-01`) }, (_, i) => <i key={`b${i}`} />)}
+                {WEEK_DAYS.map((w) => <b key={w}>{w}</b>)}
+                {Array.from({ length: weekdayIdx(`${month}-01`) }, (_, i) => <i key={`b${i}`} />)}
                 {monthGrid(month).filter((d) => monthOf(d) === month).map((d) => {
                   const e = byDate.get(d)
                   const w = !!e && isWritten(e)

@@ -45,17 +45,22 @@ export interface CalItem {
 }
 
 // ── 범위 ──
-export const weekStart = (d: string) => addDays(d, -((toDate(d).getDay() + 6) % 7)) // 월요일 시작(2026-10-05 사용자 결정 — 틱틱 실측 기본은 일요일, research 17 §2)
+/** 캘린더 화면의 주 시작 = 일요일(2026-10-06 사용자 결정 "일부터" — 틱틱 기본, research 17 §2). 주·월 보기·작은 달력·날짜 고르기·위젯 */
+export const calWeekStart = (d: string) => addDays(d, -toDate(d).getDay())
+/** 캘린더 요일 머리(일…토) */
+export const CAL_WEEK_HEAD = ['일', '월', '화', '수', '목', '금', '토']
+/** 성장 주(주간 목표·주간 리포트·점검·작업 지도 "이번 주") = 월요일 시작. 서버 리포트·XP id와 같은 경계라 캘린더 주 시작과 따로 둔다 */
+export const weekStart = (d: string) => addDays(d, -((toDate(d).getDay() + 6) % 7))
 export function rangeOf(view: CalView, cursor: string): { from: string; to: string; days: string[] } {
   if (view === 'day') return { from: cursor, to: cursor, days: [cursor] }
   if (view === 'week') {
-    const from = weekStart(cursor)
+    const from = calWeekStart(cursor)
     const days = Array.from({ length: 7 }, (_, i) => addDays(from, i))
     return { from, to: days[6], days }
   }
   // 06 §5 실측: 그 달에 필요한 주만큼(5줄 또는 6줄)
   const first = `${cursor.slice(0, 7)}-01`
-  const from = weekStart(first)
+  const from = calWeekStart(first)
   const last = addDays(shiftCursor('month', first, 1), -1)
   const weeks = Math.ceil((daysBetween(from, last) + 1) / 7)
   const days = Array.from({ length: weeks * 7 }, (_, i) => addDays(from, i))
@@ -76,8 +81,8 @@ export function titleOf(_view: CalView, cursor: string): string {
 export const isWeekend = (d: string) => [0, 6].includes(toDate(d).getDay())
 /** 06 §16 주말 글자색(사용자 결정 2026-10-05 "주말도 표시"): 토 = 파랑, 일 = 빨강. 날짜 칸·요일 머리에 붙이는 클래스 */
 export const weekendClass = (d: string) => { const w = toDate(d).getDay(); return w === 6 ? ' is-sat' : w === 0 ? ' is-sun' : '' }
-/** 월요일 시작 요일 머리(월…일)의 i번째 */
-export const weekHeadClass = (i: number) => (i === 5 ? ' is-sat' : i === 6 ? ' is-sun' : '')
+/** 일요일 시작 요일 머리(일…토)의 i번째 */
+export const weekHeadClass = (i: number) => (i === 6 ? ' is-sat' : i === 0 ? ' is-sun' : '')
 
 // ── 항목 만들기 (반복 미래 회차 포함) ──
 export function itemsOf(tasks: TaskRow[], from: string, to: string, withRepeats: boolean): CalItem[] {

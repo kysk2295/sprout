@@ -10,7 +10,7 @@ import { Popover } from './Popover'
 import { CalendarPlus7 } from './icons'
 import { markPrefsOf, useCalendarOptions, useDayMarks } from '../data/calendarOptions'
 import './calendar/holidays.css'
-import { weekHeadClass, weekendClass } from '../lib/calendar'
+import { CAL_WEEK_HEAD as WEEK, weekHeadClass, weekendClass } from '../lib/calendar'
 
 // 03-date-picker: 날짜 탭 · 기간 탭 · Time/Reminder/Repeat 하위 화면 · Clear/OK
 // 바깥 클릭 = OK(저장 후 닫기), Esc = 취소 후 닫기(03 §2)
@@ -28,7 +28,6 @@ type Props = {
 type Panel = 'time' | 'reminder' | 'reminder-custom' | 'repeat' | 'repeat-custom' | null
 
 export const EMPTY_SCHEDULE: Schedule = { start_at: null, due_at: null, is_all_day: 1, repeat_rule: null, repeat_from: null, reminders: [] }
-const WEEK = ['월', '화', '수', '목', '금', '토', '일'] // 주 시작 = 월요일(2026-10-05 사용자 결정, 앱 전체 통일)
 const SLOTS = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`)
 
 export function DatePicker({ initial, anchor, point, variant = 'full', datesOnly, onSave, onClose }: Props) {
@@ -197,7 +196,7 @@ function Row({ icon, label, value, onOpen, onClear }: { icon: ReactNode; label: 
 /** 6주 고정 달력(03 §3). selected 여러 개 가능(특정 날짜 반복) */
 export function MonthGrid({ month, onMonth, today, selected, onPick, compact, range = [] }: { month: string; onMonth: (m: string) => void; today: string; selected: string[]; onPick: (d: string) => void; compact?: boolean; range?: string[] }) {
   const first = toDate(`${month}-01`)
-  const lead = (first.getDay() + 6) % 7 // 월요일 시작
+  const lead = first.getDay() // 일요일 시작(캘린더와 같음)
   const days = Array.from({ length: 42 }, (_, i) => addDays(`${month}-01`, i - lead))
   // 06 §16 "휴일 표시"가 켜져 있으면 공휴일 숫자를 빨강으로(이름은 마우스를 올리면, "휴" 배지는 뺌 — 사용자 결정 2026-10-05)
   const [calOpts] = useCalendarOptions()

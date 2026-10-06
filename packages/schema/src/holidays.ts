@@ -191,8 +191,8 @@ export function isoWeek(date: string): number {
   const jan4 = new Date(d.getFullYear(), 0, 4)
   return 1 + Math.round(((d.getTime() - jan4.getTime()) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7)
 }
-/** 틱틱 표기 `W41`(research 24 §월 보기 실측) */
-export const weekLabel = (date: string) => `W${isoWeek(date)}`
+/** 틱틱 표기 `W41`(research 24 §월 보기 실측). 캘린더 줄은 일요일에 시작하므로(2026-10-06) 일요일은 바로 뒤 월요일의 ISO 주로 센다 */
+export const weekLabel = (date: string) => `W${isoWeek(toDate(date).getDay() === 0 ? addDays(date, 1) : date)}`
 
 // ── 날짜 칸 오른쪽 글자 한 자리(틱틱/디다 실측: 공휴일·절기 이름 > 주 번호 > 음력 — research 17 §15.2) ──
 export interface DayMarks { holiday: string | null; side: string | null; sideKind: 'holiday' | 'week' | 'lunar' | null }

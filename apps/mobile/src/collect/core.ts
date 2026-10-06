@@ -127,7 +127,7 @@ export function appGroupOf(iso: string, today: string) {
   if (day === today) return 'today'
   const base = new Date(`${today}T12:00`)
   if (day === dayKey(-1, base)) return 'yesterday'
-  const weekStart = dayKey(-((base.getDay() + 6) % 7), base) // 주 시작 = 월요일
+  const weekStart = dayKey(-base.getDay(), base) // 주 시작 = 일요일(캘린더와 같음)
   return day >= weekStart ? 'week' : 'older'
 }
 /** 앱에서 넣은 것 = 작성 날짜 묶음, 카톡에서 가져온 것 = 원래 날짜별 묶음(최근 하나만 펼침) */

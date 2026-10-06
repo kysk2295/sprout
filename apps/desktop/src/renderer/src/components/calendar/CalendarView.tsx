@@ -6,7 +6,7 @@ import { markPrefsOf, useCalendarOptions, useDayMarks } from '../../data/calenda
 import { loadSchedule } from '../../data/schedule'
 import { TASK_COLUMNS } from '../../data/taskQueries'
 import type { ListRow, TagRow, TaskRow } from '../../data/types'
-import { colorOf, itemsOf, rangeOf, shiftCursor, titleOf, visibleDays, weekStart, type CalItem, type CalView } from '../../lib/calendar'
+import { colorOf, itemsOf, rangeOf, shiftCursor, titleOf, visibleDays, calWeekStart, type CalItem, type CalView } from '../../lib/calendar'
 import { addDays } from '@sprout/schema/time'
 import { dayKey } from '../../lib/dates'
 import type { Schedule, TaskActions } from '../../lib/taskActions'
@@ -125,7 +125,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
   const tasks = taskRows ?? []
   const guide = useGuide('calendar', { ready: taskRows !== undefined }) // 37 첫 둘러보기 · 머리 `?`
   // 06 §6 작은 달력의 태스크 점: 그 달 6주 범위에서 날짜가 있는 날
-  const miniFrom = weekStart(`${cursor.slice(0, 7)}-01`)
+  const miniFrom = calWeekStart(`${cursor.slice(0, 7)}-01`)
   const busy = useQuery<{ d: string }>(
     `SELECT DISTINCT substr(COALESCE(start_at, due_at), 1, 10) AS d FROM tasks WHERE deleted_at IS NULL AND status = 0 AND due_at IS NOT NULL AND substr(COALESCE(start_at, due_at), 1, 10) BETWEEN ? AND ?`,
     [miniFrom, addDays(miniFrom, 41)]

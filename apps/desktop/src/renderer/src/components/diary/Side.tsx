@@ -1,10 +1,10 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { isWritten, monthGrid, moodOf, WEEK_MON, weekOf, type DiaryEntry } from '../../data/diary'
+import { isWritten, monthGrid, moodOf, WEEK_DAYS, weekOf, type DiaryEntry } from '../../data/diary'
 import { dateLabel, firstLine, monthOf, parse, shiftMonth } from './dates'
 import { LeafIcon, MoodFace, PaperIcon } from './MoodFace'
 
-// 15 §9.1 왼쪽 260 — 이어 쓰기 카드 · 미니 달력(월요일 시작, 기분 색 칸) · 날짜 목록
+// 15 §9.1 왼쪽 260 — 이어 쓰기 카드 · 미니 달력(일요일 시작, 기분 색 칸) · 날짜 목록
 
 /** 이어 쓰기 카드: 연속 N일(새싹 잎) + 이번 주(월~일) 7칸 */
 export function StreakCard({ streak, byDate, today }: { streak: { days: number; today: boolean }; byDate: Map<string, DiaryEntry>; today: string }) {
@@ -23,7 +23,7 @@ export function StreakCard({ streak, byDate, today }: { streak: { days: number; 
           const m = moodOf(e?.mood)
           return (
             <span key={d} title={d}>
-              <small>{WEEK_MON[i]}</small>
+              <small>{WEEK_DAYS[i]}</small>
               <i className={`${on ? 'is-on' : ''}${d === today ? ' is-today' : ''}${d > today ? ' is-future' : ''}`} style={on ? { background: m?.color ?? 'var(--color-accent)' } : undefined} />
             </span>
           )
@@ -47,7 +47,7 @@ export function MiniCalendar({ date, today, byDate, onPick }: { date: string; to
         </span>
       </div>
       <div className="diary-cal__grid">
-        {WEEK_MON.map((w) => <b key={w}>{w}</b>)}
+        {WEEK_DAYS.map((w) => <b key={w}>{w}</b>)}
         {monthGrid(month).map((d) => {
           const e = byDate.get(d)
           const written = !!e && isWritten(e)

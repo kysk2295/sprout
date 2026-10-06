@@ -51,7 +51,7 @@
 | 빠른 선택 4개 | 오늘(해) · 내일(해 뜨는 모양) · 다음 주(📅+7) · 달 모양 | [틱틱] 아이콘. 달 모양의 뜻은 **[임시] "오늘 밤 20:00"** |
 | 빠른 선택 동작 | 누르면 날짜가 정해지고 **바로 닫힌다**(OK 없이) | [임시] |
 | 머리 | "Dec 2025" (`text.body-strong`) + 오른쪽 `‹ ○ ›` (○ = 이번 달로) | [틱틱] |
-| 요일 | 주 시작 = **월요일**(2026-10-05 사용자 결정으로 앱 전체 통일. 틱틱 실측 기본은 일요일 — research 17). `text.caption` `color.text.tertiary` | [틱틱] |
+| 요일 | 주 시작 = **일요일**(2026-10-06 사용자 결정 "일부터", 캘린더와 같음 — 틱틱 기본, research 17). `text.caption` `color.text.tertiary` | [틱틱] |
 | 날짜 칸 | 32×32px, 원형. 오늘 = `color.accent.subtle` 원 + `color.accent` 글자. 선택 = `color.accent` 채움 + 흰 글자. 다른 달 = `color.text.quaternary` | [틱틱] |
 | 6주 고정 | 달력 높이가 달마다 바뀌지 않게 항상 6줄 | [틱틱] (Dec 2025 캡처가 6줄) |
 | Time / Reminder / Repeat 행 | 높이 36px, 왼쪽 아이콘 + 이름, 오른쪽에 값(설정됐으면 `color.accent` 글자 + ×) 또는 `›` | [틱틱] 값 표시는 iOS 캡처 |
@@ -191,7 +191,7 @@
   - 데스크톱 구현: 메인 프로세스가 `userData/reminder-state.json`에 울린 알림 키(`reminder_id@울릴 시각`)와 다시 알림 시각을 둔다 [sprout].
 
 ## 10. 완료 기준 (틱틱과 나란히 놓고 확인)
-- [ ] 날짜 탭을 [도움말 03](../ticktick-captures/_help/task-details-and-editing-526720/03-desktop-date-and-duration.png)과 나란히 놓으면 탭·빠른 선택 4개·달력(6주, 월요일 시작, 오늘 원)·행 3개·버튼 배치가 같다.
+- [ ] 날짜 탭을 [도움말 03](../ticktick-captures/_help/task-details-and-editing-526720/03-desktop-date-and-duration.png)과 나란히 놓으면 탭·빠른 선택 4개·달력(6주, 일요일 시작, 오늘 원)·행 3개·버튼 배치가 같다.
 - [ ] 기간 탭을 [도움말 04](../ticktick-captures/_help/task-details-and-editing-526720/04-desktop-date-and-duration.png)와 나란히 놓으면 시작·끝·All Day·Floating Time·알림·반복 배치가 같다.
 - [ ] 시간을 넣으면 알림 "정각에"이 자동으로 붙는다.
 - [ ] 반복 목록의 보조 표기가 선택한 날짜에 따라 바뀐다(화요일 20일 → "매주(화요일)", "매월(20일)").

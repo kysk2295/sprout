@@ -88,13 +88,13 @@ enum Sample {
         return try! JSONDecoder().decode(Snapshot.self, from: Data(text.utf8))
     }
 
-    /// 이번 달(월요일 시작, 필요한 주만큼) 격자를 예시 막대로 채운 JSON
+    /// 이번 달(일요일 시작, 필요한 주만큼) 격자를 예시 막대로 채운 JSON
     static func calendarJSON(_ now: Date) -> String {
         var cal = Calendar(identifier: .gregorian)
-        cal.firstWeekday = 2
+        cal.firstWeekday = 1
         let comps = cal.dateComponents([.year, .month], from: now)
         let first = cal.date(from: comps)!
-        let lead = (cal.component(.weekday, from: first) + 5) % 7 // 월 = 0
+        let lead = cal.component(.weekday, from: first) - 1 // 일 = 0
         let start = cal.date(byAdding: .day, value: -lead, to: first)!
         let daysInMonth = cal.range(of: .day, in: .month, for: first)!.count
         let weeks = Int(ceil(Double(lead + daysInMonth) / 7))

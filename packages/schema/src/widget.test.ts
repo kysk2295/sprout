@@ -11,15 +11,15 @@ assert.equal(shiftMonth('2026-12', 1), '2027-01')
 assert.equal(shiftMonth('2026-01', -1), '2025-12')
 assert.equal(shiftMonth('2026-10', -14), '2025-08')
 
-// 칸: 월요일 시작, 5줄/6줄
+// 칸: 일요일 시작(2026-10-06), 5줄/6줄
 const oct = widgetMonthDays('2026-10') // 10월 1일 = 목요일
-assert.equal(oct[0], '2026-09-28')
+assert.equal(oct[0], '2026-09-27')
 assert.equal(oct.length, 35)
-assert.equal(oct[oct.length - 1], '2026-11-01')
-const nov = widgetMonthDays('2026-11') // 11월 1일 = 일요일 → 6줄
-assert.equal(nov[0], '2026-10-26')
-assert.equal(nov.length, 42)
-const feb = widgetMonthDays('2027-02') // 2월 1일 = 월요일, 28일 = 일요일 → 4줄
+assert.equal(oct[oct.length - 1], '2026-10-31')
+const aug = widgetMonthDays('2026-08') // 8월 1일 = 토요일 → 6줄
+assert.equal(aug[0], '2026-07-26')
+assert.equal(aug.length, 42)
+const feb = widgetMonthDays('2026-02') // 2월 1일 = 일요일, 28일 = 토요일 → 4줄
 assert.equal(feb.length, 28)
 
 // 머리 글자
@@ -56,14 +56,16 @@ assert.equal(cell('2026-10-01').n, 1)
 // 달력 전체: 지난달 ~ 두 달 뒤, 휴일 표시 끄면 이름 없음(주말 색은 그대로)
 const r = widgetCalendarRange('2026-10-05')
 assert.deepEqual(r.months, ['2026-09', '2026-10', '2026-11', '2026-12'])
-assert.equal(r.from, '2026-08-31')
-assert.equal(r.to, '2027-01-03')
+assert.equal(r.from, '2026-08-30')
+assert.equal(r.to, '2027-01-02')
 const cal = buildWidgetCalendar({ today: '2026-10-05', dayItems: () => [], showHolidays: true })
 assert.equal(cal.current, 1)
 assert.equal(cal.months[1].month, '2026-10')
 assert.equal(cal.months[1].weeks.flat().find((c) => c.date === '2026-10-03')!.holiday, '개천절')
 assert.equal(cal.months[1].weeks.flat().find((c) => c.date === '2026-10-09')!.holiday, '한글날')
-assert.deepEqual(cal.weekHead, ['월', '화', '수', '목', '금', '토', '일'])
+assert.deepEqual(cal.weekHead, ['일', '월', '화', '수', '목', '금', '토'])
+assert.equal(cal.weekStart, 0)
+assert.ok(cal.months.every((mm) => mm.weeks.every((w) => w[0].tone !== 'sat' && w[6].tone !== 'sun'))) // 일 = 첫 칸, 토 = 끝 칸
 const calOff = buildWidgetCalendar({ today: '2026-10-05', dayItems: () => [], showHolidays: false })
 const c3 = calOff.months[1].weeks.flat().find((c) => c.date === '2026-10-03')!
 assert.equal(c3.holiday, null)

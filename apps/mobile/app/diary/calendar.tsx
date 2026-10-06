@@ -1,4 +1,4 @@
-// 28 §4 📅 → 월 달력 시트(기분 색, 월요일 시작). 날짜를 누르면 그날 쓰기로.
+// 28 §4 📅 → 월 달력 시트(기분 색, 일요일 시작). 날짜를 누르면 그날 쓰기로.
 import { useRouter } from 'expo-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { useState } from 'react'

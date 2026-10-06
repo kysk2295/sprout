@@ -219,7 +219,7 @@ const order = (a: Raw, b: Raw) => {
   return a.start.localeCompare(b.start) || a.seq - b.seq
 }
 
-/** 이번 달 격자(월요일 시작, 그 달에 필요한 주만큼) + 날마다 막대. 앱 06 CalendarView의 쿼리·옵션과 같은 규칙 */
+/** 이번 달 격자(일요일 시작, 그 달에 필요한 주만큼) + 날마다 막대. 앱 06 CalendarView의 쿼리·옵션과 같은 규칙 */
 export async function calendarOf(db: CoreDb, today: string, extEvents?: (from: string, to: string) => ExtEvent[]): Promise<WidgetCalendar> {
   const opts = await calendarOptionsOf(db)
   const { from, to, days } = rangeOf('month', today)

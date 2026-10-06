@@ -31,7 +31,7 @@ struct Snapshot: Codable {
         let mood: String
         let art: String
     }
-    /// 25 §15.5 월 캘린더 위젯 — 이번 달 격자(월요일 시작, 35 또는 42칸)
+    /// 25 §15.5 월 캘린더 위젯 — 이번 달 격자(일요일 시작, 35 또는 42칸)
     struct CalItem: Codable, Hashable {
         let id: String?     // task·event만(ext는 null → 날짜 링크)
         let kind: String    // "task" | "event" | "ext"

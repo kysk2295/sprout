@@ -5,7 +5,7 @@ import { TABLES } from '@sprout/schema'
 import {
   buildBuddyMessages, buddyReply, entryId, insightOf, josa, parseBuddyReply, recentMemory, saveEntry, sendMessage,
   setConsent, setMemory, setPrivate, streakOf, deleteEntry, taskFromChip,
-  averageMood, buddyLine, DONE_SQL, highlightsOf, longestStreak, monthGrid, moodFaceOf, moodTrend, skyOf, WEEK_MON, weekdayMon, weekOf
+  averageMood, buddyLine, DONE_SQL, highlightsOf, longestStreak, monthGrid, moodFaceOf, moodTrend, skyOf, WEEK_DAYS, weekdayIdx, weekOf
 } from '../src/renderer/src/data/diary'
 import { insert, run } from '../src/renderer/src/data/mutations'
 const SQL = await initSqlJs()
@@ -115,18 +115,18 @@ assert.equal(entryId('2026-10-04', 'u-1'), 'diary-2026-10-04-u-1')
 assert.equal(entryId('2026-10-04'), 'diary-2026-10-04')
 
 // ── 15 §9 v1 디자인 계산 ──
-// 주 시작 = 월요일(2026-10-04 사용자 결정)
-assert.deepEqual([...WEEK_MON], ['월', '화', '수', '목', '금', '토', '일'])
-assert.equal(weekdayMon('2026-10-05'), 0) // 월
-assert.equal(weekdayMon('2026-10-04'), 6) // 일
+// 주 시작 = 일요일(2026-10-06 사용자 결정, 캘린더와 같음)
+assert.deepEqual([...WEEK_DAYS], ['일', '월', '화', '수', '목', '금', '토'])
+assert.equal(weekdayIdx('2026-10-04'), 0) // 일
+assert.equal(weekdayIdx('2026-10-10'), 6) // 토
 const grid = monthGrid('2026-10') // 10월 1일 = 목
 assert.equal(grid.length, 42)
-assert.equal(grid[0], '2026-09-28') // 월요일부터
-assert.equal(grid[3], '2026-10-01')
-assert.ok(grid.every((d, i) => weekdayMon(d) === i % 7))
-assert.equal(monthGrid('2026-06')[0], '2026-06-01') // 1일이 월요일이면 앞 칸 없음
-assert.deepEqual(weekOf('2026-10-04'), ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'])
-assert.equal(weekOf('2026-10-05')[0], '2026-10-05')
+assert.equal(grid[0], '2026-09-27') // 일요일부터
+assert.equal(grid[4], '2026-10-01')
+assert.ok(grid.every((d, i) => weekdayIdx(d) === i % 7))
+assert.equal(monthGrid('2026-11')[0], '2026-11-01') // 1일이 일요일이면 앞 칸 없음
+assert.deepEqual(weekOf('2026-10-10'), ['2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10'])
+assert.equal(weekOf('2026-10-04')[0], '2026-10-04')
 // 가장 긴 연속(순서·중복·달 경계 무관)
 assert.equal(longestStreak([]), 0)
 assert.equal(longestStreak(['2026-10-03', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-02', '2026-10-09', '2026-10-10']), 4)

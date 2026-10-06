@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent as RPointerEvent } from 'react'
 import { addDays, datePart, daysBetween } from '@sprout/schema/time'
-import { packBars, visibleDays, weekHeadClass, weekendClass, type CalItem, type ItemStyle } from '../../lib/calendar'
+import { CAL_WEEK_HEAD as WEEK, packBars, visibleDays, weekHeadClass, weekendClass, type CalItem, type ItemStyle } from '../../lib/calendar'
 import { monthAtCenter, monthTopWeek, snapTop, TOTAL_WEEKS, weekAt, weeksInMonth, windowRows } from '../../lib/monthScroll'
 import type { DayMarks } from '@sprout/schema/holidays'
 import { SideLabel } from './DayMark'
@@ -16,7 +16,6 @@ import { dragSession } from './dragSession'
 const LANE = 19 // 막대 16 + 간격 3
 const BAR = 16
 const HEAD = 30 // 칸 위쪽 날짜 줄
-const WEEK = ['월', '화', '수', '목', '금', '토', '일'] // 주 시작 = 월요일(2026-10-05 사용자 결정)
 
 type Props = CalHandlers & {
   /** 06 §8 주말 표시(끄면 한 줄 5칸) */
@@ -295,7 +294,7 @@ export function MonthView(p: Props) {
   return (
     <div className="mv">
       <div className="mv__head" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-        {WEEK.slice(0, cols).map((w, i) => <span key={w} className={`mv__wd${weekHeadClass(i)}`}>{w}</span>)}
+        {WEEK.map((w, i) => (p.weekends || (i > 0 && i < 6) ? <span key={w} className={`mv__wd${weekHeadClass(i)}`}>{w}</span> : null))}
       </div>
       <div className="mv__body" ref={bodyRef}>
         <div className="mv__track" style={{ height: TOTAL_WEEKS * rowH }}>

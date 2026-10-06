@@ -1,11 +1,11 @@
-// 날짜 시트 달력(시안 E .cal-mini, 03 §3): 머리 ‹ 2026년 10월 ›, 월요일 시작 6주 고정, 오늘 = 강조색 글자, 선택 = 강조색 원.
+// 날짜 시트 달력(시안 E .cal-mini, 03 §3): 머리 ‹ 2026년 10월 ›, 일요일 시작 6주 고정, 오늘 = 강조색 글자, 선택 = 강조색 원.
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { usePalette } from '../theme/ThemeProvider'
 import { monthCells, shiftMonth } from './dateSheetModel'
 import { useDayMarks, useMarkPrefs } from '../data/calendarPrefs'
 
-const WEEK = ['월', '화', '수', '목', '금', '토', '일']
+const WEEK = ['일', '월', '화', '수', '목', '금', '토']
 
 export function MonthCalendar({ month, onMonth, today, selected, range = [], onPick }: {
   month: string; onMonth: (m: string) => void; today: string; selected: string[]; range?: string[]; onPick: (date: string) => void
@@ -26,14 +26,14 @@ export function MonthCalendar({ month, onMonth, today, selected, range = [], onP
         <Pressable accessibilityRole="button" accessibilityLabel="다음 달" hitSlop={10} onPress={() => onMonth(shiftMonth(month, 1))}><ChevronRight size={18} color={p.textTertiary} /></Pressable>
       </View>
       <View style={s.grid}>
-        {WEEK.map((w, i) => <Text key={w} style={[s.wd, { color: i === 6 ? p.holiday : i === 5 ? p.saturday : p.textTertiary }]}>{w}</Text>)}
+        {WEEK.map((w, i) => <Text key={w} style={[s.wd, { color: i === 0 ? p.holiday : i === 6 ? p.saturday : p.textTertiary }]}>{w}</Text>)}
         {cells.map((d, i) => {
           const other = d.slice(0, 7) !== month
           const sel = selected.includes(d)
           const inRange = range.includes(d) && !sel
           const isToday = d === today
-          const sun = i % 7 === 6
-          const sat = i % 7 === 5 // 06 §16 토요일 파랑(사용자 결정 2026-10-05)
+          const sun = i % 7 === 0
+          const sat = i % 7 === 6 // 06 §16 토요일 파랑(사용자 결정 2026-10-05)
           const mk = marks(d, false)
           return (
             <Pressable key={d} accessibilityRole="button" accessibilityLabel={d} accessibilityHint={mk.holiday ?? undefined} accessibilityState={{ selected: sel }} onPress={() => onPick(d)} style={s.cellWrap}>

@@ -5,21 +5,21 @@ import { rangeOf } from '../src/renderer/src/lib/calendar'
 
 assert.equal(weekIndexOf(EPOCH), 0)
 assert.equal(weekAt(0), EPOCH)
-assert.equal(weekIndexOf('2000-01-09'), 0) // 일요일까지 같은 주(월요일 시작)
-assert.equal(weekIndexOf('2000-01-10'), 1)
+assert.equal(weekIndexOf('2000-01-08'), 0) // 토요일까지 같은 주(일요일 시작, 2026-10-06)
+assert.equal(weekIndexOf('2000-01-09'), 1)
 const w = weekIndexOf('2026-10-06')
-assert.equal(weekAt(w), '2026-10-05')
+assert.equal(weekAt(w), '2026-10-04')
 assert.ok(weekIndexOf('2060-12-31') < TOTAL_WEEKS)
 
 // 주 수는 rangeOf('month')와 같다
 for (const ym of ['2026-10', '2025-06', '2026-02', '2027-02', '2025-05']) {
   assert.equal(weeksInMonth(ym), rangeOf('month', `${ym}-01`).days.length / 7, ym)
 }
-assert.equal(weeksInMonth('2025-06'), 6) // 5/26~7/6
+assert.equal(weeksInMonth('2025-08'), 6) // 7/27~9/6
 assert.equal(weeksInMonth('2026-10'), 5)
-assert.equal(weekAt(monthTopWeek('2025-06')), '2025-05-26')
+assert.equal(weekAt(monthTopWeek('2025-08')), '2025-07-27')
 
-// 제목 달 = 화면 가운데 줄(목요일)의 달 — 틱틱 영상 f0009 · f0016과 같은 결과
+// 제목 달 = 화면 가운데 줄(수요일)의 달 — 틱틱 영상 f0009 · f0016과 같은 결과
 const H = 120
 const view = 6 * H
 const topOf = (d: string) => weekIndexOf(d) * H
@@ -43,8 +43,8 @@ assert.deepEqual(windowRows(0, 600, 120), [0, 7])
 
 // 데이터 범위: 기준 달 앞뒤 6주, 날짜 목록은 빠짐없이
 const r = monthDataRange('2026-10-15')
-assert.equal(r.from, '2026-08-17')
-assert.equal(r.to, '2026-12-13')
+assert.equal(r.from, '2026-08-16')
+assert.equal(r.to, '2026-12-12')
 assert.equal(r.days[0], r.from)
 assert.equal(r.days[r.days.length - 1], r.to)
 assert.equal(r.days.length % 7, 0)

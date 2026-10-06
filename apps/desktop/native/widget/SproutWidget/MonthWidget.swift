@@ -81,7 +81,7 @@ struct MonthGrid: View {
     let today: String
     let weekOnly: Bool
     let pal: Palette
-    static let weekdays = ["월", "화", "수", "목", "금", "토", "일"] // 주 시작 = 월요일(06 v1.3.1, M2)
+    static let weekdays = ["일", "월", "화", "수", "목", "금", "토"] // 주 시작 = 일요일(2026-10-06 사용자 결정, 앱 캘린더와 같음 — M2)
 
     var body: some View {
         let weeks = stride(from: 0, to: cal.days.count, by: 7).map { Array(cal.days[$0..<min($0 + 7, cal.days.count)]) }
@@ -91,7 +91,7 @@ struct MonthGrid: View {
             HStack(spacing: 0) {
                 ForEach(0..<7, id: \.self) { i in
                     Text(Self.weekdays[i]).font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(pal.mono ? pal.secondary : i == 5 ? pal.saturday : i == 6 ? pal.holiday : pal.secondary)
+                        .foregroundStyle(pal.mono ? pal.secondary : i == 6 ? pal.saturday : i == 0 ? pal.holiday : pal.secondary)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -123,7 +123,7 @@ struct MonthGrid: View {
 /// 칸 하나: 날짜(오늘 = 강조색 원) · "+N" · 막대(공휴일 → 항목)
 struct DayCell: View {
     let day: Snapshot.CalDay
-    let col: Int // 0 = 월 … 5 = 토, 6 = 일
+    let col: Int // 0 = 일, 1 = 월 … 6 = 토
     let today: String
     let lanes: Int
     let pal: Palette
@@ -183,8 +183,8 @@ struct DayCell: View {
     // M3: 일요일·공휴일 빨강, 토요일 파랑, 다른 달 흐림
     private func numberColor(other: Bool) -> Color {
         if pal.mono { return other ? pal.calOther : pal.primary }
-        let base: Color = (day.holiday != nil || col == 6) ? pal.holiday : col == 5 ? pal.saturday : pal.primary
-        return other ? (day.holiday != nil || col >= 5 ? base.opacity(0.45) : pal.calOther) : base
+        let base: Color = (day.holiday != nil || col == 0) ? pal.holiday : col == 6 ? pal.saturday : pal.primary
+        return other ? (day.holiday != nil || col == 0 || col == 6 ? base.opacity(0.45) : pal.calOther) : base
     }
     private var holidayFill: Color { Color.mix(pal.holidayHex, pal.bgHex, pal.dark ? 0.62 : 0.6) }
     private var holidayText: Color { pal.dark ? .white : Color.mix(pal.holidayHex, pal.primaryHex, 0.45) }

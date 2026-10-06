@@ -1,5 +1,5 @@
 // 모바일 캘린더 계산(06 휴대폰판 — 시안 G): 범위·월 칸·막대 줄·시각 블록·일정 목록·끌어 옮기기. 화면과 떨어진 순수 함수(시험: calendar.test.ts).
-// 데스크톱 apps/desktop/src/renderer/src/lib/calendar.ts와 같은 규칙: 주 시작 월요일(2026-10-05 사용자 결정), 기간 할 일은 [시작, 끝] 겹침,
+// 데스크톱 apps/desktop/src/renderer/src/lib/calendar.ts와 같은 규칙: 주 시작 일요일(2026-10-06 사용자 결정 "일부터" — 틱틱 기본), 기간 할 일은 [시작, 끝] 겹침,
 // 종일·여러 날 = 막대, 시각 = 블록(겹치면 열을 나눔). 구글·Apple 일정은 컴퓨터 기기 데이터라 모바일엔 sprout 할 일만 그린다(06 §12, 16).
 import { addDays, addMinutes, datePart, daysBetween, hasTime, minutesBetween, nextOccurrence, parseRule, timePart, toDate, WEEKDAY_KO } from '@sprout/schema/time'
 
@@ -24,8 +24,8 @@ export interface CalTask {
 export interface CalItem<T extends CalTask = CalTask> { key: string; task: T; start: string; end: string; allDay: boolean; virtual: boolean; locked?: boolean }
 
 // ── 범위 ──
-export const weekStart = (d: string) => addDays(d, -((toDate(d).getDay() + 6) % 7))
-/** 그 달에 필요한 주만큼(5줄 또는 6줄), 월요일 시작 */
+export const weekStart = (d: string) => addDays(d, -toDate(d).getDay())
+/** 그 달에 필요한 주만큼(5줄 또는 6줄), 일요일 시작 */
 export function monthDays(cursor: string): string[] {
   const first = `${cursor.slice(0, 7)}-01`
   const from = weekStart(first)
@@ -59,8 +59,8 @@ export function monthTitle(cursor: string, today: string): string {
   const d = toDate(cursor)
   return cursor.slice(0, 4) === today.slice(0, 4) ? `${d.getMonth() + 1}월` : `${d.getFullYear()}년 ${d.getMonth() + 1}월`
 }
-/** 월요일 시작 요일 머리 */
-export const WEEK_HEAD = ['월', '화', '수', '목', '금', '토', '일']
+/** 일요일 시작 요일 머리 */
+export const WEEK_HEAD = ['일', '월', '화', '수', '목', '금', '토']
 export const weekdayKo = (d: string) => WEEKDAY_KO[toDate(d).getDay()]
 /** 일정 목록 묶음 머리: "오늘 · 10월 4일 일" / "내일 · 10월 5일 월" / "10월 7일 수" */
 export function agendaTitle(d: string, today: string): string {

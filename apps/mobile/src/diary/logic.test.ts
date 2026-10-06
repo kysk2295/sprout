@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   averageMood, buddyLine, buddyOf, buildBuddyMessages, buildSummaryMessages, dayTitle, entryId, highlightsOf,
   insightOf, josa, longestStreak, mayCallAi, memoryOf, monthGrid, moodFaceOf, moodShare, moodTrend, parseBuddyReply, previewOf, promptFor, searchEntries,
-  skyOf, streakOf, WEEK_MON, weekdayMon, weekOf, wantsFirstReply, yearMosaic
+  skyOf, streakOf, WEEK_DAYS, weekdayIdx, weekOf, wantsFirstReply, yearMosaic
 } from './logic.ts'
 
 // ── 나만 보기·동의 ──
@@ -64,14 +64,14 @@ assert.equal(buddyLine({ kind: 'mood', mood: 1 }), '곁에 있을게')
 assert.equal(moodFaceOf(2), 'default')
 assert.equal(skyOf(23), 'night')
 
-// ── 날짜·달력(월요일 시작) ──
-assert.equal(WEEK_MON[0], '월')
-assert.equal(weekdayMon('2026-10-05'), 0) // 월
-assert.equal(weekdayMon('2026-10-04'), 6) // 일
-assert.deepEqual(weekOf('2026-10-04'), ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'])
+// ── 날짜·달력(일요일 시작, 2026-10-06) ──
+assert.equal(WEEK_DAYS[0], '일')
+assert.equal(weekdayIdx('2026-10-04'), 0) // 일
+assert.equal(weekdayIdx('2026-10-10'), 6) // 토
+assert.deepEqual(weekOf('2026-10-10'), ['2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10'])
 const grid = monthGrid('2026-10')
 assert.equal(grid.length, 42)
-assert.equal(grid[0], '2026-09-28')
+assert.equal(grid[0], '2026-09-27')
 assert.equal(dayTitle('2026-10-04'), '10월 4일 일요일')
 assert.equal(moodTrend([{ date: '2026-10-02', mood: 3 }], '2026-10').length, 31)
 

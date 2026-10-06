@@ -1,5 +1,5 @@
 // 캘린더 탭(06 데스크톱 캘린더의 휴대폰판 — 시안 G): 머리 = 왼쪽 보기 전환(목록·일·3일·월) · 가운데 달 · 오른쪽 오늘로 · ⋯
-// - 월: 월요일 시작 칸, 칸 안에 리스트 색 옅은 띠 + 제목(넘치면 +n), 오늘 = 강조색 원. 날짜를 누르면 아래에 그날 목록. 위아래로 밀면 달이 바뀜
+// - 월: 일요일 시작 칸, 칸 안에 리스트 색 옅은 띠 + 제목(넘치면 +n), 오늘 = 강조색 원. 날짜를 누르면 아래에 그날 목록. 위아래로 밀면 달이 바뀜
 //   아래 목록을 위로 끌면 달이 고른 날의 한 주 줄로 접히고, 접힌 채 목록 맨 위에서 아래로 끌면 펼침(틱틱 목록 캘린더 — 20 §7, research 24 §10)
 // - 일·3일: 위 주 줄(점 = 할 일 있음)·종일 줄·시간 칸(1시간 56). 빈 칸 누르면 그 시각으로 빠른 입력, 블록을 길게 눌러 끌면 옮김(15분 단위, 3일은 다른 날로도)
 // - 목록: 오늘부터 30일 날짜별 묶음 카드
@@ -362,7 +362,7 @@ function MonthView(props: { today: string; cursor: string; items: Item[]; onPick
   return (
     <View style={{ flex: 1 }}>
       <View style={s.wd}>
-        {WEEK_HEAD.map((w, i) => <Text key={w} style={[s.wdText, { color: i === 6 ? p.holiday : i === 5 ? p.saturday : p.textTertiary }]}>{w}</Text>)}
+        {WEEK_HEAD.map((w, i) => <Text key={w} style={[s.wdText, { color: i === 0 ? p.holiday : i === 6 ? p.saturday : p.textTertiary }]}>{w}</Text>)}
       </View>
       <GestureDetector gesture={gridGesture}>
         <Animated.View

@@ -120,13 +120,13 @@ enum Sample {
         return Snapshot(schema: 1, generatedAt: base.generatedAt, day: base.day, account: base.account, theme: base.theme, today: base.today, growth: base.growth, calendar: sampleCalendar(today))
     }
 
-    /// 이번 달 칸 + 예시 막대 몇 개(월요일 시작)
+    /// 이번 달 칸 + 예시 막대 몇 개(일요일 시작)
     static func sampleCalendar(_ today: Date) -> Snapshot.Calendar {
         var cal = Calendar(identifier: .gregorian)
-        cal.firstWeekday = 2
+        cal.firstWeekday = 1
         let comps = cal.dateComponents([.year, .month], from: today)
         let first = cal.date(from: comps)!
-        let lead = (cal.component(.weekday, from: first) + 5) % 7
+        let lead = cal.component(.weekday, from: first) - 1
         let start = cal.date(byAdding: .day, value: -lead, to: first)!
         let daysInMonth = cal.range(of: .day, in: .month, for: first)!.count
         let weeks = Int(ceil(Double(lead + daysInMonth) / 7))
@@ -143,11 +143,11 @@ enum Sample {
                 let inMonth = cal.component(.month, from: date) == comps.month
                 let count = inMonth ? (n * 7 % 5 == 0 ? 0 : n % 4) : 0
                 let items = (0..<count).map { i in Snapshot.CalItem(id: "s\(n)-\(i)", kind: i == 2 ? "event" : "task", title: titles[(n + i) % titles.count], color: colors[(n + i) % colors.count], faded: key < todayKey) }
-                row.append(Snapshot.CalDay(date: key, n: n, inMonth: inMonth, today: key == todayKey, tone: d == 6 ? "sun" : d == 5 ? "sat" : nil, holiday: nil, total: count, items: items))
+                row.append(Snapshot.CalDay(date: key, n: n, inMonth: inMonth, today: key == todayKey, tone: d == 0 ? "sun" : d == 6 ? "sat" : nil, holiday: nil, total: count, items: items))
             }
             rows.append(row)
         }
         let m = comps.month!
-        return Snapshot.Calendar(weekStart: 1, weekHead: ["월", "화", "수", "목", "금", "토", "일"], current: 0, months: [Snapshot.Month(month: String(format: "%04d-%02d", comps.year!, m), title: "\(m)월", weeks: rows)])
+        return Snapshot.Calendar(weekStart: 0, weekHead: ["일", "월", "화", "수", "목", "금", "토"], current: 0, months: [Snapshot.Month(month: String(format: "%04d-%02d", comps.year!, m), title: "\(m)월", weeks: rows)])
     }
 }

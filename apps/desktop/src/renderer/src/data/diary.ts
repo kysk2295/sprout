@@ -272,20 +272,20 @@ export function insightOf(entries: Pick<DiaryEntry, 'date' | 'mood'>[], doneByDa
 }
 
 // ── 15 §9 v1 디자인 계산(순수 함수) ──
-/** 주 시작 = 월요일(2026-10-04 사용자 결정). 머리 글자 순서 */
-export const WEEK_MON = ['월', '화', '수', '목', '금', '토', '일'] as const
-/** 월=0 … 일=6 */
-export const weekdayMon = (date: string) => (new Date(`${date}T00:00:00`).getDay() + 6) % 7
-/** 그 달 달력 칸(월요일 시작, 6주 = 42칸) */
+/** 주 시작 = 일요일(2026-10-06 사용자 결정 "일부터", 캘린더와 같음). 머리 글자 순서 */
+export const WEEK_DAYS = ['일', '월', '화', '수', '목', '금', '토'] as const
+/** 일=0 … 토=6 */
+export const weekdayIdx = (date: string) => new Date(`${date}T00:00:00`).getDay()
+/** 그 달 달력 칸(일요일 시작, 6주 = 42칸) */
 export function monthGrid(month: string): string[] {
   const first = `${month}-01`
-  const start = addDays(first, -weekdayMon(first))
+  const start = addDays(first, -weekdayIdx(first))
   return Array.from({ length: 42 }, (_, i) => addDays(start, i))
 }
-/** 그 날이 든 주(월~일) 7날짜 — 이어 쓰기 카드 */
+/** 그 날이 든 주(일~토) 7날짜 — 이어 쓰기 카드 */
 export function weekOf(date: string): string[] {
-  const mon = addDays(date, -weekdayMon(date))
-  return Array.from({ length: 7 }, (_, i) => addDays(mon, i))
+  const sun = addDays(date, -weekdayIdx(date))
+  return Array.from({ length: 7 }, (_, i) => addDays(sun, i))
 }
 /** 가장 길게 이어진 날 수 */
 export function longestStreak(dates: Iterable<string>): number {

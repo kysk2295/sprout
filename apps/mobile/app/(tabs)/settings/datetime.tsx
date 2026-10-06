@@ -29,7 +29,7 @@ export default function DateTimeSettings() {
       <NavRow title="날짜와 시간" left={<GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>} right={<View style={{ width: 40 }} />} />
       <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: space.pad }}>
         <Cells>
-          <Cell first label="주 시작" value="월요일" chevron={false} />
+          <Cell first label="주 시작" value="일요일" chevron={false} />
         </Cells>
         <Cells>
           <Cell first label="추가 달력" value={CALENDARS.find(([v]) => v === (prefs.lunar ? 1 : 0))?.[1]} onPress={() => setPick(!pick)} />

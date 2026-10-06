@@ -41,7 +41,7 @@ assert.deepEqual(chipsOf(item({ source: 'kakao_import', kind: 'memo', ai_state: 
 assert.equal(titleOf({ url: 'https://a.com', link_title: '가져온 제목', content: 'https://a.com' }), '가져온 제목')
 assert.equal(titleOf({ url: 'https://a.com', link_title: '가져온 제목', content: '\n  첫 줄\n둘째' }), '첫 줄')
 
-// 묶음: 오늘 · 어제 · 이번 주(월요일 시작) · 이전(접힘) + 카톡 날짜별(최근만 펼침)
+// 묶음: 오늘 · 어제 · 이번 주(일요일 시작) · 이전(접힘) + 카톡 날짜별(최근만 펼침)
 {
   const g = groupItems([
     item({ created_at: at(today) }), item({ created_at: at('2026-10-04') }), item({ created_at: at('2026-10-01') }),
@@ -54,6 +54,9 @@ assert.equal(titleOf({ url: 'https://a.com', link_title: '가져온 제목', con
   // 수요일 기준이면 월요일 것이 이번 주
   const g = groupItems([item({ created_at: at('2026-10-05') })], '2026-10-07')
   assert.equal(g[0].id, 'week')
+  // 일요일 것도 이번 주(일요일 시작), 그 전 토요일은 이전
+  assert.equal(groupItems([item({ created_at: at('2026-10-04') })], '2026-10-07')[0].id, 'week')
+  assert.equal(groupItems([item({ created_at: at('2026-10-03') })], '2026-10-07')[0].id, 'older')
 }
 assert.deepEqual(watchGroups([item({ url: 'https://a', seen_at: null }), item({ url: 'https://b', seen_at: at(today) }), item({})]).map((g) => g.items.length), [1, 1])
 assert.equal(shortDay(at(today), today), '오늘')

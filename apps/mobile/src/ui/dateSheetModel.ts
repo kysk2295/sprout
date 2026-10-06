@@ -151,10 +151,10 @@ export function fromWheel(w: { pm: boolean; hour12: number; minute: number }): s
   const h = (w.hour12 % 12) + (w.pm ? 12 : 0)
   return `${pad(h)}:${pad(w.minute)}`
 }
-/** 달력 6주(월요일 시작) */
+/** 달력 6주(일요일 시작) */
 export function monthCells(month: string): string[] {
   const first = new Date(`${month}-01T00:00`)
-  const lead = (first.getDay() + 6) % 7
+  const lead = first.getDay()
   return Array.from({ length: 42 }, (_, i) => addDays(`${month}-01`, i - lead))
 }
 export function shiftMonth(month: string, n: number): string {
