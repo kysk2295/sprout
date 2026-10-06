@@ -97,3 +97,4 @@ assert.equal(homed.projects[0].archived, true, '집 리스트가 보관 리스�
 const st = planReduce(planReduce(initPlan('새싹', today), { type: 'start' }).state, { type: 'answer', text: '사업계획서 다음 주 금요일까지' })
 assert.deepEqual(st.effects, [{ kind: 'createGoal', title: '사업계획서', due: '2026-10-16' }])
 console.log('map shared ok')
+import './projectDirect.test.ts'
