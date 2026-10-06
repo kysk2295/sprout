@@ -2,9 +2,11 @@
 // 날짜 줄(오늘 · 내일 · 다음 주 · 날짜…) · 우선순위 깃발 4개 · 상단 고정/고정 해제 · 이동 · 태그 · 일정으로 바꾸기 · 삭제(빨강)
 // [다음] 길게 누른 채 움직여 끌어서 순서 바꾸기
 import { ArrowRightLeft, Calendar, CalendarArrowUp, Flag, FolderInput, FolderMinus, Pin, Sun, Sunrise, Tag, Trash2 } from 'lucide-react-native'
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
-import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated'
+import Animated, { interpolate, useAnimatedStyle } from 'react-native-reanimated'
+import { hx } from './haptics'
+import { usePresence } from './Menu'
 import { priorityColor } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import type { Rect } from './Menu'
@@ -18,8 +20,18 @@ export function LongPressMenu(props: {
 }) {
   const p = usePalette()
   const win = useWindowDimensions()
-  if (!props.rect) return null
-  const r = props.rect
+  // 39 §4.3: 열릴 때 흔들림(중간) · 행은 제자리에서 1.03배로 떠오르고 · 메뉴는 행 쪽 모서리에서 커짐, 닫힐 때도 줄며 사라진 뒤 내림
+  useEffect(() => { if (props.rect) hx.lift() }, [props.rect])
+  const lastRow = useRef(props.row)
+  if (props.rect) lastRow.current = props.row
+  const { shown: r, k, reduce, closing } = usePresence(props.rect)
+  const scrimStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, k.value) }))
+  const liftStyle = useAnimatedStyle(() => ({ transform: [{ scale: reduce ? 1 : interpolate(k.value, [0, 1], [1, 1.03]) }] }), [reduce])
+  const menuStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(1, k.value * 1.6),
+    transform: [{ translateX: -135 }, { translateY: -150 }, { scale: reduce ? 1 : 0.6 + 0.4 * k.value }, { translateX: 135 }, { translateY: 150 }]
+  }), [reduce])
+  if (!r) return null
   const act = (a: LongPressAction) => { props.onClose(); props.onAction(a) }
   const dates: [LongPressAction, string, ReactNode][] = [
     ['today', '오늘', <Sun key="i" size={24} color={p.textPrimary} />],
@@ -42,12 +54,12 @@ export function LongPressMenu(props: {
   const top = r.y + r.height + 10 + menuH > win.height - 30 ? Math.max(70, win.height - 30 - menuH - r.height - 10) : r.y
   return (
     <Modal transparent visible animationType="none" onRequestClose={props.onClose} statusBarTranslucent>
-      <Animated.View entering={FadeIn.duration(120)} style={[StyleSheet.absoluteFill, { backgroundColor: p.dark ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.12)' }]}>
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: p.dark ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.12)' }, scrimStyle]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={props.onClose} accessibilityLabel="메뉴 닫기" />
       </Animated.View>
-      <View style={[s.wrap, { top }]} pointerEvents="box-none">
-        <Animated.View entering={ZoomIn.duration(140)} style={[s.lift, { backgroundColor: p.cardBg }]} pointerEvents="none">{props.row}</Animated.View>
-        <Animated.View entering={FadeIn.duration(140)} style={[s.menu, { backgroundColor: p.bgPopover, borderColor: p.borderPopover }]}>
+      <View style={[s.wrap, { top }]} pointerEvents={closing ? 'none' : 'box-none'}>
+        <Animated.View style={[s.lift, { backgroundColor: p.cardBg }, liftStyle]} pointerEvents="none">{lastRow.current}</Animated.View>
+        <Animated.View style={[s.menu, { backgroundColor: p.bgPopover, borderColor: p.borderPopover }, menuStyle]}>
           <View style={[s.bar, { borderBottomColor: p.borderDivider }]}>
             {dates.map(([a, label, icon]) => (
               <Pressable key={a} accessibilityRole="button" accessibilityLabel={label} onPress={() => act(a)} style={s.dateBtn}>

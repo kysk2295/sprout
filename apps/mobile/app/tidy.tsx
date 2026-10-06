@@ -7,7 +7,8 @@ import { useQuery } from '@powersync/react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ArrowRightLeft, CalendarClock, Check, ChevronLeft, Folder, Sun } from 'lucide-react-native'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { SlideSheet } from '../src/ui/SlideSheet'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { grantTidyXp } from '../src/growth/data'
 import { nextMonday } from '../src/lib/dates'
@@ -216,9 +217,7 @@ function MoveSheet({ ids, data, onClose, onPick }: { ids: string[] | null; data:
   const insets = useSafeAreaInsets()
   const inbox = data.lists.find((l) => l.kind === 'inbox')
   return (
-    <Modal visible={!!ids} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={{ flex: 1, backgroundColor: p.scrim }} onPress={onClose} accessibilityLabel="닫기" />
-      <View style={[s.sheet, { backgroundColor: p.sheetBg, paddingBottom: insets.bottom + 16 }]}>
+    <SlideSheet visible={!!ids} onClose={onClose} style={[s.sheet, { backgroundColor: p.sheetBg, paddingBottom: insets.bottom + 16 }]}>
         <View style={[s.grab, { backgroundColor: p.textQuaternary }]} />
         <SheetHead compact title={ids && ids.length > 1 ? `${ids.length}개 옮기기` : '옮기기'} onClose={onClose} />
         <ScrollView style={{ maxHeight: 520 }}>
@@ -247,8 +246,7 @@ function MoveSheet({ ids, data, onClose, onPick }: { ids: string[] | null; data:
               ))}
           </View>
         </ScrollView>
-      </View>
-    </Modal>
+    </SlideSheet>
   )
 }
 function ListRow({ name, count, onPress, first, indent }: { name: string; count?: number; onPress: () => void; first?: boolean; indent?: boolean }) {

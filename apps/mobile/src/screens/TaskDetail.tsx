@@ -16,6 +16,7 @@ import {
 import { COLUMNS, type TaskRow } from '../data/views'
 import { dayKey, detailDateLabel } from '../lib/dates'
 import { FONT, priorityColor } from '../theme/palette'
+import { SlideSheet } from '../ui/SlideSheet'
 import { usePalette } from '../theme/ThemeProvider'
 import { Checkbox } from '../ui/Checkbox'
 import { GlassButton } from '../ui/Glass'
@@ -262,9 +263,8 @@ function MoreSheet(props: { open: boolean; onClose: () => void; pinned: boolean;
   ]
   const act = (k: keyof typeof props.actions) => { props.onClose(); props.actions[k]() }
   return (
-    <Modal transparent visible={props.open} animationType="slide" onRequestClose={props.onClose}>
-      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: p.scrim }]} onPress={props.onClose} accessibilityLabel="닫기" />
-      <View style={[s.more, { backgroundColor: p.pageBg, paddingBottom: insets.bottom + 12 }]}>
+    // 39 §4.4: 덮개는 제자리에서 짙어지고 판만 올라온다(SlideSheet)
+    <SlideSheet visible={props.open} onClose={props.onClose} style={[s.more, { backgroundColor: p.pageBg, paddingBottom: insets.bottom + 12 }]}>
         <View style={[s.grabber, { backgroundColor: p.textQuaternary }]} />
         <View style={s.bigRow}>
           {big.map(([k, label, icon]) => (
@@ -284,8 +284,7 @@ function MoreSheet(props: { open: boolean; onClose: () => void; pinned: boolean;
             <Text style={[FONT.body, { color: p.textPrimary }]}>일정으로 바꾸기</Text>
           </Pressable>
         </View>
-      </View>
-    </Modal>
+    </SlideSheet>
   )
 }
 

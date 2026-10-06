@@ -43,12 +43,12 @@ export function AssistantSheet({ visible, onClose }: { visible: boolean; onClose
 }
 
 /** 오늘 머리 ✦ 버튼(강조색) — 누르면 반 시트 */
-export function AssistantButton() {
+export function AssistantButton({ plain }: { plain?: boolean } = {}) {
   const p = usePalette()
   const [open, setOpen] = useState(false)
   return (
     <>
-      <GlassButton label="AI 비서" onPress={() => setOpen(true)}><Sparkles size={19} color={p.accent} /></GlassButton>
+      <GlassButton plain={plain} label="AI 비서" onPress={() => setOpen(true)}><Sparkles size={19} color={p.accent} /></GlassButton>
       <AssistantSheet visible={open} onClose={() => setOpen(false)} />
     </>
   )

@@ -1,4 +1,4 @@
-// 떠 있는 탭 알약(20 §2 [틱틱 iOS 26]): 좌우 16, 홈 표시줄 위 22, 높이 58, 아이콘만(접근성 라벨은 붙임).
+// 떠 있는 탭 알약(20 §2 [틱틱 iOS 26]): 좌우 20, 화면 바닥 위 16, 높이 58 [영상 실측], 고른 탭 뒤 미끄러지는 알약, 아이콘만(접근성 라벨은 붙임).
 // 2026-10-05 5칸: 할 일 · 캘린더(오늘 날짜 숫자) · 수집함 · 성장 · 더보기. 설정은 더보기 안 화면이라 설정에 있으면 더보기가 켜진다.
 // 선택 = 강조색. 탭을 다시 누르면 맨 위로(목록이 useScrollToTop). 완료로 XP가 들어오면 성장 아이콘 위 "+1"(21 §3, 0.9초).
 import type { BottomTabBarProps } from 'expo-router/tabs'
@@ -6,7 +6,8 @@ import { BlurView } from 'expo-blur'
 import { CircleEllipsis, Layers, Settings, SquareCheckBig, Sprout } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
-import Animated, { FadeOut, SlideInDown } from 'react-native-reanimated'
+import Animated, { FadeOut, SlideInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
+import { SPRING, useReducedMotion } from './motion'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { xpGained } from '../data/events'
 import { M } from '../theme/palette'
@@ -44,10 +45,21 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
     const t = setTimeout(() => setXp(null), 900)
     return () => clearTimeout(t)
   }, [xp])
+  // 39 §4.13 [영상 실측]: 고른 탭 뒤 둥근 알약이 옆 칸으로 미끄러진다
+  const visible = state.routes.filter((r) => TABS[r.name])
+  const cur = state.routes[state.index]?.name
+  const sel = Math.max(0, visible.findIndex((r) => r.name === cur || OWNER[cur] === r.name))
+  const reduce = useReducedMotion()
+  const [barW, setBarW] = useState(0)
+  const tabW = barW > 0 ? (barW - 12) / Math.max(1, visible.length) : 0
+  const px = useSharedValue(0)
+  useEffect(() => { px.value = reduce || !tabW ? sel * tabW : withSpring(sel * tabW, SPRING.snappy) }, [sel, tabW, reduce, px])
+  const pill = useAnimatedStyle(() => ({ transform: [{ translateX: px.value }] }))
   return (
-    <View style={[s.bar, { bottom: tabBarBottom(insets.bottom), borderColor: p.glassLine, shadowOpacity: p.dark ? 0.5 : 0.1 }]}>
+    <View onLayout={(e) => setBarW(e.nativeEvent.layout.width)} style={[s.bar, { bottom: tabBarBottom(insets.bottom), borderColor: p.glassLine, shadowOpacity: p.dark ? 0.5 : 0.1 }]}>
       {Platform.OS === 'ios' ? <BlurView intensity={30} tint={p.dark ? 'dark' : 'light'} style={[StyleSheet.absoluteFill, s.round]} /> : null}
       <View style={[StyleSheet.absoluteFill, s.round, { backgroundColor: Platform.OS === 'ios' ? p.glass : p.cardBg }]} />
+      {tabW ? <Animated.View pointerEvents="none" style={[s.pill, { width: tabW - 4, backgroundColor: p.bgSelected }, pill]} /> : null}
       {state.routes.map((route, i) => {
         const tab = TABS[route.name]
         if (!tab) return null
@@ -74,5 +86,6 @@ const s = StyleSheet.create({
   bar: { position: 'absolute', left: M.tabInset, right: M.tabInset, height: M.tabH, borderRadius: 30, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#000', shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 10 },
   round: { borderRadius: 30, overflow: 'hidden' },
   tab: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'center' },
+  pill: { position: 'absolute', left: 8, top: 6, bottom: 6, borderRadius: 23 },
   xp: { position: 'absolute', top: 2, left: '50%', marginLeft: 8, fontSize: 11, fontWeight: '700' }
 })

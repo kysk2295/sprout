@@ -3,17 +3,24 @@
 // 탭 바는 떠 있는 유리 알약, 서랍은 탭 바까지 덮는다. 뒤로 = 지난 탭(설정 → 더보기).
 import { Tabs } from 'expo-router'
 import { View } from 'react-native'
+import Animated, { useAnimatedStyle } from 'react-native-reanimated'
 import { TasksViewProvider } from '../../src/state/tasksView'
 import { usePalette } from '../../src/theme/ThemeProvider'
-import { Drawer } from '../../src/ui/Drawer'
+import { Drawer, drawerP, drawerW } from '../../src/ui/Drawer'
+import { DUR, useReducedMotion } from '../../src/ui/motion'
 import { FloatingTabBar } from '../../src/ui/TabBar'
 
 export default function TabsLayout() {
   const p = usePalette()
+  const reduce = useReducedMotion()
+  // 39 §4.7 [영상 실측]: 서랍이 열리면 탭 화면 전체가 판과 같이 오른쪽으로 밀린다(동작 줄이기면 그대로)
+  const push = useAnimatedStyle(() => ({ transform: [{ translateX: reduce ? 0 : drawerP.value * drawerW.value }] }), [reduce])
   return (
     <TasksViewProvider>
       <View style={{ flex: 1, backgroundColor: p.pageBg }}>
-        <Tabs backBehavior="history" tabBar={(props) => <FloatingTabBar {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: p.pageBg } }}>
+        <Animated.View style={[{ flex: 1 }, push]}>
+        {/* 39 §4.13 [영상 실측]: 탭 내용은 교차로 옅어지며 약 90ms에 바뀐다 */}
+        <Tabs backBehavior="history" tabBar={(props) => <FloatingTabBar {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: p.pageBg }, animation: reduce ? 'none' : 'fade', transitionSpec: { animation: 'timing', config: { duration: DUR.tab } } }}>
           <Tabs.Screen name="index" options={{ title: '할 일' }} />
           <Tabs.Screen name="calendar" options={{ title: '캘린더' }} />
           <Tabs.Screen name="collect" options={{ title: '수집함' }} />
@@ -21,6 +28,7 @@ export default function TabsLayout() {
           <Tabs.Screen name="more" options={{ title: '더보기' }} />
           <Tabs.Screen name="settings" options={{ title: '설정', href: null }} />
         </Tabs>
+        </Animated.View>
         <Drawer />
       </View>
     </TasksViewProvider>

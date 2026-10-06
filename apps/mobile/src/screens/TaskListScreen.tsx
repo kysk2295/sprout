@@ -29,9 +29,9 @@ import { useReducedMotion } from '../ui/motion'
 import { M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { EmptyState } from '../ui/EmptyState'
-import { GlassButton } from '../ui/Glass'
+import { GlassButton, GlassGroup } from '../ui/Glass'
 import { GroupCard } from '../ui/GroupCard'
-import { BigTitle, NavRow } from '../ui/Header'
+import { BigTitle, NavRow, useCollapsingTitle } from '../ui/Header'
 import { LongPressMenu, type LongPressAction } from '../ui/LongPressMenu'
 import { PopMenu, useAnchor, type Rect } from '../ui/Menu'
 import { closeOpenRow, SwipeRow, type SwipeAction } from '../ui/SwipeRow'
@@ -121,7 +121,8 @@ export default function TaskListScreen() {
     return () => clearTimeout(t)
   }, [flash])
 
-  const scrollRef = useRef<ScrollView>(null)
+  const scrollRef = useRef<Animated.ScrollView>(null)
+  const collapse = useCollapsingTitle()
   useScrollToTop(scrollRef)
   useEffect(() => { scrollRef.current?.scrollTo({ y: 0, animated: false }) }, [view])
   const [refreshing, setRefreshing] = useState(false)
@@ -288,20 +289,24 @@ export default function TaskListScreen() {
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
       <NavRow
         left={<GlassButton label="리스트 서랍" onPress={() => v.setDrawerOpen(true)}><Menu size={22} color={p.textPrimary} /></GlassButton>}
+        smallTitle={title}
+        smallStyle={collapse.small}
         right={
-          <>
-            {/* 27 D3 · M-A1 ①: 할 일 머리 ✦(강조색) → AI 비서 반 시트. 🔍 · ⋯ 왼쪽 */}
-            <AssistantButton />
-            <GlassButton label="검색" onPress={() => router.push('/search')}><Search size={20} color={p.textPrimary} /></GlassButton>
+          // 39 §4.14 [영상 실측]: 오른쪽 버튼은 한 유리 알약. 27 D3 · M-A1 ①: ✦(강조색) → AI 비서 반 시트, 🔍 · ⋯
+          <GlassGroup>
+            <AssistantButton plain />
+            <GlassButton plain label="검색" onPress={() => router.push('/search')}><Search size={20} color={p.textPrimary} /></GlassButton>
             <View ref={more.ref} collapsable={false}>
-              <GlassButton label="더보기" badge={offline || !!syncError} onPress={more.open}><Ellipsis size={22} color={p.textPrimary} /></GlassButton>
+              <GlassButton plain label="더보기" badge={offline || !!syncError} onPress={more.open}><Ellipsis size={22} color={p.textPrimary} /></GlassButton>
             </View>
-          </>
+          </GlassGroup>
         }
       />
-      <BigTitle title={title} emoji={emoji} sub={isToday ? longDay(today) : undefined} />
-      <ScrollView
+      <BigTitle title={title} emoji={emoji} sub={isToday ? longDay(today) : undefined} style={collapse.big} />
+      <Animated.ScrollView
         ref={scrollRef}
+        onScroll={collapse.onScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={{ paddingTop: 4, paddingBottom: bottomPad }}
         onScrollBeginDrag={closeOpenRow}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={p.textTertiary} />}
@@ -337,7 +342,7 @@ export default function TaskListScreen() {
             )
           })}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
       <DrawerEdge />
       {!archive ? <Fab onPress={() => router.push({ pathname: '/quick-add', params: { view: listView } })} /> : null}
 

@@ -2,7 +2,20 @@
 import { Check, CircleAlert } from 'lucide-react-native'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
-import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated'
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
+import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated'
+import { scheduleOnRN } from 'react-native-worklets'
+import { DUR, EASE, SPRING } from './motion'
+
+// 39 §4.12: 아래에서 16 올라오며 나타남(SPRING.snappy), 8 내려가며 옅게 사라짐(DUR.base), 아래로 밀면 치움
+const enter = () => {
+  'worklet'
+  return { initialValues: { opacity: 0, transform: [{ translateY: 16 }] }, animations: { opacity: withTiming(1, { duration: DUR.base, reduceMotion: ReduceMotion.System }), transform: [{ translateY: withSpring(0, SPRING.snappy) }] } }
+}
+const leave = () => {
+  'worklet'
+  return { initialValues: { opacity: 1, transform: [{ translateY: 0 }] }, animations: { opacity: withTiming(0, { duration: DUR.base, easing: EASE.in, reduceMotion: ReduceMotion.System }), transform: [{ translateY: withTiming(8, { duration: DUR.base, reduceMotion: ReduceMotion.System }) }] } }
+}
 import { usePalette } from '../theme/ThemeProvider'
 import { useFabShown } from './Fab'
 import { useTabBarSpace } from './tabBarSpace'
@@ -39,8 +52,19 @@ function ToastView({ toast, onClose }: { toast: Toast; onClose: () => void }) {
   const space = useTabBarSpace()
   // + 버튼이 떠 있으면 그 위, 아니면 탭 알약 바로 위(21 §2)
   const bottom = useFabShown() ? space.toastBottom : space.fabBottom
+  const dy = useSharedValue(0)
+  const pan = Gesture.Pan()
+    .activeOffsetY(6)
+    .onUpdate((e) => { dy.value = Math.max(0, e.translationY) })
+    .onEnd((e) => {
+      if (e.translationY > 20 || e.velocityY > 300) scheduleOnRN(onClose)
+      else dy.value = withSpring(0, SPRING.snappy)
+    })
+  const drag = useAnimatedStyle(() => ({ transform: [{ translateY: dy.value }], opacity: 1 - Math.min(0.6, dy.value / 80) }))
   return (
-    <Animated.View entering={FadeInDown.duration(160)} exiting={FadeOutDown.duration(160)} style={[s.toast, { bottom, backgroundColor: p.toastBg, borderColor: toast.error ? p.danger : 'transparent' }]} accessibilityLiveRegion="polite">
+    <GestureDetector gesture={pan}>
+    <Animated.View entering={enter} exiting={leave} style={[s.pos, { bottom }]} accessibilityLiveRegion="polite">
+      <Animated.View style={[s.toast, { backgroundColor: p.toastBg, borderColor: toast.error ? p.danger : 'transparent' }, drag]}>
       {toast.error ? <CircleAlert size={16} color={p.danger} /> : toast.icon === false ? null : <Check size={16} color="#fff" />}
       <Text style={s.msg} numberOfLines={2}>{toast.message}</Text>
       {toast.undo ? (
@@ -52,11 +76,14 @@ function ToastView({ toast, onClose }: { toast: Toast; onClose: () => void }) {
           <Text style={[s.undo, { color: p.toastAction }]}>{toast.action.label}</Text>
         </Pressable>
       ) : null}
+      </Animated.View>
     </Animated.View>
+    </GestureDetector>
   )
 }
 const s = StyleSheet.create({
-  toast: { position: 'absolute', left: 16, right: 16, minHeight: 48, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 16, paddingRight: 8, borderWidth: 1, zIndex: 100, elevation: 12, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  pos: { position: 'absolute', left: 16, right: 16, zIndex: 100, elevation: 12 },
+  toast: { minHeight: 48, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 16, paddingRight: 8, borderWidth: 1, zIndex: 100, elevation: 12, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
   msg: { flex: 1, color: '#fff', fontSize: 14, lineHeight: 20, paddingVertical: 14 },
   undo: { fontSize: 14, fontWeight: '600', paddingHorizontal: 10, paddingVertical: 12 }
 })

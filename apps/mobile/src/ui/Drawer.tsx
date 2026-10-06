@@ -1,4 +1,5 @@
-// 리스트 서랍(20 §2, 21 §2, 시안 C-1): 왼쪽에서 화면 82%를 덮는 판.
+// 리스트 서랍(20 §2, 21 §2, 시안 C-1): 왼쪽에서 화면 87%를 덮는 판 [영상 실측 research 34]. 뒤 탭 화면은 판과 같이 오른쪽으로 밀리며 어두워지고 흐려진다(39 §4.7).
+// 열림 정도 = 공유 값 drawerP(0~1) 하나 — ☰ 누름은 250ms 감속, 목록 왼쪽 끝을 끌면 손가락을 따라감, 놓으면 속도·위치로.
 // 계정 줄(아바타·이름·⚙) → 스마트 목록(전체·오늘·내일·다음 7일·기본함 — 설정의 표시/숨김/비어 있지 않으면) → 구분선
 // → 리스트·폴더(⌄ 펼침, 고정 먼저) → 필터 ⌄ → 태그 ⌄(하위 태그 들여) → 구분선 → 완료·계획 취소·휴지통 → 아래 "+ 추가"(리스트·폴더·태그·필터)와 관리 아이콘.
 // 행을 길게 누르면 메뉴(05: 리스트 편집·상단 고정·보관·삭제 / 폴더 편집·리스트 추가·그룹 해제 / 태그 편집·상단 고정·삭제 / 필터 편집·삭제).
@@ -8,9 +9,10 @@ import {
   Ban, CalendarCheck, CalendarRange, ChevronDown, ChevronRight, CircleCheck, Folder, Funnel, Hash, Inbox, Layers, Plus, Settings, SlidersHorizontal, Sunrise, Trash2
 } from 'lucide-react-native'
 import { useEffect, useState, type ReactNode } from 'react'
-import { Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native'
+import { BlurView } from 'expo-blur'
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+import Animated, { makeMutable, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { scheduleOnRN } from 'react-native-worklets'
 import { AvatarSheet } from '../avatar/AvatarSheet'
@@ -28,6 +30,11 @@ import { usePalette } from '../theme/ThemeProvider'
 import { PopMenu, type MenuItem, type Rect } from './Menu'
 import { FilterEditSheet, FolderEditSheet, ListEditSheet, TagEditSheet } from './OrgSheets'
 import { useToast } from './Toast'
+import { DUR, EASE, SPRING, useReducedMotion } from './motion'
+
+/** 서랍 열림 정도(0 닫힘 ~ 1 열림)와 판 폭 — 탭 화면 밀기((tabs)/_layout)·왼쪽 끝 끌기(DrawerEdge)가 같이 쓴다 */
+export const drawerP = makeMutable(0)
+export const drawerW = makeMutable(320)
 
 /** 메뉴(투명 Modal)가 닫히는 중에는 iOS가 다른 Modal·Alert를 못 띄운다 → 닫힌 뒤에 */
 export const afterMenu = (f: () => void) => { setTimeout(f, 380) }
@@ -39,9 +46,9 @@ export function Drawer() {
   const p = usePalette()
   const insets = useSafeAreaInsets()
   const win = useWindowDimensions()
-  const width = Math.min(win.width * 0.82, 360)
-  const x = useSharedValue(-width)
-  const [mounted, setMounted] = useState(drawerOpen)
+  const width = Math.min(win.width * 0.87, 380)
+  useEffect(() => { drawerW.value = width }, [width])
+  const reduce = useReducedMotion()
   const router = useRouter()
   const toast = useToast()
   const { user } = useAuth()
@@ -61,22 +68,18 @@ export function Drawer() {
   const avatar = useAvatar().resolved
 
   useEffect(() => {
-    if (drawerOpen) {
-      setMounted(true)
-      x.value = withTiming(0, { duration: 220 })
-    } else {
-      x.value = withTiming(-width, { duration: 200 }, (fin) => { if (fin) scheduleOnRN(setMounted, false) })
-    }
-  }, [drawerOpen, width, x])
+    drawerP.value = withTiming(drawerOpen ? 1 : 0, { duration: reduce ? DUR.base : drawerOpen ? DUR.drawerIn : DUR.drawerOut, easing: EASE.out })
+  }, [drawerOpen, reduce])
 
-  const panel = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }))
-  const scrim = useAnimatedStyle(() => ({ opacity: 1 + x.value / width }))
+  const panel = useAnimatedStyle(() => ({ transform: [{ translateX: (drawerP.value - 1) * width }] }), [width])
+  const scrim = useAnimatedStyle(() => ({ opacity: drawerP.value }))
+  const blur = useAnimatedStyle(() => ({ opacity: drawerP.value * 0.9 }))
   const drag = Gesture.Pan()
     .activeOffsetX([-10, 10])
-    .onUpdate((e) => { x.value = Math.min(0, e.translationX) })
+    .onUpdate((e) => { drawerP.value = Math.max(0, Math.min(1, 1 + e.translationX / width)) })
     .onEnd((e) => {
       if (e.translationX < -width * 0.3 || e.velocityX < -500) scheduleOnRN(setDrawerOpen, false)
-      else x.value = withTiming(0, { duration: 150 })
+      else drawerP.value = withSpring(1, { ...SPRING.drawer, velocity: e.velocityX / width })
     })
 
   const sheets = (
@@ -89,8 +92,6 @@ export function Drawer() {
       <AvatarSheet visible={avatarOpen} onClose={() => setAvatarOpen(false)} letter={(user?.email.slice(0, 1) ?? '?').toUpperCase()} />
     </>
   )
-  if (!mounted) return sheets
-
   const pick = (v: ViewKey) => { setView(v); setDrawerOpen(false) }
   const inbox = lists.find((l) => l.kind === 'inbox')
   const normal = lists.filter((l) => l.kind !== 'inbox')
@@ -179,11 +180,16 @@ export function Drawer() {
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: p.scrim }, scrim]}>
+      {Platform.OS === 'ios' && !reduce ? (
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, blur]}>
+          <BlurView intensity={18} tint={p.dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+        </Animated.View>
+      ) : null}
+      <Animated.View pointerEvents={drawerOpen ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, { backgroundColor: p.scrim }, scrim]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={() => setDrawerOpen(false)} accessibilityLabel="서랍 닫기" />
       </Animated.View>
       <GestureDetector gesture={drag}>
-        <Animated.View style={[s.panel, { width, backgroundColor: p.drawerBg, paddingTop: insets.top }, panel]}>
+        <Animated.View accessibilityElementsHidden={!drawerOpen} importantForAccessibility={drawerOpen ? 'auto' : 'no-hide-descendants'} style={[s.panel, { width, backgroundColor: p.drawerBg, paddingTop: insets.top }, panel]}>
           <View style={s.me}>
             <Pressable accessibilityRole="button" accessibilityLabel="프로필 이미지 바꾸기" hitSlop={6} onPress={() => setAvatarOpen(true)}>
               <ProfileAvatar avatar={avatar} size={30} letter={name.slice(0, 1).toUpperCase() || '?'} />
@@ -263,10 +269,18 @@ export function Drawer() {
   )
 }
 
-/** 목록 화면 왼쪽 가장자리에서 오른쪽으로 밀면 서랍(21 §2) — 행 스와이프와 겹치지 않게 가장자리 20만 */
+/** 목록 화면 왼쪽 가장자리(24)에서 오른쪽으로 끌면 서랍이 손가락을 따라 나온다(39 §4.7) — 행 스와이프와 겹치지 않게 가장자리만.
+ * 놓으면 35% 넘음 또는 속도 > 500 → 열림, 아니면 스프링으로 닫힘 */
 export function DrawerEdge() {
   const { setDrawerOpen } = useTasksView()
-  const g = Gesture.Pan().activeOffsetX(14).failOffsetY([-12, 12]).onEnd((e) => { if (e.translationX > 50) scheduleOnRN(setDrawerOpen, true) })
+  const g = Gesture.Pan()
+    .activeOffsetX(10)
+    .failOffsetY([-14, 14])
+    .onUpdate((e) => { drawerP.value = Math.max(0, Math.min(1, e.translationX / drawerW.value)) })
+    .onEnd((e) => {
+      if (drawerP.value > 0.35 || e.velocityX > 500) scheduleOnRN(setDrawerOpen, true)
+      else drawerP.value = withSpring(0, { ...SPRING.drawer, velocity: e.velocityX / drawerW.value })
+    })
   return (
     <GestureDetector gesture={g}>
       <View style={s.edge} />
@@ -278,7 +292,7 @@ const s = StyleSheet.create({
   panel: { position: 'absolute', top: 0, bottom: 0, left: 0, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 15, shadowOffset: { width: 8, height: 0 }, elevation: 20 },
   me: { height: 52, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 16, paddingRight: 8 },
   meBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  dr: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 10, borderRadius: 10 },
+  dr: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 10, borderRadius: 12 },
   icon: { width: 22, alignItems: 'center' },
   ldot: { width: 9, height: 9, borderRadius: 5 },
   hr: { borderTopWidth: StyleSheet.hairlineWidth, marginVertical: 6, marginHorizontal: 10 },
@@ -286,5 +300,5 @@ const s = StyleSheet.create({
   hint: { fontSize: 12, paddingHorizontal: 12, paddingVertical: 6 },
   foot: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingTop: 6, borderTopWidth: StyleSheet.hairlineWidth },
   footBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 40, paddingHorizontal: 8 },
-  edge: { position: 'absolute', left: 0, top: 120, bottom: 120, width: 20 }
+  edge: { position: 'absolute', left: 0, top: 110, bottom: 110, width: 24 }
 })

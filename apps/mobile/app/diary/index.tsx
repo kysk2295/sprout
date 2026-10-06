@@ -2,7 +2,7 @@
 import { useRouter } from 'expo-router'
 import { CalendarDays, ChevronLeft, Cloud, Lock, RotateCcw, Search } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useEntries, useEntry, useBuddy } from '../../src/diary/data'
 import { josa } from '../../src/diary/logic'
@@ -14,6 +14,7 @@ import { WritePage } from '../../src/diary/WritePage'
 import { KEY, preload } from '../../src/growth/store'
 import { useMotionReduced } from '../../src/growth/motion'
 import { dayKey } from '../../src/lib/dates'
+import { SlideSheet } from '../../src/ui/SlideSheet'
 import { usePalette } from '../../src/theme/ThemeProvider'
 import { GlassButton } from '../../src/ui/Glass'
 import { BigTitle, NavRow } from '../../src/ui/Header'
@@ -56,9 +57,7 @@ export default function Diary() {
       </KeyboardAvoidingView>
 
       {/* 동의(15 §9.7): 그림 · 제목 · 사실 3줄 · 한계 · [혼자 쓸게요] [나누기] */}
-      <Modal visible={askConsent} transparent animationType={reduced ? 'fade' : 'slide'} onRequestClose={() => setAskConsent(false)}>
-        <View style={[s.scrim, { backgroundColor: p.scrim }]}>
-          <View style={[s.sheet, { backgroundColor: p.sheetBg, paddingBottom: insets.bottom + 16 }]}>
+      <SlideSheet visible={askConsent} onClose={() => setAskConsent(false)} style={[s.sheet, { backgroundColor: p.sheetBg, paddingBottom: insets.bottom + 16 }]}>
             <View style={{ alignItems: 'center' }}><BuddyArt buddy={buddy} stage={buddy.stage} size={96} mood="smile" still={reduced} /></View>
             <Text style={[s.title, { color: p.textPrimary }]}>일기를 {josa(buddy.name, '와', '과')} 나눌까요?</Text>
             {[
@@ -71,9 +70,7 @@ export default function Diary() {
               <Pressable accessibilityRole="button" onPress={() => { setConsent(false); setAskConsent(false) }} style={[s.btn, { backgroundColor: p.bgSelected }]}><Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600' }}>혼자 쓸게요</Text></Pressable>
               <Pressable accessibilityRole="button" onPress={() => { setConsent(true); setAskConsent(false) }} style={[s.btn, { backgroundColor: p.accent }]}><Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>나누기</Text></Pressable>
             </View>
-          </View>
-        </View>
-      </Modal>
+      </SlideSheet>
     </View>
   )
 }

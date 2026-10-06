@@ -11,8 +11,9 @@ import { ArrowUp, Calendar, Ellipsis, Flag, Hash, Inbox, List as ListIcon, MapPi
 import { File, Paths } from 'expo-file-system'
 import { MY_CAL_COLOR } from '@sprout/schema/events'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
-import Animated, { FadeIn, FadeInDown, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated'
+import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
+import Animated, { FadeIn, FadeInDown, FadeOut, SlideInDown, SlideOutDown, useAnimatedKeyboard, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+import { DUR, EASE } from '../src/ui/motion'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLists } from '../src/data/lists'
 import { syncTaskLinks, useLinkTaskCandidates, useTagMeta } from '../src/wiki/data'
@@ -87,6 +88,12 @@ export default function QuickAdd() {
   useEffect(() => { draft.text = text; draft.desc = desc; draft.place = place }, [text, desc, place])
   // 키보드가 없을 때(하드웨어 키보드·키보드 내림) 도구 막대가 홈 표시줄·둥근 화면 모서리에 붙지 않게 아래 안전 영역만큼 띄운다
   const [kb, setKb] = useState(false)
+  const keyboard = useAnimatedKeyboard()
+  const liftStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -keyboard.height.value }] }))
+  // 덮개는 제자리에서 옅게 짙어진다(DUR.move) — 경로 화면 자체는 움직임 없이 뜬다
+  const scrimK = useSharedValue(0)
+  useEffect(() => { scrimK.value = withTiming(1, { duration: DUR.move, easing: EASE.out }) }, [scrimK])
+  const scrimStyle = useAnimatedStyle(() => ({ opacity: scrimK.value }))
   useEffect(() => {
     const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKb(true))
     const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKb(false))
@@ -123,7 +130,15 @@ export default function QuickAdd() {
   const focusOn = !!focus && !focusOff && !isEvent
   const canSend = !!input.title // 기본함이 아직 없어도 보낸다 — createTask가 기본함을 만든다(02 §14.1)
 
-  const close = () => { Keyboard.dismiss(); router.back() }
+  // 39 §4.6: 닫힘 = 키보드와 같이 카드가 내려가고 덮개가 옅어진 뒤 화면을 내린다
+  const closing = useRef(false)
+  const close = () => {
+    if (closing.current) return
+    closing.current = true
+    Keyboard.dismiss()
+    scrimK.value = withTiming(0, { duration: DUR.base, easing: EASE.in })
+    setTimeout(() => router.back(), DUR.keyboard)
+  }
   const send = async () => {
     if (!canSend) return
     if (isEvent) return sendEvent()
@@ -188,8 +203,11 @@ export default function QuickAdd() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: p.scrim }]} onPress={close} accessibilityLabel="닫기" />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} pointerEvents="box-none">
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: p.scrim }, scrimStyle]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityLabel="닫기" />
+      </Animated.View>
+      {/* 39 §4.6 · G11: 카드는 키보드 프레임을 UI 스레드에서 그대로 따라 키보드 바로 위에 붙어 오르내린다(KeyboardAvoidingView 대신) */}
+      <Animated.View style={[{ flex: 1 }, liftStyle]} pointerEvents="box-none">
         <View style={{ flex: 1 }} pointerEvents="box-none" />
         {flash ? (
           <Animated.View entering={FadeInDown.duration(160)} exiting={FadeOut.duration(160)} style={[s.flash, { backgroundColor: p.toastBg, borderColor: flash.error ? p.danger : 'transparent' }]}>
@@ -327,7 +345,7 @@ export default function QuickAdd() {
           </ScrollView>
         ) : null}
         {!dateOpen && !kb ? <View style={{ height: insets.bottom, backgroundColor: sugg.length ? p.bgInput : p.sheetBg }} /> : null}
-      </KeyboardAvoidingView>
+      </Animated.View>
 
       {/* 날짜 시트: 키보드 대신 올라온다(22 §3.3). ✓/빠른 날짜 → 칩에 반영하고 키보드로 돌아온다 */}
       {dateOpen ? (
