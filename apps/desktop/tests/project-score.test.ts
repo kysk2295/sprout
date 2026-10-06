@@ -91,9 +91,16 @@ await uf()
 assert.deepEqual(all("SELECT from_id FROM relations WHERE to_type = 'focus'").map((x) => x.from_id), [q2.tagId], '되돌리기')
 await E.setFocus(PID)
 
-// 프로젝트가 끝나면(마감 지남) 아무것도 안 받고 집중도 꺼진다
+// 2026-10-06 고침: 오늘 목록에서 넣은 '발표 자료 정리'(오늘 마감)는 프로젝트 마감이 아니다 — 다음 날에도 끝나지 않고 집중도 남는다
 db.run("UPDATE tasks SET due_at = '2026-10-04' WHERE id = 'm1'")
+task('n12', '발표 자료 정리', '2026-10-06T15:00:00.000Z', { due: '2026-10-06' })
+await P.addToProject(['n12'], PID)
 db.run("UPDATE tasks SET status = 1, completed_at = '2026-10-06T22:00:00.000Z' WHERE id IN ('n2','n3','n9')")
+await P.runProjectPass({ at: '2026-10-07T08:00:00.000Z', force: true })
+assert.equal(all("SELECT count(*) AS c FROM relations WHERE to_type = 'focus'")[0].c, 1, '남은 일이 하루 지났을 뿐 — 집중 그대로')
+
+// 프로젝트가 끝나면(다 끝남) 아무것도 안 받고 집중도 꺼진다
+db.run("UPDATE tasks SET status = 1, completed_at = '2026-10-06T23:00:00.000Z' WHERE id IN ('m1','n12')")
 task('n10', '3차 회의', '2026-10-07T09:00:00.000Z')
 task('n11', '민수 미팅', '2026-10-07T09:01:00.000Z')
 await P.runProjectPass({ at: '2026-10-07T09:05:00.000Z', force: true })

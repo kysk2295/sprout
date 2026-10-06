@@ -128,19 +128,57 @@ export function taskDay(t: PTask): string | null {
 /** 넓히기·기간용 날짜: taskDay 없으면 만든 날 */
 const anyDay = (t: PTask) => taskDay(t) ?? t.created_at?.slice(0, 10) ?? null
 
-const DEADLINE_WORDS = ['제출', '마감', '시험', '접수', '발표', '본선', '결선', '면접', '심사']
-/** 마감(§12.3): 열린 구성원 중 마감 말이 든 일의 가장 늦은 마감. 없으면 열린 구성원 전부의 마감이 아니라 null */
-export function projectDeadline(members: PTask[]): { day: string; word: string; taskId: string } | null {
-  let best: { day: string; word: string; taskId: string } | null = null
+/**
+ * 31 §12.3 마감 말(강한 것만). `발표`·`시험`처럼 넓은 낱말은 `발표 자료 정리`·`시험 공부`에도 들어가서 빼고,
+ * 그날 자체가 마감인 말만 둔다. 앞에서부터 찾아 처음 걸린 것이 마감 말(긴 것 먼저).
+ */
+const DEADLINE_WORDS: { key: string; word: string }[] = [
+  { key: '신청마감', word: '마감' }, { key: '최종발표', word: '발표' }, { key: '발표회', word: '발표' }, { key: '시험일', word: '시험' },
+  { key: 'd-day', word: 'D-day' }, { key: 'dday', word: 'D-day' }, { key: 'd데이', word: 'D-day' }, { key: '디데이', word: 'D-day' },
+  { key: '제출', word: '제출' }, { key: '마감', word: '마감' }, { key: '본선', word: '본선' }, { key: '결선', word: '결선' }, { key: '접수', word: '접수' }
+]
+/** 마감 말이 있어도 그날이 마감이 아닌 일(그 앞 준비) — `발표 자료 정리`·`제출 서류 준비`·`최종 발표 연습` */
+const DEADLINE_PREP = ['발표자료', '발표준비', '자료정리', '준비', '연습', '리허설', '초안']
+/** 제목이 마감 말이면 그 말(`제출`·`마감`…), 아니면 null */
+export function deadlineWord(title: string): string | null {
+  const c = displayTitle(title).replace(/\s+/g, '').toLowerCase()
+  if (DEADLINE_PREP.some((w) => c.includes(w))) return null
+  return DEADLINE_WORDS.find((w) => c.includes(w.key))?.word ?? null
+}
+export type ProjectDeadline = { day: string; word: string; taskId: string | null }
+/**
+ * 마감(§12.3): ① 사람이 정한 프로젝트 마감(`explicit`, 아직 쓰는 화면 없음 — 생기면 그것이 먼저) ②
+ * 구성원(끝낸 일 포함 — 낸 뒤에도 마감은 마감) 중 제목이 **강한 마감 말**(deadlineWord)인 일의 가장 늦은 마감. 없으면 null.
+ * `발표 자료 정리`처럼 넓은 말만 든 일은 마감이 아니다.
+ */
+export function projectDeadline(members: PTask[], explicit?: string | null): ProjectDeadline | null {
+  if (explicit && /^\d{4}-\d{2}-\d{2}/.test(explicit)) return { day: explicit.slice(0, 10), word: '마감', taskId: null }
+  let best: ProjectDeadline | null = null
   for (const t of members) {
-    if ((t.status ?? 0) !== 0 || !t.due_at) continue
-    const c = displayTitle(t.title).replace(/\s+/g, '')
-    const word = DEADLINE_WORDS.find((w) => c.includes(w))
+    if (!t.due_at || (t.status ?? 0) === 2) continue // 하지 않음(2)은 뺀다
+    const word = deadlineWord(t.title)
     if (!word) continue
     const day = t.due_at.slice(0, 10)
-    if (!best || day > best.day) best = { day, word, taskId: t.id }
+    if (!best || day > best.day || (day === best.day && (t.status ?? 0) === 0)) best = { day, word, taskId: t.id }
   }
   return best
+}
+/** 끝난 뒤 이만큼 지나야 마감만으로 끝남 */
+export const ENDED_GRACE_DAYS = 7
+/**
+ * 31 §12.10.4 끝난 프로젝트(보드·빠른 추가 알약·집중·점수 공용). 둘 다여야 끝남:
+ * ⓐ 앞으로 할 열린 일이 없음 — 날짜가 오늘 이후이거나 날짜 없는 열린 일이 하나라도 있으면 진행 중
+ * ⓑ 구성원이 다 끝남, 또는 마감(없으면 구성원의 가장 늦은 날짜)이 7일 넘게 지남.
+ * 마감이 지났어도 오늘 이후·날짜 없는 열린 일이 있으면 끝나지 않는다. 구성원이 없으면 끝나지 않음. 집 리스트 보관은 따로(호출하는 쪽).
+ */
+export function membersEndedBy(members: PTask[], deadline: string | null | undefined, today: string): boolean {
+  if (!members.length) return false
+  const open = members.filter((m) => (m.status ?? 0) === 0)
+  if (open.some((m) => { const d = taskDay(m); return !d || d >= today })) return false
+  if (!open.length) return true
+  const days = members.map(taskDay).filter((d): d is string => !!d)
+  const end = deadline ?? days.sort()[days.length - 1] ?? null
+  return !!end && end < addDays(today, -ENDED_GRACE_DAYS)
 }
 
 const addDays = (day: string, n: number) => { const d = new Date(`${day}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }

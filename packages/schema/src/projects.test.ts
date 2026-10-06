@@ -1,7 +1,7 @@
 // 31 §12 자동 프로젝트(순수): 일의 종류 · 프로젝트 같은 말 · 이름 · 덩어리 찾기 · 구성원(집·하위·✕) · 마감 · 넓히기 · 다음 · 추정 선 · 쌓기
 import assert from 'node:assert/strict'
 import {
-  blockedSet, expandProject, findProjectClusters, fullProjectName, inferredChain, nextSteps, projectDeadline, projectEmoji, projectish, projectMembers,
+  blockedSet, expandProject, findProjectClusters, fullProjectName, inferredChain, nextSteps, projectDeadline, deadlineWord, membersEndedBy, projectEmoji, projectish, projectMembers,
   projectSpan, stackRows, taskDay, upgradeToProject, workKind, nearSameName, planProjectCleanup, categoryOf, isBareCategory, specificName, sameInstance, findInstances, type FindCtx, type PTask
 } from './projects.ts'
 import { planAssign, type Ctx } from './autoTag.ts'
@@ -114,6 +114,22 @@ assert.equal(taskDay(T('x', 'a', 'l')), null)
   const ms = [T('d1', '발표자료', 'l', { due_at: '2026-10-08' }), T('d2', '최종 제출', 'l', { due_at: '2026-10-10' }), T('d3', '제출 연습', 'l', { due_at: '2026-10-20', status: 1 }), T('d4', '팀 회의', 'l', { due_at: '2026-10-30' })]
   assert.deepEqual(projectDeadline(ms), { day: '2026-10-10', word: '제출', taskId: 'd2' }, '열린 일 중 마감 말 든 가장 늦은 것(발표 10/8 < 제출 10/10)')
   assert.equal(projectDeadline([T('z', '팀 회의', 'l', { due_at: '2026-10-30' })]), null)
+  // 강한 마감 말만(2026-10-06 고침): '발표 자료 정리'·준비·연습은 마감이 아니다
+  for (const [title, want] of [
+    ['발표 자료 정리', null], ['발표자료 만들기', null], ['발표 준비', null], ['최종 발표 연습', null], ['제출 서류 준비', null], ['자료 정리', null], ['ADsP 시험 공부', null], ['발표', null], ['면접', null],
+    ['공모전 제출', '제출'], ['신청 마감', '마감'], ['서류 접수', '접수'], ['본선', '본선'], ['결선 진출 발표회', '발표'], ['최종 발표', '발표'], ['ADsP 시험일', '시험'], ['D-day', 'D-day'], ['공모전 D-DAY', 'D-day']
+  ] as [string, string | null][]) assert.equal(deadlineWord(title), want, title)
+  assert.equal(projectDeadline([T('p1', '발표 자료 정리', 'l', { due_at: '2026-10-06' }), T('p2', '2차 회의', 'l')]), null, "'발표 자료 정리'(오늘 마감)는 프로젝트 마감이 아니다")
+  assert.deepEqual(projectDeadline([T('p1', '발표 자료 정리', 'l', { due_at: '2026-10-12' }), T('p3', '공모전 최종 제출', 'l', { due_at: '2026-10-10', status: 1 })]), { day: '2026-10-10', word: '제출', taskId: 'p3' }, '낸 뒤에도 마감은 마감')
+  assert.deepEqual(projectDeadline([T('p3', '최종 제출', 'l', { due_at: '2026-10-10' })], '2026-10-20'), { day: '2026-10-20', word: '마감', taskId: null }, '사람이 정한 마감이 먼저')
+  // 끝남: 앞으로 할 열린 일 없음 + (다 끝남 또는 마감 7일 지남)
+  const done = (id: string, d: string) => T(id, '공모전 제출', 'l', { due_at: d, status: 1 })
+  assert.equal(membersEndedBy([done('e1', '2026-10-01')], null, '2026-10-02'), true, '다 끝남')
+  assert.equal(membersEndedBy([done('e1', '2026-10-01'), T('e2', '회고', 'l')], '2026-10-01', '2026-10-30'), false, '날짜 없는 열린 일')
+  assert.equal(membersEndedBy([done('e1', '2026-10-01'), T('e2', '회고', 'l', { due_at: '2026-10-07' })], '2026-10-01', '2026-10-07'), false, '오늘 열린 일')
+  assert.equal(membersEndedBy([T('e3', '발표 자료 정리', 'l', { due_at: '2026-10-06' })], null, '2026-10-07'), false, '하루 지난 열린 일 — 7일 안')
+  assert.equal(membersEndedBy([T('e3', '발표 자료 정리', 'l', { due_at: '2026-10-06' })], null, '2026-10-14'), true, '마지막 날짜 7일 넘게 지남')
+  assert.equal(membersEndedBy([], null, '2026-10-14'), false, '구성원 없음')
   assert.deepEqual(projectSpan(ms), { from: '2026-10-08', to: '2026-10-30' })
 }
 

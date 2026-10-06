@@ -6,7 +6,7 @@
 // DB 읽기·쓰기는 앱(apps/desktop/.../data/projects.ts).
 import { distinctWords, STOP_WORDS, tagKey, type AtLink, type AtList, type AtTag } from './autoTag.ts'
 import { displayTitle, parseAliases } from './wikiLink.ts'
-import { daysBetween, PROJECT_STOP, projectDeadline, projectMembers, projectSpan, projectTitle, taskDay, workKind, type PTask } from './projects.ts'
+import { daysBetween, membersEndedBy, PROJECT_STOP, projectDeadline, projectMembers, projectSpan, projectTitle, taskDay, workKind, type PTask } from './projects.ts'
 
 /** 점수표(§12.13.3). 합은 0~100으로 자른다 */
 export const PSCORE = {
@@ -116,18 +116,10 @@ const dayOf = (t: ScoreTask, today: string) => taskDay(t) ?? t.created_at?.slice
 /** 점수용 낱말: 뚜렷한 낱말 − 막연한 말(프로젝트·계획…) */
 const wordsOf = (title: string) => distinctWords(title).filter((w) => !PROJECT_STOP.has(w) && !STOP_WORDS.has(w))
 
-/**
- * 끝난 프로젝트(planView projectEnded와 같은 규칙 — 여기는 구성원만으로): 다 끝났고 마감 7일 지남 · 집 리스트 보관 · 구성원이 다 끝남 ·
- * 마감 지남 · 남은 열린 일이 모두 지난 날짜. 구성원이 없으면 끝나지 않음.
- */
+/** 끝난 프로젝트(planView projectEnded와 같은 규칙 — projects membersEndedBy): 집 리스트 보관 · 앞으로 할 열린 일 없이 다 끝남 또는 마감 7일 지남 */
 export function membersEnded(members: ScoreTask[], today: string, archived = false): boolean {
   if (archived) return true
-  if (!members.length) return false
-  const open = members.filter((m) => (m.status ?? 0) === 0)
-  if (!open.length) return true
-  const dl = projectDeadline(members)
-  if (dl && dl.day < today) return true
-  return open.every((m) => { const d = taskDay(m); return !!d && d < today })
+  return membersEndedBy(members, projectDeadline(members)?.day, today)
 }
 
 export type ScoreInput = {

@@ -3,7 +3,7 @@
 import { parseAliases } from './wikiLink.ts'
 import { tagKey } from './autoTag.ts'
 import {
-  blockedSet, categoryOf, daysBetween, findProjectClusters, specificName, EXAM_CATEGORY, nextSteps, projectDeadline, projectEmoji, projectMembers, projectSpan, projectTitle, taskDay, workKind,
+  blockedSet, categoryOf, daysBetween, findProjectClusters, specificName, EXAM_CATEGORY, nextSteps, projectDeadline, membersEndedBy, type ProjectDeadline, projectEmoji, projectMembers, projectSpan, projectTitle, taskDay, workKind,
   WORK_KINDS, type Proposal, type PTask, type WorkKind
 } from './projects.ts'
 
@@ -27,7 +27,7 @@ export type ProjectView = {
   kindOf: Map<string, WorkKind>
   kinds: [WorkKind, number][]
   span: { from: string; to: string } | null
-  deadline: { day: string; word: string; taskId: string } | null
+  deadline: ProjectDeadline | null
   next: PTaskRow[]
   lists: { id: string; name: string; emoji: string | null; count: number }[]
   people: { id: string; name: string; label: string }[]
@@ -58,15 +58,13 @@ export type CategoryGroup = { word: string; projects: ProjectView[]; loose: Loos
 export type MemberVia = 'user' | 'auto' | 'home'
 export type TodayItem = { task: PTaskRow; why: 'today' | 'step'; project?: string }
 /**
- * 31 §12.10.4 "끝난 프로젝트"(빠른 추가 알약에 안 띄움): 보드의 끝남(finished) · 집 리스트 보관 · 구성원이 다 끝남 ·
- * 마감 지남 · 남은 열린 일이 모두 날짜가 지남(앞으로 할 일이 없음). 날짜 없는 열린 일이 있으면 아직 진행 중으로 본다.
+ * 31 §12.10.4 "끝난 프로젝트"(빠른 추가 알약·집중·점수에서 뺌): 보드의 끝남(finished) · 집 리스트 보관 ·
+ * 그 밖엔 projects `membersEndedBy` — 앞으로 할 열린 일(오늘 이후·날짜 없음)이 없고, 다 끝났거나 마감(없으면 마지막 날짜)이 7일 넘게 지남.
+ * 마감이 지났어도 오늘 이후·날짜 없는 열린 일이 있으면 진행 중.
  */
-export function projectEnded(p: Pick<ProjectView, 'finished' | 'archived' | 'members' | 'open' | 'deadline'>, today: string): boolean {
+export function projectEnded(p: Pick<ProjectView, 'finished' | 'archived' | 'members' | 'deadline'>, today: string): boolean {
   if (p.finished || p.archived) return true
-  if (p.members.length > 0 && p.open === 0) return true
-  if (p.deadline && p.deadline.day < today) return true
-  const open = p.members.filter((m) => m.status === 0)
-  return open.length > 0 && open.every((m) => { const d = taskDay(m); return !!d && d < today })
+  return membersEndedBy(p.members, p.deadline?.day, today)
 }
 export type PlanData = {
   loaded: boolean

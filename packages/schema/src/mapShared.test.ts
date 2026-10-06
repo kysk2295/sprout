@@ -61,10 +61,35 @@ const m = (id: string, status: number, due_at: string | null) => ({ ...P0.member
 assert.equal(projectEnded(P0, today), false, '앞으로 할 일이 있으면 진행 중')
 assert.equal(P0.archived, false)
 assert.equal(projectEnded({ ...P0, members: [m('a', 1, '2026-10-07')], open: 0, deadline: null }, today), true, '다 끝남')
-assert.equal(projectEnded(P0, '2026-10-11'), true, '마감 지남')
+assert.equal(projectEnded(P0, '2026-10-11'), false, '마감 지난 지 7일 안 — 아직 끝남 아님')
+assert.equal(projectEnded(P0, '2026-10-18'), true, '마감 지나고 7일 넘음 + 앞으로 할 일 없음')
 assert.equal(projectEnded({ ...P0, members: [m('a', 0, '2026-09-20')], open: 1, deadline: null }, today), true, '남은 일이 모두 지난 날짜')
 assert.equal(projectEnded({ ...P0, members: [m('a', 0, '2026-09-20'), m('b', 0, null)], open: 2, deadline: null }, today), false, '날짜 없는 열린 일이 있으면 진행 중')
 assert.equal(projectEnded({ ...P0, archived: true }, today), true, '집 리스트 보관')
+// 2026-10-06 고침: 오늘 목록에서 넣은 '발표 자료 정리'(오늘 마감)가 프로젝트 마감이 되어 다음 날 끝남이 되던 것
+{
+  const v = buildPlanView({
+    tasks: [
+      { id: 'k1', title: 'K 데이터 공모전 신청', list_id: 'L', parent_id: null, status: 1, priority: 0, due_at: '2026-10-01', start_at: null, completed_at: '2026-10-01T09:00:00Z', created_at: '2026-09-28' },
+      { id: 'k2', title: '발표 자료 정리', list_id: 'L', parent_id: null, status: 0, priority: 0, due_at: today, start_at: null, completed_at: null, created_at: today },
+      { id: 'k3', title: '2차 회의', list_id: 'L', parent_id: null, status: 0, priority: 0, due_at: null, start_at: null, completed_at: null, created_at: today }
+    ],
+    tags: [{ id: 'K', name: 'K 데이터 공모전', kind: 'project', aliases: null, source: 'user', home_type: null, home_id: null, topic_id: null }],
+    links: ['k1', 'k2', 'k3'].map((t) => ({ id: `y${t}`, task_id: t, tag_id: 'K', source: 'user', state: 'accepted' })),
+    lists: [{ id: 'L', name: '학교', emoji: null, folder_id: null, kind: 'list' }], folders: [], seq: [],
+    pstore: { dismissed: [], confirmed: {} }, today, suggest: false, focus: 'K'
+  })
+  const K = v.projects[0]
+  assert.equal(K.deadline, null, "'발표 자료 정리'는 마감이 아니다")
+  assert.equal(K.focus, true)
+  assert.equal(projectEnded(K, '2026-10-07'), false, '다음 날에도 진행 중(날짜 없는 열린 일)')
+  const noUndated = { ...K, members: K.members.filter((x) => x.id !== 'k3') }
+  assert.equal(projectEnded(noUndated, '2026-10-07'), false, '남은 일이 하루 지났을 뿐 — 7일 안')
+  const withDl = { ...K, deadline: { day: '2026-10-05', word: '제출', taskId: 'x' } }
+  assert.equal(projectEnded(withDl, '2026-10-20'), false, '마감이 지나도 날짜 없는 열린 일이 있으면 진행 중')
+  const future = { ...noUndated, members: [...noUndated.members, { ...K.members[0], id: 'k4', title: '결과 확인', status: 0, due_at: '2026-10-25', completed_at: null }], deadline: { day: '2026-10-05', word: '제출', taskId: 'x' } }
+  assert.equal(projectEnded(future, '2026-10-20'), false, '마감이 지나도 오늘 이후 열린 일이 있으면 진행 중')
+}
 const homed = buildPlanView({ tasks: [], tags: [{ id: 'Q', name: '창업 공모전', kind: 'project', aliases: null, source: 'user', home_type: 'list', home_id: 'gone', topic_id: null }], links: [], lists: [], folders: [], seq: [], pstore: { dismissed: [], confirmed: {} }, today, suggest: false })
 assert.equal(homed.projects[0].archived, true, '집 리스트가 보관 리스트(질의에 없음)')
 
