@@ -1,0 +1,780 @@
+<!-- 41 (31 §12.14) 프로젝트를 직접 쉽게 고치기 — 시안 (2026-10-06). 계획 자동 생성 없음: 사람이 한 줄로 만들고, 그 자리에서 고치고, 태그 줄로 묶는다. -->
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>프로젝트 직접 고치기 시안</title>
+<style>
+/* 토큰: work-map-modes-v2.html과 같은 축약 변수 (packages/tokens/tokens.css 값) */
+:root{
+  --bg:#ffffff; --bg-page:#f6f6f7; --rail:#f8f8f8; --card:#fafafa; --pop:#ffffff; --hover:#f5f5f5; --input:#f8f8f9;
+  --line:#ececee; --line2:#dcdce0; --t1:#191919; --t2:#7d7d7d; --t3:#a3a4a7;
+  --accent:#4e75f2; --accent-sub:#ecf0fd; --danger:#d44343; --danger-sub:#fbecec; --ok:#3aa76d;
+  --weekend:#fafafb; --shadow:0 6px 24px rgba(0,0,0,.08); --seg-track:#f3f3f3; --seg-on:#ffffff;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#1a1a1a; --bg-page:#141414; --rail:#161616; --card:#252525; --pop:#232323; --hover:#262626; --input:#212121;
+  --line:#2f2f2f; --line2:#3a3a3a; --t1:#f2f2f2; --t2:#bdbdbd; --t3:#7a7a7a;
+  --accent:#6b7bff; --accent-sub:#262a52; --danger:#e06060; --danger-sub:#3a2222; --ok:#4cbf83;
+  --weekend:#1e1e1e; --shadow:0 6px 24px rgba(0,0,0,.45); --seg-track:#111; --seg-on:#2c2c2c; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#1a1a1a; --bg-page:#141414; --rail:#161616; --card:#252525; --pop:#232323; --hover:#262626; --input:#212121;
+  --line:#2f2f2f; --line2:#3a3a3a; --t1:#f2f2f2; --t2:#bdbdbd; --t3:#7a7a7a;
+  --accent:#6b7bff; --accent-sub:#262a52; --danger:#e06060; --danger-sub:#3a2222; --ok:#4cbf83;
+  --weekend:#1e1e1e; --shadow:0 6px 24px rgba(0,0,0,.45); --seg-track:#111; --seg-on:#2c2c2c; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg-page);color:var(--t1);font:400 14px/1.5 var(--font)}
+.wrap{max-width:1240px;margin:0 auto;padding:32px 16px 80px}
+h1{font-size:28px;line-height:1.25;margin:0 0 6px;letter-spacing:-.01em}
+.lead{font-size:16px;color:var(--t2);margin:0 0 18px;max-width:820px}
+h2{font-size:22px;margin:52px 0 4px}
+.sub{color:var(--t2);margin:0 0 14px;font-size:15px;max-width:860px}
+.flabel{display:inline-block;font:700 12px/1 var(--font);color:var(--accent);background:var(--accent-sub);padding:6px 10px;border-radius:999px;margin:22px 0 10px}
+.theme{position:fixed;top:12px;right:12px;display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:3px;z-index:50;box-shadow:var(--shadow)}
+.theme button{border:0;background:none;color:var(--t2);font:500 12px/1 var(--font);padding:6px 8px;border-radius:6px;cursor:pointer}
+.theme button.on{background:var(--accent-sub);color:var(--accent)}
+kbd{font:500 11px/1 var(--font);border:1px solid var(--line2);border-bottom-width:2px;border-radius:4px;padding:2px 5px;color:var(--t2);background:var(--bg)}
+
+/* 불편 → 고침 */
+.fix{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}
+.fix__c{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.fix__c > b{display:block;font-size:14px;margin-bottom:4px}
+.fix__c .now{color:var(--t2);font-size:13px;margin:0 0 6px}
+.fix__c .now::before{content:"지금 ";color:var(--danger);font-weight:600}
+.fix__c .then{font-size:13px;margin:0}
+.fix__c .then::before{content:"고침 ";color:var(--ok);font-weight:600}
+.fix__c small{color:var(--t3);font-size:11.5px}
+
+/* 앱 틀 */
+.scroll{overflow-x:auto;border-radius:14px;box-shadow:var(--shadow)}
+.app{min-width:1120px;display:grid;grid-template-columns:55px 1fr;background:var(--bg);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.rail{background:var(--rail);display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:18px;border-right:1px solid var(--line)}
+.rail i{width:20px;height:20px;border-radius:5px;border:2px solid var(--t3);opacity:.6;display:block}
+.rail i.on{border-color:var(--accent);opacity:1}
+.rail .av{width:32px;height:32px;border-radius:50%;background:#7b8cf5;color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px;margin-bottom:6px}
+.main{padding:16px 22px 22px;min-height:420px;position:relative}
+.mhead{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.mhead h3{margin:0;font-size:20px}
+.sp{flex:1}
+.ib{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;color:var(--t2);border:0;background:none;font-size:15px}
+.btn{height:30px;padding:0 12px;border-radius:7px;border:1px solid var(--line2);background:var(--bg);color:var(--t1);font:500 13px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.pri:hover{filter:brightness(1.05)}
+.btn.txt{border-color:transparent;background:none;color:var(--t2);padding:0 6px}
+.btn.txt:hover{color:var(--accent)}
+.btn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-sub)}
+.btn.dng{color:var(--danger)}
+
+/* 보드 */
+.sum{color:var(--t2);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:10px}
+.pc{position:relative;display:flex;flex-direction:column;gap:8px;padding:14px 16px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);cursor:pointer;transition:transform .12s,box-shadow .12s}
+.pc:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.pc__h{display:flex;align-items:center;gap:7px}
+.pc__t{flex:1;font:600 15px/22px var(--font);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc__auto{font-size:12px;color:var(--t3)}
+.pc__l{font-size:12px;color:var(--t2)}
+.pc__l b{font-weight:600;color:var(--t2)}
+.pc__l b.hot{color:var(--danger)}
+.bar{height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:2px}
+.nx{display:flex;align-items:center;gap:8px;font-size:13px;min-height:28px}
+.nx small{margin-left:auto;color:var(--t3);font-size:12px}
+.ck{width:15px;height:15px;border:1.5px solid var(--t3);border-radius:4px;flex:none}
+.pc--new{border-style:dashed;background:transparent;color:var(--t2);align-items:flex-start;justify-content:center;min-height:132px}
+.pc--new:hover{transform:none;box-shadow:none;border-color:var(--accent);color:var(--accent)}
+.pc--new .plus{font-size:15px;font-weight:600}
+.pc--new.is-edit{border-color:var(--accent);border-style:solid;cursor:default;background:var(--bg);color:var(--t1);justify-content:flex-start}
+.np__in{width:100%;height:34px;border:1px solid var(--accent);border-radius:7px;padding:0 10px;font:400 14px/1 var(--font);background:var(--input);color:var(--t1);outline:none;box-shadow:0 0 0 3px var(--accent-sub)}
+.np__hl{position:relative}
+.np__prev{font-size:12.5px;color:var(--t2);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.np__prev b{color:var(--t1);font-weight:600}
+.np__date{color:var(--accent);font-weight:600}
+.np__words{display:flex;gap:4px;flex-wrap:wrap}
+.chip{height:24px;padding:0 9px;border-radius:999px;border:1px solid var(--line2);background:var(--bg);color:var(--t2);font:500 12px/1 var(--font);cursor:pointer}
+.chip.on{border-color:var(--accent);background:var(--accent-sub);color:var(--accent)}
+.np__more{font-size:12px;color:var(--t3)}
+.np__acts{display:flex;gap:6px;justify-content:flex-end;width:100%}
+
+/* 프로젝트 화면 */
+.crumb{border:0;background:none;color:var(--t2);font:500 13px/1 var(--font);padding:4px 0;cursor:pointer}
+.ph{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;margin:8px 0 4px}
+.ph__icon{font-size:20px;width:30px;height:30px;border-radius:7px;border:0;background:none;cursor:pointer}
+.ph__icon:hover{background:var(--hover)}
+.ph__name{font:600 22px/30px var(--font);padding:0 6px;margin:0 -6px;border-radius:6px;cursor:text;border:1px solid transparent;min-width:40px;outline:none}
+.ph__name:hover{background:var(--hover)}
+.ph__name:focus{border-color:var(--accent);background:var(--bg);box-shadow:0 0 0 3px var(--accent-sub)}
+.pill{height:26px;display:inline-flex;align-items:center;gap:6px;padding:0 10px;border-radius:7px;border:1px solid var(--line2);background:var(--bg);color:var(--t1);font:500 13px/1 var(--font);cursor:pointer}
+.pill:hover{border-color:var(--accent)}
+.pill .dd{color:var(--t2);font-weight:600}
+.pill .dd.hot{color:var(--danger)}
+.pill.focus.on{background:var(--accent-sub);border-color:var(--accent);color:var(--accent)}
+.team{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--t2)}
+.team .p{height:24px;display:inline-flex;align-items:center;gap:4px;padding:0 8px;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--t1);font-size:12.5px}
+.team .p button{border:0;background:none;color:var(--t3);cursor:pointer;padding:0;font-size:12px}
+.team input{height:24px;width:110px;border:1px solid var(--accent);border-radius:999px;padding:0 9px;font:400 12.5px/1 var(--font);background:var(--input);color:var(--t1);outline:none}
+.team .add{height:24px;border:1px dashed var(--line2);border-radius:999px;background:none;color:var(--t2);font:500 12px/1 var(--font);padding:0 9px;cursor:pointer}
+.team .add:hover{border-color:var(--accent);color:var(--accent)}
+.ph__line{display:flex;align-items:center;gap:10px;color:var(--t2);font-size:12.5px;margin-bottom:10px}
+.ph__line .bar{width:160px}
+.tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.seg{display:inline-flex;background:var(--seg-track);border-radius:8px;padding:2px}
+.seg button{border:0;background:none;color:var(--t2);font:500 13px/1 var(--font);padding:6px 12px;border-radius:6px;cursor:pointer}
+.seg button.on{background:var(--seg-on);color:var(--t1);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.grp{position:relative}
+.menu{position:absolute;z-index:30;background:var(--pop);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:4px;min-width:170px}
+.menu button{display:flex;width:100%;align-items:center;gap:8px;border:0;background:none;color:var(--t1);font:400 13px/1 var(--font);padding:8px 10px;border-radius:6px;cursor:pointer;text-align:left}
+.menu button:hover{background:var(--hover)}
+.menu button .ok{margin-left:auto;color:var(--accent)}
+.menu hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+.menu small{display:block;padding:4px 10px 6px;color:var(--t3);font-size:11.5px}
+.menu input[type=date]{margin:4px 8px 6px;width:calc(100% - 16px);height:30px;border:1px solid var(--line2);border-radius:6px;background:var(--input);color:var(--t1);font:400 13px var(--font);padding:0 6px}
+.menu .words{display:flex;gap:4px;padding:2px 8px 8px;flex-wrap:wrap}
+
+/* 고른 띠 */
+.pick{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 8px;margin:0 0 10px;border:1px solid var(--accent);border-radius:9px;background:var(--accent-sub)}
+.pick b{font-size:13px;margin-right:4px}
+
+/* 타임라인 */
+.tl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.tl{position:relative;user-select:none}
+.tl__scale{position:relative;height:28px;border-bottom:1px solid var(--line)}
+.tl__scale span{position:absolute;top:7px;font-size:11px;color:var(--t3);transform:translateX(-2px)}
+.tl__day{position:absolute;top:0;bottom:0;background:var(--weekend);pointer-events:none}
+.tl__today{position:absolute;top:0;bottom:0;width:0;border-left:1.5px solid var(--danger);pointer-events:none;z-index:3}
+.tl__today b{position:absolute;top:2px;left:4px;font:600 10.5px/1 var(--font);color:var(--danger);white-space:nowrap}
+.tl__dl{position:absolute;top:0;bottom:0;width:0;border-left:1.5px dashed var(--t3);pointer-events:none;z-index:2}
+.tl__dl b{position:absolute;bottom:4px;left:4px;font:500 11px/1 var(--font);color:var(--t2);white-space:nowrap}
+.lane{position:relative;border-bottom:1px solid var(--line)}
+.lane.is-drop{background:var(--accent-sub)}
+.lane__h{position:absolute;left:0;top:0;bottom:0;width:120px;padding:7px 8px 0 10px;border-right:1px solid var(--line);background:var(--bg);z-index:4;display:flex;align-items:flex-start;gap:4px}
+.lane__n{font:500 12px/18px var(--font);color:var(--t2);border-radius:5px;padding:0 4px;margin-left:-4px;max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text;border:1px solid transparent;outline:none}
+.lane__n:hover{background:var(--hover)}
+.lane__n:focus{border-color:var(--accent);background:var(--bg);color:var(--t1);max-width:none;white-space:normal}
+.lane__c{font:400 11px/18px var(--font);color:var(--t3)}
+.lane__x{margin-left:auto;border:0;background:none;color:var(--t3);cursor:pointer;opacity:0;font-size:13px;line-height:18px;padding:0 2px}
+.lane:hover .lane__x{opacity:1}
+.lane__x:hover{color:var(--danger)}
+.lane__add{position:absolute;left:126px;border:0;background:none;color:var(--t3);font:400 12px/1 var(--font);padding:4px 4px;cursor:pointer;z-index:4;border-radius:5px}
+.lane__add:hover{color:var(--accent)}
+.lane__in{position:absolute;left:126px;z-index:6;width:300px;height:26px;border:1px solid var(--accent);border-radius:6px;background:var(--bg);color:var(--t1);font:400 12.5px/1 var(--font);padding:0 8px;outline:none;box-shadow:0 0 0 3px var(--accent-sub)}
+.lane__hint{position:absolute;left:432px;z-index:6;font-size:11.5px;color:var(--t3);white-space:nowrap}
+.newlane{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line);position:relative;z-index:4;background:var(--bg)}
+.newlane button{border:0;background:none;color:var(--t2);font:500 12.5px/1 var(--font);cursor:pointer;padding:4px 2px}
+.newlane button:hover{color:var(--accent)}
+.newlane input{height:26px;width:200px;border:1px solid var(--accent);border-radius:6px;background:var(--bg);color:var(--t1);font:400 12.5px/1 var(--font);padding:0 8px;outline:none;box-shadow:0 0 0 3px var(--accent-sub)}
+.newlane small{color:var(--t3);font-size:11.5px}
+.tk{position:absolute;height:26px;display:flex;align-items:center;gap:6px;padding:0 8px 0 7px;border:1px solid var(--line2);border-radius:7px;background:var(--bg);font:400 12.5px/1 var(--font);color:var(--t1);cursor:grab;z-index:5;white-space:nowrap;max-width:none}
+.tk:hover{border-color:var(--t3);z-index:7}
+.tk.is-bar{background:var(--card)}
+.tk.is-sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-sub);z-index:8}
+.tk.is-drag{cursor:grabbing;box-shadow:var(--shadow);z-index:9}
+.tk.is-done{opacity:.55}
+.tk .cr{width:12px;height:12px;border:1.5px solid var(--t3);border-radius:50%;flex:none}
+.tk.is-done .cr{border-color:var(--accent);background:var(--accent)}
+.tk .ms{color:var(--t2);font-size:12px;flex:none}
+.tk__t{overflow:hidden;text-overflow:ellipsis;max-width:150px;border-radius:4px;padding:0 2px;margin:0 -2px}
+.tk.is-sel .tk__t{cursor:text}
+.tk.is-sel .tk__t:hover{background:var(--hover)}
+.tk__t[contenteditable=true]{max-width:none;outline:none;background:var(--input);box-shadow:0 0 0 1px var(--accent);cursor:text}
+.tk__d{font-size:11px;color:var(--t3);border-radius:4px;padding:2px 3px;margin:0 -3px;cursor:pointer;flex:none}
+.tk__d:hover{background:var(--accent-sub);color:var(--accent)}
+.tk__r{font-size:11px;color:var(--t3)}
+.tk__more{font-size:10.5px;color:var(--t3)}
+.tk__e{position:absolute;top:3px;bottom:3px;width:6px;cursor:ew-resize;border-radius:3px}
+.tk__e:hover,.tk.is-resize .tk__e{background:var(--accent);opacity:.5}
+.tk__e.l{left:-1px}.tk__e.r{right:-1px}
+.tk__tip{position:absolute;top:-22px;left:0;font:600 11px/1 var(--font);color:#fff;background:var(--accent);padding:4px 6px;border-radius:5px;white-space:nowrap;pointer-events:none}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;color:var(--t3);font-size:12px}
+.demo{display:flex;gap:6px;margin-left:auto}
+
+/* 토스트 */
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2b2b2b;color:#fff;padding:9px 12px 9px 14px;border-radius:9px;font-size:13px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:100;max-width:calc(100% - 32px)}
+.toast button{border:0;background:none;color:#9fb3ff;font:600 13px/1 var(--font);cursor:pointer}
+
+/* 휴대폰 */
+.phones{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+.phone{width:375px;max-width:100%;height:760px;border-radius:44px;border:10px solid #111;background:var(--bg);overflow:hidden;position:relative;box-shadow:var(--shadow)}
+.phone__bar{height:44px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 6px;font:600 14px/1 var(--font)}
+.phone__body{height:calc(100% - 44px);overflow-y:auto;padding:0 16px 90px}
+.m-nav{display:flex;align-items:center;justify-content:space-between;height:44px;color:var(--accent);font-size:15px}
+.m-title{font:700 26px/1.2 var(--font);margin:2px 0 6px;outline:none;border-radius:6px}
+.m-title:focus{box-shadow:0 0 0 2px var(--accent)}
+.m-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.m-sub{color:var(--t2);font-size:13px;margin-bottom:6px}
+.m-group{margin:16px 0 0}
+.m-gh{display:flex;align-items:center;gap:6px;color:var(--t2);font-size:13px;padding:0 4px 6px}
+.m-gh .c{color:var(--t3)}
+.m-card{background:var(--card);border-radius:12px;overflow:hidden}
+:root[data-theme="light"] .m-card{background:#f4f4f6}
+.m-row{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;border-bottom:1px solid var(--line);font-size:15px}
+.m-row:last-child{border-bottom:0}
+.m-row small{margin-left:auto;color:var(--t3);font-size:13px}
+.m-row .ck{width:18px;height:18px;border-radius:5px}
+.m-row.add{color:var(--t3);font-size:14px}
+.m-row.add input{flex:1;border:0;background:none;font:400 15px var(--font);color:var(--t1);outline:none}
+.m-newg{margin:16px 0;color:var(--accent);font-size:15px;padding:0 4px}
+.m-sheet{position:absolute;left:0;right:0;bottom:0;background:var(--pop);border-radius:16px 16px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.18);padding:10px 16px 26px}
+.m-sheet .grab{width:36px;height:5px;border-radius:3px;background:var(--line2);margin:0 auto 12px}
+.m-sheet input{width:100%;height:44px;border:0;background:var(--input);border-radius:10px;padding:0 12px;font:400 16px var(--font);color:var(--t1);outline:none}
+.m-dim{position:absolute;inset:44px 0 0;background:rgba(0,0,0,.25)}
+.cap{font-size:13px;color:var(--t2);margin-top:8px;max-width:375px}
+
+/* 결정 */
+.dec{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.dec__c{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px}
+.dec__c b{display:block;font-size:14px;margin-bottom:6px}
+.dec__c .rec{color:var(--accent);font-weight:600}
+.guide{width:100%;border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
+.guide__h{font:600 12px/1 var(--font);color:var(--t2);margin-bottom:6px}
+.guide__x{display:flex;flex-wrap:wrap;gap:4px}
+.guide__x button{height:24px;padding:0 8px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--t1);font:400 12px/1 var(--font);cursor:pointer}
+.guide__x button:hover{border-color:var(--accent);color:var(--accent)}
+.guide__x button small{color:var(--t3);margin-left:4px}
+.guide__no{font-size:11.5px;color:var(--t3);margin-top:6px}
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:30px 0 10px}
+.empty .buddy{width:72px;height:72px;border-radius:50%;background:var(--accent-sub);display:grid;place-items:center;font-size:34px}
+.empty .guide{max-width:620px;text-align:left}
+.bub{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;color:var(--t2);font-size:13px}
+.bub .av{width:24px;height:24px;border-radius:50%;background:var(--accent-sub);display:grid;place-items:center;font-size:13px}
+.fact{margin-top:14px;padding:10px 12px;border:1px dashed var(--line2);border-radius:10px;color:var(--t2);font-size:12.5px;background:var(--bg)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="theme" role="group" aria-label="테마">
+  <button data-t="system" class="on">시스템</button><button data-t="light">라이트</button><button data-t="dark">다크</button>
+</div>
+<div class="wrap">
+  <h1>프로젝트, 직접 쉽게 고치기</h1>
+  <p class="lead">계획을 대신 짜 주지 않는다. 한 줄로 만들고, 보이는 그 자리에서 고치고, 태그 줄로 묶는다. 보드·타임라인·관계도 모양은 지금 그대로다. 예시는 <b>투자자산운용사 시험</b>. 명세는 41 (31 §12.14).</p>
+
+  <h2>지금 고치기 어려운 곳 → 고침</h2>
+  <p class="sub">지금 코드(<code>components/map/plan/*</code>)와 31 §12.9~12.13을 읽고 찾은 곳이다. 아래 시안에서 하나씩 직접 눌러 볼 수 있다.</p>
+  <div class="fix">
+    <div class="fix__c"><b>① 만드는 길이 둘</b><p class="now">머리 <code>＋ 새 프로젝트</code>(아이콘·이름·팀원·분류 창)와 카드 <code>같이 계획 짜기</code>(물음 4개 대화). 둘이 무엇이 다른지 안 보인다.</p><p class="then"><code>＋ 새 프로젝트</code> 하나. 카드 자리에서 바로 한 줄을 적는다. 같이 짜기 대화는 프로젝트 ⋯ 메뉴로 옮긴다.</p></div>
+    <div class="fix__c"><b>② 날짜를 넣을 곳이 없음</b><p class="now"><code>투자자산운용사 시험 11/23</code>을 적으면 11/23까지 이름이 된다. 마감은 할 일 제목의 '제출·시험일' 같은 말로 짐작한다(<code>projectDeadline</code>의 직접 지정 칸은 비어 있음).</p><p class="then">날짜를 알아보고 <b>⚑ 핵심 날짜 할 일</b> 하나를 만든다. 이 날짜가 프로젝트 마감과 D-day가 된다.</p></div>
+    <div class="fix__c"><b>③ 이름 바꾸기가 숨어 있음</b><p class="now">제목을 두 번 눌러야 하고, 그러면 작은 창이 뜬다. 안내는 툴팁뿐이다.</p><p class="then">제목을 한 번 누르면 그 자리에서 고친다(Enter 저장, Esc 취소). 칩 제목도 같다.</p></div>
+    <div class="fix__c"><b>④ 팀원·집중이 머리에 없음</b><p class="now">팀원은 만들 때 창에서만 넣을 수 있다. 집중은 ⋯ 메뉴 안에 있다.</p><p class="then">머리 한 줄에 <b>D-day 알약 · 팀원 칩 ＋ · 집중</b>을 둔다. 모두 누르면 바로 바뀐다.</p></div>
+    <div class="fix__c"><b>⑤ 줄을 내 마음대로 못 만듦</b><p class="now">줄은 일의 종류 5개로 정해져 있다. 시험 공부는 전부 <code>조사·분석</code>(공부·기출 낱말) 한 줄에 쌓인다.</p><p class="then"><b>줄: 태그</b>(틱틱 그룹 기준). <code>＋ 줄 추가</code>에 <code>#금융상품</code>을 적으면 줄이 생긴다. 칩을 그 줄로 끌면 태그가 붙는다.</p></div>
+    <div class="fix__c"><b>⑥ 날짜 고르기가 없음</b><p class="now">끌기, 아니면 우클릭 <code>날짜 ›</code>(오늘·내일·다음 주 월요일·지우기)뿐이다. 칩의 날짜 글자는 눌러도 반응이 없다.</p><p class="then">날짜 글자를 누르면 날짜 팝오버가 열린다(오늘·내일·달력).</p></div>
+    <div class="fix__c"><b>⑦ 기간을 못 그림</b><p class="now">칩은 하루짜리 점이고 폭이 160으로 고정이다. '1회독 10/12~10/18'을 그릴 수 없다.</p><p class="then">시작일이 있으면 막대로 그린다. <b>칩 끝을 끌면</b> 시작일이나 끝날이 바뀐다(캘린더 끝 끌기와 같은 방식).</p></div>
+    <div class="fix__c"><b>⑧ 한꺼번에 미루기 없음</b><p class="now">여러 개를 고른 띠의 <code>날짜</code>는 오늘·내일·지우기뿐이다.</p><p class="then"><code>하루 미루기 · 일주일 미루기 · 날짜 고르기</code>(간격은 그대로)와 <code>태그 ›</code>. 고른 칩 하나를 끌면 고른 칩이 모두 같이 움직인다.</p></div>
+    <div class="fix__c"><b>⑨ 머리 도구가 많음</b><p class="now">새 할 일 · 할 일 넣기 · 자동으로 넣은 것만 · 다음 단계 같이 짜기, 그리고 보기 3개가 한 줄에 있다.</p><p class="then"><code>＋ 할 일</code> 하나로 합친다. 적으면 새 할 일이 되고, 아래 목록에서 이미 있는 할 일을 골라 넣을 수도 있다. 같이 짜기는 ⋯ 메뉴로 옮긴다.</p></div>
+  </div>
+
+  <!-- ① 만들기 -->
+  <h2>① 만들기: 한 줄</h2>
+  <p class="sub">점선 카드 <b>＋ 새 프로젝트</b>를 누르면 그 카드가 입력칸으로 바뀐다(창이 따로 뜨지 않음). 날짜를 알아보고 날짜 이름은 이름의 낱말에서 고른다(시험 → <code>시험</code>, 공모전·대회 → <code>제출</code>, 그 밖 → <code>마감</code>). 칩으로 바꿀 수 있다. <b>할 일을 대신 만들지 않는다</b>: 생기는 것은 프로젝트와 ⚑ 핵심 날짜 할 일 하나뿐이다.</p>
+  <span class="flabel">데스크톱 · 작업 지도 보드</span>
+  <div class="scroll"><div class="app">
+    <div class="rail"><div class="av">고</div><i></i><i></i><i class="on"></i><i></i><i></i></div>
+    <div class="main">
+      <div class="mhead"><h3>작업 지도</h3><span class="sp"></span><button class="ib" title="전체 지도">⧉</button><button class="ib">?</button><button class="ib">⋯</button></div>
+      <div class="mhead" style="margin-bottom:0"><span class="sum" id="bsum">프로젝트 2개 · 가장 가까운 마감은 K 데이터 공모전 제출 10/10</span><span class="sp"></span><button class="btn pri" id="bnew">＋ 새 프로젝트</button></div>
+      <div class="grid" id="bgrid">
+        <div class="pc"><div class="pc__h"><span>🚀</span><span class="pc__t">K 데이터 공모전</span></div><div class="pc__l">14개 중 9개 완료 · <b class="hot">제출 10/10</b></div><div class="bar"><i style="width:64%"></i></div><div class="nx"><span class="ck"></span>발표 자료 다듬기<small>10/8</small></div></div>
+        <div class="pc"><div class="pc__h"><span>🚀</span><span class="pc__t">UniPort</span><span class="pc__auto">자동</span></div><div class="pc__l">8개 중 3개 완료 · 마감 없음</div><div class="bar"><i style="width:37%"></i></div><div class="nx"><span class="ck"></span>온보딩 화면 시안<small>10/9</small></div></div>
+        <div class="pc pc--new" id="bnewcard" tabindex="0" role="button"><span class="plus">＋ 새 프로젝트</span><span style="font-size:12.5px">이름과 날짜를 한 줄로. 예: 투자자산운용사 시험 11/23</span></div>
+      </div>
+    </div>
+  </div></div>
+
+  <span class="flabel">데스크톱 · 프로젝트가 하나도 없을 때 (빈 상태)</span>
+  <div class="scroll"><div class="app">
+    <div class="rail"><div class="av">고</div><i></i><i></i><i class="on"></i><i></i><i></i></div>
+    <div class="main" style="min-height:0">
+      <div class="mhead"><h3>작업 지도</h3><span class="sp"></span><button class="ib">⧉</button><button class="ib">?</button><button class="ib">⋯</button></div>
+      <div class="empty">
+        <div class="buddy">🦦</div>
+        <b style="font-size:16px">날짜가 있는 큰 일을 프로젝트로 만들어요</b>
+        <span style="color:var(--t2);font-size:13px">여러 리스트에 흩어진 일을 한 화면에 모아 보고, 줄로 나눠 직접 고쳐요.</span>
+        <div class="np__hl" style="width:min(520px,100%)"><input class="np__in" id="emptyin" placeholder="예: 투자자산운용사 시험 11/23" aria-label="새 프로젝트"></div>
+        <div class="guide" id="emptyguide"></div>
+      </div>
+    </div>
+  </div></div>
+  <p class="sub" style="margin-top:8px">예시를 누르면 입력칸이 채워진다(날짜 자리는 비워 두고 커서를 거기 둔다). 같은 안내가 새 프로젝트 카드 입력칸 아래에도 있다. 소개 사이트(<code>site/</code>)에도 같은 글을 쓴다(41 §2.5).</p>
+
+  <!-- ② 프로젝트 화면 -->
+  <h2>② 프로젝트 화면: 그 자리에서 고치기</h2>
+  <p class="sub">이 시안은 직접 만질 수 있다. <b>칩 끌기</b> = 날짜·줄 · <b>칩 끝 끌기</b> = 기간 · <b>칩 누르고 제목 다시 누르기</b> = 이름 고치기(Enter = 저장하고 같은 줄에 다음 것 적기) · <b>날짜 글자</b> = 날짜 고르기 · <kbd>⌘</kbd>/<kbd>⇧</kbd> 누르기 = 여러 개 → 미루기 · <kbd>Delete</kbd> · <kbd>⌘Z</kbd> · <b>줄 이름 누르기</b> = 태그 이름 바꾸기 · <b>✕</b> = 줄 지우기 · <b>＋ 줄 추가</b>.</p>
+  <span class="flabel">데스크톱 · 프로젝트 화면 (타임라인 · 줄: 태그)</span>
+  <div class="scroll"><div class="app">
+    <div class="rail"><div class="av">고</div><i></i><i></i><i class="on"></i><i></i><i></i></div>
+    <div class="main" id="proj">
+      <button class="crumb">← 모든 프로젝트</button>
+      <div class="ph">
+        <button class="ph__icon" title="아이콘 고르기">📜</button>
+        <h2 class="ph__name" id="pname" contenteditable="true" spellcheck="false" title="눌러서 이름 고치기">투자자산운용사 시험</h2>
+        <button class="pill" id="pdday" title="핵심 날짜 바꾸기"></button>
+        <span class="team" id="pteam"></span>
+        <button class="pill focus" id="pfocus">지금 집중</button>
+        <span class="sp"></span>
+        <button class="ib" title="⋯ 이름·아이콘 · 다음 단계 같이 짜기 · 태그 페이지 · 프로젝트 아님 · 삭제">⋯</button>
+      </div>
+      <div class="ph__line"><span id="pline"></span><div class="bar"><i id="pbar" style="width:0"></i></div></div>
+      <div class="tools">
+        <div class="seg"><button>단계</button><button class="on">타임라인</button><button>관계도</button></div>
+        <div class="grp"><button class="btn" id="gbtn">줄: 태그 ▾</button></div>
+        <span class="sp"></span>
+        <div class="demo"><button class="btn txt" id="dfresh">막 만든 상태</button><button class="btn txt" id="dfill">예시 채운 상태</button></div>
+        <button class="btn pri" id="padd">＋ 할 일</button>
+      </div>
+      <div id="starter"></div>
+      <div id="pickbar"></div>
+      <div class="tl-wrap"><div class="tl" id="tl"></div></div>
+      <div class="legend"><span>○ 남음 · ● 끝냄 · ⚑ 핵심 날짜</span><span>빨간 선 = 오늘 · 점선 = 핵심 날짜</span><span>＋로 추가 · 끌어서 날짜·줄 · 끝 끌기 = 기간 · 우클릭·⋯ = 삭제</span></div>
+    </div>
+  </div></div>
+
+  <!-- ③ 휴대폰 -->
+  <h2>③ 휴대폰: 같은 규칙, 목록 모양</h2>
+  <p class="sub">휴대폰 프로젝트 화면(29 §9.2)은 묶음 목록 그대로다. 묶기 기준을 <b>태그</b>로 바꿀 수 있고, 묶음 이름을 누르면 고친다. <b>＋ 묶음 추가</b>, 행을 길게 눌러 다른 묶음으로 끌면 태그가 바뀐다. 머리에는 D-day·팀원·집중을 둔다.</p>
+  <div class="phones">
+    <div>
+      <div class="phone"><div class="phone__bar"><span>9:41</span><span>●●●</span></div>
+        <div class="phone__body">
+          <div class="m-nav"><span>‹ 모든 프로젝트</span><span>⋯</span></div>
+          <div class="m-title" contenteditable="true" spellcheck="false">투자자산운용사 시험</div>
+          <div class="m-meta"><span class="pill">⚑ 시험 11/23 <span class="dd">D-48</span></span><span class="pill">팀원 ＋</span><span class="pill focus on">집중</span></div>
+          <div class="m-sub">9개 중 1개 완료 · 묶기: 태그</div>
+          <div class="bar"><i style="width:11%"></i></div>
+          <div class="m-group"><div class="m-gh"><span>#금융상품</span><span class="c">2</span></div><div class="m-card">
+            <div class="m-row"><span class="ck"></span>1과목 1회독<small>10/12–10/18</small></div>
+            <div class="m-row"><span class="ck"></span>세제 암기 카드<small>10/20</small></div>
+            <div class="m-row add">＋ 할 일 추가</div></div></div>
+          <div class="m-group"><div class="m-gh"><span>#투자운용</span><span class="c">2</span></div><div class="m-card">
+            <div class="m-row"><span class="ck"></span>2과목 1회독<small>10/19–10/27</small></div>
+            <div class="m-row"><span class="ck"></span>투자분석 계산 문제<small>10/29</small></div>
+            <div class="m-row add"><input placeholder="＋ 할 일 추가" value="리스크관리 정리 10/30"></div></div></div>
+          <div class="m-group"><div class="m-gh"><span>#법규</span><span class="c">1</span></div><div class="m-card">
+            <div class="m-row"><span class="ck"></span>3과목 법규 1회독<small>10/28–11/6</small></div>
+            <div class="m-row add">＋ 할 일 추가</div></div></div>
+          <div class="m-group"><div class="m-gh"><span>태그 없음</span><span class="c">4</span></div><div class="m-card">
+            <div class="m-row"><span class="ck"></span>기출 30문제 ↻<small>오늘</small></div>
+            <div class="m-row"><span class="ck"></span>원서 접수<small>10/14</small></div>
+            <div class="m-row"><span class="ck"></span>⚑ 투자자산운용사 시험일<small>11/23</small></div>
+            <div class="m-row add">＋ 할 일 추가</div></div></div>
+          <div class="m-newg">＋ 묶음 추가</div>
+        </div>
+      </div>
+      <p class="cap">묶음 이름을 누르면 그 자리에서 고친다(태그 이름이 바뀜). 길게 누르면 <code>이름 바꾸기 · 묶음 지우기</code>. 행 왼쪽 밀기는 <code>빼기 · 삭제</code>(그대로).</p>
+    </div>
+    <div>
+      <div class="phone"><div class="phone__bar"><span>9:41</span><span>●●●</span></div>
+        <div class="phone__body">
+          <div class="m-nav"><span>‹</span><span></span></div>
+          <div class="m-title">작업 지도</div>
+          <div class="m-sub">프로젝트 2개 · 가장 가까운 마감: K 데이터 공모전 제출 10/10</div>
+          <div class="m-card" style="margin-top:10px;padding:12px 14px;background:var(--bg);border:1px solid var(--line)"><b>🚀 K 데이터 공모전</b><div class="m-sub" style="margin:4px 0 0">14개 중 9개 완료 · 제출 10/10</div></div>
+          <div class="m-newg">＋ 새 프로젝트</div>
+        </div>
+        <div class="m-dim"></div>
+        <div class="m-sheet"><div class="grab"></div>
+          <div style="font:600 16px var(--font);margin-bottom:10px">새 프로젝트</div>
+          <input value="투자자산운용사 시험 11/23" aria-label="새 프로젝트">
+          <div class="np__prev" style="margin:10px 2px"><b>📜 투자자산운용사 시험</b> · <span class="np__date">⚑ 시험 11/23(월)</span> · D-48</div>
+          <div class="np__words" style="margin:0 2px 14px"><button class="chip on">시험</button><button class="chip">제출</button><button class="chip">마감</button><button class="chip">발표</button></div>
+          <div class="guide" style="margin-bottom:12px"><div class="guide__h">이럴 때 써요</div><div class="guide__x"><button>자격증 시험</button><button>공모전·해커톤</button><button>팀 과제·졸업작품</button><button>장학금·지원사업</button><button>취업</button><button>행사</button><button>이사·여행</button></div><div class="guide__no">한 번 하고 끝 → 리스트 · 습관 → 반복 · 막연한 주제 → 태그</div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><span class="np__more">팀원 · 아이콘 ›</span><button class="btn pri" style="height:40px;padding:0 20px;font-size:15px">만들기</button></div>
+        </div>
+      </div>
+      <p class="cap">보드 맨 아래 <code>＋ 새 프로젝트</code>를 누르면 아래 시트에 한 줄을 적는다. 만들면 바로 그 프로젝트 화면으로 밀려 들어간다.</p>
+    </div>
+  </div>
+
+  <h2>결정 필요</h2>
+  <div class="dec">
+    <div class="dec__c"><b>1. 핵심 날짜는 무엇으로 둘까</b>(가) ⚑ 진짜 할 일 하나 + 프로젝트 마감으로 이음 · (나) 프로젝트 태그에만 날짜를 둠<br><span class="rec">추천 (가)</span>: 캘린더·오늘·알림에 그대로 뜨고 새 개념이 없다.</div>
+    <div class="dec__c"><b>2. 새 프로젝트의 줄 기준</b>(가) 태그 · (나) 일의 종류(지금)<br><span class="rec">추천 (가)</span>: 손으로 만드는 프로젝트는 처음에 태그 줄로 연다. 원래 있던 프로젝트는 일의 종류 그대로 둔다.</div>
+    <div class="dec__c"><b>3. 줄 태그가 둘 붙은 할 일</b>(가) 앞 줄에만 보이고 <code>+1</code> 표시 · (나) 두 줄 모두에 보임<br><span class="rec">추천 (가)</span>: 끌어 옮길 때 무엇이 바뀌는지 분명하다. 틱틱 태그 그룹이 어떻게 하는지는 [미확인], 확인한 뒤 맞춘다.</div>
+    <div class="dec__c"><b>4. 보드의 '같이 계획 짜기' 카드</b>(가) 보드에서 빼고 프로젝트 ⋯ 메뉴 <code>다음 단계 같이 짜기</code>만 남김 · (나) 그대로 둠<br><span class="rec">추천 (가)</span>: 만드는 길을 하나로 하고, 계획을 짜 주는 화면을 앞에 두지 않는다.</div>
+  </div>
+  <div class="fact"><b>예시 날짜 참고 [확인 필요]</b>: 11/23은 사용자가 든 예시를 그대로 쓴 것이다. 금융투자협회 자격시험센터 첫 화면에는 <b>제47회 투자자산운용사 시험일이 2026-11-08(일)</b>로 나와 있다(license.kofia.or.kr, 2026-10-06 확인). 접수 10/12~10/16과 합격 발표 11/19는 교육 업체 공지(wowpass)에만 있어서 확인이 필요하다. 앱은 이런 날짜를 대신 채우지 않는다. 사람이 적은 날짜만 쓴다.</div>
+</div>
+
+<div id="toast" class="toast" hidden><span id="tmsg"></span><button id="tundo">되돌리기</button></div>
+
+<script>
+// ── 테마 ──
+document.querySelectorAll('.theme button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.theme button').forEach(x=>x.classList.toggle('on',x===b))
+  const t=b.dataset.t; if(t==='system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme=t
+})
+
+// ── 날짜 도우미: 0 = 2026-10-05(월), 오늘 = 1 ──
+const BASE=new Date(2026,9,5), TODAY=1, SPAN=56, DAY=24, LW=120
+const dOf=i=>new Date(2026,9,5+i)
+const md=i=>{const d=dOf(i);return `${d.getMonth()+1}/${d.getDate()}`}
+const WD='일월화수목금토'
+const wd=i=>WD[dOf(i).getDay()]
+const iso=i=>{const d=dOf(i);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+const fromIso=s=>{const [y,m,d]=s.split('-').map(Number);return Math.round((new Date(y,m-1,d)-BASE)/864e5)}
+const fromMD=(m,d)=>Math.round((new Date(2026,m-1,d)-BASE)/864e5)
+// 한 줄 읽기(빠른 추가 인식의 아주 작은 흉내): M/D, M/D~M/D, 'M월 D일', 오늘·내일, 매일, #태그
+function parse(raw){
+  let s=' '+raw+' ', start=null, due=null, repeat=false, tag=null
+  let m=s.match(/\s(\d{1,2})\/(\d{1,2})\s*[~\-–]\s*(\d{1,2})\/(\d{1,2})(?=\s)/)
+  if(m){start=fromMD(+m[1],+m[2]);due=fromMD(+m[3],+m[4]);s=s.replace(m[0],' ')}
+  else if((m=s.match(/\s(\d{1,2})\/(\d{1,2})(?=\s)/))){due=fromMD(+m[1],+m[2]);s=s.replace(m[0],' ')}
+  else if((m=s.match(/\s(\d{1,2})월\s?(\d{1,2})일(?=\s)/))){due=fromMD(+m[1],+m[2]);s=s.replace(m[0],' ')}
+  else if((m=s.match(/\s(오늘|내일)(?=\s)/))){due=TODAY+(m[1]==='내일'?1:0);s=s.replace(m[0],' ')}
+  if((m=s.match(/\s매일(?=\s)/))){repeat=true;if(due==null)due=TODAY;s=s.replace(m[0],' ')}
+  if((m=s.match(/\s#(\S+)(?=\s)/))){tag=m[1];s=s.replace(m[0],' ')}
+  return {title:s.trim().replace(/\s+/g,' '),start,due,repeat,tag}
+}
+const iconFor=n=>/시험|자격증|SQLD|ADsP|토익|기사/.test(n)?'📜':/공모전|대회|해커톤|챌린지/.test(n)?'🏆':/창업|지원사업|지원|장학금/.test(n)?'🌱':'🚀'
+// 이럴 때 써요 — 예시를 누르면 입력칸을 채운다(날짜는 비워 둠)
+const USES=[['자격증 시험','과목별 줄','투자자산운용사 시험 '],['공모전·해커톤','회의·조사·개발·제출','K 데이터 공모전 '],['팀 과제·졸업작품','','졸업작품 '],['장학금·지원사업','서류·면접·결과','창업지원장학금 '],['취업','회사별 줄','하반기 취업 '],['업무 프로젝트·행사','','신제품 런칭 행사 '],['이사·여행','','부산 이사 ']]
+function guide(el,fill){
+  el.innerHTML=`<div class="guide__h">이럴 때 써요</div><div class="guide__x">${USES.map((u,i)=>`<button data-i="${i}">${u[0]}${u[1]?`<small>${u[1]}</small>`:''}</button>`).join('')}</div>
+  <div class="guide__no">이럴 땐 다른 걸 써요: 한 번 하고 끝나는 일은 <b>리스트</b>, 끝없이 하는 습관은 <b>반복</b>, 막연한 주제는 <b>태그</b>.</div>`
+  el.querySelectorAll('button').forEach(b=>b.onclick=e=>{e.stopPropagation();fill(USES[+b.dataset.i][2])})
+}
+;(()=>{const i=document.getElementById('emptyin');guide(document.getElementById('emptyguide'),v=>{i.value=v;i.focus();i.setSelectionRange(v.length,v.length)})})()
+const wordFor=name=>/시험|자격증|SQLD|ADsP|토익|기사/.test(name)?'시험':/공모전|대회|해커톤|챌린지|장학금|지원사업/.test(name)?'제출':/발표|졸업작품/.test(name)?'발표':/여행/.test(name)?'출발':/이사/.test(name)?'이사':'마감'
+
+// ── 토스트 · 되돌리기 ──
+let undoStack=[], toastT
+function toast(msg,undo){
+  const el=document.getElementById('toast');document.getElementById('tmsg').textContent=msg
+  const b=document.getElementById('tundo');b.hidden=!undo;b.onclick=()=>{undo&&undo();el.hidden=true}
+  el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,4200)
+}
+
+// ── ① 보드: 한 줄로 만들기 ──
+;(()=>{
+  const card=document.getElementById('bnewcard'), grid=document.getElementById('bgrid')
+  let word=null
+  const open=()=>{
+    if(card.classList.contains('is-edit'))return
+    card.classList.add('is-edit');word=null
+    card.innerHTML=`<input class="np__in" id="npin" placeholder="예: 투자자산운용사 시험 11/23" value="투자자산운용사 시험 11/23" aria-label="새 프로젝트">
+      <div class="np__prev" id="npprev"></div>
+      <div class="np__words" id="npwords"></div>
+      <span class="np__more">팀원 · 아이콘 › <span style="color:var(--t3)">(접힘, 공모전이면 팀원)</span></span>
+      <div class="guide" id="npguide"></div>
+      <div class="np__acts"><button class="btn" id="npx">취소</button><button class="btn pri" id="npok">만들기</button></div>`
+    const inp=document.getElementById('npin');inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length)
+    const draw=()=>{
+      const r=parse(inp.value), w=word??wordFor(r.title)
+      document.getElementById('npprev').innerHTML=r.title
+        ? `<b>${iconFor(r.title)} ${esc(r.title)}</b>${r.due!=null?` · <span class="np__date">⚑ ${w} ${md(r.due)}(${wd(r.due)})</span> · D-${r.due-TODAY}`:' · <span style="color:var(--t3)">날짜 없이 만들어도 돼요</span>'}`
+        : '<span style="color:var(--t3)">이름을 적어 주세요</span>'
+      document.getElementById('npwords').innerHTML=r.due!=null?['시험','제출','마감','발표'].map(x=>`<button class="chip${x===w?' on':''}" data-w="${x}">${x}</button>`).join(''):''
+      document.querySelectorAll('#npwords .chip').forEach(c=>c.onclick=()=>{word=c.dataset.w;draw();inp.focus()})
+    }
+    inp.oninput=draw;draw()
+    guide(document.getElementById('npguide'),v=>{inp.value=v;inp.focus();inp.setSelectionRange(v.length,v.length);draw()})
+    const make=()=>{
+      const r=parse(inp.value);if(!r.title)return
+      const w=word??wordFor(r.title)
+      const el=document.createElement('div');el.className='pc'
+      el.innerHTML=`<div class="pc__h"><span>${iconFor(r.title)}</span><span class="pc__t">${esc(r.title)}</span></div><div class="pc__l">1개 중 0개 완료${r.due!=null?` · <b>${w} ${md(r.due)}</b> · D-${r.due-TODAY}`:''}</div><div class="bar"><i style="width:0"></i></div><div class="nx"><span class="ck"></span>${r.due!=null?`⚑ ${esc(r.title)}${/[시험제출마감발표]$/.test(r.title)?'':' '+w}일`:'다음 할 일 없음'}<small>${r.due!=null?md(r.due):''}</small></div>`
+      el.onclick=()=>document.getElementById('proj').scrollIntoView({behavior:'smooth',block:'start'})
+      grid.insertBefore(el,card);close()
+      document.getElementById('bsum').textContent='프로젝트 3개 · 가장 가까운 마감은 K 데이터 공모전 제출 10/10'
+      toast(`'${r.title}' 프로젝트를 만들었어요 · 바로 열어요`,()=>{el.remove();document.getElementById('bsum').textContent='프로젝트 2개 · 가장 가까운 마감은 K 데이터 공모전 제출 10/10'})
+    }
+    inp.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing)make();if(e.key==='Escape')close()}
+    document.getElementById('npok').onclick=e=>{e.stopPropagation();make()}
+    document.getElementById('npx').onclick=e=>{e.stopPropagation();close()}
+  }
+  const close=()=>{card.classList.remove('is-edit');card.innerHTML='<span class="plus">＋ 새 프로젝트</span><span style="font-size:12.5px">이름과 날짜를 한 줄로. 예: 투자자산운용사 시험 11/23</span>'}
+  card.onclick=open;card.onkeydown=e=>{if(e.key==='Enter')open()}
+  document.getElementById('bnew').onclick=()=>{open();card.scrollIntoView({block:'nearest'})}
+})()
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+// ── ② 프로젝트 화면 ──
+const KINDS=['조사·분석','미팅·회의','개발','행정·제출','기타']
+const kindOf=t=>t.kindOv??(/접수|수험표|결과|시험일|신청|제출/.test(t.title)?'행정·제출':/회의|미팅|스터디 모임/.test(t.title)?'미팅·회의':/공부|회독|암기|요약|문제|기출|모의고사|정리|강의/.test(t.title)?'조사·분석':'기타')
+let S, nid=100
+const fresh=()=>({starter:true,name:'투자자산운용사 시험',exam:49,word:'시험',team:[],focus:false,by:'tag',lanes:[],tasks:[{id:'ms',title:'투자자산운용사 시험일',lane:null,due:49,start:null,ms:true}]})
+const filled=()=>({name:'투자자산운용사 시험',exam:49,word:'시험',team:[],focus:false,by:'tag',
+  lanes:[{id:'L1',name:'금융상품'},{id:'L2',name:'투자운용'},{id:'L3',name:'법규'}],
+  tasks:[
+    {id:'a1',title:'1과목 1회독',lane:'L1',start:7,due:13},
+    {id:'a2',title:'세제 암기 카드',lane:'L1',due:15},
+    {id:'b1',title:'2과목 1회독',lane:'L2',start:14,due:22},
+    {id:'b2',title:'투자분석 계산 문제',lane:'L2',due:24},
+    {id:'c1',title:'3과목 법규 1회독',lane:'L3',start:23,due:32},
+    {id:'c2',title:'직무윤리 요약',lane:'L3',due:34},
+    {id:'n0',title:'기출 30문제',lane:null,due:1,repeat:true,done:false},
+    {id:'n1',title:'원서 접수',lane:null,due:9},
+    {id:'n2',title:'모의고사 1회',lane:null,due:40},
+    {id:'n3',title:'오답 노트 정리',lane:null,due:44},
+    {id:'ms',title:'투자자산운용사 시험일',lane:null,due:49,ms:true}
+  ]})
+S=filled()
+let sel=new Set(), adding=null, addDay=null, renaming=null, newLane=false, menu=null
+const snap=()=>JSON.stringify(S)
+function mutate(msg,f){const before=snap();f();render();toast(msg,()=>{S=JSON.parse(before);sel.clear();render()});undoStack.push(before)}
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'&&!e.target.closest('input,[contenteditable=true]')&&undoStack.length){e.preventDefault();S=JSON.parse(undoStack.pop());sel.clear();render();toast('되돌렸어요')}
+})
+
+function laneList(){
+  if(S.by==='tag') return [...S.lanes.map(l=>({id:l.id,name:'#'+l.name,raw:l.name,tag:true})),{id:null,name:'태그 없음'}]
+  const used=new Set(S.tasks.map(kindOf)); return KINDS.filter(k=>used.has(k)||k==='기타').map(k=>({id:k,name:k}))
+}
+const laneOfTask=t=>S.by==='tag'?(t.lane??null):kindOf(t)
+const chipW=t=>{
+  const txt=Math.min(150,t.title.length*12.6)+ (t.ms?14:16) + 36 + (t.repeat?12:0)
+  if(t.start!=null) return Math.max((t.due-t.start+1)*DAY, txt)
+  return txt
+}
+const chipX=t=>LW+((t.start??t.due))*DAY+2
+
+function render(){
+  // 머리
+  const n=document.getElementById('pname'); if(document.activeElement!==n) n.textContent=S.name
+  const dd=S.exam-TODAY
+  document.getElementById('pdday').innerHTML=S.exam!=null?`⚑ ${S.word} ${md(S.exam)}(${wd(S.exam)}) <span class="dd${dd<=3?' hot':''}">D-${dd}</span>`:'＋ 핵심 날짜'
+  const team=document.getElementById('pteam')
+  team.innerHTML=`<span style="color:var(--t3)">팀원</span>`+S.team.map((p,i)=>`<span class="p">👤 ${esc(p)}<button data-i="${i}" aria-label="${esc(p)} 빼기">✕</button></span>`).join('')+`<button class="add" id="tadd">＋</button>`
+  team.querySelectorAll('.p button').forEach(b=>b.onclick=()=>{const p=S.team[+b.dataset.i];mutate(`팀원 '${p}'를 뺐어요`,()=>S.team.splice(+b.dataset.i,1))})
+  document.getElementById('tadd').onclick=()=>{
+    const inp=document.createElement('input');inp.placeholder='예: 민수, 지은';document.getElementById('tadd').replaceWith(inp);inp.focus()
+    inp.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){const ps=inp.value.split(/[,\s]|랑/).map(x=>x.trim()).filter(Boolean);if(ps.length)mutate(`팀원 ${ps.length}명을 이었어요`,()=>S.team.push(...ps));else render()}if(e.key==='Escape')render()}
+    inp.onblur=()=>setTimeout(render,100)
+  }
+  const fb=document.getElementById('pfocus');fb.classList.toggle('on',S.focus);fb.textContent=S.focus?'집중 중 ✓':'지금 집중'
+  const total=S.tasks.length, done=S.tasks.filter(t=>t.done).length
+  document.getElementById('pline').textContent=`${total}개 중 ${done}개 완료`
+  document.getElementById('pbar').style.width=(total?done/total*100:0)+'%'
+  document.getElementById('gbtn').textContent=`줄: ${S.by==='tag'?'태그':'일의 종류'} ▾`
+
+  // 처음 한 번: 줄 나누기 제안(이름에서 짐작 · 누를 때만 · 닫으면 다시 안 뜸)
+  const st=document.getElementById('starter')
+  st.innerHTML=S.starter&&S.by==='tag'?`<div class="bub"><span class="av">🦦</span><span>줄을 과목별로 나눌까요?</span><button class="btn" id="stgo">＋ 과목 추가</button><button class="btn txt" id="stno">괜찮아요</button><small style="color:var(--t3)">공모전이면 '회의·조사·개발·제출로 나눌까요? [그렇게]'</small></div>`:''
+  if(S.starter&&S.by==='tag'){document.getElementById('stgo').onclick=()=>{S.starter=false;newLane=true;render();const i=document.getElementById('nlin');i.focus();i.setSelectionRange(1,1)};document.getElementById('stno').onclick=()=>{S.starter=false;render()}}
+  // 고른 띠
+  const pb=document.getElementById('pickbar')
+  pb.innerHTML= sel.size>1?`<div class="pick" role="toolbar"><b>${sel.size}개 고름</b>
+    <button class="btn" data-a="d1">하루 미루기</button><button class="btn" data-a="d7">일주일 미루기</button>
+    <span class="grp"><button class="btn" data-a="pickdate">날짜 고르기…</button></span>
+    <span class="grp"><button class="btn" data-a="tag">태그 ›</button></span>
+    <button class="btn" data-a="done">완료</button><button class="btn dng" data-a="del">삭제</button>
+    <span class="sp"></span><button class="btn txt" data-a="clear">고름 풀기 ✕</button></div>`:''
+  pb.querySelectorAll('button').forEach(b=>b.onclick=e=>pickAct(b.dataset.a,b,e))
+
+  // 타임라인
+  const tl=document.getElementById('tl'); const W=LW+SPAN*DAY; tl.style.width=W+'px'
+  let h=`<div class="tl__scale">`
+  for(let i=0;i<SPAN;i++){ if(dOf(i).getDay()===1) h+=`<span style="left:${LW+i*DAY}px">${md(i)}</span>` }
+  h+=`</div>`
+  const lanes=laneList(); let y=28; const laneBoxes=[]
+  let body=''
+  for(const L of lanes){
+    const K=L.id??'__none'
+    const items=S.tasks.filter(t=>laneOfTask(t)===L.id).sort((a,b)=>chipX(a)-chipX(b))
+    const rows=[]; const pos=[]
+    for(const t of items){const x=chipX(t),w=chipW(t);let r=rows.findIndex(e=>e+6<=x);if(r<0){r=rows.length;rows.push(0)}rows[r]=x+w;pos.push({t,x,w,r})}
+    const nr=Math.max(1,rows.length), hh=nr*32+10+(adding===K?34:28)
+    laneBoxes.push({id:L.id,top:y,h:hh})
+    body+=`<div class="lane" data-lane="${L.id??''}" style="height:${hh}px">`
+    body+=`<div class="lane__h">${L.tag?`<span class="lane__n" contenteditable="true" spellcheck="false" data-lid="${L.id}" title="눌러서 태그 이름 고치기">${esc(L.name)}</span>`:`<span class="lane__n" style="cursor:default">${esc(L.name)}</span>`}<span class="lane__c">${items.length}</span>${L.tag?`<button class="lane__x" data-x="${L.id}" title="줄 지우기 — 할 일에서 이 태그만 떼요">✕</button>`:''}</div>`
+    for(const p of pos){
+      const t=p.t, isSel=sel.has(t.id), bar=t.start!=null
+      const extra=S.by==='tag'?'':''
+      body+=`<div class="tk${bar?' is-bar':''}${isSel?' is-sel':''}${t.done?' is-done':''}" data-id="${t.id}" style="left:${p.x}px;top:${6+p.r*32}px;${bar?`width:${p.w}px`:''}">
+        ${t.ms?'<span class="ms">⚑</span>':'<span class="cr" data-ck="1"></span>'}
+        <span class="tk__t" ${renaming===t.id?'contenteditable="true"':''}>${esc(t.title)}</span>${t.repeat?'<span class="tk__r">↻</span>':''}
+        <span class="tk__d" data-date="1" title="눌러서 날짜 고르기">${t.start!=null?`~${md(t.due)}`:md(t.due)}</span>${extra}
+        ${t.ms?'':'<span class="tk__e l" data-edge="l"></span><span class="tk__e r" data-edge="r"></span>'}
+      </div>`
+    }
+    const ay=hh-(adding===K?31:25)
+    body+= adding===K
+      ? `<input class="lane__in" id="lanein" style="top:${ay}px" placeholder="${L.tag?L.name+'에 ':''}할 일 — '10/12', '10/12~10/18', '매일'" aria-label="할 일 추가"><span class="lane__hint" style="top:${ay+6}px">Enter로 계속 · Esc 닫기${addDay!=null?` · 날짜 없으면 ${md(addDay)}`:''}</span>`
+      : `<button class="lane__add" data-add="${K}" style="top:${ay}px">＋ 할 일 추가</button>`
+    body+=`</div>`; y+=hh
+  }
+  if(S.by==='tag') body+= newLane
+    ? `<div class="newlane"><input id="nlin" placeholder="#태그 이름 — 예: #금융상품" value="#" aria-label="새 줄 태그"><small>있는 태그면 그것을 쓰고, 없으면 새로 만들어요 · Enter</small></div>`
+    : `<div class="newlane"><button id="nlbtn">＋ 줄 추가</button><small>태그 이름을 적으면 줄이 생겨요. 칩을 줄로 끌면 그 태그가 붙어요.</small></div>`
+  else body+=`<div class="newlane"><small>일의 종류 줄은 정해져 있어요. 줄을 직접 만들려면 <b>줄: 태그</b>로 바꿔요.</small></div>`
+  const totalH=y+40
+  let bg=''
+  for(let i=0;i<SPAN;i++){const g=dOf(i).getDay();if(g===0||g===6)bg+=`<div class="tl__day" style="left:${LW+i*DAY}px;width:${DAY}px"></div>`}
+  bg+=`<div class="tl__today" style="left:${LW+TODAY*DAY+DAY/2}px"><b>오늘 ${md(TODAY)}</b></div>`
+  if(S.exam!=null) bg+=`<div class="tl__dl" style="left:${LW+S.exam*DAY+DAY/2}px"><b>⚑ ${S.word} ${md(S.exam)}</b></div>`
+  tl.innerHTML=bg+h+body
+  tl.style.height=totalH+'px'
+  tl._lanes=laneBoxes
+  wire()
+}
+
+function wire(){
+  const tl=document.getElementById('tl')
+  // 줄 이름 고치기
+  tl.querySelectorAll('.lane__n[data-lid]').forEach(el=>{
+    const id=el.dataset.lid
+    el.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();el.blur()}if(e.key==='Escape'){el.textContent='#'+S.lanes.find(l=>l.id===id).name;el.blur()}}
+    el.onblur=()=>{const v=el.textContent.replace(/^#/,'').trim(),L=S.lanes.find(l=>l.id===id);if(!L)return;if(v&&v!==L.name)mutate(`태그 이름을 '#${v}'로 바꿨어요 · 이 태그가 붙은 모든 곳에서 바뀌어요`,()=>L.name=v);else render()}
+  })
+  tl.querySelectorAll('.lane__x').forEach(b=>b.onclick=()=>{const L=S.lanes.find(l=>l.id===b.dataset.x);const n=S.tasks.filter(t=>t.lane===L.id).length
+    mutate(`'#${L.name}' 줄을 지웠어요 · 할 일 ${n}개는 태그 없음으로 · 태그는 남아요`,()=>{S.tasks.forEach(t=>{if(t.lane===L.id)t.lane=null});S.lanes=S.lanes.filter(l=>l!==L)})})
+  // 줄 추가
+  const nb=document.getElementById('nlbtn');if(nb)nb.onclick=()=>{newLane=true;render();const i=document.getElementById('nlin');i.focus();i.setSelectionRange(1,1)}
+  const nl=document.getElementById('nlin');if(nl){
+    nl.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){const v=nl.value.replace(/^#/,'').trim();if(!v)return;const id='L'+(++nid);newLane=false;mutate(`'#${v}' 줄을 만들었어요`,()=>S.lanes.push({id,name:v}));adding=id;addDay=null;render();focusAdd()}
+      if(e.key==='Escape'){newLane=false;render()}}
+    nl.onblur=()=>setTimeout(()=>{if(newLane){newLane=false;render()}},150)
+  }
+  // 줄마다 할 일 추가
+  tl.querySelectorAll('.lane__add').forEach(b=>b.onclick=()=>{adding=b.dataset.add;addDay=null;render();focusAdd()})
+  const li=document.getElementById('lanein');if(li){
+    li.onkeydown=e=>{
+      if(e.key==='Enter'&&!e.isComposing){const r=parse(li.value);if(!r.title)return
+        const lid=adding==='__none'?null:adding
+        const t={id:'t'+(++nid),title:r.title,due:r.due??addDay??TODAY+1,start:r.start,repeat:r.repeat}
+        if(S.by==='tag'){t.lane=lid;if(r.tag){let L=S.lanes.find(l=>l.name===r.tag);if(!L){L={id:'L'+(++nid),name:r.tag};S.lanes.push(L)}t.lane=L.id}}else{t.lane=null;t.kindOv=lid}
+        mutate(`'${t.title}'을 넣었어요`,()=>S.tasks.push(t));focusAdd()}
+      if(e.key==='Escape'){adding=null;addDay=null;render()}}
+    li.onblur=()=>setTimeout(()=>{if(document.activeElement?.id!=='lanein'&&adding){adding=null;addDay=null;render()}},150)
+  }
+  // 칩
+  tl.querySelectorAll('.tk').forEach(el=>el.onpointerdown=e=>chipDown(e,el))
+  tl.querySelectorAll('.tk').forEach(el=>el.oncontextmenu=e=>{e.preventDefault();const id=el.dataset.id;if(!sel.has(id)){sel=new Set([id])}render();
+    openMenu(document.querySelector(`.tk[data-id="${id}"]`),[['열기',()=>toast('오른쪽 상세가 열려요')],['이름 바꾸기',()=>startRename(id)],['날짜 고르기…',()=>openDate(id)],['완료',()=>toggleDone([...sel])],'-',['프로젝트에서 빼기 — 리스트엔 남아요',()=>remove([...sel],'뺐어요 · 리스트엔 그대로예요')],['삭제 — 휴지통으로',()=>remove([...sel],'휴지통으로 옮겼어요'),true]])})
+  const rn=tl.querySelector('.tk__t[contenteditable=true]');if(rn){
+    rn.focus();const r=document.createRange();r.selectNodeContents(rn);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r)
+    rn.onpointerdown=e=>e.stopPropagation()
+    rn.onkeydown=e=>{
+      if(e.key==='Enter'&&!e.isComposing){e.preventDefault();const t=S.tasks.find(x=>x.id===renaming);const v=rn.textContent.trim();const atEnd=getSelection().focusOffset>=rn.textContent.length;renaming=null
+        if(v&&v!==t.title)mutate('이름을 바꿨어요',()=>t.title=v)
+        if(atEnd&&!t.ms){adding=S.by==='tag'?(t.lane??'__none'):kindOf(t);addDay=t.due;render();focusAdd()}else render()}
+      if(e.key==='Escape'){renaming=null;render()}}
+    rn.onblur=()=>setTimeout(()=>{if(renaming){const t=S.tasks.find(x=>x.id===renaming);const v=rn.textContent.trim();renaming=null;if(v&&v!==t.title)mutate('이름을 바꿨어요',()=>t.title=v);else render()}},50)
+  }
+}
+function focusAdd(){const i=document.getElementById('lanein');if(i)i.focus()}
+function startRename(id){renaming=id;render()}
+function toggleDone(ids){mutate(`${ids.length}개를 완료했어요`,()=>ids.forEach(id=>{const t=S.tasks.find(x=>x.id===id);if(t&&!t.ms)t.done=!t.done}))}
+function remove(ids,msg){const ms=ids.filter(id=>id==='ms');ids=ids.filter(id=>id!=='ms');if(!ids.length){toast('핵심 날짜는 머리의 ⚑ 알약에서 지워요');return}sel.clear();mutate(`${ids.length>1?ids.length+'개를 ':''}${msg}`,()=>S.tasks=S.tasks.filter(t=>!ids.includes(t.id)))}
+
+// 끌기: 몸통 = 날짜·줄(고른 것 함께), 끝 = 기간
+function chipDown(e,el){
+  if(e.button!==0||e.target.closest('[contenteditable=true]'))return
+  const id=el.dataset.id, t=S.tasks.find(x=>x.id===id), edge=e.target.dataset.edge, onTitle=!!e.target.closest('.tk__t'), onDate=!!e.target.closest('.tk__d'), onCk=!!e.target.dataset.ck
+  const wasSel=sel.has(id)&&sel.size===1
+  const group=(sel.has(id)&&sel.size>1)?[...sel]:[id]
+  const orig=group.map(g=>{const x=S.tasks.find(y=>y.id===g);return {x,start:x.start,due:x.due,lane:x.lane,kindOv:x.kindOv}})
+  const sx=e.clientX, sy=e.clientY; let moved=false, before=snap(), tip=null
+  const tl=document.getElementById('tl')
+  const move=ev=>{
+    const dx=ev.clientX-sx, dy=ev.clientY-sy
+    if(!moved&&Math.hypot(dx,dy)<4)return
+    if(!moved&&t.ms&&edge)return
+    moved=true
+    const dd=Math.round(dx/DAY)
+    if(edge){
+      if(edge==='r'){const base=t.start??t.due;const nd=Math.max(base,orig[0].due+dd);if(t.start==null&&nd!==t.due){t.start=orig[0].due}t.due=nd;if(t.start===t.due)t.start=null}
+      else{const s0=orig[0].start??orig[0].due;const ns=Math.min(t.due,s0+dd);t.start=ns===t.due?null:ns}
+    }else{
+      const rect=tl.getBoundingClientRect();const yy=ev.clientY-rect.top;const L=(tl._lanes||[]).find(b=>yy>=b.top&&yy<b.top+b.h)
+      for(const o of orig){
+        o.x.due=Math.min(SPAN-1,Math.max(0,o.due+dd)); if(o.start!=null)o.x.start=o.start+dd
+        if(L&&!o.x.ms){ if(S.by==='tag')o.x.lane=L.id; else o.x.kindOv=L.id }
+      }
+      if(t.ms)S.exam=t.due
+    }
+    render()
+    const nel=document.querySelector(`.tk[data-id="${id}"]`);if(nel){nel.classList.add(edge?'is-resize':'is-drag');const tp=document.createElement('span');tp.className='tk__tip';tp.textContent=t.start!=null?`${md(t.start)}–${md(t.due)}`:`${md(t.due)}(${wd(t.due)})`;nel.appendChild(tp)}
+  }
+  const up=ev=>{
+    document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up)
+    if(moved){
+      undoStack.push(before)
+      const msg=edge?`기간을 ${t.start!=null?md(t.start)+'–'+md(t.due):md(t.due)}로 바꿨어요`:group.length>1?`${group.length}개를 옮겼어요`:(orig[0].lane!==t.lane||orig[0].kindOv!==t.kindOv)?(S.by==='tag'?(t.lane?`'#${S.lanes.find(l=>l.id===t.lane).name}' 태그를 붙였어요`:'줄 태그를 뗐어요'):'일의 종류를 바꿨어요'):`날짜를 ${md(t.due)}로 바꿨어요`
+      const b=before;render();toast(msg,()=>{S=JSON.parse(b);render()});return
+    }
+    // 누르기
+    if(onCk){toggleDone([id]);return}
+    if(onDate){sel=new Set([id]);render();openDate(id);return}
+    if(ev.metaKey||ev.ctrlKey||ev.shiftKey){sel.has(id)?sel.delete(id):sel.add(id);render();return}
+    if(wasSel&&onTitle){startRename(id);return}
+    sel=new Set([id]);render()
+  }
+  document.addEventListener('pointermove',move);document.addEventListener('pointerup',up)
+}
+
+// 날짜 팝오버(틱틱 날짜 고르기를 줄인 모양)
+function openDate(id){
+  const t=S.tasks.find(x=>x.id===id), anchor=document.querySelector(`.tk[data-id="${id}"] .tk__d`)
+  const set=(due,start=null,msg)=>mutate(msg??`날짜를 ${md(due)}로 바꿨어요`,()=>{t.due=due;t.start=start;if(t.ms)S.exam=due})
+  openMenu(anchor,[['오늘',()=>set(TODAY)],['내일',()=>set(TODAY+1)],['다음 주 월요일',()=>set(7)],'-',
+    ['__date',iso(t.due),v=>set(fromIso(v))],
+    '<small>칩 끝을 끌면 기간이 돼요</small>'])
+}
+function openMenu(anchor,items){
+  closeMenu()
+  const m=document.createElement('div');m.className='menu'
+  for(const it of items){
+    if(it==='-'){m.appendChild(document.createElement('hr'));continue}
+    if(typeof it==='string'){m.insertAdjacentHTML('beforeend',it);continue}
+    if(it[0]==='__date'){const i=document.createElement('input');i.type='date';i.value=it[1];i.min=iso(0);i.max=iso(SPAN-1);i.onchange=()=>{closeMenu();it[2](i.value)};m.appendChild(i);continue}
+    if(it[0]==='__words'){const w=document.createElement('div');w.className='words';w.innerHTML=it[1];m.appendChild(w);continue}
+    const b=document.createElement('button');b.innerHTML=it[0];if(it[2])b.style.color='var(--danger)';b.onclick=()=>{closeMenu();it[1]()};m.appendChild(b)
+  }
+  document.body.appendChild(m)
+  const r=anchor.getBoundingClientRect();m.style.position='absolute';m.style.left=Math.min(r.left+scrollX,innerWidth-200+scrollX)+'px';m.style.top=(r.bottom+scrollY+4)+'px'
+  menu=m;setTimeout(()=>document.addEventListener('pointerdown',outside),0)
+}
+function outside(e){if(menu&&!menu.contains(e.target))closeMenu()}
+function closeMenu(){if(menu){menu.remove();menu=null;document.removeEventListener('pointerdown',outside)}}
+
+function pickAct(a,b){
+  const ids=[...sel], ts=ids.map(id=>S.tasks.find(t=>t.id===id)).filter(t=>t&&!t.done)
+  const shift=n=>mutate(`${ts.length}개를 ${n===1?'하루':'일주일'} 미뤘어요`,()=>ts.forEach(t=>{t.due=Math.min(SPAN-1,t.due+n);if(t.start!=null)t.start+=n;if(t.ms)S.exam=t.due}))
+  if(a==='d1')shift(1); if(a==='d7')shift(7)
+  if(a==='pickdate'){const min=Math.min(...ts.map(t=>t.start??t.due));openMenu(b,[['__date',iso(min),v=>{const d=fromIso(v)-min;mutate(`${ts.length}개를 옮겼어요 · 간격은 그대로`,()=>ts.forEach(t=>{t.due+=d;if(t.start!=null)t.start+=d;if(t.ms)S.exam=t.due}))}],'<small>가장 이른 일이 그 날짜로, 나머지는 간격 그대로</small>'])}
+  if(a==='tag'){openMenu(b,[...S.lanes.map(L=>['#'+esc(L.name),()=>mutate(`${ids.length}개에 '#${L.name}'를 붙였어요`,()=>ids.forEach(id=>{const t=S.tasks.find(x=>x.id===id);if(!t.ms)t.lane=L.id}))]),'-',['태그 없음으로',()=>mutate('줄 태그를 뗐어요',()=>ids.forEach(id=>{const t=S.tasks.find(x=>x.id===id);t.lane=null}))]])}
+  if(a==='done')toggleDone(ids)
+  if(a==='del')remove(ids,'휴지통으로 옮겼어요')
+  if(a==='clear'){sel.clear();render()}
+}
+
+// 머리
+const pn=document.getElementById('pname')
+pn.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();pn.blur()}if(e.key==='Escape'){pn.textContent=S.name;pn.blur()}}
+pn.onblur=()=>{const v=pn.textContent.trim();if(v&&v!==S.name)mutate('이름을 바꿨어요',()=>S.name=v);else pn.textContent=S.name}
+document.getElementById('pdday').onclick=e=>{
+  const ms=S.tasks.find(t=>t.ms)
+  openMenu(e.currentTarget,['<small>핵심 날짜 — ⚑ 할 일과 같은 날짜예요</small>',['__date',iso(S.exam??TODAY),v=>mutate(`핵심 날짜를 ${md(fromIso(v))}로 바꿨어요`,()=>{S.exam=fromIso(v);if(ms)ms.due=S.exam})],
+    ['__words',['시험','제출','마감','발표'].map(w=>`<button class="chip${w===S.word?' on':''}" data-w="${w}">${w}</button>`).join('')],'-',
+    ['핵심 날짜 지우기 <small style="display:inline;padding:0">⚑ 할 일은 남아요</small>',()=>mutate('핵심 날짜를 지웠어요',()=>{S.exam=null;if(ms)ms.ms=false})]])
+  menu.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{const w=c.dataset.w;closeMenu();mutate(`날짜 이름을 '${w}'로 바꿨어요`,()=>S.word=w)})
+}
+document.getElementById('pfocus').onclick=()=>mutate(S.focus?'집중을 껐어요':`지금 '${S.name}'에 집중해요 · 빠른 추가에 붙여 둘게요`,()=>S.focus=!S.focus)
+document.getElementById('gbtn').onclick=e=>openMenu(e.currentTarget,[[`태그${S.by==='tag'?' <span class="ok">✓</span>':''}`,()=>{S.by='tag';sel.clear();render()}],[`일의 종류${S.by==='kind'?' <span class="ok">✓</span>':''}`,()=>{S.by='kind';sel.clear();render()}],'<small>프로젝트마다 기억해요 (틱틱 그룹 기준)</small>'])
+document.getElementById('padd').onclick=e=>{
+  openMenu(e.currentTarget,['<small>새 할 일 — 적고 Enter · 아래는 이미 있는 할 일</small>','<input id="pqa" style="margin:2px 8px 6px;width:calc(100% - 16px);height:30px;border:1px solid var(--accent);border-radius:6px;background:var(--input);color:var(--t1);padding:0 8px;font:400 13px var(--font);outline:none" placeholder="예: 수험표 출력 11/16 #법규">','-',
+    ['☐ 금융 공부 노트 다시 보기 <small style="display:inline;padding:0">· 기본함</small>',()=>mutate("'금융 공부 노트 다시 보기'를 넣었어요",()=>S.tasks.push({id:'t'+(++nid),title:'금융 공부 노트 다시 보기',lane:null,due:3}))],
+    ['☐ 경제 뉴스 스크랩 <small style="display:inline;padding:0">· 공부</small>',()=>mutate("'경제 뉴스 스크랩'을 넣었어요",()=>S.tasks.push({id:'t'+(++nid),title:'경제 뉴스 스크랩',lane:null,due:5}))]])
+  menu.style.width='340px'
+  const i=document.getElementById('pqa');i.focus()
+  i.onkeydown=ev=>{if(ev.key==='Enter'&&!ev.isComposing){const r=parse(i.value);if(!r.title)return;const t={id:'t'+(++nid),title:r.title,due:r.due??TODAY+1,start:r.start,repeat:r.repeat,lane:null};if(r.tag){let L=S.lanes.find(l=>l.name===r.tag);if(!L){L={id:'L'+(++nid),name:r.tag};S.lanes.push(L)}t.lane=L.id}const keep=menu;mutate(`'${t.title}'을 넣었어요`,()=>S.tasks.push(t));i.value='';if(keep)i.focus()}if(ev.key==='Escape')closeMenu()}
+}
+document.getElementById('dfresh').onclick=()=>{S=fresh();sel.clear();render();toast('막 만든 상태: ⚑ 핵심 날짜 하나뿐이에요. ＋ 줄 추가로 시작해 보세요')}
+document.getElementById('dfill').onclick=()=>{S=filled();sel.clear();render()}
+document.addEventListener('keydown',e=>{
+  if(e.target.closest('input,[contenteditable=true]'))return
+  if((e.key==='Delete'||e.key==='Backspace')&&sel.size){e.preventDefault();remove([...sel],'휴지통으로 옮겼어요')}
+  if(e.key==='Enter'&&sel.size===1){e.preventDefault();startRename([...sel][0])}
+  if(e.key==='Escape'&&sel.size){sel.clear();render()}
+})
+render()
+</script>
+</body>
+</html>
