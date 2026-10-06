@@ -4,8 +4,9 @@
 import { addDays, addMinutes, datePart, daysBetween, hasTime, minutesBetween, nextOccurrence, parseRule, timePart, toDate, WEEKDAY_KO } from '@sprout/schema/time'
 import { startOfWeek, weekHead, type WeekStart } from '@sprout/schema/weekStart'
 
-export type MobileCalView = 'list' | 'day' | '3day' | 'month'
-export const CAL_VIEWS: [MobileCalView, string][] = [['list', '목록'], ['day', '일'], ['3day', '3일'], ['month', '월']]
+export type MobileCalView = 'list' | 'year' | 'month' | 'week' | '3day' | 'day'
+/** 보기 메뉴 순서 = 틱틱(research 34 §3.4): 목록 · 년 · 월 · 주 · 3일 · 일 */
+export const CAL_VIEWS: [MobileCalView, string][] = [['list', '목록'], ['year', '년'], ['month', '월'], ['week', '주'], ['3day', '3일'], ['day', '일']]
 /** 목록(일정) 보기가 보여 주는 날 수 [임시] */
 export const AGENDA_DAYS = 30
 export const HOUR_H = 56 // 시안 G-2: 1시간 56
@@ -45,6 +46,15 @@ export function rangeOf(view: MobileCalView, cursor: string, ws: WeekStart = 0):
     const days = Array.from({ length: AGENDA_DAYS }, (_, i) => addDays(cursor, i))
     return { from: days[0], to: days[days.length - 1], days }
   }
+  if (view === 'week') {
+    const from = weekStart(cursor, ws)
+    const days = Array.from({ length: 7 }, (_, i) => addDays(from, i))
+    return { from, to: days[6], days }
+  }
+  if (view === 'year') {
+    const y = cursor.slice(0, 4)
+    return { from: `${y}-01-01`, to: `${y}-12-31`, days: [] }
+  }
   const days = monthDays(cursor, ws)
   return { from: days[0], to: days[days.length - 1], days }
 }
@@ -52,6 +62,8 @@ export function shiftCursor(view: MobileCalView, cursor: string, n: number): str
   if (view === 'day') return addDays(cursor, n)
   if (view === '3day') return addDays(cursor, 3 * n)
   if (view === 'list') return addDays(cursor, AGENDA_DAYS * n)
+  if (view === 'week') return addDays(cursor, 7 * n)
+  if (view === 'year') return `${Number(cursor.slice(0, 4)) + n}-${cursor.slice(5, 7)}-01`
   const d = toDate(`${cursor.slice(0, 7)}-01`)
   d.setMonth(d.getMonth() + n)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`

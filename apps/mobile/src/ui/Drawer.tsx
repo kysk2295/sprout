@@ -6,7 +6,7 @@
 // 고르면 같은 목록 화면에 그 목록. 아이콘은 Lucide(오픈 라이선스), 색 배치만 틱틱처럼 여러 색.
 import { useRouter } from 'expo-router'
 import {
-  Ban, CalendarCheck, CalendarRange, ChevronDown, ChevronRight, CircleCheck, Folder, Funnel, Hash, Inbox, Layers, Plus, Settings, SlidersHorizontal, Sunrise, Trash2
+  ArrowUpToLine, Ban, CalendarCheck, CalendarRange, ChevronDown, ChevronRight, CircleCheck, Folder, Funnel, Hash, Inbox, Layers, Pencil, Plus, Settings, SlidersHorizontal, Sunrise, Trash2
 } from 'lucide-react-native'
 import { useEffect, useState, type ReactNode } from 'react'
 import { BlurView } from 'expo-blur'
@@ -28,6 +28,7 @@ import { useTasksView } from '../state/tasksView'
 import { FONT } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { PopMenu, type MenuItem, type Rect } from './Menu'
+import { SwipeRow, type SwipeAction } from './SwipeRow'
 import { FilterEditSheet, FolderEditSheet, ListEditSheet, TagEditSheet } from './OrgSheets'
 import { useToast } from './Toast'
 import { DUR, EASE, SPRING, useReducedMotion } from './motion'
@@ -75,7 +76,8 @@ export function Drawer() {
   const scrim = useAnimatedStyle(() => ({ opacity: drawerP.value }))
   const blur = useAnimatedStyle(() => ({ opacity: drawerP.value * 0.9 }))
   const drag = Gesture.Pan()
-    .activeOffsetX([-10, 10])
+    // 행 왼쪽 밀기(둥근 칸, 12)가 먼저 잡히게 판 끌어 닫기는 30부터
+    .activeOffsetX([-30, 30])
     .onUpdate((e) => { drawerP.value = Math.max(0, Math.min(1, 1 + e.translationX / width)) })
     .onEnd((e) => {
       if (e.translationX < -width * 0.3 || e.velocityX < -500) scheduleOnRN(setDrawerOpen, false)
@@ -147,6 +149,22 @@ export function Drawer() {
     ]
   })
 
+  // 39 G19 [영상 실측 research 34 §3.5]: 리스트·태그·필터 행 왼쪽 밀기 = 둥근 칸(상단 고정 노랑 · 편집 주황 · 삭제 빨강)
+  const circ = (I: typeof Pencil) => <I size={18} color="#fff" />
+  const swipeList = (l: (typeof lists)[number]): SwipeAction[] => [
+    { key: 'pin', color: p.swipePin, icon: circ(ArrowUpToLine), label: l.pinned ? '고정 해제' : '상단 고정', onPress: () => void pinList(l.id, !l.pinned) },
+    { key: 'edit', color: p.swipeDate, icon: circ(Pencil), label: '편집', onPress: () => setEdit({ kind: 'list', id: l.id }) },
+    { key: 'del', color: p.swipeDel, icon: circ(Trash2), label: '삭제', onPress: () => confirm(`"${l.name}" 리스트를 삭제할까요?`, '안의 할 일은 휴지통으로 옮겨져요. 휴지통에서 복원하면 이 리스트로 돌아와요.', '삭제', async () => { await deleteList(l.id); leaveIf(`list:${l.id}`) }) }
+  ]
+  const swipeTag = (t: (typeof tags)[number]): SwipeAction[] => [
+    { key: 'pin', color: p.swipePin, icon: circ(ArrowUpToLine), label: t.pinned ? '고정 해제' : '상단 고정', onPress: () => void pinTag(t.id, !t.pinned) },
+    { key: 'edit', color: p.swipeDate, icon: circ(Pencil), label: '편집', onPress: () => setEdit({ kind: 'tag', id: t.id }) },
+    { key: 'del', color: p.swipeDel, icon: circ(Trash2), label: '삭제', onPress: () => confirm(`"#${t.name}" 태그를 삭제할까요?`, '할 일은 그대로 두고 태그만 떼어요.', '삭제', async () => { await deleteTag(t.id); leaveIf(`tag:${t.id}`) }) }
+  ]
+  const swipeFilter = (f: (typeof filters)[number]): SwipeAction[] => [
+    { key: 'edit', color: p.swipeDate, icon: circ(Pencil), label: '편집', onPress: () => setEdit({ kind: 'filter', id: f.id }) },
+    { key: 'del', color: p.swipeDel, icon: circ(Trash2), label: '삭제', onPress: () => confirm(`"${f.name}" 필터를 삭제할까요?`, '할 일은 지워지지 않아요.', '삭제', async () => { await deleteFilter(f.id); leaveIf(`filter:${f.id}`) }) }
+  ]
   const Row = (r: { v?: ViewKey; icon: ReactNode; label: string; n?: number; depth?: number; right?: ReactNode; onPress?: () => void; onLongPress?: (e: GestureResponderEvent) => void }) => (
     <Pressable
       accessibilityRole="button"
@@ -206,7 +224,7 @@ export function Drawer() {
             {show('next7', counts.smart.next7) ? <Row v="smart:next7" icon={<CalendarRange size={22} color={p.slWeek} />} label="다음 7일" n={counts.smart.next7} /> : null}
             {inbox ? <Row v="smart:inbox" icon={<Inbox size={22} color={p.slInbox} />} label="기본함" n={counts.smart.inbox} onLongPress={(e) => setMenu({ rect: at(e), items: [{ key: 'edit', label: '편집', onPress: () => afterMenu(() => setEdit({ kind: 'list', id: inbox.id })) }] })} /> : null}
             {hr}
-            {loose.map((l) => <Row key={l.id} v={`list:${l.id}`} icon={listIcon(l)} label={l.name} n={counts.lists[l.id]} onLongPress={(e) => listMenu(l, e)} />)}
+            {loose.map((l) => <SwipeRow key={l.id} round right={swipeList(l)}><Row v={`list:${l.id}`} icon={listIcon(l)} label={l.name} n={counts.lists[l.id]} onLongPress={(e) => listMenu(l, e)} /></SwipeRow>)}
             {folders.map((f) => {
               const kids = normal.filter((l) => l.folder_id === f.id)
               const open = !!openFolders[f.id]
@@ -224,7 +242,7 @@ export function Drawer() {
                       </Pressable>
                     }
                   />
-                  {open ? kids.map((l) => <Row key={l.id} depth={1} v={`list:${l.id}`} icon={listIcon(l)} label={l.name} n={counts.lists[l.id]} onLongPress={(e) => listMenu(l, e)} />) : null}
+                  {open ? kids.map((l) => <SwipeRow key={l.id} round right={swipeList(l)}><Row depth={1} v={`list:${l.id}`} icon={listIcon(l)} label={l.name} n={counts.lists[l.id]} onLongPress={(e) => listMenu(l, e)} /></SwipeRow>) : null}
                 </View>
               )
             })}
@@ -232,7 +250,7 @@ export function Drawer() {
               <>
                 <Section id="filters" label="필터" onAdd={() => setEdit({ kind: 'filter', id: null })} />
                 {openSec.filters ? (filters.length ? filters.map((f) => (
-                  <Row key={f.id} v={`filter:${f.id}`} icon={f.emoji ? <Text style={{ fontSize: 17 }}>{f.emoji}</Text> : <Funnel size={20} color={p.textSecondary} />} label={f.name} onLongPress={(e) => filterMenu(f, e)} />
+                  <SwipeRow key={f.id} round right={swipeFilter(f)}><Row v={`filter:${f.id}`} icon={f.emoji ? <Text style={{ fontSize: 17 }}>{f.emoji}</Text> : <Funnel size={20} color={p.textSecondary} />} label={f.name} onLongPress={(e) => filterMenu(f, e)} /></SwipeRow>
                 )) : <Text style={[s.hint, { color: p.textQuaternary }]}>조건으로 할 일을 모아 보세요</Text>) : null}
               </>
             ) : null}
@@ -241,8 +259,8 @@ export function Drawer() {
                 <Section id="tags" label="태그" onAdd={() => setEdit({ kind: 'tag', id: null })} />
                 {openSec.tags ? (topTags.length ? topTags.map((t) => (
                   <View key={t.id}>
-                    <Row v={`tag:${t.id}`} icon={<Hash size={20} color={t.color ?? p.textSecondary} />} label={t.name} n={org.tags[t.id]} onLongPress={(e) => tagMenu(t, e)} />
-                    {tags.filter((c) => c.parent_id === t.id).map((c) => <Row key={c.id} depth={1} v={`tag:${c.id}`} icon={<Hash size={18} color={c.color ?? p.textSecondary} />} label={c.name} n={org.tags[c.id]} onLongPress={(e) => tagMenu(c, e)} />)}
+                    <SwipeRow round right={swipeTag(t)}><Row v={`tag:${t.id}`} icon={<Hash size={20} color={t.color ?? p.textSecondary} />} label={t.name} n={org.tags[t.id]} onLongPress={(e) => tagMenu(t, e)} /></SwipeRow>
+                    {tags.filter((c) => c.parent_id === t.id).map((c) => <SwipeRow key={c.id} round right={swipeTag(c)}><Row depth={1} v={`tag:${c.id}`} icon={<Hash size={18} color={c.color ?? p.textSecondary} />} label={c.name} n={org.tags[c.id]} onLongPress={(e) => tagMenu(c, e)} /></SwipeRow>)}
                   </View>
                 )) : <Text style={[s.hint, { color: p.textQuaternary }]}>할 일에 #태그를 붙이면 여기에 보여요</Text>) : null}
               </>

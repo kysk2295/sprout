@@ -11,7 +11,7 @@
 //   구글·Apple 캐시 전용 일정(데스크톱 16)은 컴퓨터의 기기 데이터라 휴대폰에는 없다.
 import { useQuery } from '@powersync/react-native'
 import { useLocalSearchParams, useRouter, useScrollToTop } from 'expo-router'
-import { CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Check, Columns3, Ellipsis, ExternalLink, List, Plus, Square, Trash2 } from 'lucide-react-native'
+import { CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Check, Columns3, Columns4, Ellipsis, ExternalLink, Grid3x3, List, Plus, Square, Trash2 } from 'lucide-react-native'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
@@ -29,7 +29,7 @@ import { completeTasks, moveDates, reopenTasks, setPinned, setPriority, trashTas
 import { COLUMNS, type TaskRow } from '../data/views'
 import { dayKey, nextMonday } from '../lib/dates'
 import { hx } from '../ui/haptics'
-import { DUR, SPRING } from '../ui/motion'
+import { DUR, popIn, SPRING } from '../ui/motion'
 import { alpha, FONT, M, mix, type Palette } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { useEventMenu } from '../ui/EventMenu'
@@ -58,7 +58,7 @@ import { isMine } from '../calendars/link'
 import { myLinkAccount, useDeviceEvents } from '../calendars/store'
 
 type Item = CalItem<TaskRow>
-const VIEW_ICON: Record<MobileCalView, typeof List> = { list: List, day: Square, '3day': Columns3, month: CalendarDays }
+const VIEW_ICON: Record<MobileCalView, typeof List> = { list: List, year: Grid3x3, month: CalendarDays, week: Columns4, '3day': Columns3, day: Square }
 const GUTTER = 48
 
 /** 항목 모양(06 §14.2·§14.3): 일정 / 완료 / 지난 미완료 / 보통 */
@@ -187,11 +187,14 @@ export default function CalendarScreen() {
     withUndo('옮겼어요', () => updateTask(t.id, before))
   }
 
-  const title = monthTitle(view === 'month' ? `${cursor.slice(0, 7)}-01` : cursor, today)
+  const title = view === 'year' ? `${cursor.slice(0, 4)}년` : monthTitle(view === 'month' ? `${cursor.slice(0, 7)}-01` : cursor, today)
   const shift = (n: number) => setCursor((c) => (view === 'month' ? (() => { const m = shiftCursor('month', c, n); return m.slice(0, 7) === today.slice(0, 7) ? today : m })() : shiftCursor(view, c, n)))
   const bottomPad = space.padFab
   const ViewIcon = VIEW_ICON[view]
-  const timeline = view === 'day' || view === '3day'
+  const timeline = view === 'day' || view === '3day' || view === 'week'
+  // 년 → 월(달 누름): 월 보기가 커지며 옅게 나타남 [영상 실측 120ms]
+  const [fromYear, setFromYear] = useState(0)
+  const openMonth = (m: string) => { setFromYear((n) => n + 1); setCursor(m.slice(0, 7) === today.slice(0, 7) ? today : m); setView('month') }
 
   return (
     <View style={{ flex: 1, backgroundColor: view === 'list' ? p.pageBg : p.cardBg }}>
@@ -208,7 +211,9 @@ export default function CalendarScreen() {
         </View>
       </View>
 
+      {view === 'year' ? <YearView year={cursor.slice(0, 4)} today={today} items={items} ws={ws} onPick={openMonth} onShift={shift} bottomPad={bottomPad} /> : null}
       {view === 'month' ? (
+        <Animated.View key={`m${fromYear}`} entering={fromYear ? monthZoom : undefined} style={{ flex: 1 }}>
         <MonthView
           ws={ws}
           today={today}
@@ -220,6 +225,7 @@ export default function CalendarScreen() {
           marks={marks}
           list={(fold) => <DayList day={cursor} today={today} items={itemsOnDay(items, cursor)} onCheck={check} onOpen={openDetail} onLong={setLp} onAdd={() => addAt(cursor)} bottomPad={bottomPad} fold={fold} />}
         />
+        </Animated.View>
       ) : null}
       {timeline ? (
         <Timeline
@@ -297,6 +303,52 @@ function dayTone(p: Palette, d: string, mk: DayMarks, faded: boolean, base = p.t
   const c = mk.holiday || w === 0 ? p.holiday : w === 6 ? p.saturday : null
   if (!c) return faded ? p.textQuaternary : base
   return faded ? alpha(c, 0.45) : c
+}
+
+// ── 년(39 G18 · 20 §7 — research 34 §3.4) ──
+const monthZoom = popIn(0.92, 120)
+function YearView(props: { year: string; today: string; items: Item[]; ws: WeekStart; onPick: (month: string) => void; onShift: (n: number) => void; bottomPad: number }) {
+  const p = usePalette()
+  const win = useWindowDimensions()
+  const cellW = Math.floor((win.width - 24 - 2 * 14) / 3 / 7)
+  // 날마다 할 일·일정 수(시작 날 기준) — 칸 진하기
+  const counts = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const it of props.items) { const d = it.start.slice(0, 10); m.set(d, (m.get(d) ?? 0) + 1) }
+    return m
+  }, [props.items])
+  const { onShift } = props
+  const swipe = Gesture.Pan().activeOffsetY([-24, 24]).failOffsetX([-20, 20]).onEnd((e) => {
+    if (e.translationY < -60 || e.velocityY < -600) scheduleOnRN(onShift, 1)
+    else if (e.translationY > 60 || e.velocityY > 600) scheduleOnRN(onShift, -1)
+  })
+  return (
+    <GestureDetector gesture={swipe}>
+      <View style={[s.year, { paddingBottom: props.bottomPad }]}>
+        {Array.from({ length: 12 }, (_, i) => {
+          const m = `${props.year}-${String(i + 1).padStart(2, '0')}-01`
+          const days = monthDays(m, props.ws)
+          return (
+            <Pressable key={m} accessibilityRole="button" accessibilityLabel={`${i + 1}월`} onPress={() => props.onPick(m)} style={({ pressed }) => [s.ym, pressed && { opacity: 0.6 }]}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: m.slice(0, 7) === props.today.slice(0, 7) ? p.accent : p.textPrimary, marginBottom: 4 }}>{i + 1}월</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', width: cellW * 7 }}>
+                {days.map((d) => {
+                  const other = d.slice(0, 7) !== m.slice(0, 7)
+                  const n = other ? 0 : counts.get(d) ?? 0
+                  const isToday = d === props.today
+                  return (
+                    <View key={d} style={[s.yc, { width: cellW, height: cellW }, n ? { backgroundColor: alpha(p.accent.slice(0, 7), n > 3 ? 0.5 : n > 1 ? 0.32 : 0.18) } : null, isToday && { backgroundColor: p.accent, borderRadius: cellW / 2 }]}>
+                      {other ? null : <Text style={{ fontSize: 9, lineHeight: 11, color: isToday ? '#fff' : p.textSecondary }}>{Number(d.slice(8))}</Text>}
+                    </View>
+                  )
+                })}
+              </View>
+            </Pressable>
+          )
+        })}
+      </View>
+    </GestureDetector>
+  )
 }
 
 // ── 월 ──
@@ -496,7 +548,7 @@ function Timeline(props: {
 }) {
   const p = usePalette()
   const win = useWindowDimensions()
-  const days = props.view === 'day' ? [props.cursor] : rangeOf('3day', props.cursor).days
+  const days = props.view === 'day' ? [props.cursor] : props.view === 'week' ? rangeOf('week', props.cursor, props.ws).days : rangeOf('3day', props.cursor).days
   const colW = (win.width - GUTTER) / days.length
   const scroll = useRef<ScrollView>(null)
   useScrollToTop(scroll)
@@ -784,6 +836,9 @@ function UndatedSheet(props: { open: boolean; day: string; today: string; onClos
 }
 
 const s = StyleSheet.create({
+  year: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingTop: 8, alignContent: 'flex-start' },
+  ym: { width: '33.33%', paddingHorizontal: 7, paddingVertical: 8 },
+  yc: { alignItems: 'center', justifyContent: 'center', borderRadius: 3 },
   head: { height: M.navH, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 },
   wd: { flexDirection: 'row', height: 26, alignItems: 'center' },
   wdText: { flex: 1, textAlign: 'center', fontSize: 12 },

@@ -13,7 +13,8 @@ import { hx } from './haptics'
 import { DUR, EASE, RUBBER, SPRING, timing } from './motion'
 
 export type SwipeAction = { key: string; color: string; icon: ReactNode; label: string; onPress: () => void; /** 누르면 행이 그 쪽 밖으로 밀려 나간 뒤 실행(삭제) */ leaves?: boolean }
-const CELL = 60
+const CELL_SQ = 60
+const CELL_ROUND = 48
 const FULL = 0.4
 const VEL = 400
 
@@ -29,6 +30,8 @@ export function SwipeRow(props: {
   fullLabel?: string
   fullColor?: string
   enabled?: boolean
+  /** 둥근 칸(서랍 리스트·태그 행 — research 34 §3.5 [영상 실측]): 바탕 없이 지름 40 원 */
+  round?: boolean
 }) {
   const left = props.left ?? []
   const right = props.right ?? []
@@ -41,6 +44,7 @@ export function SwipeRow(props: {
   const nL = left.length
   const nR = right.length
   const alive = useRef(true)
+  const CELL = props.round ? CELL_ROUND : CELL_SQ
 
   const close = useCallback(() => { tx.value = withSpring(0, SPRING.snappy) }, [tx])
   const closeRef = useRef(close)
@@ -149,10 +153,10 @@ export function SwipeRow(props: {
       ) : null}
       {nR ? (
         <Animated.View style={[s.side, { right: 0, justifyContent: 'flex-end' }, rightStyle]}>
-          <View style={[s.grow, { backgroundColor: right[0]?.color }]} />
+          <View style={[s.grow, { backgroundColor: props.round ? 'transparent' : right[0]?.color }]} />
           {right.map((a) => (
-            <Pressable key={a.key} accessibilityRole="button" accessibilityLabel={a.label} onPress={() => run(a, -1)} style={[s.cell, { backgroundColor: a.color }]}>
-              <Animated.View style={iconR}>{a.icon}</Animated.View>
+            <Pressable key={a.key} accessibilityRole="button" accessibilityLabel={a.label} onPress={() => run(a, -1)} style={[s.cell, { width: CELL }, props.round ? null : { backgroundColor: a.color }]}>
+              <Animated.View style={[iconR, props.round ? [s.circle, { backgroundColor: a.color }] : null]}>{a.icon}</Animated.View>
             </Pressable>
           ))}
         </Animated.View>
@@ -166,7 +170,8 @@ export function SwipeRow(props: {
 const s = StyleSheet.create({
   wrap: { position: 'relative', overflow: 'hidden' },
   side: { position: 'absolute', top: 0, bottom: 0, flexDirection: 'row', overflow: 'hidden' },
-  cell: { width: CELL, alignItems: 'center', justifyContent: 'center' },
+  cell: { width: CELL_SQ, alignItems: 'center', justifyContent: 'center' },
+  circle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   grow: { flex: 1 },
   full: { position: 'absolute', top: 0, bottom: 0, left: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 19, gap: 8, overflow: 'hidden' },
   fullText: { color: '#fff', fontSize: 14, fontWeight: '600' }
