@@ -17,6 +17,8 @@ export function LongPressMenu(props: {
   rect: Rect | null; row: ReactNode; pinned: boolean; priority: number; onClose: () => void; onAction: (a: LongPressAction) => void
   /** 아래 항목 고르기(기본: 고정·이동·태그·일정으로·삭제). 29 §9.2 프로젝트 화면은 ['out', 'delete'] */
   only?: LongPressAction[]
+  /** 항목 이름 바꾸기(41 §8 프로젝트 화면: move → `다른 묶음으로 ›`) */
+  labels?: Partial<Record<LongPressAction, string>>
 }) {
   const p = usePalette()
   const win = useWindowDimensions()
@@ -77,7 +79,7 @@ export function LongPressMenu(props: {
           </View>
           {items.map(([a, label, icon, danger], i) => (
             <Pressable key={a} accessibilityRole="menuitem" onPress={() => act(a)} style={({ pressed }) => [s.item, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
-              <Text style={[s.label, { color: danger ? p.danger : p.textPrimary }]}>{label}</Text>
+              <Text style={[s.label, { color: danger ? p.danger : p.textPrimary }]}>{props.labels?.[a] ?? label}</Text>
               {icon}
             </Pressable>
           ))}

@@ -1,5 +1,5 @@
 // 29 §9.2 프로젝트 보드(작업 지도 첫 화면, 2026-10-05 v2 디자인 — 틱틱 목록처럼 차분하게: 회색 + 강조색 하나):
-// 지금 할 일 카드 → 회색 한 줄 요약 → 프로젝트 카드(① 아이콘·이름·자동·› ② `N개 중 M개 완료 · 제출 10/10` ③ 얇은 진행 막대 ④ 다음 할 일 = 진짜 할 일 행) → 끝난 프로젝트(접힘) → ＋ 같이 계획 짜기.
+// 지금 할 일 카드 → 회색 한 줄 요약 → 프로젝트 카드(① 아이콘·이름·자동·› ② `N개 중 M개 완료 · 제출 10/10` ③ 얇은 진행 막대 ④ 다음 할 일 = 진짜 할 일 행) → 끝난 프로젝트(접힘) → ＋ 새 프로젝트(41 §8 아래 시트 — 같이 계획 짜기는 프로젝트 ⋯로 옮김).
 // 계산은 공용 @sprout/schema/planView. 휴대폰은 프로젝트를 만들거나 붙이는 자동 패스를 돌리지 않는다(데스크톱이 만든 태그를 보여 주기만).
 import { useRouter } from 'expo-router'
 import { ChevronRight, Plus } from 'lucide-react-native'
@@ -16,6 +16,8 @@ import { Buddy, Card, md } from './bits'
 import { projectCardLine } from '@sprout/schema/planView'
 import type { PlanData, ProjectView, PTaskRow } from './plan'
 import { setFocus } from './focus'
+import { NewProjectSheet } from './NewProjectSheet'
+import { projectIcon } from './projectDirectModel'
 
 const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 /** 카드·프로젝트 화면 둘째 줄 `14개 중 5개 완료 · 제출 10/10` — 공용 projectCardLine(데스크톱과 같은 글). 마감은 지났거나 3일 안이면 빨강 */
@@ -35,11 +37,14 @@ export function ProjectBoard({ data }: { data: PlanData }) {
   const p = usePalette()
   const router = useRouter()
   const [showDone, setShowDone] = useState(false)
+  const [making, setMaking] = useState(false)
   if (!data.loaded) return null
   const today = todayKey()
   const live = data.projects.filter((x) => !x.finished)
   const done = data.projects.filter((x) => x.finished)
-  const together = () => router.push({ pathname: '/plan-chat', params: { make: '1' } })
+  const make = () => setMaking(true)
+  // 만들면 시트를 닫고 그 프로젝트 화면이 밀려 들어온다(41 §8)
+  const sheet = <NewProjectSheet visible={making} onClose={() => setMaking(false)} onCreated={(id) => { setMaking(false); router.push(`/map/project/${id}`) }} />
   if (!data.projects.length) {
     return (
       <>
@@ -48,8 +53,9 @@ export function ProjectBoard({ data }: { data: PlanData }) {
           <Buddy size={96} still />
           <Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600', textAlign: 'center', marginTop: 6 }}>아직 묶인 프로젝트가 없어요</Text>
           <Text style={{ color: p.textTertiary, fontSize: 13.5, textAlign: 'center', lineHeight: 19 }}>컴퓨터 앱이 관련된 일을 알아서 묶어 줘요. 큰 일 하나로 바로 시작할 수도 있어요.</Text>
-          <Pressable onPress={together} accessibilityRole="button" style={[s.primary, { backgroundColor: p.accent }]}><Text style={s.primaryText}>같이 계획 짜기</Text></Pressable>
+          <Pressable onPress={make} accessibilityRole="button" style={[s.primary, { backgroundColor: p.accent }]}><Text style={s.primaryText}>＋ 새 프로젝트</Text></Pressable>
         </View>
+        {sheet}
       </>
     )
   }
@@ -68,10 +74,11 @@ export function ProjectBoard({ data }: { data: PlanData }) {
         </Pressable>
       ) : null}
       {showDone ? done.map((x) => <ProjectCard key={x.tag.id} x={x} today={today} />) : null}
-      <Pressable onPress={together} accessibilityRole="button" accessibilityHint="새 큰 일을 말해 주면 프로젝트로 만들고 단계도 나눠 줘요" style={({ pressed }) => [s.together, { backgroundColor: pressed ? p.bgSelected : 'transparent' }]}>
+      <Pressable onPress={make} accessibilityRole="button" accessibilityHint="이름과 날짜를 한 줄로 적어 프로젝트를 만들어요" style={({ pressed }) => [s.together, { backgroundColor: pressed ? p.bgSelected : 'transparent' }]}>
         <Plus size={18} color={p.accent} />
-        <Text style={{ color: p.accent, fontSize: 15, fontWeight: '500' }}>같이 계획 짜기</Text>
+        <Text style={{ color: p.accent, fontSize: 15, fontWeight: '500' }}>새 프로젝트</Text>
       </Pressable>
+      {sheet}
     </>
   )
 }
@@ -130,13 +137,12 @@ function ProjectCard({ x, today }: { x: ProjectView; today: string }) {
   const [menu, setMenu] = useState<Rect | null>(null)
   const open = () => router.push(`/map/project/${x.tag.id}`)
   const next = x.next[0]
-  const lead = /^\p{Extended_Pictographic}/u.test(x.tag.name.trim())
   return (
     <View ref={ref} collapsable={false} style={[s.card, { backgroundColor: p.cardBg }]}>
       <Pressable onPress={open} onLongPress={() => ref.current?.measureInWindow((a, b, w, h) => setMenu({ x: a, y: b, width: w, height: h }))} delayLongPress={350}
         accessibilityRole="button" accessibilityHint="길게 누르면 메뉴" style={({ pressed }) => [s.cardHead, pressed && { backgroundColor: p.bgSelected }]}>
         <View style={s.cardTop}>
-          <Text style={{ fontSize: 17 }}>{lead ? x.emoji : '🚀'}</Text>{/* 30 §A.5 — 폴더 그림은 폴더에만 */}
+          <Text style={{ fontSize: 17 }}>{projectIcon(x.tag.name)}</Text>{/* 30 §A.5 — 폴더 그림은 폴더에만 */}
           <Text style={{ flex: 1, color: p.textPrimary, fontSize: 16, fontWeight: '600' }} numberOfLines={1}>{x.title}</Text>
           {x.focus ? <Text style={{ color: p.accent, fontSize: 12.5, fontWeight: '500' }}>집중</Text> : null}
           {x.auto ? <Text style={{ color: p.textTertiary, fontSize: 12.5 }}>자동</Text> : null}

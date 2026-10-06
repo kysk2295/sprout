@@ -2,15 +2,15 @@
 // 휴대폰은 자동 프로젝트 패스를 돌리지 않는다(29 §9.1): 데스크톱이 만든 프로젝트 태그를 보여 주기만. 구성원 계산만 공용 함수로 같이 한다.
 import { useLiveQuery } from '../../data/rows'
 import { autoTagRowId, findSynonym, type AtTag } from '@sprout/schema/autoTag'
-import { buildPlanView, type LinkRow, type ListRow, type PlanData, type ProjectTaskInput, type PTaskRow, type SeqRow, type TagRow } from '@sprout/schema/planView'
+import { buildPlanView, encodeProjectsShared, mergeProjectsShared, PROJECTS_VIEW_KEY, type LinkRow, type ListRow, type PlanData, type ProjectsShared, type ProjectTaskInput, type PTaskRow, type SeqRow, type TagRow } from '@sprout/schema/planView'
 import { relationId } from '@sprout/schema/wikiLink'
 import { PROJECT } from '@sprout/schema/projects'
 import { deleteStmt, type Stmt } from '@sprout/schema/taskCore'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { db, run } from '../../data/db'
 import { createTask, deleteForever, insert, update } from '../../data/tasks'
 import { dayKey } from '../../lib/dates'
-import { kvGet, kvSet, useKv } from './kv'
+import { useKv } from './kv'
 
 export type { PlanData, ProjectView, PTaskRow, TodayItem } from '@sprout/schema/planView'
 type Undo = () => Promise<void>
@@ -26,12 +26,20 @@ const TOPICS_SQL = 'SELECT id, name FROM wiki_topics'
 const KINDS_SQL = "SELECT from_id AS task_id, to_id AS kind FROM relations WHERE from_type = 'task' AND to_type = 'work_kind' AND COALESCE(state, 'accepted') = 'accepted'"
 // 31 §12.13.7 지금 집중(relations tag → focus) — 데스크톱과 같은 행
 const FOCUS_SQL = "SELECT from_id FROM relations WHERE from_type = 'tag' AND to_type = 'focus' AND COALESCE(state, 'accepted') = 'accepted'"
+// 41 §9 ⚑ 핵심 날짜 · 프로젝트 줄 · 프로젝트 설정 · 팀원 · 보드 공통 기억(데스크톱과 같은 행)
+const DEADLINES_SQL = "SELECT from_id AS tag_id, to_id AS task_id FROM relations WHERE from_type = 'tag' AND to_type = 'task' AND field = 'deadline' AND COALESCE(state, 'accepted') = 'accepted'"
+const LANES_SQL = "SELECT from_id AS project_id, to_id AS tag_id, created_at FROM relations WHERE from_type = 'tag' AND to_type = 'tag' AND field = 'lane' AND COALESCE(state, 'accepted') = 'accepted'"
+const SETTINGS_SQL = "SELECT view_key, options_json FROM view_settings WHERE view_key LIKE 'project:%' ORDER BY modified_at"
+const TEAM_SQL = `SELECT r.from_id AS project_id, r.to_id AS tag_id, g.name FROM relations r JOIN tags g ON g.id = r.to_id
+  WHERE r.from_type = 'tag' AND r.to_type = 'tag' AND r.field = 'project' AND COALESCE(r.state, 'accepted') = 'accepted' ORDER BY r.created_at`
+const SHARED_SQL = 'SELECT id, options_json FROM view_settings WHERE view_key = ? ORDER BY created_at'
 const NOTES_SQL = `SELECT r.to_id AS tag_id, n.id, n.content, n.link_title FROM relations r JOIN notes n ON n.id = r.from_id
   WHERE r.from_type = 'note' AND r.to_type = 'tag' AND COALESCE(r.state, 'accepted') = 'accepted'`
 
-export type ProjectStore = { dismissed: string[]; confirmed: Record<string, number> }
-export const PROJECTS_KEY = 'sprout.map.projects.v1'
-const EMPTY_STORE: ProjectStore = { dismissed: [], confirmed: {} }
+/** 예전 기기 기억(29 §9.5) — 41 §9부터는 동기화 행(view_settings 'projects')으로 옮긴다. 한 번만 옮기고 더는 쓰지 않는다 */
+type OldStore = { dismissed?: string[]; confirmed?: Record<string, number> }
+const OLD_PROJECTS_KEY = 'sprout.map.projects.v1'
+const MIGRATED_KEY = 'sprout.map.projects.synced.v1'
 
 export function usePlanData(): PlanData {
   const today = dayKey()
@@ -47,18 +55,48 @@ export function usePlanData(): PlanData {
   const kinds = useLiveQuery<{ task_id: string; kind: string }>(KINDS_SQL)
   const focusQ = useLiveQuery<{ from_id: string }>(FOCUS_SQL)
   const focus = focusQ.data?.[0]?.from_id ?? null
-  const [pstore] = useKv<ProjectStore>(PROJECTS_KEY, EMPTY_STORE)
+  const deadlines = useLiveQuery<{ tag_id: string; task_id: string }>(DEADLINES_SQL)
+  const lanes = useLiveQuery<{ project_id: string; tag_id: string; created_at: string | null }>(LANES_SQL)
+  const settings = useLiveQuery<{ view_key: string | null; options_json: string | null }>(SETTINGS_SQL)
+  const team = useLiveQuery<{ project_id: string; tag_id: string; name: string }>(TEAM_SQL)
+  const shared = useLiveQuery<{ id: string; options_json: string | null }>(SHARED_SQL, [PROJECTS_VIEW_KEY])
+  const pstore = useMemo(() => mergeProjectsShared(shared.data), [shared.data])
+  useMigrateOldStore(!shared.isLoading)
   const loading = tasks.isLoading || tags.isLoading || links.isLoading || lists.isLoading || folders.isLoading || seq.isLoading
   return useMemo(() => buildPlanView({
     tasks: loading ? null : tasks.data, tags: tags.data, links: links.data, lists: lists.data, folders: folders.data, seq: seq.data,
-    topics: topics.data, notes: notes.data, pstore: { ...EMPTY_STORE, ...pstore }, today, suggest: false, kindOverrides: kinds.data, focus
-  }), [loading, tasks.data, tags.data, links.data, lists.data, folders.data, seq.data, topics.data, notes.data, kinds.data, pstore, today, focus])
+    topics: topics.data, notes: notes.data, pstore, skip: pstore.skip, today, suggest: false, kindOverrides: kinds.data, focus,
+    deadlines: deadlines.data, lanes: lanes.data, settings: settings.data, team: team.data
+  }), [loading, tasks.data, tags.data, links.data, lists.data, folders.data, seq.data, topics.data, notes.data, kinds.data, pstore, today, focus, deadlines.data, lanes.data, settings.data, team.data])
 }
 
-/** `빠진 거 없어` — 그때 구성원 수(늘면 말풍선이 다시) */
-export function confirmProject(tagId: string, count: number) {
-  const s = { ...EMPTY_STORE, ...kvGet<ProjectStore>(PROJECTS_KEY, EMPTY_STORE) }
-  kvSet(PROJECTS_KEY, { ...s, confirmed: { ...s.confirmed, [tagId]: count } })
+/** 보드 공통 기억 바꾸기(41 §9): 'projects' 행들을 합친 값에 고친 것을 얹어 첫 행에 쓴다. 행이 없으면 새 uuid 행(고정 id 아님) */
+export async function saveProjectsShared(fn: (prev: ProjectsShared) => ProjectsShared): Promise<void> {
+  const rows = await db.getAll<{ id: string; options_json: string | null }>(SHARED_SQL, [PROJECTS_VIEW_KEY])
+  const json = encodeProjectsShared(fn(mergeProjectsShared(rows)))
+  await run([rows[0] ? update('view_settings', rows[0].id, { options_json: json })
+    : insert('view_settings', { id: crypto.randomUUID(), view_key: PROJECTS_VIEW_KEY, sort_dir: 'asc', show_completed: 1, show_details: 0, options_json: json })])
+}
+
+/** 예전 기기 기억(SecureStore)의 `빠진 거 없어`·`아니`를 동기화 행으로 한 번 옮긴다 */
+function useMigrateOldStore(ready: boolean) {
+  const [old, , oldLoaded] = useKv<OldStore | null>(OLD_PROJECTS_KEY, null)
+  const [done, setDone, doneLoaded] = useKv<boolean>(MIGRATED_KEY, false)
+  useEffect(() => {
+    if (!ready || !oldLoaded || !doneLoaded || done) return
+    setDone(true)
+    const confirmed = old?.confirmed ?? {}, dismissed = old?.dismissed ?? []
+    if (!Object.keys(confirmed).length && !dismissed.length) return
+    void saveProjectsShared((s) => ({
+      ...s, dismissed: [...new Set([...s.dismissed, ...dismissed])],
+      confirmed: Object.fromEntries([...new Set([...Object.keys(s.confirmed), ...Object.keys(confirmed)])].map((k) => [k, Math.max(s.confirmed[k] ?? 0, confirmed[k] ?? 0)]))
+    })).catch(() => setDone(false))
+  }, [ready, oldLoaded, doneLoaded, done]) // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+/** `빠진 거 없어` — 그때 구성원 수(늘면 말풍선이 다시). 동기화 행에 남는다(다른 기기도 숨김) */
+export async function confirmProject(tagId: string, count: number): Promise<void> {
+  await saveProjectsShared((s) => ({ ...s, confirmed: { ...s.confirmed, [tagId]: count } }))
 }
 
 /** 프로젝트에서 빼기(31 §12.9.2 · §12.12.2, 데스크톱과 같음): 연결만 끊는다 — 태그 행은 (사람이 넣은 것도) dismissed로 남겨
@@ -79,7 +117,7 @@ export async function removeFromProject(taskId: string, tagId: string): Promise<
 export async function addProjectTask(input: ProjectTaskInput, projectTagId: string): Promise<{ id: string; undo: Undo }> {
   const timed = !!input.due_at?.includes('T')
   const id = await createTask({
-    title: input.title, list_id: input.list_id ?? '', due_at: input.due_at, priority: input.priority, repeat_rule: input.repeat_rule,
+    title: input.title, list_id: input.list_id ?? '', due_at: input.due_at, start_at: input.start_at, priority: input.priority, repeat_rule: input.repeat_rule,
     tag_ids: input.tag_ids.filter((t) => t !== projectTagId), reminders: timed ? ['-PT0M'] : []
   })
   await addToProject([id], projectTagId)
