@@ -1,7 +1,7 @@
 // 23 §2 ①② 캐릭터 방 + XP 줄 (데스크톱 10 §3.2 v3 무대를 휴대폰 크기로): 시간대 장면, 숨쉬기·깜빡임·대기 동작,
 // 누르면 깡충 + 하트 + 실제 숫자 말풍선, 길게 누르면 쓰다듬기, 5번 연타 어지러움, 밥그릇(오늘 할 일 XP / 10),
 // XP 방울(자리 비운 사이 · 보는 중 들어온 XP), 레벨 링 배지 · 시간대·기분 알약 · 이름. 움직임 줄이기면 값만 바뀐다.
-import * as Haptics from 'expo-haptics'
+import { hx } from '../ui/haptics'
 import { SPECIES, type Species } from '@sprout/schema/growth'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native'
@@ -213,7 +213,7 @@ export function GrowthRoom({ p, character, events, progress, stats, reduced, foc
   const dizzyAt = useRef(0)
   const petting = useRef<{ on: boolean; timer?: ReturnType<typeof setInterval> }>({ on: false })
   const onPress = () => {
-    void Haptics.selectionAsync()
+    hx.tick()
     if (!species) { setCracks((c) => Math.min(3, c + 1)); wobble(); say(nextLine()); return }
     if (sleepy) { setWoke(true); say('으음… 안 잤어!'); later(() => setWoke(false), 5000); return }
     const now = Date.now()
@@ -227,7 +227,7 @@ export function GrowthRoom({ p, character, events, progress, stats, reduced, foc
   }
   const onLongPress = () => {
     if (!species) return
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    hx.tap()
     petting.current.on = true
     setReact({ mood: 'happy', id: -2 })
     let n = 0

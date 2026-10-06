@@ -5,7 +5,7 @@
 // - 33 §11: `[[` = 태그 → 리스트 → 할 일 제안, `[[ ]]`는 인식에서 보호되어 제목에 남음, 기본함 + `[[리스트]]` 하나 = 그 리스트에 만든다, 저장 뒤 그 할 일 링크 관계
 // - 보내면 입력 창은 비운 채 열려 있다(연속 입력). 닫으면 쓴 글은 초안으로 남는다(22 §4)
 // - 맨 위 `할 일 · 일정`(22 §3.5, 06 §14.4.2): 일정이면 장소 줄 + 날짜·"● 내 일정"만, 마지막으로 고른 쪽을 기기에 기억
-import * as Haptics from 'expo-haptics'
+import { hx } from '../src/ui/haptics'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ArrowUp, Calendar, Ellipsis, Flag, Hash, Inbox, List as ListIcon, MapPin, Sparkles, Square, X } from 'lucide-react-native'
 import { File, Paths } from 'expo-file-system'
@@ -131,7 +131,7 @@ export default function QuickAdd() {
       const newId = await createTask(input)
       if (focusOn) await addToProject([newId], focus!.id)
       if (r.links.length) void syncTaskLinks(newId)
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      hx.tap()
       const msg = linkList && list ? `${list.name}에 추가했어요` : addedToast(view, input.due_at, input.start_at, today, !list || list.kind === 'inbox' ? '기본함' : list.name)
       if (msg) setFlash({ msg, id: Date.now() })
       setText(''); setDesc(''); setCursor(0); setIgnored([]); setManual(null); setPriority(null); setListId(null)
@@ -148,7 +148,7 @@ export default function QuickAdd() {
       const link = target ? { provider: providerFor(PF), account: await myLinkAccount(), calendar: calHash(target.id), color: target.color } : undefined
       await createEvent({ title: input.title, notes: desc, location: place, ...f, link })
       if (link) scheduleBridge(0)
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      hx.tap()
       setFlash({ msg: eventAddedToast(f.start_at ?? f.due_at, today), id: Date.now() })
       setText(''); setDesc(''); setPlace(''); setCursor(0); setIgnored([]); setManual(null)
       titleRef.current?.focus()

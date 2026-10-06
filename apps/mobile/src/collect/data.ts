@@ -1,7 +1,7 @@
 // 26 수집함 쓰기 — 로컬 DB에 바로 쓰고 PowerSync가 올린다(오프라인 그대로). 규칙은 core.ts(데스크톱과 같은 칸·같은 id).
 // 휴대폰은 /ai/*를 부르지 않는다(26 M-C5): 새 항목은 ai_state 'pending'으로 두고 데스크톱 수집기가 정리한다.
 import { deleteStmt, insertStmt, updateStmt, type Stmt } from '@sprout/schema/taskCore'
-import * as Haptics from 'expo-haptics'
+import { hx } from '../ui/haptics'
 import { currentUserId } from '../data/auth'
 import { db, run } from '../data/db'
 import {
@@ -31,7 +31,7 @@ export async function editItem(id: string, content: string) {
 export async function deleteItem(id: string): Promise<Undo> {
   const row = await db.getOptional<Record<string, unknown>>('SELECT * FROM notes WHERE id = ?', [id])
   await run([deleteStmt('notes', id)])
-  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+  hx.tap()
   return row ? () => run([insertStmt('notes', row)]) : async () => {}
 }
 
@@ -66,7 +66,7 @@ export async function convertItem(id: string, input: ConvertInput): Promise<stri
   if (!(await db.getOptional('SELECT id FROM lists WHERE id = ? AND archived_at IS NULL', [input.listId]))) throw new Error('리스트를 선택해 주세요.')
   const stmts = convertStmts(note, input, currentUserId())
   await run(stmts)
-  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+  hx.tap()
   return noteTaskId(id)
 }
 

@@ -1,6 +1,6 @@
 // iOS 휠 모양 고르기(시안 E .wheel): 가운데 줄이 선택, 위아래 2줄씩 흐리게. 끌어서 멈춘 칸이 값.
 // 네이티브 의존성 없이 ScrollView 스냅으로 만든다(Android도 같은 모양).
-import * as Haptics from 'expo-haptics'
+import { hx } from './haptics'
 import { useEffect, useRef } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { usePalette } from '../theme/ThemeProvider'
@@ -22,7 +22,7 @@ function Column({ items, index, onChange, width, label }: { items: string[]; ind
     const i = Math.max(0, Math.min(items.length - 1, Math.round(e.nativeEvent.contentOffset.y / ITEM)))
     if (i !== current.current) {
       current.current = i
-      void Haptics.selectionAsync()
+      hx.tick()
       onChange(i)
     }
   }
@@ -49,7 +49,7 @@ function Column({ items, index, onChange, width, label }: { items: string[]; ind
     >
       {items.map((it, i) => (
         // 위아래 칸을 눌러도 그 값으로(iOS 휠과 같음)
-        <Pressable key={`${it}-${i}`} style={s.item} accessibilityLabel={`${label} ${it}`} onPress={() => { if (i !== current.current) { current.current = i; ref.current?.scrollTo({ y: i * ITEM, animated: true }); void Haptics.selectionAsync(); onChange(i) } }}>
+        <Pressable key={`${it}-${i}`} style={s.item} accessibilityLabel={`${label} ${it}`} onPress={() => { if (i !== current.current) { current.current = i; ref.current?.scrollTo({ y: i * ITEM, animated: true }); hx.tick(); onChange(i) } }}>
           <Text style={[s.text, i === index ? { color: p.textPrimary, fontWeight: '500' } : { color: p.textQuaternary }]}>{it}</Text>
         </Pressable>
       ))}

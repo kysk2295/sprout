@@ -6,7 +6,8 @@ import { useQuery, useStatus } from '@powersync/react-native'
 import { useRouter, useScrollToTop } from 'expo-router'
 import { Calendar, Check, Ellipsis, FolderInput, Menu, Pin, Plus, RotateCcw, Search, Trash2, Undo2 } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native'
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native'
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
 import { AssistantButton } from '../assistant/AssistantSheet'
 import { syncNow } from '../data/auth'
 import { useFolders, useLists, useSections } from '../data/lists'
@@ -21,6 +22,10 @@ import {
 } from '../data/views'
 import { dayKey, longDay, nextMonday } from '../lib/dates'
 import { useTasksView } from '../state/tasksView'
+import { useCompleting } from '../state/useCompleting'
+import { hx } from '../ui/haptics'
+import { rowExit, useListMotion } from '../ui/listMotion'
+import { useReducedMotion } from '../ui/motion'
 import { M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { EmptyState } from '../ui/EmptyState'
@@ -102,6 +107,8 @@ export default function TaskListScreen() {
   )
   const shownGroups = useMemo(() => mergeEventGroups(groups, evByGroup, settings.group_by === 'time'), [groups, evByGroup, settings.group_by])
   const evMenu = useEventMenu()
+  const rowCount = shownGroups.reduce((n, g) => n + (v.isCollapsed(g.id, !!(g.done && (isListView(view) || open.data.length === 0))) ? 0 : g.rows.length), 0)
+  const motion = useListMotion(listView, rowCount)
   const { title, emoji } = viewTitle(view, lists, folders, { tags, filters })
   const isToday = view === 'smart:today'
   const archive = isArchive(view)
@@ -124,23 +131,33 @@ export default function TaskListScreen() {
   }, [])
 
   const withUndo = (message: string, undo: Undo | null, duration?: number) => toast.show(message, { undo: undo ?? undefined, duration })
+  // 39 §4.1: 체크 → 0.35초 완료 모양으로 머문 뒤 쓰기(그 사이 다시 누르면 취소). 쓰면 행이 옅어지며 빠지고 아래 행이 미끄러진다
+  const justDone = useRef(0)
+  const completeNow = async (id: string) => {
+    justDone.current = Date.now()
+    const undo = await completeTasks([id])
+    if (undo) withUndo('작업이 완료되었습니다.', undo)
+  }
+  const completing = useCompleting(completeNow)
   const complete = async (t: TaskRow) => {
     closeOpenRow()
     if (t.status !== 0) {
       await reopenTasks([t.id])
       return
     }
-    const undo = await completeTasks([t.id])
-    setFlash(t.id)
-    if (undo) withUndo('작업이 완료되었습니다.', undo)
+    completing.toggle(t.id)
   }
   const trash = async (ids: string[]) => withUndo('휴지통으로 옮겼어요', await trashTasks(ids), 5000)
+  // 손가락이 끝낸 마지막 할 일로 목록이 비면 "성공" 흔들림 한 번(39 §4.1-5)
+  const prevOpen = useRef(0)
   /** 영구 삭제는 되돌릴 수 없어 확인을 받는다(02 §13.4) */
-  const confirmForever = (ids: string[], all = false) =>
+  const confirmForever = (ids: string[], all = false) => {
+    hx.warn()
     Alert.alert(all ? '휴지통을 비울까요?' : '영구 삭제할까요?', all ? `${ids.length}개의 할 일이 모든 기기에서 영구히 지워져요. 되돌릴 수 없어요.` : '이 할 일이 모든 기기에서 영구히 지워져요. 되돌릴 수 없어요.', [
       { text: '취소', style: 'cancel' },
       { text: all ? '비우기' : '영구 삭제', style: 'destructive', onPress: () => void deleteForever(ids).then(() => toast.show(all ? '휴지통을 비웠어요' : '영구 삭제했어요')) }
     ])
+  }
   const openDetail = (t: TaskRow) => { closeOpenRow(); router.push(`/task/${t.id}`) }
   const openSheet = (path: '/move' | '/date' | '/tags', ids: string[]) => router.push({ pathname: path, params: { ids: ids.join(',') } })
 
@@ -199,10 +216,11 @@ export default function TaskListScreen() {
       ],
       right: [
         { key: 'move', color: p.swipeMove, icon: icon(FolderInput), label: '이동', onPress: () => openSheet('/move', [t.id]) },
-        { key: 'del', color: p.swipeDel, icon: icon(Trash2), label: '삭제', onPress: () => void trash([t.id]) },
+        { key: 'del', color: p.swipeDel, icon: icon(Trash2), label: '삭제', leaves: true, onPress: () => void trash([t.id]) },
         { key: 'date', color: p.swipeDate, icon: icon(Calendar), label: '날짜', onPress: () => openSheet('/date', [t.id]) }
       ],
-      full: () => void complete(t)
+      // 끝까지 밀기는 행이 이미 밖으로 나갔으니 머무르지 않고 바로 쓴다
+      full: () => { closeOpenRow(); void completeNow(t.id) }
     }
   }
 
@@ -212,7 +230,7 @@ export default function TaskListScreen() {
     const sw = swipeFor(t)
     const expanded = v.isExpanded(t.id)
     return (
-      <View key={t.id}>
+      <Animated.View key={t.id} entering={motion.entering} exiting={motion.exiting} layout={motion.layout}>
         <SwipeRow left={sw.left} right={sw.right} onFullSwipe={sw.full} fullLabel={sw.fullLabel}>
           <View ref={(r) => { rowRefs.current.set(t.id, r) }} collapsable={false}>
             <TaskRowView
@@ -225,6 +243,7 @@ export default function TaskListScreen() {
               childCount={n.children.length}
               expanded={expanded}
               flash={flash === t.id}
+              pending={completing.pending.has(t.id)}
               pressed={lp?.task.id === t.id}
               hideTag={view.startsWith('tag:') ? view.slice(4) : undefined}
               onToggleExpand={() => v.toggleExpand(t.id)}
@@ -235,7 +254,7 @@ export default function TaskListScreen() {
           </View>
         </SwipeRow>
         {expanded ? n.children.map((c) => renderNode(c, depth + 1)) : null}
-      </View>
+      </Animated.View>
     )
   }
 
@@ -259,6 +278,10 @@ export default function TaskListScreen() {
     ]
   const openCount = open.data.length
   const doneCount = done.data.filter((t) => t.id).length
+  useEffect(() => {
+    if (openCount === 0 && prevOpen.current > 0 && Date.now() - justDone.current < 2000) hx.success()
+    prevOpen.current = openCount
+  }, [openCount])
   const bottomPad = space.padFab
 
   return (
@@ -286,9 +309,9 @@ export default function TaskListScreen() {
         {firstLoad ? <Skeleton /> : null}
         {!archive ? <PageCard view={listView} lists={lists} filter={tagFilter} onFilter={setTagFilter} descOpen={descOpen} onDescClose={() => setDescOpen(false)} /> : null}
         {!firstLoad && openCount === 0 && !archive && !evByGroup.size ? (
-          isToday && doneCount > 0 ? <EmptyState title="모두 완료했어요" sub={`오늘 ${doneCount}개를 끝냈어요. 푹 쉬어요`} />
-            : isToday ? <EmptyState title="오늘 할 일이 없어요" sub="+를 눌러 추가하세요" />
-            : <EmptyState title="할 일이 없어요" sub="+를 눌러 추가하세요" />
+          isToday && doneCount > 0 ? <EmptyState animate={!!motion.entering} title="모두 완료했어요" sub={`오늘 ${doneCount}개를 끝냈어요. 푹 쉬어요`} />
+            : isToday ? <EmptyState animate={!!motion.entering} title="오늘 할 일이 없어요" sub="+를 눌러 추가하세요" />
+            : <EmptyState animate={!!motion.entering} title="할 일이 없어요" sub="+를 눌러 추가하세요" />
         ) : null}
         {!firstLoad && archive && openCount === 0 ? <EmptyState title={view === 'smart:trash' ? '휴지통이 비어 있어요' : view === 'smart:wontdo' ? '계획 취소한 할 일이 없어요' : '완료한 할 일이 없어요'} /> : null}
         <View style={openCount === 0 && doneCount > 0 ? { marginTop: 28 } : undefined}>
@@ -298,6 +321,7 @@ export default function TaskListScreen() {
             return (
               <GroupCard
                 key={g.id}
+                motion={motion}
                 title={g.title}
                 count={g.count}
                 collapsed={g.title ? collapsed : false}
@@ -395,8 +419,13 @@ export default function TaskListScreen() {
 
 function Skeleton() {
   const p = usePalette()
+  // 39 §4.8: 막대가 1.2초마다 옅어졌다 진해짐(동작 줄이기면 멈춤), 내용이 오면 옅게 빠짐
+  const reduce = useReducedMotion()
+  const o = useSharedValue(1)
+  useEffect(() => { o.value = reduce ? 1 : withRepeat(withTiming(0.5, { duration: 600 }), -1, true) }, [reduce, o])
+  const pulse = useAnimatedStyle(() => ({ opacity: o.value }))
   return (
-    <View style={[s.skel, { backgroundColor: p.cardBg }]}>
+    <Animated.View exiting={motionExit} style={[s.skel, { backgroundColor: p.cardBg }, pulse]}>
       {Array.from({ length: 6 }, (_, i) => (
         <View key={i} style={s.skelRow}>
           <View style={[s.skelBox, { backgroundColor: p.bgSelected }]} />
@@ -404,9 +433,10 @@ function Skeleton() {
         </View>
       ))}
       <Text style={[s.skelText, { color: p.textTertiary }]}>처음 데이터를 내려받는 중…</Text>
-    </View>
+    </Animated.View>
   )
 }
+const motionExit = rowExit
 
 const s = StyleSheet.create({
   status: { fontSize: 13, lineHeight: 18, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },

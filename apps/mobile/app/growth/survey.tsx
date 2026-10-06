@@ -2,7 +2,7 @@
 // 결과는 데스크톱 assignCharacter와 같은 칸(characters.species·type_code·answers_json·assessed_at·name)에 써서 데스크톱에도 같은 캐릭터.
 import { useQuery } from '@powersync/react-native'
 import { scoreSurvey, SPECIES, speciesFrom, type Pick2, type Species } from '@sprout/schema/growth'
-import * as Haptics from 'expo-haptics'
+import { hx } from '../../src/ui/haptics'
 import { useRouter } from 'expo-router'
 import { Check, ChevronLeft, X } from 'lucide-react-native'
 import { useEffect, useMemo, useState } from 'react'
@@ -41,7 +41,7 @@ export default function Survey() {
   const pick = (k: Pick2) => {
     if (picked) return
     const q = queue[i]
-    void Haptics.selectionAsync()
+    hx.tick()
     setPicked(k)
     const next = { ...answers, [q.id]: k }
     // 누르는 순간 강조색 → 0.25초 뒤 다음 문항(B6)

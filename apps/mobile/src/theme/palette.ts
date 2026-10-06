@@ -98,20 +98,27 @@ export const priorityColor = (p: Palette, priority: number | null | undefined) =
 
 /** 모바일 크기 토큰 [임시 — research 24 §14] */
 export const M = {
+  // [영상 실측] research 34 §1(2026-10-06 사용자 휴대폰 틱틱 녹화) — 카드 16·사이 16·묶음 머리 48·행 48·체크 17·+ 60·탭 좌우 20·바닥 16·머리 버튼 42
   navH: 52,
   titleH: 48,
   tabH: 58,
-  tabInset: 16,
-  tabBottom: 22,
+  tabInset: 20,
+  tabBottom: 16,
   gutter: 16,
-  cardInset: 12,
-  cardGap: 10,
-  rowH: 46,
+  cardInset: 16,
+  cardGap: 16,
+  groupH: 48,
+  rowH: 48,
   rowH2: 62,
-  check: 18,
-  fab: 56,
+  rowPad: 18,
+  check: 17,
+  fab: 60,
+  fabRight: 20,
+  fabGap: 17,
+  navBtn: 42,
   radiusSheet: 22,
   radiusCard: 14,
+  radiusMenu: 20,
   tap: 44
 } as const
 

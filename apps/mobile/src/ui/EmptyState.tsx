@@ -1,5 +1,7 @@
 // 빈 상태(21 §3, 20 M7): 새싹 화분 그림 — 시안 B-3을 그대로 옮긴 직접 그린 그림(틱틱 그림 아님). 정식 캐릭터 그림이 오면 바꾼다.
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
+import Animated from 'react-native-reanimated'
+import { popIn } from './motion'
 import Svg, { Circle, Ellipse, Path } from 'react-native-svg'
 import { FONT } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
@@ -23,14 +25,16 @@ export function SproutPot({ size = 150 }: { size?: number }) {
   )
 }
 
-export function EmptyState({ title, sub }: { title: string; sub?: string }) {
+// 39 §4.1-5·§4.8: 나타날 때 옅게 + 0.96 → 1(250ms). 첫 화면에서는 animate=false로 바로
+const appear = popIn(0.96)
+export function EmptyState({ title, sub, animate = true }: { title: string; sub?: string; animate?: boolean }) {
   const p = usePalette()
   return (
-    <View style={s.wrap}>
+    <Animated.View entering={animate ? appear : undefined} style={s.wrap}>
       <SproutPot />
       <Text style={[s.title, { color: p.textPrimary }]}>{title}</Text>
       {sub ? <Text style={[FONT.meta, { color: p.textTertiary, textAlign: 'center' }]}>{sub}</Text> : null}
-    </View>
+    </Animated.View>
   )
 }
 const s = StyleSheet.create({

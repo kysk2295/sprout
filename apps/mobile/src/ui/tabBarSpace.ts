@@ -4,15 +4,15 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { M } from '../theme/palette'
 
-/** 탭 알약의 바닥 위치(홈 표시줄 위 22 — 시안 키트 --m-tab-bottom, 안전 영역 34 기준. 홈 버튼 기기는 12) */
-export const tabBarBottom = (insetBottom: number) => Math.max(insetBottom - 12, 12)
+/** 탭 알약의 바닥 위치(화면 바닥에서 16 [영상 실측 research 34] — 안전 영역 34 기준. 홈 버튼 기기는 12) */
+export const tabBarBottom = (insetBottom: number) => Math.max(insetBottom - 18, 12)
 
 export type TabBarSpace = {
   /** 탭 알약 bottom 값 */
   barBottom: number
   /** 화면 바닥 ~ 탭 알약 윗변 거리(이 위로 내용이 보여야 한다) */
   clear: number
-  /** + 버튼 bottom 값(탭 알약 위 14) */
+  /** + 버튼 bottom 값(탭 알약 위 17 [영상 실측]) */
   fabBottom: number
   /** 토스트 bottom 값(+ 버튼 위 — 21 §2 "탭 바·+ 버튼 위") */
   toastBottom: number
@@ -25,7 +25,7 @@ export type TabBarSpace = {
 export function tabBarSpace(insetBottom: number): TabBarSpace {
   const barBottom = tabBarBottom(insetBottom)
   const clear = barBottom + M.tabH
-  const fabBottom = clear + 14
+  const fabBottom = clear + M.fabGap
   return { barBottom, clear, fabBottom, toastBottom: fabBottom + M.fab + 12, pad: clear + 24, padFab: fabBottom + M.fab + 16 }
 }
 

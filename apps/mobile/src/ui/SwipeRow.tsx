@@ -1,18 +1,21 @@
-// 스와이프 행(21 §4.2 — 틱틱 기본값)
-// - 오른쪽으로 밀기 → 왼쪽에 완료(초록)·고정(노랑). 행 폭 40% 넘게 밀고 놓으면 바로 완료("놓으면 완료")
+// 스와이프 행(21 §4.2 — 틱틱 기본값, 움직임은 39 §4.2)
+// - 오른쪽으로 밀기 → 왼쪽에 완료(초록)·고정(노랑). 행 폭 40% 넘으면 첫 칸(완료)이 행 전체로 늘어나고 흔들림, 놓으면 행이 오른쪽 밖으로 나간 뒤 실행
 // - 왼쪽으로 밀기 → 오른쪽에 이동(파랑)·삭제(빨강)·날짜(주황). 끝까지 밀어도 실행하지 않고 열린 채(실수 삭제 방지)
-// - 칸은 아이콘만, 폭 60. 다른 행을 열거나 스크롤하면 닫힌다. 끝 도달 지점에서 선택 틱 흔들림
-import * as Haptics from 'expo-haptics'
+// - 놓을 때 손가락 속도를 본다(빠르게 튕기면 짧게 밀어도 열림·닫힘). 칸 아이콘은 드러난 만큼 커지며 나타남
+// - 칸은 아이콘만, 폭 60. 다른 행을 열거나 스크롤하면 닫힌다. 모든 계산은 UI 스레드(워클릿)
 import { Check } from 'lucide-react-native'
 import { useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated'
+import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated'
 import { scheduleOnRN } from 'react-native-worklets'
+import { hx } from './haptics'
+import { DUR, EASE, RUBBER, SPRING, timing } from './motion'
 
-export type SwipeAction = { key: string; color: string; icon: ReactNode; label: string; onPress: () => void }
+export type SwipeAction = { key: string; color: string; icon: ReactNode; label: string; onPress: () => void; /** 누르면 행이 그 쪽 밖으로 밀려 나간 뒤 실행(삭제) */ leaves?: boolean }
 const CELL = 60
-const SPRING = { damping: 22, stiffness: 260, mass: 0.8 }
+const FULL = 0.4
+const VEL = 400
 
 // 열린 행은 하나만
 let openRow: (() => void) | null = null
@@ -33,23 +36,27 @@ export function SwipeRow(props: {
   const width = useSharedValue(360)
   const start = useSharedValue(0)
   const armed = useSharedValue(0)
+  const fullP = useSharedValue(0)
   const hasFull = !!props.onFullSwipe
   const nL = left.length
   const nR = right.length
+  const alive = useRef(true)
 
-  const close = useCallback(() => { tx.value = withSpring(0, SPRING) }, [tx])
+  const close = useCallback(() => { tx.value = withSpring(0, SPRING.snappy) }, [tx])
   const closeRef = useRef(close)
   closeRef.current = close
   const onOpened = useCallback(() => {
+    hx.tap()
     if (openRow && openRow !== closeRef.current) openRow()
     openRow = closeRef.current
   }, [])
-  const tick = useCallback(() => { void Haptics.selectionAsync() }, [])
-  const full = useCallback(() => {
-    props.onFullSwipe?.()
-    setTimeout(() => { tx.value = 0 }, 350)
-  }, [props.onFullSwipe, tx])
-  useEffect(() => () => { if (openRow === closeRef.current) openRow = null }, [])
+  const tap = useCallback(() => hx.tap(), [])
+  // 실행 뒤 행이 남아 있으면(반복 할 일·완료 취소) 제자리로 미끄러져 돌아온다 — 순간 복귀 없음
+  const comeBack = useCallback(() => {
+    setTimeout(() => { if (alive.current) { fullP.value = withTiming(0, timing(DUR.base)); tx.value = withSpring(0, SPRING.snappy) } }, 500)
+  }, [tx, fullP])
+  const full = useCallback(() => { props.onFullSwipe?.(); comeBack() }, [props.onFullSwipe, comeBack]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { alive.current = false; if (openRow === closeRef.current) openRow = null }, [])
 
   const pan = Gesture.Pan()
     .enabled(props.enabled !== false && (nL > 0 || nR > 0))
@@ -64,56 +71,89 @@ export function SwipeRow(props: {
       if (nL === 0 && x > 0) x = 0
       if (nR === 0 && x < 0) x = 0
       const minX = -nR * CELL
-      if (x < minX) x = minX + (x - minX) * 0.25
+      if (x < minX) x = minX + (x - minX) * RUBBER
       const maxX = hasFull ? width.value : nL * CELL
-      if (x > maxX) x = maxX + (x - maxX) * 0.25
+      if (x > maxX) x = maxX + (x - maxX) * RUBBER
       tx.value = x
-      const past = hasFull && x > width.value * 0.4 ? 1 : 0
+      const past = hasFull && x > width.value * FULL ? 1 : 0
       if (past !== armed.value) {
         armed.value = past
-        scheduleOnRN(tick)
+        fullP.value = withSpring(past, SPRING.snappy)
+        scheduleOnRN(tap)
       }
     })
-    .onEnd(() => {
+    .onEnd((e) => {
       const x = tx.value
-      if (hasFull && x > width.value * 0.4) {
-        tx.value = withTiming(width.value, { duration: 140 })
+      const v = e.velocityX
+      if (hasFull && x > width.value * FULL && v > -VEL) {
+        tx.value = withTiming(width.value, { duration: DUR.base, easing: EASE.out })
         scheduleOnRN(full)
-      } else if (x > CELL * 0.6 && nL) {
-        tx.value = withSpring(nL * CELL, SPRING)
+        return
+      }
+      fullP.value = withSpring(0, SPRING.snappy)
+      const openL = nL > 0 && x > 0 && (x > CELL * nL * 0.5 || (v > VEL && x > 8))
+      const openR = nR > 0 && x < 0 && (-x > CELL * nR * 0.5 || (v < -VEL && x < -8))
+      if (openL && !(v < -VEL)) {
+        tx.value = withSpring(nL * CELL, { ...SPRING.snappy, velocity: v })
         scheduleOnRN(onOpened)
-      } else if (x < -CELL * 0.6 && nR) {
-        tx.value = withSpring(-nR * CELL, SPRING)
+      } else if (openR && !(v > VEL)) {
+        tx.value = withSpring(-nR * CELL, { ...SPRING.snappy, velocity: v })
         scheduleOnRN(onOpened)
-      } else tx.value = withSpring(0, SPRING)
+      } else tx.value = withSpring(0, { ...SPRING.snappy, velocity: v })
     })
 
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }] }))
   const leftStyle = useAnimatedStyle(() => ({ width: Math.max(tx.value, 0), opacity: tx.value > 0 ? 1 : 0 }))
   const rightStyle = useAnimatedStyle(() => ({ width: Math.max(-tx.value, 0), opacity: tx.value < 0 ? 1 : 0 }))
-  const fullStyle = useAnimatedStyle(() => ({ opacity: hasFull && tx.value > width.value * 0.4 ? 1 : 0 }))
+  // 칸 아이콘: 드러난 폭이 칸 폭의 60%가 될 때까지 손가락에 비례해 나타남
+  const iconL = useAnimatedStyle(() => {
+    const r = interpolate(tx.value, [0, CELL * 0.6], [0, 1], Extrapolation.CLAMP)
+    return { opacity: r, transform: [{ scale: 0.7 + 0.3 * r }] }
+  })
+  const iconR = useAnimatedStyle(() => {
+    const r = interpolate(-tx.value, [0, CELL * 0.6], [0, 1], Extrapolation.CLAMP)
+    return { opacity: r, transform: [{ scale: 0.7 + 0.3 * r }] }
+  })
+  // 끝까지: 첫 칸이 행 전체(드러난 폭)로 늘어남
+  const fullStyle = useAnimatedStyle(() => ({
+    opacity: fullP.value > 0.01 ? 1 : 0,
+    width: interpolate(fullP.value, [0, 1], [CELL, Math.max(tx.value, CELL)])
+  }))
 
-  const run = (a: SwipeAction) => { close(); a.onPress() }
+  const run = (a: SwipeAction, side: 1 | -1) => {
+    if (a.leaves) {
+      tx.value = withTiming(side * width.value, { duration: DUR.base, easing: EASE.in })
+      setTimeout(() => { a.onPress(); comeBack() }, DUR.base)
+      return
+    }
+    close()
+    a.onPress()
+  }
   return (
     <View style={s.wrap} onLayout={(e) => { width.value = e.nativeEvent.layout.width }}>
       {nL ? (
         <Animated.View style={[s.side, { left: 0 }, leftStyle]}>
           {left.map((a) => (
-            <Pressable key={a.key} accessibilityRole="button" accessibilityLabel={a.label} onPress={() => run(a)} style={[s.cell, { backgroundColor: a.color }]}>{a.icon}</Pressable>
+            <Pressable key={a.key} accessibilityRole="button" accessibilityLabel={a.label} onPress={() => run(a, 1)} style={[s.cell, { backgroundColor: a.color }]}>
+              <Animated.View style={iconL}>{a.icon}</Animated.View>
+            </Pressable>
           ))}
-          <View style={s.grow} />
+          <View style={[s.grow, { backgroundColor: left[nL - 1]?.color }]} />
           {hasFull ? (
-            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.full, { backgroundColor: props.fullColor ?? left[0]?.color }, fullStyle]}>
+            <Animated.View pointerEvents="none" style={[s.full, { backgroundColor: props.fullColor ?? left[0]?.color }, fullStyle]}>
               <Check size={22} color="#fff" />
-              <Text style={s.fullText}>{props.fullLabel ?? '놓으면 완료'}</Text>
+              <Text style={s.fullText} numberOfLines={1}>{props.fullLabel ?? '놓으면 완료'}</Text>
             </Animated.View>
           ) : null}
         </Animated.View>
       ) : null}
       {nR ? (
         <Animated.View style={[s.side, { right: 0, justifyContent: 'flex-end' }, rightStyle]}>
+          <View style={[s.grow, { backgroundColor: right[0]?.color }]} />
           {right.map((a) => (
-            <Pressable key={a.key} accessibilityRole="button" accessibilityLabel={a.label} onPress={() => run(a)} style={[s.cell, { backgroundColor: a.color }]}>{a.icon}</Pressable>
+            <Pressable key={a.key} accessibilityRole="button" accessibilityLabel={a.label} onPress={() => run(a, -1)} style={[s.cell, { backgroundColor: a.color }]}>
+              <Animated.View style={iconR}>{a.icon}</Animated.View>
+            </Pressable>
           ))}
         </Animated.View>
       ) : null}
@@ -128,6 +168,6 @@ const s = StyleSheet.create({
   side: { position: 'absolute', top: 0, bottom: 0, flexDirection: 'row', overflow: 'hidden' },
   cell: { width: CELL, alignItems: 'center', justifyContent: 'center' },
   grow: { flex: 1 },
-  full: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 8 },
+  full: { position: 'absolute', top: 0, bottom: 0, left: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 19, gap: 8, overflow: 'hidden' },
   fullText: { color: '#fff', fontSize: 14, fontWeight: '600' }
 })

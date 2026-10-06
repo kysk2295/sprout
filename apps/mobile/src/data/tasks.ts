@@ -1,7 +1,6 @@
 // 할 일에 하는 동작(21 §4·§5·§6). 오늘 목록·스와이프·길게 누름·상세·빠른 입력이 모두 이것을 쓴다.
 // - 완료·완료 취소·XP는 공용 @sprout/schema/taskCore(데스크톱·맥 위젯과 같은 규칙: 반복 다음 회차, 하위 함께 완료, XP 하루 10)
 // - 되돌릴 수 있는 동작은 되돌리기 함수를 돌려준다 → 화면이 토스트 ⟲에 붙인다(21 §4.3)
-import * as Haptics from 'expo-haptics'
 import { deleteStmt, insertStmt, planComplete, planGrantTaskXp, planReopenWithXp, updateStmt, type Stmt } from '@sprout/schema/taskCore'
 import { dayKey, moveToDate } from '../lib/dates'
 import { ensureInbox } from '@sprout/schema/inbox'
@@ -42,7 +41,7 @@ export async function completeTasks(ids: string[]): Promise<Undo | null> {
   const done = ids.filter((id) => plan.open.includes(id) || plan.repeating.includes(id))
   const xp = await planGrantTaskXp(coreDb, done, env())
   await run([...plan.stmts, ...xp.stmts])
-  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+  // 흔들림은 화면이 손가락과 같은 순간에 낸다(39 §3 · G3) — 위젯·알림 완료는 흔들리지 않는다
   taskDone.emit({ ids: [...plan.open, ...plan.repeating] })
   if (xp.granted) xpGained.emit(xp.granted)
   const undoIds = [...plan.open, ...plan.repeating, ...plan.created]
