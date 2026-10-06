@@ -1,0 +1,19 @@
+/* 31 §12.13.4 넣을지 묻기 말풍선 · §12.13.6 주간 점검 남은 후보 */
+.plan-ask { animation: plan-ask-in 120ms ease-out; }
+.plan-ask .plan-bub { margin: 0 0 14px; }
+.plan-ask .plan-bub__msg { color: var(--color-text-primary); }
+.plan-ask .map-btn { height: 26px; padding: 0 12px; }
+.plan-ask__why { align-self: center; font: 400 12px/1 var(--font-family); color: var(--color-text-tertiary); }
+@keyframes plan-ask-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .plan-ask { animation: none; } }
+
+.rv-left { display: flex; flex-direction: column; gap: 8px; width: min(520px, 100%); margin-top: 4px; text-align: left; }
+.rv-left__g { border: 1px solid var(--color-border-divider); border-radius: 10px; padding: 10px 12px; background: var(--color-bg-app); }
+.rv-left__h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 400 13px/1.4 var(--font-family); color: var(--color-text-secondary); }
+.rv-left__h > span { flex: 1; min-width: 180px; }
+.rv-left__h b { color: var(--color-text-primary); font-weight: 600; }
+.rv-left .map-btn { height: 26px; padding: 0 12px; }
+.rv-left__list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.rv-left__list li { display: flex; align-items: center; gap: 8px; min-height: 32px; border-top: 1px solid var(--color-border-divider); padding-top: 4px; }
+.rv-left__t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13px/1.4 var(--font-family); color: var(--color-text-primary); }
+.rv-left__list small { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 11px/1 var(--font-family); color: var(--color-text-tertiary); }

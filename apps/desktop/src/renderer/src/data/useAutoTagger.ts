@@ -71,7 +71,7 @@ export function useAutoTagger(): void {
           if (r.applied > 0 && r.at) addNotice({ kind: 'autotag', key: `autotag:${dayKey()}`, title: autoTagTitle(r.applied), body: '✦ 표시가 AI가 붙인 태그예요', count: r.applied, undo: [r.at] })
           if (r.aiError) { console.warn('[autoTag] AI 보류', r.aiError); blockedUntil.current = Date.now() + RETRY }
           else batch.forEach((id) => skip.current.delete(id)) // 다음에 제목이 바뀌면 다시(seen 지문으로 거른다)
-          projects() // 31 §12.1 새 할 일로 덩어리가 생겼을 수 있다
+          projects(true) // 31 §12.13 새 할 일 묶음마다 점수로 넣기(60초 기다림 없이 — 같은 때 입력이 이어지게)
         })
         .catch((e) => { console.warn('[autoTag] 새 할 일 태그 보류', e); blockedUntil.current = Date.now() + RETRY })
         .finally(() => { running.current = false; tick.current() })

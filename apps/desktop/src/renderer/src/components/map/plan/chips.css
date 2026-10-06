@@ -9,3 +9,9 @@
 .addbar__projects button.addbar__projects-x { display: inline-flex; align-items: center; justify-content: center; width: 22px; padding: 0; border-color: transparent; background: none; color: var(--color-text-tertiary); }
 .addbar__projects button.addbar__projects-x:hover { color: var(--color-text-primary); background: var(--color-bg-hover); border-color: transparent; }
 .addbar__projects-x svg { width: 13px; height: 13px; }
+/* §12.13.7 지금 집중 칩 — 미리 붙음(강조색) + ✕, 떼면 회색 */
+.addbar__projects button.addbar__focus { display: inline-flex; align-items: center; gap: 4px; }
+.addbar__projects button.addbar__focus svg { width: 11px; height: 11px; flex: none; }
+.quick-add-focus { padding: 0 2px 8px; }
+.quick-add-focus .addbar__projects { padding: 0; }
+.quick-add-focus:empty { display: none; }

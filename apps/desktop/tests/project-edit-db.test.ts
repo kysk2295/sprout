@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 import initSqlJs from 'sql.js'
 import { TABLES } from '@sprout/schema'
+import { findProjectClusters } from '@sprout/schema/projects'
 
 const SQL = await initSqlJs()
 const db = new SQL.Database()
@@ -25,8 +26,13 @@ let n = 0
 const task = (id: string, title: string, list: string, due: string | null) => db.run('INSERT INTO tasks (id, title, list_id, status, due_at, created_at, sort_order) VALUES (?,?,?,0,?,?,?)', [id, title, list, due, '2026-09-01T00:00:00Z', n++])
 task('c1', '데이터 공모전 자료조사', 'la', '2026-09-10'); task('c2', '데이터 공모전 분석', 'la', '2026-09-20'); task('c3', '데이터 공모전 제출', 'le', '2026-10-10'); task('c4', '데이터 공모전 회의', 'le', '2026-10-03')
 await P.runProjectPass({ at: '2026-10-05T09:00:00.000Z', force: true })
+assert.equal(all("SELECT count(*) AS c FROM tags WHERE kind = 'project'")[0].c, 0, '31 §12.13.1 패스는 프로젝트를 만들지 않는다')
+// 제안 카드 [만들기]로 만든다
+const sugg = findProjectClusters(await P.readProjectCtx(new Date('2026-10-05T09:00:00.000Z'))).auto
+assert.equal(sugg.length, 1, '제안 하나')
+await P.createProjectFrom(sugg[0], '2026-10-05T09:00:00.000Z')
 const proj = all("SELECT id, name, source FROM tags WHERE kind = 'project'")
-assert.equal(proj.length, 1, '자동 프로젝트 하나')
+assert.equal(proj.length, 1, '프로젝트 하나')
 const pid = proj[0].id as string
 const linked = (tag = pid) => all("SELECT task_id, source, state FROM task_tags WHERE tag_id = ? AND COALESCE(state,'accepted') = 'accepted' ORDER BY task_id", [tag]).map((r) => r.task_id)
 assert.deepEqual(linked(), ['c1', 'c2', 'c3', 'c4'])
@@ -156,5 +162,6 @@ P.projectStore.set({ auto: false })
 assert.deepEqual(await P.runProjectPass({ at: '2026-10-05T11:00:00.000Z', force: true }), { created: 0, attached: 0, upgraded: 0 })
 assert.equal(all("SELECT count(*) AS c FROM tags WHERE kind = 'project' AND name LIKE '%SQLD%'")[0].c, 0)
 P.projectStore.set({ auto: true })
-assert.ok((await P.runProjectPass({ at: '2026-10-05T11:05:00.000Z', force: true })).created >= 1, '다시 켜면 만듦')
+assert.equal((await P.runProjectPass({ at: '2026-10-05T11:05:00.000Z', force: true })).created, 0, '켜도 만들지 않는다(제안 카드로만)')
+assert.equal(all("SELECT count(*) AS c FROM tags WHERE kind = 'project' AND name LIKE '%SQLD%'")[0].c, 0)
 console.log('project-edit-db ok')

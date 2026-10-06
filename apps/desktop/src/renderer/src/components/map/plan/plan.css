@@ -324,3 +324,9 @@
 .plan-pick .icon-btn svg { width: 15px; height: 15px; }
 .plan-mnote { flex: none; margin-left: auto; padding-left: 10px; font: 400 11.5px/1 var(--font-family); color: var(--color-text-tertiary); white-space: nowrap; }
 .plan-qa input:focus, .plan-qa input:focus-visible { outline: none; box-shadow: none; border: 0; }
+
+/* §12.13 지금 집중 · 팀원 */
+.pc-focus { flex: none; font: 500 12px/1 var(--font-family); color: var(--color-accent); }
+.plan-name__team { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.plan-name__team > span { flex: none; font: 400 12px/1 var(--font-family); color: var(--color-text-tertiary); }
+.plan-name__team input { flex: 1; min-width: 0; }

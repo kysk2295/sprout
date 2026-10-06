@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import initSqlJs from 'sql.js'
 import { TABLES } from '@sprout/schema'
-import { projectMembers } from '@sprout/schema/projects'
+import { findProjectClusters, projectMembers } from '@sprout/schema/projects'
 
 const SQL = await initSqlJs()
 const db = new SQL.Database()
@@ -42,23 +42,29 @@ task('s2', 'SQLD 접수', 'in', '2026-10-01')
 task('s3', 'SQLD 요약 노트', 'lq', '2026-10-08')
 task('b1', '블로그 글 쓰기', 'la', null); task('b2', '블로그 이미지 만들기', 'le', null); task('b3', '블로그 댓글 답하기', 'in', null)
 
+// 31 §12.13.1: 패스는 프로젝트를 만들지 않는다 — 예전 자동 덩어리는 제안 카드로만
 const r = await P.runProjectPass({ at, force: true })
+assert.equal(r.created, 0)
+assert.equal(all("SELECT count(*) AS c FROM tags WHERE kind = 'project'")[0].c, 0, '자동으로 만들지 않는다')
+const ctx0 = await P.readProjectCtx(new Date(at))
+const props = findProjectClusters(ctx0).auto
+const pick = (name: string) => props.find((x) => x.name === name)!
+assert.deepEqual(props.map((x) => x.name).sort(), ['K 인공지능 제조 데이터 공모전', 'SQLD', 'UniPort'].sort(), '제안 = 특정 공모전 · 시험 · 집 폴더')
+for (const name of ['K 인공지능 제조 데이터 공모전', 'UniPort', 'SQLD']) await P.createProjectFrom(pick(name), at)
 const tags = all("SELECT id, name, kind, aliases, source, home_type, home_id, run_id FROM tags WHERE kind = 'project' ORDER BY name")
-assert.deepEqual(tags.map((t) => t.name).sort(), ['K 인공지능 제조 데이터 공모전', 'SQLD', 'UniPort'].sort(), '손 없이 프로젝트 3개 — §12.10 공모전은 분류, 프로젝트는 특정 공모전')
-assert.equal(r.created, 3)
 const comp = tags.find((t) => t.name.includes('공모전'))!
-assert.equal(comp.source, 'ai')
+assert.equal(comp.source, 'user', '[만들기]로 만든 프로젝트는 사람 것')
 assert.equal(comp.aliases, null, '다른 이름이 없으면 별칭 없음')
 const uni = tags.find((t) => t.name === 'UniPort')!
 assert.equal(uni.home_type, 'folder'); assert.equal(uni.home_id, 'fu')
 const linked = (tagId: string) => all("SELECT task_id, source, state FROM task_tags WHERE tag_id = ? AND COALESCE(state,'accepted') = 'accepted' ORDER BY task_id", [tagId])
-assert.deepEqual(linked(comp.id).map((l) => l.task_id), ['c1', 'c2', 'c3', 'c4', 'c5'], '닻 1개 + 14일 안 막연한 공모전 일 3개(rule 90) + 넓히기 1개(최종 제출)')
-assert.equal(linked(comp.id).find((l) => l.task_id === 'c3')!.source, 'rule')
-assert.equal(linked(comp.id).find((l) => l.task_id === 'c5')!.source, 'rule')
+assert.deepEqual(linked(comp.id).map((l) => l.task_id), ['c1', 'c2', 'c3', 'c4'], '카드에 보인 일(닻 + 14일 안 막연한 공모전 일) — 증거 없는 최종 제출은 안 쓸어 담는다')
+assert.equal(linked(comp.id).find((l) => l.task_id === 'c3')!.source, 'rule', '카드로 넣은 것은 확인 전(rule)')
 assert.ok(!linked(uni.id).some((l) => l.task_id === 'u3'), '집 안 할 일엔 태그 행을 쓰지 않는다')
 const ctx = await P.readProjectCtx(new Date(at))
 const members = (id: string) => [...projectMembers(ctx.tags.find((t) => t.id === id)!, ctx.tasks, ctx.links, ctx.lists)].sort()
 assert.deepEqual(members(uni.id), ['u1', 'u2', 'u3'], '구성원 = 태그 + 집 안')
+await P.runProjectPass({ at: '2026-10-05T09:01:00.000Z', force: true })
 
 // 두 번 돌려도 그대로(결정적·겹침 없음)
 const again = await P.runProjectPass({ at: '2026-10-05T09:05:00.000Z', force: true })
@@ -67,12 +73,12 @@ assert.deepEqual(again, { created: 0, attached: 0, upgraded: 0 })
 assert.deepEqual(await P.runProjectPass({ at: '2026-10-05T09:05:10.000Z' }), { created: 0, attached: 0, upgraded: 0 })
 
 // ✕ 이건 아니야 — 자동 행은 dismissed, 다시 돌려도 안 붙음
-const undo1 = await P.removeFromProject('c5', comp.id)
-assert.equal(all('SELECT state FROM task_tags WHERE task_id = ? AND tag_id = ?', ['c5', comp.id])[0].state, 'dismissed')
+const undo1 = await P.removeFromProject('c3', comp.id)
+assert.equal(all('SELECT state FROM task_tags WHERE task_id = ? AND tag_id = ?', ['c3', comp.id])[0].state, 'dismissed')
 await P.runProjectPass({ at: '2026-10-05T10:00:00.000Z', force: true })
-assert.ok(!linked(comp.id).some((l) => l.task_id === 'c5'), '뗀 것은 다시 안 붙음')
+assert.ok(!linked(comp.id).some((l) => l.task_id === 'c3'), '뗀 것은 다시 안 붙음')
 await undo1()
-assert.ok(linked(comp.id).some((l) => l.task_id === 'c5'), '되돌리기')
+assert.ok(linked(comp.id).some((l) => l.task_id === 'c3'), '되돌리기')
 // 집 안 할 일 ✕ → dismissed 행 하나
 const undo2 = await P.removeFromProject('u3', uni.id)
 const ctx2 = await P.readProjectCtx(new Date(at))
@@ -118,7 +124,7 @@ P.confirmProject(comp.id, 5)
 assert.equal(P.projectStore.get().confirmed[comp.id], 5)
 
 // 한 번 정리(2026-10-05 실제 데이터): 예전 규칙이 만든 `근무`(영역 리스트 집)·`프로젝트`(막연한 말) 지움 + 기본함 넓히기 뗌 → 되돌리기
-assert.equal(P.projectStore.get().cleanup, P.CLEANUP_VERSION, '자동 패스가 한 번 정리를 돌리고 판을 적어 둠')
+assert.equal(P.projectStore.get().cleanup, P.CLEANUP_VERSION, '판만 적어 둔다(§12.13.1 — 저절로 지우지 않음)')
 list('lw', '근무')
 const tagRow = (id: string, name: string, extra: Record<string, unknown> = {}) => db.run('INSERT INTO tags (id, name, kind, source, run_id, home_type, home_id, aliases) VALUES (?,?,?,?,?,?,?,?)',
   [id, name, 'project', (extra.source as string) ?? 'ai', 'proj-old', (extra.home_type as string) ?? null, (extra.home_id as string) ?? null, null])
@@ -131,7 +137,7 @@ const cr = await P.cleanupProjects('2026-10-05T13:00:00.000Z')
 assert.ok(cr.removedTags >= 2, JSON.stringify(cr))
 assert.equal(all("SELECT count(*) AS c FROM tags WHERE id IN ('old-w','old-p')")[0].c, 0)
 assert.equal(all("SELECT count(*) AS c FROM tags WHERE id = 'mine'")[0].c, 1, '사용자 태그는 그대로')
-assert.equal(all("SELECT count(*) AS c FROM task_tags WHERE id = 'sx'")[0].c, 0, '기본함 넓히기 뗌')
+assert.equal(all("SELECT count(*) AS c FROM task_tags WHERE id = 'sx'")[0].c, 1, '사람이 만든 프로젝트(SQLD — [만들기])의 연결은 정리가 건드리지 않는다')
 assert.ok(P.loadProjectCleanup())
 assert.ok(await P.undoProjectCleanup())
 assert.equal(all("SELECT count(*) AS c FROM tags WHERE id IN ('old-w','old-p')")[0].c, 2, '되돌리기')

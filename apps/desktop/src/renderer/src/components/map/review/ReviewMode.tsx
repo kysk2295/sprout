@@ -18,6 +18,7 @@ import type { ModeSlotProps } from '../modes'
 import { BuddyAvatar, useBuddy } from '../PlanChat'
 import { CharacterArt } from '../../growth/CharacterArt'
 import { LookStep, MissedStep, PickStep, type CardRow } from './ReviewSteps'
+import { ReviewProjectLeftovers } from '../plan/ProjectAsk'
 import './review.css'
 
 const STEPS: { n: 1 | 2 | 3; label: string; what: string }[] = [
@@ -208,6 +209,7 @@ export function ReviewMode({ lists, onSelectTask, onMode, notify }: ModeSlotProp
             <p>{finishSummary(p)}</p>
             {p.created.length > 0 && <ul className="rv-fin__goals">{p.created.map((c) => <li key={c.goalId}>🎯 {c.title}</li>)}</ul>}
             {!!reviewXp?.length && <span className="map-xp">주간 점검 +{XP.review} XP</span>}
+            <ReviewProjectLeftovers />
             <div className="rv-fin__acts">
               <button className="map-btn map-btn--primary" onClick={() => onMode('plan')}>계획 보러 가기</button>
               <button className="map-btn" onClick={() => go(3)}>다음 주 다시 고르기</button>

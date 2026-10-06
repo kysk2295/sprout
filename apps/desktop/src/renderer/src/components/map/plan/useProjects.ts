@@ -2,6 +2,7 @@
 // 계산은 공용 @sprout/schema/planView(모바일과 같은 코드). 쿼리는 useQuery(로컬 DB 감시)라 태그·할 일이 바뀌면 바로 다시 그린다.
 import { useMemo, useSyncExternalStore } from 'react'
 import { buildPlanView, type LinkRow, type ListRow, type PlanData, type PTaskRow, type SeqRow, type TagRow } from '@sprout/schema/planView'
+import { projectCandidates, PSCORE, type Cand, type ScoreRel } from '@sprout/schema/projectScore'
 import { autoTagStore } from '../../../data/autoTag'
 import { projectStore } from '../../../data/projects'
 import { useQuery } from '../../../data/useQuery'
@@ -20,6 +21,8 @@ const TOPICS_SQL = 'SELECT id, name FROM wiki_topics'
 const CATS_SQL = "SELECT from_id AS tag_id, to_id AS word FROM relations WHERE from_type = 'tag' AND to_type = 'category' AND COALESCE(state, 'accepted') = 'accepted'"
 // 31 §12.9.2 사람이 정한 일의 종류
 const KINDS_SQL = "SELECT from_id AS task_id, to_id AS kind FROM relations WHERE from_type = 'task' AND to_type = 'work_kind' AND COALESCE(state, 'accepted') = 'accepted'"
+// 31 §12.13 팀원(tag→tag project) · 배운 낱말(tag→hint) · 지금 집중(tag→focus)
+const SCORE_REL_SQL = "SELECT from_type, from_id, to_type, to_id, field, state FROM relations WHERE from_type = 'tag' AND field IN ('project', 'hint', 'focus') AND COALESCE(state, 'accepted') = 'accepted'"
 const NOTES_SQL = `SELECT r.to_id AS tag_id, n.id, n.content, n.link_title FROM relations r JOIN notes n ON n.id = r.from_id
   WHERE r.from_type = 'note' AND r.to_type = 'tag' AND COALESCE(r.state, 'accepted') = 'accepted'`
 
@@ -38,11 +41,13 @@ export function usePlanData(): PlanData {
   const notes = useQuery<{ tag_id: string; id: string; content: string | null; link_title: string | null }>(NOTES_SQL)
   const kinds = useQuery<{ task_id: string; kind: string }>(KINDS_SQL)
   const cats = useQuery<{ tag_id: string; word: string }>(CATS_SQL)
+  const rels = useQuery<ScoreRel>(SCORE_REL_SQL)
+  const focus = rels?.find((r) => r.to_type === 'focus')?.from_id ?? null
   const pstore = useStore(projectStore)
   const astore = useStore(autoTagStore)
   const today = dayKey()
 
-  return useMemo<PlanData>(() => buildPlanView({ tasks, tags, links, lists, folders, seq, topics, notes, pstore, blocked: astore.blocked, today, kindOverrides: kinds, categoryOverrides: cats, skip: pstore.skip, suggest: pstore.auto !== false }), [tasks, tags, links, lists, folders, seq, topics, notes, kinds, cats, pstore, astore, today])
+  return useMemo<PlanData>(() => buildPlanView({ tasks, tags, links, lists, folders, seq, topics, notes, pstore, blocked: astore.blocked, today, kindOverrides: kinds, categoryOverrides: cats, skip: pstore.skip, suggest: pstore.auto !== false, focus }), [tasks, tags, links, lists, folders, seq, topics, notes, kinds, cats, pstore, astore, today, focus])
 }
 
 
@@ -72,3 +77,25 @@ export function useRelationRows(): RelRows | null {
     notes: notes.map((n) => ({ id: n.id, to_type: n.to_type, to_id: n.to_id, title: (n.link_title || (n.content ?? '').split('\n')[0] || '메모').slice(0, 40) }))
   }, [personLinks, projectPeople, notes, related, persons])
 }
+
+// ── 31 §12.13.4·12.13.6 넣을지 물을 할 일(점수 40~69) ──
+export type AskItem = Cand & { title: string; project: string; created_at: string | null }
+/** 묻기 범위 후보 전부(점수 높은 순). 말풍선은 fresh·하루 상한으로 거르고, 주간 점검은 전부 */
+export function useProjectCandidates(): { loaded: boolean; ask: AskItem[] } {
+  const cutoff = useMemo(cutoffDay, [])
+  const tasks = useQuery<PTaskRow>(TASKS_SQL, [cutoff])
+  const tags = useQuery<TagRow>(TAGS_SQL)
+  const links = useQuery<LinkRow>(LINKS_SQL)
+  const lists = useQuery<ListRow>(LISTS_SQL)
+  const rels = useQuery<ScoreRel>(SCORE_REL_SQL)
+  const today = dayKey()
+  return useMemo(() => {
+    if (!tasks || !tags || !links || !lists || !rels) return { loaded: false, ask: [] }
+    const r = projectCandidates({ tags, tasks, links, lists, relations: rels, today })
+    const byId = new Map(tasks.map((t) => [t.id, t]))
+    const name = new Map(r.projects.map((p) => [p.id, p.name]))
+    return { loaded: true, ask: r.ask.map((c) => ({ ...c, title: byId.get(c.taskId)?.title ?? '', project: name.get(c.tagId) ?? '', created_at: byId.get(c.taskId)?.created_at ?? null })) }
+  }, [tasks, tags, links, lists, rels, today])
+}
+/** 말풍선용: 최근 7일 안에 만든 할 일만 */
+export const freshAsk = (xs: AskItem[], now = Date.now()) => xs.filter((x) => x.created_at && now - Date.parse(x.created_at) <= PSCORE.askFreshDays * 86_400_000)

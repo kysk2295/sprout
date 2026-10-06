@@ -11,7 +11,8 @@ import type { WorkKind } from '@sprout/schema/projects'
 import { getDb, type Row, type Stmt } from './db'
 import { readLinks, wouldCycle } from './map'
 import { createTask, deleteTasksHard, insert, remove, run, setTag, update, uuid } from './mutations'
-import { addToProject, removeFromProject } from './projects'
+import { addToProject, noteAsked, removeFromProject } from './projects'
+import { hintWord, personInTitle } from '@sprout/schema/projectScore'
 import { itemRow } from './collect'
 import { removeTaskTag } from './wiki'
 
@@ -295,4 +296,52 @@ export async function dropStep(taskId: string, linkIds: string[], prev: string |
   await run(...linkIds.map((id) => remove('map_links', id)))
   const r = prev && next ? await linkOrder(prev, next) : { undo: noop }
   return both(u1, r.undo)
+}
+
+// ── 31 §12.13 팀원 · 물음 답 · 지금 집중 ──
+/** 팀원 이름들 → 사람 태그(찾거나 만들기) + 프로젝트와 잇기(relations tag→tag field project) */
+export async function linkTeam(projectTagId: string, names: string[]): Promise<Undo> {
+  const undos: Undo[] = []
+  for (const n of names) {
+    if (!n.trim()) continue
+    const p = await ensurePerson(n)
+    undos.push(await linkPersonToProject(projectTagId, p.id))
+    if (p.made) undos.push(async () => { await run(remove('tags', p.id)) })
+  }
+  return both(...undos)
+}
+export const hintRelId = (projectTagId: string, word: string) => relationId(projectTagId, `hint:${word}`, 'hint')
+/** 배운 낱말(§12.13.5 ⓑ): 프로젝트 → hint(낱말) */
+export async function learnHint(projectTagId: string, word: string): Promise<Undo> {
+  const id = hintRelId(projectTagId, word)
+  const undo = await snapRows('relations', [id])
+  await run(remove('relations', id), insert('relations', { id, from_type: 'tag', from_id: projectTagId, to_type: 'hint', to_id: word, source: 'manual', state: 'accepted', field: 'hint' }))
+  return undo
+}
+/**
+ * 물음 답(§12.13.5). 응 = 넣기(user) + 제목의 사람 → 팀원, 아니면 가장 긴 뚜렷한 낱말 → 배운 낱말. 아니 = 그 프로젝트에 dismissed 행.
+ * 하루 물은 수를 센다(말풍선만 — 주간 점검 [하나씩]은 count false).
+ */
+export async function answerProjectQuestion(q: { taskId: string; tagId: string; title: string }, yes: boolean, opts: { count?: boolean } = {}): Promise<Undo> {
+  if (opts.count !== false) noteAsked()
+  if (!yes) return removeFromProject(q.taskId, q.tagId)
+  const add = await addToProject([q.taskId], q.tagId)
+  const db = await getDb()
+  const persons = await db.getAll<{ id: string; name: string; aliases: string | null }>("SELECT id, name, aliases FROM tags WHERE kind = 'person'")
+  const team = new Set((await db.getAll<{ to_id: string }>("SELECT to_id FROM relations WHERE from_type = 'tag' AND from_id = ? AND to_type = 'tag' AND field = 'project' AND COALESCE(state, 'accepted') = 'accepted'", [q.tagId])).map((r) => r.to_id))
+  const who = personInTitle(q.title, persons)
+  if (who && !team.has(who)) return both(add, await linkPersonToProject(q.tagId, who))
+  const word = who ? null : hintWord(q.title)
+  return word ? both(add, await learnHint(q.tagId, word)) : add
+}
+export const focusRelId = (projectTagId: string) => relationId(projectTagId, 'focus', 'focus')
+/** 지금 집중(§12.13.7): 한 번에 하나 — 켜면 다른 집중 행은 지운다. null = 끄기 */
+export async function setFocus(projectTagId: string | null): Promise<Undo> {
+  const db = await getDb()
+  const rows = await db.getAll<{ id: string }>("SELECT id FROM relations WHERE from_type = 'tag' AND to_type = 'focus'")
+  const ids = [...new Set([...rows.map((r) => r.id), ...(projectTagId ? [focusRelId(projectTagId)] : [])])]
+  const undo = await snapRows('relations', ids)
+  await run(...rows.map((r) => remove('relations', r.id)),
+    ...(projectTagId ? [insert('relations', { id: focusRelId(projectTagId), from_type: 'tag', from_id: projectTagId, to_type: 'focus', to_id: 'focus', source: 'manual', state: 'accepted', field: 'focus' })] : []))
+  return undo
 }

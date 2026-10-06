@@ -12,6 +12,8 @@ import type { ListRow, TagRow } from '../data/types'
 import { Dialog } from './Dialog'
 import { DatePicker, EMPTY_SCHEDULE } from './DatePicker'
 import type { Schedule } from '../lib/taskActions'
+import { ProjectChips } from './map/plan/ProjectChips'
+import { addToProject } from '../data/projects'
 
 export interface Command { id: string; label: string; key?: string; group: string; run: () => void }
 export function CommandMenu({ commands, onSearch, onClose }: { commands: Command[]; onSearch: (query: string) => void; onClose: () => void }) {
@@ -78,6 +80,10 @@ export function QuickAdd({ lists,tags,inboxId,onClose,onCreated }: {lists:ListRo
   const dateButton=useRef<HTMLButtonElement>(null)
   const titleRef=useRef<HTMLInputElement>(null)
   const toast=useToast()
+  // 31 §12.13.7 지금 집중 칩(붙어 있으면 그 프로젝트에 넣는다)
+  const [focusId,setFocusId]=useState<string|null>(null)
+  const [focusOff,setFocusOff]=useState(false)
+  useEffect(()=>{if(!raw.trim())setFocusOff(false)},[raw])
   const inferred:Schedule={...EMPTY_SCHEDULE,due_at:recognition?parsed.due_at:null,is_all_day:parsed.due_at?.includes('T')?0:1,repeat_rule:recognition?parsed.repeat_rule:null,repeat_from:'due',reminders:recognition&&parsed.due_at?.includes('T')?['-PT0M']:[]}
   const selectedSchedule=schedule??inferred
   // 33 §6.3-4: 기본함으로 가는 새 할 일에 [[리스트]] 하나만 있으면 그 리스트로(토스트 ⟲)
@@ -95,6 +101,7 @@ export function QuickAdd({ lists,tags,inboxId,onClose,onCreated }: {lists:ListRo
       await run(insert('tasks',{id,title,list_id:listId,content:'',content_mode:'text',status:0,priority:p,start_at:s.start_at,due_at:s.due_at,is_all_day:s.is_all_day,time_zone:'floating',repeat_rule:s.repeat_rule,repeat_from:s.repeat_from,sort_order:-Date.now()}),
         ...tagIds.map((tag_id)=>insert('task_tags',{id:uuid(),task_id:id,tag_id})),
         ...s.reminders.map((trigger)=>insert('reminders',{id:uuid(),task_id:id,trigger})))
+      if(focusId)await addToProject([id],focusId)
       const real=listId||(await (await getDb()).get<{list_id:string}>('SELECT list_id FROM tasks WHERE id=?',[id]))?.list_id||''
       onClose();onCreated(id,real)
       if(moveTo&&listId===moveTo&&inboxId){const l=lists.find(x=>x.id===moveTo);const n=l?.name??'';toast.show(`'${n}'${ro(n).slice(n.length)} 옮겼어요`,()=>run(update('tasks',id,{list_id:inboxId,section_id:null})))}
@@ -103,6 +110,7 @@ export function QuickAdd({ lists,tags,inboxId,onClose,onCreated }: {lists:ListRo
   }
   return <Dialog label="할 일 추가" className="quick-add-dialog" onClose={()=>{if(!saving.current)onClose()}}>
     <div className="quick-add-input-wrap"><div className="quick-add-highlight" aria-hidden="true"><span style={{transform:`translateX(-${inputScroll}px)`}}>{highlightRecognized(raw,recognition?parsed.tokens:[])}</span></div><input ref={titleRef} onScroll={e=>setInputScroll(e.currentTarget.scrollLeft)} data-autofocus spellCheck={false} className="quick-add-title" aria-label="새 할 일" placeholder='"기본함"에 할일 추가' value={raw} onChange={(e)=>setRaw(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'&&!e.nativeEvent.isComposing&&!document.querySelector('.popover')){e.preventDefault();void submit()}}}/><WikiComplete target={titleRef}/></div>
+    {raw.trim()&&<div className="quick-add-focus"><ProjectChips onlyFocus title={raw} picked={[]} onToggle={()=>{}} onDismiss={()=>{}} query={recognition?{title:parsed.title,tag_ids:parsed.tag_ids,list_id:list??parsed.list_id}:{title:raw,list_id:list}} focusOff={focusOff} onFocusToggle={()=>setFocusOff(v=>!v)} onFocus={setFocusId}/></div>}
     {recognition&&parsed.tokens.length>0&&<div className="recognition-summary"><span>{parsed.tokens.map(t=>parsed.newTags.includes(t.slice(1))&&t.startsWith('#')?`${t}(새 태그)`:t).join(' · ')}</span><button onClick={()=>setRecognition(false)}>인식 해제</button></div>}
     <div className="quick-add-tools"><button ref={dateButton} onClick={()=>setPicker(true)}><CalendarDays size={17}/>{selectedSchedule.due_at?detailDateLabel({start_at:selectedSchedule.start_at,due_at:selectedSchedule.due_at},dayKey()).label:'날짜'}</button><label title="우선순위"><Flag size={17}/><select aria-label="우선순위" value={p} onChange={(e)=>setPriority(Number(e.target.value))}><option value={0}>없음</option><option value={3}>높음</option><option value={2}>중간</option><option value={1}>낮음</option></select></label><label><Inbox size={17}/><select aria-label="리스트" value={listId??''} onChange={(e)=>setList(e.target.value)}>{lists.map((l)=><option key={l.id} value={l.id}>{l.name}</option>)}</select></label><button className="entry-primary" disabled={busy||!title||!listId} onClick={()=>void submit()}><Plus size={16}/>{busy?'저장 중':'추가'}</button></div>
     {error&&<p role="alert" className="form-error">{error}</p>}

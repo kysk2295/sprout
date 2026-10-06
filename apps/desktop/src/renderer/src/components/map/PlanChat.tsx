@@ -12,6 +12,7 @@ import {
 } from '../../data/planActions'
 import { useQuery } from '../../data/useQuery'
 import { addToProject, ensureProjectForGoal, projectOpenTasks } from '../../data/projects'
+import { linkTeam } from '../../data/projectEdit'
 import type { MapList } from '../../data/map'
 import type { TaskActions } from '../../lib/taskActions'
 import { dayKey } from '../../lib/dates'
@@ -89,11 +90,12 @@ export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh
   const props = useRef({ lists, aiOk, actions, onLight, onReveal, onFresh, onClose, req, onProject })
   props.current = { lists, aiOk, actions, onLight, onReveal, onFresh, onClose, req, onProject }
   /** 큰 일이 정해지면 프로젝트에 넣거나(그 프로젝트) 프로젝트를 만든다(보드 ＋ 같이 계획 짜기) */
+  const madeTag = useRef<string | null>(null) // 31 §12.13.2 팀원을 이을 프로젝트
   const toProject = async (goal: { id: string; title: string }) => {
     const { req: r, onProject: on } = props.current
     try {
       if (r.project) { await addToProject([goal.id], r.project.id); on?.(r.project.id) }
-      else if (r.makeProject) on?.(await ensureProjectForGoal(goal))
+      else if (r.makeProject) { const id = await ensureProjectForGoal(goal); madeTag.current = id; on?.(id) }
     } catch (e) { console.warn('[plan-chat] 프로젝트 연결 보류', e) }
   }
 
@@ -163,6 +165,7 @@ export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh
         case 'light': p.onLight(f.id); break
         case 'focus': p.onReveal(f.id); break
         case 'close': close(); break
+        case 'team': if (madeTag.current) await linkTeam(madeTag.current, f.names); break
       }
     } catch (e) {
       console.error('[plan-chat]', e)
@@ -185,6 +188,7 @@ export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh
     alive.current = true
     let off = false
     journal.current = newJournal()
+    madeTag.current = null
     ref.current = initPlan(buddy.name, today)
     setState(ref.current); setShown(0)
     void (async () => {
@@ -192,7 +196,7 @@ export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh
       if (task && !off) await toProject(task.goal)
       if (off) return
       if (task) journal.current.title = task.goal.title
-      dispatch({ type: 'start', goal: task?.goal ?? null, steps: task?.steps, candidates: candidates.filter((c) => c.id !== req.taskId) })
+      dispatch({ type: 'start', goal: task?.goal ?? null, steps: task?.steps, candidates: candidates.filter((c) => c.id !== req.taskId), askTeam: !!req.makeProject && !req.project })
     })()
     return () => { off = true; abort.current?.abort() }
   }, [req.key]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -296,7 +300,7 @@ export function PlanChat({ req, lists, aiOk, actions, onLight, onReveal, onFresh
           rows={1}
           value={draft}
           disabled={!open}
-          placeholder={state.phase === 'split-manual' ? '예: 자료 조사, 목차 잡기, 초안 쓰기' : '답하거나, 지도에서 카드를 끌어 고쳐도 돼'}
+          placeholder={state.phase === 'split-manual' ? '예: 자료 조사, 목차 잡기, 초안 쓰기' : state.phase === 'team' ? '예: 민수, 지은' : '답하거나, 지도에서 카드를 끌어 고쳐도 돼'}
           aria-label={`${buddy.name}에게 답하기`}
           onChange={(e) => { setDraft(e.target.value); const el = e.target; el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 96)}px` }}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send() } }}

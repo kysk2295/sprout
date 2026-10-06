@@ -885,7 +885,10 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
   // 알약 줄 닫기(✕·Esc): 이 입력 동안 기억 — 입력을 비우면(추가·지움) 다시 뜬다
   const [chipsOff, setChipsOff] = useState(false)
   const [chipsOn, setChipsOn] = useState(false)
-  useEffect(() => { if (!raw.trim()) setChipsOff(false) }, [raw])
+  // 31 §12.13.7 지금 집중 칩: 붙어 있는 프로젝트(ProjectChips가 알림) · 이 할 일에서 뗐나(입력을 비우면 다시 붙음)
+  const [focusId, setFocusId] = useState<string | null>(null)
+  const [focusOff, setFocusOff] = useState(false)
+  useEffect(() => { if (!raw.trim()) { setChipsOff(false); setFocusOff(false) } }, [raw])
   const dismissChips = useCallback(() => { setChipsOff(true); setProjects([]); input.current?.focus() }, [])
   const parsed = useMemo(() => parseAdd(raw, lists.map((l) => ({ id: l.id, name: l.kind === 'inbox' ? '기본함' : l.name })), tags, { keepDate: false }), [raw, lists, tags]) // 날짜 문구도 제목에서 뺀다(빠른 추가와 같게, 2026-10-05 사용자 결정)
   const p = recognition ? parsed : undefined
@@ -899,7 +902,8 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
     saving.current = true
     try {
       const tagIds = p ? [...p.tag_ids, ...(await ensureTags(p.newTags))] : []
-      await onCreate(title, desc.current?.value.trim() || undefined, schedule ?? inferred, priority || p?.priority || undefined, { list_id: p?.list_id, tag_ids: tagIds, moveTo: p ? linkMoveTarget(p, tags, lists) : undefined, project_ids: projects })
+      const projectIds = focusId && !projects.includes(focusId) ? [focusId, ...projects] : projects
+      await onCreate(title, desc.current?.value.trim() || undefined, schedule ?? inferred, priority || p?.priority || undefined, { list_id: p?.list_id, tag_ids: tagIds, moveTo: p ? linkMoveTarget(p, tags, lists) : undefined, project_ids: projectIds })
     } finally { saving.current = false }
     setProjects([])
     setRaw('')
@@ -965,7 +969,8 @@ function AddBar({ placeholder, lists, tags, onCreate }: { placeholder: string; l
           </span>
         )}
       </div>
-      {active && raw.trim() && !chipsOff && <ProjectChips title={raw} picked={projects} onToggle={(id) => setProjects((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]))} onDismiss={dismissChips} onVisible={setChipsOn} />}
+      {active && raw.trim() && !chipsOff && <ProjectChips title={raw} picked={projects} onToggle={(id) => setProjects((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]))} onDismiss={dismissChips} onVisible={setChipsOn}
+        query={p ? { title: p.title, tag_ids: p.tag_ids, list_id: p.list_id } : { title: raw }} focusOff={focusOff} onFocusToggle={() => setFocusOff((v) => !v)} onFocus={setFocusId} />}
       {descOpen && (
         <textarea
           ref={desc}

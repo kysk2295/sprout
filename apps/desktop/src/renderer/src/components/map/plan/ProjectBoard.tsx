@@ -5,7 +5,9 @@ import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type M
 import { daysBetween, projectTitle, type Proposal } from '@sprout/schema/projects'
 import { projectCardLine } from '@sprout/schema/planView'
 import { addToProject, createProjectFrom, dismissSuggestion, notProject } from '../../../data/projects'
-import { createProject, deleteProject, mergeProject, renameProject, setCategory } from '../../../data/projectEdit'
+import { createProject, deleteProject, linkTeam, mergeProject, renameProject, setCategory, setFocus } from '../../../data/projectEdit'
+import { splitPeople } from '@sprout/schema/projectScore'
+import { ProjectAskBubble } from './ProjectAsk'
 import { categoryOf, CATEGORY_WORDS } from '@sprout/schema/projects'
 import { projectStore } from '../../../data/projects'
 import { planCandidates } from '../../../data/planActions'
@@ -96,6 +98,7 @@ export function ProjectBoard({ data, onOpen, onPlan, actions, autoOn }: { data: 
         <span className="plan-board__sum">{head}{tail}</span>
         <button className="map-btn" onClick={newBtn}><Plus />새 프로젝트</button>
       </div>
+      <ProjectAskBubble />
       {groups.map((g) => (
         <section key={g.key} className="plan-cat">
           {(groups.length > 1 || g.word) && (
@@ -112,10 +115,10 @@ export function ProjectBoard({ data, onOpen, onPlan, actions, autoOn }: { data: 
       <div className="plan-grid plan-grid--extra">
         {data.suggestion && (
           <div className="pc-card pc-card--sugg">
-            <div className="pc-card__t">묶일 것 같은 일 {data.suggestion.taskIds.length}개</div>
+            <div className="pc-card__t">'{data.suggestion.name}' 관련 일이 {data.suggestion.taskIds.length}개 보여요. 프로젝트로 만들까요?</div>
             <div className="pc-line">{suggestWhy(data.suggestion, data)}</div>
             <div className="pc-card__acts">
-              <button className="map-btn map-btn--primary" disabled={busy} onClick={() => void make(data.suggestion!)}>'{data.suggestion.name}' 프로젝트 만들기</button>
+              <button className="map-btn map-btn--primary" disabled={busy} onClick={() => void make(data.suggestion!)}>만들기</button>
               <button className="map-btn" onClick={() => dismissSuggestion(data.suggestion!.key)}>아니</button>
             </div>
           </div>
@@ -150,6 +153,12 @@ export function ProjectMenu({ p, all, point, anchor, onClose, onOpen, onPlan, on
   const others = all.filter((o) => o.tag.id !== p.tag.id)
   return (
     <Popover point={point} anchor={anchor} align="end" onClose={onClose} className="menu" width={210}>
+      {/* 31 §12.13.7 지금 집중 — 한 번에 하나 */}
+      <MenuItem label={p.focus ? '집중 끄기' : '지금 집중'} onClick={go(async () => {
+        const u = await setFocus(p.focus ? null : p.tag.id)
+        toast.show(p.focus ? '집중을 껐어요' : `지금 '${p.title}'에 집중해요 · 빠른 추가에 붙여 둘게요`, u)
+      })} />
+      <div className="menu__divider" />
       {onOpen && <MenuItem label="열기" onClick={go(onOpen)} />}
       <MenuItem label="이름 바꾸기" onClick={go(onRename)} />
       <SubMenu label="다른 프로젝트와 합치기" disabled={!others.length} width={230}>
@@ -177,6 +186,7 @@ export function NameDialog({ anchor, p, cats = [], onClose, onDone }: { anchor: 
   const catList = [...new Set([...cats, ...COMMON_CATS, ...(shownCat ? [shownCat] : [])])].filter((c) => c === '시험' || CATEGORY_WORDS.includes(c) || cats.includes(c))
   const [picking, setPicking] = useState(false)
   const [err, setErr] = useState('')
+  const [team, setTeam] = useState('') // 31 §12.13.2 팀원(새 프로젝트만)
   const btn = useRef<HTMLButtonElement>(null)
   const save = async () => {
     if (!name.trim()) { setErr('이름을 입력해 주세요'); return }
@@ -186,7 +196,9 @@ export function NameDialog({ anchor, p, cats = [], onClose, onDone }: { anchor: 
     if (p) { const u = await renameProject(p.tag.id, name, emoji); const c = await keepCat(p.tag.id); toast.show('이름을 바꿨어요', async () => { await c(); await u() }); onClose(); return }
     const r = await createProject(name, emoji)
     const c = await keepCat(r.tagId)
-    toast.show(`'${name.trim()}' 프로젝트를 만들었어요`, async () => { await c(); await r.undo() })
+    const people = splitPeople(team)
+    const t = people.length ? await linkTeam(r.tagId, people) : async () => {}
+    toast.show(`'${name.trim()}' 프로젝트를 만들었어요${people.length ? ` · 팀원 ${people.length}명` : ''}`, async () => { await t(); await c(); await r.undo() })
     onClose()
     onDone?.(r.tagId)
   }
@@ -199,6 +211,13 @@ export function NameDialog({ anchor, p, cats = [], onClose, onDone }: { anchor: 
           onChange={(e) => { setName(e.target.value); setErr('') }} onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void save() }} />
       </div>
       {err && <p className="plan-name__err">{err}</p>}
+      {!p && (
+        <label className="plan-name__team">
+          <span>팀원</span>
+          <input className="plan-add__q" placeholder="예: 민수, 지은" value={team} aria-label="팀원" onChange={(e) => setTeam(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void save() }} />
+        </label>
+      )}
       <div className="plan-name__cat" role="radiogroup" aria-label="분류">
         <span>분류</span>
         {catList.map((c) => <button key={c} role="radio" aria-checked={shownCat === c} className={shownCat === c ? 'is-on' : ''} onClick={() => setCat(shownCat === c ? null : c)}>{c}</button>)}
@@ -234,6 +253,7 @@ function ProjectCard({ p, today, actions, onOpen, onMenu, onDrop }: { p: Project
       <div className="pc-card__top">
         <ProjectIcon name={p.tag.name} />
         <div className="pc-card__t">{p.title}</div>
+        {p.focus && <span className="pc-focus">집중</span>}
         {p.auto && <span className="pc-auto">자동</span>}
         <button className="icon-btn pc-card__more" aria-label="프로젝트 메뉴" onClick={onMenu}><MoreHorizontal /></button>
       </div>

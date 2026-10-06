@@ -101,6 +101,7 @@ export function ProjectScreen({ p, data, selected, onBack, onSelect, onPlan, act
       <div className="plan-ftitle">
         <ProjectIcon name={p.tag.name} size={20} />
         <h2 ref={title} onDoubleClick={() => setNaming(title.current)} title="두 번 눌러 이름 바꾸기">{p.title}</h2>
+        {p.focus && <span className="pc-focus">집중</span>}
         {p.auto && <span className="pc-auto">자동</span>}
         <CardLine p={p} today={today} />
         <button className="icon-btn plan-ftitle__more" aria-label="프로젝트 메뉴" onClick={(e) => setMenu(e.currentTarget)}><MoreHorizontal /></button>

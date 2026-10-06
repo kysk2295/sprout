@@ -1,16 +1,18 @@
-// 31 §12.1 자동 프로젝트 — 읽기·쓰기. 계산 규칙은 @sprout/schema/projects(순수), 태그 붙이기 규칙은 @sprout/schema/autoTag(33).
-//  · runProjectPass(): ① 덩어리 찾기 → 프로젝트 태그 만들기(source ai) ② 사전 검사로 붙이기 ③ 넓히기(rule 75) + AI topic 태그 중 프로젝트 같은 것 → project
-//    자동 태그 묶음·일괄이 끝날 때(useAutoTagger)와 계획 화면을 열 때 돈다. 자동 태그가 꺼져 있으면 안 돈다.
+// 31 §12.1 · §12.13 프로젝트 — 읽기·쓰기. 계산 규칙은 @sprout/schema/projects·projectScore(순수), 태그 붙이기 규칙은 @sprout/schema/autoTag(33).
+//  · runProjectPass(): 프로젝트는 **만들지 않는다**(§12.13.1 — 사람만). 끝나지 않은 프로젝트에 ① 막연한 할 일 배정(rule 90) ② 사전 검사(rule 100)
+//    ③ 점수(projectScore, 70↑ rule) + 끝난 프로젝트의 지금 집중 지움. 자동 태그 묶음·일괄이 끝날 때(useAutoTagger)와 계획 화면을 열 때 돈다.
 //  · 사람 손: 제안 카드로 만들기 · 아니 · 빠진 거 없어 · ✕ 이건 아니야 · ＋ 더 넣기 · 프로젝트 아님 — 모두 되돌리기 함수를 돌려준다.
 import {
-  AUTO_TAG, aiTagId, autoTagRowId, dictionaryPass, findSynonym, planAssign, tagKey, type Assign, type AtFolder, type AtLink, type AtList, type AtTag, type Ctx
+  aiTagId, autoTagRowId, dictionaryPass, findSynonym, planAssign, tagKey, type Assign, type AtFolder, type AtLink, type AtList, type AtTag, type Ctx
 } from '@sprout/schema/autoTag'
-import { expandProject, findProjectClusters, INSTANCE, nearSameName, planProjectCleanup, PROJECT, projectMembers, upgradeToProject, type Proposal, type PTask } from '@sprout/schema/projects'
+import { findProjectClusters, INSTANCE, planProjectCleanup, PROJECT, projectMembers, type Proposal, type PTask } from '@sprout/schema/projects'
+import { projectCandidates, type ScoreRel } from '@sprout/schema/projectScore'
 import { parseAliases } from '@sprout/schema/wikiLink'
 import { getDb, type Stmt } from './db'
 import { insert, now, remove, run, update, uuid } from './mutations'
 import { assignStmts, autoTagEnabled, autoTagPerson, autoTagStore, loadTagScope, tagScope } from './autoTag'
 import { serial } from './listSuggest'
+import { dayKey } from '../lib/dates'
 
 // ── 기기 저장 sprout.map.projects.v1 ──
 export type ProjectStore = {
@@ -27,6 +29,8 @@ export type ProjectStore = {
   carry?: string[]
   /** §12.10.3 고르기에서 `아니`한 할 일 */
   skip?: string[]
+  /** §12.13.4 오늘 답한 물음 수(하루 3개) */
+  asked?: { day: string; n: number }
 }
 export const autoProjectsOn = () => projectStore.get().auto !== false
 const KEY = 'sprout.map.projects.v1'
@@ -48,22 +52,24 @@ export const projectStore = {
 }
 
 // ── 읽기 ──
-export type ProjectCtx = Ctx & { tasks: (PTask & { status: number })[] }
+export type ProjectCtx = Ctx & { tasks: (PTask & { status: number })[]; relations: ScoreRel[] }
 const DONE_DAYS = 120
 /** 프로젝트 계산 문맥: 태그·리스트·폴더·할 일(열린 것 + 최근 120일 끝낸 것, 날짜·부모 포함)·연결 */
 export async function readProjectCtx(at = new Date()): Promise<ProjectCtx> {
   await loadTagScope()
   const db = await getDb()
   const cutoff = new Date(at.getTime() - DONE_DAYS * 86_400_000).toISOString()
-  const [tags, lists, folders, tasks, links] = await Promise.all([
+  const [tags, lists, folders, tasks, links, relations] = await Promise.all([
     db.getAll<AtTag>(`SELECT id, name, kind, aliases, source, home_type, home_id, created_at, run_id FROM tags WHERE name IS NOT NULL AND name != '' ORDER BY sort_order`),
     db.getAll<AtList>('SELECT id, name, folder_id, kind FROM lists WHERE archived_at IS NULL'),
     db.getAll<AtFolder>('SELECT id, name FROM folders'),
     db.getAll<PTask & { status: number }>(`SELECT id, title, list_id, parent_id, status, due_at, start_at, completed_at, created_at FROM tasks
       WHERE deleted_at IS NULL AND title IS NOT NULL AND title != '' AND (status = 0 OR (status = 1 AND completed_at >= ?)) ORDER BY created_at`, [cutoff]),
-    db.getAll<AtLink>('SELECT id, task_id, tag_id, source, state, created_at, run_id, confidence FROM task_tags')
+    db.getAll<AtLink>('SELECT id, task_id, tag_id, source, state, created_at, run_id, confidence FROM task_tags'),
+    // §12.13 팀원(tag→tag project) · 배운 낱말(tag→hint) · 지금 집중(tag→focus)
+    db.getAll<ScoreRel & { id: string }>("SELECT id, from_type, from_id, to_type, to_id, field, state FROM relations WHERE from_type = 'tag' AND field IN ('project', 'hint', 'focus')")
   ])
-  return { tags, lists, folders, tasks, links, person: autoTagPerson() }
+  return { tags, lists, folders, tasks, links, relations, person: autoTagPerson() }
 }
 const blockedKeys = () => new Set([...Object.keys(autoTagStore.get().blocked), ...projectStore.get().dismissed])
 
@@ -83,81 +89,63 @@ function projectTagStmt(ctx: ProjectCtx, p: Pick<Proposal, 'name' | 'word' | 'ho
     stmt: insert('tags', { id: tag.id, name: p.name, color: null, parent_id: null, sort_order: Date.now(), pinned: 0, kind: 'project', aliases, source, run_id: runId, home_type: tag.home_type, home_id: tag.home_id, created_at: at, modified_at: at })
   }
 }
-/** 이 프로젝트 태그로 사전 검사 + 넓히기 → 붙일 것 */
+/** 이 프로젝트 태그로 사전 검사 → 붙일 것 */
 function attachPlan(ctx: ProjectCtx, tagIds: Set<string>): Assign[] {
   const dict = planAssign(dictionaryPass(ctx.tasks.map((t) => t.id), ctx, { onlyTags: tagIds }), ctx)
   return dict
 }
-function expandPlan(ctx: ProjectCtx, tagIds: Set<string>): Assign[] {
-  const out: Assign[] = []
-  // 기본함은 묶음이 아니다 — 자동 넓히기에서 뺀다(2026-10-05: 기본함 할 일이 `근무`·`adsp`에 쓸려 들어감). 정리 책상 제안(tidy)은 그대로
-  const inbox = new Set(ctx.lists.filter((l) => l.kind === 'inbox').map((l) => l.id))
-  const inInbox = new Set(ctx.tasks.filter((t) => !t.list_id || inbox.has(t.list_id)).map((t) => t.id))
-  for (const tag of ctx.tags.filter((t) => tagIds.has(t.id))) {
-    const members = projectMembers(tag, ctx.tasks, ctx.links, ctx.lists)
-    for (const taskId of expandProject(tag, members, ctx)) if (!inInbox.has(taskId)) out.push({ taskId, tagId: tag.id, source: 'rule', confidence: PROJECT.expandScore })
-  }
-  return planAssign(out, ctx)
-}
-
 /**
- * 자동 프로젝트 한 바퀴(§12.1): AI topic 태그 → project, 덩어리 → 새 프로젝트 태그(태그 60개 미만), 모든 프로젝트 태그로 사전 검사·넓히기.
- * 결정적이라 AI 없이 돈다. 33 대기열(serial)과 같은 줄.
+ * 프로젝트 한 바퀴(§12.1 · §12.13): 새 프로젝트는 만들지 않는다. 끝나지 않은 프로젝트에 막연한 할 일 배정 · 사전 검사 · 점수 70↑를 붙인다.
+ * 결정적이라 AI 없이 돈다. 33 대기열(serial)과 같은 줄. created·upgraded는 늘 0(예전 모양 그대로 돌려준다).
  */
 export function runProjectPass(opts: { at?: string; force?: boolean } = {}): Promise<ProjectPassResult> {
   return serial(async () => {
     const zero = { created: 0, attached: 0, upgraded: 0 }
     const at = opts.at ?? now()
     const runId = `proj-${at}`
-    await cleanupOnce(at, runId)
+    cleanupOnce()
     if (!autoTagEnabled() || !autoProjectsOn()) return zero
     const last = projectStore.get().lastRun
     if (!opts.force && last && Date.parse(at) - Date.parse(last) < PASS_GAP && Date.parse(at) >= Date.parse(last)) return zero
     const ctx = await readProjectCtx(new Date(at))
+    const today = dayKey(0, new Date(at))
     const stmts: Stmt[] = []
-    // AI가 만든 topic 태그 중 프로젝트 같은 것 → project
-    const up = upgradeToProject(ctx.tags)
-    for (const id of up) { stmts.push(update('tags', id, { kind: 'project' })); ctx.tags.find((t) => t.id === id)!.kind = 'project' }
-    // 덩어리 → 새 프로젝트 태그
+    // §12.13.3 점수 모양(구성원·끝남·팀원·배운 낱말) — 끝난 프로젝트는 어떤 자동 길로도 받지 않는다
+    const scoreIn = { tags: ctx.tags, tasks: ctx.tasks, links: ctx.links, lists: ctx.lists, relations: ctx.relations, today }
+    const first = projectCandidates(scoreIn, { taskIds: new Set() })
+    const ended = new Set(first.projects.filter((p) => p.ended).map((p) => p.id))
+    // §12.13.7 끝난(또는 없어진) 프로젝트의 지금 집중은 지운다
+    const projIds0 = new Set(ctx.tags.filter((t) => t.kind === 'project').map((t) => t.id))
+    for (const r of ctx.relations as (ScoreRel & { id: string })[]) if (r.to_type === 'focus' && (ended.has(r.from_id) || !projIds0.has(r.from_id))) stmts.push(remove('relations', r.id))
+    // §12.10 특정 프로젝트: 막연한 할 일(이름이 제목에 없음)은 이미 있는 프로젝트에만 덩어리가 정한 대로 붙인다(rule 90). 새 프로젝트는 만들지 않는다(§12.13.1)
     const { auto } = findProjectClusters(ctx, blockedKeys())
-    let created = 0
-    // §12.10 특정 프로젝트: 막연한 할 일(이름이 제목에 없음)은 사전 검사가 못 잡으니 덩어리가 정한 대로 붙인다(rule 90)
     const instanceAssign: Assign[] = []
-    const claim = (p: Proposal, tagId: string) => { if (p.reason === 'instance') for (const taskId of p.taskIds) instanceAssign.push({ taskId, tagId, source: 'rule', confidence: INSTANCE.assignScore }) }
     for (const p of auto) {
-      if (p.reason === 'instance') {
-        const same = ctx.tags.find((t) => t.kind === 'project' && (tagKey(t.name) === p.key || parseAliases(t.aliases).some((a) => tagKey(a) === p.key)))
-        if (same) { claim(p, same.id); continue }
-      }
-      if (ctx.tags.length >= AUTO_TAG.maxTags) break
-      const syn = p.reason === 'instance' ? null : findSynonym(p.name, ctx.tags) ?? findSynonym(p.word, ctx.tags)
-      if (!syn && ctx.tags.some((t) => t.kind === 'project' && nearSameName(t.name, p.name))) continue // 이름이 거의 같은 프로젝트가 이미 있음
-      if (syn) {
-        if (syn.tag.source === 'ai' && syn.tag.kind !== 'project') { stmts.push(update('tags', syn.tag.id, { kind: 'project' })); syn.tag.kind = 'project'; up.push(syn.tag.id) }
-        continue
-      }
-      const made = projectTagStmt(ctx, p, 'ai', runId, at)
-      stmts.push(made.stmt)
-      claim(p, made.tag.id)
-      created++
+      if (p.reason !== 'instance') continue
+      const same = ctx.tags.find((t) => t.kind === 'project' && !ended.has(t.id) && (tagKey(t.name) === p.key || parseAliases(t.aliases).some((a) => tagKey(a) === p.key)))
+      if (same) for (const taskId of p.taskIds) instanceAssign.push({ taskId, tagId: same.id, source: 'rule', confidence: INSTANCE.assignScore })
     }
-    const projIds = new Set(ctx.tags.filter((t) => t.kind === 'project').map((t) => t.id))
+    const projIds = new Set([...projIds0].filter((id) => !ended.has(id)))
     let attached = 0
     if (projIds.size) {
       const i0 = planAssign(instanceAssign, ctx)
       const ia = assignStmts(i0, ctx, runId, at)
-      // ctx.links에 더해야 사전 검사·넓히기가 같은 할 일을 또 붙이지 않는다
-      for (const x of i0) ctx.links.push({ id: autoTagRowId(x.taskId, x.tagId), task_id: x.taskId, tag_id: x.tagId, source: 'rule', state: 'accepted' } as AtLink)
       const a = assignStmts(attachPlan(ctx, projIds), ctx, runId, at)
-      const b = assignStmts(expandPlan(ctx, projIds), ctx, runId, at)
+      // §12.13.3 점수 70↑(넓히기 대신) — 위에서 붙은 것을 본 뒤에
+      const b = assignStmts(scorePlan(ctx, today), ctx, runId, at)
       stmts.push(...ia, ...a, ...b)
       attached = ia.length + a.length + b.length
     }
     await run(...stmts)
     projectStore.set({ lastRun: at })
     await carryUserLinks(runId)
-    return { created, attached, upgraded: up.length }
+    return { created: 0, attached, upgraded: 0 }
   })
+}
+/** §12.13.3 점수로 붙일 것(70↑, 다른 프로젝트와 10점 넘게 차이) */
+function scorePlan(ctx: ProjectCtx, today: string): Assign[] {
+  const { auto } = projectCandidates({ tags: ctx.tags, tasks: ctx.tasks, links: ctx.links, lists: ctx.lists, relations: ctx.relations, today })
+  return planAssign(auto.map((c) => ({ taskId: c.taskId, tagId: c.tagId, source: 'rule' as const, confidence: c.score })), ctx)
 }
 
 // ── 한 번 정리(2026-10-05) ──
@@ -222,18 +210,12 @@ export async function undoProjectCleanup(): Promise<boolean> {
   try { localStorage.removeItem(CLEANUP_KEY) } catch { /* */ }
   return true
 }
-/** 자동 패스 앞에서 한 판에 한 번(자동 태그가 꺼져 있어도 돈다 — 이미 생긴 잘못을 고치는 것) */
-async function cleanupOnce(at: string, passRun: string) {
-  if ((projectStore.get().cleanup ?? 0) >= CLEANUP_VERSION) return
-  try {
-    const r = await cleanupProjects(at)
-    if (r.removedTags || r.removedLinks || r.renamed) {
-      console.info('[project] 자동 프로젝트 정리', r)
-      // 이어서 도는 패스가 만든 것도 되돌리기에 넣는다
-      const rec = loadProjectCleanup()
-      if (rec) try { localStorage.setItem(CLEANUP_KEY, JSON.stringify({ ...rec, passRun })) } catch { /* */ }
-    }
-  } finally { projectStore.set({ cleanup: CLEANUP_VERSION }) }
+/**
+ * 31 §12.13.1(2026-10-06): 한 번 정리는 이제 저절로 돌지 않는다 — 지운 막연한 프로젝트를 패스가 다시 만들어 주지 않으니,
+ * 아직 안 돈 기기에서 자동 프로젝트를 말없이 지우지 않게 판만 적어 둔다. 이미 돈 기기의 되돌리기(undoProjectCleanup)는 그대로.
+ */
+function cleanupOnce() {
+  if ((projectStore.get().cleanup ?? 0) < CLEANUP_VERSION) projectStore.set({ cleanup: CLEANUP_VERSION })
 }
 /** §12.10.5 지운 막연한 프로젝트에 사람이 넣었던 할 일: 새 특정 프로젝트가 잡았으면 그 연결을 user로 */
 async function carryUserLinks(runId: string) {
@@ -267,10 +249,11 @@ export async function createProjectFrom(p: Proposal, at = now()): Promise<{ tagI
     }
     const runId = `projmk-${at}`
     const one = new Set([tagId])
-    // 제안에 든 할 일은 이름이 제목에 있으니 사전 검사가 잡는다. 넓히기도 같이
+    // §12.13.1 카드에 보인 할 일 모두(rule 90, 확인 전) + 이름이 든 할 일(사전 검사)
+    const shown = planAssign(p.taskIds.map((taskId) => ({ taskId, tagId, source: 'rule' as const, confidence: INSTANCE.assignScore })), ctx)
+    const s0 = assignStmts(shown, ctx, runId, at)
     const a = assignStmts(attachPlan(ctx, one), ctx, runId, at)
-    const b = assignStmts(expandPlan(ctx, one), ctx, runId, at)
-    await run(...stmts, ...a, ...b)
+    await run(...stmts, ...s0, ...a)
     return {
       tagId,
       undo: async () => {
@@ -289,6 +272,9 @@ export function dismissSuggestion(key: string) {
   const d = projectStore.get().dismissed
   if (!d.includes(key)) projectStore.set({ dismissed: [...d, key] })
 }
+/** §12.13.4 오늘 물은 수(답한 수) */
+export function askedToday(day = dayKey()): number { const a = projectStore.get().asked; return a && a.day === day ? a.n : 0 }
+export function noteAsked(day = dayKey()) { projectStore.set({ asked: { day, n: askedToday(day) + 1 } }) }
 /** `빠진 거 없어` */
 export function confirmProject(tagId: string, count: number) { projectStore.set({ confirmed: { ...projectStore.get().confirmed, [tagId]: count } }) }
 
