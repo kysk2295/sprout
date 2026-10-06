@@ -8,6 +8,7 @@ import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withSprin
 import { alpha, M, priorityColor } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { hx } from './haptics'
+import { playComplete } from './sound'
 import { DUR, SPRING, timing } from './motion'
 
 export function Checkbox(props: { priority: number; done: boolean; onPress?: () => void; size?: number; label?: string; disabled?: boolean; flash?: boolean; /** 완료 모양으로 머무는 중(39 §4.1-3) */ pending?: boolean }) {
@@ -40,7 +41,7 @@ export function Checkbox(props: { priority: number; done: boolean; onPress?: () 
       accessibilityState={{ checked, disabled: props.disabled }}
       accessibilityLabel={props.label ?? '완료'}
       disabled={props.disabled || !props.onPress}
-      onPress={() => { if (!checked) hx.tap(); props.onPress?.() }}
+      onPress={() => { if (!checked) { hx.tap(); playComplete() } props.onPress?.() }}
       onPressIn={() => { box.value = withTiming(0.88, timing(DUR.fast)) }}
       onPressOut={() => { if (!checked) box.value = withSpring(1, SPRING.snappy) }}
       style={s.hit}

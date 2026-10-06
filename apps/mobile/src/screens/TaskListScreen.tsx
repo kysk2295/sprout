@@ -12,7 +12,7 @@ import { AssistantButton } from '../assistant/AssistantSheet'
 import { syncNow } from '../data/auth'
 import { useFolders, useLists, useSections } from '../data/lists'
 import {
-  completeTasks, deleteForever, moveDates, reopenTasks, restoreTasks, setPinned, setPriority, trashTasks, type Undo
+  completeTasks, deleteForever, moveDates, reopenTasks, reorderTasks, restoreTasks, setPinned, setPriority, trashTasks, type Undo
 } from '../data/tasks'
 import {
   addSection, deleteSection, moveSection, renameSection, saveViewSettings, useFilters, useTagsFull, useViewSettings
@@ -24,6 +24,8 @@ import { dayKey, longDay, nextMonday } from '../lib/dates'
 import { useTasksView } from '../state/tasksView'
 import { useCompleting } from '../state/useCompleting'
 import { hx } from '../ui/haptics'
+import { playComplete } from '../ui/sound'
+import { DragGhost, DragRow, useDragReorder, type DropAt } from '../ui/DragReorder'
 import { rowExit, useListMotion } from '../ui/listMotion'
 import { useReducedMotion } from '../ui/motion'
 import { M } from '../theme/palette'
@@ -221,17 +223,39 @@ export default function TaskListScreen() {
         { key: 'date', color: p.swipeDate, icon: icon(Calendar), label: '날짜', onPress: () => openSheet('/date', [t.id]) }
       ],
       // 끝까지 밀기는 행이 이미 밖으로 나갔으니 머무르지 않고 바로 쓴다
-      full: () => { closeOpenRow(); void completeNow(t.id) }
+      full: () => { closeOpenRow(); playComplete(); void completeNow(t.id) }
     }
   }
 
   const rowRefs = useRef(new Map<string, View | null>())
-  const renderNode = (n: Node, depth = 0): React.ReactNode => {
+  // 39 §4.3 · 결정 ③: 길게 눌러 끌어 순서 바꾸기(같은 묶음 · 리스트의 다른 섹션). 그대로 떼면 지금처럼 메뉴
+  const groupOfTask = useRef(new Map<string, string>())
+  const openMenuFor = (id: string) => {
+    const t = open.data.find((x) => x.id === id) ?? done.data.find((x) => x.id === id)
+    if (!t) return
+    rowRefs.current.get(id)?.measureInWindow((x, y, width, height) => (t.deleted_at ? setTrashMenu({ task: t, rect: { x, y, width, height } }) : setLp({ task: t, rect: { x, y, width, height } })))
+  }
+  const onDrop = async (d: DropAt) => {
+    const g = shownGroups.find((x) => x.id === d.group)
+    if (!g) return
+    const ids = g.rows.map((n) => n.task.id).filter((x) => x !== d.id)
+    let at = d.before ? ids.indexOf(d.before) : d.after ? ids.indexOf(d.after) + 1 : ids.length
+    if (at < 0) at = ids.length
+    ids.splice(at, 0, d.id)
+    const cross = groupOfTask.current.get(d.id) !== d.group
+    const undo = await reorderTasks(ids, { id: d.id, sectionId: cross ? (d.group === 's:none' ? null : d.group.slice(2)) : undefined })
+    if (settings.sort_by !== 'custom') await saveViewSettings(view, { sort_by: 'custom' })
+    if (cross) withUndo('옮겼어요', undo)
+  }
+  const drag = useDragReorder({ canCross: (a, b) => a.startsWith('s:') && b.startsWith('s:'), onDrop: (d) => void onDrop(d), onMenu: openMenuFor })
+  const canDrag = !archive
+  const renderNode = (n: Node, depth = 0, groupId = ''): React.ReactNode => {
     const t = n.task
     const sw = swipeFor(t)
     const expanded = v.isExpanded(t.id)
     return (
       <Animated.View key={t.id} entering={motion.entering} exiting={motion.exiting} layout={motion.layout}>
+        <DragRow id={t.id} group={groupId} drag={drag} enabled={canDrag && depth === 0 && !!groupId && t.status === 0}>
         <SwipeRow left={sw.left} right={sw.right} onFullSwipe={sw.full} fullLabel={sw.fullLabel}>
           <View ref={(r) => { rowRefs.current.set(t.id, r) }} collapsable={false}>
             <TaskRowView
@@ -250,10 +274,11 @@ export default function TaskListScreen() {
               onToggleExpand={() => v.toggleExpand(t.id)}
               onCheck={t.deleted_at ? undefined : () => void complete(t)}
               onPress={() => openDetail(t)}
-              onLongPress={() => rowRefs.current.get(t.id)?.measureInWindow((x, y, width, height) => (t.deleted_at ? setTrashMenu({ task: t, rect: { x, y, width, height } }) : setLp({ task: t, rect: { x, y, width, height } })))}
+              onLongPress={canDrag && depth === 0 && !!groupId && t.status === 0 ? undefined : () => openMenuFor(t.id)}
             />
           </View>
         </SwipeRow>
+        </DragRow>
         {expanded ? n.children.map((c) => renderNode(c, depth + 1)) : null}
       </Animated.View>
     )
@@ -309,6 +334,7 @@ export default function TaskListScreen() {
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingTop: 4, paddingBottom: bottomPad }}
         onScrollBeginDrag={closeOpenRow}
+        scrollEnabled={!drag.dragging}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={p.textTertiary} />}
       >
         {firstLoad ? <Skeleton /> : null}
@@ -337,12 +363,13 @@ export default function TaskListScreen() {
                 {evByGroup.get(g.id)?.map((it) => (
                   <EventRowView key={it.key} evt={it.evt} start={it.start} end={it.end} color={it.color} onPress={() => evMenu.act.open(it.evt.id)} onLongPress={(rect) => evMenu.openMenu(it.evt.id, rect)} />
                 ))}
-                {g.rows.map((n) => renderNode(n))}
+                {g.rows.map((n) => { groupOfTask.current.set(n.task.id, g.id); return renderNode(n, 0, g.id) })}
               </GroupCard>
             )
           })}
         </View>
       </Animated.ScrollView>
+      <DragGhost state={drag.state} id={drag.ghost} render={(id) => { const t = open.data.find((x) => x.id === id); return t ? <TaskRowView task={t} today={today} showList={showsListName(view) && !archive} hideTodayLabel={isToday} /> : null }} />
       <DrawerEdge />
       {!archive ? <Fab onPress={() => router.push({ pathname: '/quick-add', params: { view: listView } })} /> : null}
 

@@ -235,3 +235,13 @@ export async function createList(name: string): Promise<string> {
   await run([insert('lists', { id, name, kind: 'normal', sort_order: (max?.m ?? 0) + 1, pinned: 0, show_in_smart: 'all' })])
   return id
 }
+
+/**
+ * 끌어서 순서 바꾸기(39 §4.3 · 결정 ③): 묶음 안 순서를 sort_order 0,1,2…로 굳히고, 다른 섹션으로 놓았으면 section_id도 바꾼다.
+ * 데스크톱 02 §끌기와 같은 규칙(정렬이 사용자 지정이 아니면 보이는 순서를 굳힌다 — 정렬 바꾸기는 부르는 쪽). 되돌리기 = 이전 값.
+ */
+export async function reorderTasks(order: string[], moved: { id: string; sectionId?: string | null }): Promise<Undo> {
+  const undo = await snapshot(order, ['sort_order', 'section_id'])
+  await run(order.map((id, k) => update('tasks', id, { sort_order: k, ...(id === moved.id && moved.sectionId !== undefined ? { section_id: moved.sectionId } : {}) })))
+  return undo
+}

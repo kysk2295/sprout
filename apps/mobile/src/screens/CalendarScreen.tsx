@@ -12,10 +12,10 @@
 import { useQuery } from '@powersync/react-native'
 import { useLocalSearchParams, useRouter, useScrollToTop } from 'expo-router'
 import { CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Check, Columns3, Ellipsis, ExternalLink, List, Plus, Square, Trash2 } from 'lucide-react-native'
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import Animated, { Easing, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated'
+import Animated, { Easing, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { scheduleOnRN } from 'react-native-worklets'
 import {
@@ -28,6 +28,8 @@ import { scheduleOn } from '../data/organization'
 import { completeTasks, moveDates, reopenTasks, setPinned, setPriority, trashTasks, updateTask, type Undo } from '../data/tasks'
 import { COLUMNS, type TaskRow } from '../data/views'
 import { dayKey, nextMonday } from '../lib/dates'
+import { hx } from '../ui/haptics'
+import { DUR, SPRING } from '../ui/motion'
 import { alpha, FONT, M, mix, type Palette } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { useEventMenu } from '../ui/EventMenu'
@@ -110,6 +112,8 @@ export default function CalendarScreen() {
   const range = useMemo(() => {
     if (view === 'day') { const from = weekStart(cursor, ws); return { from, to: dayKey(6, new Date(`${from}T00:00`)) } }
     const r = rangeOf(view, cursor, ws)
+    // 39 §4.11: 월 보기는 끌 때 앞뒤 달이 보이므로 그 달까지 읽는다
+    if (view === 'month') return { from: rangeOf('month', shiftCursor('month', cursor, -1), ws).from, to: rangeOf('month', shiftCursor('month', cursor, 1), ws).to }
     return { from: r.from, to: r.to }
   }, [view, cursor, ws])
   const tasks = useQuery<TaskRow>(
@@ -347,11 +351,27 @@ function MonthView(props: { ws: WeekStart; today: string; cursor: string; items:
   const listPan = Gesture.Pan().activeOffsetY([-10, 10]).failOffsetX([-25, 25]).onStart(begin).onUpdate((e) => follow(e.translationY)).onEnd((e) => release(e.velocityY))
   const listGesture = Gesture.Simultaneous(listPan, native)
 
-  // 달 칸: 펼침 = 위아래로 밀어 달 넘기기 / 접힘 = 아래로 끌어 펼치기 · 좌우로 밀어 앞뒤 주
-  const monthSwipe = Gesture.Pan().activeOffsetY([-24, 24]).failOffsetX([-20, 20]).onEnd((e) => {
-    if (e.translationY < -50) scheduleOnRN(onShift, 1)
-    else if (e.translationY > 50) scheduleOnRN(onShift, -1)
-  })
+  // 달 칸: 펼침 = 위아래로 끌면 앞뒤 달이 이어 붙은 세로 띠가 손가락을 따라오고, 놓으면 한 달 넘김(39 §4.11 [영상 실측 research 34])
+  //        접힘 = 아래로 끌어 펼치기 · 좌우로 밀어 앞뒤 주
+  const prevC = `${shiftCursor('month', `${month}-01`, -1).slice(0, 7)}-01`
+  const nextC = `${shiftCursor('month', `${month}-01`, 1).slice(0, 7)}-01`
+  const prevDays = monthDays(prevC, props.ws)
+  const nextDays = monthDays(nextC, props.ws)
+  const prevH = (prevDays.length / 7) * rowH
+  const pageY = useSharedValue(0)
+  // 넘긴 뒤 새 달이 그려지기 전에 띠를 가운데로(보이지 않게)
+  useLayoutEffect(() => { pageY.value = 0 }, [month, pageY])
+  const fh = useSharedValue(fullH)
+  useEffect(() => { fh.value = withTiming(fullH, { duration: DUR.move }) }, [fullH, fh])
+  const monthSwipe = Gesture.Pan().activeOffsetY([-12, 12]).failOffsetX([-20, 20])
+    .onUpdate((e) => { pageY.value = e.translationY })
+    .onEnd((e) => {
+      const thr = fullH * 0.2
+      const v = e.velocityY
+      if (e.translationY < -thr || v < -500) pageY.value = withSpring(-fullH, { ...SPRING.page, velocity: v }, (fin) => { if (fin) scheduleOnRN(onShift, 1) })
+      else if (e.translationY > thr || v > 500) pageY.value = withSpring(prevH, { ...SPRING.page, velocity: v }, (fin) => { if (fin) scheduleOnRN(onShift, -1) })
+      else pageY.value = withSpring(0, { ...SPRING.page, velocity: v })
+    })
   const nextWeek = dayKey(7, new Date(`${cursor}T00:00`))
   const prevWeek = dayKey(-7, new Date(`${cursor}T00:00`))
   const pullDown = Gesture.Pan().activeOffsetY([-12, 12]).failOffsetX([-20, 20]).onStart(begin).onUpdate((e) => follow(e.translationY)).onEnd((e) => release(e.velocityY))
@@ -361,8 +381,46 @@ function MonthView(props: { ws: WeekStart; today: string; cursor: string; items:
   })
   const gridGesture = collapsed ? Gesture.Race(pullDown, weekSwipe) : monthSwipe
 
-  const frame = useAnimatedStyle(() => ({ height: fullH - range * prog.value }))
-  const slide = useAnimatedStyle(() => ({ transform: [{ translateY: -selWeek * rowH * prog.value }] }))
+  const frame = useAnimatedStyle(() => ({ height: fh.value - range * prog.value }))
+  const slide = useAnimatedStyle(() => ({ transform: [{ translateY: -selWeek * rowH * prog.value + pageY.value }] }))
+  const pick = (d: string) => { hx.tick(); props.onPick(d) }
+  const weeksOf = (ds: string[], mkey: string, live: boolean) => Array.from({ length: ds.length / 7 }, (_, w) => (
+    <View key={`${mkey}-${w}`} pointerEvents={live ? 'auto' : 'none'} style={[s.week, { height: rowH, borderTopColor: p.borderDivider }]} importantForAccessibility={!live || (collapsed && w !== selWeek) ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={!live || (collapsed && w !== selWeek)}>
+      {ds.slice(w * 7, w * 7 + 7).map((d, c) => {
+        // 06 §16 숫자 아래 한 줄(휴일 이름·주 번호·음력)이 있으면 띠를 하나 덜 보인다
+        const mk = props.marks(d, c === 0)
+        const { shown, more } = cellSummary(props.items, d, (rowH > 60 ? 3 : 2) - (mk.side ? 1 : 0))
+        const isToday = d === props.today
+        const sel = live && d === props.cursor
+        const other = d.slice(0, 7) !== mkey
+        return (
+          <Pressable
+            key={d}
+            accessibilityRole="button"
+            accessibilityLabel={`${Number(d.slice(8))}일 ${weekdayKo(d)}요일${mk.holiday ? `, ${mk.holiday}` : ''}, 할 일 ${shown.length + more}개`}
+            accessibilityState={{ selected: sel }}
+            onPress={() => pick(d)}
+            onLongPress={() => props.onAdd(d)}
+            style={[s.cell, sel && { backgroundColor: p.bgSelected }]}
+          >
+            <View style={[s.num, isToday && { backgroundColor: p.accent }]}>
+              <Text style={{ fontSize: 12, fontWeight: isToday || sel ? '700' : '500', color: isToday ? '#fff' : dayTone(p, d, mk, other && !collapsed) }}>{Number(d.slice(8))}</Text>
+            </View>
+            <View style={{ marginTop: -1, opacity: other && !collapsed ? 0.55 : 1 }}><SideLabel marks={mk} /></View>
+            {shown.map((it) => {
+              const k = lookOf(p, it, now)
+              return (
+                <View key={it.key} style={[s.bar, { backgroundColor: alpha(k.color.slice(0, 7), k.faded ? 0.08 : 0.18) }]}>
+                  <Text numberOfLines={1} style={{ fontSize: 10, lineHeight: 13, color: k.text }}>{it.task.title}</Text>
+                </View>
+              )
+            })}
+            {more ? <Text style={{ fontSize: 10, lineHeight: 13, color: p.textTertiary, paddingLeft: 3 }}>+{more}</Text> : null}
+          </Pressable>
+        )
+      })}
+    </View>
+  ))
   return (
     <View style={{ flex: 1 }}>
       <View style={s.wd}>
@@ -370,47 +428,13 @@ function MonthView(props: { ws: WeekStart; today: string; cursor: string; items:
       </View>
       <GestureDetector gesture={gridGesture}>
         <Animated.View
-          accessibilityHint={collapsed ? '아래로 끌면 달 전체를 펼쳐요' : undefined}
+          accessibilityHint={collapsed ? '아래로 끌면 달 전체를 펼쳐요' : '위아래로 밀면 달이 바뀌어요'}
           style={[{ overflow: 'hidden', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: p.borderDivider }, frame]}
         >
           <Animated.View style={slide}>
-            {Array.from({ length: weeks }, (_, w) => (
-              <View key={w} style={[s.week, { height: rowH, borderTopColor: p.borderDivider }]} importantForAccessibility={collapsed && w !== selWeek ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={collapsed && w !== selWeek}>
-                {days.slice(w * 7, w * 7 + 7).map((d, c) => {
-                  // 06 §16 숫자 아래 한 줄(휴일 이름·주 번호·음력)이 있으면 띠를 하나 덜 보인다
-                  const mk = props.marks(d, c === 0)
-                  const { shown, more } = cellSummary(props.items, d, (rowH > 60 ? 3 : 2) - (mk.side ? 1 : 0))
-                  const isToday = d === props.today
-                  const sel = d === props.cursor
-                  const other = d.slice(0, 7) !== month
-                  return (
-                    <Pressable
-                      key={d}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${Number(d.slice(8))}일 ${weekdayKo(d)}요일${mk.holiday ? `, ${mk.holiday}` : ''}, 할 일 ${shown.length + more}개`}
-                      accessibilityState={{ selected: sel }}
-                      onPress={() => props.onPick(d)}
-                      onLongPress={() => props.onAdd(d)}
-                      style={[s.cell, sel && { backgroundColor: p.bgSelected }]}
-                    >
-                      <View style={[s.num, isToday && { backgroundColor: p.accent }]}>
-                        <Text style={{ fontSize: 12, fontWeight: isToday || sel ? '700' : '500', color: isToday ? '#fff' : dayTone(p, d, mk, other && !collapsed) }}>{Number(d.slice(8))}</Text>
-                      </View>
-                      <View style={{ marginTop: -1, opacity: other && !collapsed ? 0.55 : 1 }}><SideLabel marks={mk} /></View>
-                      {shown.map((it) => {
-                        const k = lookOf(p, it, now)
-                        return (
-                          <View key={it.key} style={[s.bar, { backgroundColor: alpha(k.color.slice(0, 7), k.faded ? 0.08 : 0.18) }]}>
-                            <Text numberOfLines={1} style={{ fontSize: 10, lineHeight: 13, color: k.text }}>{it.task.title}</Text>
-                          </View>
-                        )
-                      })}
-                      {more ? <Text style={{ fontSize: 10, lineHeight: 13, color: p.textTertiary, paddingLeft: 3 }}>+{more}</Text> : null}
-                    </Pressable>
-                  )
-                })}
-              </View>
-            ))}
+            {!collapsed ? <View style={{ position: 'absolute', left: 0, right: 0, top: -prevH }}>{weeksOf(prevDays, prevC.slice(0, 7), false)}</View> : null}
+            {weeksOf(days, month, true)}
+            {!collapsed ? <View style={{ position: 'absolute', left: 0, right: 0, top: fullH }}>{weeksOf(nextDays, nextC.slice(0, 7), false)}</View> : null}
           </Animated.View>
         </Animated.View>
       </GestureDetector>
@@ -621,13 +645,20 @@ function DragBlock(props: { block: Block<TaskRow>; colW: number; colIndex: numbe
   const tx = useSharedValue(0)
   const ty = useSharedValue(0)
   const lifted = useSharedValue(0)
+  const dropped = useSharedValue(0)
   const ref = useRef<View>(null)
+  // 39 §4.11: 놓은 자리에 그대로 있다가 DB 값이 들어와 블록 위치가 바뀌면 그때 0으로(원래 자리로 튀지 않음). 1.5초 안에 안 바뀌면 스프링으로 돌아감
+  useEffect(() => { tx.value = 0; ty.value = 0; dropped.value = 0 }, [top, b.col, props.colIndex]) // eslint-disable-line react-hooks/exhaustive-deps
   const menu = useCallback(() => ref.current?.measureInWindow((x, y, width, height) => props.onMenu({ x, y, width, height })), [props])
   const end = useCallback((dx: number, dy: number) => {
     props.onDragging(false)
     if (Math.abs(dx) < 6 && Math.abs(dy) < 6) menu()
-    else props.onDrop(dx, dy)
-  }, [props, menu])
+    else {
+      hx.tap()
+      props.onDrop(dx, dy)
+      setTimeout(() => { if (dropped.value) { dropped.value = 0; tx.value = withSpring(0, SPRING.snappy); ty.value = withSpring(0, SPRING.snappy) } }, 1500)
+    }
+  }, [props, menu, dropped, tx, ty])
   const minX = -props.colIndex * colW
   const maxX = (props.cols - 1 - props.colIndex) * colW
   const q = HOUR_H / 4 // 15분
@@ -637,22 +668,28 @@ function DragBlock(props: { block: Block<TaskRow>; colW: number; colIndex: numbe
   const pan = Gesture.Pan()
     .enabled(!b.item.virtual && !b.item.locked)
     .activateAfterLongPress(320)
-    .onStart(() => { lifted.value = 1; scheduleOnRN(onDragging, true) })
+    .onStart(() => { lifted.value = withSpring(1, SPRING.snappy); scheduleOnRN(hx.lift); scheduleOnRN(onDragging, true) })
     .onUpdate((e) => {
-      // 날 열·15분 칸에 붙는다(손가락을 그대로 따라가지 않음)
-      tx.value = Math.round(Math.max(minX, Math.min(maxX, e.translationX)) / colW) * colW
-      ty.value = Math.max(minY, Math.min(maxY, Math.round(e.translationY / q) * q))
+      // 날 열·15분 칸에 붙는다(손가락을 그대로 따라가지 않음) — 칸을 넘을 때마다 틱
+      const nx = Math.round(Math.max(minX, Math.min(maxX, e.translationX)) / colW) * colW
+      const ny = Math.max(minY, Math.min(maxY, Math.round(e.translationY / q) * q))
+      if (nx !== tx.value || ny !== ty.value) scheduleOnRN(hx.tick)
+      tx.value = nx
+      ty.value = ny
     })
-    .onEnd(() => { scheduleOnRN(end, tx.value, ty.value) })
-    .onFinalize(() => { tx.value = 0; ty.value = 0; lifted.value = 0 })
+    .onEnd(() => { if (Math.abs(tx.value) >= 6 || Math.abs(ty.value) >= 6) dropped.value = 1; scheduleOnRN(end, tx.value, ty.value) })
+    .onFinalize(() => {
+      lifted.value = withTiming(0, { duration: DUR.base })
+      if (!dropped.value) { tx.value = withSpring(0, SPRING.snappy); ty.value = withSpring(0, SPRING.snappy) }
+    })
   const k = lookOf(p, b.item, props.now)
   const markShown = w >= 48
   // 블록 왼쪽 체크박스 자리를 누르면 완료(상세는 열지 않는다), 나머지는 상세 — 체크박스를 Pressable로 두면 블록 탭과 둘 다 불린다
   const tapAt = useCallback((x: number) => { if (markShown && !k.ev && x < 26) props.onCheck(); else onTap() }, [markShown, k.ev, props, onTap])
   const tap = Gesture.Tap().onEnd((e) => { scheduleOnRN(tapAt, e.x) })
   const g = Gesture.Exclusive(pan, tap)
-  const style = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }], zIndex: lifted.value ? 10 : 1, opacity: lifted.value ? 0.9 : 1, shadowOpacity: lifted.value ? 0.25 : 0 }))
-  const ghost = useAnimatedStyle(() => ({ opacity: lifted.value ? 0.4 : 0 }))
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: 1 + 0.03 * lifted.value }], zIndex: lifted.value > 0.01 || dropped.value ? 10 : 1, opacity: 1 - 0.1 * lifted.value, shadowOpacity: 0.25 * lifted.value }))
+  const ghost = useAnimatedStyle(() => ({ opacity: lifted.value > 0.01 ? 0.4 * lifted.value : 0 }))
   const box = { top, height: h, left: b.col * w + 1, width: w - 3, backgroundColor: alpha(k.color.slice(0, 7), k.faded ? 0.1 : 0.22), borderLeftColor: k.faded ? alpha(k.color.slice(0, 7), 0.5) : k.color }
   const body = (
     <>

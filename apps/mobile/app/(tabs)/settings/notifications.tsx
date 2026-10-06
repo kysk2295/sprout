@@ -14,6 +14,8 @@ import { PUSH_SUPPORTED, registerDevice, sendTestPush, usePushStatus } from '../
 import { M } from '../../../src/theme/palette'
 import { usePalette } from '../../../src/theme/ThemeProvider'
 import { Cell, Cells } from '../../../src/ui/Cells'
+import { hx, PREF, setPref, usePref } from '../../../src/ui/haptics'
+import { playComplete } from '../../../src/ui/sound'
 import { fromWheel, toWheel } from '../../../src/ui/dateSheetModel'
 import { GlassButton } from '../../../src/ui/Glass'
 import { NavRow } from '../../../src/ui/Header'
@@ -83,6 +85,8 @@ export default function NotificationSettings() {
   const openBattery = () =>
     void Linking.sendIntent('android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS').catch(() => openSystemSettings())
 
+  const soundPref = usePref(PREF.sound)
+  const hapticPref = usePref(PREF.haptics)
   const sw = (value: boolean, onChange: (v: boolean) => void, label: string, faded = false) => (
     <View style={{ opacity: faded ? 0.5 : 1 }}>
       <Switch accessibilityLabel={label} value={value} onValueChange={onChange} trackColor={{ true: p.accent }} />
@@ -179,6 +183,12 @@ export default function NotificationSettings() {
             </>
           ) : null}
         </View>
+
+        {/* 39 결정 ②④: 완료음 · 진동(기본 켬, 이 기기에만) */}
+        <Cells title="소리와 진동">
+          <Cell first label="완료음" right={sw(soundPref, (v) => { setPref(PREF.sound, v); if (v) playComplete() }, '완료음')} />
+          <Cell label="진동" right={sw(hapticPref, (v) => { setPref(PREF.haptics, v); if (v) hx.tap() }, '진동')} />
+        </Cells>
 
         {showServer ? (
           <Cells>
