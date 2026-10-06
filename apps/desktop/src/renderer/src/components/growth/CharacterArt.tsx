@@ -10,18 +10,29 @@ const COLORS: Record<Species, { body: string; accent: string }> = {
   otter: { body: '#B89A7E', accent: '#7E6249' }
 }
 
-/** 10 §3.2.3 얼굴: default 보통 · smile 눈 뜨고 웃는 입 · happy 웃는 눈 · content 배부름 · eat 냠(입 벌림) · sleepy 감은 눈 */
-export type CharacterMood = 'default' | 'smile' | 'happy' | 'content' | 'eat' | 'sleepy'
-export function CharacterArt({ species, stage = 1, size = 120, mood = 'default', look, blink, cracks }: { species: Species | null; stage?: number; size?: number; mood?: CharacterMood; look?: { x: number; y: number }; blink?: boolean; cracks?: number }) {
+/** 10 §3.2.3 얼굴: default 보통 · smile 눈 뜨고 웃는 입 · happy 웃는 눈 · content 배부름 · eat 냠(입 벌림) · sleepy 감은 눈
+ *  40 §6 새 얼굴: think 생각 중(눈동자 위·옆 + 작은 동그라미 입) · puzzled 되묻기(눈동자 살짝 옆 + 물결 입) */
+export type CharacterMood = 'default' | 'smile' | 'happy' | 'content' | 'eat' | 'sleepy' | 'think' | 'puzzled'
+/** 40 §6 얼굴별 눈동자 기본 위치(시선 look에 더한다) */
+const PUPIL_SHIFT: Partial<Record<CharacterMood, [number, number]>> = { think: [-2.2, -2.4], puzzled: [1.6, 0] }
+/** 40 §6 [임시] 작은 자리(S 18~30)에서 눈이 작아 보이지 않게 그림이 차지하는 칸만 보이는 viewBox */
+export function tightViewBox(species: Species | null, stage = 1) {
+  if (!species) return '12 16 96 96'
+  const s = 0.72 + stage * 0.07
+  const top = 108 - 50 * s + ((stage >= 4 ? 4 : 15) - 58) * s - 2 // 새싹·나무 꼭대기
+  const h = 114 - top
+  return `${(60 - h / 2).toFixed(1)} ${top.toFixed(1)} ${h.toFixed(1)} ${h.toFixed(1)}`
+}
+export function CharacterArt({ species, stage = 1, size = 120, mood = 'default', look, blink, cracks, tight }: { species: Species | null; stage?: number; size?: number; mood?: CharacterMood; look?: { x: number; y: number }; blink?: boolean; cracks?: number; tight?: boolean }) {
   // look: 눈동자가 바라보는 방향(−1~1), blink: 눈 감기(깜빡임 한 프레임)
-  const lx = (look?.x ?? 0) * 2.6
-  const ly = (look?.y ?? 0) * 2
-  if (!species) return <Egg size={size} cracks={cracks} />
+  const lx = (look?.x ?? 0) * 2.6 + (PUPIL_SHIFT[mood]?.[0] ?? 0)
+  const ly = (look?.y ?? 0) * 2 + (PUPIL_SHIFT[mood]?.[1] ?? 0)
+  if (!species) return <Egg size={size} cracks={cracks} viewBox={tight ? tightViewBox(null) : undefined} />
   const c = COLORS[species]
   const closed = <><path d="M44 62 q5 4 10 0" stroke="#3A3A3A" strokeWidth="2.4" fill="none" strokeLinecap="round" /><path d="M66 62 q5 4 10 0" stroke="#3A3A3A" strokeWidth="2.4" fill="none" strokeLinecap="round" /></>
   const scale = 0.72 + stage * 0.07 // 자랄수록 조금씩 커진다
   return (
-    <svg className={`character character--${species}`} width={size} height={size} viewBox="0 0 120 120" role="img" aria-label="캐릭터">
+    <svg className={`character character--${species}`} width={size} height={size} viewBox={tight ? tightViewBox(species, stage) : '0 0 120 120'} role="img" aria-label="캐릭터">
       <ellipse cx="60" cy="110" rx={30 * scale} ry="5" fill="rgba(0,0,0,0.08)" />
       <g transform={`translate(60 ${108 - 50 * scale}) scale(${scale}) translate(-60 -58)`}>
         {species === 'turtle' && <ellipse cx="60" cy="74" rx="40" ry="26" fill={c.accent} />}
@@ -45,6 +56,8 @@ export function CharacterArt({ species, stage = 1, size = 120, mood = 'default',
         <circle cx="41" cy="72" r="5" fill="#FF9FA8" opacity="0.55" />
         <circle cx="79" cy="72" r="5" fill="#FF9FA8" opacity="0.55" />
         {mood === 'eat' ? <ellipse cx="60" cy="75" rx="5" ry="5.5" fill="#7A3B3B" />
+          : mood === 'think' ? <circle cx="61" cy="74" r="2.3" fill="none" stroke="#3A3A3A" strokeWidth="2" />
+          : mood === 'puzzled' ? <path d="M53 74 q3.5 -3 7 0 q3.5 3 7 0" stroke="#3A3A3A" strokeWidth="2" fill="none" strokeLinecap="round" />
           : <path d={mood === 'content' ? 'M53 72 q7 6 14 0' : mood === 'happy' || mood === 'smile' ? 'M54 72 q6 7 12 0' : 'M55 73 q5 4 10 0'} stroke="#3A3A3A" strokeWidth="2" fill="none" strokeLinecap="round" />}
         {/* 머리 새싹: 단계마다 잎이 늘고, 4단계부터 작은 나무, 5단계는 꽃 */}
         <Sprout stage={stage} />
@@ -74,9 +87,9 @@ function Sprout({ stage }: { stage: number }) {
   )
 }
 
-function Egg({ size, cracks = 0 }: { size: number; cracks?: number }) {
+function Egg({ size, cracks = 0, viewBox = '0 0 120 120' }: { size: number; cracks?: number; viewBox?: string }) {
   return (
-    <svg className="character character--egg" width={size} height={size} viewBox="0 0 120 120" role="img" aria-label="아직 모르는 알">
+    <svg className="character character--egg" width={size} height={size} viewBox={viewBox} role="img" aria-label="아직 모르는 알">
       <ellipse cx="60" cy="108" rx="24" ry="5" fill="rgba(0,0,0,0.08)" />
       <path d="M60 22 C82 22 92 58 92 76 C92 96 78 106 60 106 C42 106 28 96 28 76 C28 58 38 22 60 22 Z" fill="#F3EBDD" stroke="#E0D3BC" strokeWidth="2" />
       <path d="M40 70 l8 -6 l8 6 l8 -6 l8 6 l8 -6" stroke="#D8C7A8" strokeWidth="2.5" fill="none" strokeLinecap="round" />
