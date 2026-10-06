@@ -1,7 +1,7 @@
 // 26 C4 항목 상세 시트: 머리(작성 시각 · 카톡 · ⋯) / 제목 20/700 + 본문(0.6초 뒤 자동 저장) / 링크 / AI 판단 카드(읽기 전용 + 종류 바꾸기)
 // / 할 일로 만들기(제목 · 리스트 · 날짜 시트 → 등록, 데스크톱 ConvertPopover와 같은 검사) / 바닥 줄(날짜 · 공유·복사 · 삭제).
 // 휴대폰은 AI를 부르지 않는다(26 M-C5) — 정리 전·실패는 "컴퓨터에서 정리" 안내만.
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../data/rows'
 import { useRouter } from 'expo-router'
 import { BookOpen, CalendarDays, ChevronRight, Ellipsis, ExternalLink, FileText, Link2, Share2, Sparkles, Trash2 } from 'lucide-react-native'
 import { useEffect, useRef, useState } from 'react'
@@ -29,7 +29,7 @@ const join = (t: string, b: string) => (b ? `${t}\n${b}` : t)
 
 export function ItemSheet({ id, startConvert, onClose, onTopic }: { id: string | null; startConvert?: boolean; onClose: () => void; onTopic: (topicId: string) => void }) {
   const p = usePalette()
-  const item = useQuery<CollectItem>(ONE_SQL, [id ?? '']).data[0]
+  const item = useLiveQuery<CollectItem>(ONE_SQL, [id ?? '']).data[0]
   const [convert, setConvert] = useState(false)
   useEffect(() => { setConvert(!!startConvert) }, [id, startConvert])
   const more = useAnchor()

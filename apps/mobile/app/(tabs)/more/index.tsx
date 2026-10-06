@@ -1,7 +1,7 @@
 // 더보기 탭(시안 mobile-sprout A1, 20 §2 개정 2026-10-05): 맨 위 캐릭터 카드(→ 성장) → 기능(일기 · AI 비서 · 작업 지도 · 검색) → 앱(설정).
 // 일기·작업 지도·AI 비서 화면은 각 담당 작업의 경로(app/diary · app/map · app/assistant)로 연다.
 // [다음] 탭 바 고르기(틱틱처럼 5칸까지 켜고 끄기·끌어서 순서) — 20 §2
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../../../src/data/rows'
 import { progressFromEvents, SPECIES, STAGES, type Species } from '@sprout/schema/growth'
 import { useRouter, type Href } from 'expo-router'
 import { BookHeart, ChevronRight, Network, Search, Settings, Sparkles, Tag } from 'lucide-react-native'
@@ -19,9 +19,9 @@ export default function More() {
   const p = usePalette()
   const space = useTabBarSpace()
   const router = useRouter()
-  const events = useQuery<{ amount: number; created_at: string }>('SELECT amount, created_at FROM xp_events').data
-  const ch = useQuery<{ name: string | null; species: Species | null }>('SELECT name, species FROM characters WHERE species IS NOT NULL LIMIT 1').data[0]
-  const wrote = useQuery<{ n: number }>("SELECT count(*) AS n FROM diary_entries WHERE date = ? AND COALESCE(content, '') != ''", [dayKey()]).data[0]?.n ?? 0
+  const events = useLiveQuery<{ amount: number; created_at: string }>('SELECT amount, created_at FROM xp_events').data
+  const ch = useLiveQuery<{ name: string | null; species: Species | null }>('SELECT name, species FROM characters WHERE species IS NOT NULL LIMIT 1').data[0]
+  const wrote = useLiveQuery<{ n: number }>("SELECT count(*) AS n FROM diary_entries WHERE date = ? AND COALESCE(content, '') != ''", [dayKey()]).data[0]?.n ?? 0
   const prog = progressFromEvents(events)
   const stageName = STAGES.find((s) => s.stage === prog.stage)?.name ?? ''
   const white = { size: 17, color: '#fff' }

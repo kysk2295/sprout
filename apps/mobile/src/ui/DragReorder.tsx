@@ -4,7 +4,8 @@
 // - 같은 묶음의 다른 행은 비켜 미끄러지고(SPRING.snappy), 자리 넘어갈 때마다 틱. 다른 섹션 위면 그 자리에 강조색 선
 // - 놓으면 빈자리로 붙으며 가벼운 흔들림. 계산은 UI 스레드(워클릿), 쓰기는 놓은 뒤 한 번
 // 하위로 만들기(오른쪽 아래로 놓기)·끄는 중 저절로 스크롤은 [다음].
-import { useCallback, useRef, useState, type ReactNode } from 'react'
+// 39 §11 성능 규칙: 행 제스처는 행마다 한 번만 만든다(useMemo), 떠 있는 사본의 자리(top·left·width)는 잡을 때 한 번만 정하고 끄는 동안은 transform만.
+import { memo, useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated'
@@ -72,7 +73,7 @@ export function useDragReorder(opts: { canCross: (from: string, to: string) => b
   }, [slots])
   const startMove = useCallback(() => setDragging(true), [])
 
-  const gestureFor = (id: string) => Gesture.Pan()
+  const gestureFor = useCallback((id: string) => Gesture.Pan()
     .activateAfterLongPress(350)
     .onStart(() => {
       active.value = id
@@ -115,42 +116,51 @@ export function useDragReorder(opts: { canCross: (from: string, to: string) => b
       lift.value = withTiming(0, { duration: DUR.base })
       shifts.value = {}
       active.value = null
-    })
+    }), [active, dy, moved, target, lift, from, slots, shifts, begin, end, startMove])
 
-  return { register, gestureFor, ghost, dragging, state: { slots, active, from, dy, lift, target, shifts, moved } }
+  const state = useMemo(() => ({ slots, active, from, dy, lift, target, shifts, moved }), [slots, active, from, dy, lift, target, shifts, moved])
+  // 행에 넘기는 것은 바뀌지 않는 묶음 하나(ghost·dragging이 바뀌어도 행들이 다시 그려지지 않게)
+  const api = useMemo(() => ({ register, gestureFor, state }), [register, gestureFor, state])
+  return { api, ghost, dragging, state }
 }
-type DragState = ReturnType<typeof useDragReorder>['state']
+export type DragApi = ReturnType<typeof useDragReorder>['api']
+type DragState = DragApi['state']
 
 /** 목록 행 한 줄: 길게 눌러 끌기 + 다른 행이 비켜 줄 때 미끄러짐 */
-export function DragRow(props: { id: string; group: string; drag: ReturnType<typeof useDragReorder>; enabled: boolean; children: ReactNode }) {
+export function DragRow(props: { id: string; group: string; drag: DragApi; enabled: boolean; children: ReactNode }) {
   const { shifts, active, moved } = props.drag.state
-  const id = props.id // 워클릿에는 값만(props 통째로 넘기면 children을 복사하다 실패)
+  const { register, gestureFor } = props.drag
+  const { id, group } = props // 워클릿에는 값만(props 통째로 넘기면 children을 복사하다 실패)
   const style = useAnimatedStyle(() => ({
     transform: [{ translateY: withSpring(shifts.value[id] ?? 0, SPRING.snappy) }],
     opacity: active.value === id && moved.value ? 0 : 1
   }))
+  const ref = useCallback((v: View | null) => register(id, group, v), [register, id, group])
+  const gesture = useMemo(() => gestureFor(id), [gestureFor, id])
   const content = (
-    <Animated.View ref={(v: View | null) => props.drag.register(props.id, props.group, v)} collapsable={false} style={style}>
+    <Animated.View ref={ref} collapsable={false} style={style}>
       {props.children}
     </Animated.View>
   )
   if (!props.enabled) return content
-  return <GestureDetector gesture={props.drag.gestureFor(props.id)}>{content}</GestureDetector>
+  return <GestureDetector gesture={gesture}>{content}</GestureDetector>
 }
 
 /** 화면 위 떠 있는 사본 + 다른 섹션에 놓일 자리 선 */
-export function DragGhost(props: { state: DragState; render: (id: string) => ReactNode; id: string | null }) {
+export const DragGhost = memo(function DragGhost(props: { state: DragState; render: (id: string) => ReactNode; id: string | null }) {
   const p = usePalette()
   const { from, moved, dy, lift, target, slots } = props.state
   const state = { from, moved, dy, lift, target, slots }
+  // 자리(레이아웃 값)는 잡을 때 한 번, 끄는 동안은 transform·opacity만 바뀐다
+  const place = useAnimatedStyle(() => {
+    const f = state.from.value
+    return f ? { top: f.y, left: f.x, width: f.w } : { top: 0, left: 0, width: 0 }
+  })
   const card = useAnimatedStyle(() => {
     const f = state.from.value
     if (!f) return { opacity: 0 }
     return {
       opacity: state.moved.value ? 1 : 0,
-      top: f.y,
-      left: f.x,
-      width: f.w,
       transform: [{ translateY: state.dy.value }, { scale: 1 + 0.03 * state.lift.value }],
       shadowOpacity: 0.22 * state.lift.value
     }
@@ -169,10 +179,10 @@ export function DragGhost(props: { state: DragState; render: (id: string) => Rea
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Animated.View style={[s.line, { backgroundColor: p.accent }, line]} />
-      <Animated.View style={[s.ghost, { backgroundColor: p.cardBg }, card]}>{props.render(props.id)}</Animated.View>
+      <Animated.View style={[s.ghost, { backgroundColor: p.cardBg }, place, card]}>{props.render(props.id)}</Animated.View>
     </View>
   )
-}
+})
 const s = StyleSheet.create({
   ghost: { position: 'absolute', borderRadius: 12, overflow: 'hidden', shadowColor: '#000', shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 14 },
   line: { position: 'absolute', height: 2, borderRadius: 1 }

@@ -1,6 +1,6 @@
 // 33 §11 관계 위키(모바일): 읽기·쓰기. 자동 태그 파이프라인은 돌리지 않는다 — 데스크톱이 붙인 결과(task_tags rule·ai)를 보여 주고 ✕로 떼기만.
 // 순수 계산은 공용 @sprout/schema/wikiGraph·wikiLink(데스크톱과 같음).
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../data/rows'
 import { tagKind, type TagKind } from '@sprout/schema/autoTag'
 import { deleteStmt, insertStmt, updateStmt, type Stmt } from '@sprout/schema/taskCore'
 import { planLinkSync, type LinkSource, type RelRow, type TaskTagRow } from '@sprout/schema/wikiGraph'
@@ -21,7 +21,7 @@ export const isAuto = (source: string | null | undefined) => source === 'rule' |
 export interface TagMeta { id: string; name: string; color: string | null; kind: string | null; aliases: string | null; description: string | null; topic_id: string | null }
 export const TAG_META_SQL = 'SELECT id, name, color, kind, aliases, description, topic_id FROM tags ORDER BY sort_order, name'
 export function useTagMeta(): TagMeta[] {
-  return useQuery<TagMeta>(TAG_META_SQL).data
+  return useLiveQuery<TagMeta>(TAG_META_SQL).data
 }
 
 const marks = (n: number) => Array.from({ length: n }, () => '?').join(',')
@@ -114,7 +114,7 @@ export async function syncTaskLinks(taskId: string): Promise<number> {
 export function useLinkTaskCandidates(query: string | null): { id: string; title: string; list: string | null }[] {
   const q = (query ?? '').trim()
   const like = q ? `%${q.replace(/[\\%_]/g, '\\$&')}%` : '\u0000'
-  return useQuery<{ id: string; title: string; list: string | null }>(
+  return useLiveQuery<{ id: string; title: string; list: string | null }>(
     "SELECT t.id, t.title, CASE WHEN l.kind = 'inbox' THEN '기본함' ELSE l.name END AS list FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.status = 0 AND t.deleted_at IS NULL AND t.title LIKE ? ESCAPE '\\' ORDER BY t.modified_at DESC LIMIT 5",
     [like]
   ).data

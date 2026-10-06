@@ -2,10 +2,9 @@
 // 체크 → 바로 완료 묶음 + "작업이 완료되었습니다." 토스트(되돌리기) + 성장 탭 +1. 스와이프·길게 누름·미루기·당겨서 새로 고침.
 // 2026-10-05 전체 기능: 전체·계획 취소·태그·필터 보기, ⋯ = 리스트/태그/필터 편집 · 섹션 추가 · 묶기 › · 정렬 › · 자세히 보기 · 완료 보기,
 // 섹션 머리 길게 눌러 이름 바꾸기·순서·삭제, 휴지통은 복원 · 영구 삭제(확인) · 휴지통 비우기, 머리 🔍 = 검색.
-import { useQuery, useStatus } from '@powersync/react-native'
 import { useRouter, useScrollToTop } from 'expo-router'
 import { Calendar, Check, Ellipsis, FolderInput, Menu, Pin, Plus, RotateCcw, Search, Trash2, Undo2 } from 'lucide-react-native'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
 import { AssistantButton } from '../assistant/AssistantSheet'
@@ -25,10 +24,10 @@ import { useTasksView } from '../state/tasksView'
 import { useCompleting } from '../state/useCompleting'
 import { hx } from '../ui/haptics'
 import { playComplete } from '../ui/sound'
-import { DragGhost, DragRow, useDragReorder, type DropAt } from '../ui/DragReorder'
+import { DragGhost, DragRow, useDragReorder, type DragApi, type DropAt } from '../ui/DragReorder'
 import { rowExit, useListMotion } from '../ui/listMotion'
 import { useReducedMotion } from '../ui/motion'
-import { M } from '../theme/palette'
+import { M, type Palette } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { CompanionEmpty, EmptyState } from '../ui/EmptyState'
 import { OfflineBand } from '../ui/OfflineBand'
@@ -50,6 +49,7 @@ import { DrawerEdge } from '../ui/Drawer'
 import { afterMenu } from '../ui/Drawer'
 import { FilterEditSheet, ListEditSheet, TagEditSheet, TextPrompt } from '../ui/OrgSheets'
 import { tagFilterIds } from '@sprout/schema/wikiGraph'
+import { useRows, useSyncFlags } from '../data/rows'
 import { PageCard } from '../wiki/PageCard'
 import { takeTagFilter } from '../wiki/WikiIndex'
 
@@ -71,7 +71,7 @@ export default function TaskListScreen() {
   const today = useToday()
   const v = useTasksView()
   const { view } = v
-  const status = useStatus()
+  const sync = useSyncFlags() // 39 §11: useStatus()는 쓰기마다 4~5번 다시 그린다
   const lists = useLists()
   const folders = useFolders()
   const listId = view.startsWith('list:') ? view.slice(5) : view === 'smart:inbox' ? lists.find((l) => l.kind === 'inbox')?.id ?? null : null
@@ -80,8 +80,9 @@ export default function TaskListScreen() {
 
   const openQ = useMemo(() => openSql(listView, today), [listView, today])
   const doneQ = useMemo(() => doneSql(listView, today), [listView, today])
-  const openAll = useQuery<TaskRow>(openQ.sql, openQ.params)
-  const doneAll = useQuery<TaskRow>(doneQ.sql, doneQ.params)
+  // 39 §11: 바뀐 행만 새 객체(나머지 행은 memo로 건너뜀)
+  const openAll = useRows<TaskRow>(openQ.sql, openQ.params)
+  const doneAll = useRows<TaskRow>(doneQ.sql, doneQ.params)
   // 33 §11 리스트 페이지 카드의 태그 알약 = 이 리스트 안 거르기(여럿 = 그중 하나라도, 하위는 부모 아래로). 보기를 바꾸면 해제
   const [tagFilter, setTagFilter] = useState<string[]>([])
   const [descOpen, setDescOpen] = useState(false)
@@ -195,38 +196,8 @@ export default function TaskListScreen() {
   const postponeTo = async (date: string, label: string) => withUndo(`${label}로 미뤘어요`, await moveDates(overdueIds, date))
   // 머리 ⋯
   const more = useAnchor()
-  const offline = !status.connected && !!status.lastSyncedAt
-  const syncError = status.dataFlowStatus?.uploadError ?? status.dataFlowStatus?.downloadError
-  const firstLoad = !status.hasSynced && open.isLoading
-
-  const swipeFor = (t: TaskRow): { left: SwipeAction[]; right: SwipeAction[]; full?: () => void; fullLabel?: string } => {
-    const icon = (I: typeof Check) => <I size={22} color="#fff" />
-    if (t.deleted_at) {
-      return {
-        left: [],
-        right: [
-          { key: 'restore', color: p.swipeDone, icon: icon(RotateCcw), label: '복원', onPress: () => void restoreTasks([t.id]).then(() => toast.show('복원했어요')) },
-          { key: 'forever', color: p.swipeDel, icon: icon(Trash2), label: '영구 삭제', onPress: () => confirmForever([t.id]) }
-        ]
-      }
-    }
-    if (t.status !== 0) {
-      return { left: [{ key: 'reopen', color: p.swipeMove, icon: icon(Undo2), label: '완료 취소', onPress: () => void reopenTasks([t.id]) }], right: [], full: () => void reopenTasks([t.id]), fullLabel: '놓으면 완료 취소' }
-    }
-    return {
-      left: [
-        { key: 'done', color: p.swipeDone, icon: icon(Check), label: '완료', onPress: () => void complete(t) },
-        { key: 'pin', color: p.swipePin, icon: icon(Pin), label: t.pinned_at ? '고정 해제' : '고정', onPress: () => void setPinned([t.id], !t.pinned_at) }
-      ],
-      right: [
-        { key: 'move', color: p.swipeMove, icon: icon(FolderInput), label: '이동', onPress: () => openSheet('/move', [t.id]) },
-        { key: 'del', color: p.swipeDel, icon: icon(Trash2), label: '삭제', leaves: true, onPress: () => void trash([t.id]) },
-        { key: 'date', color: p.swipeDate, icon: icon(Calendar), label: '날짜', onPress: () => openSheet('/date', [t.id]) }
-      ],
-      // 끝까지 밀기는 행이 이미 밖으로 나갔으니 머무르지 않고 바로 쓴다
-      full: () => { closeOpenRow(); playComplete(); void completeNow(t.id) }
-    }
-  }
+  const { offline, syncError } = sync
+  const firstLoad = !sync.hasSynced && open.isLoading
 
   const rowRefs = useRef(new Map<string, View | null>())
   // 39 §4.3 · 결정 ③: 길게 눌러 끌어 순서 바꾸기(같은 묶음 · 리스트의 다른 섹션). 그대로 떼면 지금처럼 메뉴
@@ -250,40 +221,49 @@ export default function TaskListScreen() {
   }
   const drag = useDragReorder({ canCross: (a, b) => a.startsWith('s:') && b.startsWith('s:'), onDrop: (d) => void onDrop(d), onMenu: openMenuFor })
   const canDrag = !archive
+  // 39 §11: 행이 쓰는 손잡이는 ref 하나로(행 memo가 화면이 다시 그려질 때마다 깨지지 않게), 행 설정은 바뀔 때만 새 객체
+  const acts = useRef<RowActs>(null!)
+  acts.current = {
+    complete: (t) => void complete(t),
+    completeNow: (id) => void completeNow(id),
+    openDetail,
+    openMenuFor,
+    openSheet,
+    trash: (ids) => void trash(ids),
+    confirmForever,
+    restore: (id) => void restoreTasks([id]).then(() => toast.show('복원했어요')),
+    reopen: (id) => void reopenTasks([id]),
+    pin: (t) => void setPinned([t.id], !t.pinned_at),
+    toggleExpand: v.toggleExpand,
+    setRowRef: (id, r) => { rowRefs.current.set(id, r) }
+  }
+  const hideTag = view.startsWith('tag:') ? view.slice(4) : undefined
+  const cfg = useMemo<RowCfg>(() => ({ today, showList: showsListName(view) && !archive, showDetails: v.showDetails, hideTodayLabel: isToday, hideTag, canDrag, drag: drag.api, p }), [today, view, archive, v.showDetails, isToday, hideTag, canDrag, drag.api, p])
+  const lpId = lp?.task.id
   const renderNode = (n: Node, depth = 0, groupId = ''): React.ReactNode => {
     const t = n.task
-    const sw = swipeFor(t)
     const expanded = v.isExpanded(t.id)
     return (
       <Animated.View key={t.id} entering={motion.entering} exiting={motion.exiting} layout={motion.layout}>
-        <DragRow id={t.id} group={groupId} drag={drag} enabled={canDrag && depth === 0 && !!groupId && t.status === 0}>
-        <SwipeRow left={sw.left} right={sw.right} onFullSwipe={sw.full} fullLabel={sw.fullLabel}>
-          <View ref={(r) => { rowRefs.current.set(t.id, r) }} collapsable={false}>
-            <TaskRowView
-              task={t}
-              today={today}
-              depth={depth}
-              showList={showsListName(view) && !archive}
-              showDetails={v.showDetails}
-              hideTodayLabel={isToday}
-              childCount={n.children.length}
-              expanded={expanded}
-              flash={flash === t.id}
-              pending={completing.pending.has(t.id)}
-              pressed={lp?.task.id === t.id}
-              hideTag={view.startsWith('tag:') ? view.slice(4) : undefined}
-              onToggleExpand={() => v.toggleExpand(t.id)}
-              onCheck={t.deleted_at ? undefined : () => void complete(t)}
-              onPress={() => openDetail(t)}
-              onLongPress={canDrag && depth === 0 && !!groupId && t.status === 0 ? undefined : () => openMenuFor(t.id)}
-            />
-          </View>
-        </SwipeRow>
-        </DragRow>
+        <TaskItem
+          task={t}
+          depth={depth}
+          groupId={groupId}
+          childCount={n.children.length}
+          expanded={expanded}
+          pending={completing.pending.has(t.id)}
+          pressed={lpId === t.id}
+          flash={flash === t.id}
+          cfg={cfg}
+          act={acts}
+        />
         {expanded ? n.children.map((c) => renderNode(c, depth + 1)) : null}
       </Animated.View>
     )
   }
+  const ghostRow = useRef<(id: string) => React.ReactNode>(() => null)
+  ghostRow.current = (id) => { const t = open.data.find((x) => x.id === id); return t ? <TaskRowView task={t} today={today} showList={showsListName(view) && !archive} hideTodayLabel={isToday} /> : null }
+  const renderGhost = useCallback((id: string) => ghostRow.current(id), [])
 
   const openSub = (kind: 'group' | 'sort') => { const r = more.rect; if (r) afterMenu(() => setSub({ kind, rect: r })) }
   const moreItems = view === 'smart:trash'
@@ -371,7 +351,7 @@ export default function TaskListScreen() {
           })}
         </View>
       </Animated.ScrollView>
-      <DragGhost state={drag.state} id={drag.ghost} render={(id) => { const t = open.data.find((x) => x.id === id); return t ? <TaskRowView task={t} today={today} showList={showsListName(view) && !archive} hideTodayLabel={isToday} /> : null }} />
+      <DragGhost state={drag.state} id={drag.ghost} render={renderGhost} />
       <DrawerEdge />
       {!archive ? <Fab onPress={() => router.push({ pathname: '/quick-add', params: { view: listView } })} /> : null}
 
@@ -450,6 +430,87 @@ export default function TaskListScreen() {
     </View>
   )
 }
+
+/** 행 하나(39 §11 성능 규칙): memo + 바뀌지 않는 손잡이(act ref)라서, 한 행을 체크해도 그 행만 다시 그린다 */
+type RowActs = {
+  complete: (t: TaskRow) => void
+  completeNow: (id: string) => void
+  openDetail: (t: TaskRow) => void
+  openMenuFor: (id: string) => void
+  openSheet: (path: '/move' | '/date' | '/tags', ids: string[]) => void
+  trash: (ids: string[]) => void
+  confirmForever: (ids: string[]) => void
+  restore: (id: string) => void
+  reopen: (id: string) => void
+  pin: (t: TaskRow) => void
+  toggleExpand: (id: string) => void
+  setRowRef: (id: string, r: View | null) => void
+}
+type RowCfg = { today: string; showList: boolean; showDetails: boolean; hideTodayLabel: boolean; hideTag?: string; canDrag: boolean; drag: DragApi; p: Palette }
+const TaskItem = memo(function TaskItem(props: { task: TaskRow; depth: number; groupId: string; childCount: number; expanded: boolean; pending: boolean; pressed: boolean; flash: boolean; cfg: RowCfg; act: { current: RowActs } }) {
+  const { task: t, cfg, act } = props
+  const p = cfg.p
+  const sw = useMemo((): { left: SwipeAction[]; right: SwipeAction[]; full?: () => void; fullLabel?: string } => {
+    const icon = (I: typeof Check) => <I size={22} color="#fff" />
+    if (t.deleted_at) {
+      return {
+        left: [],
+        right: [
+          { key: 'restore', color: p.swipeDone, icon: icon(RotateCcw), label: '복원', onPress: () => act.current.restore(t.id) },
+          { key: 'forever', color: p.swipeDel, icon: icon(Trash2), label: '영구 삭제', onPress: () => act.current.confirmForever([t.id]) }
+        ]
+      }
+    }
+    if (t.status !== 0) {
+      return { left: [{ key: 'reopen', color: p.swipeMove, icon: icon(Undo2), label: '완료 취소', onPress: () => act.current.reopen(t.id) }], right: [], full: () => act.current.reopen(t.id), fullLabel: '놓으면 완료 취소' }
+    }
+    return {
+      left: [
+        { key: 'done', color: p.swipeDone, icon: icon(Check), label: '완료', onPress: () => act.current.complete(t) },
+        { key: 'pin', color: p.swipePin, icon: icon(Pin), label: t.pinned_at ? '고정 해제' : '고정', onPress: () => act.current.pin(t) }
+      ],
+      right: [
+        { key: 'move', color: p.swipeMove, icon: icon(FolderInput), label: '이동', onPress: () => act.current.openSheet('/move', [t.id]) },
+        { key: 'del', color: p.swipeDel, icon: icon(Trash2), label: '삭제', leaves: true, onPress: () => act.current.trash([t.id]) },
+        { key: 'date', color: p.swipeDate, icon: icon(Calendar), label: '날짜', onPress: () => act.current.openSheet('/date', [t.id]) }
+      ],
+      // 끝까지 밀기는 행이 이미 밖으로 나갔으니 머무르지 않고 바로 쓴다
+      full: () => { closeOpenRow(); playComplete(); act.current.completeNow(t.id) }
+    }
+  }, [t, p, act])
+  const draggable = cfg.canDrag && props.depth === 0 && !!props.groupId && t.status === 0
+  const ref = useCallback((r: View | null) => act.current.setRowRef(t.id, r), [act, t.id])
+  const onCheck = useCallback(() => act.current.complete(t), [act, t])
+  const onPress = useCallback(() => act.current.openDetail(t), [act, t])
+  const onLongPress = useCallback(() => act.current.openMenuFor(t.id), [act, t.id])
+  const onToggleExpand = useCallback(() => act.current.toggleExpand(t.id), [act, t.id])
+  return (
+    <DragRow id={t.id} group={props.groupId} drag={cfg.drag} enabled={draggable}>
+      <SwipeRow left={sw.left} right={sw.right} onFullSwipe={sw.full} fullLabel={sw.fullLabel}>
+        <View ref={ref} collapsable={false}>
+          <TaskRowView
+            task={t}
+            today={cfg.today}
+            depth={props.depth}
+            showList={cfg.showList}
+            showDetails={cfg.showDetails}
+            hideTodayLabel={cfg.hideTodayLabel}
+            childCount={props.childCount}
+            expanded={props.expanded}
+            flash={props.flash}
+            pending={props.pending}
+            pressed={props.pressed}
+            hideTag={cfg.hideTag}
+            onToggleExpand={onToggleExpand}
+            onCheck={t.deleted_at ? undefined : onCheck}
+            onPress={onPress}
+            onLongPress={draggable ? undefined : onLongPress}
+          />
+        </View>
+      </SwipeRow>
+    </DragRow>
+  )
+})
 
 function Skeleton() {
   const p = usePalette()

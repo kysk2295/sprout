@@ -1,5 +1,5 @@
 // sprout 자체 일정 읽기·쓰기(20 §7.1, 06 §14.4 — 데스크톱 data/events.ts와 같은 쓰기). 쓰기는 되돌리기 함수를 돌려준다(토스트 ⟲).
-import { useQuery } from '@powersync/react-native'
+import { useRows } from './rows'
 import { eventSpan, eventToSchedule, eventToTaskFields, parseReminders, stringifyReminders, taskToEventFields } from '@sprout/schema/events'
 import { deleteStmt, type Stmt } from '@sprout/schema/taskCore'
 import { db, run } from './db'
@@ -16,14 +16,14 @@ const IN_RANGE = `SELECT * FROM events WHERE deleted_at IS NULL AND start_at IS 
   AND ((substr(start_at, 1, 10) <= ? AND substr(end_at, 1, 10) >= ?) OR (repeat_rule IS NOT NULL AND substr(start_at, 1, 10) <= ?))
   ORDER BY start_at`
 export function useEvents(from: string, to: string, enabled = true): EventRow[] {
-  return useQuery<EventRow>(enabled ? IN_RANGE : 'SELECT * FROM events WHERE 0', enabled ? [to, from, to] : []).data
+  return useRows<EventRow>(enabled ? IN_RANGE : 'SELECT * FROM events WHERE 0', enabled ? [to, from, to] : []).data
 }
 export function useEvent(id: string | undefined): EventRow | undefined {
-  return useQuery<EventRow>('SELECT * FROM events WHERE id = ?', [id ?? '']).data[0]
+  return useRows<EventRow>('SELECT * FROM events WHERE id = ?', [id ?? '']).data[0]
 }
 /** "내 일정" 색(동기화 — 데스크톱 왼쪽 패널에서 고름) */
 export function useMyCalColor(): string | null {
-  const row = useQuery<{ options_json: string | null }>("SELECT options_json FROM view_settings WHERE view_key = 'calendar' LIMIT 1").data[0]
+  const row = useRows<{ options_json: string | null }>("SELECT options_json FROM view_settings WHERE view_key = 'calendar' LIMIT 1").data[0]
   return myColorOf(row?.options_json)
 }
 

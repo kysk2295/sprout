@@ -115,16 +115,32 @@ export function itemsOf<T extends CalTask>(tasks: T[], from: string, to: string,
 /** 종일 영역·월 칸 막대에 들어가는가: 종일이거나 여러 날에 걸침(06 §4.1) */
 export const isBarItem = (it: CalItem) => it.allDay || datePart(it.start) !== datePart(it.end)
 /** 그날에 걸친 항목들: 막대(긴 것 먼저) → 시각순 → 우선순위 */
+const dayOrder = (a: CalItem, b: CalItem) => {
+  const ab = isBarItem(a) ? 0 : 1
+  const bb = isBarItem(b) ? 0 : 1
+  if (ab !== bb) return ab - bb
+  if (a.start !== b.start) return a.start < b.start ? -1 : 1
+  return b.task.priority - a.task.priority
+}
 export function itemsOnDay<T extends CalTask>(items: CalItem<T>[], day: string): CalItem<T>[] {
-  return items
-    .filter((it) => datePart(it.start) <= day && datePart(it.end) >= day)
-    .sort((a, b) => {
-      const ab = isBarItem(a) ? 0 : 1
-      const bb = isBarItem(b) ? 0 : 1
-      if (ab !== bb) return ab - bb
-      if (a.start !== b.start) return a.start < b.start ? -1 : 1
-      return b.task.priority - a.task.priority
-    })
+  return items.filter((it) => datePart(it.start) <= day && datePart(it.end) >= day).sort(dayOrder)
+}
+/** 여러 날을 한 번에(월 보기 — 39 §11): 날마다 itemsOnDay와 같은 목록. 칸 수 × 항목 수 대신 항목마다 걸친 날만 돈다 */
+export function itemsByDay<T extends CalTask>(items: CalItem<T>[], from: string, to: string): Map<string, CalItem<T>[]> {
+  const m = new Map<string, CalItem<T>[]>()
+  for (const it of items) {
+    const s = datePart(it.start)
+    const e = datePart(it.end)
+    let d = s < from ? from : s
+    const last = e > to ? to : e
+    for (let i = 0; d <= last && i < 400; i++, d = addDays(d, 1)) {
+      const a = m.get(d)
+      if (a) a.push(it)
+      else m.set(d, [it])
+    }
+  }
+  for (const a of m.values()) a.sort(dayOrder)
+  return m
 }
 /** 월 칸 한 칸에 보일 것: 최대 max줄, 넘치면 "+n"(시안 G-1) */
 export function cellSummary<T extends CalTask>(items: CalItem<T>[], day: string, max: number): { shown: CalItem<T>[]; more: number } {

@@ -12,6 +12,8 @@ export const rowLayout = LinearTransition.duration(DUR.move).easing(EASE.out).re
 const MAX_ROWS = 80
 /** 한 번에 이만큼 넘게 바뀌면 그 차례는 전환 없이 */
 const BIG_JUMP = 30
+const ON: ListMotion = { entering: rowEnter, exiting: rowExit, layout: rowLayout }
+const OFF: ListMotion = {}
 
 export type ListMotion = { entering?: typeof rowEnter; exiting?: typeof rowExit; layout?: typeof rowLayout }
 
@@ -28,6 +30,6 @@ export function useListMotion(key: string, count: number): ListMotion {
     const t = setTimeout(() => setReady(true), 400)
     return () => clearTimeout(t)
   }, [key])
-  if (!ready || jump || count > MAX_ROWS) return {}
-  return { entering: rowEnter, exiting: rowExit, layout: rowLayout }
+  // 늘 같은 두 객체 중 하나 — 행 memo가 깨지지 않게(39 §11)
+  return !ready || jump || count > MAX_ROWS ? OFF : ON
 }

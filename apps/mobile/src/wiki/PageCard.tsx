@@ -1,7 +1,7 @@
 // 33 §11 리스트·태그 페이지 머리(모바일): 큰 제목 아래, 첫 묶음 카드 위 카드 한 장. 내용이 없으면 카드 자체가 없다(= 지금 화면).
 // 접힘(리스트 기본) = 설명 첫 줄 · 태그 알약 3개(누르면 거르기) · 관련 N · ↩ N · ⌄ / 펼침(태그 페이지 기본) = 설명 · 태그 가로 알약 · 관련 리스트 · 백링크
 // (태그 페이지는 설명 · 위키 · 리스트 · 관련 태그). 태그 알약: 누름 = 이 리스트 안 거르기, 길게 누름 = 태그 페이지.
-import { useQuery } from '@powersync/react-native'
+import { useRows } from '../data/rows'
 import { relatedLists, relatedTags, tagPills } from '@sprout/schema/wikiGraph'
 import { useRouter } from 'expo-router'
 import { Check, ChevronDown, X } from 'lucide-react-native'
@@ -41,37 +41,37 @@ function Body({ kind, id, lists, filter, onFilter, descOpen, onDescClose }: Para
   const setOpen = (v: boolean) => { openMemo.set(view, v); setOpenState(v) }
   const [descLocal, setDescLocal] = useState(false)
 
-  const allTags = useQuery<TagMeta>('SELECT id, name, color, kind, aliases, description, topic_id FROM tags').data
+  const allTags = useRows<TagMeta>('SELECT id, name, color, kind, aliases, description, topic_id FROM tags').data
   const tagById = useMemo(() => new Map(allTags.map((t) => [t.id, t])), [allTags])
-  const listRow = useQuery<{ description: string | null }>('SELECT description FROM lists WHERE id = ?', [isList ? id : '']).data[0]
+  const listRow = useRows<{ description: string | null }>('SELECT description FROM lists WHERE id = ?', [isList ? id : '']).data[0]
   const tag = isList ? undefined : tagById.get(id)
   const description = (isList ? listRow?.description : tag?.description) ?? ''
 
   // 리스트: 태그 줄 / 태그: 리스트 줄
-  const pillRows = useQuery<{ tag_id: string; source: string | null; c: number }>(
+  const pillRows = useRows<{ tag_id: string; source: string | null; c: number }>(
     `SELECT tt.tag_id, tt.source, count(*) AS c FROM task_tags tt JOIN tasks t ON t.id = tt.task_id WHERE t.list_id = ? AND ${OPEN} AND ${ACCEPTED()} GROUP BY tt.tag_id, tt.source`, [isList ? id : '']
   ).data
   const pills = useMemo(() => tagPills(pillRows).filter((x) => tagById.has(x.tag_id)), [pillRows, tagById])
-  const tagLists = useQuery<{ list_id: string; c: number }>(
+  const tagLists = useRows<{ list_id: string; c: number }>(
     `SELECT t.list_id, count(DISTINCT t.id) AS c FROM task_tags tt JOIN tasks t ON t.id = tt.task_id WHERE tt.tag_id = ? AND ${OPEN} AND ${ACCEPTED()} AND t.list_id IS NOT NULL GROUP BY t.list_id ORDER BY c DESC`, [isList ? '' : id]
   ).data
   // 관련 리스트(§3.3) · 관련 태그(§4.1)
-  const graph = useQuery<{ list_id: string; tag_id: string; c: number }>(
+  const graph = useRows<{ list_id: string; tag_id: string; c: number }>(
     `SELECT t.list_id, tt.tag_id, count(*) AS c FROM task_tags tt JOIN tasks t ON t.id = tt.task_id JOIN lists l ON l.id = t.list_id
      WHERE ${OPEN} AND ${ACCEPTED()} AND l.archived_at IS NULL AND ? GROUP BY t.list_id, tt.tag_id`, [isList ? 1 : 0]
   ).data
-  const total = useQuery<{ n: number }>(`SELECT count(*) AS n FROM tasks t WHERE ${OPEN}`).data[0]?.n ?? 0
+  const total = useRows<{ n: number }>(`SELECT count(*) AS n FROM tasks t WHERE ${OPEN}`).data[0]?.n ?? 0
   const related = useMemo(() => (isList ? relatedLists(id, graph, total).filter((r) => lists.some((l) => l.id === r.list_id)) : []), [isList, id, graph, total, lists])
-  const pairs = useQuery<{ task_id: string; tag_id: string }>(
+  const pairs = useRows<{ task_id: string; tag_id: string }>(
     `SELECT tt.task_id, tt.tag_id FROM task_tags tt JOIN tasks t ON t.id = tt.task_id WHERE ${OPEN} AND ${ACCEPTED()} AND tt.task_id IN (SELECT task_id FROM task_tags WHERE tag_id = ?)`, [isList ? '' : id]
   ).data
   const relTags = useMemo(() => (isList ? [] : relatedTags(id, pairs).filter((r) => tagById.has(r.tag_id))), [isList, id, pairs, tagById])
   // 위키(태그 페이지): tags.topic_id, 없으면 같은 이름 주제
-  const topic = useQuery<{ id: string; name: string; content: string | null }>(
+  const topic = useRows<{ id: string; name: string; content: string | null }>(
     'SELECT id, name, content FROM wiki_topics WHERE id = ? OR (? IS NULL AND name = ?) LIMIT 1', [tag?.topic_id ?? '', tag?.topic_id ?? null, isList ? '' : tag?.name ?? '']
   ).data[0]
   // 백링크(다른 곳에서 [[이 리스트/태그]]) — 태그 페이지에서 할 일은 이미 그 태그가 붙어 목록에 있으니 뺀다
-  const backlinks = useQuery<Backlink>(
+  const backlinks = useRows<Backlink>(
     `SELECT r.from_type, r.from_id, t.title, t.status, t.priority, t.list_id FROM relations r LEFT JOIN tasks t ON r.from_type = 'task' AND t.id = r.from_id
      WHERE r.source = 'link' AND r.to_type = ? AND r.to_id = ? AND COALESCE(r.state,'accepted') = 'accepted' AND (r.from_type != 'task' OR t.deleted_at IS NULL) ${isList ? '' : "AND r.from_type != 'task'"}
      GROUP BY r.from_type, r.from_id LIMIT 11`, [kind, id]

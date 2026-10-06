@@ -1,7 +1,7 @@
 // 29 모바일 작업 지도 — 읽기(useQuery)와 손으로 고치기. 구조 = 내 폴더 › 리스트 › 할 일(2026-10-05 사용자 결정, 영역·주제 모델 폐기).
 // 할 일 옮기기 = tasks.list_id(기존 moveToList, 되돌리기 포함), 리스트·폴더 만들기/이름 = 공용 organization.ts. 순서·목표 선은 map_links.
 // 휴대폰은 AI를 부르지 않는다(M-M5).
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../data/rows'
 import * as SecureStore from 'expo-secure-store'
 import { addDays } from '@sprout/schema/time'
 import { useEffect, useMemo, useState } from 'react'
@@ -57,12 +57,12 @@ export function useMapData(o: MapOptions) {
   const today = dayKey()
   const week = weekStartOf(today)
   const doneSince = new Date(`${o.showDone ? addDays(today, -30) : week}T00:00`).toISOString()
-  const listsQ = useQuery<MapList>(LISTS_SQL)
-  const foldersQ = useQuery<MapFolder>(FOLDERS_SQL)
-  const linksQ = useQuery<LinkRow>(LINKS_SQL)
-  const tasksQ = useQuery<MapTask>(TASKS_SQL, [doneSince])
-  const goalsQ = useQuery<MapGoal>(GOALS_SQL, [week])
-  const progressQ = useQuery<{ id: string; done: number; total: number }>(PROGRESS_SQL, [new Date(`${addDays(today, -30)}T00:00`).toISOString()])
+  const listsQ = useLiveQuery<MapList>(LISTS_SQL)
+  const foldersQ = useLiveQuery<MapFolder>(FOLDERS_SQL)
+  const linksQ = useLiveQuery<LinkRow>(LINKS_SQL)
+  const tasksQ = useLiveQuery<MapTask>(TASKS_SQL, [doneSince])
+  const goalsQ = useLiveQuery<MapGoal>(GOALS_SQL, [week])
+  const progressQ = useLiveQuery<{ id: string; done: number; total: number }>(PROGRESS_SQL, [new Date(`${addDays(today, -30)}T00:00`).toISOString()])
   const lists = listsQ.data, folders = foldersQ.data, links = linksQ.data, rawTasks = tasksQ.data, goals = goalsQ.data, progressRows = progressQ.data
   return useMemo(() => {
     const filter: MapFilter = { ...o, period: o.view === 'board' ? 'all' : o.period }

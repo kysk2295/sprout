@@ -3,7 +3,7 @@
 // / 태그 칩 / 하위 할 일 / 아래 도구 줄(태그 · 체크리스트로 바꾸기) + "저장됨" — 키보드가 올라오면 도구 줄이 키보드 바로 위에 붙는다(21 §5-6, research 24 §7).
 // 편집은 0.6초 뒤 자동 저장(02 §13). 제목을 비우고 닫으면 이전 제목으로 되돌린다.
 // 편집 범위(20 M3 확정): 제목·설명·날짜·우선순위·리스트·체크리스트 체크·항목 추가·태그. 하위 할 일 만들기·반복 직접 설정은 v1.1.
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../data/rows'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { ArrowRightLeft, Ban, Bell, ChevronLeft, ChevronsUpDown, Copy, Ellipsis, Flag, ListChecks, Pin, Plus, Repeat, Tag, Trash2 } from 'lucide-react-native'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
@@ -38,10 +38,10 @@ export default function TaskDetail() {
   const toast = useToast()
   const evAct = useEventActions()
   const today = dayKey()
-  const task = useQuery<TaskRow>(`SELECT ${COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.id = ?`, [id]).data[0]
-  const items = useQuery<CheckItem>('SELECT id, title, done, sort_order FROM check_items WHERE task_id = ? ORDER BY sort_order', [id]).data
-  const tags = useQuery<{ id: string }>("SELECT DISTINCT tt.tag_id AS id FROM task_tags tt WHERE tt.task_id = ? AND COALESCE(tt.state,'accepted') = 'accepted'", [id]).data
-  const subs = useQuery<TaskRow>(`SELECT ${COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.parent_id = ? AND t.deleted_at IS NULL ORDER BY t.status, t.sort_order`, [id]).data
+  const task = useLiveQuery<TaskRow>(`SELECT ${COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.id = ?`, [id]).data[0]
+  const items = useLiveQuery<CheckItem>('SELECT id, title, done, sort_order FROM check_items WHERE task_id = ? ORDER BY sort_order', [id]).data
+  const tags = useLiveQuery<{ id: string }>("SELECT DISTINCT tt.tag_id AS id FROM task_tags tt WHERE tt.task_id = ? AND COALESCE(tt.state,'accepted') = 'accepted'", [id]).data
+  const subs = useLiveQuery<TaskRow>(`SELECT ${COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.parent_id = ? AND t.deleted_at IS NULL ORDER BY t.status, t.sort_order`, [id]).data
   const [full, setFull] = useState(false)
   const root = useRef<View>(null)
   const kb = useKeyboardOverlap(root, Math.max(insets.bottom, 8) - 8)

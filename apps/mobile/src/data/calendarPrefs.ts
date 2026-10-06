@@ -1,5 +1,5 @@
 // 06 §16 / 20 §7.2 휴일·음력·주 번호 — 읽기 훅과 저장(데스크톱 설정 › 날짜 & 시간과 같은 값)
-import { useQuery } from '@powersync/react-native'
+import { useRows } from './rows'
 import { useCallback, useMemo } from 'react'
 import { dayMarks, holidayMap, type DayMarks, type MarkPrefs } from '@sprout/schema/holidays'
 import { toWeekStart, type WeekStart } from '@sprout/schema/weekStart'
@@ -9,7 +9,7 @@ import { markPrefsOf, mergeOptions } from './calendarMarks'
 
 const SQL = "SELECT id, options_json FROM view_settings WHERE view_key = 'calendar' LIMIT 1"
 export function useMarkPrefs(): MarkPrefs {
-  const row = useQuery<{ options_json: string | null }>(SQL).data[0]
+  const row = useRows<{ options_json: string | null }>(SQL).data[0]
   return useMemo(() => markPrefsOf(row?.options_json), [row?.options_json])
 }
 /** 06 §16.1 / 20 §7.2 주 시작(0 일 · 1 월 · 6 토, 기본 일요일) — 바꾸면 열린 캘린더·날짜 시트·일기 달력이 바로 따른다 */

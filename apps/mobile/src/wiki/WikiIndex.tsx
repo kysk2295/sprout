@@ -1,11 +1,11 @@
 // 33 §11 모바일: 행 태그 알약·`[[링크]]` 글자가 쓰는 색인(태그·리스트·링크 관계)을 한 번에 읽어 나눠 준다 + 페이지로 이동.
 // 행마다 쿼리하지 않도록 앱 뿌리(_layout)에 Provider 하나.
-import { useQuery } from '@powersync/react-native'
 import { resolveLink, resolveSegments, type LinkTarget, type ResolvedSeg } from '@sprout/schema/wikiGraph'
 import { useRouter } from 'expo-router'
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react'
 import { setTasksView } from '../state/tasksView'
 import { TAG_META_SQL, type TagMeta } from './data'
+import { useRows } from '../data/rows'
 
 type Rel = { from_id: string; field: string | null; to_type: string; to_id: string; name: string | null }
 type Index = { tags: Map<string, TagMeta>; tagList: TagMeta[]; lists: { id: string; name: string; kind: string | null }[]; rels: Map<string, Rel[]> }
@@ -17,9 +17,10 @@ const REL_SQL = `SELECT r.from_id, r.field, r.to_type, r.to_id,
   FROM relations r WHERE r.source = 'link' AND r.from_type = 'task' AND COALESCE(r.state,'accepted') = 'accepted'`
 
 export function WikiIndexProvider({ children }: { children: ReactNode }) {
-  const tags = useQuery<TagMeta>(TAG_META_SQL).data
-  const lists = useQuery<{ id: string; name: string; kind: string | null }>('SELECT id, name, kind FROM lists WHERE archived_at IS NULL').data
-  const rows = useQuery<Rel>(REL_SQL).data
+  // 39 §11: 결과가 같으면 같은 배열 → 색인(컨텍스트)이 그대로 → 할 일을 체크해도 모든 행이 다시 그려지지 않는다(REL_SQL은 tasks를 읽어 체크마다 다시 돈다)
+  const tags = useRows<TagMeta>(TAG_META_SQL).data
+  const lists = useRows<{ id: string; name: string; kind: string | null }>('SELECT id, name, kind FROM lists WHERE archived_at IS NULL').data
+  const rows = useRows<Rel>(REL_SQL).data
   const value = useMemo<Index>(() => {
     const rels = new Map<string, Rel[]>()
     for (const r of rows) rels.set(r.from_id, [...(rels.get(r.from_id) ?? []), r])

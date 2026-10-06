@@ -1,6 +1,6 @@
 // 성향 조사(23 §3, 시안 B5~B7 · 10 §2.2): 시작 → 8문항(동점이면 +1) → 결과·이름 짓기. 문항·점수는 공용 @sprout/schema/growth.
 // 결과는 데스크톱 assignCharacter와 같은 칸(characters.species·type_code·answers_json·assessed_at·name)에 써서 데스크톱에도 같은 캐릭터.
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../../src/data/rows'
 import { scoreSurvey, SPECIES, speciesFrom, type Pick2, type Species } from '@sprout/schema/growth'
 import { hx } from '../../src/ui/haptics'
 import { useRouter } from 'expo-router'
@@ -26,7 +26,7 @@ export default function Survey() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const reduced = useMotionReduced()
-  const current = useQuery<CharacterRow>(CHARACTER_SQL).data[0]
+  const current = useLiveQuery<CharacterRow>(CHARACTER_SQL).data[0]
   const again = !!current?.species
   const [step, setStep] = useState<'intro' | 'quiz' | 'result'>('intro')
   const [answers, setAnswers] = useState<Record<string, Pick2>>({})

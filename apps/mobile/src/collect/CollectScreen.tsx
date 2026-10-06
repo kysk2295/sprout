@@ -2,7 +2,7 @@
 // 수집: 추가 바(Enter 저장, 링크만이면 볼 것) · 날짜 묶음 + 카톡 날짜 묶음 · 두 줄 행(종류 · 꼬리표 · 등록) · 왼쪽 밀기 = 할 일로 · 삭제
 // 볼 것: 안 본 것 · 다 본 것(접힘) · 동그라미 = 봤어요 · 행 = 링크 열기 · 오른쪽 밀기 = 봤어요
 // 위키: 주제 목록(자료 수 · 바뀐 때 · 새 점) → 주제 페이지(읽기 + 되돌리기)
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../data/rows'
 import { useRouter, useScrollToTop } from 'expo-router'
 import { BookOpen, Check, ChevronRight, Ellipsis, Plus, Search, SquareCheck, Trash2, X } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -50,9 +50,9 @@ export default function CollectScreen() {
   const [section, setSection] = useState<Section>('notes')
   const [search, setSearch] = useState<string | null>(null)
   const q = search ?? ''
-  const items = useQuery<CollectItem>(ITEMS_SQL, [q]).data
-  const unseen = useQuery<{ n: number }>('SELECT COUNT(*) AS n FROM notes WHERE url IS NOT NULL AND seen_at IS NULL').data[0]?.n ?? 0
-  const pending = useQuery<{ n: number }>("SELECT COUNT(*) AS n FROM notes WHERE ai_state = 'pending' AND task_id IS NULL").data[0]?.n ?? 0
+  const items = useLiveQuery<CollectItem>(ITEMS_SQL, [q]).data
+  const unseen = useLiveQuery<{ n: number }>('SELECT COUNT(*) AS n FROM notes WHERE url IS NOT NULL AND seen_at IS NULL').data[0]?.n ?? 0
+  const pending = useLiveQuery<{ n: number }>("SELECT COUNT(*) AS n FROM notes WHERE ai_state = 'pending' AND task_id IS NULL").data[0]?.n ?? 0
   const [toggled, setToggled] = useState<Set<string>>(() => new Set())
   const toggle = (id: string) => setToggled((c) => { const n = new Set(c); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const [sheet, setSheet] = useState<{ id: string; convert?: boolean } | null>(null)
@@ -278,7 +278,7 @@ function AddBar({ onSaved }: { onSaved: (bare: boolean) => void }) {
 /** 위키 주제 목록(C6) — 읽기·되돌리기만, 고치기는 컴퓨터(26 M-C2) */
 function WikiTopics({ query, onOpen, onBack }: { query: string; onOpen: (id: string) => void; onBack: () => void }) {
   const p = usePalette()
-  const topics = useQuery<Topic>('SELECT w.*, (SELECT COUNT(*) FROM notes n WHERE n.topic_id = w.id) AS count FROM wiki_topics w ORDER BY w.modified_at DESC, w.name').data
+  const topics = useLiveQuery<Topic>('SELECT w.*, (SELECT COUNT(*) FROM notes n WHERE n.topic_id = w.id) AS count FROM wiki_topics w ORDER BY w.modified_at DESC, w.name').data
   const seen = useSeen()
   useEffect(() => { seedSeen(topics) }, [topics])
   const ql = query.trim().toLowerCase()

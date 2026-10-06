@@ -2,7 +2,7 @@
 // 회색 한 줄 `관련 일 N개를 모았어요` + `빠진 거 없어`·`더 넣기`(글자 단추) → 일의 종류별 묶음(회색 묶음 이름, 안은 날짜 순 할 일 행: 체크 · 제목 · 날짜, 끝낸 일은 흐리게)
 // → 관련 사람·메모·리스트 → 아래 `다음 단계 같이 짜기`. 행: 누름 = 상세, 왼쪽 밀기 = 빼기(연결만)·삭제(휴지통), 길게 누름 = 메뉴, 체크 = 완료.
 // 31 §12.12 · 29 §9.2: 묶음마다 맨 아래 `＋ 할 일 추가`(빠른 입력 인식, 완료 뒤 입력칸이 남음, 주 리스트 → 기본함).
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../../../src/data/rows'
 import { eulReul } from '@sprout/schema/josa'
 import { mainListOf, projectTaskInput } from '@sprout/schema/planView'
 import { taskDay, WORK_KINDS, WORK_LABEL, workKind, type WorkKind } from '@sprout/schema/projects'
@@ -38,7 +38,7 @@ export default function ProjectScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const data = usePlanData()
-  const people = useQuery<{ task_id: string }>(PEOPLE_SQL).data
+  const people = useLiveQuery<{ task_id: string }>(PEOPLE_SQL).data
   const withPerson = useMemo(() => new Set(people.map((r) => r.task_id)), [people])
   const [adding, setAdding] = useState(false)
   const [newIn, setNewIn] = useState<WorkKind | null>(null)

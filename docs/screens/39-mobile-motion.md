@@ -1,6 +1,6 @@
 # 39 · 모바일 움직임 — 공용 모션 값 · 흔들림 · 상호작용 규칙 (전 화면)
 
-- 상태: **확정 v1.0** (2026-10-06) — 결정 ①~④ 사용자 승인(추천대로), 사용자 휴대폰 녹화로 잰 값 반영([research 34](../ticktick-research/34-mobile-video-20261006.md)), 전체 점검 §1.1 추가. 이 문서대로 구현한다.
+- 상태: **확정 v1.2** (2026-10-06 — §11 성능 규칙 추가) — 결정 ①~④ 사용자 승인(추천대로), 사용자 휴대폰 녹화로 잰 값 반영([research 34](../ticktick-research/34-mobile-video-20261006.md)), 전체 점검 §1.1 추가. 이 문서대로 구현한다.
 - 2026-10-06 사용자: "휴대폰도 모바일 UI를 직관적이고 애니메이션도 스무스하게. 없는 부분은 추가하고, 전체적으로 부족한 부분을 검토해 줘." 
 - 계기: 사용자 "모바일은 지금 데탑이랑 다르게 UI/UX가 디테일이 부족해. 실제로 애니메이션도 그렇고 이게 자연스럽지가 않아."
 - 틱틱 기준: [research 33 모바일 움직임](../ticktick-research/33-mobile-motion.md)(이 문서의 근거), [research 24](../ticktick-research/24-mobile-ui.md)(모양), [research 20](../ticktick-research/20-mobile.md)(기능)
@@ -200,7 +200,7 @@
 - 시간: 지금 값(2초, 되돌리기·버튼 3초, 삭제 5초) 그대로.
 
 ### 4.13 탭 바 — G22 [영상 실측]
-- 고른 탭 뒤에 둥근 알약(탭 칸 폭 − 8, 높이 46, `p.bgSelected`)이 있고 탭을 바꾸면 그 칸으로 `SPRING.snappy`로 미끄러진다. 탭 화면은 교차로 옅어짐(`DUR.tab` 90ms). 동작 줄이기면 알약은 바로 옮김.
+- 고른 탭 뒤에 둥근 알약(탭 칸 폭 − 8, 높이 46, `p.bgSelected`)이 있고 탭을 바꾸면 그 칸으로 `SPRING.snappy`로 미끄러진다. 탭 화면은 들어오는 탭이 옅게 나타남(`DUR.tab` 90ms, UI 스레드 `TabFade` — 내비게이터 fade는 다시 연 탭이 빈 채 남아 끔, §11 P7). 동작 줄이기면 알약은 바로 옮김.
 
 ### 4.14 머리 버튼 — G23 [영상 실측]
 - 오른쪽 버튼이 둘 이상이면 한 유리 알약(높이 42, 버튼 폭 40씩, 사이 선 없음)에 담는다. ☰는 따로 지름 42 원. 누르면 그 버튼만 `PRESS.scale` 0.94.
@@ -271,7 +271,56 @@
 - 새 테이블·칸 없음. 끌기 정렬은 이미 있는 `tasks.sort_order`(real)·`section_id`, 데스크톱과 같은 공용 문장.
 - 기기에만: `진동`·`완료음` 켜기(결정 ②④), 움직임 줄이기(이미 있음).
 
+## 11. 성능 규칙 (2026-10-06 — 사용자 "새 Release 빌드가 아이폰 14 Pro에서 애니메이션이 너무 끊긴다")
+iPhone 14 Pro는 ProMotion(120Hz, `CADisableMinimumFrameDurationOnPhone`)이라 한 프레임 예산이 8.3ms다. 시뮬레이터(60Hz, 맥 CPU)에서 괜찮아 보여도 기기에서는 3~4배 무겁다. 아래는 지켜야 할 규칙과, 이번에 찾은 원인·고친 것·잰 값.
+
+### 11.1 원인 (근거)
+| # | 원인 | 근거 |
+|---|---|---|
+| P1 | **Reanimated가 transform·opacity 한 프레임마다 그림자 트리 커밋**(`IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS` 꺼짐 — 4.5 기본). React가 커밋하는 동안에는 움직임이 멈칫한다(커밋 잠깐 멈춤). 체크·토스트·쿼리 결과가 들어올 때마다 움직이던 것이 끊김 | `react-native-reanimated/src/featureFlags/staticFlags.json`, `ReanimatedModuleProxy.cpp` 동기 갱신 목록(transform·opacity·backgroundColor·그림자) |
+| P2 | **PowerSync `useQuery`가 안에서 `useStatus()`를 부른다** → 쓰기 한 번(체크)에 동기화 상태가 4~5번 바뀌고, useQuery를 쓰는 모든 화면(할 일 목록·서랍·캘린더·뿌리 화면 묶음…)이 그때마다 다시 그려짐 | `@powersync/react` `useQuery → useAllSyncStreamsHaveSynced → useSyncStreams → useStatus`. 측정: 체크 1번에 목록 8~10번·서랍 8~10번 다시 그림 |
+| P3 | **useQuery는 테이블이 바뀌면 배열·행 객체를 전부 새로** 준다 + 행에 넘기는 손잡이(onCheck 등)·스와이프 칸·제스처가 렌더마다 새로 → `TaskRowView` memo가 안 먹어 체크 1번에 45행 전부 다시 그림. 행 태그 색인(WikiIndex)도 tasks를 읽어 체크마다 새 컨텍스트 → 모든 행 | 코드 + 측정 |
+| P4 | **제스처를 렌더마다 새로 만듦**(SwipeRow `Gesture.Pan()`, DragRow `gestureFor(id)`) → 목록이 다시 그려질 때마다 행 수 × 2개 제스처를 네이티브에 다시 붙임 | 코드 |
+| P5 | **SwipeRow가 끄는 매 프레임 칸 판 `width`(레이아웃 값)를 바꿈** → 프레임마다 레이아웃 계산 + 커밋. 끌어서 순서의 떠 있는 사본도 `top·left·width`를 매 프레임 다시 씀 | 코드 |
+| P6 | **캘린더 월 넘김 뒤 달 칸을 전부 새로 만듦**: 앞뒤 달이 다른 부모(View) 안에 있어 넘기면 키가 같아도 다시 마운트(약 126칸), 칸마다 모든 항목을 거름(칸 × 항목) | 코드 + 측정(넘김마다 JS 멈춤) |
+| P7 | 탭 바꿈 `animation: 'fade'`: **한 번 떠났던 탭(캘린더)으로 돌아오면 화면이 하얗게 빈 채 남는다**(시뮬레이터에서 매번 재현, 고치기 전 코드·네이티브에서도) | 측정 |
+| P8 | 완료음 플레이어를 첫 체크 순간에 만듦(모듈 로드 + 플레이어 생성이 그 탭에) | 코드 |
+
+### 11.2 고친 것
+- P1: `apps/mobile/package.json` `"reanimated": { "staticFeatureFlags": { "IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS": true } }` → transform·opacity·색·그림자는 UI 스레드에서 바로 뷰에 쓴다(React 커밋을 기다리지 않음). **바꾸면 `pod install` + 네이티브 다시 빌드.** (Android 깃발은 실기기 확인 전이라 안 켬.)
+- P2·P3: `src/data/rows.ts` — `useRows`(차등: 결과가 같으면 안 그리고, 그대로인 행은 같은 객체) · `useLiveQuery`(useQuery와 같은 뜻, 상태 바뀜엔 안 그림) · `useSyncFlags`(오프라인·동기화 오류·첫 동기화만). 앱의 `useQuery`를 전부 바꿈(주간 점검 화면 2곳은 다른 작업 중이라 남김). 할 일 목록·캘린더·서랍 데이터·태그 색인은 `useRows`, 서랍 개수는 250ms로 모음(`COUNT_THROTTLE`).
+- P3·P4: 할 일 목록 행 = `TaskItem`(memo) + 손잡이 ref 하나 + 스와이프 칸 `useMemo` + 행 설정 객체 memo, `useListMotion`은 늘 같은 두 객체, `SwipeRow`·`DragRow` 제스처 `useMemo`, 끌기 api 묶음은 안 바뀜(떠 있는 사본 상태가 바뀌어도 행은 안 그림). 뿌리의 감시 훅(알림·공유·휴대폰 캘린더)은 `RootEffects`로 떼어 Stack이 같이 안 그려지게.
+- P5: SwipeRow 칸 판은 행 전체 폭으로 깔고 "창"(overflow hidden)을 transform으로 옮김(폭 애니메이션 없음, 보이는 모양은 같음). 떠 있는 사본은 자리를 잡을 때 한 번만, 끄는 동안 transform만.
+- P6: 월 칸 = `MonthWeeks`·`DayCell` memo, 세 달은 같은 부모 아래 키(`YYYY-MM`)로 이어 씀(넘겨도 다시 만들지 않음), 날마다 항목은 `itemsByDay`로 한 번에(시험: `calendar.test.ts` — 날마다 `itemsOnDay`와 같음).
+- P7: 탭 내비게이터 움직임 끄고, 들어오는 탭만 `TabFade`(opacity 0 → 1, `DUR.tab` 90ms, UI 스레드).
+- P8: 앱이 뜨고 3초 뒤 플레이어를 미리 만듦.
+- 측정 도구: `src/dev/perfProbe.tsx` — `EXPO_PUBLIC_SPROUT_PERF=1`로 번들할 때만 켜짐(UI 스레드 `useFrameCallback`·JS `requestAnimationFrame` 간격을 0.5초 칸으로 `Documents/sprout-perf.log`에). 측정 계정(`perf-…@sprout.test`)이면 오늘 할 일 45개를 채움. 출시 빌드에는 꺼져 있다.
+
+### 11.3 잰 값 (시뮬레이터 iPhone 17 Pro, Release, 할 일 45개, 같은 동작 대본 — axe로 스크롤 6번·체크 5번·스와이프·서랍 3번·월 넘김 6번)
+| 동작 | 고치기 전 | 고친 뒤 |
+|---|---|---|
+| 체크 5번 동안 JS 멈춘 시간 합(16.7ms 넘은 만큼) | **11,957ms** | **352ms** |
+| 체크 중 가장 긴 JS 프레임 | 526~1,334ms | 47~62ms |
+| 체크 중 34ms 넘은 JS 프레임 | 28~30 | 10~13 |
+| 체크 1번에 목록·서랍 다시 그림 | 8~10번씩, 행 45개 | 3~4번 · 2번, 행 1개 |
+| 서랍 열고 닫기 가장 긴 JS 프레임 | 175~287ms | 27~43ms |
+| 월 넘김 6번 동안 JS 멈춘 시간 합 | 1,261ms | 796ms(첫 탭 열기·위젯 갱신 포함) |
+| 다시 연 캘린더 탭 | 하얗게 빔 | 보임 |
+- 시뮬레이터 UI 스레드는 고치기 전후 모두 거의 60fps(맥 CPU) — 기기 120Hz 차이는 P1이 크다. 실기기 손가락 동작 측정은 사람이 만져야 해서 이번엔 못 했다 → 사용자 확인 [임시].
+
+### 11.4 규칙 (새 코드는 이것을 지킨다)
+1. **움직이는 값은 transform·opacity(·배경색·그림자)만.** width·height·top·left·margin·padding을 `useAnimatedStyle`에서 프레임마다 바꾸지 않는다. 드러내기는 창(overflow hidden) + transform으로.
+2. **목록 행은 memo + 바뀌지 않는 손잡이.** 행에 넘기는 함수는 ref 하나(`act.current.x()`)나 `useCallback`, 객체(설정·움직임)는 `useMemo`/고정 객체. 행 안에서 `swipe` 칸 배열·아이콘도 `useMemo`.
+3. **제스처는 `useMemo`로 한 번.** 렌더마다 `Gesture.Pan()`을 새로 만들지 않는다. 제스처 안에서 부를 JS 함수는 안정된 `useCallback`이나 ref.
+4. **쿼리는 `src/data/rows`만.** `@powersync/react-native`의 `useQuery`·`useStatus`를 화면에서 직접 쓰지 않는다(상태 바뀔 때마다 다시 그림). 행 목록은 `useRows`(id 칸 포함), 개수 배지는 `useRows(..., COUNT_THROTTLE)`.
+5. **넓게 퍼지는 컨텍스트 값은 안정적으로.** 모든 행이 읽는 컨텍스트(테마·태그 색인)는 결과가 같으면 같은 객체여야 한다.
+6. **넘기는 화면(캘린더 등)은 키로 이어 쓴다.** 같은 내용은 같은 부모·같은 키 → 다시 마운트하지 않음. 칸 계산은 한 번에(칸 × 항목 금지).
+7. **손가락 순간에 무거운 일 금지.** 모듈 로드·플레이어 생성·DB 쓰기는 미리 또는 움직임이 끝난 뒤(체크는 이미 0.35초 머문 뒤 씀 — §4.1).
+8. **레이아웃 전환(entering/exiting/layout)은 80행 이하·첫 그림 뒤에만**(지금 `useListMotion`), 긴 목록 전체에 새로 붙이지 않는다.
+9. 바꾼 뒤에는 `EXPO_PUBLIC_SPROUT_PERF=1` 번들로 같은 대본을 돌려 전후를 남긴다.
+
 ## 10. 기록
 - v0.1 (2026-10-05): 코드 점검(G1~G16) + research 33 + 모션 값·흔들림 지도·상호작용 규칙·부품·3묶음·완료 기준·결정 4개.
 - v1.1 (2026-10-06): 1~3묶음 구현 + 빠진 기능 G18(캘린더 주·년 보기, 보기 메뉴 틱틱 순서)·G19(서랍 행 둥근 밀기 칸) 구현. 남은 것: 끄는 중 저절로 스크롤·빈 섹션에 놓기·하위로 만들기, 월 좌우 넘김, 글자 크기 일괄(G14).
+- v1.2 (2026-10-06): §11 성능 규칙 — 사용자 "아이폰에서 애니메이션이 너무 끊김" 점검(원인 P1~P8, 고친 것, 측정, 규칙 9개). 탭 바꿈 움직임은 내비게이터 fade 대신 들어오는 탭 옅게 나타남(다시 연 탭이 빈 채 남던 문제).
 - v1.0 (2026-10-06): 결정 ①~④ 승인, 사용자 휴대폰 녹화 실측(research 34)으로 묶음·서랍·메뉴·탭·캘린더 넘김 값 교체, 전체 점검 §1.1(G17~G23 — 빠진 기능 / 다듬기), 캘린더 월 = 세로 띠 넘김, 탭 알약·머리 버튼 묶음.

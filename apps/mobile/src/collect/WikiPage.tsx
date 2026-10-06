@@ -1,7 +1,7 @@
 // 26 C7 위키 주제 페이지(읽기 전용): 둥근 ‹ · 이력 🕘 / 제목 24/700 · `자료 N · 버전 N · 방금 고침` / AI가 바꿨으면 띠(✦ 이유 · 되돌리기)
 // / 구역(개요 · 핵심 정리 · 볼 것 · 관련 주제 · 열린 질문 — 내용 없는 구역은 숨김) · 줄 끝 출처 꼬리표 · 새 줄 강조 · 🔒 직접 고침 · 제안은 "컴퓨터에서 보기".
 // 이력 = 아래 시트 버전 목록 → 누르면 그 버전 미리보기 + "이 버전으로 되돌리기"(데스크톱과 같은 restoreVersion).
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../data/rows'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft, History, Lock, Sparkles, X } from 'lucide-react-native'
 import { useEffect, useMemo, useState } from 'react'
@@ -33,10 +33,10 @@ export default function WikiPage() {
   const space = useTabBarSpace()
   const router = useRouter()
   const toast = useToast()
-  const topic = useQuery<Topic>('SELECT w.*, (SELECT COUNT(*) FROM notes n WHERE n.topic_id = w.id) AS count FROM wiki_topics w WHERE w.id = ?', [id ?? '']).data[0]
-  const topics = useQuery<{ id: string; name: string }>('SELECT id, name FROM wiki_topics').data
-  const versions = useQuery<Version>('SELECT id, version, content, reason, created_at FROM wiki_versions WHERE topic_id = ? ORDER BY version DESC', [id ?? '']).data
-  const links = useQuery<Pick<CollectItem, 'id' | 'url' | 'link_title' | 'content'>>('SELECT id, url, link_title, content FROM notes WHERE topic_id = ? AND url IS NOT NULL ORDER BY COALESCE(captured_at, created_at) DESC', [id ?? '']).data
+  const topic = useLiveQuery<Topic>('SELECT w.*, (SELECT COUNT(*) FROM notes n WHERE n.topic_id = w.id) AS count FROM wiki_topics w WHERE w.id = ?', [id ?? '']).data[0]
+  const topics = useLiveQuery<{ id: string; name: string }>('SELECT id, name FROM wiki_topics').data
+  const versions = useLiveQuery<Version>('SELECT id, version, content, reason, created_at FROM wiki_versions WHERE topic_id = ? ORDER BY version DESC', [id ?? '']).data
+  const links = useLiveQuery<Pick<CollectItem, 'id' | 'url' | 'link_title' | 'content'>>('SELECT id, url, link_title, content FROM notes WHERE topic_id = ? AND url IS NOT NULL ORDER BY COALESCE(captured_at, created_at) DESC', [id ?? '']).data
   // 처음 열 때 본 버전 = 띠 기준. 보는 동안 바뀐 버전은 목록 점에서 바로 "봤음"
   const [baseline, setBaseline] = useState<number | null>(null)
   useEffect(() => { if (topic && baseline === null) setBaseline(seenVersions()?.[topic.id] ?? topic.version) }, [topic, baseline])
@@ -48,7 +48,7 @@ export default function WikiPage() {
   const content: WikiContent = preview ? contentOf(preview) : contentOf(topic)
   const locked = lockedOf(topic)
   const srcIds = useMemo(() => Array.from(new Set(SECTIONS.flatMap((s) => content.sections[s].map((l) => l.src)).filter((s): s is string => !!s))), [content])
-  const srcRows = useQuery<Src>(`SELECT id, source, captured_at, created_at FROM notes WHERE id IN (${srcIds.map(() => '?').join(',') || "''"})`, srcIds).data
+  const srcRows = useLiveQuery<Src>(`SELECT id, source, captured_at, created_at FROM notes WHERE id IN (${srcIds.map(() => '?').join(',') || "''"})`, srcIds).data
   const sources = useMemo(() => new Map(srcRows.map((r) => [r.id, r])), [srcRows])
   if (!topic) {
     return (

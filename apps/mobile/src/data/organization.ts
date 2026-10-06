@@ -2,7 +2,7 @@
 // - 리스트 삭제 = 안의 할 일을 휴지통으로 + 리스트는 보관(복원하면 소속 유지). 기본함은 삭제·보관 금지
 // - 폴더 삭제(그룹 해제) = 리스트를 맨 위로 옮기고 폴더만 지움. 태그 삭제 = 할 일은 두고 연결만 지움, 하위 태그는 맨 위로
 // - 태그는 최대 2단계(자기 자신·하위 있는 태그를 부모로 못 고름)
-import { useQuery } from '@powersync/react-native'
+import { COUNT_THROTTLE, useRows } from './rows'
 import { deleteStmt, type Stmt } from '@sprout/schema/taskCore'
 import { File, Paths } from 'expo-file-system'
 import { db, run } from './db'
@@ -19,43 +19,41 @@ export interface ListFull extends ListRow { pinned: number | null; show_in_smart
 
 // ── 읽기 ──
 export function useTagsFull(): TagFull[] {
-  return useQuery<TagFull>('SELECT id, name, color, parent_id, pinned, sort_order, kind FROM tags ORDER BY COALESCE(pinned, 0) DESC, sort_order, name').data
+  return useRows<TagFull>('SELECT id, name, color, parent_id, pinned, sort_order, kind FROM tags ORDER BY COALESCE(pinned, 0) DESC, sort_order, name').data
 }
 export function useFilters(): FilterRow[] {
-  return useQuery<FilterRow>('SELECT id, name, emoji, rule_json, sort_order FROM filters ORDER BY sort_order, name').data
+  return useRows<FilterRow>('SELECT id, name, emoji, rule_json, sort_order FROM filters ORDER BY sort_order, name').data
 }
 /** 서랍용: 보관 안 된 리스트(고정 먼저) */
 export function useListsFull(): ListFull[] {
-  return useQuery<ListFull>("SELECT id, name, emoji, color, kind, folder_id, sort_order, pinned, show_in_smart, archived_at FROM lists WHERE archived_at IS NULL ORDER BY kind = 'inbox' DESC, COALESCE(pinned, 0) DESC, sort_order, name").data
+  return useRows<ListFull>("SELECT id, name, emoji, color, kind, folder_id, sort_order, pinned, show_in_smart, archived_at FROM lists WHERE archived_at IS NULL ORDER BY kind = 'inbox' DESC, COALESCE(pinned, 0) DESC, sort_order, name").data
 }
 export function useArchivedLists(): ListFull[] {
-  return useQuery<ListFull>('SELECT id, name, emoji, color, kind, folder_id, sort_order, pinned, show_in_smart, archived_at FROM lists WHERE archived_at IS NOT NULL ORDER BY archived_at DESC').data
+  return useRows<ListFull>('SELECT id, name, emoji, color, kind, folder_id, sort_order, pinned, show_in_smart, archived_at FROM lists WHERE archived_at IS NOT NULL ORDER BY archived_at DESC').data
 }
 export function useListFull(id: string | null): ListFull | undefined {
-  return useQuery<ListFull>('SELECT id, name, emoji, color, kind, folder_id, sort_order, pinned, show_in_smart, archived_at FROM lists WHERE id = ?', [id ?? '']).data[0]
+  return useRows<ListFull>('SELECT id, name, emoji, color, kind, folder_id, sort_order, pinned, show_in_smart, archived_at FROM lists WHERE id = ?', [id ?? '']).data[0]
 }
 /** 서랍 개수 중 lists.ts에 없는 것: 전체·태그별(미완료) */
 export function useOrgCounts(): { all: number; tags: Record<string, number> } {
-  const all = useQuery<{ n: number }>(`SELECT count(*) AS n FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.status = 0 AND t.deleted_at IS NULL AND ${IN_SMART}`).data[0]?.n ?? 0
-  const per = useQuery<{ tag_id: string; n: number }>(
-    "SELECT tt.tag_id, count(DISTINCT tt.task_id) AS n FROM task_tags tt JOIN tasks t ON t.id = tt.task_id LEFT JOIN lists l ON l.id = t.list_id WHERE t.status = 0 AND t.deleted_at IS NULL AND l.archived_at IS NULL AND COALESCE(tt.state,'accepted') = 'accepted' GROUP BY tt.tag_id"
-  ).data
+  const all = useRows<{ n: number }>(`SELECT count(*) AS n FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.status = 0 AND t.deleted_at IS NULL AND ${IN_SMART}`, [], COUNT_THROTTLE).data[0]?.n ?? 0
+  const per = useRows<{ tag_id: string; n: number }>(
+    "SELECT tt.tag_id, count(DISTINCT tt.task_id) AS n FROM task_tags tt JOIN tasks t ON t.id = tt.task_id LEFT JOIN lists l ON l.id = t.list_id WHERE t.status = 0 AND t.deleted_at IS NULL AND l.archived_at IS NULL AND COALESCE(tt.state,'accepted') = 'accepted' GROUP BY tt.tag_id", [], COUNT_THROTTLE).data
   return { all, tags: Object.fromEntries(per.map((r) => [r.tag_id, r.n])) }
 }
 /** 완료·계획 취소·휴지통 개수('auto' 표시용) */
 export function useArchiveCounts(): { completed: number; wontdo: number; trash: number } {
-  const r = useQuery<{ completed: number; wontdo: number; trash: number }>(
+  const r = useRows<{ completed: number; wontdo: number; trash: number }>(
     `SELECT (SELECT count(*) FROM tasks WHERE status = 1 AND deleted_at IS NULL) AS completed,
             (SELECT count(*) FROM tasks WHERE status = 2 AND deleted_at IS NULL) AS wontdo,
-            (SELECT count(*) FROM tasks WHERE deleted_at IS NOT NULL) AS trash`
-  ).data[0]
+            (SELECT count(*) FROM tasks WHERE deleted_at IS NOT NULL) AS trash`, [], COUNT_THROTTLE).data[0]
   return { completed: r?.completed ?? 0, wontdo: r?.wontdo ?? 0, trash: r?.trash ?? 0 }
 }
 
 // ── 스마트 목록 표시(user_prefs.smart_list_visibility, 데스크톱 설정과 같은 값) ──
 const PREFS = 'SELECT id, smart_list_visibility FROM user_prefs ORDER BY created_at LIMIT 1'
 export function useSmartVisibility(): Record<string, Visibility> {
-  return readVisibility(useQuery<{ smart_list_visibility: string | null }>(PREFS).data[0]?.smart_list_visibility)
+  return readVisibility(useRows<{ smart_list_visibility: string | null }>(PREFS).data[0]?.smart_list_visibility)
 }
 export async function setSmartVisibility(id: string, v: Visibility) {
   const row = await db.getOptional<{ id: string; smart_list_visibility: string | null }>(PREFS)
@@ -65,7 +63,7 @@ export async function setSmartVisibility(id: string, v: Visibility) {
 
 // ── 보기 설정(view_settings, 데스크톱과 같은 view_key·값) ──
 export function useViewSettings(view: string): ViewSettings {
-  const row = useQuery<{ group_by: string | null; sort_by: string | null }>('SELECT group_by, sort_by FROM view_settings WHERE view_key = ?', [view]).data[0]
+  const row = useRows<{ group_by: string | null; sort_by: string | null }>('SELECT group_by, sort_by FROM view_settings WHERE view_key = ?', [view]).data[0]
   return settingsOf(view, row)
 }
 export async function saveViewSettings(view: string, patch: Partial<ViewSettings>) {

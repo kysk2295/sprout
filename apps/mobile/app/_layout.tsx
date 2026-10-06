@@ -20,6 +20,7 @@ import { ToastProvider, useToast } from '../src/ui/Toast'
 import { useDeviceCalBridge } from '../src/calendars/bridge'
 import { useDeviceCalLifecycle } from '../src/calendars/store'
 import { WikiIndexProvider } from '../src/wiki/WikiIndex'
+import { PERF, PerfProbe, seedPerfTasks } from '../src/dev/perfProbe'
 
 export const unstable_settings = { anchor: '(tabs)' }
 
@@ -49,12 +50,8 @@ export default function Root() {
 
 function Screens({ signedIn }: { signedIn: boolean }) {
   const p = usePalette()
+  const { user } = useAuth()
   useEffect(() => { void SystemUI.setBackgroundColorAsync(p.pageBg) }, [p.pageBg])
-  useReminderNotifications(signedIn) // 20 §4.4 로컬 알림: 예약·감시·알림 동작·백그라운드 새로 고침
-  useAndroidShare(signedIn) // 24 §5-5: Android 다른 앱 공유 → 수집함
-  const toast = useToast()
-  useDeviceCalLifecycle(signedIn) // 38: 휴대폰 캘린더 권한·목록(앞으로 올 때 다시)
-  useDeviceCalBridge(signedIn, (m) => toast.show(m)) // 38 §6: 이 휴대폰이 주인인 연결된 일정 ⇄ 휴대폰 캘린더
   const sheet = (detents: number[]) => ({
     presentation: 'formSheet' as const,
     sheetAllowedDetents: detents,
@@ -64,6 +61,7 @@ function Screens({ signedIn }: { signedIn: boolean }) {
   })
   return (
     <>
+      <RootEffects signedIn={signedIn} />
       <StatusBar style={p.dark ? 'light' : 'dark'} />
       {/* formSheet 화면은 모두 SheetScrollGuard로 감싼다 — 없으면 iOS가 ScrollView를 시트 밖으로 밀어 하얗게 빈다(SheetScrollGuard.tsx) */}
       <Stack screenLayout={sheetScreenLayout} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: p.pageBg } }}>
@@ -87,6 +85,17 @@ function Screens({ signedIn }: { signedIn: boolean }) {
         </Stack.Protected>
       </Stack>
       {signedIn ? <WidgetArtBaker /> : null}
+      {PERF && signedIn ? <PerfProbe seed={() => seedPerfTasks(user?.email)} /> : null}
     </>
   )
+}
+
+/** 뿌리의 감시·동기화 훅들(39 §11): 이 훅들이 다시 그려져도 화면 묶음(Stack → 모든 탭·서랍)이 같이 다시 그려지지 않게 따로 둔다 */
+function RootEffects({ signedIn }: { signedIn: boolean }) {
+  useReminderNotifications(signedIn) // 20 §4.4 로컬 알림: 예약·감시·알림 동작·백그라운드 새로 고침
+  useAndroidShare(signedIn) // 24 §5-5: Android 다른 앱 공유 → 수집함
+  const toast = useToast()
+  useDeviceCalLifecycle(signedIn) // 38: 휴대폰 캘린더 권한·목록(앞으로 올 때 다시)
+  useDeviceCalBridge(signedIn, (m) => toast.show(m)) // 38 §6: 이 휴대폰이 주인인 연결된 일정 ⇄ 휴대폰 캘린더
+  return null
 }

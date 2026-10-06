@@ -1,6 +1,6 @@
 // 29 §9.2 계획 — 읽기(useQuery → 공용 buildPlanView) · 프로젝트 손질(✕ 빼기 · ＋ 더 넣기 · 빠진 거 없어 · 같이 짠 큰 일 → 프로젝트).
 // 휴대폰은 자동 프로젝트 패스를 돌리지 않는다(29 §9.1): 데스크톱이 만든 프로젝트 태그를 보여 주기만. 구성원 계산만 공용 함수로 같이 한다.
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../../data/rows'
 import { autoTagRowId, findSynonym, type AtTag } from '@sprout/schema/autoTag'
 import { buildPlanView, type LinkRow, type ListRow, type PlanData, type ProjectTaskInput, type PTaskRow, type SeqRow, type TagRow } from '@sprout/schema/planView'
 import { relationId } from '@sprout/schema/wikiLink'
@@ -36,16 +36,16 @@ const EMPTY_STORE: ProjectStore = { dismissed: [], confirmed: {} }
 export function usePlanData(): PlanData {
   const today = dayKey()
   const cutoff = useMemo(() => new Date(Date.now() - 120 * 86_400_000).toISOString().slice(0, 10), [])
-  const tasks = useQuery<PTaskRow>(TASKS_SQL, [cutoff])
-  const tags = useQuery<TagRow>(TAGS_SQL)
-  const links = useQuery<LinkRow>(LINKS_SQL)
-  const lists = useQuery<ListRow>(LISTS_SQL)
-  const folders = useQuery<{ id: string; name: string }>(FOLDERS_SQL)
-  const seq = useQuery<SeqRow>(SEQ_SQL)
-  const topics = useQuery<{ id: string; name: string }>(TOPICS_SQL)
-  const notes = useQuery<{ tag_id: string; id: string; content: string | null; link_title: string | null }>(NOTES_SQL)
-  const kinds = useQuery<{ task_id: string; kind: string }>(KINDS_SQL)
-  const focusQ = useQuery<{ from_id: string }>(FOCUS_SQL)
+  const tasks = useLiveQuery<PTaskRow>(TASKS_SQL, [cutoff])
+  const tags = useLiveQuery<TagRow>(TAGS_SQL)
+  const links = useLiveQuery<LinkRow>(LINKS_SQL)
+  const lists = useLiveQuery<ListRow>(LISTS_SQL)
+  const folders = useLiveQuery<{ id: string; name: string }>(FOLDERS_SQL)
+  const seq = useLiveQuery<SeqRow>(SEQ_SQL)
+  const topics = useLiveQuery<{ id: string; name: string }>(TOPICS_SQL)
+  const notes = useLiveQuery<{ tag_id: string; id: string; content: string | null; link_title: string | null }>(NOTES_SQL)
+  const kinds = useLiveQuery<{ task_id: string; kind: string }>(KINDS_SQL)
+  const focusQ = useLiveQuery<{ from_id: string }>(FOCUS_SQL)
   const focus = focusQ.data?.[0]?.from_id ?? null
   const [pstore] = useKv<ProjectStore>(PROJECTS_KEY, EMPTY_STORE)
   const loading = tasks.isLoading || tags.isLoading || links.isLoading || lists.isLoading || folders.isLoading || seq.isLoading

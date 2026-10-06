@@ -1,6 +1,6 @@
 // 28 모바일 일기 — DB 읽기·쓰기와 캐릭터 대화(데스크톱 data/diary.ts와 같은 순서·같은 규칙).
 // 동의 전·나만 보기·오늘은 혼자에서는 /ai/diary를 부르지 않는다. 일기로 XP 없음(15 §4).
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../data/rows'
 import { addDays } from '@sprout/schema/time'
 import { stageOf } from '@sprout/schema/growth'
 import { currentUserId } from '../data/auth'
@@ -22,27 +22,27 @@ export const findEntry = (date: string) => db.getOptional<DiaryEntry>(ENTRY_BY_D
 
 // ── 읽기(useQuery = 동기화로 바뀌면 다시 그림) ──
 export function useEntry(date: string): DiaryEntry | undefined {
-  return useQuery<DiaryEntry>(ENTRY_BY_DATE, [date]).data[0]
+  return useLiveQuery<DiaryEntry>(ENTRY_BY_DATE, [date]).data[0]
 }
 export const ENTRIES_SQL = 'SELECT id, date, mood, content, prompt, private, summary, created_at, modified_at FROM diary_entries ORDER BY date DESC'
 export function useEntries(): DiaryEntry[] {
-  return useQuery<DiaryEntry>(ENTRIES_SQL).data
+  return useLiveQuery<DiaryEntry>(ENTRIES_SQL).data
 }
 export function useMessages(date: string): DiaryMessage[] {
-  return useQuery<DiaryMessage>('SELECT m.* FROM diary_messages m JOIN diary_entries e ON e.id = m.entry_id WHERE e.date = ? ORDER BY m.created_at, m.id', [date]).data
+  return useLiveQuery<DiaryMessage>('SELECT m.* FROM diary_messages m JOIN diary_entries e ON e.id = m.entry_id WHERE e.date = ? ORDER BY m.created_at, m.id', [date]).data
 }
 export type DoneRow = { id: string; title: string; completed_at: string }
 export function useDone(date: string): { rows: DoneRow[]; xp: number } {
   const [a, b] = dayRange(date)
-  const rows = useQuery<DoneRow>(DONE_SQL, [a, b]).data
-  const xp = useQuery<{ xp: number }>(XP_SQL, [date]).data[0]?.xp ?? 0
+  const rows = useLiveQuery<DoneRow>(DONE_SQL, [a, b]).data
+  const xp = useLiveQuery<{ xp: number }>(XP_SQL, [date]).data[0]?.xp ?? 0
   return { rows, xp }
 }
 /** 한 줄 발견용: 날짜별 완료 수(그 달) */
 export function useDoneByDay(month: string): Map<string, number> {
   const from = new Date(`${month}-01T00:00:00`).toISOString()
   const to = new Date(`${addDays(`${month}-01`, 40).slice(0, 7)}-01T00:00:00`).toISOString()
-  const rows = useQuery<{ completed_at: string }>('SELECT completed_at FROM tasks WHERE status = 1 AND deleted_at IS NULL AND completed_at >= ? AND completed_at < ?', [from, to]).data
+  const rows = useLiveQuery<{ completed_at: string }>('SELECT completed_at FROM tasks WHERE status = 1 AND deleted_at IS NULL AND completed_at >= ? AND completed_at < ?', [from, to]).data
   const m = new Map<string, number>()
   for (const r of rows) {
     const d = new Date(r.completed_at)
@@ -53,15 +53,15 @@ export function useDoneByDay(month: string): Map<string, number> {
 }
 /** 대화 상대 = 내 성장 캐릭터(이름·종·단계) */
 export function useBuddy(): Buddy & { stage: number; level: number } {
-  const c = useQuery<CharacterRow>(CHARACTER_SQL).data[0]
-  const total = useQuery<{ xp: number }>('SELECT COALESCE(SUM(amount), 0) AS xp FROM xp_events').data[0]?.xp ?? 0
+  const c = useLiveQuery<CharacterRow>(CHARACTER_SQL).data[0]
+  const total = useLiveQuery<{ xp: number }>('SELECT COALESCE(SUM(amount), 0) AS xp FROM xp_events').data[0]?.xp ?? 0
   const level = levelOfTotal(total).level
   return { ...buddyOf(c), stage: stageOf(level), level }
 }
 /** 할 일로 칩: 같은 제목 할 일이 이미 있는가(앱을 다시 켜도 두 번 만들지 않게) */
 export function useExistingTitles(titles: string[]): Set<string> {
   const list = titles.length ? titles : ['']
-  const rows = useQuery<{ title: string }>(`SELECT title FROM tasks WHERE deleted_at IS NULL AND title IN (${list.map(() => '?').join(',')})`, list).data
+  const rows = useLiveQuery<{ title: string }>(`SELECT title FROM tasks WHERE deleted_at IS NULL AND title IN (${list.map(() => '?').join(',')})`, list).data
   return new Set(rows.map((r) => r.title))
 }
 

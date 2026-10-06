@@ -1,6 +1,6 @@
 // 33 §11 더보기 › 태그: 태그 = 위키 페이지 목록. 종류별 묶음 카드(사람 · 프로젝트 · 장소 · 주제, 빈 묶음 없음),
 // 행 = 종류 아이콘 · 이름 · 별칭(3차) · 열린 할 일 수(accepted). 누르면 태그 페이지(할 일 탭 그 태그 보기 + 페이지 카드).
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../../../src/data/rows'
 import { parseAliases } from '@sprout/schema/wikiLink'
 import { useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
@@ -23,7 +23,7 @@ export default function TagList() {
   const p = usePalette()
   const router = useRouter()
   const space = useTabBarSpace()
-  const rows = useQuery<Row>(
+  const rows = useLiveQuery<Row>(
     `SELECT g.id, g.name, g.color, g.kind, g.aliases,
        (SELECT count(DISTINCT tt.task_id) FROM task_tags tt JOIN tasks t ON t.id = tt.task_id LEFT JOIN lists l ON l.id = t.list_id
          WHERE tt.tag_id = g.id AND t.status = 0 AND t.deleted_at IS NULL AND l.archived_at IS NULL AND COALESCE(tt.state,'accepted') = 'accepted') AS n

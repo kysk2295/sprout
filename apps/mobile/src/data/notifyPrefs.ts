@@ -1,6 +1,6 @@
 // 32 §9.2 알림 설정 — 동기화되는 user_prefs.notify_json(데스크톱 설정 › 알림과 같은 값). 없거나 깨진 칸은 공용 기본값.
 // 기기별 값(이 휴대폰의 OS 권한·push_reminders)은 여기 두지 않는다(서버 device_tokens).
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from './rows'
 import { parseNotifyPrefs, type NotifyPrefs } from '@sprout/schema/notify'
 import { useMemo } from 'react'
 import { db, run } from './db'
@@ -10,7 +10,7 @@ const SQL = 'SELECT id, notify_json FROM user_prefs ORDER BY created_at LIMIT 1'
 type Row = { id: string; notify_json: string | null }
 
 export function useNotifyPrefs(): NotifyPrefs {
-  const raw = useQuery<Row>(SQL).data[0]?.notify_json ?? null
+  const raw = useLiveQuery<Row>(SQL).data[0]?.notify_json ?? null
   return useMemo(() => parseNotifyPrefs(raw), [raw])
 }
 export async function readNotifyPrefs(): Promise<NotifyPrefs> {

@@ -1,6 +1,6 @@
 // 주간 리포트 읽기(23 §2.1, 시안 B3 — "○○의 일기"): 캐릭터 한마디 · 칩 · 해낸 것 · 목표 결과(이번 주로 넘기기) · 다음 주 제안.
 // 열면 seen_at을 쓴다. 휴대폰엔 [다시 시도] 없음(M-G2 — 데스크톱이 다시 시도).
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../../../src/data/rows'
 import { progressFromEvents, readTextJson, SPECIES, weekLabel, XP, type Species } from '@sprout/schema/growth'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Check, ChevronLeft, Circle } from 'lucide-react-native'
@@ -23,9 +23,9 @@ export default function Report() {
   const toast = useToast()
   const { week } = useLocalSearchParams<{ week: string }>()
   const row = useReport(week ?? '')
-  const ch = useQuery<CharacterRow>(CHARACTER_SQL).data[0]
+  const ch = useLiveQuery<CharacterRow>(CHARACTER_SQL).data[0]
   const species: Species | null = ch?.species ?? null
-  const stage = progressFromEvents(useQuery<{ amount: number; created_at: string }>('SELECT amount, created_at FROM xp_events').data).stage
+  const stage = progressFromEvents(useLiveQuery<{ amount: number; created_at: string }>('SELECT amount, created_at FROM xp_events').data).stage
   const today = dayKey()
   const thisWeek = weekStartOf(today)
   const current = useWeekGoalTitles(thisWeek)

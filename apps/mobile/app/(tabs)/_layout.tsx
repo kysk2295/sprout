@@ -3,11 +3,13 @@
 // 탭 바는 떠 있는 유리 알약, 서랍은 탭 바까지 덮는다. 뒤로 = 지난 탭(설정 → 더보기).
 import { Tabs } from 'expo-router'
 import { View } from 'react-native'
-import Animated, { useAnimatedStyle } from 'react-native-reanimated'
+import { useIsFocused } from 'expo-router'
+import { useEffect, type ReactNode } from 'react'
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { TasksViewProvider } from '../../src/state/tasksView'
 import { usePalette } from '../../src/theme/ThemeProvider'
 import { Drawer, drawerP, drawerW } from '../../src/ui/Drawer'
-import { DUR, useReducedMotion } from '../../src/ui/motion'
+import { DUR, timing, useReducedMotion } from '../../src/ui/motion'
 import { FloatingTabBar } from '../../src/ui/TabBar'
 
 export default function TabsLayout() {
@@ -19,8 +21,9 @@ export default function TabsLayout() {
     <TasksViewProvider>
       <View style={{ flex: 1, backgroundColor: p.pageBg }}>
         <Animated.View style={[{ flex: 1 }, push]}>
-        {/* 39 §4.13 [영상 실측]: 탭 내용은 교차로 옅어지며 약 90ms에 바뀐다 */}
-        <Tabs backBehavior="history" tabBar={(props) => <FloatingTabBar {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: p.pageBg }, animation: reduce ? 'none' : 'fade', transitionSpec: { animation: 'timing', config: { duration: DUR.tab } } }}>
+        {/* 39 §4.13 [영상 실측]: 탭 내용은 약 90ms에 옅게 나타나며 바뀐다 */}
+        {/* 2026-10-06 성능 점검(39 §11): 내비게이터 'fade'는 다시 연 탭(캘린더)이 하얗게 빈 채 남는 문제가 있어(시뮬레이터 재현) 끄고, 들어오는 탭만 UI 스레드에서 옅게 나타나게 한다 */}
+        <Tabs backBehavior="history" tabBar={(props) => <FloatingTabBar {...props} />} screenLayout={reduce ? undefined : ({ children }) => <TabFade>{children}</TabFade>} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: p.pageBg }, animation: 'none' }}>
           <Tabs.Screen name="index" options={{ title: '할 일' }} />
           <Tabs.Screen name="calendar" options={{ title: '캘린더' }} />
           <Tabs.Screen name="collect" options={{ title: '수집함' }} />
@@ -33,4 +36,17 @@ export default function TabsLayout() {
       </View>
     </TasksViewProvider>
   )
+}
+
+/** 들어오는 탭: 0 → 1을 DUR.tab(90ms)에(transform·opacity만 — 39 §11) */
+function TabFade({ children }: { children: ReactNode }) {
+  const focused = useIsFocused()
+  const o = useSharedValue(1)
+  useEffect(() => {
+    if (!focused) return
+    o.value = 0
+    o.value = withTiming(1, timing(DUR.tab))
+  }, [focused, o])
+  const st = useAnimatedStyle(() => ({ opacity: o.value }))
+  return <Animated.View style={[{ flex: 1 }, st]}>{children}</Animated.View>
 }

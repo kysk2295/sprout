@@ -3,7 +3,7 @@
 // 네 탭이 비면 `다 정리했어!` + 정리 +20 XP(하루 1회, 이번에 1개 이상 처리했을 때). params: tab
 import { lateGroups, rowMeta, TAB_LABEL, TIDY_TABS, bubbleFor, type Proposal, type TidyTab, type TidyTask } from '@sprout/schema/tidy'
 import { XP } from '@sprout/schema/growth'
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../src/data/rows'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ArrowRightLeft, CalendarClock, Check, ChevronLeft, Sun } from 'lucide-react-native'
 import { FolderGlyph, splitLead } from '../src/ui/OrgIcons'
@@ -38,7 +38,7 @@ export default function TidyScreen() {
   const [hidden, setHidden] = useState(false)
   const processed = useRef(0)
   const granted = useRef(false)
-  const xpRow = useQuery<{ id: string }>('SELECT id FROM xp_events WHERE kind = ? AND ref_id = ? LIMIT 1', ['tidy', `tidy:${data.today}`]).data
+  const xpRow = useLiveQuery<{ id: string }>('SELECT id FROM xp_events WHERE kind = ? AND ref_id = ? LIMIT 1', ['tidy', `tidy:${data.today}`]).data
 
   const pile = data.piles[tab]
   const props = data.proposals[tab]

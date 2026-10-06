@@ -1,6 +1,6 @@
 // 캘린더 범위·배치·옮기기 시험(06 휴대폰판)
 import assert from 'node:assert/strict'
-import { agendaTitle, blockTime, cellSummary, dragTarget, floatingAt, itemsOf, layoutDay, minutesAtY, monthDays, monthTitle, moveTo, rangeOf, shiftCursor, WEEK_HEAD, weekHeadOf, weekStart, type CalTask } from './calendar.ts'
+import { agendaTitle, blockTime, cellSummary, itemsByDay, itemsOnDay, dragTarget, floatingAt, itemsOf, layoutDay, minutesAtY, monthDays, monthTitle, moveTo, rangeOf, shiftCursor, WEEK_HEAD, weekHeadOf, weekStart, type CalTask } from './calendar.ts'
 
 const today = '2026-10-04' // 일요일
 // 주 시작 일요일(2026-10-06 사용자 결정)
@@ -74,3 +74,10 @@ assert.equal(shiftCursor('week', '2026-10-08', -1), '2026-10-01')
 assert.deepEqual([rangeOf('year', '2026-10-08').from, rangeOf('year', '2026-10-08').to], ['2026-01-01', '2026-12-31'])
 assert.equal(shiftCursor('year', '2026-10-08', 1), '2027-10-01')
 console.log('calendar ok')
+
+// 39 §11 itemsByDay = 날마다 itemsOnDay(같은 순서)
+{
+  const days = monthDays('2026-10-15')
+  const by = itemsByDay(items, days[0], days[days.length - 1])
+  for (const d of days) assert.deepEqual((by.get(d) ?? []).map((x) => x.key), itemsOnDay(items, d).map((x) => x.key), d)
+}

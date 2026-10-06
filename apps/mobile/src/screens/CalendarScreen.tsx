@@ -9,22 +9,23 @@
 // 38 휴대폰 캘린더: 연결하면(설정 › 캘린더 연동 · ⋯ › 캘린더 구독) 켜 둔 휴대폰 캘린더 일정을 그 캘린더 색으로 섞어 그린다.
 //   연결된 꿈틀 일정과 같은 일정은 숨김(§7). 누르면 휴대폰 일정 시트, 쓸 수 있으면 끌어 옮기기(반복이면 범위 대화).
 //   구글·Apple 캐시 전용 일정(데스크톱 16)은 컴퓨터의 기기 데이터라 휴대폰에는 없다.
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../data/rows'
 import { useLocalSearchParams, useRouter, useScrollToTop } from 'expo-router'
 import { CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Check, Columns3, Columns4, Ellipsis, ExternalLink, Grid3x3, List, Plus, Square, Trash2 } from 'lucide-react-native'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { Easing, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { scheduleOnRN } from 'react-native-worklets'
 import {
-  agendaTitle, blockTime, CAL_VIEWS, cellSummary, dragTarget, floatingAt, HOUR_H, hourLabel, isBarItem, itemsOf, itemsOnDay, layoutDay, minutesAtY,
+  agendaTitle, blockTime, CAL_VIEWS, dragTarget, floatingAt, HOUR_H, hourLabel, isBarItem, itemsByDay, itemsOf, itemsOnDay, layoutDay, minutesAtY,
   monthDays, monthTitle, moveTo, rangeOf, shiftCursor, weekHeadOf, weekStart, weekdayKo, type Block, type CalItem, type MobileCalView
 } from '../data/calendar'
 import { rescheduleEvent, useEvents, useMyCalColor } from '../data/calEvents'
 import { eventIdOf, eventItems, evtOf, isEventId, isPast } from '../data/eventsModel'
 import { scheduleOn } from '../data/organization'
+import { useRows } from '../data/rows'
 import { completeTasks, moveDates, reopenTasks, setPinned, setPriority, trashTasks, updateTask, type Undo } from '../data/tasks'
 import { COLUMNS, type TaskRow } from '../data/views'
 import { dayKey, nextMonday } from '../lib/dates'
@@ -116,7 +117,8 @@ export default function CalendarScreen() {
     if (view === 'month') return { from: rangeOf('month', shiftCursor('month', cursor, -1), ws).from, to: rangeOf('month', shiftCursor('month', cursor, 1), ws).to }
     return { from: r.from, to: r.to }
   }, [view, cursor, ws])
-  const tasks = useQuery<TaskRow>(
+  // 39 §11: 바뀐 행만 새 객체(칸 memo가 그대로인 날을 건너뜀)
+  const tasks = useRows<TaskRow>(
     `SELECT ${COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id
      WHERE t.deleted_at IS NULL AND t.due_at IS NOT NULL AND (l.archived_at IS NULL) AND t.status IN (0, ?)
        AND substr(COALESCE(t.start_at, t.due_at), 1, 10) <= ? AND substr(t.due_at, 1, 10) >= ?`,
@@ -362,7 +364,7 @@ const snapTo = (to: number) => {
 
 function MonthView(props: { ws: WeekStart; today: string; cursor: string; items: Item[]; onPick: (d: string) => void; onShift: (n: number) => void; onAdd: (d: string) => void; marks: (d: string, firstOfRow: boolean) => DayMarks; list: (fold: Fold) => ReactNode }) {
   const p = usePalette()
-  const days = monthDays(props.cursor, props.ws)
+  const days = useMemo(() => monthDays(props.cursor, props.ws), [props.cursor.slice(0, 7), props.ws]) // eslint-disable-line react-hooks/exhaustive-deps
   const weeks = days.length / 7
   const rowH = weeks > 5 ? 58 : 66
   const month = props.cursor.slice(0, 7)
@@ -407,8 +409,8 @@ function MonthView(props: { ws: WeekStart; today: string; cursor: string; items:
   //        접힘 = 아래로 끌어 펼치기 · 좌우로 밀어 앞뒤 주
   const prevC = `${shiftCursor('month', `${month}-01`, -1).slice(0, 7)}-01`
   const nextC = `${shiftCursor('month', `${month}-01`, 1).slice(0, 7)}-01`
-  const prevDays = monthDays(prevC, props.ws)
-  const nextDays = monthDays(nextC, props.ws)
+  const prevDays = useMemo(() => monthDays(prevC, props.ws), [prevC, props.ws])
+  const nextDays = useMemo(() => monthDays(nextC, props.ws), [nextC, props.ws])
   const prevH = (prevDays.length / 7) * rowH
   const pageY = useSharedValue(0)
   // 넘긴 뒤 새 달이 그려지기 전에 띠를 가운데로(보이지 않게)
@@ -435,44 +437,19 @@ function MonthView(props: { ws: WeekStart; today: string; cursor: string; items:
 
   const frame = useAnimatedStyle(() => ({ height: fh.value - range * prog.value }))
   const slide = useAnimatedStyle(() => ({ transform: [{ translateY: -selWeek * rowH * prog.value + pageY.value }] }))
-  const pick = (d: string) => { hx.tick(); props.onPick(d) }
-  const weeksOf = (ds: string[], mkey: string, live: boolean) => Array.from({ length: ds.length / 7 }, (_, w) => (
-    <View key={`${mkey}-${w}`} pointerEvents={live ? 'auto' : 'none'} style={[s.week, { height: rowH, borderTopColor: p.borderDivider }]} importantForAccessibility={!live || (collapsed && w !== selWeek) ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={!live || (collapsed && w !== selWeek)}>
-      {ds.slice(w * 7, w * 7 + 7).map((d, c) => {
-        // 06 §16 숫자 아래 한 줄(휴일 이름·주 번호·음력)이 있으면 띠를 하나 덜 보인다
-        const mk = props.marks(d, c === 0)
-        const { shown, more } = cellSummary(props.items, d, (rowH > 60 ? 3 : 2) - (mk.side ? 1 : 0))
-        const isToday = d === props.today
-        const sel = live && d === props.cursor
-        const other = d.slice(0, 7) !== mkey
-        return (
-          <Pressable
-            key={d}
-            accessibilityRole="button"
-            accessibilityLabel={`${Number(d.slice(8))}일 ${weekdayKo(d)}요일${mk.holiday ? `, ${mk.holiday}` : ''}, 할 일 ${shown.length + more}개`}
-            accessibilityState={{ selected: sel }}
-            onPress={() => pick(d)}
-            onLongPress={() => props.onAdd(d)}
-            style={[s.cell, sel && { backgroundColor: p.bgSelected }]}
-          >
-            <View style={[s.num, isToday && { backgroundColor: p.accent }]}>
-              <Text style={{ fontSize: 12, fontWeight: isToday || sel ? '700' : '500', color: isToday ? '#fff' : dayTone(p, d, mk, other && !collapsed) }}>{Number(d.slice(8))}</Text>
-            </View>
-            <View style={{ marginTop: -1, opacity: other && !collapsed ? 0.55 : 1 }}><SideLabel marks={mk} /></View>
-            {shown.map((it) => {
-              const k = lookOf(p, it, now)
-              return (
-                <View key={it.key} style={[s.bar, { backgroundColor: alpha(k.color.slice(0, 7), k.faded ? 0.08 : 0.18) }]}>
-                  <Text numberOfLines={1} style={{ fontSize: 10, lineHeight: 13, color: k.text }}>{it.task.title}</Text>
-                </View>
-              )
-            })}
-            {more ? <Text style={{ fontSize: 10, lineHeight: 13, color: p.textTertiary, paddingLeft: 3 }}>+{more}</Text> : null}
-          </Pressable>
-        )
-      })}
-    </View>
-  ))
+  // 39 §11: 칸 그리기는 memo(MonthWeeks · DayCell) — 넘길 때 바뀐 칸만 다시 그리고, 달은 키로 이어 써서 다시 만들지 않는다
+  const pickRef = useRef(props.onPick)
+  pickRef.current = props.onPick
+  const addRef = useRef(props.onAdd)
+  addRef.current = props.onAdd
+  const pick = useCallback((d: string) => { hx.tick(); pickRef.current(d) }, [])
+  const add = useCallback((d: string) => addRef.current(d), [])
+  const byDay = useMemo(() => itemsByDay(props.items, prevDays[0], nextDays[nextDays.length - 1]), [props.items, prevDays, nextDays])
+  const months = [
+    { mkey: prevC.slice(0, 7), ds: prevDays, top: -prevH, live: false },
+    { mkey: month, ds: days, top: 0, live: true },
+    { mkey: nextC.slice(0, 7), ds: nextDays, top: fullH, live: false }
+  ].filter((m) => m.live || !collapsed)
   return (
     <View style={{ flex: 1 }}>
       <View style={s.wd}>
@@ -483,10 +460,12 @@ function MonthView(props: { ws: WeekStart; today: string; cursor: string; items:
           accessibilityHint={collapsed ? '아래로 끌면 달 전체를 펼쳐요' : '위아래로 밀면 달이 바뀌어요'}
           style={[{ overflow: 'hidden', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: p.borderDivider }, frame]}
         >
-          <Animated.View style={slide}>
-            {!collapsed ? <View style={{ position: 'absolute', left: 0, right: 0, top: -prevH }}>{weeksOf(prevDays, prevC.slice(0, 7), false)}</View> : null}
-            {weeksOf(days, month, true)}
-            {!collapsed ? <View style={{ position: 'absolute', left: 0, right: 0, top: fullH }}>{weeksOf(nextDays, nextC.slice(0, 7), false)}</View> : null}
+          <Animated.View style={[{ height: fullH }, slide]}>
+            {months.map((m) => (
+              <View key={m.mkey} style={{ position: 'absolute', left: 0, right: 0, top: m.top }}>
+                <MonthWeeks ds={m.ds} mkey={m.mkey} live={m.live} rowH={rowH} today={props.today} sel={m.live ? props.cursor : ''} collapsed={collapsed} onlyWeek={m.live && collapsed ? selWeek : -1} byDay={byDay} marks={props.marks} onPick={pick} onAdd={add} />
+              </View>
+            ))}
           </Animated.View>
         </Animated.View>
       </GestureDetector>
@@ -494,6 +473,65 @@ function MonthView(props: { ws: WeekStart; today: string; cursor: string; items:
     </View>
   )
 }
+
+const NO_ITEMS: Item[] = []
+/** 한 달의 주 줄들(39 §11 — memo). sel = 고른 날(살아 있는 달만), onlyWeek = 접혔을 때 보이는 주 */
+const MonthWeeks = memo(function MonthWeeks(props: { ds: string[]; mkey: string; live: boolean; rowH: number; today: string; sel: string; collapsed: boolean; onlyWeek: number; byDay: Map<string, Item[]>; marks: (d: string, firstOfRow: boolean) => DayMarks; onPick: (d: string) => void; onAdd: (d: string) => void }) {
+  const p = usePalette()
+  const { ds, mkey, live, rowH, collapsed } = props
+  return (
+    <>
+      {Array.from({ length: ds.length / 7 }, (_, w) => {
+        const hidden = !live || (props.onlyWeek >= 0 && w !== props.onlyWeek)
+        return (
+          <View key={`${mkey}-${w}`} pointerEvents={live ? 'auto' : 'none'} style={[s.week, { height: rowH, borderTopColor: p.borderDivider }]} importantForAccessibility={hidden ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={hidden}>
+            {ds.slice(w * 7, w * 7 + 7).map((d, c) => (
+              <DayCell key={d} d={d} first={c === 0} items={props.byDay.get(d) ?? NO_ITEMS} rowH={rowH} isToday={d === props.today} sel={d === props.sel} faded={d.slice(0, 7) !== mkey && !collapsed} marks={props.marks} onPick={props.onPick} onAdd={props.onAdd} />
+            ))}
+          </View>
+        )
+      })}
+    </>
+  )
+})
+type CellProps = { d: string; first: boolean; items: Item[]; rowH: number; isToday: boolean; sel: boolean; faded: boolean; marks: (d: string, firstOfRow: boolean) => DayMarks; onPick: (d: string) => void; onAdd: (d: string) => void }
+const sameItems = (a: Item[], b: Item[]) => a === b || (a.length === b.length && a.every((x, i) => x.key === b[i].key && x.task === b[i].task && x.start === b[i].start && x.end === b[i].end))
+/** 날짜 칸 하나 — 항목이 그대로면(같은 키·같은 할 일 객체) 다시 그리지 않는다 */
+const DayCell = memo(function DayCell(props: CellProps) {
+  const p = usePalette()
+  const { d } = props
+  // 06 §16 숫자 아래 한 줄(휴일 이름·주 번호·음력)이 있으면 띠를 하나 덜 보인다
+  const mk = props.marks(d, props.first)
+  const max = (props.rowH > 60 ? 3 : 2) - (mk.side ? 1 : 0)
+  const all = props.items
+  const shown = all.length <= max ? all : all.slice(0, max - 1)
+  const more = all.length - shown.length
+  const now = new Date()
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${Number(d.slice(8))}일 ${weekdayKo(d)}요일${mk.holiday ? `, ${mk.holiday}` : ''}, 할 일 ${all.length}개`}
+      accessibilityState={{ selected: props.sel }}
+      onPress={() => props.onPick(d)}
+      onLongPress={() => props.onAdd(d)}
+      style={[s.cell, props.sel && { backgroundColor: p.bgSelected }]}
+    >
+      <View style={[s.num, props.isToday && { backgroundColor: p.accent }]}>
+        <Text style={{ fontSize: 12, fontWeight: props.isToday || props.sel ? '700' : '500', color: props.isToday ? '#fff' : dayTone(p, d, mk, props.faded) }}>{Number(d.slice(8))}</Text>
+      </View>
+      <View style={{ marginTop: -1, opacity: props.faded ? 0.55 : 1 }}><SideLabel marks={mk} /></View>
+      {shown.map((it) => {
+        const k = lookOf(p, it, now)
+        return (
+          <View key={it.key} style={[s.bar, { backgroundColor: alpha(k.color.slice(0, 7), k.faded ? 0.08 : 0.18) }]}>
+            <Text numberOfLines={1} style={{ fontSize: 10, lineHeight: 13, color: k.text }}>{it.task.title}</Text>
+          </View>
+        )
+      })}
+      {more ? <Text style={{ fontSize: 10, lineHeight: 13, color: p.textTertiary, paddingLeft: 3 }}>+{more}</Text> : null}
+    </Pressable>
+  )
+}, (a, b) => a.d === b.d && a.first === b.first && a.rowH === b.rowH && a.isToday === b.isToday && a.sel === b.sel && a.faded === b.faded && a.marks === b.marks && a.onPick === b.onPick && a.onAdd === b.onAdd && sameItems(a.items, b.items))
 
 function DayList(props: { day: string; today: string; items: Item[]; onCheck: (t: TaskRow) => void; onOpen: (t: TaskRow) => void; onLong: (v: { task: TaskRow; rect: Rect }) => void; onAdd: () => void; bottomPad: number; fold: Fold }) {
   const p = usePalette()
@@ -803,7 +841,7 @@ function Agenda(props: { today: string; cursor: string; items: Item[]; onCheck: 
 function UndatedSheet(props: { open: boolean; day: string; today: string; onClose: () => void; onOpen: (t: TaskRow) => void }) {
   const p = usePalette()
   const toast = useToast()
-  const rows = useQuery<TaskRow>(
+  const rows = useLiveQuery<TaskRow>(
     `SELECT ${COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.status = 0 AND t.deleted_at IS NULL AND t.due_at IS NULL AND t.parent_id IS NULL AND l.archived_at IS NULL ORDER BY t.priority DESC, t.sort_order LIMIT 300`
   ).data
   const label = agendaTitle(props.day, props.today)

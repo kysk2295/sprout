@@ -1,6 +1,6 @@
 // 38 §6 휴대폰 다리 — 이 휴대폰이 주인인 연결된 일정(ext_provider = device-ios|device-android, ext_account = 이 설치의 연결 id)만
 // 휴대폰 캘린더와 맞춘다. 데스크톱 다리(16 §12.0.2)는 google·apple만, 이 다리는 device-*만 — 두 기기가 같은 일정을 올리지 않는다.
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../data/rows'
 import { useEffect, useRef } from 'react'
 import { AppState } from 'react-native'
 import { db } from '../data/db'
@@ -130,7 +130,7 @@ export function useDeviceCalBridge(signedIn: boolean, toast: (m: string) => void
   toastRef.current = toast
   useEffect(() => { toastFn = (m) => toastRef.current(m); return () => { toastFn = null } }, [])
   const provider = providerFor(Dev.PF)
-  const rows = useQuery<{ id: string; modified_at: string | null; deleted_at: string | null; ext_hash: string | null; ext_id: string | null; ext_error: string | null }>(
+  const rows = useLiveQuery<{ id: string; modified_at: string | null; deleted_at: string | null; ext_hash: string | null; ext_id: string | null; ext_error: string | null }>(
     signedIn ? 'SELECT id, modified_at, deleted_at, ext_hash, ext_id, ext_error FROM events WHERE ext_provider = ?' : 'SELECT 1 AS id WHERE 0',
     signedIn ? [provider] : []
   ).data

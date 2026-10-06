@@ -1,7 +1,7 @@
 // 검색(시안 H, 04 §검색): 위 검색 칸 + ✕ · 종류 칩(할 일 · 수집함 · 일기 · 리스트 · 태그 · 필터, 개수) · 비면 최근 검색 + 빈 그림.
 // 로컬 DB에서 바로 찾으므로 오프라인에서도 같다. 맞는 글자는 검색 노랑, 설명·체크 항목에서 맞으면 아래 줄에 앞뒤 글. 완료는 아래 따로.
 // 들어오는 곳: 더보기 › 검색, 할 일 머리 🔍. 일기는 "나만 보기"를 뺀다(15).
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../../src/data/rows'
 import { useRouter, type Href } from 'expo-router'
 import { BookHeart, Funnel, Hash, Layers, Search, X } from 'lucide-react-native'
 import { useEffect, useMemo, useState } from 'react'
@@ -47,15 +47,15 @@ export default function SearchScreen() {
 
   const sql = (k: SearchKind) => (q ? searchSql(k, q) : NONE)
   const taskIds = sql('task')
-  const tasks = useQuery<TaskRow & { checks: string | null }>(
+  const tasks = useLiveQuery<TaskRow & { checks: string | null }>(
     q ? `SELECT ${COLUMNS}, (SELECT group_concat(c.title, ' · ') FROM check_items c WHERE c.task_id = t.id) AS checks FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.id IN (${taskIds.sql}) ORDER BY t.status, CASE WHEN t.due_at IS NULL THEN 1 ELSE 0 END, t.due_at` : NONE.sql,
     q ? taskIds.params : []
   ).data.filter((t) => t.id)
-  const notes = useQuery<NoteHit>(sql('note').sql, sql('note').params).data.filter((x) => x.id)
-  const diary = useQuery<DiaryHit>(sql('diary').sql, sql('diary').params).data.filter((x) => x.id)
-  const lists = useQuery<Named>(sql('list').sql, sql('list').params).data.filter((x) => x.id)
-  const tags = useQuery<Named>(sql('tag').sql, sql('tag').params).data.filter((x) => x.id)
-  const filters = useQuery<Named>(sql('filter').sql, sql('filter').params).data.filter((x) => x.id)
+  const notes = useLiveQuery<NoteHit>(sql('note').sql, sql('note').params).data.filter((x) => x.id)
+  const diary = useLiveQuery<DiaryHit>(sql('diary').sql, sql('diary').params).data.filter((x) => x.id)
+  const lists = useLiveQuery<Named>(sql('list').sql, sql('list').params).data.filter((x) => x.id)
+  const tags = useLiveQuery<Named>(sql('tag').sql, sql('tag').params).data.filter((x) => x.id)
+  const filters = useLiveQuery<Named>(sql('filter').sql, sql('filter').params).data.filter((x) => x.id)
   const counts: Record<SearchKind, number> = { task: tasks.length, note: notes.length, diary: diary.length, list: lists.length, tag: tags.length, filter: filters.length }
   // 지금 칩에 결과가 없고 다른 칩에 있으면 그쪽으로(처음 한 번)
   useEffect(() => {

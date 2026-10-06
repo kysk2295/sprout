@@ -3,8 +3,11 @@
 // - 왼쪽으로 밀기 → 오른쪽에 이동(파랑)·삭제(빨강)·날짜(주황). 끝까지 밀어도 실행하지 않고 열린 채(실수 삭제 방지)
 // - 놓을 때 손가락 속도를 본다(빠르게 튕기면 짧게 밀어도 열림·닫힘). 칸 아이콘은 드러난 만큼 커지며 나타남
 // - 칸은 아이콘만, 폭 60. 다른 행을 열거나 스크롤하면 닫힌다. 모든 계산은 UI 스레드(워클릿)
+// 39 §11 성능 규칙: 끄는 동안 바뀌는 값은 transform·opacity뿐이다(폭·위치 같은 레이아웃 값을 매 프레임 바꾸지 않음).
+//   칸 판은 행 전체 폭으로 깔아 두고, "창"(overflow hidden)을 transform으로 옮겨 드러난 만큼만 보이게 한다.
+//   제스처는 렌더마다 새로 만들지 않는다(useMemo) — 목록이 다시 그려질 때 행마다 제스처를 다시 붙이지 않게.
 import { Check } from 'lucide-react-native'
-import { useCallback, useEffect, useRef, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated'
@@ -45,25 +48,26 @@ export function SwipeRow(props: {
   const nR = right.length
   const alive = useRef(true)
   const CELL = props.round ? CELL_ROUND : CELL_SQ
+  const enabled = props.enabled !== false && (nL > 0 || nR > 0)
 
   const close = useCallback(() => { tx.value = withSpring(0, SPRING.snappy) }, [tx])
-  const closeRef = useRef(close)
-  closeRef.current = close
   const onOpened = useCallback(() => {
     hx.tap()
-    if (openRow && openRow !== closeRef.current) openRow()
-    openRow = closeRef.current
-  }, [])
+    if (openRow && openRow !== close) openRow()
+    openRow = close
+  }, [close])
   const tap = useCallback(() => hx.tap(), [])
   // 실행 뒤 행이 남아 있으면(반복 할 일·완료 취소) 제자리로 미끄러져 돌아온다 — 순간 복귀 없음
   const comeBack = useCallback(() => {
     setTimeout(() => { if (alive.current) { fullP.value = withTiming(0, timing(DUR.base)); tx.value = withSpring(0, SPRING.snappy) } }, 500)
   }, [tx, fullP])
-  const full = useCallback(() => { props.onFullSwipe?.(); comeBack() }, [props.onFullSwipe, comeBack]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => () => { alive.current = false; if (openRow === closeRef.current) openRow = null }, [])
+  const fullRef = useRef(props.onFullSwipe)
+  fullRef.current = props.onFullSwipe
+  const full = useCallback(() => { fullRef.current?.(); comeBack() }, [comeBack])
+  useEffect(() => () => { alive.current = false; if (openRow === close) openRow = null }, [close])
 
-  const pan = Gesture.Pan()
-    .enabled(props.enabled !== false && (nL > 0 || nR > 0))
+  const pan = useMemo(() => Gesture.Pan()
+    .enabled(enabled)
     .activeOffsetX([-12, 12])
     .failOffsetY([-10, 10])
     .onStart(() => {
@@ -104,11 +108,20 @@ export function SwipeRow(props: {
         tx.value = withSpring(-nR * CELL, { ...SPRING.snappy, velocity: v })
         scheduleOnRN(onOpened)
       } else tx.value = withSpring(0, { ...SPRING.snappy, velocity: v })
-    })
+    }), [enabled, nL, nR, hasFull, CELL, tx, start, armed, width, fullP, tap, full, onOpened])
 
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }] }))
-  const leftStyle = useAnimatedStyle(() => ({ width: Math.max(tx.value, 0), opacity: tx.value > 0 ? 1 : 0 }))
-  const rightStyle = useAnimatedStyle(() => ({ width: Math.max(-tx.value, 0), opacity: tx.value < 0 ? 1 : 0 }))
+  // 칸 판은 행 전체 폭. 바깥 창을 (드러난 폭 − 행 폭)만큼 옮기고 안쪽은 거꾸로 옮겨, 칸은 제자리에 있고 드러난 부분만 보인다
+  const leftWin = useAnimatedStyle(() => {
+    const r = Math.max(tx.value, 0)
+    return { opacity: r > 0 ? 1 : 0, transform: [{ translateX: Math.min(r, width.value) - width.value }] }
+  })
+  const leftIn = useAnimatedStyle(() => ({ transform: [{ translateX: width.value - Math.min(Math.max(tx.value, 0), width.value) }] }))
+  const rightWin = useAnimatedStyle(() => {
+    const r = Math.max(-tx.value, 0)
+    return { opacity: r > 0 ? 1 : 0, transform: [{ translateX: width.value - Math.min(r, width.value) }] }
+  })
+  const rightIn = useAnimatedStyle(() => ({ transform: [{ translateX: Math.min(Math.max(-tx.value, 0), width.value) - width.value }] }))
   // 칸 아이콘: 드러난 폭이 칸 폭의 60%가 될 때까지 손가락에 비례해 나타남
   const iconL = useAnimatedStyle(() => {
     const r = interpolate(tx.value, [0, CELL * 0.6], [0, 1], Extrapolation.CLAMP)
@@ -118,11 +131,13 @@ export function SwipeRow(props: {
     const r = interpolate(-tx.value, [0, CELL * 0.6], [0, 1], Extrapolation.CLAMP)
     return { opacity: r, transform: [{ scale: 0.7 + 0.3 * r }] }
   })
-  // 끝까지: 첫 칸이 행 전체(드러난 폭)로 늘어남
-  const fullStyle = useAnimatedStyle(() => ({
-    opacity: fullP.value > 0.01 ? 1 : 0,
-    width: interpolate(fullP.value, [0, 1], [CELL, Math.max(tx.value, CELL)])
-  }))
+  // 끝까지: 첫 칸이 행 전체(드러난 폭)로 늘어남 — 이것도 창 옮기기(폭은 그대로)
+  const fullEdge = () => {
+    'worklet'
+    return interpolate(fullP.value, [0, 1], [CELL, Math.max(tx.value, CELL)])
+  }
+  const fullWin = useAnimatedStyle(() => ({ opacity: fullP.value > 0.01 ? 1 : 0, transform: [{ translateX: fullEdge() - width.value }] }))
+  const fullIn = useAnimatedStyle(() => ({ transform: [{ translateX: width.value - fullEdge() }] }))
 
   const run = (a: SwipeAction, side: 1 | -1) => {
     if (a.leaves) {
@@ -136,29 +151,35 @@ export function SwipeRow(props: {
   return (
     <View style={s.wrap} onLayout={(e) => { width.value = e.nativeEvent.layout.width }}>
       {nL ? (
-        <Animated.View style={[s.side, { left: 0 }, leftStyle]}>
-          {left.map((a) => (
-            <Pressable key={a.key} accessibilityRole="button" accessibilityLabel={a.label} onPress={() => run(a, 1)} style={[s.cell, { backgroundColor: a.color }]}>
-              <Animated.View style={iconL}>{a.icon}</Animated.View>
-            </Pressable>
-          ))}
-          <View style={[s.grow, { backgroundColor: left[nL - 1]?.color }]} />
-          {hasFull ? (
-            <Animated.View pointerEvents="none" style={[s.full, { backgroundColor: props.fullColor ?? left[0]?.color }, fullStyle]}>
-              <Check size={22} color="#fff" />
-              <Text style={s.fullText} numberOfLines={1}>{props.fullLabel ?? '놓으면 완료'}</Text>
-            </Animated.View>
-          ) : null}
+        <Animated.View style={[s.win, leftWin]}>
+          <Animated.View style={[s.side, leftIn]}>
+            {left.map((a) => (
+              <Pressable key={a.key} accessibilityRole="button" accessibilityLabel={a.label} onPress={() => run(a, 1)} style={[s.cell, { backgroundColor: a.color }]}>
+                <Animated.View style={iconL}>{a.icon}</Animated.View>
+              </Pressable>
+            ))}
+            <View style={[s.grow, { backgroundColor: left[nL - 1]?.color }]} />
+            {hasFull ? (
+              <Animated.View pointerEvents="none" style={[s.win, fullWin]}>
+                <Animated.View style={[s.full, { backgroundColor: props.fullColor ?? left[0]?.color }, fullIn]}>
+                  <Check size={22} color="#fff" />
+                  <Text style={s.fullText} numberOfLines={1}>{props.fullLabel ?? '놓으면 완료'}</Text>
+                </Animated.View>
+              </Animated.View>
+            ) : null}
+          </Animated.View>
         </Animated.View>
       ) : null}
       {nR ? (
-        <Animated.View style={[s.side, { right: 0, justifyContent: 'flex-end' }, rightStyle]}>
-          <View style={[s.grow, { backgroundColor: props.round ? 'transparent' : right[0]?.color }]} />
-          {right.map((a) => (
-            <Pressable key={a.key} accessibilityRole="button" accessibilityLabel={a.label} onPress={() => run(a, -1)} style={[s.cell, { width: CELL }, props.round ? null : { backgroundColor: a.color }]}>
-              <Animated.View style={[iconR, props.round ? [s.circle, { backgroundColor: a.color }] : null]}>{a.icon}</Animated.View>
-            </Pressable>
-          ))}
+        <Animated.View style={[s.win, rightWin]}>
+          <Animated.View style={[s.side, { justifyContent: 'flex-end' }, rightIn]}>
+            <View style={[s.grow, { backgroundColor: props.round ? 'transparent' : right[0]?.color }]} />
+            {right.map((a) => (
+              <Pressable key={a.key} accessibilityRole="button" accessibilityLabel={a.label} onPress={() => run(a, -1)} style={[s.cell, { width: CELL }, props.round ? null : { backgroundColor: a.color }]}>
+                <Animated.View style={[iconR, props.round ? [s.circle, { backgroundColor: a.color }] : null]}>{a.icon}</Animated.View>
+              </Pressable>
+            ))}
+          </Animated.View>
         </Animated.View>
       ) : null}
       <GestureDetector gesture={pan}>
@@ -169,10 +190,12 @@ export function SwipeRow(props: {
 }
 const s = StyleSheet.create({
   wrap: { position: 'relative', overflow: 'hidden' },
-  side: { position: 'absolute', top: 0, bottom: 0, flexDirection: 'row', overflow: 'hidden' },
+  // 창 = 행 전체 폭, 넘친 부분은 잘림. 안쪽 판도 행 전체 폭
+  win: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden' },
+  side: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flexDirection: 'row' },
   cell: { width: CELL_SQ, alignItems: 'center', justifyContent: 'center' },
   circle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   grow: { flex: 1 },
-  full: { position: 'absolute', top: 0, bottom: 0, left: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 19, gap: 8, overflow: 'hidden' },
+  full: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 19, gap: 8 },
   fullText: { color: '#fff', fontSize: 14, fontWeight: '600' }
 })

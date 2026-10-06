@@ -1,7 +1,8 @@
 // 설정 탭(20 §2, 시안 I-1): 프로필 카드(아바타·이름·Lv·캐릭터) → 색 사각 아이콘 칸 → 빨간 로그아웃
 // [다음] 일반(스와이프·완료음) 칸 — 해당 기능이 생길 때 붙인다
 // 2026-10-05: 설정은 더보기 안 화면(머리 ‹ 뒤로) · 프로필 카드 → 계정(로그아웃·계정 삭제) · 날짜와 시간(주 시작 토·일·월(기본 일요일) · 휴일·음력·주 번호 — 06 §16) · 리스트 관리
-import { useQuery, useStatus } from '@powersync/react-native'
+import { useStatus } from '@powersync/react-native'
+import { useLiveQuery } from '../../../src/data/rows'
 import { progressFromEvents, SPECIES, type Species } from '@sprout/schema/growth'
 import { useRouter } from 'expo-router'
 import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Info, ListTree, Palette, RefreshCw } from 'lucide-react-native'
@@ -42,8 +43,8 @@ export default function Settings() {
   const avatar = useAvatar().resolved
   const devCal = useDeviceCal() // 38 §2.1 캘린더 연동 칸 값
   const devCalValue = !devCal.prefs.connected ? '꺼짐' : devCal.perm?.state !== 'granted' ? '권한 필요' : `캘린더 ${shownCalendars(devCal).length}개`
-  const events = useQuery<{ amount: number; created_at: string }>('SELECT amount, created_at FROM xp_events').data
-  const ch = useQuery<{ species: Species | null }>('SELECT species FROM characters WHERE species IS NOT NULL LIMIT 1').data[0]
+  const events = useLiveQuery<{ amount: number; created_at: string }>('SELECT amount, created_at FROM xp_events').data
+  const ch = useLiveQuery<{ species: Species | null }>('SELECT species FROM characters WHERE species IS NOT NULL LIMIT 1').data[0]
   const level = progressFromEvents(events).level
   const name = user?.email.split('@')[0] ?? ''
   const syncValue = syncing || status.dataFlowStatus?.downloading || status.dataFlowStatus?.uploading ? '동기화 중…'

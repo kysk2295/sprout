@@ -17,6 +17,7 @@
 - **expo-audio 추가 → 휴대폰 앱 네이티브 다시 빌드 필요**(pod install 이미 함). 다시 빌드 전 앱은 소리만 안 나고 나머지는 됨.
 - 시뮬레이터 Debug 빌드 팁: Pods가 Release 조각으로 남아 있으면 링크 실패/시작 즉시 SIGSEGV → `Pods/React-Core-prebuilt/.last_build_configuration`에 `Release`, `Pods/Expo*/artifacts/.last_build_configuration`에 `release`를 써서 Debug로 바꿔 넣게 하고 빌드. 키체인 권한 때문에 `CODE_SIGN_IDENTITY=-`로 서명해야 로그인이 저장됨.
 - 남은 것: 끄는 중 저절로 스크롤·빈 섹션에 놓기·하위로 만들기, 월 좌우 넘김, 글자 크기 일괄(G14), Android 확인, 실기기에서 끌어서 순서·완료음·진동 세기 확인.
+- **성능 점검(39 §11, 2026-10-06 밤):** 사용자 "아이폰에서 애니메이션이 너무 끊김" → Reanimated `IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS` 켬(`apps/mobile/package.json`, **pod install + 다시 빌드 필요**), 화면은 PowerSync `useQuery`·`useStatus` 대신 `src/data/rows`(`useRows`·`useLiveQuery`·`useSyncFlags`), 할 일 행 memo·제스처 useMemo·SwipeRow transform만·캘린더 칸 memo·탭 fade 끔(다시 연 탭이 빈 채 남던 문제). 시뮬레이터 체크 5번 JS 멈춤 11,957 → 352ms. 측정 도구 `src/dev/perfProbe.tsx`(`EXPO_PUBLIC_SPROUT_PERF=1` 번들만), 측정 계정 `perf-20261006@sprout.test`(서버에 만듦 — e2e 계정 정리 때 같이 지움). 남은 것: 실기기에서 손으로 확인, 주간 점검 화면 2곳 useQuery(다른 작업 중이라 남김), 위젯 갱신(쓰기 1초 뒤 JS 작업) 가볍게.
 
 ## ★ 2026-10-05 새벽 요약 (가장 최신 — 아래 표보다 우선)
 - **데스크톱 내려받기(2026-10-05 밤):** 사이트 Mac·Windows 버튼 = GitHub Release `desktop-v1.0.0`(kysk2295/sprout, `releases/latest/download/Kkumteul-mac-arm64.dmg`·`-mac-x64.dmg`·`-windows-x64-setup.exe`, 이름 고정). 서명 없음(맥 ad-hoc·위젯 없음 → 그래도 열기, Windows SmartScreen → 추가 정보 › 실행), 자동 업데이트 없음. CI `.github/workflows/desktop-release.yml`은 있으나 **GitHub 계정 결제 잠금으로 Actions가 안 돎** → 1.0.0은 이 Mac에서 세 파일 다 만듦. 절차·한계: [docs/release/desktop-download.md](docs/release/desktop-download.md).

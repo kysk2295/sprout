@@ -1,6 +1,6 @@
 // 이동 시트(21 §4.2, 시안 F-4): ✕ · "이동" · 검색 칸 · 기본함 + 리스트(지금 것 ✓) · 폴더 묶음 · + 리스트 추가
 // 고르면 옮기고 토스트 "업무로 옮겼어요 ⟲"(받침 로/으로)
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../src/data/rows'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Check, Inbox, Plus, Search } from 'lucide-react-native'
 import { useState } from 'react'
@@ -23,7 +23,7 @@ export default function Move() {
   const toast = useToast()
   const lists = useLists()
   const folders = useFolders()
-  const current = useQuery<{ list_id: string }>(`SELECT DISTINCT list_id FROM tasks WHERE id IN (${ids.map(() => '?').join(',') || 'NULL'})`, ids).data
+  const current = useLiveQuery<{ list_id: string }>(`SELECT DISTINCT list_id FROM tasks WHERE id IN (${ids.map(() => '?').join(',') || 'NULL'})`, ids).data
   const cur = current.length === 1 ? current[0].list_id : null
   const [q, setQ] = useState('')
   const [adding, setAdding] = useState(false)

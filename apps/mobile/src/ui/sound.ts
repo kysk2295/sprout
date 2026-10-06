@@ -20,6 +20,9 @@ function load(): Player | null {
   return player
 }
 
+// 39 §11: 첫 체크 순간에 모듈·플레이어를 만들지 않게 앱이 뜬 뒤 한가할 때 미리 만든다
+setTimeout(() => { if (soundOn()) load() }, 3000)
+
 /** 완료음 한 번(설정이 꺼져 있으면 아무것도 안 함) */
 export function playComplete() {
   if (!soundOn()) return

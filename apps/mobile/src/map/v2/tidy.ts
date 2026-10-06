@@ -1,6 +1,6 @@
 // 29 §9.4 정리(기본함 정리 · 밀린 일) — 읽기와 DB 동작. 계산은 공용 @sprout/schema/tidy(데스크톱 분류 책상과 같은 코드).
 // 휴대폰은 AI를 부르지 않는다: 기본함 → 리스트 제안 = 공용 낱말 검사(keywordPick, 30 §B.3 (가)), 프로젝트 제안 = 31 T.3(suggestProjects).
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../../data/rows'
 import { keywordPick } from '@sprout/schema/keywords'
 import { projectMembers } from '@sprout/schema/projects'
 import { planCompleteNoXp } from '@sprout/schema/taskCore'
@@ -44,12 +44,12 @@ export type TidyData = {
 
 export function useTidyData(): TidyData {
   const today = dayKey()
-  const tasksQ = useQuery<TidyTask>(TASKS_SQL)
-  const links = useQuery<TidyLink>(LINKS_SQL).data
-  const tags = useQuery<TidyTag>(TAGS_SQL).data
-  const lists = useQuery<TidyList>(LISTS_SQL).data
-  const folders = useQuery<TidyFolder>(FOLDERS_SQL).data
-  const recent = useQuery<{ list_id: string; title: string }>(RECENT_SQL).data
+  const tasksQ = useLiveQuery<TidyTask>(TASKS_SQL)
+  const links = useLiveQuery<TidyLink>(LINKS_SQL).data
+  const tags = useLiveQuery<TidyTag>(TAGS_SQL).data
+  const lists = useLiveQuery<TidyList>(LISTS_SQL).data
+  const folders = useLiveQuery<TidyFolder>(FOLDERS_SQL).data
+  const recent = useLiveQuery<{ list_id: string; title: string }>(RECENT_SQL).data
   const [no] = useKv<Record<string, string>>(NO_KEY, {})
   const [noList] = useKv<Record<string, string>>(NO_LIST_KEY, {})
   const tasks = tasksQ.data

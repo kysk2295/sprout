@@ -1,6 +1,6 @@
 // 33 §11 상세 태그 줄: 칩 전부(accepted) + `+`. 자동 태그(rule·ai)는 이름 앞 작은 ✦, 칩 오른쪽 ✕ = 떼기
 // (직접 붙인 것은 삭제, 자동·링크는 dismissed — 다시 안 붙음) + 토스트 ⟲. 칩 이름을 누르면 태그 페이지.
-import { useQuery } from '@powersync/react-native'
+import { useLiveQuery } from '../data/rows'
 import { useRouter } from 'expo-router'
 import { Plus, X } from 'lucide-react-native'
 import { useMemo } from 'react'
@@ -17,7 +17,7 @@ export function DetailTags({ taskId, onAdd }: { taskId: string; onAdd: () => voi
   const p = usePalette()
   const router = useRouter()
   const toast = useToast()
-  const rows = useQuery<Row>(
+  const rows = useLiveQuery<Row>(
     `SELECT g.id, g.name, g.color, g.kind, tt.source, tt.confidence FROM task_tags tt JOIN tags g ON g.id = tt.tag_id
      WHERE tt.task_id = ? AND COALESCE(tt.state,'accepted') = 'accepted' ORDER BY g.sort_order, g.name`, [taskId]
   ).data
