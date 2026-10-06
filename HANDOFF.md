@@ -2,6 +2,13 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-06 휴대폰 움직임·UI 점검 (39 v1.1)
+- 사용자 휴대폰 틱틱 녹화를 프레임으로 재서 [research 34](docs/ticktick-research/34-mobile-video-20261006.md)에 정리(묶음 250ms·서랍 250/233ms·메뉴 300/175ms·탭 90ms·월 세로 띠 넘김·크기). [39](docs/screens/39-mobile-motion.md) 확정(결정 ①~④ 승인) + 전체 점검 G17~G23.
+- 구현(커밋, 푸시 안 함): 1묶음 목록 손맛(`ui/motion.ts`·`haptics.ts`·`Pressables`·`Checkbox`·`useCompleting`·`SwipeRow`·`listMotion`, 크기 실측) · 2묶음 떠 있는 것(메뉴·길게 누름·서랍 따라가기+뒤 화면 밀기·`SlideSheet`·`BottomSheet` 위치만·빠른 입력 키보드 붙임·큰 제목 접힘·머리 유리 알약·탭 알약·토스트) · 3묶음(월 세로 넘김·일정 끌기 튐 고침·끌어서 순서 `DragReorder`·완료음 `ui/sound.ts` + 설정 완료음/진동) · 캘린더 주·년 보기 · 서랍 행 둥근 밀기 칸.
+- **expo-audio 추가 → 휴대폰 앱 네이티브 다시 빌드 필요**(pod install 이미 함). 다시 빌드 전 앱은 소리만 안 나고 나머지는 됨.
+- 시뮬레이터 Debug 빌드 팁: Pods가 Release 조각으로 남아 있으면 링크 실패/시작 즉시 SIGSEGV → `Pods/React-Core-prebuilt/.last_build_configuration`에 `Release`, `Pods/Expo*/artifacts/.last_build_configuration`에 `release`를 써서 Debug로 바꿔 넣게 하고 빌드. 키체인 권한 때문에 `CODE_SIGN_IDENTITY=-`로 서명해야 로그인이 저장됨.
+- 남은 것: 끄는 중 저절로 스크롤·빈 섹션에 놓기·하위로 만들기, 월 좌우 넘김, 글자 크기 일괄(G14), Android 확인, 실기기에서 끌어서 순서·완료음·진동 세기 확인.
+
 ## ★ 2026-10-05 새벽 요약 (가장 최신 — 아래 표보다 우선)
 - **데스크톱 내려받기(2026-10-05 밤):** 사이트 Mac·Windows 버튼 = GitHub Release `desktop-v1.0.0`(kysk2295/sprout, `releases/latest/download/Kkumteul-mac-arm64.dmg`·`-mac-x64.dmg`·`-windows-x64-setup.exe`, 이름 고정). 서명 없음(맥 ad-hoc·위젯 없음 → 그래도 열기, Windows SmartScreen → 추가 정보 › 실행), 자동 업데이트 없음. CI `.github/workflows/desktop-release.yml`은 있으나 **GitHub 계정 결제 잠금으로 Actions가 안 돎** → 1.0.0은 이 Mac에서 세 파일 다 만듦. 절차·한계: [docs/release/desktop-download.md](docs/release/desktop-download.md).
 - **서버:** Mac mini + Tailscale Funnel `https://macmini.tail425c97.ts.net`(API)·`:8443`(PowerSync). 이 맥북 서버는 꺼 둠(`server/` compose stop, 데이터 그대로). 적용됨: identities(소셜), 로그인 시도 제한, 계정 삭제, 계정 연결(/auth/link), AI JSON 모양 지시. 구글 로그인 켜짐(Google Cloud 프로젝트 `sprout-510614`, 데스크톱 클라이언트 값은 `~/.config/sprout/google.env`, 서버 .env `GOOGLE_CLIENT_IDS`). 애플은 계정 준비 전.
