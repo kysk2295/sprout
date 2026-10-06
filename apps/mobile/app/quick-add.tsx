@@ -34,6 +34,8 @@ import { myLinkAccount, setLastTarget, sourceName, targetCalendars, useDeviceCal
 import { scheduleBridge } from '../src/calendars/bridge'
 import { ChevronDown } from 'lucide-react-native'
 import { Segmented } from '../src/ui/Segmented'
+import { addToProject } from '../src/map/v2/plan'
+import { useFocusChip } from '../src/map/v2/focus'
 import { activeTrigger, addedToast, applySuggestion, buildInput, linkListFor, rangeAt, recognizeWith, segments, suggestions, type Trigger } from '../src/ui/quickAddModel'
 
 /** 닫아도 남는 초안(22 §4 — 다음 + 때 그대로) */
@@ -114,6 +116,11 @@ export default function QuickAdd() {
   const linkTasks = useLinkTaskCandidates(trigger?.kind === '[[' ? trigger.query : null)
   const sugg = trigger && !isEvent ? suggestions(trigger, tags, lists, linkTasks) : [] // 일정에는 태그·리스트·우선순위가 없다(22 §3.5)
   const list = lists.find((l) => l.id === input.list_id)
+  // 31 §12.13.7 지금 집중 칩: 미리 붙음 · 누르면 이 할 일에서만 뗌 · 입력을 비우면 다시 붙음. 다른 곳이 분명하면(#다른 프로젝트·상관없는 ~리스트) 없음
+  const focus = useFocusChip({ title: input.title, tag_ids: input.tag_ids, list_id: listId ?? r.list_id ?? null })
+  const [focusOff, setFocusOff] = useState(false)
+  useEffect(() => { if (!text.trim()) setFocusOff(false) }, [text])
+  const focusOn = !!focus && !focusOff && !isEvent
   const canSend = !!input.title // 기본함이 아직 없어도 보낸다 — createTask가 기본함을 만든다(02 §14.1)
 
   const close = () => { Keyboard.dismiss(); router.back() }
@@ -122,6 +129,7 @@ export default function QuickAdd() {
     if (isEvent) return sendEvent()
     try {
       const newId = await createTask(input)
+      if (focusOn) await addToProject([newId], focus!.id)
       if (r.links.length) void syncTaskLinks(newId)
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
       const msg = linkList && list ? `${list.name}에 추가했어요` : addedToast(view, input.due_at, input.start_at, today, !list || list.kind === 'inbox' ? '기본함' : list.name)
@@ -244,6 +252,16 @@ export default function QuickAdd() {
               style={[s.desc, { color: p.textSecondary }]}
               accessibilityLabel="설명"
             />
+            {focus && !isEvent && text.trim() ? (
+              <View style={s.focusRow}>
+                <Pressable accessibilityRole="button" accessibilityState={{ selected: focusOn }} accessibilityLabel={focusOn ? `${focus.name}에 넣기, 누르면 빼요` : `${focus.name}에 넣지 않음, 누르면 넣어요`}
+                  onPress={() => setFocusOff((v) => !v)} hitSlop={6}
+                  style={[s.focusChip, focusOn ? { borderColor: p.accent, backgroundColor: alpha(p.accent, p.dark ? 0.22 : 0.1) } : { borderColor: p.borderDivider }]}>
+                  <Text style={{ fontSize: 13, lineHeight: 18, color: focusOn ? p.accent : p.textTertiary }} numberOfLines={1}>🚀 {focus.name}</Text>
+                  {focusOn ? <X size={12} color={p.accent} /> : null}
+                </Pressable>
+              </View>
+            ) : null}
             <View style={s.bar}>
               {chip ? (
                 <Pressable accessibilityRole="button" accessibilityLabel={`날짜: ${chip}`} onPress={openDate} style={[s.dateChip, { borderColor: p.accent }]}>
@@ -383,6 +401,8 @@ const s = StyleSheet.create({
   card: { borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6 },
   title: { fontSize: 16, lineHeight: 22, minHeight: 24, paddingTop: 0, paddingBottom: 0, paddingHorizontal: 0 },
   under: { position: 'absolute', left: 0, right: 0, top: 0, color: 'transparent' },
+  focusRow: { flexDirection: 'row', paddingTop: 8 },
+  focusChip: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '100%', height: 28, paddingHorizontal: 10, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth * 2 },
   desc: { fontSize: 14, lineHeight: 20, maxHeight: 80, marginTop: 4, paddingTop: 0, paddingBottom: 0 },
   bar: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 12, height: 40 },
   tool: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },

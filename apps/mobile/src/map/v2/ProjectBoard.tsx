@@ -15,6 +15,7 @@ import { openView } from '../../wiki/WikiIndex'
 import { Buddy, Card, md } from './bits'
 import { projectCardLine } from '@sprout/schema/planView'
 import type { PlanData, ProjectView, PTaskRow } from './plan'
+import { setFocus } from './focus'
 
 const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 /** 카드·프로젝트 화면 둘째 줄 `14개 중 5개 완료 · 제출 10/10` — 공용 projectCardLine(데스크톱과 같은 글). 마감은 지났거나 3일 안이면 빨강 */
@@ -124,6 +125,7 @@ export function NowCard({ data }: { data: PlanData }) {
 function ProjectCard({ x, today }: { x: ProjectView; today: string }) {
   const p = usePalette()
   const router = useRouter()
+  const toast = useToast()
   const ref = useRef<View>(null)
   const [menu, setMenu] = useState<Rect | null>(null)
   const open = () => router.push(`/map/project/${x.tag.id}`)
@@ -136,6 +138,7 @@ function ProjectCard({ x, today }: { x: ProjectView; today: string }) {
         <View style={s.cardTop}>
           {lead ? <Text style={{ fontSize: 17 }}>{x.emoji}</Text> : <FolderClosed size={18} color={p.textSecondary} />}
           <Text style={{ flex: 1, color: p.textPrimary, fontSize: 16, fontWeight: '600' }} numberOfLines={1}>{x.title}</Text>
+          {x.focus ? <Text style={{ color: p.accent, fontSize: 12.5, fontWeight: '500' }}>집중</Text> : null}
           {x.auto ? <Text style={{ color: p.textTertiary, fontSize: 12.5 }}>자동</Text> : null}
           <ChevronRight size={16} color={p.textQuaternary} />
         </View>
@@ -148,6 +151,8 @@ function ProjectCard({ x, today }: { x: ProjectView; today: string }) {
         </Pressable>
       )}
       <PopMenu anchor={menu} onClose={() => setMenu(null)} width={230} items={[
+        // 31 §12.13.7 지금 집중 — 한 번에 하나, 빠른 입력에 칩
+        { key: 'focus', label: x.focus ? '집중 끄기' : '지금 집중', onPress: () => { void setFocus(x.focus ? null : x.tag.id).then((u) => toast.show(x.focus ? '집중을 껐어요' : `지금 '${x.title}'에 집중해요 · 빠른 입력에 붙여 둘게요`, { undo: u })) } },
         { key: 'open', label: '열기', onPress: open },
         { key: 'plan', label: '다음 단계 같이 짜기', onPress: () => router.push({ pathname: '/plan-chat', params: { project: x.tag.id } }) },
         { key: 'tag', label: '태그 페이지', onPress: () => openView(router, `tag:${x.tag.id}`) }

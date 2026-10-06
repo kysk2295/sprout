@@ -10,6 +10,7 @@ import { completeTasks } from '../src/data/tasks'
 import { dayKey } from '../src/lib/dates'
 import { Buddy, useBuddyName } from '../src/map/v2/bits'
 import { addToProject, ensureProjectForGoal, projectCandidates, usePlanData } from '../src/map/v2/plan'
+import { linkTeam } from '../src/map/v2/focus'
 import {
   applyManualSteps, createGoalTask, journalChanged, loadPlanTask, newJournal, planCandidates, recordComplete, setPlanDue, splitWithAi, SplitError, undoLastSplit, undoPlanSession, type PlanJournal
 } from '../src/map/v2/planActions'
@@ -42,11 +43,12 @@ export default function PlanChatScreen() {
   const planRef = useRef({ project, params })
   planRef.current = { project, params }
 
+  const madeTag = useRef<string | null>(null) // 31 §12.13.2 팀원을 이을 프로젝트
   const toProject = async (goal: { id: string; title: string }) => {
     const { params: q } = planRef.current
     try {
       if (q.project) await addToProject([goal.id], q.project)
-      else if (q.make) await ensureProjectForGoal(goal)
+      else if (q.make) madeTag.current = await ensureProjectForGoal(goal)
     } catch (e) { console.warn('[plan-chat] 프로젝트 연결 보류', e) }
   }
   const mark = () => setChanged(journalChanged(journal.current))
@@ -105,6 +107,7 @@ export default function PlanChatScreen() {
         }
         case 'complete': await completeTasks(f.ids); await recordComplete(j, f.ids); mark(); break
         case 'close': close(); break
+        case 'team': if (madeTag.current) await linkTeam(madeTag.current, f.names); break
         default: break // light·focus = 지도가 없어 말로만
       }
     } catch (e) {
@@ -138,7 +141,7 @@ export default function PlanChatScreen() {
     const pj = planRef.current.project
     const candidates = pj ? projectCandidates(pj) : await planCandidates()
     if (task) { await toProject(task.goal); journal.current.title = task.goal.title }
-    dispatch({ type: 'start', goal: task?.goal ?? null, steps: task?.steps, candidates: candidates.filter((c) => c.id !== params.task) })
+    dispatch({ type: 'start', goal: task?.goal ?? null, steps: task?.steps, candidates: candidates.filter((c) => c.id !== params.task), askTeam: !!params.make && !params.project })
   }
   useEffect(() => { if (plan.loaded) void start() }, [plan.loaded, project?.tag.id]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { alive.current = false; abort.current?.abort() }, [])
@@ -203,7 +206,7 @@ export default function PlanChatScreen() {
           </ScrollView>
         ) : null}
         <View style={[s.inputRow, { paddingBottom: insets.bottom + 8, borderTopColor: p.borderDivider, backgroundColor: p.pageBg }]}>
-          <TextInput value={draft} onChangeText={setDraft} onSubmitEditing={send} returnKeyType="send" editable={inputOpen(state)} placeholder={state.phase === 'split-manual' ? '예: 자료 조사, 목차 잡기, 초안 쓰기' : '답을 적어 줘'}
+          <TextInput value={draft} onChangeText={setDraft} onSubmitEditing={send} returnKeyType="send" editable={inputOpen(state)} placeholder={state.phase === 'split-manual' ? '예: 자료 조사, 목차 잡기, 초안 쓰기' : state.phase === 'team' ? '예: 민수, 지은' : '답을 적어 줘'}
             placeholderTextColor={p.textTertiary} style={[s.input, { backgroundColor: p.cardBg, color: p.textPrimary }]} accessibilityLabel="답 입력" />
           {state.busy && abort.current ? (
             <Pressable onPress={() => abort.current?.abort()} accessibilityRole="button" accessibilityLabel="멈추기" style={[s.send, { backgroundColor: p.textTertiary }]}><X size={18} color="#fff" /></Pressable>

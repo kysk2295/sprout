@@ -24,6 +24,8 @@ const FOLDERS_SQL = 'SELECT id, name FROM folders'
 const SEQ_SQL = "SELECT id, from_id, to_id, kind, state FROM map_links WHERE kind = 'sequence' AND state = 'accepted'"
 const TOPICS_SQL = 'SELECT id, name FROM wiki_topics'
 const KINDS_SQL = "SELECT from_id AS task_id, to_id AS kind FROM relations WHERE from_type = 'task' AND to_type = 'work_kind' AND COALESCE(state, 'accepted') = 'accepted'"
+// 31 §12.13.7 지금 집중(relations tag → focus) — 데스크톱과 같은 행
+const FOCUS_SQL = "SELECT from_id FROM relations WHERE from_type = 'tag' AND to_type = 'focus' AND COALESCE(state, 'accepted') = 'accepted'"
 const NOTES_SQL = `SELECT r.to_id AS tag_id, n.id, n.content, n.link_title FROM relations r JOIN notes n ON n.id = r.from_id
   WHERE r.from_type = 'note' AND r.to_type = 'tag' AND COALESCE(r.state, 'accepted') = 'accepted'`
 
@@ -43,12 +45,14 @@ export function usePlanData(): PlanData {
   const topics = useQuery<{ id: string; name: string }>(TOPICS_SQL)
   const notes = useQuery<{ tag_id: string; id: string; content: string | null; link_title: string | null }>(NOTES_SQL)
   const kinds = useQuery<{ task_id: string; kind: string }>(KINDS_SQL)
+  const focusQ = useQuery<{ from_id: string }>(FOCUS_SQL)
+  const focus = focusQ.data?.[0]?.from_id ?? null
   const [pstore] = useKv<ProjectStore>(PROJECTS_KEY, EMPTY_STORE)
   const loading = tasks.isLoading || tags.isLoading || links.isLoading || lists.isLoading || folders.isLoading || seq.isLoading
   return useMemo(() => buildPlanView({
     tasks: loading ? null : tasks.data, tags: tags.data, links: links.data, lists: lists.data, folders: folders.data, seq: seq.data,
-    topics: topics.data, notes: notes.data, pstore: { ...EMPTY_STORE, ...pstore }, today, suggest: false, kindOverrides: kinds.data
-  }), [loading, tasks.data, tags.data, links.data, lists.data, folders.data, seq.data, topics.data, notes.data, kinds.data, pstore, today])
+    topics: topics.data, notes: notes.data, pstore: { ...EMPTY_STORE, ...pstore }, today, suggest: false, kindOverrides: kinds.data, focus
+  }), [loading, tasks.data, tags.data, links.data, lists.data, folders.data, seq.data, topics.data, notes.data, kinds.data, pstore, today, focus])
 }
 
 /** `빠진 거 없어` — 그때 구성원 수(늘면 말풍선이 다시) */
