@@ -2,6 +2,10 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-06 폴더 아이콘·주간 점검 v2
+- 폴더 그림은 폴더에만(30 §A.5): 휴대폰 서랍 `📁 + 🎓Study` 겹침·이모지 없는 리스트 회색 점 → `≡`, 프로젝트 카드·데스크톱 프로젝트 보드/화면 기본 아이콘 폴더 → 🚀, 서랍 프로젝트 태그 🚀. 공용 `apps/mobile/src/ui/OrgIcons.tsx`·`src/data/emojiLead.ts`.
+- 주간 점검 모양 v2(31 R.10 · 29 §9.3): 세그먼트 + 묶음 목록, 말풍선·이건 뭐예요·색 숫자 카드·2×2 단추·영웅 문장 뺌, 캐릭터는 끝 화면만. 휴대폰·데스크톱 같은 구조, 기능(+30 XP·되돌리기·프로젝트 후보 줄) 그대로.
+
 ## ★ 2026-10-06 휴대폰 움직임·UI 점검 (39 v1.1)
 - 사용자 휴대폰 틱틱 녹화를 프레임으로 재서 [research 34](docs/ticktick-research/34-mobile-video-20261006.md)에 정리(묶음 250ms·서랍 250/233ms·메뉴 300/175ms·탭 90ms·월 세로 띠 넘김·크기). [39](docs/screens/39-mobile-motion.md) 확정(결정 ①~④ 승인) + 전체 점검 G17~G23.
 - 구현(커밋, 푸시 안 함): 1묶음 목록 손맛(`ui/motion.ts`·`haptics.ts`·`Pressables`·`Checkbox`·`useCompleting`·`SwipeRow`·`listMotion`, 크기 실측) · 2묶음 떠 있는 것(메뉴·길게 누름·서랍 따라가기+뒤 화면 밀기·`SlideSheet`·`BottomSheet` 위치만·빠른 입력 키보드 붙임·큰 제목 접힘·머리 유리 알약·탭 알약·토스트) · 3묶음(월 세로 넘김·일정 끌기 튐 고침·끌어서 순서 `DragReorder`·완료음 `ui/sound.ts` + 설정 완료음/진동) · 캘린더 주·년 보기 · 서랍 행 둥근 밀기 칸.

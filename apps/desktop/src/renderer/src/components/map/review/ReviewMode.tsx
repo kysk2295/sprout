@@ -1,5 +1,5 @@
 // 31 §12 점검 — 일주일에 한 번, 3단계 안내(시안 mockups/work-map-modes-v2.html 점검).
-// 스테퍼(① 돌아보기 → ② 밀린 일 → ③ 다음 주) + 단계마다 "이건 뭐예요?" 한 줄 + 캐릭터 한마디 + 오른쪽 아래 큰 "다음" 하나.
+// 세그먼트(돌아보기 · 밀린 일 · 다음 주) + 묶음 목록 + 아래 "다음" 하나(31 R.10 모양 v2).
 // 데이터는 스스로 읽는다(WorkMapView는 모드 자리만 준다). 계산은 data/review.ts, 진행은 그 주 안에서 기기에 기억.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { addDays } from '@sprout/schema/time'
@@ -9,22 +9,24 @@ import { useQuery } from '../../../data/useQuery'
 import { dayKey } from '../../../lib/dates'
 import { saveMoments } from '../../../data/mapMoments'
 import {
-  applyDecision, createGoals, dayStartIso, goStep, finishSummary, loadProgress, lookColumns, lookLine, membershipOf, mergeMissed, missedLine, missedOf, pickLine, pickRoom,
+  applyDecision, createGoals, dayStartIso, goStep, finishSummary, loadProgress, lookColumns, membershipOf, mergeMissed, missedOf, pickRoom,
   planColumns, projectProgress, restoreSnap, reviewTarget, saveProgress, suggestGoals, togglePick, undecided, undoGoals, weekNumbers, weekRangeLabel,
   type Decision, type ReviewProgress, type SnapRow, type RGoal, type RList, type RTask, type Step, type Suggestion
 } from '../../../data/review'
 import type { AtLink, AtTag } from '@sprout/schema/autoTag'
 import type { ModeSlotProps } from '../modes'
-import { BuddyAvatar, useBuddy } from '../PlanChat'
+import { useBuddy } from '../PlanChat'
 import { CharacterArt } from '../../growth/CharacterArt'
-import { LookStep, MissedStep, PickStep, type CardRow } from './ReviewSteps'
+import { ChevronRight } from 'lucide-react'
+import { LookStep, MissedStep, PickStep, Sec, type CardRow } from './ReviewSteps'
 import { ReviewProjectLeftovers } from '../plan/ProjectAsk'
 import './review.css'
 
-const STEPS: { n: 1 | 2 | 3; label: string; what: string }[] = [
-  { n: 1, label: '이번 주 돌아보기', what: '지난 7일을 한눈에 봐요. 고칠 건 없어요 — 보기만 하고 “다음”을 눌러요.' },
-  { n: 2, label: '밀린 일 정하기', what: '못 한 일마다 하나씩 골라요. 안 고르면 “다음 주로”가 돼요.' },
-  { n: 3, label: '다음 주 고르기', what: '다음 주에 꼭 할 목표를 3개까지 골라요. 고른 건 아래 다음 주 칸에 바로 놓여요.' }
+// 31 R.10 모양 v2: 세그먼트 단계 + 묶음 목록, 설명은 묶음 밑글, 캐릭터는 끝 화면에만
+const STEPS: { n: 1 | 2 | 3; label: string }[] = [
+  { n: 1, label: '돌아보기' },
+  { n: 2, label: '밀린 일' },
+  { n: 3, label: '다음 주' }
 ]
 
 // 이번 주·다음 2주 마감, 이번 주에 끝낸 것, 열린 최상위 전부(프로젝트 제안용)
@@ -161,42 +163,31 @@ export function ReviewMode({ lists, onSelectTask, onMode, notify }: ModeSlotProp
   const step = p.step
   const reached = Math.max(p.reached ?? 1, step)
   const left = cards.filter((c) => !p.decisions[c.id]).length
-  const line = step === 1 ? lookLine(nums) : step === 2 ? missedLine(left, cards.length) : step === 3 ? pickLine(sugs.filter((s) => s.kind !== 'custom'), today, planWeek) : ''
 
   return (
     <section className="rv-root" aria-label="주간 점검" onKeyDown={onKey}>
-      <nav className="rv-stepper" aria-label="점검 단계">
-        {STEPS.map((s, i) => {
-          const on = s.n === step
-          const ok = !on && s.n < reached // 지나온 단계 ✓
-          const back = !on && s.n <= reached // 가 본 단계는 앞뒤로 다시 갈 수 있다
-          return (
-            <span key={s.n} className="rv-stepper__item">
-              {i > 0 && <span className="rv-sline" aria-hidden="true" />}
-              <button className={`rv-sx${on ? ' is-on' : ''}${ok ? ' is-ok' : ''}${back ? ' is-back' : ''}`} aria-current={on ? 'step' : undefined}
-                disabled={!back && !on} onClick={() => go(s.n)} title={back ? `${s.label} 다시 보기` : undefined}>
-                <i>{ok ? '✓' : s.n}</i>{s.n === 3 && planWeek <= today ? '이번 주 고르기' : s.label}
-              </button>
-            </span>
-          )
-        })}
-        <span className="rv-stepper__sp" />
-        <span className="rv-stepper__range">{weekRangeLabel(week)} · 약 5분</span>
-      </nav>
-
-      {step < 4 && <div className="rv-what"><b>이건 뭐예요?</b>{STEPS[step - 1].what}</div>}
-      {step < 4 && line && (
-        <div className="rv-bub" role="status">
-          <BuddyAvatar buddy={buddy} stage={stage} size={34} />
-          <div className="rv-bub__msg">{line}</div>
-        </div>
-      )}
+      <div className="rv-head">
+        {step < 4 ? (
+          <nav className="seg rv-steps" aria-label="점검 단계">
+            {STEPS.map((s) => {
+              const on = s.n === step
+              const can = !on && s.n <= reached // 가 본 단계는 앞뒤로 다시 갈 수 있다
+              return (
+                <button key={s.n} className={on ? 'is-on' : ''} aria-current={on ? 'step' : undefined} disabled={!can && !on} onClick={() => go(s.n)}>
+                  {s.n === 3 && planWeek <= today ? '이번 주' : s.label}
+                </button>
+              )
+            })}
+          </nav>
+        ) : null}
+        <span className="rv-head__range">{weekRangeLabel(week)} 돌아보기</span>
+      </div>
 
       <div className="rv-body">
         {!loaded ? <div className="rv-loading" /> : step === 1 ? (
           <LookStep nums={nums} projects={projects} byTag={mem.byTag} cols={lookCols} today={today} onOpen={onSelectTask} />
         ) : step === 2 ? (
-          <MissedStep cards={cards} decisions={p.decisions} busy={busy} lists={lists} onDecide={(id, d) => void decide(id, d)} onOpen={onSelectTask} />
+          <MissedStep cards={cards} decisions={p.decisions} busy={busy} lists={lists} left={left} onDecide={(id, d) => void decide(id, d)} onAllNext={() => void allNext()} onOpen={onSelectTask} />
         ) : step === 3 ? (
           <PickStep sugs={sugs} picks={p.picks} room={room} existing={planGoals.length} cols={planCols} today={today} planWeek={planWeek}
             onToggle={(k) => patch((x) => ({ ...x, picks: togglePick(x.picks, k, room) }))}
@@ -204,27 +195,30 @@ export function ReviewMode({ lists, onSelectTask, onMode, notify }: ModeSlotProp
             onOpen={onSelectTask} />
         ) : (
           <div className="rv-fin">
-            <CharacterArt species={buddy.species} stage={stage} size={120} mood="happy" />
-            <h3>다음 주 준비 끝! 월요일 아침에 ⚡로 알려 줄게</h3>
-            <p>{finishSummary(p)}</p>
-            {p.created.length > 0 && <ul className="rv-fin__goals">{p.created.map((c) => <li key={c.goalId}>🎯 {c.title}</li>)}</ul>}
-            {!!reviewXp?.length && <span className="map-xp">주간 점검 +{XP.review} XP</span>}
-            <ReviewProjectLeftovers />
-            <div className="rv-fin__acts">
-              <button className="map-btn map-btn--primary" onClick={() => onMode('plan')}>계획 보러 가기</button>
-              <button className="map-btn" onClick={() => go(3)}>다음 주 다시 고르기</button>
+            <div className="rv-fin__me">
+              <CharacterArt species={buddy.species} stage={stage} size={40} mood="happy" />
+              <div><h3>다음 주 준비를 마쳤어요</h3><p>{finishSummary(p)}</p></div>
             </div>
+            <Sec title="다음 주 목표">
+              {p.created.length ? p.created.map((c) => <div key={c.goalId} className="rv-row"><span className="rv-row__t">{c.title}</span></div>)
+                : <div className="rv-row"><span className="rv-row__t is-dim">고른 목표 없음</span></div>}
+              {!!reviewXp?.length && <div className="rv-row"><span className="rv-row__t">주간 점검</span><span className="rv-row__acc">+{XP.review} XP</span></div>}
+            </Sec>
+            <ReviewProjectLeftovers />
+            <Sec>
+              <button className="rv-row rv-go" onClick={() => onMode('plan')}><span className="rv-row__t">계획 보러 가기</span><ChevronRight className="rv-row__chev" /></button>
+              <button className="rv-row rv-go" onClick={() => go(3)}><span className="rv-row__t">다음 주 다시 고르기</span><ChevronRight className="rv-row__chev" /></button>
+            </Sec>
           </div>
         )}
       </div>
 
       {step < 4 && (
         <footer className="rv-foot">
-          <span className="rv-foot__hint">{step} / 3 단계{step === 2 ? ' · 끝냄은 XP 없이 닫혀요' : step === 3 ? ` · ${weekRangeLabel(planWeek)}` : ''}</span>
-          {step === 2 && left > 0 && <button className="map-btn rv-btn" onClick={() => void allNext()}>모두 다음 주로</button>}
-          {step > 1 && <button className="map-btn rv-btn" onClick={() => go((step - 1) as Step)}>← 이전</button>}
+          {step > 1 ? <button className="map-btn rv-btn" onClick={() => go((step - 1) as Step)}>이전</button> : <span className="rv-foot__hint">{step} / 3</span>}
+          <span className="rv-foot__sp" />
           <button className="map-btn map-btn--primary rv-next" disabled={finishing || !loaded} onClick={() => void next()} title="⌘↵">
-            {step === 3 ? '점검 끝내기 ✓' : '다음 →'}
+            {step === 3 ? '점검 끝내기' : '다음'}
           </button>
         </footer>
       )}

@@ -6,7 +6,7 @@
 // 고르면 같은 목록 화면에 그 목록. 아이콘은 Lucide(오픈 라이선스), 색 배치만 틱틱처럼 여러 색.
 import { useRouter } from 'expo-router'
 import {
-  ArrowUpToLine, Ban, CalendarCheck, CalendarRange, ChevronDown, ChevronRight, CircleCheck, Folder, Funnel, Hash, Inbox, Layers, Pencil, Plus, Settings, SlidersHorizontal, Sunrise, Trash2
+  ArrowUpToLine, Ban, CalendarCheck, CalendarRange, ChevronDown, ChevronRight, CircleCheck, Funnel, Hash, Inbox, Layers, Pencil, Plus, Settings, SlidersHorizontal, Sunrise, Trash2
 } from 'lucide-react-native'
 import { useEffect, useState, type ReactNode } from 'react'
 import { BlurView } from 'expo-blur'
@@ -28,6 +28,7 @@ import { useTasksView } from '../state/tasksView'
 import { FONT } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { PopMenu, type MenuItem, type Rect } from './Menu'
+import { ColorDot, FolderGlyph, ListGlyph, listShow, splitLead } from './OrgIcons'
 import { SwipeRow, type SwipeAction } from './SwipeRow'
 import { FilterEditSheet, FolderEditSheet, ListEditSheet, TagEditSheet } from './OrgSheets'
 import { useToast } from './Toast'
@@ -190,8 +191,14 @@ export function Drawer() {
       </Pressable>
     )
   }
-  const dot = (color: string | null) => <View style={[s.ldot, { backgroundColor: color ?? p.textQuaternary }]} />
-  const listIcon = (l: { emoji: string | null; color: string | null }) => (l.emoji ? <Text style={{ fontSize: 17 }}>{l.emoji}</Text> : dot(l.color))
+  // 30 §A.5: 리스트 = 이모지 또는 ≡ (+ 오른쪽 색 점), 폴더 = 이름 앞 이모지 또는 폴더 그림, 프로젝트 태그 = 🚀
+  const listIcon = (l: { name: string; emoji: string | null }) => <ListGlyph list={l} />
+  const tagIcon = (t: { name: string; kind?: string | null; color: string | null }, size: number) => {
+    const k = t.kind === 'project' ? '🚀' : t.kind === 'person' ? '👤' : t.kind === 'place' ? '📍' : null
+    if (!k) return <Hash size={size} color={t.color ?? p.textSecondary} />
+    return <Text style={{ fontSize: size - 3, width: size + 2, textAlign: 'center' }}>{splitLead(t.name).emoji ?? k}</Text>
+  }
+  const tagName = (t: { name: string; kind?: string | null }) => (t.kind && t.kind !== 'topic' ? splitLead(t.name).name : t.name)
   const show = (id: string, n?: number) => smartVisible(id, vis, n)
   const topTags = tags.filter((t) => !t.parent_id || !tags.some((x) => x.id === t.parent_id))
   const hr = <View style={[s.hr, { borderTopColor: p.borderDivider }]} />
@@ -224,7 +231,7 @@ export function Drawer() {
             {show('next7', counts.smart.next7) ? <Row v="smart:next7" icon={<CalendarRange size={22} color={p.slWeek} />} label="다음 7일" n={counts.smart.next7} /> : null}
             {inbox ? <Row v="smart:inbox" icon={<Inbox size={22} color={p.slInbox} />} label="기본함" n={counts.smart.inbox} onLongPress={(e) => setMenu({ rect: at(e), items: [{ key: 'edit', label: '편집', onPress: () => afterMenu(() => setEdit({ kind: 'list', id: inbox.id })) }] })} /> : null}
             {hr}
-            {loose.map((l) => <SwipeRow key={l.id} round right={swipeList(l)}><Row v={`list:${l.id}`} icon={listIcon(l)} label={l.name} n={counts.lists[l.id]} onLongPress={(e) => listMenu(l, e)} /></SwipeRow>)}
+            {loose.map((l) => <SwipeRow key={l.id} round right={swipeList(l)}><Row v={`list:${l.id}`} icon={listIcon(l)} label={listShow(l).name} n={counts.lists[l.id]} right={<ColorDot color={l.color} />} onLongPress={(e) => listMenu(l, e)} /></SwipeRow>)}
             {folders.map((f) => {
               const kids = normal.filter((l) => l.folder_id === f.id)
               const open = !!openFolders[f.id]
@@ -232,8 +239,8 @@ export function Drawer() {
                 <View key={f.id}>
                   <Row
                     v={`folder:${f.id}`}
-                    icon={<Folder size={22} color={p.textSecondary} />}
-                    label={f.name}
+                    icon={<FolderGlyph name={f.name} />}
+                    label={splitLead(f.name).name}
                     n={kids.reduce((n, l) => n + (counts.lists[l.id] ?? 0), 0)}
                     onLongPress={(e) => folderMenu(f, e)}
                     right={
@@ -242,7 +249,7 @@ export function Drawer() {
                       </Pressable>
                     }
                   />
-                  {open ? kids.map((l) => <SwipeRow key={l.id} round right={swipeList(l)}><Row depth={1} v={`list:${l.id}`} icon={listIcon(l)} label={l.name} n={counts.lists[l.id]} onLongPress={(e) => listMenu(l, e)} /></SwipeRow>) : null}
+                  {open ? kids.map((l) => <SwipeRow key={l.id} round right={swipeList(l)}><Row depth={1} v={`list:${l.id}`} icon={listIcon(l)} label={listShow(l).name} n={counts.lists[l.id]} right={<ColorDot color={l.color} />} onLongPress={(e) => listMenu(l, e)} /></SwipeRow>) : null}
                 </View>
               )
             })}
@@ -259,8 +266,8 @@ export function Drawer() {
                 <Section id="tags" label="태그" onAdd={() => setEdit({ kind: 'tag', id: null })} />
                 {openSec.tags ? (topTags.length ? topTags.map((t) => (
                   <View key={t.id}>
-                    <SwipeRow round right={swipeTag(t)}><Row v={`tag:${t.id}`} icon={<Hash size={20} color={t.color ?? p.textSecondary} />} label={t.name} n={org.tags[t.id]} onLongPress={(e) => tagMenu(t, e)} /></SwipeRow>
-                    {tags.filter((c) => c.parent_id === t.id).map((c) => <SwipeRow key={c.id} round right={swipeTag(c)}><Row depth={1} v={`tag:${c.id}`} icon={<Hash size={18} color={c.color ?? p.textSecondary} />} label={c.name} n={org.tags[c.id]} onLongPress={(e) => tagMenu(c, e)} /></SwipeRow>)}
+                    <SwipeRow round right={swipeTag(t)}><Row v={`tag:${t.id}`} icon={tagIcon(t, 20)} label={tagName(t)} n={org.tags[t.id]} onLongPress={(e) => tagMenu(t, e)} /></SwipeRow>
+                    {tags.filter((c) => c.parent_id === t.id).map((c) => <SwipeRow key={c.id} round right={swipeTag(c)}><Row depth={1} v={`tag:${c.id}`} icon={tagIcon(c, 18)} label={tagName(c)} n={org.tags[c.id]} onLongPress={(e) => tagMenu(c, e)} /></SwipeRow>)}
                   </View>
                 )) : <Text style={[s.hint, { color: p.textQuaternary }]}>할 일에 #태그를 붙이면 여기에 보여요</Text>) : null}
               </>

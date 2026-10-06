@@ -1,6 +1,7 @@
 // 옮기기 시트(29 §4): 할 일 → 기본함 / 폴더 › 리스트 고르기. tasks.list_id를 바꾼다(공용 moveToList, 토스트에 되돌리기).
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { Check, Folder, Inbox } from 'lucide-react-native'
+import { Check, Inbox } from 'lucide-react-native'
+import { FolderGlyph, ListGlyph, listShow, splitLead } from '../../src/ui/OrgIcons'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { moveToList } from '../../src/data/tasks'
 import { withRo } from '../../src/lib/dates'
@@ -25,8 +26,8 @@ export default function MapMove() {
   }
   const row = (l: MapList, first: boolean, indent = false) => (
     <Pressable key={l.id} onPress={() => void pick(l)} accessibilityRole="button" style={({ pressed }) => [s.row, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }, indent && { paddingLeft: 30 }]}>
-      {l.kind === 'inbox' ? <Inbox size={18} color={p.slInbox} /> : l.emoji ? <Text style={{ fontSize: 16, width: 18, textAlign: 'center' }}>{l.emoji}</Text> : <View style={[s.dot, { backgroundColor: l.color ?? p.textQuaternary }]} />}
-      <Text style={{ flex: 1, fontSize: 16, color: p.textPrimary }} numberOfLines={1}>{l.kind === 'inbox' ? '기본함' : l.name}</Text>
+      {l.kind === 'inbox' ? <Inbox size={18} color={p.slInbox} /> : <ListGlyph list={l} size={16} />}
+      <Text style={{ flex: 1, fontSize: 16, color: p.textPrimary }} numberOfLines={1}>{l.kind === 'inbox' ? '기본함' : listShow(l).name}</Text>
       {current === l.id ? <Check size={17} color={p.accent} /> : null}
     </Pressable>
   )
@@ -36,7 +37,7 @@ export default function MapMove() {
       {data.tree.inbox ? <View style={[s.card, { backgroundColor: p.cardBg }]}>{row(data.tree.inbox.list, true)}</View> : null}
       {moveTargets(data.tree).map((g) => (
         <View key={g.folder?.id ?? 'loose'} style={[s.card, { backgroundColor: p.cardBg }]}>
-          {g.folder ? <View style={s.fhead}><Folder size={16} color={p.textSecondary} /><Text style={{ color: p.textSecondary, fontSize: 14, fontWeight: '600' }}>{g.folder.name}</Text></View> : null}
+          {g.folder ? <View style={s.fhead}><FolderGlyph name={g.folder.name} size={16} /><Text style={{ color: p.textSecondary, fontSize: 14, fontWeight: '600' }}>{splitLead(g.folder.name).name}</Text></View> : null}
           {g.lists.map((l, i) => row(l, !g.folder && i === 0, !!g.folder))}
         </View>
       ))}

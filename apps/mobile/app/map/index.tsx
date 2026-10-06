@@ -13,6 +13,7 @@ import { dayKey } from '../../src/lib/dates'
 import { useMapData, useMapOptions, type MapData } from '../../src/map/data'
 import { Dialog, type DialogSpec } from '../../src/map/Dialog'
 import { useFolderMenu } from '../../src/map/folderMenu'
+import { FolderGlyph, ListGlyph, listShow, splitLead } from '../../src/ui/OrgIcons'
 import { goalLinkedCount, goalsAllDone, type FolderNode, type ListNode, type MapTask } from '../../src/map/logic'
 import { MapTaskRow, Ring } from '../../src/map/parts'
 import { usePalette } from '../../src/theme/ThemeProvider'
@@ -132,8 +133,7 @@ function EmptyMap({ onCreate }: { onCreate: () => void }) {
 }
 
 function ListIcon({ l }: { l: ListNode['list'] }) {
-  const p = usePalette()
-  return l.emoji ? <Text style={{ fontSize: 15 }}>{l.emoji}</Text> : <View style={[s.dot, { backgroundColor: l.color ?? p.textQuaternary }]} />
+  return <ListGlyph list={l} size={15} /> // 30 §A.5
 }
 
 function FolderCard({ f, data, onMenu }: { f: FolderNode; data: MapData; onMenu: (f: FolderNode, r: Rect) => void }) {
@@ -144,7 +144,8 @@ function FolderCard({ f, data, onMenu }: { f: FolderNode; data: MapData; onMenu:
     <View style={[s.card, { backgroundColor: p.cardBg }]}>
       {f.folder ? (
         <View style={s.head}>
-          <Text style={[s.folderName, { color: p.textPrimary }]} numberOfLines={1}>{f.folder.name}</Text>
+          <FolderGlyph name={f.folder.name} size={18} />
+          <Text style={[s.folderName, { color: p.textPrimary }]} numberOfLines={1}>{splitLead(f.folder.name).name}</Text>
           <Text style={[s.count, { color: p.textTertiary }]}>{f.open}</Text>
           <View style={{ flex: 1 }} />
           <Pressable ref={ref} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${f.folder.name} 메뉴`} onPress={() => ref.current?.measureInWindow((x, y, width, height) => onMenu(f, { x, y, width, height }))}>
@@ -158,7 +159,7 @@ function FolderCard({ f, data, onMenu }: { f: FolderNode; data: MapData; onMenu:
           <Pressable key={n.list.id} onPress={() => router.push(`/map/list/${n.list.id}`)} accessibilityRole="button" style={({ pressed }) => [s.lrow, (f.folder || i > 0) && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
             <Ring done={prog.done} total={prog.total} />
             <ListIcon l={n.list} />
-            <Text style={[s.lname, { color: p.textPrimary }]} numberOfLines={1}>{n.list.name}</Text>
+            <Text style={[s.lname, { color: p.textPrimary }]} numberOfLines={1}>{listShow(n.list).name}</Text>
             <Text style={[s.count, { color: p.textTertiary }]}>{prog.done}/{prog.total}</Text>
             <ChevronRight size={16} color={p.textQuaternary} />
           </Pressable>

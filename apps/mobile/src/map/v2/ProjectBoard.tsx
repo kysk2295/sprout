@@ -2,7 +2,7 @@
 // 지금 할 일 카드 → 회색 한 줄 요약 → 프로젝트 카드(① 아이콘·이름·자동·› ② `N개 중 M개 완료 · 제출 10/10` ③ 얇은 진행 막대 ④ 다음 할 일 = 진짜 할 일 행) → 끝난 프로젝트(접힘) → ＋ 같이 계획 짜기.
 // 계산은 공용 @sprout/schema/planView. 휴대폰은 프로젝트를 만들거나 붙이는 자동 패스를 돌리지 않는다(데스크톱이 만든 태그를 보여 주기만).
 import { useRouter } from 'expo-router'
-import { ChevronRight, FolderClosed, Plus } from 'lucide-react-native'
+import { ChevronRight, Plus } from 'lucide-react-native'
 import { useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { completeTasks } from '../../data/tasks'
@@ -136,7 +136,7 @@ function ProjectCard({ x, today }: { x: ProjectView; today: string }) {
       <Pressable onPress={open} onLongPress={() => ref.current?.measureInWindow((a, b, w, h) => setMenu({ x: a, y: b, width: w, height: h }))} delayLongPress={350}
         accessibilityRole="button" accessibilityHint="길게 누르면 메뉴" style={({ pressed }) => [s.cardHead, pressed && { backgroundColor: p.bgSelected }]}>
         <View style={s.cardTop}>
-          {lead ? <Text style={{ fontSize: 17 }}>{x.emoji}</Text> : <FolderClosed size={18} color={p.textSecondary} />}
+          <Text style={{ fontSize: 17 }}>{lead ? x.emoji : '🚀'}</Text>{/* 30 §A.5 — 폴더 그림은 폴더에만 */}
           <Text style={{ flex: 1, color: p.textPrimary, fontSize: 16, fontWeight: '600' }} numberOfLines={1}>{x.title}</Text>
           {x.focus ? <Text style={{ color: p.accent, fontSize: 12.5, fontWeight: '500' }}>집중</Text> : null}
           {x.auto ? <Text style={{ color: p.textTertiary, fontSize: 12.5 }}>자동</Text> : null}

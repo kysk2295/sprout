@@ -1,4 +1,4 @@
-import { AlarmClock, ChartColumn, Folder, Sprout, Tag } from 'lucide-react'
+import { AlarmClock, ChartColumn, Rocket, Sprout, Tag } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { noticeTime, type NoticeKind } from '../../../shared/notices'
 import { undoAutoTagAt } from '../data/autoTag'
@@ -7,7 +7,7 @@ import { Popover } from './Popover'
 import { useToast } from './Toast'
 
 // 01 §3.3 레일 종 알림 패널: 종 오른쪽 팝오버 — 머리(알림 · 모두 읽음) · 줄 목록 · 빈 상태
-const ICON: Record<NoticeKind, ReactNode> = { reminder: <AlarmClock />, levelup: <Sprout />, report: <ChartColumn />, autotag: <Tag />, project: <Folder /> }
+const ICON: Record<NoticeKind, ReactNode> = { reminder: <AlarmClock />, levelup: <Sprout />, report: <ChartColumn />, autotag: <Tag />, project: <Rocket /> }
 
 export function NoticePanel({ anchor, items, onClose, onOpen }: { anchor: HTMLElement | null; items: Notice[]; onClose: () => void; onOpen: (t: NoticeTarget) => void }) {
   const unread = items.some((n) => !n.read)

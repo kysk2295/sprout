@@ -1,6 +1,7 @@
 // 보기(서랍에서 고른 목록)마다의 조회 조건·묶음·정렬 — 21 §2·§6, 02 §0·§3·§11·§14(데스크톱 data/views.ts와 같은 범위 규칙)
 // 순수 모듈(시험: views.test.ts). 화면은 이 결과(묶음 카드 목록)를 그대로 그린다.
 // 2026-10-05 모바일 전체 기능: 전체·계획 취소·태그·필터 보기, 묶기·정렬(view_settings 동기화 — 데스크톱과 같은 키·값)
+import { listShow, splitLead } from './emojiLead.ts'
 import { datePart, hasTime } from '@sprout/schema/time'
 import { dayKey, monthDay, timeGroup, TIME_GROUPS } from '../lib/dates.ts'
 import { filterScope } from './filters.ts'
@@ -295,9 +296,11 @@ export function viewTitle(
   const [kind, id] = splitView(view)
   if (kind === 'list') {
     const l = lists.find((x) => x.id === id)
-    return { title: l ? listTitle(l) : '', emoji: l?.emoji }
+    if (!l || l.kind === 'inbox') return { title: l ? listTitle(l) : '', emoji: l?.emoji }
+    const v = listShow({ name: l.name ?? '', emoji: l.emoji ?? null }) // 30 §A.5: 이름 앞 이모지는 아이콘 자리로
+    return { title: v.name, emoji: v.emoji }
   }
-  if (kind === 'folder') return { title: folders.find((f) => f.id === id)?.name ?? '' }
+  if (kind === 'folder') { const v = splitLead(folders.find((f) => f.id === id)?.name ?? ''); return { title: v.name, emoji: v.emoji } }
   if (kind === 'tag') {
     // 33 §4.1·§11: 종류 아이콘(사람 👤 · 프로젝트 🚀 · 장소 📍) + 이름, 주제는 `#이름`
     const g = more.tags?.find((x) => x.id === id)

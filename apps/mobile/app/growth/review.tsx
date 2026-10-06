@@ -1,32 +1,32 @@
 // 29 §9.3 주간 점검 — 성장 탭에서 들어오는 전체 화면 3단계(31 R.* 그대로): ① 이번 주 돌아보기 → ② 밀린 일 정하기 → ③ 다음 주 고르기 → 끝(+30 XP, 주 1회).
+// 모양 v2(31 R.10, 2026-10-06 "너무 AI 스러워"): 틱틱 설정처럼 세그먼트 + 묶음 목록, 설명은 묶음 밑글, 캐릭터는 끝 화면에만.
 // 계산은 공용 @sprout/schema/review(데스크톱과 같은 코드), DB 효과는 src/map/v2/review. 진행은 그 주 안에서 기기에 기억.
 import { useQuery } from '@powersync/react-native'
 import type { AtLink, AtTag } from '@sprout/schema/autoTag'
 import { isoWeekStart, XP } from '@sprout/schema/growth'
 import {
-  dayStartIso, finishSummary, goStep, lookColumns, lookLine, md, membershipOf, mergeMissed, missedLine, missedOf, pickLine, pickRoom, planColumns, projectProgress,
-  reviewTarget, suggestGoals, togglePick, undecided, weekNumbers, weekRangeLabel, DECISION_LABEL,
+  dayStartIso, finishSummary, goStep, lookColumns, md, membershipOf, mergeMissed, missedOf, pickRoom, planColumns, projectProgress,
+  reviewTarget, suggestGoals, togglePick, undecided, weekNumbers, weekRangeLabel,
   type DayCell, type Decision, type ReviewProgress, type RGoal, type RList, type RTask, type SnapRow, type Step, type Suggestion
 } from '@sprout/schema/review'
 import { addDays } from '@sprout/schema/time'
 import { useRouter } from 'expo-router'
-import { Check, ChevronLeft, Plus } from 'lucide-react-native'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { grantReviewXp } from '../../src/growth/data'
 import { dayKey } from '../../src/lib/dates'
-import { Buddy, Card, PartnerLine } from '../../src/map/v2/bits'
+import { Buddy } from '../../src/map/v2/bits'
 import { applyDecision, createGoals, loadProgressKv, restoreSnap, saveProgressKv, undoGoals } from '../../src/map/v2/review'
 import { useKv } from '../../src/map/v2/kv'
+import { FONT, M } from '../../src/theme/palette'
 import { usePalette } from '../../src/theme/ThemeProvider'
+import { Segmented } from '../../src/ui/Segmented'
 import { useToast } from '../../src/ui/Toast'
 
-const STEPS: { n: 1 | 2 | 3; label: string; what: string }[] = [
-  { n: 1, label: '돌아보기', what: '지난 7일을 한눈에 봐요. 고칠 건 없어요 — 보기만 하고 "다음"을 눌러요.' },
-  { n: 2, label: '밀린 일', what: '못 한 일마다 하나씩 골라요. 안 고르면 "다음 주로"가 돼요.' },
-  { n: 3, label: '다음 주', what: '다음 주에 꼭 할 목표를 3개까지 골라요. 고른 건 아래 다음 주 칸에 바로 놓여요.' }
-]
+const STEPS: { n: 1 | 2 | 3; label: string }[] = [{ n: 1, label: '돌아보기' }, { n: 2, label: '밀린 일' }, { n: 3, label: '다음 주' }]
+const CHOICES: [Decision, string][] = [['next', '다음 주'], ['someday', '언젠가'], ['done', '끝냄'], ['trash', '지우기']]
 const TASKS_SQL = `SELECT t.id, t.title, t.status, t.parent_id, t.due_at, t.start_at, t.completed_at, t.list_id, t.repeat_rule, t.priority FROM tasks t LEFT JOIN lists l ON l.id = t.list_id
   WHERE t.deleted_at IS NULL AND t.title != '' AND l.archived_at IS NULL AND (
     (t.due_at IS NOT NULL AND substr(t.due_at, 1, 10) >= ? AND substr(t.due_at, 1, 10) < ?) OR (t.status = 1 AND t.completed_at >= ? AND t.completed_at < ?) OR (t.status = 0 AND t.parent_id IS NULL))
@@ -147,7 +147,7 @@ export default function WeeklyReview() {
   const step = pr.step
   const reached = Math.max(pr.reached ?? 1, step)
   const left = cards.filter((c) => !pr.decisions[c.id]).length
-  const line = step === 1 ? lookLine(nums) : step === 2 ? missedLine(left, cards.length) : step === 3 ? pickLine(sugs.filter((x) => x.kind !== 'custom'), today, planWeek) : ''
+  const g = nums.goals
 
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
@@ -155,100 +155,100 @@ export default function WeeklyReview() {
         <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="성장으로 돌아가기" style={s.back} hitSlop={6}>
           <ChevronLeft size={24} color={p.accent} /><Text style={{ color: p.accent, fontSize: 17 }}>성장</Text>
         </Pressable>
-        <View style={{ flex: 1 }} />
-        <Text style={{ color: p.textTertiary, fontSize: 13 }}>{weekRangeLabel(week)} · 약 5분</Text>
       </View>
-      <Text style={[s.title, { color: p.textPrimary }]}>주간 점검</Text>
+      <Text style={[FONT.title, s.title, { color: p.textPrimary }]}>주간 점검</Text>
+      <Text style={[FONT.sub, s.sub, { color: p.textTertiary }]}>{weekRangeLabel(week)} 돌아보기</Text>
       {step < 4 ? (
-        <View style={s.stepper} accessibilityRole="tablist">
-          {STEPS.map((x, i) => {
-            const on = x.n === step, ok = !on && x.n < reached, can = !on && x.n <= reached
-            return (
-              <View key={x.n} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                {i > 0 ? <View style={[s.sline, { backgroundColor: p.borderDivider }]} /> : null}
-                <Pressable disabled={!can} onPress={() => go(x.n)} accessibilityRole="tab" accessibilityState={{ selected: on, disabled: !can && !on }}
-                  style={[s.pill, { borderColor: on ? p.accent : p.borderDivider, backgroundColor: on ? p.accentSubtle : p.cardBg }]}>
-                  <View style={[s.num, { backgroundColor: ok ? '#2fa84f' : on ? p.accent : p.textQuaternary }]}><Text style={s.numT}>{ok ? '✓' : x.n}</Text></View>
-                  <Text style={{ color: on ? p.textPrimary : can ? p.textSecondary : p.textTertiary, fontSize: 12.5, fontWeight: on ? '700' : '500' }} numberOfLines={1}>{x.n === 3 && planWeek <= today ? '이번 주' : x.label}</Text>
-                </Pressable>
-              </View>
-            )
-          })}
-        </View>
+        <Segmented style={s.seg} value={String(step)}
+          items={STEPS.map((x) => ({ key: String(x.n), label: x.n === 3 && planWeek <= today ? '이번 주' : x.label }))}
+          disabled={STEPS.filter((x) => x.n > reached).map((x) => String(x.n))}
+          onChange={(k) => { const n = Number(k) as Step; if (n <= reached) go(n) }} />
       ) : null}
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }} keyboardShouldPersistTaps="handled">
-        {step < 4 ? <Text style={[s.what, { color: p.textSecondary, backgroundColor: p.cardBg }]}><Text style={{ color: p.accent, fontWeight: '700' }}>이건 뭐예요? </Text>{STEPS[step - 1].what}</Text> : null}
-        {step < 4 && line ? <PartnerLine text={line} /> : null}
         {!loaded ? null : step === 1 ? (
           <>
-            <View style={s.nums}>
-              <Num n={nums.done} label="끝낸 일" color="#2fa84f" />
-              <Num n={nums.missed} label="밀린 일" color={p.overdue} sub="다음 단계에서" />
-              <Num n={nums.goals.total ? `${nums.goals.achieved}/${nums.goals.total}` : '–'} label="이번 주 목표" color={p.accent} sub={nums.goals.total ? undefined : '3단계에서 골라요'} />
-            </View>
+            <Group title="이번 주" foot="보기만 하고 다음으로 넘어가요">
+              <Row first label="끝낸 일" value={String(nums.done)} />
+              <Row label="밀린 일" value={String(nums.missed)} valueColor={nums.missed ? p.overdue : undefined} />
+              <Row label="이번 주 목표" value={g.total ? `${g.achieved} / ${g.total}` : '없음'} />
+            </Group>
             {projects.length ? (
-              <Card style={{ padding: 14, gap: 10 }}>
-                <Text style={{ color: p.textSecondary, fontSize: 13, fontWeight: '700' }}>{mem.byTag ? '프로젝트별 이번 주' : '리스트별 이번 주'}</Text>
-                {projects.map((r) => (
-                  <View key={r.id} style={{ gap: 4 }}>
-                    <View style={{ flexDirection: 'row' }}><Text style={{ flex: 1, color: p.textPrimary, fontSize: 14 }} numberOfLines={1}>{r.name}</Text><Text style={{ color: p.textTertiary, fontSize: 13 }}>{r.done} / {r.total}</Text></View>
-                    <View style={[s.bar, { backgroundColor: p.bgSelected }]}><View style={[s.barIn, { width: `${r.total ? (r.done / r.total) * 100 : 0}%`, backgroundColor: p.accent }]} /></View>
+              <Group title={mem.byTag ? '프로젝트' : '리스트'}>
+                {projects.map((r, i) => (
+                  <View key={r.id}>
+                    <Row first={i === 0} icon={r.emoji ?? (mem.byTag ? '🚀' : '≡')} label={r.name} value={`${r.done} / ${r.total}`} />
+                    <View style={[s.ptrack, { backgroundColor: p.bgSelected }]}><View style={{ height: 3, borderRadius: 2, width: `${r.total ? (r.done / r.total) * 100 : 0}%`, backgroundColor: p.accent }} /></View>
                   </View>
                 ))}
-              </Card>
+              </Group>
             ) : null}
-            <Week cols={lookCols} today={today} legend="✓ 끝냄  ✕ 못 함  ▢ 남음" />
+            <Group title="요일별"><Days cols={lookCols} today={today} onOpen={(id) => router.push(`/task/${id}`)} /></Group>
           </>
         ) : step === 2 ? (
           <>
-            {!cards.length ? <Text style={{ color: p.textTertiary, textAlign: 'center', marginTop: 30, fontSize: 15 }}>이번 주에 밀린 일이 없어요 ✓</Text> : null}
-            {cards.map((c) => {
-              const d = pr.decisions[c.id]
-              return (
-                <Card key={c.id} style={{ padding: 14, gap: 10 }}>
-                  <Pressable onPress={() => router.push(`/task/${c.id}`)} accessibilityRole="button">
-                    <Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600', textDecorationLine: d === 'done' || d === 'trash' ? 'line-through' : 'none' }} numberOfLines={2}>{c.row!.title}</Text>
-                    <Text style={{ color: p.textTertiary, fontSize: 12.5, marginTop: 3 }}>{md(c.due)} · {listName(c.row!.list_id)}{d ? <Text style={{ color: p.accent }}>{`  → ${DECISION_LABEL[d]}`}</Text> : null}</Text>
-                  </Pressable>
-                  <View style={s.grid}>
-                    {(['next', 'someday', 'done', 'trash'] as Decision[]).map((k) => {
-                      const on = d === k
-                      const col = k === 'done' ? '#2fa84f' : k === 'trash' ? p.danger : p.accent
-                      return (
-                        <Pressable key={k} disabled={busy.has(c.id)} onPress={() => void decide(c.id, k)} accessibilityRole="button" accessibilityState={{ selected: on }}
-                          style={[s.dbtn, { borderColor: on ? col : p.borderDivider, backgroundColor: on ? col : 'transparent' }]}>
-                          <Text style={{ color: on ? '#fff' : k === 'trash' ? p.danger : p.textPrimary, fontSize: 14, fontWeight: '600' }}>{k === 'someday' ? '언젠가' : DECISION_LABEL[k]}</Text>
-                        </Pressable>
-                      )
-                    })}
+            <Group title={`밀린 일 ${cards.length}`} foot={cards.length ? '안 고른 일은 다음 주 월요일로 옮겨요 · 끝냄은 XP 없이 닫혀요' : undefined}>
+              {!cards.length ? <Row first label="이번 주에 밀린 일이 없어요" dim /> : null}
+              {cards.map((c, i) => {
+                const d = pr.decisions[c.id]
+                const closed = d === 'done' || d === 'trash'
+                return (
+                  <View key={c.id} style={[s.mt, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }]}>
+                    <Pressable onPress={() => router.push(`/task/${c.id}`)} accessibilityRole="button">
+                      <Text style={[FONT.body, { color: closed ? p.textTertiary : p.textPrimary, textDecorationLine: closed ? 'line-through' : 'none' }]} numberOfLines={2}>{c.row!.title}</Text>
+                      <Text style={[FONT.meta, { color: p.textTertiary, marginTop: 2 }]}>{md(c.due)}{listName(c.row!.list_id) ? ` · ${listName(c.row!.list_id)}` : ''}</Text>
+                    </Pressable>
+                    <View style={[s.dseg, { backgroundColor: p.segTrack }]} accessibilityRole="radiogroup">
+                      {CHOICES.map(([k, t]) => {
+                        const on = d === k
+                        return (
+                          <Pressable key={k} disabled={busy.has(c.id)} onPress={() => void decide(c.id, k)} accessibilityRole="radio" accessibilityState={{ selected: on }}
+                            style={[s.dseg1, on && { backgroundColor: p.segOn }]}>
+                            <Text style={{ fontSize: 13, fontWeight: on ? '600' : '500', color: k === 'trash' ? p.danger : on ? p.textPrimary : p.textSecondary }}>{t}</Text>
+                          </Pressable>
+                        )
+                      })}
+                    </View>
                   </View>
-                </Card>
-              )
-            })}
+                )
+              })}
+            </Group>
+            {left > 0 ? (
+              <Pressable onPress={() => void allNext()} accessibilityRole="button" style={s.link} hitSlop={6}>
+                <Text style={{ color: p.accent, fontSize: 15 }}>안 고른 {left}개 모두 다음 주로</Text>
+              </Pressable>
+            ) : null}
           </>
         ) : step === 3 ? (
-          <PickStep sugs={sugs} picks={pr.picks} room={room} cols={planCols} today={today}
+          <PickStep sugs={sugs} picks={pr.picks} room={room} existing={planGoals.length} cols={planCols} today={today} planWeek={planWeek}
+            onOpen={(id) => router.push(`/task/${id}`)}
             onToggle={(k) => patch((x) => ({ ...x, picks: togglePick(x.picks, k, room) }))}
             onCustom={(title) => patch((x) => { const key = `custom:${Date.now()}`; return { ...x, custom: [...x.custom, { key, title }], picks: togglePick(x.picks, key, room) } })} />
         ) : (
-          <View style={{ alignItems: 'center', paddingHorizontal: 28, paddingTop: 30, gap: 10 }}>
-            <Buddy size={96} mood="happy" still />
-            <Text style={{ color: p.textPrimary, fontSize: 18, fontWeight: '700', textAlign: 'center' }}>다음 주 준비 끝! 월요일 아침에 ⚡로 알려 줄게</Text>
-            <Text style={{ color: p.textTertiary, fontSize: 14 }}>{finishSummary(pr)}</Text>
-            {pr.created.map((c) => <Text key={c.goalId} style={{ color: p.textPrimary, fontSize: 15, textAlign: 'center' }}>{c.title}</Text>)}
-            {reviewXp.length ? <View style={[s.xp, { backgroundColor: p.accentSubtle }]}><Text style={{ color: p.accent, fontWeight: '700' }}>주간 점검 +{XP.review} XP</Text></View> : null}
-            <Pressable onPress={() => router.push('/map')} accessibilityRole="button" style={[s.big, { backgroundColor: p.accent, alignSelf: 'stretch', marginTop: 8 }]}><Text style={s.bigT}>작업 지도 보기</Text></Pressable>
-            <Pressable onPress={() => go(3)} accessibilityRole="button" hitSlop={8}><Text style={{ color: p.accent, fontSize: 15, fontWeight: '600', padding: 8 }}>다음 주 다시 고르기</Text></Pressable>
-          </View>
+          <>
+            <View style={s.me}>
+              <Buddy size={40} mood="happy" still />
+              <View style={{ flex: 1 }}>
+                <Text style={[FONT.bodyStrong, { color: p.textPrimary }]}>다음 주 준비를 마쳤어요</Text>
+                <Text style={[FONT.sub, { color: p.textTertiary }]}>{finishSummary(pr)}</Text>
+              </View>
+            </View>
+            <Group title="다음 주 목표">
+              {pr.created.length ? pr.created.map((c, i) => <Row key={c.goalId} first={i === 0} label={c.title} />) : <Row first label="고른 목표 없음" dim />}
+              {reviewXp.length ? <Row label="주간 점검" value={`+${XP.review} XP`} valueColor={p.accent} /> : null}
+            </Group>
+            <Group>
+              <Row first label="작업 지도 보기" onPress={() => router.push('/map')} />
+              <Row label="다음 주 다시 고르기" onPress={() => go(3)} />
+            </Group>
+          </>
         )}
       </ScrollView>
       {step < 4 ? (
         <View style={[s.foot, { paddingBottom: insets.bottom + 10, backgroundColor: p.pageBg, borderTopColor: p.borderDivider }]}>
-          {step > 1 ? <Pressable onPress={() => go((step - 1) as Step)} accessibilityRole="button" hitSlop={8}><Text style={{ color: p.textSecondary, fontSize: 15 }}>← 이전</Text></Pressable> : <Text style={{ color: p.textTertiary, fontSize: 13 }}>{step} / 3 단계</Text>}
-          {step === 2 && left > 0 ? <Pressable onPress={() => void allNext()} accessibilityRole="button" hitSlop={8}><Text style={{ color: p.accent, fontSize: 14, fontWeight: '600' }}>모두 다음 주로</Text></Pressable> : null}
+          {step > 1 ? <Pressable onPress={() => go((step - 1) as Step)} accessibilityRole="button" hitSlop={8}><Text style={{ color: p.textSecondary, fontSize: 16 }}>이전</Text></Pressable> : <Text style={{ color: p.textTertiary, fontSize: 14 }}>{step} / 3</Text>}
           <View style={{ flex: 1 }} />
-          <Pressable disabled={finishing || !loaded} onPress={() => void next()} accessibilityRole="button" style={[s.big, { backgroundColor: p.accent, paddingHorizontal: 26 }]}>
-            <Text style={s.bigT}>{step === 3 ? '점검 끝내기 ✓' : '다음 →'}</Text>
+          <Pressable disabled={finishing || !loaded} onPress={() => void next()} accessibilityRole="button" style={({ pressed }) => [s.big, { backgroundColor: p.accent, opacity: pressed ? 0.85 : 1 }]}>
+            <Text style={s.bigT}>{step === 3 ? '점검 끝내기' : '다음'}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -256,104 +256,140 @@ export default function WeeklyReview() {
   )
 }
 
-function Num({ n, label, color, sub }: { n: number | string; label: string; color: string; sub?: string }) {
+/** 묶음: 회색 이름 + 흰 카드 + 회색 밑글(틱틱 설정 묶음) */
+function Group({ title, foot, children }: { title?: string; foot?: string; children: ReactNode }) {
   const p = usePalette()
   return (
-    <View style={[s.num3, { backgroundColor: p.cardBg }]}>
-      <Text style={{ color, fontSize: 26, fontWeight: '800' }}>{n}</Text>
-      <Text style={{ color: p.textSecondary, fontSize: 12.5, fontWeight: '600' }}>{label}</Text>
-      {sub ? <Text style={{ color: p.textTertiary, fontSize: 11 }}>{sub}</Text> : null}
+    <View>
+      {title ? <Text style={[s.gTitle, { color: p.textTertiary }]}>{title}</Text> : <View style={{ height: 18 }} />}
+      <View style={[s.gBox, { backgroundColor: p.cardBg }]}>{children}</View>
+      {foot ? <Text style={[s.gFoot, { color: p.textTertiary }]}>{foot}</Text> : null}
     </View>
   )
 }
 
-/** 7칸 → 세로 7줄(요일 머리 + 막대 최대 3 + +N) */
-function Week({ cols, today, legend }: { cols: DayCell[]; today: string; legend: string }) {
+function Row({ label, value, valueColor, icon, first, dim, onPress, right }: { label: string; value?: string; valueColor?: string; icon?: string; first?: boolean; dim?: boolean; onPress?: () => void; right?: ReactNode }) {
   const p = usePalette()
-  const tone = (t: string) => t === 'done' ? { bg: '#2fa84f22', fg: '#2fa84f', mark: '✓ ' } : t === 'miss' ? { bg: `${p.overdue}22`, fg: p.overdue, mark: '✕ ' } : t === 'goal' ? { bg: p.accentSubtle, fg: p.accent, mark: '' } : { bg: 'transparent', fg: p.textSecondary, mark: '' }
   return (
-    <Card>
-      {cols.map((c, i) => (
-        <View key={c.day} style={[s.dayRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, c.day === today && { backgroundColor: p.accentSubtle }]}>
-          <Text style={{ width: 62, color: c.day === today ? p.accent : p.textSecondary, fontSize: 12.5, fontWeight: '700' }}>{c.label}</Text>
-          <View style={{ flex: 1, gap: 4 }}>
-            {c.bars.slice(0, 3).map((b) => {
-              const t = tone(b.tone)
-              return <Text key={b.id} style={[s.barT, { backgroundColor: t.bg, color: t.fg, borderColor: b.tone === 'open' ? p.borderDivider : 'transparent' }]} numberOfLines={1}>{t.mark}{b.title}</Text>
-            })}
-            {c.bars.length > 3 ? <Text style={{ color: p.textTertiary, fontSize: 12 }}>+{c.bars.length - 3}</Text> : null}
-            {!c.bars.length ? <Text style={{ color: p.textQuaternary, fontSize: 12 }}>{c.day === today ? '지금 점검 중' : '–'}</Text> : null}
-          </View>
-        </View>
-      ))}
-      <Text style={{ color: p.textTertiary, fontSize: 12, padding: 12 }}>{legend}</Text>
-    </Card>
+    <Pressable disabled={!onPress} onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} style={({ pressed }) => [s.row, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
+      {icon ? <Text style={[s.ic, { color: p.textTertiary }]}>{icon}</Text> : null}
+      <Text style={[FONT.body, { flex: 1, color: dim ? p.textTertiary : p.textPrimary }]} numberOfLines={1}>{label}</Text>
+      {value ? <Text style={[FONT.sub, { color: valueColor ?? p.textTertiary }]}>{value}</Text> : null}
+      {right}
+      {onPress ? <ChevronRight size={16} color={p.textQuaternary} /> : null}
+    </Pressable>
   )
 }
 
-function PickStep({ sugs, picks, room, cols, today, onToggle, onCustom }: { sugs: Suggestion[]; picks: string[]; room: number; cols: DayCell[]; today: string; onToggle: (k: string) => void; onCustom: (t: string) => void }) {
+const daySummary = (c: DayCell) => {
+  const n = (t: string) => c.bars.filter((b) => b.tone === t).length
+  return ([['끝냄', n('done')], ['못 함', n('miss')], ['남음', n('open')]] as const).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(' · ')
+}
+
+/** 요일 7행 — 누르면 그날 할 일이 행 아래 펼쳐진다 */
+function Days({ cols, today, onOpen, goal }: { cols: DayCell[]; today: string; onOpen: (id: string) => void; goal?: boolean }) {
+  const p = usePalette()
+  const [open, setOpen] = useState<string | null>(null)
+  return (
+    <>
+      {cols.map((c, i) => {
+        const on = open === c.day
+        const goals = c.bars.filter((b) => b.tone === 'goal').length
+        const summary = goal ? (c.bars.length ? `${c.bars.length}개` : '') : daySummary(c)
+        return (
+          <View key={c.day} style={i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }}>
+            <Pressable disabled={!c.bars.length} onPress={() => setOpen(on ? null : c.day)} accessibilityRole="button" accessibilityState={{ expanded: on }}
+              style={({ pressed }) => [s.row, pressed && { backgroundColor: p.bgSelected }]}>
+              <Text style={[FONT.body, { flex: 1, color: c.day === today ? p.accent : p.textPrimary }]}>{c.label}</Text>
+              {goal && goals ? <Text style={[FONT.sub, { color: p.accent }]}>목표 {goals}</Text> : null}
+              <Text style={[FONT.sub, { color: p.textTertiary }]}>{summary || '–'}</Text>
+              {c.bars.length ? (on ? <ChevronDown size={16} color={p.textQuaternary} /> : <ChevronRight size={16} color={p.textQuaternary} />) : <View style={{ width: 16 }} />}
+            </Pressable>
+            {on ? (
+              <View style={{ paddingBottom: 6 }}>
+                {c.bars.map((b) => (
+                  <Pressable key={b.id} onPress={() => onOpen(b.id)} accessibilityRole="button" style={({ pressed }) => [s.ev, pressed && { backgroundColor: p.bgSelected }]}>
+                    <View style={[s.evBox, { borderColor: b.tone === 'done' ? 'transparent' : p.textQuaternary }]}>{b.tone === 'done' ? <Check size={13} color={p.textTertiary} strokeWidth={2.5} /> : null}</View>
+                    <Text style={[FONT.sub, { flex: 1, color: b.tone === 'done' ? p.textTertiary : p.textPrimary }]} numberOfLines={1}>{b.title}</Text>
+                    {b.tone === 'miss' ? <Text style={[FONT.meta, { color: p.overdue }]}>못 함</Text> : b.tone === 'goal' ? <Text style={[FONT.meta, { color: p.accent }]}>목표</Text> : null}
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        )
+      })}
+    </>
+  )
+}
+
+function PickStep({ sugs, picks, room, existing, cols, today, planWeek, onToggle, onCustom, onOpen }: {
+  sugs: Suggestion[]; picks: string[]; room: number; existing: number; cols: DayCell[]; today: string; planWeek: string
+  onToggle: (k: string) => void; onCustom: (t: string) => void; onOpen: (id: string) => void
+}) {
   const p = usePalette()
   const [writing, setWriting] = useState(false)
   const [draft, setDraft] = useState('')
   const full = picks.length >= room
+  const foot = room === 0 ? `다음 주 목표가 이미 ${existing}개라 더 고를 수 없어요 — 그대로 끝내도 돼요`
+    : full ? '더 고르려면 하나를 빼요' : `다음 주 목표를 ${room}개까지 골라요${existing ? ` · 이미 있는 목표 ${existing}개` : ''}`
   return (
     <>
-      <Text style={{ color: p.textTertiary, fontSize: 13, paddingHorizontal: 20, paddingBottom: 8 }}>
-        {full && room > 0 ? `${picks.length} / ${room} 골랐어요 — 더 고르려면 하나를 빼요` : `${picks.length} / ${room} 골랐어요${picks.length ? '' : ' — 안 골라도 끝낼 수 있어요'}`}
-      </Text>
-      {sugs.map((x) => {
-        const on = picks.includes(x.key)
-        const dim = !on && full
-        return (
-          <Pressable key={x.key} onPress={() => onToggle(x.key)} disabled={dim} accessibilityRole="checkbox" accessibilityState={{ checked: on, disabled: dim }}
-            style={[s.sug, { backgroundColor: on ? p.accentSubtle : p.cardBg, borderColor: on ? p.accent : 'transparent', opacity: dim ? 0.45 : 1 }]}>
-            <View style={[s.box, { borderColor: on ? p.accent : p.textQuaternary, backgroundColor: on ? p.accent : 'transparent' }]}>{on ? <Check size={13} color="#fff" strokeWidth={3} /> : null}</View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: p.textPrimary, fontSize: 15, fontWeight: '600' }} numberOfLines={2}>{x.title}</Text>
-              <Text style={{ color: p.textTertiary, fontSize: 12.5, marginTop: 2 }}>{x.meta}</Text>
-            </View>
+      <Group title={`목표 고르기 ${picks.length} / ${room}`} foot={foot}>
+        {sugs.map((x, i) => {
+          const on = picks.includes(x.key)
+          const dim = !on && full
+          return (
+            <Pressable key={x.key} onPress={() => onToggle(x.key)} disabled={dim} accessibilityRole="checkbox" accessibilityState={{ checked: on, disabled: dim }}
+              style={({ pressed }) => [s.pk, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, { opacity: dim ? 0.4 : 1 }, pressed && { backgroundColor: p.bgSelected }]}>
+              <View style={[s.box, { borderColor: on ? p.accent : p.textQuaternary, backgroundColor: on ? p.accent : 'transparent' }]}>{on ? <Check size={13} color="#fff" strokeWidth={3} /> : null}</View>
+              <View style={{ flex: 1 }}>
+                <Text style={[FONT.body, { color: p.textPrimary }]} numberOfLines={2}>{x.kind === 'project' ? `${x.emoji ?? '🚀'} ` : ''}{x.title}</Text>
+                <Text style={[FONT.meta, { color: p.textTertiary, marginTop: 2 }]}>{x.meta}</Text>
+              </View>
+            </Pressable>
+          )
+        })}
+        {writing ? (
+          <View style={[s.pk, sugs.length > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }]}>
+            <TextInput value={draft} onChangeText={setDraft} autoFocus placeholder="예: 운동 3번" placeholderTextColor={p.textTertiary} returnKeyType="done"
+              onSubmitEditing={() => { const t = draft.trim(); if (t) onCustom(t); setDraft(''); setWriting(false) }} onBlur={() => setWriting(false)}
+              style={[FONT.body, { flex: 1, color: p.textPrimary, paddingVertical: 0 }]} accessibilityLabel="다음 주 목표 직접 적기" />
+          </View>
+        ) : (
+          <Pressable onPress={() => setWriting(true)} disabled={full} accessibilityRole="button"
+            style={({ pressed }) => [s.row, sugs.length > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, { opacity: full ? 0.4 : 1 }, pressed && { backgroundColor: p.bgSelected }]}>
+            <Text style={[FONT.body, { color: p.accent }]}>＋ 직접 적기</Text>
           </Pressable>
-        )
-      })}
-      {writing ? (
-        <View style={[s.sug, { backgroundColor: p.cardBg, borderColor: p.accent }]}>
-          <TextInput value={draft} onChangeText={setDraft} autoFocus placeholder="예: 운동 3번" placeholderTextColor={p.textTertiary} returnKeyType="done"
-            onSubmitEditing={() => { const t = draft.trim(); if (t) onCustom(t); setDraft(''); setWriting(false) }} onBlur={() => setWriting(false)}
-            style={{ flex: 1, color: p.textPrimary, fontSize: 15 }} accessibilityLabel="다음 주 목표 직접 적기" />
-        </View>
-      ) : (
-        <Pressable onPress={() => setWriting(true)} accessibilityRole="button" style={[s.sug, { borderColor: p.textQuaternary, borderStyle: 'dashed', justifyContent: 'center' }]}>
-          <Plus size={16} color={p.accent} /><Text style={{ color: p.accent, fontSize: 15, fontWeight: '600' }}>직접 적기</Text>
-        </Pressable>
-      )}
-      <Text style={{ color: p.textSecondary, fontSize: 13, fontWeight: '700', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 }}>다음 주</Text>
-      <Week cols={cols} today={today} legend="파란 칸 = 고른 목표에 딸린 일" />
+        )}
+      </Group>
+      <Group title={`다음 주 · ${md(planWeek)}부터`}><Days cols={cols} today={today} onOpen={onOpen} goal /></Group>
     </>
   )
 }
 
 const s = StyleSheet.create({
-  nav: { height: 52, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingRight: 16 },
+  nav: { height: M.navH, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8 },
   back: { flexDirection: 'row', alignItems: 'center' },
-  title: { fontSize: 28, fontWeight: '700', paddingHorizontal: 16, paddingBottom: 10 },
-  stepper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 10, gap: 0 },
-  sline: { width: 8, height: 2 },
-  pill: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderRadius: 999, paddingHorizontal: 8, height: 36 },
-  num: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  numT: { color: '#fff', fontSize: 11, fontWeight: '800' },
-  what: { marginHorizontal: 12, marginBottom: 12, borderRadius: 12, padding: 12, fontSize: 13.5, lineHeight: 19, overflow: 'hidden' },
-  nums: { flexDirection: 'row', gap: 8, marginHorizontal: 12, marginBottom: 10 },
-  num3: { flex: 1, borderRadius: 14, padding: 12, alignItems: 'center', gap: 2 },
-  bar: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  barIn: { height: 6, borderRadius: 3 },
-  dayRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 14, paddingVertical: 10 },
-  barT: { fontSize: 13, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, overflow: 'hidden' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  dbtn: { width: '48%', flexGrow: 1, height: 40, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  sug: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 12, marginBottom: 8, borderRadius: 14, borderWidth: 1.5, padding: 14 },
-  box: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  xp: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6, marginTop: 4 },
-  foot: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 16, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
-  big: { height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  bigT: { color: '#fff', fontSize: 16, fontWeight: '700' }
+  title: { paddingHorizontal: 20 },
+  sub: { paddingHorizontal: 20, marginTop: 2 },
+  seg: { marginHorizontal: M.cardInset, marginTop: 14 },
+  gTitle: { fontSize: 13, lineHeight: 18, paddingTop: 18, paddingBottom: 6, paddingHorizontal: M.cardInset + 14 },
+  gBox: { marginHorizontal: M.cardInset, borderRadius: M.radiusCard, overflow: 'hidden' },
+  gFoot: { fontSize: 13, lineHeight: 18, paddingTop: 6, paddingHorizontal: M.cardInset + 14 },
+  row: { minHeight: M.rowH, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
+  ic: { width: 20, textAlign: 'center', fontSize: 16 },
+  ptrack: { height: 3, borderRadius: 2, marginLeft: 44, marginRight: 14, marginTop: -10, marginBottom: 10, overflow: 'hidden' },
+  ev: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 36, paddingLeft: 28, paddingRight: 14 },
+  evBox: { width: 16, height: 16, borderRadius: 4, borderWidth: 1.2, alignItems: 'center', justifyContent: 'center' },
+  mt: { paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
+  dseg: { flexDirection: 'row', borderRadius: 8, padding: 2, height: 32 },
+  dseg1: { flex: 1, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  link: { paddingHorizontal: M.cardInset + 14, paddingTop: 14 },
+  pk: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: M.rowH2, paddingHorizontal: 14, paddingVertical: 10 },
+  box: { width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  me: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 14 },
+  foot: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 20, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
+  big: { height: 44, borderRadius: 10, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
+  bigT: { color: '#fff', fontSize: 16, fontWeight: '600' }
 })

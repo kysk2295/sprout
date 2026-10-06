@@ -101,4 +101,15 @@ assert.deepEqual(viewTitle('tag:t1', [], [], { tags: [{ id: 't1', name: '교수�
 assert.deepEqual(viewTitle('tag:t1', [], [], { tags: [{ id: 't1', name: 'SQLD', kind: 'topic' }] }), { title: '#SQLD' })
 assert.ok(openSql('tag:t1').sql.includes("COALESCE(tt.state,'accepted') = 'accepted'"))
 assert.ok(openSql('smart:all').sql.includes("COALESCE(x.state,'accepted') = 'accepted'"))
+// 30 §A.5: 폴더·리스트 이름 앞 이모지는 아이콘 자리로(폴더 그림 + 🎓Study 겹침 없음)
+{
+  const { splitLead, listShow } = await import('./emojiLead.ts')
+  const { viewTitle } = await import('./views.ts')
+  assert.deepEqual(splitLead('🎓Study'), { emoji: '🎓', name: 'Study' })
+  assert.deepEqual(splitLead('회사'), { emoji: null, name: '회사' })
+  assert.deepEqual(splitLead('🎓'), { emoji: null, name: '🎓' })
+  assert.deepEqual(listShow({ name: '💰가계부', emoji: null }), { emoji: '💰', name: '가계부' })
+  assert.deepEqual(listShow({ name: '생활', emoji: '🏠' }), { emoji: '🏠', name: '생활' })
+  assert.deepEqual(viewTitle('folder:f', [], [{ id: 'f', name: '🎓Study', sort_order: 1 }] as never), { title: 'Study', emoji: '🎓' })
+}
 console.log('views+ ok')

@@ -39,7 +39,6 @@
 .pc-card__top { display: flex; align-items: center; gap: 8px; min-height: 24px; }
 .pc-card__t { flex: 1; min-width: 0; font: 600 15px/22px var(--font-family); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pc-icon { flex: none; line-height: 1; }
-.pc-icon--folder { color: var(--color-text-tertiary); }
 .pc-auto { flex: none; font: 400 12px/1 var(--font-family); color: var(--color-text-tertiary); }
 .pc-card__more { width: 24px; height: 24px; margin: 0 -6px 0 -2px; opacity: 0; flex-shrink: 0; }
 .pc-card:hover .pc-card__more, .pc-card:focus-within .pc-card__more { opacity: 1; }

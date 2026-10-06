@@ -1,6 +1,6 @@
 // 31 §12.2 프로젝트 보드 + §12.9.0 차분한 카드(아이콘·이름·자동 / N개 중 M개 완료 · 마감 / 진행 막대 / 다음 할 일 행) +
 // §12.9.1 손으로 만들기(＋ 새 프로젝트 · 이름 바꾸기 · 합치기 · 삭제 · 끌어 넣기).
-import { Check, Folder, MoreHorizontal, Plus } from 'lucide-react'
+import { Check, MoreHorizontal, Plus } from 'lucide-react'
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react'
 import { daysBetween, projectTitle, type Proposal } from '@sprout/schema/projects'
 import { projectCardLine } from '@sprout/schema/planView'
@@ -27,11 +27,11 @@ export const TASK_DND = 'application/x-sprout-task'
 
 const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
 export const dLabel = (day: string, today: string) => { const n = daysBetween(today, day); return n === 0 ? 'D-day' : n > 0 ? `D-${n}` : `D+${-n}` }
-/** 이름 앞 이모지(사람이 고른 아이콘). 없으면 null — 회색 폴더 아이콘(§12.9.0) */
+/** 이름 앞 이모지(사람이 고른 아이콘). 없으면 null — 🚀(폴더 그림은 폴더에만, 30 §A.5) */
 export const iconOf = (name: string) => { const t = projectTitle(name); return t !== name.trim() ? name.trim().slice(0, name.trim().length - t.length).trim() : null }
 export function ProjectIcon({ name, size = 16 }: { name: string; size?: number }) {
   const e = iconOf(name)
-  return e ? <span className="pc-icon" style={{ fontSize: size }}>{e}</span> : <Folder className="pc-icon pc-icon--folder" style={{ width: size, height: size }} />
+  return <span className="pc-icon" style={{ fontSize: size }}>{e ?? '🚀'}</span>
 }
 /** `N개 중 M개 완료 · 제출 10/10` (급하면 마감만 빨강) */
 export function CardLine({ p, today }: { p: ProjectView; today: string }) {
@@ -206,7 +206,7 @@ export function NameDialog({ anchor, p, cats = [], onClose, onDone }: { anchor: 
     <Popover anchor={anchor} onClose={() => { if (!picking) onClose() }} width={300} className="plan-name">
       <div className="plan-name__h">{p ? '프로젝트 이름 바꾸기' : '새 프로젝트'}</div>
       <div className="plan-name__row">
-        <button ref={btn} className="plan-name__icon" aria-label="아이콘 고르기" onClick={() => setPicking(true)}>{emoji ?? <Folder />}</button>
+        <button ref={btn} className="plan-name__icon" aria-label="아이콘 고르기" onClick={() => setPicking(true)}>{emoji ?? '🚀'}</button>
         <input autoFocus className="plan-add__q" maxLength={20} placeholder="프로젝트 이름" value={name} aria-label="프로젝트 이름"
           onChange={(e) => { setName(e.target.value); setErr('') }} onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void save() }} />
       </div>

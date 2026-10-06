@@ -1,7 +1,7 @@
 // 행 길게 누름(21 §4.1): 행이 떠오르고 뒤가 흐려진 채 아래에 메뉴 —
 // 날짜 줄(오늘 · 내일 · 다음 주 · 날짜…) · 우선순위 깃발 4개 · 상단 고정/고정 해제 · 이동 · 태그 · 일정으로 바꾸기 · 삭제(빨강)
 // [다음] 길게 누른 채 움직여 끌어서 순서 바꾸기
-import { ArrowRightLeft, Calendar, CalendarArrowUp, Flag, FolderInput, FolderMinus, Pin, Sun, Sunrise, Tag, Trash2 } from 'lucide-react-native'
+import { ArrowRightLeft, Calendar, CalendarArrowUp, Flag, CircleMinus, FolderInput, Pin, Sun, Sunrise, Tag, Trash2 } from 'lucide-react-native'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import Animated, { interpolate, useAnimatedStyle } from 'react-native-reanimated'
@@ -46,7 +46,7 @@ export function LongPressMenu(props: {
     // 20 §7.1 · 06 §14.4.6: 할 일 → 일정(데스크톱 우클릭 메뉴와 같은 줄)
     ['toEvent', '일정으로 바꾸기', <ArrowRightLeft key="i" size={20} color={p.textSecondary} />],
     // 29 §9.2 · 31 §12.12.2: 프로젝트 연결만 끊음(리스트엔 남음)
-    ['out', '프로젝트에서 빼기', <FolderMinus key="i" size={20} color={p.textSecondary} />],
+    ['out', '프로젝트에서 빼기', <CircleMinus key="i" size={20} color={p.textSecondary} />],
     ['delete', '삭제', <Trash2 key="i" size={20} color={p.danger} />, true]
   ]
   const items = all.filter(([a]) => (props.only ? props.only.includes(a) : a !== 'out'))

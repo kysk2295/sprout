@@ -5,7 +5,8 @@ import { lateGroups, rowMeta, TAB_LABEL, TIDY_TABS, bubbleFor, type Proposal, ty
 import { XP } from '@sprout/schema/growth'
 import { useQuery } from '@powersync/react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { ArrowRightLeft, CalendarClock, Check, ChevronLeft, Folder, Sun } from 'lucide-react-native'
+import { ArrowRightLeft, CalendarClock, Check, ChevronLeft, Sun } from 'lucide-react-native'
+import { FolderGlyph, splitLead } from '../src/ui/OrgIcons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SlideSheet } from '../src/ui/SlideSheet'
@@ -240,7 +241,7 @@ function MoveSheet({ ids, data, onClose, onPick }: { ids: string[] | null; data:
               ? <ListRow key={b.id} name={`${b.box.list.emoji ? `${b.box.list.emoji} ` : ''}${b.box.list.name}`} count={b.box.count} onPress={() => onPick({ kind: 'list', id: b.id })} />
               : (
                 <View key={b.id}>
-                  <View style={[s.fhead, { borderTopColor: p.borderDivider }]}><Folder size={15} color={p.textSecondary} /><Text style={{ color: p.textSecondary, fontSize: 13.5, fontWeight: '700' }}>{b.name}</Text></View>
+                  <View style={[s.fhead, { borderTopColor: p.borderDivider }]}><FolderGlyph name={b.name} size={15} /><Text style={{ color: p.textSecondary, fontSize: 13.5, fontWeight: '700' }}>{splitLead(b.name).name}</Text></View>
                   {b.lists.map((x) => <ListRow key={x.list.id} indent name={`${x.list.emoji ? `${x.list.emoji} ` : ''}${x.list.name}`} count={x.count} onPress={() => onPick({ kind: 'list', id: x.list.id })} />)}
                 </View>
               ))}
