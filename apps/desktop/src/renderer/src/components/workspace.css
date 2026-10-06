@@ -38,19 +38,29 @@
 .assistant-v2.is-quick .assistant-messages { padding: 12px; }
 .assistant-v2 .assistant-me { align-self: flex-end; max-width: 75%; margin: 0; padding: 8px 12px; border-radius: 12px 12px 4px 12px; background: var(--color-bg-input); font: var(--text-body); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .assistant-v2 .assistant-ai { display: flex; gap: 10px; }
-.assistant-v2 .assistant-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--color-accent-subtle); color: var(--color-accent); display: grid; place-items: center; flex-shrink: 0; }
-.assistant-v2 .assistant-avatar svg { width: 15px; height: 15px; }
+/* 40 §3: 답 옆 = 내 캐릭터 30(배경 원 없음) · 이름 3차 11.5 · 빈 대화 = 캐릭터 L 96 + 이름 + 단계 + 13 문장 + 예시 칩 */
+.assistant-v2 .assistant-face { margin-top: -4px; }
+.assistant-v2 .assistant-name { font: 400 11.5px/14px var(--font-family); color: var(--color-text-tertiary); margin-bottom: -6px; }
+.assistant-v2 .assistant-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding-top: 56px; }
+.assistant-v2.is-quick .assistant-empty { padding-top: 24px; }
+.assistant-v2 .assistant-empty__name { margin-top: 6px; font: 600 15px/22px var(--font-family); color: var(--color-text-primary); }
+.assistant-v2 .assistant-empty__lv { font: 400 12px/16px var(--font-family); color: var(--color-text-tertiary); }
+.assistant-v2 .assistant-empty__one { margin: 10px 0 0; font: 400 13px/19px var(--font-family); color: var(--color-text-secondary); }
+.assistant-v2 .assistant-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.assistant-v2 .assistant-chips.is-center { justify-content: center; margin-top: 16px; }
+.assistant-v2 .assistant-chip { height: 28px; padding: 0 11px; border-radius: 14px; border: 1px solid var(--color-border-divider); background: var(--color-bg-app); color: var(--color-text-primary); font: 400 12.5px/16px var(--font-family); white-space: nowrap; }
+.assistant-v2 .assistant-chip:hover:not(:disabled) { background: var(--color-bg-hover); }
+.assistant-v2 .assistant-chip:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.assistant-v2 .assistant-chip.is-ghost { color: var(--color-text-secondary); }
+.assistant-v2 .assistant-chip:disabled { opacity: .5; }
+.assistant-v2 .assistant-error { align-self: stretch; }
+.assistant-v2 .assistant-error small { display: block; margin: -4px 0 8px; font: var(--text-meta); color: var(--color-text-tertiary); }
 .assistant-v2 .assistant-ai__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .assistant-v2 .assistant-text { margin: 3px 0 0; font: var(--text-body); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .assistant-v2 .assistant-muted { margin: 3px 0 0; font: var(--text-body); color: var(--color-text-secondary); }
 .assistant-v2 .assistant-caret { display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -2px; background: var(--color-accent); animation: assistant-blink 1s steps(1) infinite; }
 @keyframes assistant-blink { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .assistant-v2 .assistant-caret { animation: none; } }
-.assistant-v2 .assistant-suggest { display: flex; flex-direction: column; gap: 6px; align-self: stretch; }
-.assistant-v2 .assistant-suggest button { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--color-bg-card); border: 1px solid var(--color-border-divider); color: var(--color-text-secondary); font: 400 13px/18px var(--font-family); text-align: left; }
-.assistant-v2 .assistant-suggest button:hover:not(:disabled) { background: var(--color-bg-hover); color: var(--color-text-primary); }
-.assistant-v2 .assistant-suggest button:disabled { opacity: .5; }
-.assistant-v2 .assistant-suggest svg { width: 14px; height: 14px; flex-shrink: 0; }
 .assistant-v2 .assistant-steps { display: flex; gap: 6px; font: var(--text-meta); color: var(--color-text-tertiary); }
 .assistant-v2 .assistant-steps .is-on { color: var(--color-accent); }
 .assistant-v2 .assistant-steps em { font-style: normal; color: var(--color-text-tertiary); margin-right: 6px; }

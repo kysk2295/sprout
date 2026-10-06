@@ -330,13 +330,14 @@ export function useWeeklyReports() {
   return useMemo(() => rows?.filter((r, i) => rows.findIndex((x) => x.week_start === r.week_start) === i), [rows])
 }
 /** 그 주에 보여줄 AI 초안 줄(숨긴 것 빼고) */
-export function useGoalDraft(week: string): { reportWeek: string; items: GoalDraft[] } {
+export function useGoalDraft(week: string): { reportWeek: string; items: GoalDraft[]; tried: boolean } {
   const reportWeek = addDays(week, -7)
   const row = useQuery<{ text_json: string | null }>('SELECT text_json FROM weekly_reports WHERE week_start = ? ORDER BY created_at, id LIMIT 1', [reportWeek])?.[0]
   return useMemo(() => {
     const t = readTextJson(row?.text_json)
     const items = t.draftWeek === week ? (t.draft ?? []).filter((d) => !(t.dismissed ?? []).includes(d.title)) : []
-    return { reportWeek, items }
+    // tried = 그 주 초안을 이미 만들어 봄(주 1회 상한, 40 §5.2)
+    return { reportWeek, items, tried: !!t.draftTried }
   }, [row?.text_json, week, reportWeek])
 }
 

@@ -8,7 +8,9 @@ import {
 import { ensureCharacter, useGrowth } from '../../data/growth'
 import { createTask, taskListId } from '../../data/mutations'
 import { dayKey } from '../../lib/dates'
+import { COMPANION_SIZE, LONG_LOADING_HINT } from '@sprout/schema/companion'
 import { CharacterArt } from '../growth/CharacterArt'
+import { CompanionFace } from '../companion/CompanionFace'
 import { SurveyDialog } from '../growth/SurveyDialog'
 import './onboarding.css'
 
@@ -74,7 +76,8 @@ function Welcome({ onStart, onSkipAll }: { onStart: () => void; onSkipAll: () =>
   useEffect(() => { primary.current?.focus() }, [])
   return (
     <section className="onb__body onb__body--center">
-      <SproutMark />
+      {/* 40 §2.2 온보딩 1단계: 18의 새싹 자리에 알 L 96(아직 캐릭터를 모른다) */}
+      <CompanionFace species={null} stage={1} size={COMPANION_SIZE.l} loop="wiggle" className="onb__egg" />
       <h2 className="onb__title">꿈틀에 오신 걸 환영해요</h2>
       <p className="onb__lead">할 일을 끝낼수록 함께 자라는 친구가 생겨요.<br />시작하기 전에 1분만 준비해요.</p>
       <ul className="onb__list">
@@ -151,6 +154,7 @@ function SurveyStep({ ready, onStart, onSkip }: { ready: boolean; onStart: () =>
       <p className="onb__lead">할 일을 다루는 방식을 8가지만 물어요(1분).<br />결과에 맞는 친구를 키우게 돼요.</p>
       <Foot>
         <button className="onb__primary" disabled={!ready} onClick={onStart}>{ready ? '시작하기' : '계정 준비 중…'}</button>
+        {!ready && <p className="onb__note">{LONG_LOADING_HINT}</p>}
         <button className="onb__link" onClick={onSkip}>나중에</button>
       </Foot>
     </section>
@@ -202,28 +206,3 @@ function FirstTaskStep({ ready, onFinish }: { ready: boolean; onFinish: (made: b
   )
 }
 
-/** sprout 로고(후보 B 달력 새싹 — docs/release/brand/out/b/svg/favicon.svg와 같은 모양) */
-function SproutMark() {
-  return (
-    <svg className="onb__mark" width="72" height="72" viewBox="0 0 1024 1024" aria-hidden>
-      <defs>
-        <linearGradient id="onb-mark-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5CD08F" /><stop offset="1" stopColor="#1F9455" /></linearGradient>
-        <mask id="onb-mark-cut" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400">
-          <rect x="-200" y="-200" width="1400" height="1400" fill="#fff" />
-          <rect x="100" y="318" width="800" height="48" fill="#000" />
-          <path d="M500 800 L500 615" stroke="#000" strokeWidth="74" strokeLinecap="round" />
-          <path d="M492 660 C 400 660 300 605 290 478 C 420 470 496 548 492 660 Z" fill="#000" />
-          <path d="M508 618 C 520 500 610 428 725 428 C 728 548 630 624 508 618 Z" fill="#000" />
-        </mask>
-      </defs>
-      <rect width="1024" height="1024" rx="230" fill="url(#onb-mark-bg)" />
-      <g transform="translate(115.2 115.2) scale(0.7943)">
-        <g mask="url(#onb-mark-cut)" fill="#fff">
-          <rect x="130" y="205" width="740" height="690" rx="150" />
-          <rect x="290" y="105" width="104" height="200" rx="52" />
-          <rect x="606" y="105" width="104" height="200" rx="52" />
-        </g>
-      </g>
-    </svg>
-  )
-}

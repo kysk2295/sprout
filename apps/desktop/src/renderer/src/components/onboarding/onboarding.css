@@ -12,7 +12,7 @@
 
 .onb__body { display: flex; flex-direction: column; animation: onb-in var(--motion-base, 160ms) ease-out; }
 .onb__body--center { align-items: center; text-align: center; }
-.onb__mark { margin: 8px 0 4px; }
+.onb__egg { margin: 0 0 4px; }
 .onb__lineup { display: flex; gap: 8px; justify-content: center; margin: 4px 0 2px; }
 .onb__title { margin: 12px 0 8px; font: 700 20px/28px var(--font-family); color: var(--color-text-primary); }
 .onb__lead { margin: 0; font: 400 14px/21px var(--font-family); color: var(--color-text-secondary); }

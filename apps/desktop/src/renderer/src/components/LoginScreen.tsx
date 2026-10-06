@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { authApi, authErrorText, useAuth } from '../data/auth'
+import { COMPANION_SIZE } from '@sprout/schema/companion'
+import { CompanionFace } from './companion/CompanionFace'
 import './login-social.css'
 
 type Provider = 'google' | 'apple'
@@ -59,12 +61,18 @@ export function LoginScreen() {
     return () => window.removeEventListener('keydown', key)
   }, [social])
 
+  // 40 §2.3: 로그인 전엔 누구의 캐릭터인지 모르니 알 하나(4초마다 꿈틀). 누르면 깡충. 오류가 나도 얼굴은 그대로
+  const [hop, setHop] = useState(0)
   const switchMode = () => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setPassword('') }
 
   return (
     <div className="login">
       <div className="login__drag" />
       {toast && <div className="toast" role="status"><span>{toast}</span></div>}
+      <div className="login__mark">
+        <CompanionFace species={null} stage={1} size={COMPANION_SIZE.m} loop="wiggle" play={hop ? { move: 'hop', n: hop } : null} onPress={() => setHop((n) => n + 1)} label="알. 눌러 보기" />
+        {mode === 'signup' && <p className="login__mark-line">가입하면 이 알에서 나와 닮은 친구가 깨어나요</p>}
+      </div>
       <form className="login__card" noValidate onSubmit={(e) => { e.preventDefault(); void submit() }}>
         <h1 className="login__title">{mode === 'login' ? '로그인' : '등록하기'}</h1>
         <input

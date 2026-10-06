@@ -36,6 +36,7 @@ import { useLocalState, usePreferences } from './data/preferences'
 import { CommandMenu, SearchDialog, QuickAdd, type Command } from './components/DesktopEntry'
 import { useAuth, type AuthState } from './data/auth'
 import { LoginScreen } from './components/LoginScreen'
+import { CompanionErrorBoundary } from './components/companion/CompanionStates'
 import { MiniWindow } from './components/MiniWindow'
 import { DesktopSettings } from './components/DesktopSettings'
 import { ExtAgenda } from './components/calendars/ExtSidebar'
@@ -62,7 +63,8 @@ export function App() {
   if (auth.enabled && !auth.state?.user) return <ThemedLogin />
   return (
     <ToastProvider>
-      <Shell key={auth.state?.user?.email ?? 'preview'} sync={auth.state?.sync} email={auth.state?.user?.email} />
+      {/* 40 §2.2 앱 전체 오류 = puzzled 캐릭터 + [다시 시도] */}
+      <CompanionErrorBoundary><Shell key={auth.state?.user?.email ?? 'preview'} sync={auth.state?.sync} email={auth.state?.user?.email} /></CompanionErrorBoundary>
     </ToastProvider>
   )
 }

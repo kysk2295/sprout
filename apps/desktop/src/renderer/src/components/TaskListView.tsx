@@ -21,6 +21,7 @@ import { checkboxColor } from '../lib/priority'
 import type { TaskActions } from '../lib/taskActions'
 import { childrenMap, flattenTree, MAX_DEPTH, type FlatRow } from '../lib/tree'
 import { EmptyState } from './EmptyState'
+import { AllDoneEmpty, OfflineBand, TodayEmpty } from './companion/CompanionStates'
 import { MenuItem, Popover, SubMenu } from './Popover'
 import { PriorityRow } from './Pickers'
 import { flagColor } from '../lib/priority'
@@ -698,17 +699,18 @@ export function TaskListView(props: Props) {
           }}
         />
       )}
+      <OfflineBand />
       <div className="list__scroll" ref={scrollRef} onPointerDown={startBox}>
         {view === 'smart:inbox' && <InboxSuggestCard />}{/* 30 §B 기본함 정리·AI 제안 카드 */}
         {view === 'smart:today' && <YesterdayBand today={today} onMove={(ids) => void actions.moveDates(ids, today, `어제 못 한 ${ids.length}개를 오늘로 옮겼어요`)} />}
         {view === 'smart:today' && <TodayMoments today={today} onPick={(id) => onSelectionChange([id])} />}{/* 31 §10.3 ②③ ⚡ 줄 · 이번 주 돌아보기 */}
         {empty && (
-          view === 'smart:today' ? <EmptyState title="오늘 할 일이 없어요" hint="입력창을 눌러 추가하세요" />
+          view === 'smart:today' ? <TodayEmpty />
             : archive ? <EmptyState title={view === 'smart:trash' ? '휴지통이 비어 있어요' : '태스크가 없어요'} />
               : view.startsWith('tag:') && !tagFilter.length ? (() => { const n = tags.find((t) => t.id === view.slice(4))?.name ?? ''; return <EmptyState title="아직 이 태그가 붙은 할 일이 없어요" hint={`#${n} 이나 [[${n}]] 을 써 보세요`} /> })()
               : <EmptyState title="할 일이 없어요" hint="입력창을 눌러 추가하세요" />
         )}
-        {allDone && <EmptyState variant="done" title="모두 완료했어요" />}
+        {allDone && <AllDoneEmpty />}
         {groups.map((g) => (
           <section key={g.id} className="group" data-group={g.id}>
             {g.name && (

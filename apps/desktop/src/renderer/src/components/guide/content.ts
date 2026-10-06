@@ -123,7 +123,7 @@ export const GUIDES: Record<GuideTab, GuideContent> = {
     steps: [
       { targets: ['.assistant-composer'], title: '말로 시키면 돼요',
         body: '"**내일 오후 3시** 치과 넣어 줘"처럼 적고 `Enter`. 할 일을 만들거나 내 기록에서 답을 찾아요.' },
-      { targets: ['.assistant-suggest', '.assistant-messages'], title: '예시부터 눌러 보세요',
+      { targets: ['.assistant-chips', '.assistant-messages'], title: '예시부터 눌러 보세요',
         body: '자주 쓰는 부탁을 예시로 두었어요. 누르면 바로 보내요. 만든 할 일은 카드에서 **되돌리기**할 수 있어요.', ill: 'ai-undo' },
       { targets: ['.assistant-status', '.assistant-view .pane-header'], title: '연결 상태',
         body: '초록이면 바로 쓸 수 있어요. 끊기면 알약을 눌러 다시 연결해요. 다른 탭에선 오른쪽 아래 말풍선으로 빠른 창을 열어요.' + LAST }

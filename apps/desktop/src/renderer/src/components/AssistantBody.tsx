@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpRight, BarChart3, CalendarDays, Check, Cpu, List, MoreHorizontal, Plus, RefreshCw, RotateCcw, Sparkles, Square, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpRight, BarChart3, Check, Cpu, List, MoreHorizontal, Plus, RefreshCw, RotateCcw, Square, Trash2 } from 'lucide-react'
+import { answerFace, answerKindOf, COMPANION_SIZE, EGG_TAP_LINE, errorFace, pickLine, quickReplies, TAP_LINES, tapSpeaks } from '@sprout/schema/companion'
+import { canGrantTaskXp } from '@sprout/schema/growth'
+import { useGrowth } from '../data/growth'
+import { CompanionFace, CompanionSay, CompanionXp, StillFace, useCompanion } from './companion/CompanionFace'
 import { localModels, type AssistantProgress } from '../../../shared/assistant'
 import { askAssistant, undoAssistant, type AssistantResult } from '../data/assistant'
 import { useQuery } from '../data/useQuery'
@@ -8,7 +12,8 @@ import { useTaskActions } from '../lib/taskActions'
 import { Dialog } from './Dialog'
 import { MenuItem, Popover, SubMenu } from './Popover'
 
-type Message = { id: string; role: 'user' | 'assistant'; text: string; result?: AssistantResult }
+/** request = 그 답을 받은 말(빠른 답 칩이면 합친 말), undone = 등록을 되돌림(40 §3.2 — 카드는 남기고 행이 삭제됨) */
+type Message = { id: string; role: 'user' | 'assistant'; text: string; result?: AssistantResult; request?: string; undone?: boolean }
 export function useAssistant(account: string) {
   const key = `sprout.assistant.history.${account}`
   const [messages, setMessages] = useState<Message[]>(() => { try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] } })
@@ -32,21 +37,22 @@ export function useAssistant(account: string) {
   useEffect(() => { void refresh(); return () => request.current?.abort() }, [])
   // 13 §6: 쓸 수 없으면 1분 뒤 저절로 다시 확인
   useEffect(() => { if (connecting || busy || models.length) return; const t = setTimeout(() => void refresh(), 60000); return () => clearTimeout(t) }, [connecting, busy, models.length])
-  const send = async (text: string) => {
+  /** prompt: 빠른 답 칩(40 §3.3) — 말풍선은 칩 글(text), 모델에는 앞 요청과 합친 말(prompt) */
+  const send = async (text: string, prompt = text) => {
     if (request.current || !text.trim() || !model) return false
-    const abort = new AbortController(); request.current = abort; setBusy(true); setError(''); setLastRequest(text); setStarted(Date.now()); setProgress({ phase: 'connecting' }); const id = crypto.randomUUID()
+    const abort = new AbortController(); request.current = abort; setBusy(true); setError(''); setLastRequest(prompt); setStarted(Date.now()); setProgress({ phase: 'connecting' }); const id = crypto.randomUUID()
     // 서버 대기열(최대 180초) + 생성(120초)을 기다린다 — 메인 프로세스 제한(320초)보다 조금 길게
     let timedOut = false
     const timer = setTimeout(() => { timedOut = true; abort.abort() }, 330000)
     // 다시 시도: 답을 못 받은 같은 말은 말풍선을 또 쌓지 않는다
     setMessages((old) => (old.at(-1)?.role === 'user' && old.at(-1)?.text === text ? old : [...old, { id: id + 'user', role: 'user', text }]))
-    try { const result = await askAssistant(text, model, id, abort.signal, messages.slice(-8).map((m) => ({ role: m.role, content: m.text })), setProgress); setMessages((old) => [...old, { id, role: 'assistant', text: result.text, result }]); return true }
+    try { const result = await askAssistant(prompt, model, id, abort.signal, messages.slice(-8).map((m) => ({ role: m.role, content: m.text })), setProgress); setMessages((old) => [...old, { id, role: 'assistant', text: result.text, result, request: prompt }]); return true }
     catch (e) { setError(timedOut ? 'AI 응답이 너무 오래 걸려요. 다시 시도해 주세요.' : abort.signal.aborted ? '요청을 멈췄어요. 내용을 확인한 뒤 다시 보내 주세요.' : humanize(e)); if (isLimit(e)) setCooldown(Date.now() + 30000); return false }
     finally { clearTimeout(timer); request.current = null; setBusy(false) }
   }
   const undo = async (message: Message) => {
     if (!message.result?.created) return
-    try { await undoAssistant(message.result.created); setMessages((old) => old.map((m) => (m.id === message.id ? { ...m, text: '등록을 되돌렸어요.', result: undefined } : m))) } catch (e) { setError(e instanceof Error ? e.message : '되돌리지 못했어요.') }
+    try { await undoAssistant(message.result.created); setMessages((old) => old.map((m) => (m.id === message.id ? { ...m, undone: true } : m))) } catch (e) { setError(e instanceof Error ? e.message : '되돌리지 못했어요.') }
   }
   return { cooldown: cooldown > Date.now(), progress, started, lastRequest, messages, models, model, setModel, busy, connecting, error, refresh, send, undo, cancel: () => request.current?.abort(), clear: () => { if (!request.current) { setMessages([]); setError('') } } }
 }
@@ -108,13 +114,26 @@ export function AssistantHeaderActions({ assistant: a, help }: { assistant: Assi
   )
 }
 
-const SUGGESTIONS: [typeof CalendarDays, string][] = [[CalendarDays, '내일 오후 3시에 기획 회의 한 시간 잡아줘'], [List, '이번 주 남은 할 일 보여줘'], [BarChart3, '이번 주에 완료한 거 몇 개야?']]
+const SUGGESTIONS = ['내일 오후 3시에 기획 회의 한 시간 잡아줘', '이번 주 남은 할 일 보여줘', '이번 주에 완료한 거 몇 개야?']
 const STEPS: { key: AssistantProgress['phase'][]; label: string }[] = [{ key: ['connecting'], label: '연결' }, { key: ['generating'], label: '해석' }, { key: ['validating', 'saving', 'querying'], label: '확인' }]
+/** 최근 쓴 리스트(빠른 답 칩 — 리스트가 빠졌을 때) */
+const RECENT_LISTS_SQL = "SELECT l.name AS name FROM tasks t JOIN lists l ON l.id = t.list_id WHERE l.archived_at IS NULL AND COALESCE(l.kind, '') <> 'inbox' AND t.deleted_at IS NULL GROUP BY l.id ORDER BY MAX(t.modified_at) DESC LIMIT 3"
 
 export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 'full' }: { draft: string; onDraft: (s: string) => void; assistant: AssistantController; onOpen: (id: string) => void; variant?: 'full' | 'quick' }) {
   const scroll = useRef<HTMLDivElement>(null), follow = useRef(true)
   const input = useRef<HTMLTextAreaElement>(null)
   const [showLatest, setShowLatest] = useState(false), [elapsed, setElapsed] = useState(0)
+  // 40 §3: 답 옆 얼굴 = 내 캐릭터. 움직이는 캐릭터는 마지막 답 하나뿐, 지난 답은 그 얼굴로 멈춤
+  const me = useCompanion()
+  const { events } = useGrowth()
+  const recentLists = useQuery<{ name: string }>(RECENT_LISTS_SQL)
+  const seenIds = useRef<Set<string> | null>(null)
+  if (!seenIds.current) seenIds.current = new Set(a.messages.map((m) => m.id)) // 열 때 이미 있던 답은 다시 깡충하지 않는다
+  const [bump, setBump] = useState<{ id: string; move: 'hop' | 'tilt'; n: number; xp?: boolean } | null>(null)
+  const [say, setSay] = useState<{ text: string; n: number } | null>(null)
+  const lastLine = useRef(-1), taps = useRef<number[]>([])
+  useEffect(() => { if (!say) return; const t = setTimeout(() => setSay(null), 2700); return () => clearTimeout(t) }, [say])
+  useEffect(() => { if (!bump?.xp) return; const t = setTimeout(() => setBump((b) => (b?.n === bump.n ? { ...b, xp: false } : b)), 950); return () => clearTimeout(t) }, [bump])
   useEffect(() => { if (!a.busy) return; const tick = () => setElapsed(Math.floor((Date.now() - a.started) / 1000)); tick(); const timer = setInterval(tick, 1000); return () => clearInterval(timer) }, [a.busy, a.started])
   useEffect(() => { const box = scroll.current; if (box && follow.current) box.scrollTop = box.scrollHeight }, [a.messages, a.busy, a.progress, a.error])
   useEffect(() => { const el = input.current; if (!el) return; el.style.height = '20px'; if (draft) el.style.height = `${Math.min(el.scrollHeight, 6 * 20)}px` }, [draft])
@@ -134,40 +153,79 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
     return () => window.removeEventListener('keydown', key, true)
   }, [variant])
   const latest = () => { follow.current = true; setShowLatest(false); const box = scroll.current; if (box) box.scrollTop = box.scrollHeight }
-  const submit = async (text = draft) => { if (a.busy || !a.model || !text.trim()) return; if (text === draft) onDraft(''); latest(); await a.send(text) }
+  const submit = async (text = draft, prompt?: string) => { if (a.busy || !a.model || !text.trim()) return; if (text === draft) onDraft(''); latest(); await a.send(text, prompt ?? text) }
   const phaseIndex = STEPS.findIndex((s) => s.key.includes(a.progress.phase))
+  const size = COMPANION_SIZE.chat
+  // 빈 대화 캐릭터 누르기(40 §3.4): 깡충 + 말풍선(바로 전 문장 빼고), 10초에 다섯 번 넘게 누르면 깡충만
+  const tapEmpty = () => {
+    setBump((b) => ({ id: 'empty', move: 'hop', n: (b?.n ?? 0) + 1 }))
+    if (!tapSpeaks(taps.current, Date.now())) return
+    const pool = me.egg ? [EGG_TAP_LINE] : TAP_LINES
+    const i = pickLine(pool, lastLine.current)
+    lastLine.current = i
+    setSay({ text: pool[i], n: Date.now() })
+  }
+  const today = dayKey()
+  const canXp = canGrantTaskXp(events.filter((e) => e.day === today))
+  // 마지막에 움직이는 자리: 받는 중 · 오류 줄이 있으면 그 줄, 아니면 마지막 답
+  const tail = a.busy || (a.error && !a.busy)
+  const lastAi = tail ? -1 : a.messages.map((m) => m.role).lastIndexOf('assistant')
+  const lastMsg = a.messages.at(-1)
+  const nameLine = variant === 'full' && <span className="assistant-name">{me.name}</span>
+  const chips = !tail && lastMsg?.role === 'assistant' && answerKindOf(lastMsg.result) === 'reply' && !draft.trim()
+    ? quickReplies({ request: lastMsg.request ?? a.messages.at(-2)?.text ?? '', question: lastMsg.text, lists: (recentLists ?? []).map((l) => l.name) })
+    : []
   return (
     <div className={`assistant-body assistant-v2 is-${variant}`}>
       <div className="assistant-scroll-wrap">
         <div ref={scroll} className="assistant-messages" role="log" aria-label="AI 대화 기록" aria-live="polite" onScroll={() => { const el = scroll.current; if (el) { follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 70; setShowLatest(!follow.current) } }}>
           <div className="assistant-col">
             {!a.messages.length && (
-              <div className="assistant-ai">
-                <span className="assistant-avatar"><Sparkles /></span>
-                <div className="assistant-ai__body">
-                  <p className="assistant-muted">할 일을 말로 등록하거나, 내 일정과 완료 기록을 물어보세요.</p>
-                  <div className="assistant-suggest">
-                    {SUGGESTIONS.map(([Icon, text]) => <button key={text} disabled={a.busy || !a.model} onClick={() => void submit(text)}><Icon />{text}</button>)}
-                  </div>
+              <div className="assistant-empty">
+                <CompanionFace species={me.species} stage={me.stage} size={variant === 'quick' ? COMPANION_SIZE.sheet : COMPANION_SIZE.l} mood="smile" loop={me.egg ? 'wiggle' : 'breathe'} play={bump?.id === 'empty' ? bump : null} onPress={tapEmpty} label={me.label}>
+                  {say && <CompanionSay key={say.n} text={say.text} />}
+                </CompanionFace>
+                <strong className="assistant-empty__name">{me.name}</strong>
+                <span className="assistant-empty__lv">{me.levelLine}</span>
+                <p className="assistant-empty__one">할 일을 말로 등록하거나, 내 일정과 완료 기록을 물어보세요.</p>
+                <div className="assistant-chips is-center">
+                  {SUGGESTIONS.map((text) => <button key={text} className="assistant-chip" disabled={a.busy || !a.model} onClick={() => void submit(text)}>{text}</button>)}
                 </div>
               </div>
             )}
-            {a.messages.map((m) => m.role === 'user'
-              ? <p key={m.id} className="assistant-me">{m.text}</p>
-              : (
+            {a.messages.map((m, i) => {
+              if (m.role === 'user') return <p key={m.id} className="assistant-me">{m.text}</p>
+              const kind = answerKindOf(m.result)
+              const face = answerFace({ kind, count: m.result?.total ?? m.result?.tasks?.length, first: m.result?.tasks?.[0], status: m.result?.status, request: m.request ?? a.messages[i - 1]?.text, text: m.text, undone: m.undone, egg: me.egg })
+              const mine = bump?.id === m.id ? bump : null
+              const live = i === lastAi || !!mine?.xp
+              const fresh = !seenIds.current!.has(m.id)
+              const play = mine ?? (fresh && face.move ? { move: face.move, n: 0 } : null)
+              const mood = mine?.xp ? 'happy' : face.mood
+              return (
                 <div key={m.id} className="assistant-ai">
-                  <span className="assistant-avatar"><Sparkles /></span>
+                  {live
+                    ? <CompanionFace species={me.species} stage={me.stage} size={size} mood={mood} dim={face.dim} play={play} className="assistant-face" onPress={() => setBump((b) => ({ id: m.id, move: 'hop', n: (b?.n ?? 0) + 1 }))} label={me.label}>{mine?.xp && <CompanionXp key={mine.n} />}</CompanionFace>
+                    : <StillFace species={me.species} stage={me.stage} size={size} mood={face.mood} dim={face.dim} />}
                   <div className="assistant-ai__body">
-                    <p className="assistant-text">{m.result?.stats ? `완료한 항목은 ${m.result.stats.count}개, 일정 길이 합계는 ${m.result.stats.hours}시간이에요.` : m.text}</p>
-                    {m.result && <ResultCard result={m.result} onOpen={onOpen} />}
-                    {m.result?.created && <button className="assistant-undo" onClick={() => void a.undo(m)}><RotateCcw />되돌리기</button>}
+                    {nameLine}
+                    <p className="assistant-text">{kind === 'create' || kind === 'query' || kind === 'stats' || m.undone ? face.line : m.text}</p>
+                    {m.result && <ResultCard result={m.result} onOpen={onOpen} onDone={() => setBump((b) => ({ id: m.id, move: 'hop', n: (b?.n ?? 0) + 1, xp: canXp }))} />}
+                    {m.result?.created && !m.undone && <button className="assistant-undo" onClick={() => void a.undo(m)}><RotateCcw />되돌리기</button>}
+                    {m === lastMsg && chips.length > 0 && (
+                      <div className="assistant-chips" role="group" aria-label="빠른 답">
+                        {chips.map((c) => <button key={c.label} className={`assistant-chip${c.ghost ? ' is-ghost' : ''}`} disabled={a.busy || !a.model} onClick={() => void submit(c.label, c.send)}>{c.label}</button>)}
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))}
+              )
+            })}
             {a.busy && (
               <div className="assistant-ai">
-                <span className="assistant-avatar"><Sparkles /></span>
+                <CompanionFace species={me.species} stage={me.stage} size={size} mood="think" loop="think" className="assistant-face" />
                 <div className="assistant-ai__body">
+                  {nameLine}
                   {a.progress.preview ? <p className="assistant-text">{a.progress.preview}<span className="assistant-caret" /></p> : <p className="assistant-muted">{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.progress.phase === 'connecting' ? '꿈틀 AI에 연결하는 중…' : '생각하는 중…'}</p>}
                   <div className="assistant-steps" role="status">
                     {STEPS.map((s, i) => <span key={s.label} className={i <= phaseIndex ? 'is-on' : ''}>{i > 0 && <em>›</em>}● {s.label}</span>)}
@@ -176,16 +234,27 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
                 </div>
               </div>
             )}
-            {a.error && !a.busy && (
-              <div className="assistant-error" role="alert">
-                <p>{a.error}</p>
-                <div>
-                  {a.lastRequest && <button disabled={a.busy || a.cooldown || !a.model} title={a.cooldown ? '잠시 뒤 다시 시도할 수 있어요' : undefined} onClick={() => void submit(a.lastRequest)}><RefreshCw />다시 시도</button>}
-                  {a.lastRequest && <button onClick={() => { onDraft(a.lastRequest); input.current?.focus() }}>입력으로 가져오기</button>}
-                  {!a.models.length && <button disabled={a.connecting} onClick={() => void a.refresh()}>다시 연결</button>}
+            {a.error && !a.busy && (() => {
+              const face = errorFace(a.error, me.egg)
+              return (
+                <div className="assistant-ai">
+                  <CompanionFace key={a.error} species={me.species} stage={me.stage} size={size} mood={face.mood} dim={face.dim} play={face.move ? { move: face.move, n: 0 } : null} className="assistant-face" />
+                  <div className="assistant-ai__body">
+                    {nameLine}
+                    {face.line && <p className="assistant-text">{face.line}</p>}
+                    <div className="assistant-error" role="alert">
+                      <p>{a.error}</p>
+                      {!a.models.length && /^지금은 AI를 쓸 수 없어요/.test(a.error) && <small>1분 뒤 저절로 다시 확인해요</small>}
+                      <div>
+                        {a.lastRequest && <button disabled={a.busy || a.cooldown || !a.model} title={a.cooldown ? '잠시 뒤 다시 시도할 수 있어요' : undefined} onClick={() => void submit(a.lastRequest)}><RefreshCw />다시 시도</button>}
+                        {a.lastRequest && <button onClick={() => { onDraft(a.lastRequest); input.current?.focus() }}>입력으로 가져오기</button>}
+                        {!a.models.length && <button disabled={a.connecting} onClick={() => void a.refresh()}>다시 연결</button>}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              )
+            })()}
           </div>
         </div>
         {showLatest && <button className="assistant-latest" onClick={latest}><ArrowDown />최신으로</button>}
@@ -214,7 +283,7 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
 }
 
 /** 결과 카드: 머리줄 + 틱틱 행(체크박스 · 제목 · 날짜). 집계는 큰 숫자 + 근거 행 — 13 §3 */
-function ResultCard({ result: r, onOpen }: { result: AssistantResult; onOpen: (id: string) => void }) {
+function ResultCard({ result: r, onOpen, onDone }: { result: AssistantResult; onOpen: (id: string) => void; onDone?: () => void }) {
   const tasks = r.tasks ?? []
   const [more, setMore] = useState(false)
   const { complete } = useTaskActions()
@@ -249,7 +318,7 @@ function ResultCard({ result: r, onOpen }: { result: AssistantResult; onOpen: (i
         const date = rowDateLabel(span, today)
         return (
           <div key={t.id} className={`assistant-row${done ? ' is-done' : ''}${gone ? ' is-gone' : ''}`} onClick={() => !gone && onOpen(t.id)}>
-            <button className={`checkbox${done ? ' is-checked' : ''}`} aria-label={done ? '완료됨' : '완료'} disabled={!!gone || done} onClick={(e) => { e.stopPropagation(); void complete([t.id]) }}>{done && <Check />}</button>
+            <button className={`checkbox${done ? ' is-checked' : ''}`} aria-label={done ? '완료됨' : '완료'} disabled={!!gone || done} onClick={(e) => { e.stopPropagation(); onDone?.(); void complete([t.id]) }}>{done && <Check />}</button>
             <span className="assistant-row__title">{cur?.title ?? t.title}</span>
             {gone ? <span className="assistant-row__meta">삭제됨</span> : date && <span className={`assistant-row__meta is-${date.tone}`}>{date.label}</span>}
             {!gone && <ArrowUpRight className="assistant-row__go" />}

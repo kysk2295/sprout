@@ -12,6 +12,7 @@ import type { ListRow } from '../../data/types'
 import { ReviewScreen } from '../map/modes'
 import { dayKey } from '../../lib/dates'
 import { MenuItem, Popover } from '../Popover'
+import { QUEST_LIMIT_LINE, QUEST_LIMIT_NOTE } from '@sprout/schema/companion'
 import { CharacterArt } from './CharacterArt'
 import { Confetti, streakOf, WeekChart } from './Interactive'
 import { GrowthStage, StageRoad } from './Stage'
@@ -209,6 +210,16 @@ function GoalsCard({ sectionRef, inputRef, species, stage, name }: { sectionRef:
           <button className="goal-draft__btn" aria-label="제안 숨기기" onClick={(e) => { e.stopPropagation(); void dismissDraft(draft.reportWeek, d.title) }}><X /></button>
         </div>
       ))}
+      {/* 40 §5.2 주 2회 한도: 이번 주 초안을 이미 만들었으면 같은 자리(캐릭터 18)가 한도 안내 + 3차 시스템 문장 */}
+      {tab === 'this' && draft.tried && !drafts.length && !full && (
+        <>
+          <div className="row goal-draft is-limit">
+            <span className="gs-draft-face"><CharacterArt species={species} stage={stage} size={18} mood="sleepy" /></span>
+            <span className="goal-draft__title">{QUEST_LIMIT_LINE}</span>
+          </div>
+          <p className="goal-draft__note">{QUEST_LIMIT_NOTE}</p>
+        </>
+      )}
       {rowMenu && (
         <Popover anchor={rowMenu.anchor} align="end" width={160} className="menu" onClose={() => setRowMenu(undefined)}>
           {tab === 'this' && rowMenu.goal.status !== 'achieved' && <MenuItem label="다음 주로 넘기기" onClick={() => { void carryOver(rowMenu.goal); setRowMenu(undefined) }} />}

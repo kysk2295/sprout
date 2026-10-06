@@ -6,6 +6,9 @@
 .goal-draft__icon { width: var(--size-checkbox); height: var(--size-checkbox); flex-shrink: 0; color: var(--color-text-tertiary); }
 .goal-draft__title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: var(--text-body); color: var(--color-text-tertiary); }
 .goal-draft:hover .goal-draft__title { color: var(--color-text-secondary); }
+.goal-draft.is-limit { cursor: default; }
+.goal-draft.is-limit .goal-draft__title { color: var(--color-text-secondary); white-space: normal; }
+.goal-draft__note { margin: 0 0 4px calc(2px + var(--size-checkbox) + var(--space-row-icon-gap)); font: 400 11.5px/16px var(--font-family); color: var(--color-text-tertiary); }
 .goal-draft__tag { font: var(--text-meta); color: var(--color-text-tertiary); flex-shrink: 0; }
 .goal-draft__btn { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-sm); color: var(--color-text-tertiary); flex-shrink: 0; }
 .goal-draft__btn:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
