@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>캐릭터 동행 시안 — AI 비서 · 로그인 · 상태 화면 (40)</title>
+<style>
+/* 시안 전용 (docs/screens/40-character-companion.md). 토큰은 packages/tokens 값 일부, 캐릭터는 CharacterArt.tsx 도형을 그대로 옮겼다.
+   새 얼굴 두 개(think · puzzled)만 이 시안에서 새로 그렸다(§6). 그라데이션·빛·반짝이·이모지 없음. */
+:root{
+  --bg-app:#fff;--bg-rail:#f8f8f8;--bg-input:#f5f5f6;--bg-hover:#f5f5f5;--bg-card:#fafafa;--bg-popover:#fff;--bg-login:#f9f9f9;
+  --line:#f1f1f1;--divider:#ececee;--login-border:rgba(25,25,25,.1);
+  --t1:#191919;--t2:#7d7d7d;--t3:#a3a4a7;--t4:#b5b6b8;
+  --accent:#4e75f2;--accent-subtle:#ecf0fd;--danger:#e5484d;--warn:#e8a33b;--ok:#3cb371;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Pretendard","Apple SD Gothic Neo",sans-serif;
+  --shadow-pop:0 4px 16px rgba(0,0,0,.1),0 0 0 1px rgba(0,0,0,.04);
+  --page:#e9e9ec;--note:#5b5b60;
+}
+[data-theme=dark]{
+  --bg-app:#1b1b1b;--bg-rail:#1b1b1b;--bg-input:#262626;--bg-hover:#242424;--bg-card:#212121;--bg-popover:#212121;--bg-login:#1b1b1b;
+  --line:#262626;--divider:#2c2c2c;--login-border:rgba(255,255,255,.12);
+  --t1:#e6e6e6;--t2:#9a9a9a;--t3:#6f6f6f;--t4:#4a4a4a;
+  --accent:#6a8cf6;--accent-subtle:#232b45;
+  --shadow-pop:0 4px 16px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.05);
+  --page:#0e0e0e;--note:#a0a0a6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+button,input{font:inherit;color:inherit;background:none;border:0}
+button{cursor:pointer}
+body{font:400 14px/20px var(--font);background:var(--page);color:var(--t1);padding:20px 16px 80px}
+/* ── 조작 막대 ── */
+.ctl{max-width:1240px;margin:0 auto 18px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;font-size:12px;color:var(--note)}
+.ctl h1{font:700 18px/26px var(--font);color:var(--t1);width:100%}
+.ctl p{width:100%;line-height:18px}
+.ctl label{display:flex;gap:6px;align-items:center}
+.ctl select,.ctl input[type=text]{font:12px var(--font);padding:3px 6px;border:1px solid #bbb;border-radius:6px;background:var(--bg-popover);color:var(--t1)}
+.ctl .acts{display:flex;flex-wrap:wrap;gap:6px}
+.ctl .acts button{font:500 12px var(--font);padding:5px 10px;border-radius:6px;border:1px solid #bbb;background:var(--bg-popover);color:var(--t1)}
+section.s{max-width:1240px;margin:0 auto 34px}
+section.s>h2{font:700 15px/22px var(--font);margin-bottom:4px}
+section.s>.why{font-size:12px;line-height:18px;color:var(--note);margin-bottom:12px;max-width:900px}
+.row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.cap{font-size:11.5px;color:var(--note);margin:8px 2px 0;max-width:420px;line-height:17px}
+.cap b{color:var(--t1);font-weight:600}
+
+/* ── 캐릭터 · 움직임 (transform · opacity만) ── */
+.ch{display:inline-block;line-height:0;transform-origin:50% 92%}
+.ch svg{display:block;width:100%;height:100%}
+.ch.breathe{animation:breathe 3.2s ease-in-out infinite}
+.ch.think{animation:think 1.4s ease-in-out infinite}
+.ch.hop{animation:hop .34s cubic-bezier(.3,.7,.4,1) 1}
+.ch.tilt{animation:tilt .42s ease-out 1}
+.ch.wiggle{animation:wiggle 4s ease-in-out infinite}
+.ch.dim{opacity:.55}
+@keyframes breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.02)}}
+@keyframes think{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+@keyframes hop{0%{transform:translateY(0)}45%{transform:translateY(-6px)}100%{transform:translateY(0)}}
+@keyframes tilt{0%{transform:rotate(0)}40%{transform:rotate(-8deg)}100%{transform:rotate(0)}}
+@keyframes wiggle{0%,82%,100%{transform:rotate(0)}85%{transform:rotate(-4deg)}88%{transform:rotate(4deg)}91%{transform:rotate(-3deg)}94%{transform:rotate(2deg)}}
+.xp{position:absolute;font:600 11px/14px var(--font);color:var(--accent);pointer-events:none;animation:xp .9s ease-out forwards}
+@keyframes xp{0%{opacity:0;transform:translateY(4px)}20%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}
+.say{position:absolute;white-space:nowrap;font-size:12.5px;line-height:17px;padding:6px 10px;border-radius:12px 12px 12px 4px;background:var(--bg-popover);box-shadow:var(--shadow-pop);color:var(--t1);animation:say 2.6s ease forwards;pointer-events:none}
+@keyframes say{0%{opacity:0}8%{opacity:1}88%{opacity:1}100%{opacity:0}}
+[data-motion=reduce] .ch{animation:none!important}
+[data-motion=reduce] .xp{animation:fade .9s forwards}
+[data-motion=reduce] .say{animation:fadeLong 2.6s forwards}
+@keyframes fade{0%,70%{opacity:1}100%{opacity:0}}
+@keyframes fadeLong{0%{opacity:0}8%,88%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.ch{animation:none!important}}
+
+/* ── 데스크톱 창 틀 ── */
+.win{background:var(--bg-app);border-radius:10px;overflow:hidden;box-shadow:0 10px 36px rgba(0,0,0,.18);display:flex;position:relative}
+.win .rail{width:52px;background:var(--bg-rail);border-right:1px solid var(--line);flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding-top:12px;gap:12px}
+.win .rail .dots{display:flex;gap:5px;margin-bottom:6px}.win .rail .dots i{width:10px;height:10px;border-radius:50%;background:#ff5f57}.win .rail .dots i:nth-child(2){background:#febc2e}.win .rail .dots i:nth-child(3){background:#28c840}
+.win .rail b{width:20px;height:20px;border-radius:5px;background:var(--t4);opacity:.45}
+.win .rail b.on{background:var(--accent);opacity:1}
+.as{flex:1;display:flex;flex-direction:column;min-width:0}
+.as-head{height:57px;display:flex;align-items:center;gap:10px;padding:0 21px;flex-shrink:0}
+.as-head h3{font:700 20px/28px var(--font);flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:12px;background:var(--bg-input);font-size:11.5px;color:var(--t2);white-space:nowrap}
+.pill i{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+.pill.warn i{background:var(--warn)}.pill.off i{background:var(--t3)}
+.ib{width:28px;height:28px;border-radius:6px;display:grid;place-items:center;color:var(--t2);font-size:16px}
+.as-body{flex:1;overflow:auto;padding:8px 21px 0}
+.col{max-width:640px;margin:0 auto}
+.me{display:flex;justify-content:flex-end;margin:14px 0}
+.me span{max-width:75%;background:var(--bg-input);border-radius:12px 12px 4px 12px;padding:8px 12px}
+.ai{display:flex;gap:10px;margin:14px 0;align-items:flex-start;position:relative}
+.ai>.ch{width:30px;height:30px;flex-shrink:0;margin-top:-4px;cursor:pointer}
+.ai .bd{flex:1;min-width:0}
+.ai .nm{font-size:11.5px;color:var(--t3);line-height:14px;margin-bottom:2px}
+.ai .ln{font-size:14px;line-height:20px}
+.steps{font-size:11px;color:var(--t3);margin-top:6px}
+.steps .on{color:var(--accent)}
+.card{margin-top:8px;background:var(--bg-card);border:1px solid var(--divider);border-radius:8px;overflow:hidden}
+.card .hd{display:flex;align-items:center;gap:6px;padding:8px 12px;font-size:12px;color:var(--t2);border-bottom:1px solid var(--line)}
+.card .hd b{font-weight:600;color:var(--t1)}
+.trow{display:flex;align-items:center;gap:10px;height:38px;padding:0 12px;position:relative}
+.trow+.trow{border-top:1px solid var(--line)}
+.cb{width:15px;height:15px;border:1.5px solid var(--t4);border-radius:3px;flex-shrink:0;cursor:pointer;display:grid;place-items:center}
+.cb.done{background:var(--accent);border-color:var(--accent)}
+.cb.done::after{content:"";width:7px;height:4px;border:2px solid #fff;border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+.trow .tt{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow.isdone .tt{color:var(--t3)}
+.trow .dt{color:var(--accent);font-size:12.5px}
+.undo{margin-top:6px;font-size:12.5px;color:var(--accent)}
+.undo.off{color:var(--t4)}
+.big{padding:10px 12px 4px;font:700 20px/26px var(--font)}
+.big small{font:400 12px var(--font);color:var(--t2);margin-left:6px}
+.basis{padding:0 12px 8px;font-size:11px;color:var(--t3)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{height:28px;padding:0 11px;border-radius:14px;border:1px solid var(--divider);background:var(--bg-app);font-size:12.5px;color:var(--t1)}
+.chip:hover{background:var(--bg-hover)}
+.chip.ghost{color:var(--t2)}
+.sys{margin-top:8px;background:var(--bg-input);border-radius:8px;padding:9px 12px;font-size:13px;line-height:19px;color:var(--t1)}
+.sys small{display:block;color:var(--t3);font-size:11.5px}
+.sys .act{margin-top:6px;display:flex;gap:12px;font-size:12.5px}
+.sys .act button{color:var(--accent)}
+.sys .act button.off{color:var(--t4)}
+.as-foot{padding:8px 21px 10px;flex-shrink:0}
+.inp{max-width:640px;margin:0 auto;background:var(--bg-input);border-radius:10px;min-height:38px;display:flex;align-items:center;gap:8px;padding:0 6px 0 12px;color:var(--t3)}
+.inp>span:first-child{flex:1}
+.send{flex:none;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:13px}
+.send.off{opacity:.35}.send.stop{background:var(--t1);color:var(--bg-app)}
+.hint{max-width:640px;margin:5px auto 0;font-size:10.5px;color:var(--t3);display:flex;justify-content:space-between}
+/* 빈 대화 */
+.empty-as{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:56px;position:relative}
+.empty-as>.ch{width:96px;height:96px;cursor:pointer}
+.empty-as .nm{margin-top:6px;font:600 15px/22px var(--font)}
+.empty-as .lv{font-size:12px;color:var(--t3)}
+.empty-as .one{margin-top:10px;font-size:13px;color:var(--t2)}
+.empty-as .chips{justify-content:center;margin-top:16px}
+/* 빠른 창 */
+.quick{width:360px;height:470px;border-radius:12px;background:var(--bg-popover);box-shadow:0 12px 40px rgba(0,0,0,.22),0 0 0 1px rgba(0,0,0,.05);display:flex;flex-direction:column;overflow:hidden}
+.quick .as-head{height:44px;padding:0 12px}.quick .as-head h3{font-size:15px}
+.quick .as-body{padding:4px 12px 0}.quick .as-foot{padding:8px 12px 10px}
+
+/* ── 휴대폰 틀 ── */
+.phone{width:390px;height:800px;border-radius:44px;background:var(--bg-app);box-shadow:0 0 0 10px #111,0 18px 50px rgba(0,0,0,.3);overflow:hidden;display:flex;flex-direction:column;position:relative;flex-shrink:0}
+.sb{height:48px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font:600 15px var(--font)}
+.mh{height:52px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:.5px solid var(--divider)}
+.rb{width:36px;height:36px;border-radius:50%;background:var(--bg-input);display:grid;place-items:center;font-size:17px;color:var(--t1)}
+.mh .mid{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+.mh .mid b{font:700 16px/20px var(--font)}
+.mb{flex:1;overflow:auto;padding:4px 16px}
+.mb .ai .ln{font-size:15.5px;line-height:22px}
+.mb .me span{border-radius:16px 16px 4px 16px;font-size:15.5px;line-height:22px;max-width:80%}
+.mb .card{border-radius:12px}.mb .trow{height:48px}.mb .cb{width:18px;height:18px;border-radius:4px}
+.mb .chip{height:34px;padding:0 14px;border-radius:17px;font-size:14px}
+.mf{padding:8px 12px 30px}
+.minp{background:var(--bg-input);border-radius:22px;min-height:44px;display:flex;align-items:center;padding:0 6px 0 16px;gap:8px;color:var(--t3);font-size:15.5px}
+.minp>span:first-child{flex:1}.minp .send{width:32px;height:32px}
+.mnote{font-size:11px;color:var(--t3);text-align:center;margin-top:6px}
+
+/* ── 로그인 ── */
+.login-win{width:720px;height:600px;background:var(--bg-login);border-radius:10px;box-shadow:0 10px 36px rgba(0,0,0,.18);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.login-mark{display:flex;flex-direction:column;align-items:center;margin-bottom:14px;position:relative}
+.login-mark .ch{width:64px;height:64px;cursor:pointer}
+.login-mark .one{font-size:12px;color:var(--t2);margin-top:2px}
+.lcard{width:382px;background:var(--bg-popover);border-radius:16px;padding:28px 46px 26px}
+[data-theme=dark] .lcard{background:#212121}
+.lcard h4{font:700 22px/30px var(--font);margin-bottom:16px}
+.lin{height:40px;border:1px solid var(--login-border);border-radius:10px;padding:0 12px;display:flex;align-items:center;color:var(--t4);margin-bottom:14px}
+.lin.f{border:1.5px solid var(--accent);color:var(--t1)}
+.lbtn{height:40px;border-radius:10px;background:var(--accent);color:#fff;font-weight:500;display:grid;place-items:center}
+.lerr{font-size:12px;color:var(--danger);margin:-6px 0 8px}
+.lforgot{text-align:center;font-size:13px;color:var(--t2);margin:12px 0 12px}
+.lsep{height:1px;background:var(--login-border);margin:6px 0 14px}
+.lsoc{height:38px;border:1px solid var(--login-border);border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:500;margin-bottom:14px}
+.lsoc:last-child{margin-bottom:0}
+.lsw{margin-top:16px;font-size:13px;color:var(--t2)}.lsw a{color:var(--accent)}
+.g{width:16px;height:16px}
+.mlogin{flex:1;padding:12px 24px 0;display:flex;flex-direction:column;background:var(--bg-login)}
+.mlogin .login-mark{margin:34px 0 10px}
+.mlogin .login-mark .ch{width:56px;height:56px}
+.mlogin h4{font:700 26px/34px var(--font);margin-bottom:18px}
+.mlogin .lin{height:50px;border-radius:12px;font-size:16px;background:var(--bg-popover)}
+.mlogin .lbtn{height:50px;border-radius:12px;font-size:16px}
+.mlogin .lsoc{height:50px;border-radius:12px;font-size:16px;background:var(--bg-popover)}
+.mlogin .lsoc.soon{opacity:.5}
+.mlogin .lsoc.soon em{font-style:normal;font-size:12px;color:var(--t3);margin-left:4px}
+
+/* ── 목록 · 상태 화면 ── */
+.list{flex:1;display:flex;flex-direction:column}
+.list .as-head h3{font-size:20px}
+.add{margin:0 21px;height:36px;border-radius:6px;background:var(--bg-input);display:flex;align-items:center;padding:0 12px;color:var(--t3);font-size:13px}
+.stage-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding-bottom:40px;position:relative}
+.stage-empty .ch{width:64px;height:64px;cursor:pointer}
+.stage-empty .t{margin-top:10px;font:500 14px/20px var(--font)}
+.stage-empty .h{margin-top:2px;font-size:12.5px;color:var(--t3)}
+.stage-empty .act{margin-top:12px;font-size:13px;color:var(--accent)}
+.lineart{width:96px;height:96px}
+.mini-win{width:400px;height:330px}
+.vs{display:inline-block;font-size:11px;color:#fff;background:#7d7d7d;border-radius:4px;padding:1px 6px;margin-bottom:6px}
+.vs.rec{background:var(--accent)}
+.banner{display:flex;align-items:center;gap:10px;margin:0 21px 6px;padding:8px 12px;background:var(--bg-input);border-radius:8px;font-size:12.5px;color:var(--t2)}
+.banner .ch{width:24px;height:24px}
+.quest{width:420px;background:var(--bg-card);border:1px solid var(--divider);border-radius:10px;padding:12px 14px}
+.quest h5{font:600 13px/18px var(--font);margin-bottom:8px}
+.qrow{display:flex;align-items:center;gap:10px;height:36px;border-top:1px solid var(--line);font-size:13px}
+.qrow .r{margin-left:auto;color:var(--t3);font-size:12px}
+.qai{display:flex;align-items:center;gap:8px;height:34px;border-top:1px solid var(--line);font-size:12.5px;color:var(--t2)}
+.qai .ch{width:18px;height:18px}
+/* 체계 표 */
+.sys-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tier{background:var(--bg-app);border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.tier .box{height:110px;display:flex;align-items:center;justify-content:center;gap:10px;border-bottom:1px solid var(--line);margin-bottom:10px}
+.tier h4{font:600 13px/18px var(--font)}
+.tier p{font-size:12px;line-height:17px;color:var(--t2);margin-top:3px}
+.moods{display:flex;flex-wrap:wrap;gap:12px;background:var(--bg-app);border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.mood{width:96px;text-align:center;font-size:11.5px;color:var(--t2)}
+.mood .ch{width:72px;height:72px}
+.mood b{display:block;color:var(--t1);font-weight:600;font-size:12px}
+.mood.new b::after{content:" 새 얼굴";color:var(--accent);font-weight:500}
+@media (max-width:900px){.sys-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<div class="ctl">
+  <h1>캐릭터 동행 시안 — 40</h1>
+  <p>내 캐릭터가 AI 비서가 되고, 로그인·빈 상태·오류·한도 화면에도 같은 규칙으로 한 번씩 나온다. 캐릭터 그림은 앱의 <code>CharacterArt</code> 도형 그대로. 캐릭터·빈 대화 예시·결과 카드 체크박스를 눌러 보면 반응이 나온다.</p>
+  <label>테마 <select id="theme"><option value="light">라이트</option><option value="dark">다크</option></select></label>
+  <label>캐릭터 <select id="species"><option value="squirrel">다람쥐</option><option value="turtle">거북이</option><option value="cat">고양이</option><option value="otter">수달</option><option value="">알 (성향 조사 전)</option></select></label>
+  <label>단계 <select id="stage"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></label>
+  <label>이름 <input type="text" id="cname" value="도토리" size="6"></label>
+  <label><input type="checkbox" id="reduce"> 움직임 줄이기</label>
+  <div class="acts"><button data-play="hop">깡충</button><button data-play="tilt">갸웃</button><button data-play="think">생각 중 3초</button></div>
+</div>
+
+<!-- 0. 자리 체계 -->
+<section class="s">
+  <h2>0. 자리 체계 — 크기 네 칸, 한 화면에 캐릭터 하나</h2>
+  <p class="why">캐릭터는 강조일 뿐이다. 화면마다 정해진 크기·자리에 한 번만, 글은 한 줄만. 말풍선은 대화 화면(AI 비서 · 일기 이야기 · 같이 계획 짜기)에서만 쓰고, 다른 화면은 캐릭터 아래 회색 한 줄이다. 색은 그림 고유색과 강조색 하나뿐.</p>
+  <div class="sys-grid">
+    <div class="tier"><div class="box"><span class="ch" data-size="28" data-mood="smile"></span><span class="ch" data-size="18" data-mood="smile"></span></div><h4>S · 18–30</h4><p>대화 속 얼굴(AI 답 옆 30, 휴대폰 30), 퀘스트 제안 줄 18, 배너 24. 움직임은 상태가 바뀔 때 한 번만(숨쉬기 없음).</p></div>
+    <div class="tier"><div class="box"><span class="ch" data-size="64" data-mood="content"></span></div><h4>M · 56–64</h4><p>오늘 비어 있음 · 모두 완료 · 앱 오류 · 로그인 알. 아래 제목 + 회색 한 줄. 숨쉬기 없음, 누르면 반응.</p></div>
+    <div class="tier"><div class="box"><span class="ch breathe" data-size="96" data-mood="smile"></span></div><h4>L · 96</h4><p>AI 비서 빈 대화, 온보딩 1단계. 천천히 숨쉬기만. 누르면 깡충 + 말풍선 한 줄.</p></div>
+    <div class="tier"><div class="box" style="color:var(--t3);font-size:12px">성장 무대 · 184–240</div><h4>XL · 성장 화면만</h4><p>10 §3.2 그대로. 이 문서는 바꾸지 않는다.</p></div>
+  </div>
+  <div style="height:12px"></div>
+  <div class="moods" id="moods"></div>
+  <p class="cap">얼굴 여덟 가지 중 <b>think · puzzled</b> 둘만 새로 그린다(눈동자 위치와 입 모양만 바꾼 것). 나머지는 지금 있는 얼굴. 몸 움직임(갸웃·깡충·흔들기)은 그림이 아니라 transform이다.</p>
+</section>
+
+<!-- 1. 데스크톱 AI 비서 -->
+<section class="s">
+  <h2>1. 데스크톱 AI 비서 — 세 상태</h2>
+  <p class="why">✦ 원 아이콘 자리에 내 캐릭터 얼굴이 들어간다. 캐릭터 한 줄(반말)은 앱이 고르고, 결과 카드·오류·버튼 글은 13 명세의 해요체를 그대로 둔다. 머리·입력창·카드 모양은 13 v2와 같다.</p>
+  <div class="row">
+    <div>
+      <div class="win" style="width:600px;height:560px"><div class="rail"><div class="dots"><i></i><i></i><i></i></div><b></b><b></b><b class="on"></b><b></b></div>
+        <div class="as"><div class="as-head"><h3>AI 비서</h3><span class="pill"><i></i>꿈틀 AI · 연결됨</span><span class="ib">＋</span><span class="ib">⋯</span></div>
+          <div class="as-body"><div class="col" id="liveCol">
+            <div class="empty-as" id="emptyAs">
+              <span class="ch breathe" data-size="96" data-mood="smile" data-tap="pool"></span>
+              <div class="nm" data-name></div><div class="lv" data-lv></div>
+              <div class="one">할 일을 말로 등록하거나, 내 일정과 완료 기록을 물어보세요.</div>
+              <div class="chips"><button class="chip" data-ex="0">내일 오후 3시 기획 회의 한 시간</button><button class="chip" data-ex="1">이번 주 공부 몇 시간 했어?</button><button class="chip" data-ex="2">금요일에 치과</button></div>
+            </div>
+          </div></div>
+          <div class="as-foot"><div class="inp"><span id="liveInp">무엇이든 물어보세요</span><span class="send off" id="liveSend">↑</span></div><div class="hint"><span>Enter 보내기 · Shift+Enter 줄바꿈</span><button id="liveReset" style="color:var(--accent);font-size:10.5px">처음으로</button></div></div>
+        </div></div>
+      <p class="cap"><b>① 빈 대화(움직이는 시안).</b> 캐릭터 96 · 이름 · 단계 · 13의 한 줄 · 예시 칩 3개. 칩을 누르면 ② 생각 중 → ③ 결과 순서로 실제처럼 흐른다. 캐릭터를 누르면 깡충 + 말풍선(10초 안에 다시 누르면 다른 문장).</p>
+    </div>
+    <div>
+      <div class="win" style="width:600px;height:560px"><div class="rail"><div class="dots"><i></i><i></i><i></i></div><b></b><b></b><b class="on"></b><b></b></div>
+        <div class="as"><div class="as-head"><h3>AI 비서</h3><span class="pill warn"><i></i>대기 중 · 앞에 1명</span><span class="ib">＋</span><span class="ib">⋯</span></div>
+          <div class="as-body"><div class="col">
+            <div class="me"><span>내일 오후 3시 기획 회의 한 시간</span></div>
+            <div class="ai"><span class="ch" data-size="30" data-mood="happy"></span><div class="bd"><div class="nm" data-name></div><div class="ln">넣어 뒀어. 내일 오후 3시야.</div>
+              <div class="card"><div class="hd"><b>등록한 일정</b> · 1</div><div class="trow"><span class="cb"></span><span class="tt">기획 회의</span><span class="dt">내일 15:00–16:00</span></div></div><button class="undo">↶ 되돌리기</button></div></div>
+            <div class="me"><span>이번 주 공부 몇 시간 했어?</span></div>
+            <div class="ai"><span class="ch think" data-size="30" data-mood="think"></span><div class="bd"><div class="nm" data-name></div><div class="ln" style="color:var(--t3)">순서를 기다리는 중… (앞에 1명)</div><div class="steps"><span class="on">● 연결</span> › ○ 해석 › ○ 확인 · 4초</div></div></div>
+          </div></div>
+          <div class="as-foot"><div class="inp"><span>무엇이든 물어보세요</span><span class="send stop">■</span></div><div class="hint"><span>Enter 보내기 · Shift+Enter 줄바꿈</span></div></div>
+        </div></div>
+      <p class="cap"><b>② 생각 중.</b> 받는 동안 마지막 캐릭터만 think 얼굴로 좌우 3° 천천히 흔들린다. 진행 단계 줄은 13 그대로. 지난 답의 얼굴은 멈춰 있다(그 답의 얼굴로 굳음).</p>
+    </div>
+    <div>
+      <div class="win" style="width:600px;height:600px"><div class="rail"><div class="dots"><i></i><i></i><i></i></div><b></b><b></b><b class="on"></b><b></b></div>
+        <div class="as"><div class="as-head"><h3>AI 비서</h3><span class="pill"><i></i>꿈틀 AI · 연결됨</span><span class="ib">＋</span><span class="ib">⋯</span></div>
+          <div class="as-body"><div class="col">
+            <div class="me"><span>이번 주 공부 몇 시간 했어?</span></div>
+            <div class="ai"><span class="ch" data-size="30" data-mood="smile"></span><div class="bd"><div class="nm" data-name></div><div class="ln">이번 주 공부는 이만큼 했어.</div>
+              <div class="card"><div class="hd"><b>완료 기록</b> · 이번 주(10/5–10/11)</div><div class="big">6시간 20분<small>완료한 할 일 4개</small></div><div class="basis">완료 시각 기준 · 시작·끝 시각이 있는 할 일만 시간에 더해요</div><div class="trow isdone"><span class="cb done"></span><span class="tt">알고리즘 3장</span><span class="dt" style="color:var(--t3)">10/6 2시간</span></div></div></div></div>
+            <div class="me"><span>금요일에 치과</span></div>
+            <div class="ai"><span class="ch" data-size="30" data-mood="puzzled"></span><div class="bd"><div class="nm" data-name></div><div class="ln">몇 시로 할까?</div>
+              <div class="chips"><button class="chip">오전 10시</button><button class="chip">오후 2시</button><button class="chip">오후 6시</button><button class="chip ghost">시간 없이 금요일</button></div></div></div>
+          </div></div>
+          <div class="as-foot"><div class="inp"><span>무엇이든 물어보세요</span><span class="send off">↑</span></div><div class="hint"><span>Enter 보내기 · Shift+Enter 줄바꿈</span></div></div>
+        </div></div>
+      <p class="cap"><b>③ 결과 · 되묻기.</b> 조회 결과엔 smile, 되묻기엔 puzzled(들어올 때 한 번 갸웃). 빠른 답 칩은 되묻기에만 — 누르면 그 글을 바로 보낸다. 칩은 회색 테두리 알약, 색·아이콘 없음.</p>
+    </div>
+    <div>
+      <div class="quick">
+        <div class="as-head"><h3 style="flex:1">AI 비서</h3><span class="pill"><i></i>연결됨</span><span class="ib">↗</span><span class="ib">×</span></div>
+        <div class="as-body"><div class="me"><span>내일 아침 9시 운동</span></div>
+          <div class="ai"><span class="ch" data-size="30" data-mood="happy"></span><div class="bd"><div class="ln">넣어 뒀어!</div><div class="card"><div class="hd"><b>등록한 일정</b> · 1</div><div class="trow"><span class="cb"></span><span class="tt">운동</span><span class="dt">내일 9:00</span></div></div><button class="undo">↶ 되돌리기</button></div></div></div>
+        <div class="as-foot"><div class="inp"><span>무엇이든 물어보세요</span><span class="send off">↑</span></div></div>
+      </div>
+      <p class="cap"><b>빠른 창(360×470).</b> 같은 규칙, 이름 줄은 생략(좁아서). FAB는 13 그대로 강조색 원 — 캐릭터를 FAB에 넣지 않는다(다른 화면 위에 계속 떠 있는 것이라 조용해야 한다).</p>
+    </div>
+  </div>
+</section>
+
+<!-- 2. 모바일 AI 비서 -->
+<section class="s">
+  <h2>2. 휴대폰 AI 비서</h2>
+  <p class="why">27 배치 그대로, ✦ 원 자리에 캐릭터 30. 결과 카드 체크를 누르면 완료 + 캐릭터 깡충 + "+1"(10 §6 할 일 완료 규칙 — 등록만으로는 XP가 없다). 움직이는 캐릭터는 화면에 하나(마지막 답)뿐.</p>
+  <div class="row">
+    <div class="phone"><div class="sb"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="mh"><span class="rb">‹</span><div class="mid"><b>AI 비서</b><span class="pill"><i></i>연결됨</span></div><span class="rb">✎</span></div>
+      <div class="mb">
+        <div class="me"><span>내일 오후 3시 기획 회의 한 시간</span></div>
+        <div class="ai" id="mAi"><span class="ch" data-size="30" data-mood="happy" data-tap="hop"></span><div class="bd"><div class="nm" data-name></div><div class="ln">넣어 뒀어. 내일 오후 3시야.</div>
+          <div class="card"><div class="hd"><b>등록한 일정</b> · 1</div><div class="trow" id="mRow"><span class="cb" id="mCb"></span><span class="tt">기획 회의</span><span class="dt">내일 15:00</span></div></div><button class="undo">↶ 되돌리기</button></div></div>
+        <div class="me"><span>오늘 남은 일 보여 줘</span></div>
+        <div class="ai"><span class="ch" data-size="30" data-mood="smile"></span><div class="bd"><div class="nm" data-name></div><div class="ln">오늘 남은 건 2개야.</div>
+          <div class="card"><div class="hd"><b>할 일</b> · 오늘 · 2</div><div class="trow"><span class="cb"></span><span class="tt">메일 답장</span><span class="dt">오늘</span></div><div class="trow"><span class="cb"></span><span class="tt">장보기</span><span class="dt">오늘 18:00</span></div></div></div></div>
+      </div>
+      <div class="mf"><div class="minp"><span>무엇이든 물어보세요</span><span class="send off">↑</span></div><div class="mnote">꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 결과는 카드에서 되돌릴 수 있어요</div></div>
+    </div>
+    <div class="phone"><div class="sb"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="mh"><span class="rb">‹</span><div class="mid"><b>AI 비서</b><span class="pill"><i></i>연결됨</span></div><span class="rb" style="opacity:.4">✎</span></div>
+      <div class="mb"><div class="empty-as" style="padding-top:90px">
+        <span class="ch breathe" data-size="96" data-mood="smile" data-tap="pool"></span>
+        <div class="nm" data-name></div><div class="lv" data-lv></div>
+        <div class="one" style="font-size:14px;padding:0 20px">할 일을 말로 등록하거나, 내 일정과 완료 기록을 물어보세요.</div>
+        <div class="chips" style="flex-direction:column;align-items:stretch;width:100%;padding:0 8px"><button class="chip">내일 오후 3시 기획 회의 한 시간</button><button class="chip">이번 주 완료한 일 몇 개야?</button></div>
+      </div></div>
+      <div class="mf"><div class="minp"><span>무엇이든 물어보세요</span><span class="send off">↑</span></div></div>
+    </div>
+    <div class="phone"><div class="sb"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="mh"><span class="rb">‹</span><div class="mid"><b>AI 비서</b><span class="pill"><i></i>연결됨</span></div><span class="rb">✎</span></div>
+      <div class="mb">
+        <div class="me"><span>금요일에 치과</span></div>
+        <div class="ai"><span class="ch" data-size="30" data-mood="puzzled"></span><div class="bd"><div class="nm" data-name></div><div class="ln">몇 시로 할까?</div>
+          <div class="chips"><button class="chip">오전 10시</button><button class="chip">오후 2시</button><button class="chip ghost">시간 없이</button></div></div></div>
+      </div>
+      <div class="mf"><div class="minp"><span>무엇이든 물어보세요</span><span class="send off">↑</span></div></div>
+    </div>
+  </div>
+  <p class="cap">왼쪽: 결과 카드의 체크박스를 눌러 보면 완료 + 깡충 + "+1". 가운데: 빈 대화(반 시트도 같은 내용을 줄여서 — 캐릭터 64). 오른쪽: 되묻기 + 빠른 답 칩(높이 34).</p>
+</section>
+
+<!-- 3. 로그인 -->
+<section class="s">
+  <h2>3. 로그인 — 캐릭터를 모를 때는 알 하나</h2>
+  <p class="why">로그인 전에는 누구의 캐릭터인지 모른다. 08 로고 자리(카드 위 가운데)에 알 64 하나 — 4초마다 한 번 "꿈틀" 흔들린다(이름과 같은 말). 카드는 틱틱 웹 실측 그대로 두고 손대지 않는다. 오류가 나도 알은 표정을 바꾸지 않는다(탓하는 느낌을 안 준다).</p>
+  <div class="row">
+    <div>
+      <div class="login-win">
+        <div class="login-mark"><span class="ch wiggle" data-size="64" data-fixed="egg" data-tap="hop"></span></div>
+        <div class="lcard"><h4>로그인</h4><div class="lin f">yunseo@example.com</div><div class="lin">비밀번호</div><div class="lbtn">로그인</div><div class="lforgot">비밀번호를 잊어버림</div><div class="lsep"></div>
+          <div class="lsoc"><svg class="g" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.6 9.2c0-.6-.1-1.2-.2-1.7H9v3.3h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5z"/><path fill="#34A853" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.9 10.7a5.4 5.4 0 0 1 0-3.4V5H.9a9 9 0 0 0 0 8l3-2.3z"/><path fill="#EA4335" d="M9 3.6c1.3 0 2.5.5 3.5 1.4L15 2.4A9 9 0 0 0 .9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6z"/></svg>Google로 계속하기</div>
+          <div class="lsoc"><span style="font-size:16px"></span>Apple로 계속하기</div></div>
+        <div class="lsw">계정이 없으세요? <a>등록하기</a></div>
+      </div>
+      <p class="cap"><b>데스크톱 로그인.</b> 알을 누르면 깡충. 알 아래 글은 없다(제목 "로그인"으로 충분).</p>
+    </div>
+    <div>
+      <div class="login-win" style="width:520px">
+        <div class="login-mark"><span class="ch wiggle" data-size="64" data-fixed="egg"></span><div class="one">가입하면 이 알에서 나와 닮은 친구가 깨어나요</div></div>
+        <div class="lcard"><h4>등록하기</h4><div class="lin">이메일</div><div class="lin">비밀번호: 6-64자</div><div class="lerr">이미 가입된 이메일이에요</div><div class="lbtn">등록하기</div><div class="lsep" style="margin-top:14px"></div><div class="lsoc">Google로 계속하기</div></div>
+        <div class="lsw">이미 계정이 있으신가요? <a>로그인</a></div>
+      </div>
+      <p class="cap"><b>가입 화면만</b> 알 아래 회색 한 줄 — 성장 루프를 처음 알리는 곳. 오류 줄이 떠도 알은 그대로.</p>
+    </div>
+    <div class="phone"><div class="sb"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="mlogin">
+        <div class="login-mark"><span class="ch wiggle" data-size="56" data-fixed="egg" data-tap="hop"></span></div>
+        <h4>로그인</h4><div class="lin">이메일</div><div class="lin">비밀번호</div><div class="lbtn">로그인</div><div class="lsep" style="margin:18px 0"></div>
+        <div class="lsoc soon">Apple로 계속하기<em>준비 중</em></div><div class="lsoc">Google로 계속하기</div>
+        <div class="lsw" style="text-align:center">계정이 없으세요? <a>등록하기</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. 빈 상태 -->
+<section class="s">
+  <h2>4. 빈 상태 — 앱 상태에만 캐릭터, 일반 목록은 선화 그대로</h2>
+  <p class="why">02 §12 표에 이미 "오늘이 비어 있음 = 캐릭터 한마디"가 있다. 그 자리와 "모두 완료"만 캐릭터 64로 바꾸고, 리스트·태그·필터의 평범한 빈 목록은 틱틱처럼 선화를 둔다(결정 ③).</p>
+  <div class="row">
+    <div><div class="vs rec">추천 · 오늘 비어 있음</div>
+      <div class="win mini-win"><div class="list"><div class="as-head"><h3>오늘</h3></div><div class="add">＋ "오늘"에 할 일 추가</div>
+        <div class="stage-empty"><span class="ch" data-size="64" data-mood="smile" data-tap="pool"></span><div class="t">오늘 할 일이 없어요</div><div class="h">하고 싶은 일이 생기면 적어 줘</div></div></div></div></div>
+    <div><div class="vs rec">추천 · 모두 완료</div>
+      <div class="win mini-win"><div class="list"><div class="as-head"><h3>업무</h3></div><div class="add">＋ "업무"에 할 일 추가</div>
+        <div class="stage-empty"><span class="ch" data-size="64" data-mood="content" data-tap="hop"></span><div class="t">모두 완료했어요</div><div class="h">오늘 5개 했어. 푹 쉬어</div></div></div></div></div>
+    <div><div class="vs">그대로 · 평범한 빈 리스트</div>
+      <div class="win mini-win"><div class="list"><div class="as-head"><h3>여행 준비</h3></div><div class="add">＋ "여행 준비"에 할 일 추가</div>
+        <div class="stage-empty"><svg class="lineart" viewBox="0 0 96 96" fill="none"><circle cx="48" cy="48" r="40" fill="var(--bg-input)"/><rect x="30" y="24" width="32" height="42" rx="4" fill="var(--bg-app)" stroke="var(--t4)" stroke-width="2"/><rect x="36" y="34" width="6" height="6" rx="1.5" stroke="var(--t4)" stroke-width="2"/><path d="M46 37h10M36 48h20M36 56h14" stroke="var(--t4)" stroke-width="2" stroke-linecap="round"/><path d="M68 30l4 4-14 14-5 1 1-5z" fill="var(--bg-app)" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/></svg><div class="t">할 일이 없어요</div><div class="h">입력창을 눌러 추가하세요</div></div></div></div></div>
+  </div>
+  <p class="cap">제목은 틱틱 문구(해요체) 그대로, 둘째 줄만 캐릭터 말(반말, 실제 숫자). 누르면 깡충, 오늘 비어 있음은 문장이 바뀐다.</p>
+</section>
+
+<!-- 5. 오류 · 오프라인 · 로딩 -->
+<section class="s">
+  <h2>5. 오류 · 오프라인 · 로딩</h2>
+  <p class="why">사실(무슨 일이 났고 무엇을 할 수 있는지)은 13 §6 문구 그대로 회색 상자에 둔다. 캐릭터는 그 위에 졸린 얼굴 + 반말 한 줄로 분위기만 덜어 준다. 원인을 캐릭터 탓·사용자 탓으로 말하지 않는다.</p>
+  <div class="row">
+    <div class="win" style="width:560px;height:430px"><div class="rail"><div class="dots"><i></i><i></i><i></i></div><b></b><b></b><b class="on"></b></div>
+      <div class="as"><div class="as-head"><h3>AI 비서</h3><span class="pill off"><i></i>지금은 쓸 수 없어요</span><span class="ib">＋</span><span class="ib">⋯</span></div>
+        <div class="as-body"><div class="col">
+          <div class="me"><span>다음 주 월요일 회의 잡아 줘</span></div>
+          <div class="ai"><span class="ch dim" data-size="30" data-mood="sleepy"></span><div class="bd"><div class="nm" data-name></div><div class="ln">나 지금 잠깐 쉬는 중이야.</div>
+            <div class="sys">지금은 AI를 쓸 수 없어요. 할 일·캘린더는 그대로 쓸 수 있어요.<small>1분 뒤 저절로 다시 확인해요</small><div class="act"><button>다시 시도</button></div></div></div></div>
+          <div class="me"><span>오늘 일정 알려 줘</span></div>
+          <div class="ai"><span class="ch dim" data-size="30" data-mood="sleepy"></span><div class="bd"><div class="ln">연결이 끊겼어. 다시 불러 줘.</div>
+            <div class="sys">꿈틀 AI에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.<div class="act"><button>다시 시도</button></div></div></div></div>
+        </div></div>
+        <div class="as-foot"><div class="inp"><span>무엇이든 물어보세요</span><span class="send off">↑</span></div></div>
+      </div></div>
+    <div>
+      <div class="win mini-win" style="height:330px"><div class="list"><div class="as-head"><h3>오늘</h3></div>
+        <div class="banner"><span class="ch" data-size="24" data-mood="sleepy"></span><span style="flex:1">오프라인 — 연결되면 자동으로 올라가요</span></div>
+        <div class="trow" style="margin:0 9px"><span class="cb"></span><span class="tt">메일 답장</span><span class="dt">오늘</span></div>
+        <div class="trow" style="margin:0 9px"><span class="cb"></span><span class="tt">장보기</span><span class="dt">18:00</span></div></div></div>
+      <p class="cap"><b>오프라인.</b> 08 §6 레일 ⟳ 빨간 점은 그대로. 30초 넘게 끊겨 있을 때만 목록 위 회색 띠 한 줄(캐릭터 24, 08 툴팁 문구 그대로). 다시 연결되면 띠가 사라진다.</p>
+    </div>
+    <div>
+      <div class="win mini-win" style="height:330px"><div class="list" style="align-items:center;justify-content:center">
+        <div class="stage-empty" style="flex:none"><span class="ch think" data-size="56" data-mood="think"></span><div class="t">계정 준비 중…</div><div class="h">처음 한 번만 조금 걸려요</div></div></div></div>
+      <p class="cap"><b>로딩.</b> 1초 안에 끝나는 로딩엔 아무것도 띄우지 않는다(목록은 02 스켈레톤). 첫 동기화처럼 긴 것만 캐릭터 56 think + 18 문구. 캐릭터를 모르는 첫 동기화는 알.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6. AI 한도 -->
+<section class="s">
+  <h2>6. AI 한도에 닿았을 때</h2>
+  <p class="why">한도는 두 갈래다. AI 비서 = 분·하루 상한(13 §6, 429), 성장 = 주 2회(KPI 초안 1 + 주간 리포트 1, 10 §4.3). 둘 다 서버 문구·남은 횟수는 그대로 보이고, 캐릭터는 "다음에 또" 쪽으로만 말한다 — 결제·업그레이드를 권하지 않는다.</p>
+  <div class="row">
+    <div class="win" style="width:560px;height:330px"><div class="rail"><div class="dots"><i></i><i></i><i></i></div><b></b><b></b><b class="on"></b></div>
+      <div class="as"><div class="as-head"><h3>AI 비서</h3><span class="pill"><i></i>꿈틀 AI · 연결됨</span><span class="ib">＋</span><span class="ib">⋯</span></div>
+        <div class="as-body"><div class="col">
+          <div class="me"><span>이번 달 운동 몇 번 했어?</span></div>
+          <div class="ai"><span class="ch" data-size="30" data-mood="sleepy"></span><div class="bd"><div class="nm" data-name></div><div class="ln">숨 좀 고르고 다시 할게.</div>
+            <div class="sys">AI 요청이 너무 잦아요. 잠시 뒤 다시 시도해 주세요. (오늘 남은 요청 63회)<div class="act"><button class="off" id="cdBtn">다시 시도 · 28초</button></div></div></div></div>
+        </div></div>
+        <div class="as-foot"><div class="inp"><span>무엇이든 물어보세요</span><span class="send off">↑</span></div></div>
+      </div></div>
+    <div>
+      <div class="quest"><h5>이번 주 퀘스트</h5>
+        <div class="qrow"><span class="cb"></span>논문 하나 읽기<span class="r">+30</span></div>
+        <div class="qrow"><span class="cb"></span>운동 3번<span class="r">●○○ +30</span></div>
+        <div class="qai"><span class="ch" data-size="18" data-mood="sleepy"></span><span>이번 주 제안은 다 만들었어. 다음 주 월요일에 또 만들게</span></div>
+        <div class="qai" style="color:var(--t3);font-size:11.5px;border:0;height:auto;padding-top:2px">이번 주 AI 초안을 만들 수 없어요 · 직접 적어 주세요</div>
+      </div>
+      <p class="cap"><b>성장 주 2회 한도.</b> 10 §3.2.8의 "○○의 제안" 줄(캐릭터 18)이 그대로 한도 안내 자리가 된다. 시스템 문장(10 §3 "AI 한도·오류")은 아래 3차 글자로 남긴다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 7. 안 쓰는 곳 -->
+<section class="s">
+  <h2>7. 캐릭터를 두지 않는 곳</h2>
+  <p class="why">계정 삭제·로그아웃 확인(죄책감을 만들지 않는다 — "가지 마" 류 금지) · 약관·개인정보 · 할 일 행·토스트·상세 패널(틱틱 그대로) · 주간 점검 단계(31 R.10 — 끝 화면 한 번만) · AI 비서 FAB · 메뉴바 미니 창(09의 캐릭터 24는 그대로).</p>
+</section>
+
+<script>
+const COLORS={turtle:{body:'#9BD3A0',accent:'#5E9E6B'},squirrel:{body:'#E8B48A',accent:'#B5764A'},cat:{body:'#F2C9A0',accent:'#C98E5B'},otter:{body:'#B89A7E',accent:'#7E6249'}};
+const SP_KO={turtle:'꾸준한 거북이',squirrel:'차곡차곡 다람쥐',cat:'몰두하는 고양이',otter:'재주 많은 수달'};
+const STAGE_KO=['','아기','꼬마','친구','단짝','전설'];
+const STAGE_LV=['',2,4,7,12,15];
+const st={species:'squirrel',stage:3,name:'도토리'};
+const E='#3A3A3A';
+function sprout(stage){const leaf='#5DBB63';
+  if(stage>=4)return `<rect x="58" y="22" width="4" height="14" rx="2" fill="#8B6B4A"/><circle cx="60" cy="18" r="${stage>=5?13:11}" fill="${leaf}"/>`+(stage>=5?`<circle cx="54" cy="14" r="3.5" fill="#FFD166"/><circle cx="66" cy="16" r="3.5" fill="#FF8FA3"/><circle cx="60" cy="9" r="3.5" fill="#FFF"/>`:'');
+  return `<path d="M60 36 V24" stroke="${leaf}" stroke-width="3" stroke-linecap="round"/><path d="M60 26 C52 18 44 22 46 28 C52 30 57 29 60 26 Z" fill="${leaf}"/>`+(stage>=2?`<path d="M60 24 C68 16 76 20 74 26 C68 28 63 27 60 24 Z" fill="${leaf}"/>`:'')+(stage>=3?`<path d="M60 30 C66 26 72 30 70 34 C66 35 62 33 60 30 Z" fill="${leaf}"/>`:'');}
+function egg(){return `<svg viewBox="0 0 120 120" aria-hidden="true"><ellipse cx="60" cy="108" rx="24" ry="5" fill="rgba(0,0,0,0.08)"/><path d="M60 22 C82 22 92 58 92 76 C92 96 78 106 60 106 C42 106 28 96 28 76 C28 58 38 22 60 22 Z" fill="#F3EBDD" stroke="#E0D3BC" stroke-width="2"/><path d="M40 70 l8 -6 l8 6 l8 -6 l8 6 l8 -6" stroke="#D8C7A8" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M60 30 V20" stroke="#5DBB63" stroke-width="3" stroke-linecap="round"/><path d="M60 22 C53 15 46 19 48 24 C53 26 57 25 60 22 Z" fill="#5DBB63"/></svg>`;}
+function art(sp,stage,mood){
+  if(!sp)return egg();
+  const c=COLORS[sp],s=.72+stage*.07;
+  const closed=`<path d="M44 62 q5 4 10 0" stroke="${E}" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M66 62 q5 4 10 0" stroke="${E}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+  const pupils=(dx,dy)=>`<g transform="translate(${dx} ${dy})"><circle cx="49" cy="62" r="4.5" fill="${E}"/><circle cx="71" cy="62" r="4.5" fill="${E}"/><circle cx="50.5" cy="60.5" r="1.4" fill="#fff"/><circle cx="72.5" cy="60.5" r="1.4" fill="#fff"/></g>`;
+  let eyes;
+  if(mood==='sleepy')eyes=closed;
+  else if(mood==='happy'||mood==='content')eyes=`<path d="M44 63 q5 -6 10 0" stroke="${E}" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M66 63 q5 -6 10 0" stroke="${E}" stroke-width="2.6" fill="none" stroke-linecap="round"/>`;
+  else if(mood==='think')eyes=pupils(-2.2,-2.4);        // 새 얼굴: 위·옆을 본다
+  else if(mood==='puzzled')eyes=pupils(1.6,0);          // 새 얼굴: 살짝 옆
+  else eyes=pupils(0,0);
+  let mouth;
+  if(mood==='eat')mouth=`<ellipse cx="60" cy="75" rx="5" ry="5.5" fill="#7A3B3B"/>`;
+  else if(mood==='think')mouth=`<circle cx="61" cy="74" r="2.3" fill="none" stroke="${E}" stroke-width="2"/>`;
+  else if(mood==='puzzled')mouth=`<path d="M53 74 q3.5 -3 7 0 q3.5 3 7 0" stroke="${E}" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+  else mouth=`<path d="${mood==='content'?'M53 72 q7 6 14 0':(mood==='happy'||mood==='smile')?'M54 72 q6 7 12 0':'M55 73 q5 4 10 0'}" stroke="${E}" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+  return `<svg viewBox="0 0 120 120" aria-hidden="true"><ellipse cx="60" cy="110" rx="${30*s}" ry="5" fill="rgba(0,0,0,0.08)"/><g transform="translate(60 ${108-50*s}) scale(${s}) translate(-60 -58)">`+
+   (sp==='turtle'?`<ellipse cx="60" cy="74" rx="40" ry="26" fill="${c.accent}"/>`:'')+
+   (sp==='squirrel'?`<path d="M88 84 C116 76 112 30 90 34 C104 46 96 64 84 70 Z" fill="${c.accent}"/>`:'')+
+   (sp==='otter'?`<ellipse cx="60" cy="96" rx="34" ry="8" fill="${c.accent}" opacity="0.6"/>`:'')+
+   (sp==='cat'?`<path d="M86 92 C104 92 108 74 100 66" stroke="${c.accent}" stroke-width="7" fill="none" stroke-linecap="round"/>`:'')+
+   `<ellipse cx="60" cy="66" rx="34" ry="32" fill="${c.body}"/>`+
+   (sp==='cat'?`<path d="M32 44 L36 22 L50 38 Z" fill="${c.body}"/><path d="M88 44 L84 22 L70 38 Z" fill="${c.body}"/>`:'')+
+   ((sp==='squirrel'||sp==='otter')?`<circle cx="36" cy="40" r="7" fill="${c.body}"/><circle cx="84" cy="40" r="7" fill="${c.body}"/>`:'')+
+   (sp==='turtle'?`<circle cx="30" cy="90" r="6" fill="${c.body}"/><circle cx="90" cy="90" r="6" fill="${c.body}"/>`:'')+
+   eyes+`<circle cx="41" cy="72" r="5" fill="#FF9FA8" opacity="0.55"/><circle cx="79" cy="72" r="5" fill="#FF9FA8" opacity="0.55"/>`+mouth+sprout(stage)+`</g></svg>`;
+}
+function paint(){
+  document.querySelectorAll('.ch').forEach(el=>{
+    const sz=+el.dataset.size||64;el.style.width=el.style.height=sz+'px';
+    const sp=el.dataset.fixed==='egg'?null:(el.dataset.sp??st.species)||null;
+    el.innerHTML=art(sp,+(el.dataset.stage||st.stage),el.dataset.mood||'smile');
+    if(el.dataset.tap){el.setAttribute('role','button');el.setAttribute('tabindex','0');el.setAttribute('aria-label',sp?`${st.name}, Lv ${STAGE_LV[st.stage]} ${STAGE_KO[st.stage]}. 눌러서 말 걸기`:'알. 눌러 보기')}
+  });
+  const label=st.species?st.name:'아직 모르는 알';
+  document.querySelectorAll('[data-name]').forEach(el=>el.textContent=label);
+  document.querySelectorAll('[data-lv]').forEach(el=>el.textContent=st.species?`${SP_KO[st.species]} · Lv ${STAGE_LV[st.stage]} ${STAGE_KO[st.stage]}`:'성향 조사를 하면 깨어나요');
+}
+function moodsPanel(){
+  const list=[['smile','smile','기본 · 결과'],['happy','happy','등록 성공'],['think','think','생각 중 · 대기'],['puzzled','puzzled','되묻기 · 모름'],['sleepy','sleepy','쉬는 중 · 한도'],['content','content','모두 완료'],['eat','eat','(성장 무대)'],['egg','egg','로그인 전']];
+  document.getElementById('moods').innerHTML=list.map(([m,k,d])=>`<div class="mood ${m==='think'||m==='puzzled'?'new':''}"><span class="ch" data-size="72" ${m==='egg'?'data-fixed="egg"':`data-mood="${m}"`}></span><b>${k}</b>${d}</div>`).join('');
+}
+function play(el,cls){el.classList.remove('hop','tilt');void el.offsetWidth;el.classList.add(cls);el.addEventListener('animationend',()=>el.classList.remove(cls),{once:true})}
+// 말풍선 · XP
+const POOL=()=>st.species?['말로 적어 주면 내가 넣을게','"내일 3시 회의"처럼 말해 봐','오늘 할 일 물어봐도 돼','잠깐 쉬어도 괜찮아']:['톡톡… 성향 조사를 하면 깨어나!'];
+let lastLine=-1;
+function say(anchor,text){const host=anchor.parentElement;if(getComputedStyle(host).position==='static')host.style.position='relative';
+  const b=document.createElement('div');b.className='say';b.setAttribute('aria-live','polite');b.textContent=text;host.appendChild(b);
+  const r=anchor.getBoundingClientRect(),h=host.getBoundingClientRect();b.style.left=(r.left-h.left+r.width*.7)+'px';b.style.top=(r.top-h.top-26)+'px';setTimeout(()=>b.remove(),2700)}
+function xp(anchor,txt){const host=anchor.parentElement;const x=document.createElement('span');x.className='xp';x.textContent=txt;host.appendChild(x);
+  const r=anchor.getBoundingClientRect(),h=host.getBoundingClientRect();x.style.left=(r.left-h.left+r.width-6)+'px';x.style.top=(r.top-h.top-6)+'px';setTimeout(()=>x.remove(),950)}
+document.addEventListener('click',e=>{
+  const ch=e.target.closest('.ch[data-tap]');
+  if(ch){play(ch,'hop');if(ch.dataset.tap==='pool'){const p=POOL();let i;do{i=Math.floor(Math.random()*p.length)}while(p.length>1&&i===lastLine);lastLine=i;say(ch,p[i])}return}
+  if(e.target.id==='mCb'){const cb=e.target;cb.classList.toggle('done');document.getElementById('mRow').classList.toggle('isdone');if(cb.classList.contains('done')){const a=document.querySelector('#mAi>.ch');play(a,'hop');xp(a,'+1')}}
+  const ex=e.target.closest('[data-ex]');if(ex)runLive(+ex.dataset.ex);
+  const pl=e.target.closest('[data-play]');if(pl){const k=pl.dataset.play;document.querySelectorAll('.ch').forEach(c=>{if(k==='think'){c.classList.add('think');setTimeout(()=>c.classList.remove('think'),3000)}else play(c,k)})}
+});
+document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('.ch[data-tap]')){e.preventDefault();e.target.click()}});
+// ① 움직이는 시안
+const EX=[
+ {q:'내일 오후 3시 기획 회의 한 시간',mood:'happy',move:'hop',line:'넣어 뒀어. 내일 오후 3시야.',card:`<div class="card"><div class="hd"><b>등록한 일정</b> · 1</div><div class="trow"><span class="cb" data-livecb></span><span class="tt">기획 회의</span><span class="dt">내일 15:00–16:00</span></div></div><button class="undo" data-undo>↶ 되돌리기</button>`},
+ {q:'이번 주 공부 몇 시간 했어?',mood:'smile',move:null,line:'이번 주 공부는 이만큼 했어.',card:`<div class="card"><div class="hd"><b>완료 기록</b> · 이번 주(10/5–10/11)</div><div class="big">6시간 20분<small>완료한 할 일 4개</small></div><div class="basis">완료 시각 기준 · 시작·끝 시각이 있는 할 일만 시간에 더해요</div></div>`},
+ {q:'금요일에 치과',mood:'puzzled',move:'tilt',line:'몇 시로 할까?',card:`<div class="chips"><button class="chip" data-ans="오후 2시">오후 2시</button><button class="chip" data-ans="오전 10시">오전 10시</button><button class="chip ghost" data-ans="시간 없이 금요일">시간 없이 금요일</button></div>`}
+];
+let busy=false;
+function runLive(i,qOverride){if(busy)return;busy=true;const col=document.getElementById('liveCol');document.getElementById('emptyAs')?.remove();
+  const ex=EX[i];const q=qOverride||ex.q;
+  col.insertAdjacentHTML('beforeend',`<div class="me"><span>${q}</span></div><div class="ai" data-cur><span class="ch think" data-size="30" data-mood="think" data-tap="hop"></span><div class="bd"><div class="nm" data-name></div><div class="ln" style="color:var(--t3)">&nbsp;</div><div class="steps"><span class="on">● 연결</span> › <span data-s2>○ 해석</span> › <span data-s3>○ 확인</span> · <span data-t>0</span>초</div></div></div>`);
+  paint();const cur=col.querySelector('[data-cur]');const send=document.getElementById('liveSend');send.className='send stop';send.textContent='■';
+  let t=0;const tm=setInterval(()=>{t++;cur.querySelector('[data-t]').textContent=t;if(t===1)cur.querySelector('[data-s2]').outerHTML='<span class="on">● 해석</span>';if(t===2)cur.querySelector('[data-s3]').outerHTML='<span class="on">● 확인</span>'},700);
+  setTimeout(()=>{clearInterval(tm);const c=cur.querySelector('.ch');c.classList.remove('think');
+    const mood=qOverride?'happy':ex.mood;c.dataset.mood=mood;c.innerHTML=art(st.species||null,st.stage,mood);
+    const bd=cur.querySelector('.bd');bd.innerHTML=`<div class="nm">${st.species?st.name:'아직 모르는 알'}</div><div class="ln">${qOverride?(qOverride.includes('시간 없이')?'넣어 뒀어. 금요일이야.':'넣어 뒀어. 금요일 '+qOverride+'야.'):(st.species?ex.line:'톡톡… '+ex.line)}</div>`+(qOverride?EX[0].card.replace('기획 회의','치과').replace('내일 15:00–16:00',(qOverride.includes('시간 없이')?'금요일':'금 '+qOverride)):ex.card);
+    const mv=qOverride?'hop':ex.move;if(mv)play(c,mv);cur.removeAttribute('data-cur');send.className='send off';send.textContent='↑';busy=false;
+    col.parentElement.scrollTop=1e5;},2300);
+}
+document.getElementById('liveCol').addEventListener('click',e=>{
+  const a=e.target.closest('[data-ans]');if(a){runLive(2,a.dataset.ans);return}
+  if(e.target.matches('[data-livecb]')){e.target.classList.toggle('done');e.target.closest('.trow').classList.toggle('isdone');if(e.target.classList.contains('done')){const c=e.target.closest('.ai').querySelector('.ch');play(c,'hop');xp(c,'+1')}}
+  if(e.target.matches('[data-undo]')){const ai=e.target.closest('.ai');ai.querySelector('.trow').classList.add('isdone');ai.querySelector('.tt').textContent+=' · 삭제됨';e.target.className='undo off';e.target.textContent='↶ 되돌렸어요';const c=ai.querySelector('.ch');c.innerHTML=art(st.species||null,st.stage,'smile');play(c,'tilt')}
+});
+document.getElementById('liveReset').onclick=()=>{const col=document.getElementById('liveCol');col.innerHTML=`<div class="empty-as" id="emptyAs"><span class="ch breathe" data-size="96" data-mood="smile" data-tap="pool"></span><div class="nm" data-name></div><div class="lv" data-lv></div><div class="one">할 일을 말로 등록하거나, 내 일정과 완료 기록을 물어보세요.</div><div class="chips"><button class="chip" data-ex="0">${EX[0].q}</button><button class="chip" data-ex="1">${EX[1].q}</button><button class="chip" data-ex="2">${EX[2].q}</button></div></div>`;paint()};
+// 다시 시도 카운트다운
+let cd=28;setInterval(()=>{const b=document.getElementById('cdBtn');if(!b)return;cd=cd<=0?28:cd-1;b.textContent=cd?`다시 시도 · ${cd}초`:'다시 시도';b.className=cd?'off':''},1000);
+// 조작
+const $=id=>document.getElementById(id);
+$('theme').onchange=e=>document.documentElement.dataset.theme=e.target.value;
+$('species').onchange=e=>{st.species=e.target.value;$('cname').value=st.species?({turtle:'거북이',squirrel:'도토리',cat:'고양이',otter:'수달'})[st.species]:'';st.name=$('cname').value;paint()};
+$('stage').onchange=e=>{st.stage=+e.target.value;paint()};
+$('cname').oninput=e=>{st.name=e.target.value||'이름';paint()};
+$('reduce').onchange=e=>document.documentElement.dataset.motion=e.target.checked?'reduce':'';
+const want=location.hash==='#dark'?'dark':location.hash==='#light'?'light':(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=want;$('theme').value=want;
+moodsPanel();paint();
+</script>
+</body>
+</html>
