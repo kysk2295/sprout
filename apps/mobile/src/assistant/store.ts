@@ -6,7 +6,8 @@ import { readJson, writeJson } from '../collect/localStore'
 import { humanize, isLimit, STOPPED, TOO_LONG, type AssistantProgress, type AssistantResult } from './core'
 import { aiStatus, askAssistant, undoAssistant } from './data'
 
-export type Message = { id: string; role: 'user' | 'assistant'; text: string; result?: AssistantResult }
+/** sent = 모델에게 실제로 보낸 말(빠른 답 칩: 말풍선은 칩 글, 보낸 말은 앞 요청과 합친 글 — 40 §3.3) · undone = 등록을 되돌림(40 §3.2) */
+export type Message = { id: string; role: 'user' | 'assistant'; text: string; sent?: string; result?: AssistantResult; undone?: boolean }
 export type AssistantState = {
   account: string
   messages: Message[]
@@ -19,6 +20,8 @@ export type AssistantState = {
   progress: AssistantProgress
   started: number
   lastRequest: string
+  /** 다시 시도 때 보낼 말(빠른 답 칩이면 합친 글) */
+  lastPrompt: string
   /** 상한(429)·혼잡(503) 뒤 다시 시도를 막는 끝 시각 */
   cooldownUntil: number
 }
@@ -27,7 +30,7 @@ const historyKey = (account: string) => `sprout.assistant.history.${account}`
 const MODEL_KEY = 'sprout.assistant.model'
 const fresh = (account: string): AssistantState => ({
   account, messages: readJson<Message[]>(historyKey(account), []), draft: '', models: [], model: readJson<string>(MODEL_KEY, ''),
-  connecting: false, busy: false, error: '', progress: { phase: 'connecting' }, started: 0, lastRequest: '', cooldownUntil: 0
+  connecting: false, busy: false, error: '', progress: { phase: 'connecting' }, started: 0, lastRequest: '', lastPrompt: '', cooldownUntil: 0
 })
 
 let state: AssistantState | null = null
@@ -65,7 +68,7 @@ export async function refresh() {
 }
 
 /** 보내기(다시 시도 포함). 같은 말을 답 없이 다시 보내면 말풍선을 또 쌓지 않는다(13 §4) */
-export async function send(text: string) {
+export async function send(text: string, prompt?: string) {
   const s = current()
   if (request || !text.trim() || !s.model || s.busy) return false
   const abort = new AbortController()
@@ -74,13 +77,14 @@ export async function send(text: string) {
   // 서버 대기열(최대 180초) + 생성(120초) — 데스크톱과 같은 330초
   let timedOut = false
   const timer = setTimeout(() => { timedOut = true; abort.abort() }, 330_000)
-  const history = s.messages.slice(-8).map((m) => ({ role: m.role, content: m.text }))
+  const ask = prompt?.trim() || text
+  const history = s.messages.slice(-8).map((m) => ({ role: m.role, content: m.sent ?? m.text }))
   set((o) => ({
-    busy: true, error: '', lastRequest: text, started: Date.now(), progress: { phase: 'connecting' },
-    messages: o.messages.at(-1)?.role === 'user' && o.messages.at(-1)?.text === text ? o.messages : [...o.messages, { id: id + 'user', role: 'user', text }]
+    busy: true, error: '', lastRequest: text, lastPrompt: ask, started: Date.now(), progress: { phase: 'connecting' },
+    messages: o.messages.at(-1)?.role === 'user' && o.messages.at(-1)?.text === text ? o.messages : [...o.messages, { id: id + 'user', role: 'user', text, ...(ask !== text ? { sent: ask } : {}) }]
   }))
   try {
-    const result = await askAssistant(text, s.model, id, abort.signal, history, (progress) => { if (request === abort) set({ progress }) })
+    const result = await askAssistant(ask, s.model, id, abort.signal, history, (progress) => { if (request === abort) set({ progress }) })
     if (request === abort) set((o) => ({ messages: [...o.messages, { id, role: 'assistant', text: result.text, result }] }))
     return true
   } catch (e) {
@@ -95,14 +99,14 @@ export const cancel = () => request?.abort()
 /** 새 대화(⌘N 자리): 처리 중이면 막는다 */
 export function clear() {
   if (request) return
-  set({ messages: [], error: '', lastRequest: '' })
+  set({ messages: [], error: '', lastRequest: '', lastPrompt: '' })
 }
 export const setDraft = (draft: string) => set({ draft })
 export async function undo(messageId: string) {
   const m = current().messages.find((x) => x.id === messageId)
   if (!m?.result?.created) return
   await undoAssistant(m.result.created)
-  set((o) => ({ messages: o.messages.map((x) => (x.id === messageId ? { ...x, text: '등록을 되돌렸어요.', result: undefined } : x)) }))
+  set((o) => ({ messages: o.messages.map((x) => (x.id === messageId ? { ...x, text: '등록을 되돌렸어요.', undone: true } : x)) }))
 }
 
 function subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l) } }

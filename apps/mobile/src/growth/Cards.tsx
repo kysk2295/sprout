@@ -1,4 +1,5 @@
 // 23 §2 ③~⑦: 요약 칩 · 진화 길 · 이번 주 목표 · 이번 주 XP · 주간 리포트 목록 (시안 B1·B2, 공용 키트 묶음 카드)
+import { COMPANION_SIZE, QUEST_LIMIT_LINE, QUEST_LIMIT_NOTE } from '@sprout/schema/companion'
 import { STAGES, weekLabel, XP, type GoalDraft, type Species } from '@sprout/schema/growth'
 import { addDays } from '@sprout/schema/time'
 import { useRouter } from 'expo-router'
@@ -10,6 +11,8 @@ import { Checkbox } from '../ui/Checkbox'
 import { useToast } from '../ui/Toast'
 import type { Palette } from '../theme/palette'
 import { CharacterArt } from './art/CharacterArt'
+import { useBuddy } from '../diary/data'
+import { StaticFace } from '../ui/CompanionFace'
 import { Confetti } from './Bits'
 import { addGoal, dismissDraft, setGoalProgress, useRefTitles } from './data'
 import {
@@ -74,9 +77,10 @@ export function EvolutionRoad({ p, species, level, stage, open, onOpen }: { p: P
 }
 
 /** ⑤ 이번 주 목표: 체크·횟수 점·AI 초안 +/× (휴대폰에서 새로 적기·고쳐 받기·삭제는 없음 — 23 §4, D7) */
-export function GoalsCard({ p, today, week, goals, xpIds, drafts, reduced }: {
-  p: Palette; today: string; week: string; goals: GoalRow[]; xpIds: Set<string>; drafts: GoalDraft[]; reduced: boolean
+export function GoalsCard({ p, today, week, goals, xpIds, drafts, draftUsed, reduced }: {
+  p: Palette; today: string; week: string; goals: GoalRow[]; xpIds: Set<string>; drafts: GoalDraft[]; draftUsed?: boolean; reduced: boolean
 }) {
+  const buddy = useBuddy()
   const toast = useToast()
   const [cheer, setCheer] = useState<string>()
   const done = goals.filter((g) => g.status === 'achieved').length
@@ -137,6 +141,16 @@ export function GoalsCard({ p, today, week, goals, xpIds, drafts, reduced }: {
           <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel={`${d.title} 제안 숨기기`} onPress={() => void dismissDraft(today, addDays(week, -7), d.title)}><X size={18} color={p.textTertiary} /></Pressable>
         </View>
       ))}
+      {draftUsed && !drafts.length && goals.length < XP.goalsPerWeek ? (
+        // 40 §5.2 주간 한도: 캐릭터 S 18 sleepy + 한 줄(반말), 아래 3차 시스템 문장(해요체)
+        <View style={s.limit}>
+          <View style={s.limitRow}>
+            <StaticFace species={buddy.species} stage={buddy.stage} size={COMPANION_SIZE.quest} mood="sleepy" />
+            <Text style={[s.limitLine, { color: p.textSecondary }]}>{QUEST_LIMIT_LINE}</Text>
+          </View>
+          <Text style={[s.limitNote, { color: p.textTertiary }]}>{QUEST_LIMIT_NOTE}</Text>
+        </View>
+      ) : null}
       {!goals.length ? (
         <View style={s.empty}>
           <Text style={[s.emptyTitle, { color: p.textSecondary }]}>이번 주 목표가 아직 없어요</Text>
@@ -220,6 +234,10 @@ export function ReportsCard({ p, reports }: { p: Palette; reports: ReportRow[] }
 }
 
 const s = StyleSheet.create({
+  limit: { paddingTop: 8, gap: 2 },
+  limitRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  limitLine: { flex: 1, fontSize: 13.5, lineHeight: 18 },
+  limitNote: { fontSize: 12, lineHeight: 16, marginLeft: 26 },
   chips: { gap: 6, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   chip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
   chipText: { fontSize: 12, lineHeight: 18, fontWeight: '500' },

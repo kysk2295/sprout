@@ -52,10 +52,11 @@ export function useDoneByDay(month: string): Map<string, number> {
   return m
 }
 /** 대화 상대 = 내 성장 캐릭터(이름·종·단계) */
-export function useBuddy(): Buddy & { stage: number } {
+export function useBuddy(): Buddy & { stage: number; level: number } {
   const c = useQuery<CharacterRow>(CHARACTER_SQL).data[0]
   const total = useQuery<{ xp: number }>('SELECT COALESCE(SUM(amount), 0) AS xp FROM xp_events').data[0]?.xp ?? 0
-  return { ...buddyOf(c), stage: stageOf(levelOfTotal(total).level) }
+  const level = levelOfTotal(total).level
+  return { ...buddyOf(c), stage: stageOf(level), level }
 }
 /** 할 일로 칩: 같은 제목 할 일이 이미 있는가(앱을 다시 켜도 두 번 만들지 않게) */
 export function useExistingTitles(titles: string[]): Set<string> {

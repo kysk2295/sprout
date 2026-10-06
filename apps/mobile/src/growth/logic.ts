@@ -61,7 +61,7 @@ export const timeOfDay = (h: number): TimeOfDay => (h < 6 ? 'night' : h < 11 ? '
 export const TOD_LABEL: Record<TimeOfDay, string> = { morning: '아침', day: '낮', evening: '저녁', night: '밤' }
 /** 졸림: 밤 23–6시 또는 이틀 넘게 XP 없음 */
 export const isSleepy = (h: number, idleDays: number) => h >= 23 || h < 6 || idleDays >= 2
-export type Mood = 'default' | 'smile' | 'happy' | 'content' | 'eat' | 'sleepy'
+export type Mood = 'default' | 'smile' | 'happy' | 'content' | 'eat' | 'sleepy' | 'think' | 'puzzled' // think·puzzled = 40 §6(AI 비서·상태 화면)
 /** 얼굴: 졸림 > 배부름(오늘 할 일 XP 10/10) > 웃음(오늘 완료) > 보통 */
 export const baseMoodOf = (s: { sleepy: boolean; todayTaskXp: number; todayDone: number }): Mood =>
   s.sleepy ? 'sleepy' : s.todayTaskXp >= XP.taskDailyCap ? 'content' : s.todayDone > 0 ? 'smile' : 'default'

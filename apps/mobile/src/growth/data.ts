@@ -1,7 +1,7 @@
 // 23 모바일 성장 — 읽기(useQuery)와 쓰기(goalCore 문장 → run). 계산은 logic.ts, 문장 만들기는 goalCore.ts.
 // 휴대폰은 AI를 부르지 않고 주간 마감도 하지 않는다(23 M-G2) — 데스크톱이 만든 리포트·초안을 동기화로 받아 읽기만 한다.
 import { useQuery } from '@powersync/react-native'
-import { progressFromEvents, reviewXpEvent, tidyXpEvent, type XpEventRow } from '@sprout/schema/growth'
+import { progressFromEvents, readTextJson, reviewXpEvent, tidyXpEvent, type XpEventRow } from '@sprout/schema/growth'
 import { insertStmt } from '@sprout/schema/taskCore'
 import { addDays } from '@sprout/schema/time'
 import { useMemo } from 'react'
@@ -36,6 +36,8 @@ export function useGrowthData(today: string) {
   const reports = useMemo(() => uniqueWeeks(reportRows), [reportRows])
   const xpIds = useMemo(() => new Set(earned.map((e) => e.ref_id)), [earned])
   const drafts = useMemo(() => visibleDrafts(draftRow?.text_json, week, goals), [draftRow?.text_json, week, goals])
+  // 40 §5.2: 이번 주 AI 초안을 이미 만들었다(주 2회 상한 중 KPI 초안 1 — 10 §4.3 draftTried)
+  const draftUsed = useMemo(() => { const t = readTextJson(draftRow?.text_json); return !!t.draftTried && (t.draftWeek ?? week) === week }, [draftRow?.text_json, week])
   const stats: StageStats = useMemo(() => ({
     todayDone, todayOpen,
     todayTaskXp: taskXpOfDay(events, today),
@@ -47,7 +49,7 @@ export function useGrowthData(today: string) {
   }), [todayDone, todayOpen, events, today, progress, reports, goals])
   const weekDone = useMemo(() => events.filter((e) => e.kind === 'task' && e.amount > 0 && e.day >= week).length, [events, week])
 
-  return { loaded: !ev.isLoading, week, events, character, progress, goals, xpIds, drafts, reports, stats, weekDone }
+  return { loaded: !ev.isLoading, week, events, character, progress, goals, xpIds, drafts, draftUsed, reports, stats, weekDone }
 }
 
 /** XP 내역 행 제목(할 일·목표). 지운 것은 제목 없이 종류만 */

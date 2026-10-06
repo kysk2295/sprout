@@ -121,7 +121,7 @@ export default function Growth() {
               ) : null}
               <SummaryChips p={p} weekDone={g.weekDone} streak={g.stats.streak} total={g.progress.total} />
               <EvolutionRoad p={p} species={species} level={g.progress.level} stage={g.progress.stage} open={road} onOpen={setRoad} />
-              <GoalsCard p={p} today={today} week={g.week} goals={g.goals} xpIds={g.xpIds} drafts={g.drafts} reduced={reduced} />
+              <GoalsCard p={p} today={today} week={g.week} goals={g.goals} xpIds={g.xpIds} drafts={g.drafts} draftUsed={g.draftUsed} reduced={reduced} />
               <XpCard p={p} events={g.events} week={g.week} today={today} />
               <ReviewEntry />
               <ReportsCard p={p} reports={g.reports} />

@@ -103,7 +103,7 @@ async function chat(body: object, signal: AbortSignal, onDelta: (text: string) =
 }
 
 async function executeIntent(intent: Intent, id: string): Promise<AssistantResult> {
-  if (intent.action === 'reply') return { text: intent.message || '등록할 일정이나 조회할 기간을 알려 주세요.' }
+  if (intent.action === 'reply') return { text: intent.message || '등록할 일정이나 조회할 기간을 알려 주세요.', kind: 'reply' }
   if (intent.action === 'create') {
     if (!intent.title.trim()) throw new Error('등록할 제목을 알려 주세요.')
     const lists = await db.getAll<ListLite & { kind: string | null }>("SELECT id, name, kind FROM lists WHERE archived_at IS NULL ORDER BY kind = 'inbox' DESC, CASE WHEN kind = 'inbox' THEN created_at END, sort_order")
@@ -112,7 +112,7 @@ async function executeIntent(intent: Intent, id: string): Promise<AssistantResul
     if (!list) throw new Error('저장할 목록을 확인해 주세요.')
     const stamp = new Date().toISOString()
     await run([insertStmt('tasks', { owner_id: currentUserId(), id, title: intent.title.trim(), list_id: list.id, content: '', content_mode: 'text', status: 0, priority: 0, sort_order: -Date.now(), start_at: intent.start || null, due_at: intent.due || null, is_all_day: intent.due.includes('T') ? 0 : 1, time_zone: 'floating', repeat_rule: intent.repeat || null, repeat_from: 'due' }, stamp)])
-    return { text: `${list.kind === 'inbox' ? '기본함' : list.name}에 등록했어요.${intent.repeat ? ' 반복 일정이에요.' : ''}`, tasks: [{ id, title: intent.title, start_at: intent.start || null, due_at: intent.due || null }], created: { id, stamp } }
+    return { text: `${list.kind === 'inbox' ? '기본함' : list.name}에 등록했어요.${intent.repeat ? ' 반복 일정이에요.' : ''}`, tasks: [{ id, title: intent.title, start_at: intent.start || null, due_at: intent.due || null }], created: { id, stamp }, kind: 'create' }
   }
   const { sql, args } = querySql(intent)
   const rows = await db.getAll<TaskLite>(sql, args)
@@ -140,10 +140,10 @@ export async function askAssistant(text: string, model: string, id: string, sign
     (queue) => { if (!partial) onProgress({ phase: 'connecting', queue }) }
   )
   if (signal.aborted) throw new Error('aborted')
-  if (conversational) return { text: raw }
+  if (conversational) return { text: raw, kind: 'chat' }
   onProgress({ phase: 'validating' })
   const intent = interpret(raw, text, now)
-  if ('reply' in intent) return { text: intent.reply }
+  if ('reply' in intent) return { text: intent.reply, kind: 'reply' }
   onProgress({ phase: intent.action === 'create' ? 'saving' : intent.action === 'reply' ? 'validating' : 'querying' })
   return executeIntent(intent, id)
 }

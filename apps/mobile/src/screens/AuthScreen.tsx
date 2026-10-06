@@ -2,8 +2,9 @@
 // 이메일 → 비밀번호 → 보내기 키 = 제출. 버튼 안 스피너 = 로딩(입력 잠금). 전환할 때 이메일은 유지.
 // 20 §4.3.1: 주 버튼 아래 구분선 → iOS "Apple로 계속하기" · "Google로 계속하기", Android는 Google만.
 // Apple은 애플 로그인 권한을 넣은 빌드(SPROUT_APPLE_SIGN_IN=1)에서만 진짜 버튼, 아니면 "준비 중"(누르면 안내).
+// 40 §2.2·§2.3: 제목 위 가운데 알 56(4초마다 꿈틀, 누르면 깡충). 오류가 나도 알은 그대로. 가입 화면만 알 아래 회색 한 줄.
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { ChevronLeft, Lock, Mail, Sprout } from 'lucide-react-native'
+import { ChevronLeft, Lock, Mail } from 'lucide-react-native'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -12,6 +13,8 @@ import { authErrorText, login, loginWithApple, loginWithGoogle, signup, socialEr
 import { FONT } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { AppleMark, GoogleMark } from '../ui/BrandMarks'
+import { COMPANION_SIZE } from '@sprout/schema/companion'
+import { CompanionFace } from '../ui/CompanionFace'
 import { GlassButton } from '../ui/Glass'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -32,6 +35,7 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
   const pw = useRef<TextInput>(null)
   const signupMode = mode === 'signup'
   const locked = busy || !!social
+  const [hop, setHop] = useState(0)
 
   const continueWithGoogle = async () => {
     if (locked) return
@@ -88,9 +92,11 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
           <View style={s.nav}>
             <GlassButton label="뒤로" onPress={() => (router.canGoBack() ? router.back() : router.replace({ pathname: '/login', params: { email } }))}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>
           </View>
-        ) : (
-          <View style={[s.logo, { backgroundColor: p.accent }]}><Sprout size={32} color="#fff" /></View>
-        )}
+        ) : null}
+        <View style={[s.mark, { marginTop: signupMode ? 0 : 6 }]}>
+          <CompanionFace species={null} stage={1} size={COMPANION_SIZE.mPhone} loop="wiggle" play={{ move: 'hop', n: hop }} onPress={() => setHop((n) => n + 1)} label="알. 눌러 보기" />
+          {signupMode ? <Text style={[s.markLine, { color: p.textSecondary }]}>가입하면 이 알에서 나와 닮은 친구가 깨어나요</Text> : null}
+        </View>
         <Text style={[FONT.large, { color: p.textPrimary, marginBottom: 6 }]}>{signupMode ? '등록하기' : '로그인'}</Text>
         <Text style={[FONT.sub, { color: p.textSecondary, marginBottom: 26 }]}>
           {signupMode ? '이메일과 비밀번호만 있으면 돼요.' : '컴퓨터와 같은 계정으로 들어가면\n할 일과 캐릭터가 그대로 이어져요.'}
@@ -191,7 +197,8 @@ function SocialButton({ label, icon, onPress, disabled, waiting, soon }: { label
 const s = StyleSheet.create({
   page: { flexGrow: 1, paddingHorizontal: 24 },
   nav: { height: 52, justifyContent: 'center', marginLeft: -12, marginBottom: 6 },
-  logo: { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  mark: { alignItems: 'center', marginBottom: 10 },
+  markLine: { fontSize: 12, lineHeight: 17, marginTop: 2 },
   stack: { gap: 12 },
   input: { height: 50, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
   text: { flex: 1, fontSize: 16, height: '100%' },

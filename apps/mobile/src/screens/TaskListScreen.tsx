@@ -30,7 +30,8 @@ import { rowExit, useListMotion } from '../ui/listMotion'
 import { useReducedMotion } from '../ui/motion'
 import { M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
-import { EmptyState } from '../ui/EmptyState'
+import { CompanionEmpty, EmptyState } from '../ui/EmptyState'
+import { OfflineBand } from '../ui/OfflineBand'
 import { GlassButton, GlassGroup } from '../ui/Glass'
 import { GroupCard } from '../ui/GroupCard'
 import { BigTitle, NavRow, useCollapsingTitle } from '../ui/Header'
@@ -338,10 +339,11 @@ export default function TaskListScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={p.textTertiary} />}
       >
         {firstLoad ? <Skeleton /> : null}
+        {!archive ? <OfflineBand offline={offline} /> : null}
         {!archive ? <PageCard view={listView} lists={lists} filter={tagFilter} onFilter={setTagFilter} descOpen={descOpen} onDescClose={() => setDescOpen(false)} /> : null}
         {!firstLoad && openCount === 0 && !archive && !evByGroup.size ? (
-          isToday && doneCount > 0 ? <EmptyState animate={!!motion.entering} title="모두 완료했어요" sub={`오늘 ${doneCount}개를 끝냈어요. 푹 쉬어요`} />
-            : isToday ? <EmptyState animate={!!motion.entering} title="오늘 할 일이 없어요" sub="+를 눌러 추가하세요" />
+          isToday && doneCount > 0 ? <CompanionEmpty animate={!!motion.entering} kind="done" todayDone={doneCount} />
+            : isToday ? <CompanionEmpty animate={!!motion.entering} kind="today" todayDone={0} />
             : <EmptyState animate={!!motion.entering} title="할 일이 없어요" sub="+를 눌러 추가하세요" />
         ) : null}
         {!firstLoad && archive && openCount === 0 ? <EmptyState title={view === 'smart:trash' ? '휴지통이 비어 있어요' : view === 'smart:wontdo' ? '계획 취소한 할 일이 없어요' : '완료한 할 일이 없어요'} /> : null}
