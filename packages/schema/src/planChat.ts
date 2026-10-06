@@ -3,13 +3,14 @@
 // AI는 단계 만들기(split 효과 → 기존 /ai/breakdown)에만 쓴다. 대화는 저장하지 않는다.
 import { addDays, toDate } from './time.ts'
 import { eulReul, eunNeun, iGa } from './josa.ts'
+import { splitPeople } from './projectScore.ts'
 
 export const PLAN = { questions: 4, chipMax: 5, stepChips: 4, candidates: 3, manualMax: 8, title: 60 }
 
 export type Who = 'bud' | 'me' | 'sys'
 export type Msg = { id: number; who: Who; text: string; strong?: boolean }
 export type Chip = { id: string; label: string }
-export type Phase = 'goal' | 'due' | 'split' | 'split-manual' | 'done' | 'first' | 'end' | 'follow' | 'gone'
+export type Phase = 'goal' | 'due' | 'split' | 'split-manual' | 'done' | 'first' | 'team' | 'end' | 'follow' | 'gone'
 export type PlanStep = { id: string; title: string; done: boolean }
 export type PlanGoal = { id: string; title: string; due: string | null; done?: boolean }
 export type PlanState = {
@@ -28,6 +29,9 @@ export type PlanState = {
   candidates: { id: string; title: string }[]
   /** 이번 대화에서 바꾼 것이 있나(머리 되돌리기) */
   changed: boolean
+  /** 31 §12.13.2 프로젝트 만들기 대화 — 첫 걸음 뒤 팀원을 묻는다(한 번) */
+  askTeam?: boolean
+  teamAsked?: boolean
 }
 export type Effect =
   | { kind: 'createGoal'; title: string; due: string | null }
@@ -40,9 +44,11 @@ export type Effect =
   | { kind: 'light'; id: string | null }
   | { kind: 'focus'; id: string }
   | { kind: 'close' }
+  /** 31 §12.13.2 팀원 이름 → 사람 태그 + 프로젝트와 잇기 */
+  | { kind: 'team'; names: string[] }
 export type SplitFail = 'offline' | 'down' | 'limit' | 'empty' | 'format' | 'stopped'
 export type PlanEvent =
-  | { type: 'start'; goal?: PlanGoal | null; steps?: PlanStep[]; candidates?: { id: string; title: string }[] }
+  | { type: 'start'; goal?: PlanGoal | null; steps?: PlanStep[]; candidates?: { id: string; title: string }[]; askTeam?: boolean }
   | { type: 'answer'; text: string }
   | { type: 'chip'; id: string }
   | { type: 'skip' }
@@ -178,6 +184,7 @@ export function chipsOf(s: PlanState): { chips: Chip[]; skip: boolean } {
     case 'split-manual': return { chips: [{ id: 'later', label: '나중에 할래' }], skip: false }
     case 'done': return { chips: [...s.steps.filter((x) => !x.done).slice(0, PLAN.stepChips).map((x) => ({ id: `step:${x.id}`, label: x.title })), { id: 'none', label: '없어' }, { id: 'resplit', label: '다시 나눠 줘' }].slice(0, PLAN.chipMax + 1), skip: true }
     case 'first': return { chips: [{ id: 'today', label: '오늘' }, { id: 'tomorrow', label: '내일' }, { id: 'weekend', label: '이번 주말' }, { id: 'later', label: '나중에' }], skip: true }
+    case 'team': return { chips: [{ id: 'solo', label: '혼자 해' }], skip: true }
     case 'end': return { chips: [{ id: 'close', label: '닫기' }], skip: false }
     case 'follow': return { chips: s.goal && s.steps.length && s.steps.every((x) => x.done) && !s.goal.done ? [{ id: 'finish', label: '완료하기' }, { id: 'close', label: '나중에' }] : [{ id: 'close', label: '좋아' }], skip: false }
     case 'gone': return { chips: [{ id: 'new', label: '새 계획 짜기' }, { id: 'close', label: '닫기' }], skip: false }
@@ -194,7 +201,7 @@ export function planReduce(s0: PlanState, ev: PlanEvent): Step {
   const fx: Effect[] = []
   switch (ev.type) {
     case 'start': {
-      s = { ...initPlan(s.name, s.today), seq: s.seq, msgs: s.msgs, candidates: ev.candidates ?? [] }
+      s = { ...initPlan(s.name, s.today), seq: s.seq, msgs: s.msgs, candidates: ev.candidates ?? [], askTeam: ev.askTeam ?? s.askTeam ?? false }
       if (!ev.goal) return { state: bud(s, '이번 주에 제일 중요한 게 뭐야?'), effects: [] }
       s = { ...s, goal: ev.goal, steps: ev.steps ?? [] }
       fx.push({ kind: 'focus', id: ev.goal.id })
@@ -306,6 +313,15 @@ function answer(s0: PlanState, a: Ans): Step {
       if (f && due) { fx.push({ kind: 'setDue', taskId: f.id, due }); s = { ...s, changed: true } }
       return finish(s, fx)
     }
+    case 'team': {
+      if (a.kind === 'skip' || (a.kind === 'chip' && a.id === 'solo') || (a.kind === 'text' && saysNone(a.text))) return finishCore(s, fx)
+      if (a.kind !== 'text') return { state: s, effects: [] }
+      const names = splitPeople(a.text)
+      if (!names.length) return { state: bud(s, '이름을 쉼표로 적어 줘. 예: 민수, 지은'), effects: [] }
+      s = bud({ ...s, changed: true }, `팀원 ${names.join(', ')} 적어 둘게. 이름이 들어간 일은 이 프로젝트로 모을게`)
+      fx.push({ kind: 'team', names })
+      return finishCore(s, fx)
+    }
     case 'end': {
       if (a.kind === 'text') return { state: bud(s, '지도에서 끌어 고쳐도 돼. 다 됐으면 닫아 줘'), effects: [] }
       return { state: s, effects: [] }
@@ -319,7 +335,7 @@ function answer(s0: PlanState, a: Ans): Step {
       return { state: s, effects: [] }
     }
     case 'gone': {
-      if (a.kind === 'chip' && a.id === 'new') return planReduce({ ...s, goal: null, steps: [], first: null }, { type: 'start', candidates: s.candidates })
+      if (a.kind === 'chip' && a.id === 'new') return planReduce({ ...s, goal: null, steps: [], first: null, teamAsked: false }, { type: 'start', candidates: s.candidates })
       return { state: s, effects: [] }
     }
     default: return { state: s, effects: [] }
@@ -346,6 +362,11 @@ function toFirst(s: PlanState, fx: Effect[]): Step {
   return { state: bud({ ...s, phase: 'first', first: f.id }, `첫 걸음 ${qj(f.title, eunNeun)} 언제 할래?`), effects: [...fx, { kind: 'light', id: f.id }] }
 }
 function finish(s: PlanState, fx: Effect[]): Step {
+  // 31 §12.13.2 프로젝트 만들기 대화: 끝맺기 전에 팀원 한 번
+  if (s.askTeam && !s.teamAsked) return { state: bud({ ...s, phase: 'team', teamAsked: true }, '같이 하는 사람 있어? 이름을 적어 줘'), effects: fx }
+  return finishCore(s, fx)
+}
+function finishCore(s: PlanState, fx: Effect[]): Step {
   const f = firstOpen(s.steps)
   if (f) return { state: bud({ ...s, phase: 'end', first: f.id }, `좋아, 첫 걸음은 ${q(f.title)}야 ⚡`, true), effects: [...fx, { kind: 'light', id: f.id }, { kind: 'focus', id: f.id }] }
   const g = s.goal

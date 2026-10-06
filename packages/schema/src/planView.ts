@@ -49,6 +49,8 @@ export type ProjectView = {
   mainList: string | null
   /** 31 §12.10 분류(사람이 고른 것 → 이름 안 분류 낱말 → null) */
   category: string | null
+  /** 31 §12.13.7 지금 집중(끝난 프로젝트는 false) */
+  focus: boolean
 }
 /** §12.10.3 막연한 할 일(분류 낱말만 있고 아직 그 분류 프로젝트에 없음) — 고르기 알약은 가까운 순 */
 export type LooseItem = { task: PTaskRow; choices: string[] }
@@ -104,6 +106,8 @@ export type PlanInput = {
   categoryOverrides?: { tag_id: string; word: string }[] | null
   /** §12.10.3 고르기에서 `아니`한 할 일 */
   skip?: string[]
+  /** §12.13.7 지금 집중 프로젝트 태그 id(relations tag → focus) */
+  focus?: string | null
 }
 export function buildPlanView(i: PlanInput): PlanData {
   const { tasks, tags, links, lists, folders, seq, topics, notes, pstore, today } = i
@@ -175,16 +179,22 @@ export function buildPlanView(i: PlanInput): PlanData {
       via, autoCount: [...via.values()].filter((v) => v === 'auto').length,
       kindSet: new Set(members.filter((m) => overrides.has(m.id)).map((m) => m.id)),
       mainList: mainListOf(members, (id) => listOf.get(id) ?? null),
-      category: (catOver.has(tag.id) ? catOver.get(tag.id) || null : categoryOf(tag.name))
+      category: (catOver.has(tag.id) ? catOver.get(tag.id) || null : categoryOf(tag.name)),
+      focus: false
     })
   }
+  for (const p of projects) p.focus = !!i.focus && p.tag.id === i.focus && !projectEnded(p, today)
   // 순서: 끝난 것 맨 뒤 → 마감 가까운 순 → 열린 일 많은 순
   projects.sort((a, b) => Number(a.finished) - Number(b.finished) || (a.deadline?.day ?? '9999').localeCompare(b.deadline?.day ?? '9999') || b.open - a.open)
 
-  // 제안 카드: 한 장(할 일 많은 것)
+  // 제안 카드: 한 장(할 일 많은 것). §12.13.1 자동으로 만들지 않으니 예전 '자동' 덩어리도 제안으로 — 이미 있는 태그 이름·별칭이면 뺀다
   const blockedKeys = new Set([...Object.keys(astore.blocked), ...pstore.dismissed])
   const taken = new Set(projects.flatMap((p) => p.members.map((m) => m.id)))
-  const suggestion = i.suggest === false ? null : findProjectClusters({ tags, lists, folders, tasks, links }, blockedKeys, taken).suggest.sort((a, b) => b.taskIds.length - a.taskIds.length)[0] ?? null
+  const tagKeys = new Set(tags.flatMap((t) => [t.name, ...parseAliases(t.aliases)].map(tagKey)))
+  const clusters = i.suggest === false ? null : findProjectClusters({ tags, lists, folders, tasks, links }, blockedKeys, taken)
+  const suggestion = !clusters ? null : [...clusters.auto, ...clusters.suggest]
+    .filter((p) => (p.reason === 'tag' || (!tagKeys.has(p.key) && !tagKeys.has(tagKey(p.name)))) && p.taskIds.some((id) => !taken.has(id)))
+    .sort((a, b) => b.taskIds.length - a.taskIds.length)[0] ?? null
 
   // ⚡ 지금 할 일(§12.5): 오늘 마감·시작 + 지금 할 수 있는 계획 단계(순서 선이 있는 열린 일, 막히지 않음, 기한 안 지남). 기한 지난 일은 넣지 않는다
   const stepIds = new Set(seq.flatMap((l) => [l.from_id, l.to_id]))

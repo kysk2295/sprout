@@ -457,6 +457,7 @@ export function readyCandidates(c: Candidates, opts: { tagCount: number; room: n
   for (const [key, v] of Object.entries(c)) {
     if (opts.blocked.has(key)) continue
     const kind = candidateKind(v)
+    if (kind === 'project') continue // 31 §12.13.1 프로젝트는 사람이 만든다 — AI 새 이름으로 프로젝트를 만들지 않는다
     if (kind === 'person' && !opts.person) continue
     const min = kind === 'person' ? AUTO_TAG.newPersonScore : AUTO_TAG.newScore
     const entries = Object.entries(v.tasks).filter(([id]) => !opts.liveTaskIds || opts.liveTaskIds.has(id))
