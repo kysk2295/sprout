@@ -81,7 +81,7 @@ struct MonthWidgetView: View {
         HStack(spacing: 0) {
             ForEach(Array(cal.weekHead.enumerated()), id: \.offset) { i, w in
                 Text(w).font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(i == 0 ? pal.holiday : i == 6 ? pal.saturday : pal.tertiary) // 머리는 앱이 준 순서(일요일 시작)
+                    .foregroundStyle((cal.weekStart + i) % 7 == 0 ? pal.holiday : (cal.weekStart + i) % 7 == 6 ? pal.saturday : pal.tertiary) // 머리는 앱이 준 순서(주 시작 설정 — 06 §16.1), 색은 그 열의 요일(일 빨강 · 토 파랑)
                     .frame(maxWidth: .infinity)
             }
         }

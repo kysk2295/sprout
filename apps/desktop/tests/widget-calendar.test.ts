@@ -105,6 +105,19 @@ setOpts({})
 
 // 6주 달: 2026년 8월(1일 토요일, 31일 월요일) → 7/26 ~ 9/5
 assert.equal((await calendarOf(db, '2026-08-15')).days.length, 42)
+// 06 §16.1 주 시작 설정 → 맥 위젯 칸도 그 요일부터(weekStart를 함께 넘김)
+assert.equal(cal.weekStart, 0)
+setOpts({ weekStart: 1 })
+const calMon = await calendarOf(db, today, extFn)
+assert.equal(calMon.weekStart, 1)
+assert.equal(calMon.days[0].d, '2026-09-28')
+assert.equal(calMon.days.at(-1)!.d, '2026-11-01')
+setOpts({ weekStart: 6 })
+const calSat = await calendarOf(db, today, extFn)
+assert.equal(calSat.weekStart, 6)
+assert.equal(calSat.days[0].d, '2026-09-26')
+assert.equal(calSat.days.length, 42)
+setOpts({})
 
 // ── 저장 파일: 로그인이면 calendar가 있고, 로그아웃이면 없다 ──
 const snap = await buildSnapshot(db, { today, now: new Date('2026-10-05T09:00:00+09:00'), signedIn: true, extEvents: extFn })
@@ -118,7 +131,7 @@ const fixture = JSON.parse(readFileSync('apps/desktop/native/widget/fixtures/sna
 assert.equal(fixture.schema, 1)
 assert.match(fixture.calendar.month, /^\d{4}-\d{2}$/)
 assert.ok([35, 42].includes(fixture.calendar.days.length))
-assert.equal(new Date(`${fixture.calendar.days[0].d}T00:00`).getDay(), 0) // 일요일 시작
+assert.equal(new Date(`${fixture.calendar.days[0].d}T00:00`).getDay(), fixture.calendar.weekStart ?? 0) // 주 시작(weekStart) 요일부터
 const fItem = fixture.calendar.days.flatMap((dd: { items: unknown[] }) => dd.items)[0] as Record<string, unknown>
 assert.deepEqual(Object.keys(fItem).sort(), Object.keys(x).sort())
 console.log('widget calendar tests ok')

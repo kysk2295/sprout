@@ -12,6 +12,7 @@
 // - 임시공휴일: 국무회의 의결된 것만(2024-10-01 국군의 날, 2025-01-27).
 
 import { addDays, toDate } from './time.ts'
+import { mondayOfRow, type WeekStart } from './weekStart.ts'
 
 export type HolidayKind = 'holiday' | 'substitute' | 'election' | 'temporary'
 export interface Holiday {
@@ -191,17 +192,17 @@ export function isoWeek(date: string): number {
   const jan4 = new Date(d.getFullYear(), 0, 4)
   return 1 + Math.round(((d.getTime() - jan4.getTime()) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7)
 }
-/** 틱틱 표기 `W41`(research 24 §월 보기 실측). 캘린더 줄은 일요일에 시작하므로(2026-10-06) 일요일은 바로 뒤 월요일의 ISO 주로 센다 */
-export const weekLabel = (date: string) => `W${isoWeek(toDate(date).getDay() === 0 ? addDays(date, 1) : date)}`
+/** 틱틱 표기 `W41`(research 24 §월 보기 실측). 캘린더 줄은 주 시작 설정(weekStart.ts)을 따르므로 그 줄 안 월요일의 ISO 주로 센다(일요일 시작 → 일요일은 다음 날 주) */
+export const weekLabel = (date: string, ws: WeekStart = 0) => `W${isoWeek(mondayOfRow(date, ws))}`
 
 // ── 날짜 칸 오른쪽 글자 한 자리(틱틱/디다 실측: 공휴일·절기 이름 > 주 번호 > 음력 — research 17 §15.2) ──
 export interface DayMarks { holiday: string | null; side: string | null; sideKind: 'holiday' | 'week' | 'lunar' | null }
-export interface MarkPrefs { holidays: boolean; lunar: boolean; weekNumbers: boolean }
+export interface MarkPrefs { holidays: boolean; lunar: boolean; weekNumbers: boolean; /** 주 번호를 셀 줄의 주 시작(없으면 일요일) */ weekStart?: WeekStart }
 /** firstOfRow = 그 줄(주)의 첫 칸이면 주 번호를 쓴다 */
 export function dayMarks(date: string, prefs: MarkPrefs, firstOfRow: boolean, holidays?: Map<string, string>): DayMarks {
   const holiday = prefs.holidays ? (holidays ? holidays.get(date) ?? null : holidayLabel(date)) : null
   if (holiday) return { holiday, side: holiday, sideKind: 'holiday' }
-  if (prefs.weekNumbers && firstOfRow) return { holiday, side: weekLabel(date), sideKind: 'week' }
+  if (prefs.weekNumbers && firstOfRow) return { holiday, side: weekLabel(date, prefs.weekStart ?? 0), sideKind: 'week' }
   const l = prefs.lunar ? lunarLabel(date) : null
   return { holiday, side: l, sideKind: l ? 'lunar' : null }
 }

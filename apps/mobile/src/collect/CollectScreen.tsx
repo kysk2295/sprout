@@ -10,6 +10,7 @@ import { Keyboard, Linking, Pressable, RefreshControl, ScrollView, Share, StyleS
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { syncNow } from '../data/auth'
 import { dayKey } from '../lib/dates'
+import { useWeekStart } from '../data/calendarPrefs'
 import { FONT, M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { GlassButton } from '../ui/Glass'
@@ -65,7 +66,8 @@ export default function CollectScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const onRefresh = useCallback(async () => { setRefreshing(true); try { await syncNow() } finally { setRefreshing(false) } }, [])
 
-  const groups = useMemo(() => groupItems(items, today), [items, today])
+  const ws = useWeekStart() // 06 §16.1 "이번 주" = 주 시작 설정
+  const groups = useMemo(() => groupItems(items, today, ws), [items, today, ws])
   const watch = useMemo(() => watchGroups(items), [items])
 
   const register = async (item: CollectItem) => {

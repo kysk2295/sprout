@@ -1,14 +1,16 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { isWritten, monthGrid, moodOf, WEEK_DAYS, weekOf, type DiaryEntry } from '../../data/diary'
+import { isWritten, monthGrid, moodOf, weekDaysHead, weekOf, type DiaryEntry } from '../../data/diary'
+import { useWeekStart } from '../../data/calendarOptions'
 import { dateLabel, firstLine, monthOf, parse, shiftMonth } from './dates'
 import { LeafIcon, MoodFace, PaperIcon } from './MoodFace'
 
-// 15 §9.1 왼쪽 260 — 이어 쓰기 카드 · 미니 달력(일요일 시작, 기분 색 칸) · 날짜 목록
+// 15 §9.1 왼쪽 260 — 이어 쓰기 카드 · 미니 달력(주 시작 설정 — 06 §16.1, 기분 색 칸) · 날짜 목록
 
-/** 이어 쓰기 카드: 연속 N일(새싹 잎) + 이번 주(월~일) 7칸 */
+/** 이어 쓰기 카드: 연속 N일(새싹 잎) + 이번 주 7칸(주 시작 설정) */
 export function StreakCard({ streak, byDate, today }: { streak: { days: number; today: boolean }; byDate: Map<string, DiaryEntry>; today: string }) {
   const n = streak.days
+  const ws = useWeekStart()
   return (
     <div className="diary-streak">
       <span className="diary-streak__leaf"><LeafIcon /></span>
@@ -17,13 +19,13 @@ export function StreakCard({ streak, byDate, today }: { streak: { days: number; 
         <small>{n ? (streak.today ? '지난 날을 채워도 이어져요' : '오늘도 이어 가요') : '하루 한 줄이면 충분해요'}</small>
       </span>
       <span className="diary-streak__week" aria-label="이번 주 기록">
-        {weekOf(today).map((d, i) => {
+        {weekOf(today, ws).map((d, i) => {
           const e = byDate.get(d)
           const on = !!e && isWritten(e)
           const m = moodOf(e?.mood)
           return (
             <span key={d} title={d}>
-              <small>{WEEK_DAYS[i]}</small>
+              <small>{weekDaysHead(ws)[i]}</small>
               <i className={`${on ? 'is-on' : ''}${d === today ? ' is-today' : ''}${d > today ? ' is-future' : ''}`} style={on ? { background: m?.color ?? 'var(--color-accent)' } : undefined} />
             </span>
           )
@@ -36,6 +38,7 @@ export function StreakCard({ streak, byDate, today }: { streak: { days: number; 
 export function MiniCalendar({ date, today, byDate, onPick }: { date: string; today: string; byDate: Map<string, DiaryEntry>; onPick: (d: string) => void }) {
   const [month, setMonth] = useState(monthOf(date))
   useEffect(() => setMonth(monthOf(date)), [date])
+  const ws = useWeekStart()
   const m = parse(`${month}-01`)
   return (
     <div className="diary-cal">
@@ -47,8 +50,8 @@ export function MiniCalendar({ date, today, byDate, onPick }: { date: string; to
         </span>
       </div>
       <div className="diary-cal__grid">
-        {WEEK_DAYS.map((w) => <b key={w}>{w}</b>)}
-        {monthGrid(month).map((d) => {
+        {weekDaysHead(ws).map((w) => <b key={w}>{w}</b>)}
+        {monthGrid(month, ws).map((d) => {
           const e = byDate.get(d)
           const written = !!e && isWritten(e)
           const mood = written ? moodOf(e?.mood) : undefined

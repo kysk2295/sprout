@@ -1,6 +1,7 @@
 // 캘린더 계산 — 06-calendar §4·§5·§12. 화면과 떨어진 순수 함수만 둔다.
 import { addDays, datePart, daysBetween, hasTime, minutesBetween, nextOccurrence, parseRule, timePart, toDate } from '@sprout/schema/time'
 import type { TaskRow } from '../data/types'
+import { headTone, startOfWeek, weekHead, type WeekStart } from '@sprout/schema/weekStart'
 
 export type CalView = 'day' | 'week' | 'month'
 export type ColorBy = 'list' | 'tag' | 'priority'
@@ -29,8 +30,10 @@ export interface CalOptions {
   weekNumbers: number
   /** 06 §8 옵션 보기 "주말 표시"(틱틱 Show Weekends) — 끄면 토·일 열을 숨긴다. 기본 켬 */
   weekends: number
+  /** 06 §16.1 "일주일을 시작하는 요일"(틱틱 주 시작 요일): 0 = 일(기본) · 1 = 월 · 6 = 토. 캘린더 화면만 — 성장 주는 월요일 고정 */
+  weekStart: WeekStart
 }
-export const DEFAULT_OPTIONS: CalOptions = { view: 'week', color: 'list', style: 'simple', completed: 1, repeats: 0, icons: 1, calIcons: 1, lists: [], tags: [], myCal: 1, myColor: null, holidays: 1, lunar: 0, weekNumbers: 0, weekends: 1 }
+export const DEFAULT_OPTIONS: CalOptions = { view: 'week', color: 'list', style: 'simple', completed: 1, repeats: 0, icons: 1, calIcons: 1, lists: [], tags: [], myCal: 1, myColor: null, holidays: 1, lunar: 0, weekNumbers: 0, weekends: 1, weekStart: 0 }
 /** 주말 표시를 끄면 토·일을 뺀다(06 §8). 일 보기는 그대로 */
 export const visibleDays = (days: string[], weekends: boolean) => (weekends || days.length === 1 ? days : days.filter((d) => !isWeekend(d)))
 
@@ -45,22 +48,23 @@ export interface CalItem {
 }
 
 // ── 범위 ──
-/** 캘린더 화면의 주 시작 = 일요일(2026-10-06 사용자 결정 "일부터" — 틱틱 기본, research 17 §2). 주·월 보기·작은 달력·날짜 고르기·위젯 */
-export const calWeekStart = (d: string) => addDays(d, -toDate(d).getDay())
-/** 캘린더 요일 머리(일…토) */
-export const CAL_WEEK_HEAD = ['일', '월', '화', '수', '목', '금', '토']
+/** 캘린더 화면의 주 시작 = 설정 "일주일을 시작하는 요일"(06 §16.1, 기본 일요일 — 틱틱 기본, research 17 §2). 주·월 보기·작은 달력·날짜 고르기·위젯 */
+export const calWeekStart = (d: string, ws: WeekStart = 0) => startOfWeek(d, ws)
+/** 캘린더 요일 머리(기본 일…토) */
+export const CAL_WEEK_HEAD = weekHead(0)
+export const calWeekHead = (ws: WeekStart) => weekHead(ws)
 /** 성장 주(주간 목표·주간 리포트·점검·작업 지도 "이번 주") = 월요일 시작. 서버 리포트·XP id와 같은 경계라 캘린더 주 시작과 따로 둔다 */
 export const weekStart = (d: string) => addDays(d, -((toDate(d).getDay() + 6) % 7))
-export function rangeOf(view: CalView, cursor: string): { from: string; to: string; days: string[] } {
+export function rangeOf(view: CalView, cursor: string, ws: WeekStart = 0): { from: string; to: string; days: string[] } {
   if (view === 'day') return { from: cursor, to: cursor, days: [cursor] }
   if (view === 'week') {
-    const from = calWeekStart(cursor)
+    const from = calWeekStart(cursor, ws)
     const days = Array.from({ length: 7 }, (_, i) => addDays(from, i))
     return { from, to: days[6], days }
   }
   // 06 §5 실측: 그 달에 필요한 주만큼(5줄 또는 6줄)
   const first = `${cursor.slice(0, 7)}-01`
-  const from = calWeekStart(first)
+  const from = calWeekStart(first, ws)
   const last = addDays(shiftCursor('month', first, 1), -1)
   const weeks = Math.ceil((daysBetween(from, last) + 1) / 7)
   const days = Array.from({ length: weeks * 7 }, (_, i) => addDays(from, i))
@@ -81,8 +85,8 @@ export function titleOf(_view: CalView, cursor: string): string {
 export const isWeekend = (d: string) => [0, 6].includes(toDate(d).getDay())
 /** 06 §16 주말 글자색(사용자 결정 2026-10-05 "주말도 표시"): 토 = 파랑, 일 = 빨강. 날짜 칸·요일 머리에 붙이는 클래스 */
 export const weekendClass = (d: string) => { const w = toDate(d).getDay(); return w === 6 ? ' is-sat' : w === 0 ? ' is-sun' : '' }
-/** 일요일 시작 요일 머리(일…토)의 i번째 */
-export const weekHeadClass = (i: number) => (i === 6 ? ' is-sat' : i === 0 ? ' is-sun' : '')
+/** 요일 머리 i번째의 색 클래스 — 자리가 아니라 그 열의 요일로(주 시작이 바뀌어도 일 빨강 · 토 파랑) */
+export const weekHeadClass = (i: number, ws: WeekStart = 0) => { const t = headTone(i, ws); return t ? ` is-${t}` : '' }
 
 // ── 항목 만들기 (반복 미래 회차 포함) ──
 export function itemsOf(tasks: TaskRow[], from: string, to: string, withRepeats: boolean): CalItem[] {

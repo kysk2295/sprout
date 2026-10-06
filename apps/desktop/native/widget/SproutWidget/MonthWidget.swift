@@ -75,13 +75,15 @@ struct MonthHeader: View {
     }
 }
 
-/// §15.2 격자: 머리 · 요일(월~일) · 주 줄(구분선 0.5) · 칸
+/// §15.2 격자: 머리 · 요일(주 시작 설정부터) · 주 줄(구분선 0.5) · 칸
 struct MonthGrid: View {
     let cal: Snapshot.CalMonth
     let today: String
     let weekOnly: Bool
     let pal: Palette
-    static let weekdays = ["일", "월", "화", "수", "목", "금", "토"] // 주 시작 = 일요일(2026-10-06 사용자 결정, 앱 캘린더와 같음 — M2)
+    static let weekdays = ["일", "월", "화", "수", "목", "금", "토"] // getDay 순서(일 = 0). 머리는 주 시작 설정(cal.weekStart)부터 돌린다 — 06 §16.1
+    /// 열 i의 요일(0 = 일 … 6 = 토)
+    private func dow(_ i: Int) -> Int { ((cal.weekStart ?? 0) + i) % 7 }
 
     var body: some View {
         let weeks = stride(from: 0, to: cal.days.count, by: 7).map { Array(cal.days[$0..<min($0 + 7, cal.days.count)]) }
@@ -90,8 +92,8 @@ struct MonthGrid: View {
             MonthHeader(title: cal.title, today: today, pal: pal)
             HStack(spacing: 0) {
                 ForEach(0..<7, id: \.self) { i in
-                    Text(Self.weekdays[i]).font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(pal.mono ? pal.secondary : i == 6 ? pal.saturday : i == 0 ? pal.holiday : pal.secondary)
+                    Text(Self.weekdays[dow(i)]).font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(pal.mono ? pal.secondary : dow(i) == 6 ? pal.saturday : dow(i) == 0 ? pal.holiday : pal.secondary)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -107,7 +109,7 @@ struct MonthGrid: View {
                             HStack(spacing: 0) {
                                 ForEach(Array(row.enumerated()), id: \.element.d) { i, day in
                                     if i > 0 { Rectangle().fill(pal.grid).frame(width: 0.5) }
-                                    DayCell(day: day, col: i, today: today, lanes: lanes, pal: pal)
+                                    DayCell(day: day, dow: dow(i), today: today, lanes: lanes, pal: pal)
                                         .frame(width: colW - (i > 0 ? 0.5 : 0), height: rowH - 0.5, alignment: .top)
                                 }
                             }
@@ -123,7 +125,7 @@ struct MonthGrid: View {
 /// 칸 하나: 날짜(오늘 = 강조색 원) · "+N" · 막대(공휴일 → 항목)
 struct DayCell: View {
     let day: Snapshot.CalDay
-    let col: Int // 0 = 일, 1 = 월 … 6 = 토
+    let dow: Int // 그 날의 요일(0 = 일, 1 = 월 … 6 = 토) — 열 자리가 아니라 요일로 칠한다
     let today: String
     let lanes: Int
     let pal: Palette
@@ -183,8 +185,8 @@ struct DayCell: View {
     // M3: 일요일·공휴일 빨강, 토요일 파랑, 다른 달 흐림
     private func numberColor(other: Bool) -> Color {
         if pal.mono { return other ? pal.calOther : pal.primary }
-        let base: Color = (day.holiday != nil || col == 0) ? pal.holiday : col == 6 ? pal.saturday : pal.primary
-        return other ? (day.holiday != nil || col == 0 || col == 6 ? base.opacity(0.45) : pal.calOther) : base
+        let base: Color = (day.holiday != nil || dow == 0) ? pal.holiday : dow == 6 ? pal.saturday : pal.primary
+        return other ? (day.holiday != nil || dow == 0 || dow == 6 ? base.opacity(0.45) : pal.calOther) : base
     }
     private var holidayFill: Color { Color.mix(pal.holidayHex, pal.bgHex, pal.dark ? 0.62 : 0.6) }
     private var holidayText: Color { pal.dark ? .white : Color.mix(pal.holidayHex, pal.primaryHex, 0.45) }

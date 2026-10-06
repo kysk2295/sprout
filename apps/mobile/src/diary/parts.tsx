@@ -1,4 +1,4 @@
-// 일기 화면 부품: 곁에 앉은 캐릭터(숨쉬기·반응) · 월 기분 달력(일요일 시작) · 연 12×31 모자이크 · 기분 비율 막대
+// 일기 화면 부품: 곁에 앉은 캐릭터(숨쉬기·반응) · 월 기분 달력(주 시작 설정 — 06 §16.1) · 연 12×31 모자이크 · 기분 비율 막대
 import { useEffect } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
@@ -7,7 +7,9 @@ import type { Mood } from '../growth/logic'
 import { alpha } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { MoodFace, PaperIcon, diaryColors } from './art'
-import { MOODS, moodOf, monthGrid, moodShare, WEEK_DAYS, yearMosaic, isWritten, type Buddy, type DiaryEntry } from './logic'
+import { MOODS, moodOf, monthGrid, moodShare, weekDaysHead, yearMosaic, isWritten, type Buddy, type DiaryEntry } from './logic'
+import { useWeekStart } from '../data/calendarPrefs'
+import { headWeekday } from '@sprout/schema/weekStart'
 
 /** 캐릭터: 대기 중엔 숨쉬기(움직임 줄이기면 멈춤), bounce가 바뀌면 깡충 한 번 */
 export function BuddyArt({ buddy, stage, size, mood = 'default', still, bounce }: { buddy: Buddy; stage: number; size: number; mood?: Mood; still?: boolean; bounce?: number }) {
@@ -43,11 +45,12 @@ export function MonthMoodGrid({ month, entries, today, selected, onPick, cell = 
   const p = usePalette()
   const c = diaryColors(p)
   const by = new Map(entries.map((e) => [e.date, e]))
-  const days = monthGrid(month)
+  const ws = useWeekStart()
+  const days = monthGrid(month, ws)
   const rows = days.slice(35).every((d) => d.slice(0, 7) !== month) ? 5 : 6
   return (
     <View>
-      <View style={s.weekHead}>{WEEK_DAYS.map((w, i) => <Text key={w} style={[s.wh, { color: i === 0 || i === 6 ? p.textTertiary : p.textSecondary }]}>{w}</Text>)}</View>
+      <View style={s.weekHead}>{weekDaysHead(ws).map((w, i) => <Text key={w} style={[s.wh, { color: headWeekday(i, ws) === 0 || headWeekday(i, ws) === 6 ? p.textTertiary : p.textSecondary }]}>{w}</Text>)}</View>
       {Array.from({ length: rows }, (_, r) => (
         <View key={r} style={s.gridRow}>
           {days.slice(r * 7, r * 7 + 7).map((d) => {

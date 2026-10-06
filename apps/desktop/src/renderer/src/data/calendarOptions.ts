@@ -4,6 +4,7 @@ import { useQuery } from './useQuery'
 import { setViewSetting } from './mutations'
 import { getDb } from './db'
 import { DEFAULT_OPTIONS, type CalOptions } from '../lib/calendar'
+import { toWeekStart, type WeekStart } from '@sprout/schema/weekStart'
 
 // 캘린더 보기 설정(동기화: view_settings 'calendar' 행의 options_json — 06 §12). 캘린더·설정 › 날짜 & 시간·날짜 선택기가 함께 읽는다
 export function useCalendarOptions(): [CalOptions, (patch: Partial<CalOptions>) => void] {
@@ -28,12 +29,18 @@ export function saveCalendarOptions(patch: Partial<CalOptions>): Promise<unknown
   return chain
 }
 
-export const markPrefsOf = (o: Pick<CalOptions, 'holidays' | 'lunar' | 'weekNumbers'>): MarkPrefs => ({ holidays: o.holidays !== 0, lunar: o.lunar === 1, weekNumbers: o.weekNumbers === 1 })
+export const markPrefsOf = (o: Pick<CalOptions, 'holidays' | 'lunar' | 'weekNumbers'> & { weekStart?: unknown }): MarkPrefs => ({ holidays: o.holidays !== 0, lunar: o.lunar === 1, weekNumbers: o.weekNumbers === 1, weekStart: toWeekStart(o.weekStart) })
+
+/** 06 §16.1 "일주일을 시작하는 요일"(동기화 — 휴대폰 설정 › 날짜와 시간과 같은 값). 바꾸면 열린 캘린더·작은 달력·날짜 선택기·일기 달력이 바로 따른다 */
+export function useWeekStart(): WeekStart {
+  const [opts] = useCalendarOptions()
+  return toWeekStart(opts.weekStart)
+}
 
 /** 06 §16 날짜 칸 표시(휴일 이름·주 번호·음력)를 범위 하나로 미리 계산한다 */
 export function useDayMarks(days: string[], prefs: MarkPrefs): (day: string, firstOfRow: boolean) => DayMarks {
   const from = days[0]
   const to = days[days.length - 1]
   const map = useMemo(() => (from && to ? holidayMap(from, to) : new Map<string, string>()), [from, to])
-  return useCallback((day: string, firstOfRow: boolean) => dayMarks(day, prefs, firstOfRow, map), [map, prefs.holidays, prefs.lunar, prefs.weekNumbers]) // eslint-disable-line react-hooks/exhaustive-deps
+  return useCallback((day: string, firstOfRow: boolean) => dayMarks(day, prefs, firstOfRow, map), [map, prefs.holidays, prefs.lunar, prefs.weekNumbers, prefs.weekStart]) // eslint-disable-line react-hooks/exhaustive-deps
 }

@@ -7,6 +7,7 @@ import { loadSchedule } from '../../data/schedule'
 import { TASK_COLUMNS } from '../../data/taskQueries'
 import type { ListRow, TagRow, TaskRow } from '../../data/types'
 import { colorOf, itemsOf, rangeOf, shiftCursor, titleOf, visibleDays, calWeekStart, type CalItem, type CalView } from '../../lib/calendar'
+import { toWeekStart } from '@sprout/schema/weekStart'
 import { addDays } from '@sprout/schema/time'
 import { dayKey } from '../../lib/dates'
 import type { Schedule, TaskActions } from '../../lib/taskActions'
@@ -93,16 +94,18 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
   // ── 보기 설정(동기화: view_settings 'calendar' 행의 options_json) ──
   const [opts, setOpts] = useCalendarOptions()
   const view = opts.view
+  // 06 §16.1 일주일을 시작하는 요일(설정 › 날짜 & 시간 — 바꾸면 바로 다시 그린다)
+  const ws = toWeekStart(opts.weekStart)
 
   // ── 범위 · 데이터 ──
-  const range = rangeOf(view, cursor)
+  const range = rangeOf(view, cursor, ws)
   // 06 §8 주말 표시를 끄면 주 보기·월 보기에서 토·일 열을 뺀다
   const days = visibleDays(range.days, opts.weekends !== 0)
   // 06 §16 휴일·음력·주 번호(설정 › 날짜 & 시간)
   const markPrefs = markPrefsOf(opts)
   // 06 §5.1 월 보기는 스크롤로 앞뒤 주가 보이므로 기준 달 앞뒤 6주까지 읽는다
   const monthKey = cursor.slice(0, 7)
-  const data = useMemo(() => (view === 'month' ? monthDataRange(monthKey) : range), [view, monthKey, range.from, range.to]) // eslint-disable-line react-hooks/exhaustive-deps
+  const data = useMemo(() => (view === 'month' ? monthDataRange(monthKey, ws) : range), [view, monthKey, ws, range.from, range.to]) // eslint-disable-line react-hooks/exhaustive-deps
   const marks = useDayMarks(data.days, markPrefs)
   const { sql, params } = useMemo(() => {
     const cond = ['t.due_at IS NOT NULL', 't.deleted_at IS NULL', 'l.archived_at IS NULL']
@@ -125,7 +128,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
   const tasks = taskRows ?? []
   const guide = useGuide('calendar', { ready: taskRows !== undefined }) // 37 첫 둘러보기 · 머리 `?`
   // 06 §6 작은 달력의 태스크 점: 그 달 6주 범위에서 날짜가 있는 날
-  const miniFrom = calWeekStart(`${cursor.slice(0, 7)}-01`)
+  const miniFrom = calWeekStart(`${cursor.slice(0, 7)}-01`, ws)
   const busy = useQuery<{ d: string }>(
     `SELECT DISTINCT substr(COALESCE(start_at, due_at), 1, 10) AS d FROM tasks WHERE deleted_at IS NULL AND status = 0 AND due_at IS NOT NULL AND substr(COALESCE(start_at, due_at), 1, 10) BETWEEN ? AND ?`,
     [miniFrom, addDays(miniFrom, 41)]
@@ -319,6 +322,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
             myCal={{ on: opts.myCal !== 0, color: opts.myColor, onChange: setOpts }}
             calendarCursor={cursor}
             markPrefs={markPrefs}
+            weekStart={ws}
           />
         </div>
       )}
@@ -368,13 +372,13 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
         )}
         <div className="cal__body" ref={bodyRef}>
           {view === 'month' ? (
-            <MonthView {...handlers} weekends={opts.weekends !== 0} month={monthKey} navKey={navKey} items={items} today={today} itemStyle={opts.style} marks={marks}
+            <MonthView key={ws} {...handlers} weekStart={ws} weekends={opts.weekends !== 0} month={monthKey} navKey={navKey} items={items} today={today} itemStyle={opts.style} marks={marks}
               onMonthChange={(ym) => setCursor(ym === today.slice(0, 7) ? today : `${ym}-01`)}
               onDayClick={(d) => { setCursor(d); setOpts({ view: 'day' }) }}
               onMore={(day, r) => setPop({ kind: 'more', day, rect: r })}
             />
           ) : (
-            <TimeGrid {...handlers} days={days} items={items} today={today} marks={marks} weekNumbers={markPrefs.weekNumbers} hourH={hourH} collapsed={collapsed} onCollapsed={setCollapsed} itemStyle={opts.style}
+            <TimeGrid {...handlers} days={days} items={items} today={today} marks={marks} weekNumbers={markPrefs.weekNumbers} weekStart={ws} hourH={hourH} collapsed={collapsed} onCollapsed={setCollapsed} itemStyle={opts.style}
               onDayClick={(d) => { setCursor(d); setOpts({ view: 'day' }) }}
             />
           )}

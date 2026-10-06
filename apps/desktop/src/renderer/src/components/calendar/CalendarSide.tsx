@@ -2,12 +2,13 @@ import { Check, ChevronLeft, ChevronRight, Circle } from 'lucide-react'
 import { useState } from 'react'
 import { addDays, toDate } from '@sprout/schema/time'
 import { listView, type ListRow, type TagRow } from '../../data/types'
-import { CAL_WEEK_HEAD as WEEK, calWeekStart, weekHeadClass, weekendClass } from '../../lib/calendar'
+import { calWeekHead, calWeekStart, weekHeadClass, weekendClass } from '../../lib/calendar'
+import type { WeekStart } from '@sprout/schema/weekStart'
 import { dayKey } from '../../lib/dates'
 import { ExtPanelFilter } from '../calendars/ExtPanelFilter'
 import { MyCalRow } from '../events/MyCalRow'
 import type { MarkPrefs } from '@sprout/schema/holidays'
-import { useDayMarks } from '../../data/calendarOptions'
+import { useDayMarks, useWeekStart } from '../../data/calendarOptions'
 import './holidays.css'
 
 // 06 §6 왼쪽 패널(실측 research 17 §8): 작은 달력(이번 주 띠 · 태스크 점) + 필터(전체 · 리스트 · 태그 · 캘린더 구독)
@@ -27,11 +28,14 @@ type Props = {
   myCal?: { on: boolean; color: string | null | undefined; onChange: (patch: { myCal?: number; myColor?: string | null }) => void }
   /** 06 §16 작은 달력은 빨간 숫자만(이름은 마우스를 올리면) — "휴" 배지는 뺌(사용자 결정 2026-10-05) */
   markPrefs?: MarkPrefs
+  /** 06 §16.1 주 시작(없으면 설정값) */
+  weekStart?: WeekStart
 }
 const NO_MARKS: MarkPrefs = { holidays: false, lunar: false, weekNumbers: false }
 
 export function CalendarSide(p: Props) {
   const [month, setMonth] = useState(p.cursor.slice(0, 7))
+  const savedWs = useWeekStart()
   const [open, setOpen] = useState({ lists: false, tags: false, subs: false })
   const all = !p.filterLists.length && !p.filterTags.length
   const toggle = (arr: string[], id: string) => (arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id])
@@ -43,7 +47,8 @@ export function CalendarSide(p: Props) {
     setMonth(dayKey(0, d).slice(0, 7))
   }
   const first = toDate(`${month}-01`)
-  const start = calWeekStart(`${month}-01`)
+  const ws = p.weekStart ?? savedWs
+  const start = calWeekStart(`${month}-01`, ws)
   // 실측: 작은 달력은 항상 6줄
   const weeks = Array.from({ length: 6 }, (_, w) => Array.from({ length: 7 }, (_, i) => addDays(start, w * 7 + i)))
   const inRange = (d: string) => p.rangeDays.includes(d)
@@ -60,7 +65,7 @@ export function CalendarSide(p: Props) {
         </span>
       </div>
       <div className="cal-side__mini">
-        <div className="cal-side__wk">{WEEK.map((w, i) => <span key={w} className={weekHeadClass(i).trim() || undefined}>{w}</span>)}</div>
+        <div className="cal-side__wk">{calWeekHead(ws).map((w, i) => <span key={w} className={weekHeadClass(i, ws).trim() || undefined}>{w}</span>)}</div>
         {weeks.map((w) => {
           const band = p.rangeDays.length > 1 && w.some(inRange)
           return (

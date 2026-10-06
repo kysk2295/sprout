@@ -1,11 +1,13 @@
 // 설정 › 날짜와 시간(06 §16 / 20 §7.2 — 틱틱 모바일 Date & Time: 주 시작 · 추가 달력 · 주 번호 표시(W) · 휴일 표시, 도움말 FAQ-Calendar 그림).
 // 값은 동기화되는 view_settings('calendar').options_json — 데스크톱 설정 › 날짜 & 시간과 같다. 시간 형식·시간대는 v1 범위 밖.
+// 주 시작: 토요일 · 일요일(기본) · 월요일(틱틱과 같은 셋, 06 §16.1) — 추가 달력과 같이 칸을 누르면 아래로 펼쳐 고른다.
 import { HOLIDAY_YEARS } from '@sprout/schema/holidays'
 import { useRouter } from 'expo-router'
 import { Check, ChevronLeft } from 'lucide-react-native'
 import { useState } from 'react'
 import { ScrollView, Switch, Text, View } from 'react-native'
 import { saveMarkPrefs, useMarkPrefs } from '../../../src/data/calendarPrefs'
+import { toWeekStart, WEEK_START_OPTIONS, weekStartLabel } from '@sprout/schema/weekStart'
 import { FONT } from '../../../src/theme/palette'
 import { usePalette } from '../../../src/theme/ThemeProvider'
 import { Cell, Cells } from '../../../src/ui/Cells'
@@ -21,6 +23,8 @@ export default function DateTimeSettings() {
   const router = useRouter()
   const prefs = useMarkPrefs()
   const [pick, setPick] = useState(false)
+  const [pickWeek, setPickWeek] = useState(false)
+  const ws = toWeekStart(prefs.weekStart)
   const sw = (value: boolean, onChange: (v: boolean) => void, label: string) => (
     <Switch accessibilityLabel={label} value={value} onValueChange={onChange} trackColor={{ true: p.accent }} />
   )
@@ -29,7 +33,11 @@ export default function DateTimeSettings() {
       <NavRow title="날짜와 시간" left={<GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>} right={<View style={{ width: 40 }} />} />
       <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: space.pad }}>
         <Cells>
-          <Cell first label="주 시작" value="일요일" chevron={false} />
+          <Cell first label="주 시작" value={weekStartLabel(ws)} onPress={() => setPickWeek(!pickWeek)} />
+          {pickWeek ? WEEK_START_OPTIONS.map(({ value, label }) => (
+            <Cell key={value} label={`   ${label}`} onPress={() => { void saveMarkPrefs({ weekStart: value }); setPickWeek(false) }} chevron={false}
+              right={ws === value ? <Check size={18} color={p.accent} /> : undefined} />
+          )) : null}
         </Cells>
         <Cells>
           <Cell first label="추가 달력" value={CALENDARS.find(([v]) => v === (prefs.lunar ? 1 : 0))?.[1]} onPress={() => setPick(!pick)} />

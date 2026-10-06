@@ -5,6 +5,7 @@
 //   두 앱이 똑같이 쓰므로 packages/schema/src/diary.ts로 옮긴다(이 작업은 packages/를 고치지 않는 범위).
 import { addDays } from '@sprout/schema/time'
 import { SPECIES, type Species } from '@sprout/schema/growth'
+import { monthGrid42, weekCol, weekDays, weekHead, type WeekStart } from '@sprout/schema/weekStart'
 
 export type DiaryEntry = {
   id: string; date: string; mood: number | null; content: string | null; prompt: string | null
@@ -162,17 +163,16 @@ export function insightOf(entries: Pick<DiaryEntry, 'date' | 'mood'>[], doneByDa
 }
 
 // ── 15 §9 v1 디자인 계산 ──
-/** 주 시작 = 일요일(2026-10-06 사용자 결정, 캘린더와 같음). 일=0 … 토=6 */
+/** 주 시작 = 설정 "주 시작"(06 §16.1, 기본 일요일 — 캘린더와 같음). 기본 머리 글자 */
 export const WEEK_DAYS = ['일', '월', '화', '수', '목', '금', '토'] as const
-export const weekdayIdx = (date: string) => new Date(`${date}T00:00:00`).getDay()
-export function monthGrid(month: string): string[] {
-  const first = `${month}-01`
-  const start = addDays(first, -weekdayIdx(first))
-  return Array.from({ length: 42 }, (_, i) => addDays(start, i))
+export const weekDaysHead = (ws: WeekStart = 0) => weekHead(ws)
+/** 그 날이 주의 몇 번째 칸인가(기본 일요일 시작: 일=0 … 토=6) */
+export const weekdayIdx = (date: string, ws: WeekStart = 0) => weekCol(date, ws)
+export function monthGrid(month: string, ws: WeekStart = 0): string[] {
+  return monthGrid42(month, ws)
 }
-export function weekOf(date: string): string[] {
-  const sun = addDays(date, -weekdayIdx(date))
-  return Array.from({ length: 7 }, (_, i) => addDays(sun, i))
+export function weekOf(date: string, ws: WeekStart = 0): string[] {
+  return weekDays(date, ws)
 }
 export function longestStreak(dates: Iterable<string>): number {
   const sorted = [...new Set(dates)].sort()

@@ -10,6 +10,7 @@ import {
   type WidgetCalItem, type WidgetGrowth, type WidgetMood, type WidgetSnapshot, type WidgetTask
 } from '@sprout/schema/widget'
 import { displayTitle } from '@sprout/schema/wikiLink'
+import { WEEK_START_OPTIONS, weekStartOfOptions } from '@sprout/schema/weekStart'
 import { itemsOf, itemsOnDay, type CalItem } from '../data/calendar.ts'
 import { markPrefsOf } from '../data/calendarMarks.ts'
 import { eventIdOf, eventItems, isEventId, isPast, myColorOf, type EventRow } from '../data/eventsModel.ts'
@@ -41,7 +42,9 @@ export const WIDGET_TABLES = ['tasks', 'lists', 'events', 'view_settings', 'user
 
 export async function readWidgetData(db: CoreDb, today: string): Promise<WidgetData> {
   const q = openSql('smart:today', today)
-  const r = widgetCalendarRange(today)
+  // 주 시작 설정(06 §16.1)은 같이 읽으므로, 세 가지(토·일·월) 범위를 모두 덮게 읽는다
+  const rs = WEEK_START_OPTIONS.map((o) => widgetCalendarRange(today, undefined, o.value))
+  const r = { from: rs.map((x) => x.from).sort()[0], to: rs.map((x) => x.to).sort().reverse()[0] }
   const [todayRows, calTasks, events, cal, prefs, character, xp] = await Promise.all([
     db.getAll<TaskRow>(q.sql, q.params),
     db.getAll<TaskRow>(CAL_SQL, [r.to, r.from]),
@@ -108,7 +111,7 @@ export function growthOf(character: WidgetData['character'], events: XpRow[], to
 
 /** 월 칸 항목: 캘린더 탭 월 보기와 같은 항목·순서. 일정 id는 앞붙이 없이 */
 export function calendarItems(data: Pick<WidgetData, 'calTasks' | 'events' | 'calendarOptions'>, today: string, now: Date): (day: string) => WidgetCalItem[] {
-  const r = widgetCalendarRange(today)
+  const r = widgetCalendarRange(today, undefined, weekStartOfOptions(data.calendarOptions))
   const items: CalItem<TaskRow>[] = [...itemsOf(data.calTasks, r.from, r.to), ...eventItems(data.events, r.from, r.to, myColorOf(data.calendarOptions))]
   // 날마다 한 번 거르는 대신 날짜별로 미리 나눈다(4달 × 42칸)
   const byDay = new Map<string, CalItem<TaskRow>[]>()
@@ -148,7 +151,7 @@ export function composeWidgetSnapshot(data: WidgetData | null, opts: { today: st
     theme: widgetAccents(data.theme),
     today: { count: items.length, tasks: items.slice(0, WIDGET_MAX_TASKS) },
     growth: growthOf(data.character, data.xp, opts.today),
-    calendar: buildWidgetCalendar({ today: opts.today, dayItems: calendarItems(data, opts.today, opts.now), showHolidays: markPrefsOf(data.calendarOptions).holidays }),
+    calendar: buildWidgetCalendar({ today: opts.today, dayItems: calendarItems(data, opts.today, opts.now), showHolidays: markPrefsOf(data.calendarOptions).holidays, weekStart: weekStartOfOptions(data.calendarOptions) }),
     appliedActions: (opts.appliedActions ?? []).slice(-WIDGET_MAX_APPLIED)
   }
 }

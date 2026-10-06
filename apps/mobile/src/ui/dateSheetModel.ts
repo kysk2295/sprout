@@ -5,6 +5,7 @@ import {
   parseRule, repeatPresets, stringifyRule, timePart, type Rule
 } from '@sprout/schema/time'
 import { dayKey, monthDay, moveToDate, WEEKDAY } from '../lib/dates.ts'
+import { monthGrid42, type WeekStart } from '@sprout/schema/weekStart'
 
 /** 날짜 시트가 저장하는 값(데스크톱 taskActions Schedule과 같은 꼴) */
 export interface Schedule {
@@ -151,11 +152,9 @@ export function fromWheel(w: { pm: boolean; hour12: number; minute: number }): s
   const h = (w.hour12 % 12) + (w.pm ? 12 : 0)
   return `${pad(h)}:${pad(w.minute)}`
 }
-/** 달력 6주(일요일 시작) */
-export function monthCells(month: string): string[] {
-  const first = new Date(`${month}-01T00:00`)
-  const lead = first.getDay()
-  return Array.from({ length: 42 }, (_, i) => addDays(`${month}-01`, i - lead))
+/** 달력 6주(주 시작 설정 — 06 §16.1, 기본 일요일) */
+export function monthCells(month: string, ws: WeekStart = 0): string[] {
+  return monthGrid42(month, ws)
 }
 export function shiftMonth(month: string, n: number): string {
   const d = new Date(`${month}-01T00:00`)

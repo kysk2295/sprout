@@ -124,13 +124,15 @@ object WidgetRender {
     rv.setFloat(R.id.sw_prev, "setAlpha", if (index > 0) 1f else 0.3f)
     rv.setFloat(R.id.sw_next, "setAlpha", if (index < months.length() - 1) 1f else 0.3f)
 
-    // 요일 줄: 토 파랑, 일 빨강
+    // 요일 줄: 앱이 준 순서(주 시작 설정 — 06 §16.1), 색은 그 열의 요일로 — 토 파랑, 일 빨강
     rv.removeAllViews(R.id.sw_weekhead)
     val head = cal.optJSONArray("weekHead")
+    val ws = cal.optInt("weekStart", 0)
     for (i in 0 until 7) {
       val wd = RemoteViews(ctx.packageName, R.layout.sprout_widget_weekday)
       wd.setTextViewText(R.id.sw_wd, head?.optString(i) ?: "")
-      text(ctx, wd, R.id.sw_wd, if (i == 6) HOLIDAY else if (i == 5) SATURDAY else TERTIARY)
+      val dow = (ws + i) % 7
+      text(ctx, wd, R.id.sw_wd, if (dow == 0) HOLIDAY else if (dow == 6) SATURDAY else TERTIARY)
       rv.addView(R.id.sw_weekhead, wd)
     }
 

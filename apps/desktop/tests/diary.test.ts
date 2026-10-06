@@ -5,7 +5,7 @@ import { TABLES } from '@sprout/schema'
 import {
   buildBuddyMessages, buddyReply, entryId, insightOf, josa, parseBuddyReply, recentMemory, saveEntry, sendMessage,
   setConsent, setMemory, setPrivate, streakOf, deleteEntry, taskFromChip,
-  averageMood, buddyLine, DONE_SQL, highlightsOf, longestStreak, monthGrid, moodFaceOf, moodTrend, skyOf, WEEK_DAYS, weekdayIdx, weekOf
+  averageMood, buddyLine, DONE_SQL, highlightsOf, longestStreak, monthGrid, moodFaceOf, moodTrend, skyOf, WEEK_DAYS, weekDaysHead, weekdayIdx, weekOf
 } from '../src/renderer/src/data/diary'
 import { insert, run } from '../src/renderer/src/data/mutations'
 const SQL = await initSqlJs()
@@ -127,6 +127,12 @@ assert.ok(grid.every((d, i) => weekdayIdx(d) === i % 7))
 assert.equal(monthGrid('2026-11')[0], '2026-11-01') // 1일이 일요일이면 앞 칸 없음
 assert.deepEqual(weekOf('2026-10-10'), ['2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10'])
 assert.equal(weekOf('2026-10-04')[0], '2026-10-04')
+// 06 §16.1 주 시작 설정을 따른다(월요일 · 토요일 시작)
+assert.equal(monthGrid('2026-10', 1)[0], '2026-09-28')
+assert.equal(monthGrid('2026-10', 6)[0], '2026-09-26')
+assert.equal(weekdayIdx('2026-10-01', 1), 3) // 월요일 시작이면 목 = 넷째 칸
+assert.deepEqual(weekOf('2026-10-04', 1)[0], '2026-09-28')
+assert.deepEqual([...weekDaysHead(6)], ['토', '일', '월', '화', '수', '목', '금'])
 // 가장 긴 연속(순서·중복·달 경계 무관)
 assert.equal(longestStreak([]), 0)
 assert.equal(longestStreak(['2026-10-03', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-02', '2026-10-09', '2026-10-10']), 4)

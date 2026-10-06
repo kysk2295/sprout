@@ -1,6 +1,6 @@
 // 설정 탭(20 §2, 시안 I-1): 프로필 카드(아바타·이름·Lv·캐릭터) → 색 사각 아이콘 칸 → 빨간 로그아웃
 // [다음] 일반(스와이프·완료음) 칸 — 해당 기능이 생길 때 붙인다
-// 2026-10-05: 설정은 더보기 안 화면(머리 ‹ 뒤로) · 프로필 카드 → 계정(로그아웃·계정 삭제) · 날짜와 시간(주 시작 일요일 고정 · 휴일·음력·주 번호 — 06 §16) · 리스트 관리
+// 2026-10-05: 설정은 더보기 안 화면(머리 ‹ 뒤로) · 프로필 카드 → 계정(로그아웃·계정 삭제) · 날짜와 시간(주 시작 토·일·월(기본 일요일) · 휴일·음력·주 번호 — 06 §16) · 리스트 관리
 import { useQuery, useStatus } from '@powersync/react-native'
 import { progressFromEvents, SPECIES, type Species } from '@sprout/schema/growth'
 import { useRouter } from 'expo-router'

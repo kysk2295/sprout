@@ -736,6 +736,10 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .settings-card { background:var(--color-bg-card); border-radius:var(--radius-md); padding:4px 16px; margin-bottom:20px; }
 .settings-row { min-height:42px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
 .settings-row select { border:0; background:transparent; color:var(--color-text-secondary); text-align:right; max-width:180px; }
+/* 06 §16.1 설정 값 고르기(앱 메뉴 팝오버를 여는 단추 — 네이티브 select 대신) */
+.settings-pick { display:inline-flex; align-items:center; gap:4px; border:0; background:transparent; color:var(--color-text-secondary); padding:4px 6px; margin-right:-6px; border-radius:4px; cursor:pointer; font:inherit; }
+.settings-pick:hover, .settings-pick[aria-expanded="true"] { background:var(--color-bg-hover); color:var(--color-text-primary); }
+.settings-pick svg { width:14px; height:14px; }
 .settings-caption { margin:0 0 16px; color:var(--color-text-secondary); }
 /* 테마 고르기 견본: components/ThemePicker.css (01 §9.1) */
 [data-theme="dark"] { --color-bg-settings-nav:#242424; }

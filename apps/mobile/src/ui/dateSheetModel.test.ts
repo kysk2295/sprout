@@ -99,6 +99,8 @@ const cells = monthCells('2026-10')
 assert.equal(cells.length, 42)
 assert.equal(cells[0], '2026-09-27', '2026년 10월 1일(목) → 앞 일요일 9월 27일')
 assert.equal(new Date(`${cells[0]}T00:00`).getDay(), 0)
+assert.equal(monthCells('2026-10', 1)[0], '2026-09-28', '월요일 시작(06 §16.1)')
+assert.equal(monthCells('2026-10', 6)[0], '2026-09-26', '토요일 시작')
 assert.equal(shiftMonth('2026-12', 1), '2027-01')
 assert.equal(shiftMonth('2026-01', -1), '2025-12')
 

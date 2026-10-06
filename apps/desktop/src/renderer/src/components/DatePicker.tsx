@@ -10,7 +10,8 @@ import { Popover } from './Popover'
 import { CalendarPlus7 } from './icons'
 import { markPrefsOf, useCalendarOptions, useDayMarks } from '../data/calendarOptions'
 import './calendar/holidays.css'
-import { CAL_WEEK_HEAD as WEEK, weekHeadClass, weekendClass } from '../lib/calendar'
+import { calWeekHead, weekHeadClass, weekendClass } from '../lib/calendar'
+import { monthGrid42, toWeekStart } from '@sprout/schema/weekStart'
 
 // 03-date-picker: 날짜 탭 · 기간 탭 · Time/Reminder/Repeat 하위 화면 · Clear/OK
 // 바깥 클릭 = OK(저장 후 닫기), Esc = 취소 후 닫기(03 §2)
@@ -196,10 +197,10 @@ function Row({ icon, label, value, onOpen, onClear }: { icon: ReactNode; label: 
 /** 6주 고정 달력(03 §3). selected 여러 개 가능(특정 날짜 반복) */
 export function MonthGrid({ month, onMonth, today, selected, onPick, compact, range = [] }: { month: string; onMonth: (m: string) => void; today: string; selected: string[]; onPick: (d: string) => void; compact?: boolean; range?: string[] }) {
   const first = toDate(`${month}-01`)
-  const lead = first.getDay() // 일요일 시작(캘린더와 같음)
-  const days = Array.from({ length: 42 }, (_, i) => addDays(`${month}-01`, i - lead))
   // 06 §16 "휴일 표시"가 켜져 있으면 공휴일 숫자를 빨강으로(이름은 마우스를 올리면, "휴" 배지는 뺌 — 사용자 결정 2026-10-05)
   const [calOpts] = useCalendarOptions()
+  const ws = toWeekStart(calOpts.weekStart) // 06 §16.1 주 시작 설정(캘린더와 같음)
+  const days = monthGrid42(month, ws)
   const marks = useDayMarks([days[0], days[41]], { ...markPrefsOf(calOpts), lunar: false, weekNumbers: false })
   const shift = (n: number) => {
     const d = new Date(first)
@@ -216,7 +217,7 @@ export function MonthGrid({ month, onMonth, today, selected, onPick, compact, ra
           <button aria-label="다음 달" onClick={() => shift(1)}><ChevronRight /></button>
         </span>
       </div>
-      <div className="dp__week">{WEEK.map((w, i) => <span key={w} className={weekHeadClass(i).trim() || undefined}>{w}</span>)}</div>
+      <div className="dp__week">{calWeekHead(ws).map((w, i) => <span key={w} className={weekHeadClass(i, ws).trim() || undefined}>{w}</span>)}</div>
       <div className="dp__days">
         {days.map((day) => {
           const cls = ['dp__day', day.slice(0, 7) !== month && 'is-other', range.includes(day) && 'is-range', day === today && 'is-today', selected.includes(day) && 'is-selected']

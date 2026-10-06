@@ -1,6 +1,7 @@
 // 15 일기 v0.3 — 날짜별 일기(결정적 id), 성장 캐릭터와의 대화, 동의·나만 보기
 import { addDays } from '@sprout/schema/time'
 import { SPECIES, type Species } from '@sprout/schema/growth'
+import { monthGrid42, weekCol, weekDays, weekHead, type WeekStart } from '@sprout/schema/weekStart'
 import type { ChatInput } from '../../../shared/assistant'
 import { aiChat } from './ai'
 import { getDb } from './db'
@@ -272,20 +273,19 @@ export function insightOf(entries: Pick<DiaryEntry, 'date' | 'mood'>[], doneByDa
 }
 
 // ── 15 §9 v1 디자인 계산(순수 함수) ──
-/** 주 시작 = 일요일(2026-10-06 사용자 결정 "일부터", 캘린더와 같음). 머리 글자 순서 */
+/** 주 시작 = 설정 "일주일을 시작하는 요일"(06 §16.1, 기본 일요일 — 캘린더와 같음). 머리 글자 순서(기본) */
 export const WEEK_DAYS = ['일', '월', '화', '수', '목', '금', '토'] as const
-/** 일=0 … 토=6 */
-export const weekdayIdx = (date: string) => new Date(`${date}T00:00:00`).getDay()
-/** 그 달 달력 칸(일요일 시작, 6주 = 42칸) */
-export function monthGrid(month: string): string[] {
-  const first = `${month}-01`
-  const start = addDays(first, -weekdayIdx(first))
-  return Array.from({ length: 42 }, (_, i) => addDays(start, i))
+/** 주 시작에 맞춘 머리 글자 */
+export const weekDaysHead = (ws: WeekStart = 0) => weekHead(ws)
+/** 그 날이 주의 몇 번째 칸인가(기본 일요일 시작: 일=0 … 토=6) */
+export const weekdayIdx = (date: string, ws: WeekStart = 0) => weekCol(date, ws)
+/** 그 달 달력 칸(주 시작 설정 기준, 6주 = 42칸) */
+export function monthGrid(month: string, ws: WeekStart = 0): string[] {
+  return monthGrid42(month, ws)
 }
-/** 그 날이 든 주(일~토) 7날짜 — 이어 쓰기 카드 */
-export function weekOf(date: string): string[] {
-  const sun = addDays(date, -weekdayIdx(date))
-  return Array.from({ length: 7 }, (_, i) => addDays(sun, i))
+/** 그 날이 든 주 7날짜 — 이어 쓰기 카드 */
+export function weekOf(date: string, ws: WeekStart = 0): string[] {
+  return weekDays(date, ws)
 }
 /** 가장 길게 이어진 날 수 */
 export function longestStreak(dates: Iterable<string>): number {

@@ -6,6 +6,8 @@ import { deleteItem, registerSuggestion, saveItem, suggestionOf, type CollectIte
 import { collector, useCollectorStatus } from '../data/collector'
 import { listLabel, type ListRow } from '../data/types'
 import { dayKey, detailDateLabel } from '../lib/dates'
+import { useWeekStart } from '../data/calendarOptions'
+import { startOfWeek, type WeekStart } from '@sprout/schema/weekStart'
 import type { Schedule } from '../lib/taskActions'
 import { DatePicker, EMPTY_SCHEDULE } from './DatePicker'
 import { ListPickerBody } from './Pickers'
@@ -28,11 +30,11 @@ type Group = { id: string; name: string; items: CollectItem[]; closedByDefault: 
 const APP_GROUPS: [string, string][] = [['today', '오늘'], ['yesterday', '어제'], ['week', '이번 주'], ['older', '이전']]
 const SECTIONS: [Section, string][] = [['notes', '수집'], ['watch', '볼 것'], ['wiki', '위키']]
 
-function appGroupOf(iso: string, today: string) {
+function appGroupOf(iso: string, today: string, ws: WeekStart) {
   const day = localDay(iso)
   if (day === today) return 'today'
   if (day === dayKey(-1)) return 'yesterday'
-  const weekStart = dayKey(-new Date().getDay()) // 주 시작 = 일요일(캘린더와 같음, 2026-10-06)
+  const weekStart = startOfWeek(today, ws) // 주 시작 = 설정 "일주일을 시작하는 요일"(06 §16.1, 캘린더와 같음)
   return day >= weekStart ? 'week' : 'older'
 }
 const isKakao = (n: CollectItem) => n.source === 'kakao_import' || n.source === 'kakao_channel'
@@ -71,12 +73,13 @@ export function NotesView({ lists, onOpen, section, onSection }: Props) {
   }
   const pendingKakao = useQuery<{ n: number }>("SELECT COUNT(*) AS n FROM notes WHERE source = 'kakao_import' AND ai_state = 'pending'")?.[0]?.n ?? 0
   const today = dayKey()
+  const ws = useWeekStart()
   const groups = useMemo<Group[]>(() => {
     const app = new Map<string, CollectItem[]>()
     const kakaoDays = new Map<string, CollectItem[]>()
     for (const n of items ?? []) {
       if (isKakao(n)) { const d = localDay(sentAt(n)); kakaoDays.set(d, [...(kakaoDays.get(d) ?? []), n]) }
-      else { const g = appGroupOf(n.created_at, today); app.set(g, [...(app.get(g) ?? []), n]) }
+      else { const g = appGroupOf(n.created_at, today, ws); app.set(g, [...(app.get(g) ?? []), n]) }
     }
     const out: Group[] = APP_GROUPS.filter(([id]) => app.has(id)).map(([id, name]) => ({ id, name, items: app.get(id)!, closedByDefault: id === 'older', showTime: id === 'today' }))
     ;[...kakaoDays.keys()].sort().reverse().forEach((d, i) => {
@@ -84,7 +87,7 @@ export function NotesView({ lists, onOpen, section, onSection }: Props) {
       out.push({ id: `kakao:${d}`, name: `카카오톡에서 가져옴 · ${monthDayKo(sentAt(rows[0]))}`, items: rows, closedByDefault: i > 0, showTime: true })
     })
     return out
-  }, [items, today])
+  }, [items, today, ws])
   const closed = (g: Group) => !q && g.closedByDefault !== toggled.has(g.id)
   const toggle = (id: string) => setToggled((c) => { const n = new Set(c); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const watchItems = useMemo(() => (items ?? []).filter((n) => n.url), [items])

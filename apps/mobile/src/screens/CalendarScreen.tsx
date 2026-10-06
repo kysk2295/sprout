@@ -1,5 +1,5 @@
 // 캘린더 탭(06 데스크톱 캘린더의 휴대폰판 — 시안 G): 머리 = 왼쪽 보기 전환(목록·일·3일·월) · 가운데 달 · 오른쪽 오늘로 · ⋯
-// - 월: 일요일 시작 칸, 칸 안에 리스트 색 옅은 띠 + 제목(넘치면 +n), 오늘 = 강조색 원. 날짜를 누르면 아래에 그날 목록. 위아래로 밀면 달이 바뀜
+// - 월: 주 시작 설정(기본 일요일) 칸, 칸 안에 리스트 색 옅은 띠 + 제목(넘치면 +n), 오늘 = 강조색 원. 날짜를 누르면 아래에 그날 목록. 위아래로 밀면 달이 바뀜
 //   아래 목록을 위로 끌면 달이 고른 날의 한 주 줄로 접히고, 접힌 채 목록 맨 위에서 아래로 끌면 펼침(틱틱 목록 캘린더 — 20 §7, research 24 §10)
 // - 일·3일: 위 주 줄(점 = 할 일 있음)·종일 줄·시간 칸(1시간 56). 빈 칸 누르면 그 시각으로 빠른 입력, 블록을 길게 눌러 끌면 옮김(15분 단위, 3일은 다른 날로도)
 // - 목록: 오늘부터 30일 날짜별 묶음 카드
@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { scheduleOnRN } from 'react-native-worklets'
 import {
   agendaTitle, blockTime, CAL_VIEWS, cellSummary, dragTarget, floatingAt, HOUR_H, hourLabel, isBarItem, itemsOf, itemsOnDay, layoutDay, minutesAtY,
-  monthDays, monthTitle, moveTo, rangeOf, shiftCursor, WEEK_HEAD, weekStart, weekdayKo, type Block, type CalItem, type MobileCalView
+  monthDays, monthTitle, moveTo, rangeOf, shiftCursor, weekHeadOf, weekStart, weekdayKo, type Block, type CalItem, type MobileCalView
 } from '../data/calendar'
 import { rescheduleEvent, useEvents, useMyCalColor } from '../data/calEvents'
 import { eventIdOf, eventItems, evtOf, isEventId, isPast } from '../data/eventsModel'
@@ -45,7 +45,8 @@ import { useTabBarSpace } from '../ui/tabBarSpace'
 import { TaskRowView } from '../ui/TaskRow'
 import type { DayMarks } from '@sprout/schema/holidays'
 import { isWidgetDate } from '@sprout/schema/widget'
-import { useDayMarks, useMarkPrefs } from '../data/calendarPrefs'
+import { useDayMarks, useMarkPrefs, useWeekStart } from '../data/calendarPrefs'
+import { headWeekday, type WeekStart } from '@sprout/schema/weekStart'
 import { SideLabel } from '../ui/DayMarks'
 import { eventSpan } from '@sprout/schema/events'
 import { useDeviceActions } from '../calendars/actions'
@@ -105,11 +106,12 @@ export default function CalendarScreen() {
   }, [linkDate])
 
   // 데이터: 범위에 걸친 할 일(일 보기는 주 줄 점 때문에 그 주 전체)
+  const ws = useWeekStart() // 06 §16.1 / 20 §7.2 주 시작(설정 › 날짜와 시간) — 바꾸면 바로 다시 그린다
   const range = useMemo(() => {
-    if (view === 'day') { const from = weekStart(cursor); return { from, to: dayKey(6, new Date(`${from}T00:00`)) } }
-    const r = rangeOf(view, cursor)
+    if (view === 'day') { const from = weekStart(cursor, ws); return { from, to: dayKey(6, new Date(`${from}T00:00`)) } }
+    const r = rangeOf(view, cursor, ws)
     return { from: r.from, to: r.to }
-  }, [view, cursor])
+  }, [view, cursor, ws])
   const tasks = useQuery<TaskRow>(
     `SELECT ${COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id
      WHERE t.deleted_at IS NULL AND t.due_at IS NOT NULL AND (l.archived_at IS NULL) AND t.status IN (0, ?)
@@ -204,6 +206,7 @@ export default function CalendarScreen() {
 
       {view === 'month' ? (
         <MonthView
+          ws={ws}
           today={today}
           cursor={cursor}
           items={items}
@@ -216,6 +219,7 @@ export default function CalendarScreen() {
       ) : null}
       {timeline ? (
         <Timeline
+          ws={ws}
           view={view}
           today={today}
           cursor={cursor}
@@ -300,9 +304,9 @@ const snapTo = (to: number) => {
   return withTiming(to, { duration: FOLD_MS, easing: Easing.out(Easing.cubic) })
 }
 
-function MonthView(props: { today: string; cursor: string; items: Item[]; onPick: (d: string) => void; onShift: (n: number) => void; onAdd: (d: string) => void; marks: (d: string, firstOfRow: boolean) => DayMarks; list: (fold: Fold) => ReactNode }) {
+function MonthView(props: { ws: WeekStart; today: string; cursor: string; items: Item[]; onPick: (d: string) => void; onShift: (n: number) => void; onAdd: (d: string) => void; marks: (d: string, firstOfRow: boolean) => DayMarks; list: (fold: Fold) => ReactNode }) {
   const p = usePalette()
-  const days = monthDays(props.cursor)
+  const days = monthDays(props.cursor, props.ws)
   const weeks = days.length / 7
   const rowH = weeks > 5 ? 58 : 66
   const month = props.cursor.slice(0, 7)
@@ -362,7 +366,7 @@ function MonthView(props: { today: string; cursor: string; items: Item[]; onPick
   return (
     <View style={{ flex: 1 }}>
       <View style={s.wd}>
-        {WEEK_HEAD.map((w, i) => <Text key={w} style={[s.wdText, { color: i === 0 ? p.holiday : i === 6 ? p.saturday : p.textTertiary }]}>{w}</Text>)}
+        {weekHeadOf(props.ws).map((w, i) => { const dow = headWeekday(i, props.ws); return <Text key={w} style={[s.wdText, { color: dow === 0 ? p.holiday : dow === 6 ? p.saturday : p.textTertiary }]}>{w}</Text> })}
       </View>
       <GestureDetector gesture={gridGesture}>
         <Animated.View
@@ -461,7 +465,7 @@ function DayList(props: { day: string; today: string; items: Item[]; onCheck: (t
 
 // ── 일 · 3일(시간 칸) ──
 function Timeline(props: {
-  view: MobileCalView; today: string; cursor: string; items: Item[]
+  ws: WeekStart; view: MobileCalView; today: string; cursor: string; items: Item[]
   onPick: (d: string) => void; onShift: (n: number) => void; onAddAt: (due: string) => void; onOpen: (t: TaskRow) => void; onCheck: (t: TaskRow) => void
   onDrop: (it: Item, dy: number, dCols: number) => void; onMenu: (t: TaskRow, rect: Rect) => void; bottomPad: number
   marks: (d: string, firstOfRow: boolean) => DayMarks
@@ -493,7 +497,7 @@ function Timeline(props: {
   })
   const bars = (d: string) => itemsOnDay(props.items, d).filter(isBarItem)
   const now = new Date() // 1분마다 nowMin이 바뀌어 다시 그려진다 → 지난 항목 옅게도 따라 바뀜
-  const week = Array.from({ length: 7 }, (_, i) => dayKey(i, new Date(`${weekStart(props.cursor)}T00:00`)))
+  const week = Array.from({ length: 7 }, (_, i) => dayKey(i, new Date(`${weekStart(props.cursor, props.ws)}T00:00`)))
   const weekSwipe = Gesture.Pan().activeOffsetX([-24, 24]).onEnd((e) => {
     if (e.translationX < -50) scheduleOnRN(onPick, nextWeek)
     else if (e.translationX > 50) scheduleOnRN(onPick, prevWeek)

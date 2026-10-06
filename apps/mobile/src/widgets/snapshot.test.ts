@@ -72,6 +72,14 @@ assert.equal(day('2026-10-09').tone, 'holiday')
 // 휴일 표시 끄면 이름 없음
 const off = composeWidgetSnapshot({ ...data, calendarOptions: JSON.stringify({ holidays: 0 }) }, { today, now, signedIn: true })
 assert.equal(off.calendar!.months[1].weeks.flat().find((c) => c.date === '2026-10-03')!.holiday, null)
+// 06 §16.1 주 시작 설정 → 위젯 머리·줄이 그 요일부터, 항목은 그대로
+assert.equal(cal.weekStart, 0)
+const mon = composeWidgetSnapshot({ ...data, calendarOptions: JSON.stringify({ weekStart: 1, myColor: '#33AA55' }) }, { today, now, signedIn: true }).calendar!
+assert.equal(mon.weekStart, 1)
+assert.deepEqual(mon.weekHead, ['월', '화', '수', '목', '금', '토', '일'])
+assert.equal(mon.months[mon.current].weeks[0][0].date, '2026-09-28')
+assert.ok(mon.months[mon.current].weeks.every((w) => w[5].tone !== 'sun' && w[6].tone !== 'sat' && w[0].tone !== 'sun'))
+assert.deepEqual(mon.months[mon.current].weeks.flat().find((c) => c.date === '2026-10-07')!.items.map((i) => i.title), ['여행', '끝낸 일', '치과'])
 
 // 로그아웃 형태: 제목이 남지 않는다
 const out = composeWidgetSnapshot(data, { today, now, signedIn: false })

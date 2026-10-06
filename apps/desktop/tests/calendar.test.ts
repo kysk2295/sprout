@@ -1,6 +1,6 @@
 // 06 캘린더 계산 · 13 AI 비서 서버 경로(대기열 줄·느슨한 JSON) — 2026-10-04 E2E 점검에서 고친 것 포함
 import assert from 'node:assert/strict'
-import { CAL_WEEK_HEAD, colorOf, DEFAULT_OPTIONS, FALLBACK_COLOR, hourLabel, itemsOf, layoutDay, rangeOf, shiftCursor, shortRange, titleOf, weekendClass, weekHeadClass, weekStart } from '../src/renderer/src/lib/calendar'
+import { CAL_WEEK_HEAD, calWeekHead, colorOf, DEFAULT_OPTIONS, FALLBACK_COLOR, hourLabel, itemsOf, layoutDay, rangeOf, shiftCursor, shortRange, titleOf, weekendClass, weekHeadClass, weekStart } from '../src/renderer/src/lib/calendar'
 import { timeSelection } from '../src/renderer/src/lib/calendarSelection'
 import { scheduledDrop } from '../src/renderer/src/lib/calendarDrop'
 import { parseIntent, readChatStream } from '../src/shared/assistant'
@@ -20,6 +20,23 @@ assert.deepEqual(CAL_WEEK_HEAD.map((_, i) => weekHeadClass(i)), [' is-sun', '', 
 assert.equal(weekendClass('2026-10-04'), ' is-sun')
 assert.equal(weekendClass('2026-10-10'), ' is-sat')
 assert.equal(weekStart('2026-10-04'), '2026-09-28', '성장 주(목표·리포트)는 월요일 시작 그대로')
+// 06 §16.1 주 시작 설정(토 · 일 · 월): 주·월 보기 범위와 머리 색이 따른다. 일 빨강 · 토 파랑은 자리와 상관없이 그 요일
+assert.deepEqual(rangeOf('week', '2026-10-07', 1).days[0], '2026-10-05')
+assert.deepEqual(rangeOf('week', '2026-10-07', 1).days[6], '2026-10-11', '월요일 시작이면 일요일이 끝')
+assert.deepEqual(rangeOf('week', '2026-10-07', 6).days[0], '2026-10-03')
+assert.equal(rangeOf('month', '2026-10-15', 1).days[0], '2026-09-28')
+assert.equal(rangeOf('month', '2026-10-15', 1).days.length, 35)
+assert.equal(rangeOf('month', '2026-10-15', 6).days[0], '2026-09-26')
+assert.equal(rangeOf('month', '2026-10-15', 6).days.length, 42) // 10/31(토)이 새 줄 첫 칸
+assert.deepEqual(calWeekHead(1), ['월', '화', '수', '목', '금', '토', '일'])
+assert.deepEqual(calWeekHead(1).map((_, i) => weekHeadClass(i, 1)), ['', '', '', '', '', ' is-sat', ' is-sun'])
+assert.deepEqual(calWeekHead(6).map((_, i) => weekHeadClass(i, 6)), [' is-sat', ' is-sun', '', '', '', '', ''])
+for (const ws of [0, 1, 6] as const) {
+  const days = rangeOf('month', '2026-02-10', ws).days
+  days.forEach((d, i) => assert.equal(weekendClass(d), weekHeadClass(i % 7, ws), `${d} ws=${ws}`)) // 칸 색 = 머리 색
+}
+assert.equal(weekStart('2026-10-04'), '2026-09-28', '성장 주는 주 시작 설정과 무관하게 월요일')
+assert.equal(DEFAULT_OPTIONS.weekStart, 0)
 assert.equal(shiftCursor('month', '2026-01-31', 1), '2026-02-01')
 assert.equal(shiftCursor('week', '2026-10-04', -1), '2026-09-27')
 assert.equal(titleOf('week', '2026-10-03'), '2026년 10월')

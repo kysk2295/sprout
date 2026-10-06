@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent as RPointerEvent } from 'react'
 import { addDays, datePart, daysBetween } from '@sprout/schema/time'
-import { CAL_WEEK_HEAD as WEEK, packBars, visibleDays, weekHeadClass, weekendClass, type CalItem, type ItemStyle } from '../../lib/calendar'
+import { calWeekHead, packBars, visibleDays, weekHeadClass, weekendClass, type CalItem, type ItemStyle } from '../../lib/calendar'
 import { monthAtCenter, monthTopWeek, snapTop, TOTAL_WEEKS, weekAt, weeksInMonth, windowRows } from '../../lib/monthScroll'
 import type { DayMarks } from '@sprout/schema/holidays'
+import { headWeekday, type WeekStart } from '@sprout/schema/weekStart'
 import { SideLabel } from './DayMark'
 import { monthMoveChanges, previewOf, resizeBar, spanDays } from '../../lib/calendarDrag'
 import { outsideDrag } from '../../lib/calendarDrop'
@@ -18,6 +19,8 @@ const BAR = 16
 const HEAD = 30 // 칸 위쪽 날짜 줄
 
 type Props = CalHandlers & {
+  /** 06 §16.1 주 시작(0 일 · 1 월 · 6 토). 바뀌면 부모가 key로 다시 만든다 */
+  weekStart: WeekStart
   /** 06 §8 주말 표시(끄면 한 줄 5칸) */
   weekends: boolean
   /** 기준 달(YYYY-MM) — navKey가 바뀔 때 이 달 첫 주로 스크롤한다 */
@@ -50,7 +53,8 @@ const labelOf = (ym: string) => `${ym.slice(0, 4)}년 ${Number(ym.slice(5, 7))}�
 export function MonthView(p: Props) {
   const { items, today } = p
   const cols = p.weekends ? 7 : 5
-  const daysOf = (row: number) => visibleDays(Array.from({ length: 7 }, (_, i) => addDays(weekAt(row), i)), p.weekends)
+  const ws = p.weekStart
+  const daysOf = (row: number) => visibleDays(Array.from({ length: 7 }, (_, i) => addDays(weekAt(row, ws), i)), p.weekends)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [viewH, setViewH] = useState(0)
   useLayoutEffect(() => {
@@ -71,9 +75,9 @@ export function MonthView(p: Props) {
     navSeen.current = p.navKey
     anchor.current = p.month
   }
-  const rowH = viewH ? viewH / weeksInMonth(anchor.current) : 100
+  const rowH = viewH ? viewH / weeksInMonth(anchor.current, ws) : 100
   const rowHRef = useRef(rowH)
-  const topIdx = useRef(monthTopWeek(p.month)) // 맨 윗줄 번호(소수) — 창 크기가 바뀌어도 같은 주가 맨 위에
+  const topIdx = useRef(monthTopWeek(p.month, ws)) // 맨 윗줄 번호(소수) — 창 크기가 바뀌어도 같은 주가 맨 위에
   const [win, setWin] = useState<[number, number]>(() => [topIdx.current - 2, topIdx.current + 8])
   const [viewMonth, setViewMonth] = useState(p.month)
   const viewMonthRef = useRef(p.month)
@@ -93,7 +97,7 @@ export function MonthView(p: Props) {
     const h = rowHRef.current
     const [a, b] = windowRows(el.scrollTop, el.clientHeight, h)
     setWin((w) => (w[0] === a && w[1] === b ? w : [a, b]))
-    const m = monthAtCenter(el.scrollTop, el.clientHeight, h)
+    const m = monthAtCenter(el.scrollTop, el.clientHeight, h, ws)
     if (m !== viewMonthRef.current) {
       viewMonthRef.current = m
       setViewMonth(m)
@@ -111,7 +115,7 @@ export function MonthView(p: Props) {
     if (!nav) programmatic.current = undefined // 창 크기가 바뀌어 이동 움직임이 끊김
     if (nav) {
       pending.current = undefined
-      const target = monthTopWeek(nav.month)
+      const target = monthTopWeek(nav.month, ws)
       const dist = Math.abs(target - el.scrollTop / rowH)
       viewMonthRef.current = nav.month
       setViewMonth(nav.month)
@@ -294,13 +298,13 @@ export function MonthView(p: Props) {
   return (
     <div className="mv">
       <div className="mv__head" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-        {WEEK.map((w, i) => (p.weekends || (i > 0 && i < 6) ? <span key={w} className={`mv__wd${weekHeadClass(i)}`}>{w}</span> : null))}
+        {calWeekHead(ws).map((w, i) => { const dow = headWeekday(i, ws); return p.weekends || (dow > 0 && dow < 6) ? <span key={w} className={`mv__wd${weekHeadClass(i, ws)}`}>{w}</span> : null })}
       </div>
       <div className="mv__body" ref={bodyRef}>
         <div className="mv__track" style={{ height: TOTAL_WEEKS * rowH }}>
         {Array.from({ length: Math.max(0, win[1] - win[0] + 1) }, (_, k) => win[0] + k).map((r) => {
           const row = daysOf(r)
-          const first = Array.from({ length: 7 }, (_, i) => addDays(weekAt(r), i)).find((d) => d.endsWith('-01'))
+          const first = Array.from({ length: 7 }, (_, i) => addDays(weekAt(r, ws), i)).find((d) => d.endsWith('-01'))
           const bars = packBars(laidItems, row)
           const covering = row.map((_, c) => bars.filter((b) => b.col <= c && c < b.col + b.span))
           const overflow = covering.some((cv) => cv.length > maxLanes)

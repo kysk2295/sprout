@@ -2,8 +2,9 @@
 // - 모양은 맥 위젯(apps/desktop/src/main/widgetSnapshot.ts)과 같다. 모바일이 `calendar`를 더한다(맥 위젯은 모르는 필드를 무시).
 // - 순수 함수만(시험: widget.test.ts). DB 읽기는 앱 쪽(모바일 src/widgets/snapshot.ts).
 // - Swift(plugins/widgets/ios/Snapshot.swift)·Kotlin(modules/sprout-widgets/android …/Snapshot.kt)이 같은 필드를 읽는다.
-import { addDays, daysBetween, toDate } from './time.ts'
+import { toDate } from './time.ts'
 import { holidayMap } from './holidays.ts'
+import { monthWeeksDays, weekdayTone, weekHead, type WeekStart } from './weekStart.ts'
 
 export const WIDGET_SCHEMA = 1
 /** 위젯에 넘기는 오늘 할 일 최대 수(크게 13행 + 여유, 25 §8.3) */
@@ -59,7 +60,8 @@ export type WidgetCalDay = {
   items: WidgetCalItem[]
 }
 export type WidgetMonth = { month: string; title: string; weeks: WidgetCalDay[][] }
-export type WidgetCalendar = { weekStart: 0; weekHead: string[]; current: number; months: WidgetMonth[] }
+/** weekStart = 주 시작 설정(0 = 일 · 1 = 월 · 6 = 토, weekStart.ts) — weekHead·weeks 줄이 이 요일부터 */
+export type WidgetCalendar = { weekStart: WeekStart; weekHead: string[]; current: number; months: WidgetMonth[] }
 
 export type WidgetSnapshot = {
   schema: 1
@@ -74,16 +76,12 @@ export type WidgetSnapshot = {
   appliedActions?: string[]
 }
 
-/** 주 시작 = 일요일(2026-10-06 사용자 결정, 앱 캘린더와 같음). weekStart 0 = 일요일 */
-export const WIDGET_WEEK_HEAD = ['일', '월', '화', '수', '목', '금', '토']
+/** 기본(일요일 시작) 머리 — 실제 머리는 weekHead(주 시작 설정) */
+export const WIDGET_WEEK_HEAD = weekHead(0)
 
-/** 'YYYY-MM' 달의 칸(일요일 시작, 그 달에 필요한 5줄 또는 6줄) — 모바일 캘린더 monthDays와 같은 규칙 */
-export function widgetMonthDays(month: string): string[] {
-  const first = `${month}-01`
-  const from = addDays(first, -toDate(first).getDay())
-  const last = addDays(shiftMonth(month, 1) + '-01', -1)
-  const weeks = Math.ceil((daysBetween(from, last) + 1) / 7)
-  return Array.from({ length: weeks * 7 }, (_, i) => addDays(from, i))
+/** 'YYYY-MM' 달의 칸(주 시작 설정 기준, 그 달에 필요한 4~6줄) — 모바일 캘린더 monthDays와 같은 규칙 */
+export function widgetMonthDays(month: string, ws: WeekStart = 0): string[] {
+  return monthWeeksDays(month, ws)
 }
 /** 'YYYY-MM' + n달 */
 export function shiftMonth(month: string, n: number): string {
@@ -101,8 +99,7 @@ export function widgetMonthTitle(month: string, today: string): string {
 /** 06 §16 색: 공휴일·일요일 빨강, 토요일 파랑(공휴일이 우선) */
 export function widgetDayTone(date: string, holiday: string | null): WidgetDayTone {
   if (holiday) return 'holiday'
-  const w = toDate(date).getDay()
-  return w === 0 ? 'sun' : w === 6 ? 'sat' : null
+  return weekdayTone(toDate(date).getDay())
 }
 const clip = (s: string) => (s.length > TITLE_MAX ? s.slice(0, TITLE_MAX) : s)
 
@@ -116,9 +113,10 @@ export function buildWidgetMonth(input: {
   dayItems: (day: string) => WidgetCalItem[]
   holidays?: Map<string, string> | null
   maxItems?: number
+  weekStart?: WeekStart
 }): WidgetMonth {
   const max = input.maxItems ?? WIDGET_CELL_ITEMS
-  const days = widgetMonthDays(input.month)
+  const days = widgetMonthDays(input.month, input.weekStart ?? 0)
   const cells = days.map((date): WidgetCalDay => {
     const all = input.dayItems(date)
     const holiday = input.holidays?.get(date) ?? null
@@ -139,11 +137,11 @@ export function buildWidgetMonth(input: {
 }
 
 /** 위젯이 받는 달 범위 전체의 첫날·끝날(쿼리 한 번으로 읽으려고) */
-export function widgetCalendarRange(today: string, offsets: readonly number[] = WIDGET_MONTH_OFFSETS): { from: string; to: string; months: string[] } {
+export function widgetCalendarRange(today: string, offsets: readonly number[] = WIDGET_MONTH_OFFSETS, ws: WeekStart = 0): { from: string; to: string; months: string[] } {
   const base = today.slice(0, 7)
   const months = offsets.map((n) => shiftMonth(base, n))
-  const firstDays = widgetMonthDays(months[0])
-  const lastDays = widgetMonthDays(months[months.length - 1])
+  const firstDays = widgetMonthDays(months[0], ws)
+  const lastDays = widgetMonthDays(months[months.length - 1], ws)
   return { from: firstDays[0], to: lastDays[lastDays.length - 1], months }
 }
 
@@ -152,15 +150,18 @@ export function buildWidgetCalendar(input: {
   dayItems: (day: string) => WidgetCalItem[]
   showHolidays: boolean
   offsets?: readonly number[]
+  /** 주 시작 설정(없으면 일요일) */
+  weekStart?: WeekStart
 }): WidgetCalendar {
   const offsets = input.offsets ?? WIDGET_MONTH_OFFSETS
-  const r = widgetCalendarRange(input.today, offsets)
+  const ws = input.weekStart ?? 0
+  const r = widgetCalendarRange(input.today, offsets, ws)
   const holidays = input.showHolidays ? holidayMap(r.from, r.to) : null
   return {
-    weekStart: 0,
-    weekHead: WIDGET_WEEK_HEAD,
+    weekStart: ws,
+    weekHead: weekHead(ws),
     current: Math.max(0, offsets.indexOf(0)),
-    months: r.months.map((month) => buildWidgetMonth({ month, today: input.today, dayItems: input.dayItems, holidays }))
+    months: r.months.map((month) => buildWidgetMonth({ month, today: input.today, dayItems: input.dayItems, holidays, weekStart: ws }))
   }
 }
 

@@ -11,6 +11,7 @@ import type { TaskRow } from '../renderer/src/data/types'
 import { displayTitle } from '@sprout/schema/wikiLink'
 import { MY_CAL_COLOR, occurrences } from '@sprout/schema/events'
 import { holidayMap } from '@sprout/schema/holidays'
+import { toWeekStart, type WeekStart } from '@sprout/schema/weekStart'
 import { addDays, datePart, daysBetween, hasTime } from '@sprout/schema/time'
 import { colorOf, DEFAULT_OPTIONS, itemsOf, rangeOf, type CalOptions } from '../renderer/src/lib/calendar'
 import { TASK_COLUMNS } from '../renderer/src/data/taskQueries'
@@ -62,7 +63,8 @@ export type WidgetCalItem = {
   repeat: boolean
 }
 export type WidgetCalDay = { d: string; other?: true; holiday?: string; count: number; items: WidgetCalItem[] }
-export type WidgetCalendar = { month: string; title: string; days: WidgetCalDay[] }
+/** weekStart = 06 §16.1 주 시작(0 일 · 1 월 · 6 토) — days가 이 요일부터 7칸씩. 예전 위젯(필드 모름)은 일요일로 읽는다 */
+export type WidgetCalendar = { month: string; title: string; weekStart: WeekStart; days: WidgetCalDay[] }
 export type WidgetSnapshot = {
   schema: 1
   generatedAt: string
@@ -219,10 +221,11 @@ const order = (a: Raw, b: Raw) => {
   return a.start.localeCompare(b.start) || a.seq - b.seq
 }
 
-/** 이번 달 격자(일요일 시작, 그 달에 필요한 주만큼) + 날마다 막대. 앱 06 CalendarView의 쿼리·옵션과 같은 규칙 */
+/** 이번 달 격자(주 시작 설정 기준, 그 달에 필요한 주만큼) + 날마다 막대. 앱 06 CalendarView의 쿼리·옵션과 같은 규칙 */
 export async function calendarOf(db: CoreDb, today: string, extEvents?: (from: string, to: string) => ExtEvent[]): Promise<WidgetCalendar> {
   const opts = await calendarOptionsOf(db)
-  const { from, to, days } = rangeOf('month', today)
+  const ws = toWeekStart(opts.weekStart)
+  const { from, to, days } = rangeOf('month', today, ws)
   // 할 일 — CalendarView와 같은 조건(보관한 리스트 제외 · 완료 보기 · 반복 회차 · 리스트/태그 필터)
   const cond = ['t.due_at IS NOT NULL', 't.deleted_at IS NULL', 'l.archived_at IS NULL']
   const ps: unknown[] = []
@@ -273,6 +276,7 @@ export async function calendarOf(db: CoreDb, today: string, extEvents?: (from: s
   return {
     month,
     title: `${Number(month.slice(5, 7))}월`,
+    weekStart: ws,
     days: days.map((d) => {
       const list = byDay.get(d) ?? []
       const day: WidgetCalDay = { d, count: list.length, items: list.slice(0, MAX_DAY_ITEMS).map(({ start: _s, end: _e, seq: _q, ...it }) => it) }

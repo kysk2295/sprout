@@ -11,6 +11,7 @@ import { outsideDrag, scheduledDrop } from '../../lib/calendarDrop'
 import type { CalHandlers } from './types'
 import type { DayMarks } from '@sprout/schema/holidays'
 import { weekLabel } from '@sprout/schema/holidays'
+import type { WeekStart } from '@sprout/schema/weekStart'
 import { SideLabel } from './DayMark'
 import { popoverOpen, quickCreateOpen } from './dismiss'
 import { dragSession, type DragPoint } from './dragSession'
@@ -34,6 +35,8 @@ type Props = CalHandlers & {
   /** 06 §16 날짜 줄 오른쪽 글자(휴일 이름 > 음력). 주 번호는 왼쪽 위 칸에 */
   marks?: (day: string, firstOfRow: boolean) => DayMarks
   weekNumbers?: boolean
+  /** 06 §16.1 주 시작(주 번호를 셀 줄) */
+  weekStart?: WeekStart
   collapsed: boolean
   onCollapsed: (v: boolean) => void
   onDayClick: (day: string) => void
@@ -236,7 +239,7 @@ export function TimeGrid(p: Props) {
   return (
     <div className="tg">
       <div className="tg__head" style={{ gridTemplateColumns: `${GUTTER}px repeat(${n}, minmax(0, 1fr))` }}>
-        <div className="tg__weeknum">{p.weekNumbers && days.length ? weekLabel(days[0]) : null}</div>
+        <div className="tg__weeknum">{p.weekNumbers && days.length ? weekLabel(days[0], p.weekStart ?? 0) : null}</div>
         {days.map((d) => <div key={d} className={`tg__dayhead${weekendClass(d)}`}>{WEEK[new Date(`${d}T00:00`).getDay()]}</div>)}
       </div>
       <div

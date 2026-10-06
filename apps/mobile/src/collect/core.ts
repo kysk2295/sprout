@@ -2,6 +2,7 @@
 // components/collect/shared.tsx의 규칙을 그대로 옮겼다(같은 행·같은 문구·같은 결정적 id).
 // DB·화면 없이 시험한다(collect.test.ts). TODO(공용화): 이 파일 전체를 packages/schema/collect로 옮겨 두 앱이 같이 쓴다.
 import { insertStmt, updateStmt, type Stmt } from '@sprout/schema/taskCore'
+import { startOfWeek, type WeekStart } from '@sprout/schema/weekStart'
 import { dayKey, rowDateLabel } from '../lib/dates.ts'
 import { firstUrl, isBareLink } from '../share/link.ts'
 
@@ -122,21 +123,21 @@ export function chipsOf(n: CollectItem, today = dayKey()): { chips: Chip[]; regi
 // ── 묶음(데스크톱 NotesView와 같은 규칙) ───────────────────────────────
 export type Group = { id: string; name: string; items: CollectItem[]; closedByDefault: boolean; showTime: boolean }
 const APP_GROUPS: [string, string][] = [['today', '오늘'], ['yesterday', '어제'], ['week', '이번 주'], ['older', '이전']]
-export function appGroupOf(iso: string, today: string) {
+export function appGroupOf(iso: string, today: string, ws: WeekStart = 0) {
   const day = localDay(iso)
   if (day === today) return 'today'
   const base = new Date(`${today}T12:00`)
   if (day === dayKey(-1, base)) return 'yesterday'
-  const weekStart = dayKey(-base.getDay(), base) // 주 시작 = 일요일(캘린더와 같음)
+  const weekStart = startOfWeek(today, ws) // 주 시작 = 설정 "주 시작"(06 §16.1, 기본 일요일 — 캘린더와 같음)
   return day >= weekStart ? 'week' : 'older'
 }
 /** 앱에서 넣은 것 = 작성 날짜 묶음, 카톡에서 가져온 것 = 원래 날짜별 묶음(최근 하나만 펼침) */
-export function groupItems(items: CollectItem[], today = dayKey()): Group[] {
+export function groupItems(items: CollectItem[], today = dayKey(), ws: WeekStart = 0): Group[] {
   const app = new Map<string, CollectItem[]>()
   const kakao = new Map<string, CollectItem[]>()
   for (const n of items) {
     if (isKakao(n)) { const d = localDay(sentAt(n)); kakao.set(d, [...(kakao.get(d) ?? []), n]) }
-    else { const g = appGroupOf(n.created_at, today); app.set(g, [...(app.get(g) ?? []), n]) }
+    else { const g = appGroupOf(n.created_at, today, ws); app.set(g, [...(app.get(g) ?? []), n]) }
   }
   const out: Group[] = APP_GROUPS.filter(([id]) => app.has(id)).map(([id, name]) => ({ id, name, items: app.get(id)!, closedByDefault: id === 'older', showTime: id === 'today' }))
   ;[...kakao.keys()].sort().reverse().forEach((d, i) => {

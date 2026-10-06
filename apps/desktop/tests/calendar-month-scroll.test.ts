@@ -1,6 +1,6 @@
 // 06 §5.1 월 보기 세로 스크롤(research 17 §17): 주 번호·달의 주 수·제목 달·멈춤 맞춤·그릴 범위·데이터 범위
 import assert from 'node:assert/strict'
-import { EPOCH, monthAtCenter, monthDataRange, monthTopWeek, snapTop, TOTAL_WEEKS, weekAt, weekIndexOf, weeksInMonth, windowRows } from '../src/renderer/src/lib/monthScroll'
+import { EPOCH, epochOf, monthAtCenter, monthDataRange, monthTopWeek, snapTop, TOTAL_WEEKS, weekAt, weekIndexOf, weeksInMonth, windowRows } from '../src/renderer/src/lib/monthScroll'
 import { rangeOf } from '../src/renderer/src/lib/calendar'
 
 assert.equal(weekIndexOf(EPOCH), 0)
@@ -48,5 +48,20 @@ assert.equal(r.to, '2026-12-12')
 assert.equal(r.days[0], r.from)
 assert.equal(r.days[r.days.length - 1], r.to)
 assert.equal(r.days.length % 7, 0)
+// 06 §16.1 주 시작 설정: 0번 주가 그 요일, 주 수는 rangeOf와 같다
+assert.equal(epochOf(1), '2000-01-03')
+assert.equal(epochOf(6), '2000-01-01')
+assert.equal(weekAt(weekIndexOf('2026-10-07', 1), 1), '2026-10-05')
+assert.equal(weekAt(weekIndexOf('2026-10-07', 6), 6), '2026-10-03')
+for (const ws of [0, 1, 6] as const) {
+  for (const ym of ['2026-10', '2026-02', '2025-08', '2027-05']) {
+    assert.equal(weeksInMonth(ym, ws), rangeOf('month', `${ym}-01`, ws).days.length / 7, `${ym} ws=${ws}`)
+    assert.equal(weekAt(monthTopWeek(ym, ws), ws), rangeOf('month', `${ym}-01`, ws).days[0])
+  }
+  const rr = monthDataRange('2026-10-15', ws)
+  assert.equal(new Date(`${rr.from}T00:00`).getDay(), ws)
+}
+assert.equal(weeksInMonth('2026-02', 0), 4)
+assert.equal(weeksInMonth('2026-02', 1), 5)
 
 console.log('calendar-month-scroll ok')

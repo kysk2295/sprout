@@ -1,7 +1,8 @@
 // 모바일 캘린더 계산(06 휴대폰판 — 시안 G): 범위·월 칸·막대 줄·시각 블록·일정 목록·끌어 옮기기. 화면과 떨어진 순수 함수(시험: calendar.test.ts).
-// 데스크톱 apps/desktop/src/renderer/src/lib/calendar.ts와 같은 규칙: 주 시작 일요일(2026-10-06 사용자 결정 "일부터" — 틱틱 기본), 기간 할 일은 [시작, 끝] 겹침,
+// 데스크톱 apps/desktop/src/renderer/src/lib/calendar.ts와 같은 규칙: 주 시작 = 설정(기본 일요일 — 06 §16.1), 기간 할 일은 [시작, 끝] 겹침,
 // 종일·여러 날 = 막대, 시각 = 블록(겹치면 열을 나눔). 구글·Apple 일정은 컴퓨터 기기 데이터라 모바일엔 sprout 할 일만 그린다(06 §12, 16).
 import { addDays, addMinutes, datePart, daysBetween, hasTime, minutesBetween, nextOccurrence, parseRule, timePart, toDate, WEEKDAY_KO } from '@sprout/schema/time'
+import { startOfWeek, weekHead, type WeekStart } from '@sprout/schema/weekStart'
 
 export type MobileCalView = 'list' | 'day' | '3day' | 'month'
 export const CAL_VIEWS: [MobileCalView, string][] = [['list', '목록'], ['day', '일'], ['3day', '3일'], ['month', '월']]
@@ -24,16 +25,17 @@ export interface CalTask {
 export interface CalItem<T extends CalTask = CalTask> { key: string; task: T; start: string; end: string; allDay: boolean; virtual: boolean; locked?: boolean }
 
 // ── 범위 ──
-export const weekStart = (d: string) => addDays(d, -toDate(d).getDay())
-/** 그 달에 필요한 주만큼(5줄 또는 6줄), 일요일 시작 */
-export function monthDays(cursor: string): string[] {
+/** 주 시작 = 설정 "주 시작"(06 §16.1 / 20 §7.2 — 0 일 · 1 월 · 6 토, 기본 일요일) */
+export const weekStart = (d: string, ws: WeekStart = 0) => startOfWeek(d, ws)
+/** 그 달에 필요한 주만큼(4~6줄), 주 시작 설정 기준 */
+export function monthDays(cursor: string, ws: WeekStart = 0): string[] {
   const first = `${cursor.slice(0, 7)}-01`
-  const from = weekStart(first)
+  const from = weekStart(first, ws)
   const last = addDays(shiftCursor('month', first, 1), -1)
   const weeks = Math.ceil((daysBetween(from, last) + 1) / 7)
   return Array.from({ length: weeks * 7 }, (_, i) => addDays(from, i))
 }
-export function rangeOf(view: MobileCalView, cursor: string): { from: string; to: string; days: string[] } {
+export function rangeOf(view: MobileCalView, cursor: string, ws: WeekStart = 0): { from: string; to: string; days: string[] } {
   if (view === 'day') return { from: cursor, to: cursor, days: [cursor] }
   if (view === '3day') {
     const days = [0, 1, 2].map((i) => addDays(cursor, i))
@@ -43,7 +45,7 @@ export function rangeOf(view: MobileCalView, cursor: string): { from: string; to
     const days = Array.from({ length: AGENDA_DAYS }, (_, i) => addDays(cursor, i))
     return { from: days[0], to: days[days.length - 1], days }
   }
-  const days = monthDays(cursor)
+  const days = monthDays(cursor, ws)
   return { from: days[0], to: days[days.length - 1], days }
 }
 export function shiftCursor(view: MobileCalView, cursor: string, n: number): string {
@@ -59,8 +61,9 @@ export function monthTitle(cursor: string, today: string): string {
   const d = toDate(cursor)
   return cursor.slice(0, 4) === today.slice(0, 4) ? `${d.getMonth() + 1}월` : `${d.getFullYear()}년 ${d.getMonth() + 1}월`
 }
-/** 일요일 시작 요일 머리 */
-export const WEEK_HEAD = ['일', '월', '화', '수', '목', '금', '토']
+/** 기본(일요일 시작) 요일 머리 — 실제 머리는 weekHeadOf(설정) */
+export const WEEK_HEAD = weekHead(0)
+export const weekHeadOf = (ws: WeekStart) => weekHead(ws)
 export const weekdayKo = (d: string) => WEEKDAY_KO[toDate(d).getDay()]
 /** 일정 목록 묶음 머리: "오늘 · 10월 4일 일" / "내일 · 10월 5일 월" / "10월 7일 수" */
 export function agendaTitle(d: string, today: string): string {

@@ -12,10 +12,11 @@ import { alpha } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { PopMenu, useAnchor } from '../ui/Menu'
 import { useToast } from '../ui/Toast'
+import { useWeekStart } from '../data/calendarPrefs'
 import { LeafIcon, MoodFace, SkyIcon, diaryColors } from './art'
 import { buddyReply, deleteEntry, saveEntry, setPrivate, summarizeEntry, useDone, useMessages } from './data'
 import {
-  buddyLine, FIRST_REPLY_MS, isWritten, josa, mayCallAi, moodFaceOf, moodOf, MOODS, parseBuddyReply, promptFor, skyOf, streakOf, wantsFirstReply, WEEK_DAYS, weekOf,
+  buddyLine, FIRST_REPLY_MS, isWritten, josa, mayCallAi, moodFaceOf, moodOf, MOODS, parseBuddyReply, promptFor, skyOf, streakOf, wantsFirstReply, weekDaysHead, weekOf,
   type Buddy, type DiaryEntry
 } from './logic'
 import { BuddyArt, Bubble } from './parts'
@@ -122,7 +123,8 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
   }
 
   // ── 주 띠 ──
-  const week = weekOf(date)
+  const ws = useWeekStart() // 06 §16.1 주 시작 설정
+  const week = weekOf(date, ws)
   const byDate = useMemo(() => new Map(entries.map((e) => [e.date, e])), [entries])
   const fling = Gesture.Race(
     Gesture.Fling().direction(1).runOnJS(true).onEnd(() => setDiaryState({ date: addDays(date, -7) })),
@@ -211,7 +213,7 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
             return (
               <Pressable key={w} disabled={future} onPress={() => setDiaryState({ date: w })} accessibilityRole="button" accessibilityState={{ selected: sel }} accessibilityLabel={`${Number(w.slice(5, 7))}월 ${Number(w.slice(8))}일`}
                 style={[st.wcell, sel && { backgroundColor: p.accent }, future && { opacity: 0.35 }]}>
-                <Text style={[st.wday, { color: sel ? '#fff' : p.textTertiary }]}>{WEEK_DAYS[i]}</Text>
+                <Text style={[st.wday, { color: sel ? '#fff' : p.textTertiary }]}>{weekDaysHead(ws)[i]}</Text>
                 <Text style={[st.wnum, { color: sel ? '#fff' : w === today ? p.accent : p.textPrimary }]}>{Number(w.slice(8))}</Text>
                 <View style={[st.wdot, { backgroundColor: m ? m.color : e && isWritten(e) ? p.accent : 'transparent' }, sel && m && { borderWidth: 1, borderColor: '#fff' }]} />
               </Pressable>
