@@ -8,6 +8,7 @@ import {
 import { findProjectClusters, INSTANCE, planProjectCleanup, PROJECT, projectMembers, type Proposal, type PTask } from '@sprout/schema/projects'
 import { projectCandidates, type ScoreRel } from '@sprout/schema/projectScore'
 import { parseAliases } from '@sprout/schema/wikiLink'
+import { encodeProjectsShared, mergeProjectsShared, PROJECTS_VIEW_KEY, type ProjectsShared } from '@sprout/schema/planView'
 import { getDb, type Stmt } from './db'
 import { insert, now, remove, run, update, uuid } from './mutations'
 import { assignStmts, autoTagEnabled, autoTagPerson, autoTagStore, loadTagScope, tagScope } from './autoTag'
@@ -31,24 +32,85 @@ export type ProjectStore = {
   skip?: string[]
   /** §12.13.4 오늘 답한 물음 수(하루 3개) */
   asked?: { day: string; n: number }
+  /** 41 §9 기기 기억 → 동기화 행으로 한 번 옮김 */
+  sharedMoved?: boolean
 }
 export const autoProjectsOn = () => projectStore.get().auto !== false
 const KEY = 'sprout.map.projects.v1'
+/**
+ * 41 §9 동기화 감사(2026-10-06): 사람이 정한 기억(제안 `아니` dismissed · `빠진 거 없어` confirmed · 자동 만들기 auto · 고르기 `아니` skip)은
+ * view_settings view_key `projects` 행(options_json)에 둔다 — 다른 기기·휴대폰도 같은 값. 기기마다 따로 만든 행이 있을 수 있어 읽을 때 합친다
+ * (@sprout/schema/planView mergeProjectsShared). 기기 기억으로 남는 것: lastRun·cleanup·carry(이 기기 패스 운영) · asked(하루 물은 수).
+ */
+const SHARED: (keyof ProjectStore)[] = ['dismissed', 'confirmed', 'auto', 'skip']
+const SHARED_SQL = `SELECT id, options_json FROM view_settings WHERE view_key = '${PROJECTS_VIEW_KEY}' ORDER BY id`
 let mem: ProjectStore | undefined
+let shared: ProjectsShared | undefined
+let sharedRow: string | null = null
+let watching = false
 const subs = new Set<() => void>()
+const readLocal = (): ProjectStore => { try { const s = JSON.parse(localStorage.getItem(KEY) ?? 'null'); return { dismissed: [], confirmed: {}, ...(s && typeof s === 'object' ? s : {}) } } catch { return { dismissed: [], confirmed: {} } } }
+const sharedOf = (s: ProjectStore): ProjectsShared => ({ dismissed: s.dismissed ?? [], confirmed: s.confirmed ?? {}, skip: s.skip ?? [], ...(s.auto !== undefined ? { auto: s.auto } : {}) })
+const same = (a: ProjectsShared, b: ProjectsShared) => encodeProjectsShared(a) === encodeProjectsShared(b)
+/** 동기화 행에 쓴다(행이 없으면 새 uuid 행 — 고정 id는 서버에서 다른 사용자와 겹친다) */
+async function writeShared(v: ProjectsShared) {
+  const db = await getDb()
+  const rows = await db.getAll<{ id: string; options_json: string | null }>(SHARED_SQL)
+  const merged = mergeProjectsShared([...rows, { options_json: encodeProjectsShared(v) }])
+  // 이 기기가 지운 것(같이 계획 짜기 고르기 되돌리기 등)은 v가 이긴다: 목록은 v 그대로, 숫자는 v 값
+  const out: ProjectsShared = { dismissed: v.dismissed, confirmed: v.confirmed, skip: v.skip, ...(v.auto !== undefined ? { auto: v.auto } : merged.auto !== undefined ? { auto: merged.auto } : {}) }
+  const json = encodeProjectsShared(out)
+  const id = rows[0]?.id ?? sharedRow ?? uuid()
+  sharedRow = id
+  await run(...(rows.length ? [update('view_settings', id, { options_json: json })] : [insert('view_settings', { id, view_key: PROJECTS_VIEW_KEY, options_json: json })]),
+    ...rows.slice(1).map((r) => remove('view_settings', r.id)))
+}
+function startWatch() {
+  if (watching) return
+  watching = true
+  void getDb().then((db) => {
+    if (typeof db.watch !== 'function') return
+    db.watch(SHARED_SQL, [], (rows) => {
+      const r = rows as { id: string; options_json: string | null }[]
+      sharedRow = r[0]?.id ?? null
+      const next = mergeProjectsShared(r)
+      const local = readLocal()
+      // 한 번 옮기기: 이 기기에만 있던 값(예전 판)을 동기화 행에 더한다
+      if (!local.sharedMoved) {
+        const up = mergeProjectsShared([...r, { options_json: encodeProjectsShared(sharedOf(local)) }])
+        try { localStorage.setItem(KEY, JSON.stringify({ ...local, sharedMoved: true })) } catch { /* */ }
+        if (!r.length && same(up, { dismissed: [], confirmed: {}, skip: [] })) { shared = next; mem = undefined; subs.forEach((f) => f()); return }
+        if (!same(up, next)) { shared = up; mem = undefined; subs.forEach((f) => f()); void writeShared(up).catch(() => {}); return }
+      }
+      if (shared && same(shared, next)) return
+      shared = next
+      mem = undefined
+      subs.forEach((f) => f())
+    }, () => {})
+  }).catch(() => {})
+}
 export const projectStore = {
   get(): ProjectStore {
+    startWatch()
     if (mem) return mem
-    try { const s = JSON.parse(localStorage.getItem(KEY) ?? 'null'); mem = { dismissed: [], confirmed: {}, ...(s && typeof s === 'object' ? s : {}) } } catch { mem = { dismissed: [], confirmed: {} } }
+    const local = readLocal()
+    mem = shared ? { ...local, dismissed: shared.dismissed, confirmed: shared.confirmed, skip: shared.skip, auto: shared.auto } : local
     return mem!
   },
   set(patch: Partial<ProjectStore>) {
-    mem = { ...projectStore.get(), ...patch }
-    try { localStorage.setItem(KEY, JSON.stringify(mem)) } catch { /* 기억만 못 한다 */ }
+    const cur = projectStore.get()
+    mem = { ...cur, ...patch }
+    const device = Object.fromEntries(Object.entries(mem).filter(([k]) => !SHARED.includes(k as keyof ProjectStore)))
+    // 동기화 행을 못 읽는 동안(처음 몇 ms·시험)에도 잃지 않게 기기에도 같이 적어 둔다(다음 옮기기에서 합쳐짐)
+    try { localStorage.setItem(KEY, JSON.stringify({ ...readLocal(), ...device, ...Object.fromEntries(SHARED.filter((k) => k in patch).map((k) => [k, mem![k]])) })) } catch { /* 기억만 못 한다 */ }
+    if (SHARED.some((k) => k in patch)) {
+      shared = sharedOf(mem)
+      void writeShared(shared).catch(() => {})
+    }
     subs.forEach((f) => f())
   },
-  subscribe(f: () => void) { subs.add(f); return () => { subs.delete(f) } },
-  reset() { mem = undefined; try { localStorage.removeItem(KEY) } catch { /* */ } }
+  subscribe(f: () => void) { startWatch(); subs.add(f); return () => { subs.delete(f) } },
+  reset() { mem = undefined; shared = undefined; try { localStorage.removeItem(KEY) } catch { /* */ } }
 }
 
 // ── 읽기 ──

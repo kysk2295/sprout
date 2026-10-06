@@ -170,6 +170,8 @@ export async function addProjectTask(input: {
   title: string; projectTagId: string; listId: string | null; day?: string | null; kind?: WorkKind | null; parentId?: string | null
   /** 31 §12.12 빠른 추가 인식 값 */
   priority?: number; repeatRule?: string | null; tagIds?: string[]
+  /** 41 §5 기간 시작(`10/12~10/18`) */
+  startAt?: string | null
 }): Promise<{ id: string; undo: Undo }> {
   let listId = input.listId
   if (input.parentId) { const par = await (await getDb()).get<{ list_id: string | null }>('SELECT list_id FROM tasks WHERE id = ?', [input.parentId]); if (par?.list_id) listId = par.list_id }
@@ -177,6 +179,7 @@ export async function addProjectTask(input: {
   const id = await createTask({ title: input.title.trim(), list_id: listId, due_at: due, priority: input.priority ?? 0, parent_id: input.parentId ?? null, sort_order: input.parentId ? Date.now() : -Date.now() })
   const extra: Stmt[] = []
   if (due && input.repeatRule) extra.push(update('tasks', id, { repeat_rule: input.repeatRule, repeat_from: 'due' }))
+  if (due && input.startAt && input.startAt.slice(0, 10) < due.slice(0, 10)) extra.push(update('tasks', id, { start_at: input.startAt }))
   if (due?.includes('T')) extra.push(insert('reminders', { id: uuid(), task_id: id, trigger: '-PT0M' })) // 빠른 추가와 같게: 시각이 있으면 정시 알림
   if (extra.length) await run(...extra)
   for (const tagId of input.tagIds ?? []) if (tagId !== input.projectTagId) await setTag([id], tagId, true)

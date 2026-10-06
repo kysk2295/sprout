@@ -218,7 +218,8 @@ export function WorkMapView({ lists, onTasks, onGrowth }: { lists: ListRow[]; on
   const onRecipe = (r: Recipe) => {
     if (r === 'morning') { applyMode('plan'); setFocusNow(true); return }
     applyMode(r === 'goal' ? 'review' : 'plan') // 34 §3: 해 보기 — 이번 주 확인은 성장 › 주간 점검
-    if (r === 'split') openPlan(selected ?? undefined, whole ? {} : { makeProject: true }) // 31 §11·§12.4: 큰 일 = 같이 계획 짜기(모드 화면에선 프로젝트로)
+    // 41 §2.1(결정 4): 프로젝트 보드에선 큰 일 = `＋ 새 프로젝트` 한 줄(같이 짜기는 프로젝트 ⋯). 전체 지도에선 그대로 같이 계획 짜기
+    if (r === 'split') { if (whole) openPlan(selected ?? undefined); else window.setTimeout(() => window.dispatchEvent(new CustomEvent('sprout:new-project')), 0) }
   }
   const noTasks = data.loaded && data.allOpen === 0 && data.tasks.length === 0 && data.lists.filter((l) => l.kind !== 'inbox' && !l.archived_at).length === 0
   const setOpt = <K extends keyof MapOptions>(k: K, v: MapOptions[K]) => setOpts((o) => ({ ...o, [k]: v }))

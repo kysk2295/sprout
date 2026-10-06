@@ -1,0 +1,161 @@
+/* 41 (31 §12.14) 프로젝트 직접 고치기 — 한 줄 만들기 · 머리 그 자리 고치기 · 태그 줄 · 칩 끝 끌기 · 날짜 팝오버 · 고른 띠. 틱틱 말씨(회색 + 강조색 하나). */
+
+/* ── 한 줄 만들기 ── */
+.plan-grid .pc-card--new.is-edit { align-items: stretch; justify-content: flex-start; text-align: left; border-style: solid; border-color: var(--color-accent); cursor: default; background: var(--color-bg-app); grid-column: span 2; }
+.plan-grid .pc-card--new.is-edit:hover { transform: none; box-shadow: none; }
+.np { display: flex; flex-direction: column; gap: 8px; width: 100%; text-align: left; }
+.np--bare { width: min(560px, 100%); }
+.np__field { position: relative; }
+.np__in { width: 100%; height: 34px; box-sizing: border-box; padding: 0 10px; border: 1px solid var(--color-accent); border-radius: 7px; background: var(--color-bg-input, var(--color-bg-app)); color: var(--color-text-primary); font: 400 14px/1 var(--font-family); outline: none; box-shadow: 0 0 0 3px var(--color-accent-subtle); position: relative; }
+.pc-card--new .np span { font-size: inherit; color: inherit; max-width: none; }
+.np .np__hl, .plan-addall__field .np__hl { position: absolute; inset: 0 11px; display: flex; align-items: center; overflow: hidden; pointer-events: none; white-space: pre; font: 400 14px/1 var(--font-family); color: transparent; z-index: 1; }
+.np .np__hl > span, .plan-addall__field .np__hl > span { display: block; color: transparent; }
+.np .np__hl mark, .plan-addall__field .np__hl mark { color: transparent; background: color-mix(in srgb, var(--color-accent) 22%, transparent); border-radius: 3px; }
+.np__field .np__in { background: transparent; }
+.np__field { background: var(--color-bg-input, var(--color-bg-app)); border-radius: 7px; }
+.np__prev { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font: 400 12.5px/1.4 var(--font-family); color: var(--color-text-secondary); }
+.np__prev b { font-weight: 600; color: var(--color-text-primary); }
+.np__date { color: var(--color-accent); font-weight: 600; }
+.np__words { display: flex; flex-wrap: wrap; gap: 4px; }
+.np-chip { height: 24px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--color-border-divider); background: var(--color-bg-app); color: var(--color-text-secondary); font: 500 12px/1 var(--font-family); cursor: pointer; }
+.np-chip:hover { border-color: var(--color-accent); }
+.np-chip.is-on { border-color: var(--color-accent); background: var(--color-accent-subtle); color: var(--color-accent); }
+.np__more { align-self: flex-start; padding: 2px 0; border: 0; background: none; font: 400 12px/1.2 var(--font-family); color: var(--color-text-tertiary); cursor: pointer; }
+.np__more:hover { color: var(--color-accent); }
+.np__more-open { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.np__more-open label { display: inline-flex; align-items: center; gap: 6px; font: 400 12px/1 var(--font-family); color: var(--color-text-secondary); }
+.np__sub { width: 160px; height: 26px; box-sizing: border-box; padding: 0 8px; border: 1px solid var(--color-border-divider); border-radius: 6px; background: var(--color-bg-app); color: var(--color-text-primary); font: 400 12.5px/1 var(--font-family); outline: none; }
+.np__sub:focus { border-color: var(--color-accent); }
+.np__icon { width: 28px; height: 28px; border: 1px solid var(--color-border-divider); border-radius: 6px; background: var(--color-bg-app); font-size: 16px; cursor: pointer; }
+.np__acts { display: flex; justify-content: flex-end; gap: 6px; }
+.np-guide { border-top: 1px solid var(--color-border-divider); padding-top: 8px; }
+.np-guide__h { margin-bottom: 6px; font: 600 12px/1 var(--font-family); color: var(--color-text-secondary); }
+.np-guide__x { display: flex; flex-wrap: wrap; gap: 4px; }
+.np-guide__x button { height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--color-border-divider); background: var(--color-bg-card, var(--color-bg-app)); color: var(--color-text-primary); font: 400 12px/1 var(--font-family); cursor: pointer; }
+.np-guide__x button:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.np-guide__x button small { margin-left: 4px; color: var(--color-text-tertiary); font-size: 11.5px; }
+.np-guide__no { margin-top: 6px; font: 400 11.5px/1.4 var(--font-family); color: var(--color-text-tertiary); }
+.plan-empty__new { width: min(560px, 100%); margin-top: 8px; text-align: left; }
+
+/* ── 프로젝트 머리 ── */
+.ph { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin: 8px 0 4px; }
+.ph__icon { width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 7px; background: none; cursor: pointer; }
+.ph__icon:hover { background: var(--color-bg-hover); }
+.ph__name { margin: 0 -6px; padding: 0 6px; font: 600 22px/30px var(--font-family); color: var(--color-text-primary); border: 1px solid transparent; border-radius: 6px; cursor: text; outline: none; }
+.ph__name:hover { background: var(--color-bg-hover); }
+.ph__name.is-edit { box-sizing: content-box; height: 30px; background: var(--color-bg-app); border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-subtle); min-width: 80px; }
+.ph-pill { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--color-border-divider); border-radius: 7px; background: var(--color-bg-app); color: var(--color-text-primary); font: 500 13px/1 var(--font-family); cursor: pointer; white-space: nowrap; }
+.ph-pill:hover { border-color: var(--color-accent); }
+.ph-pill b { font-weight: 600; color: var(--color-text-secondary); }
+.ph-pill b.is-hot { color: var(--color-text-danger); }
+.ph-pill.is-add { color: var(--color-text-secondary); border-style: dashed; }
+.ph-pill svg { width: 13px; height: 13px; }
+.ph-focus.is-on { background: var(--color-accent-subtle); border-color: var(--color-accent); color: var(--color-accent); }
+.ph-team { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; font: 400 13px/1 var(--font-family); color: var(--color-text-secondary); }
+.ph-team__l { margin-right: 2px; }
+.ph-team__p { display: inline-flex; align-items: center; height: 24px; padding: 0 4px 0 8px; border-radius: 999px; border: 1px solid var(--color-border-divider); background: var(--color-bg-card, var(--color-bg-app)); }
+.ph-team__n { padding: 0; border: 0; background: none; font: 400 12.5px/1 var(--font-family); color: var(--color-text-primary); cursor: pointer; }
+.ph-team__n:hover { color: var(--color-accent); }
+.ph-team__x { display: grid; place-items: center; width: 16px; height: 16px; margin-left: 2px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--color-text-tertiary); cursor: pointer; }
+.ph-team__x:hover { color: var(--color-text-danger); background: var(--color-bg-hover); }
+.ph-team__x svg { width: 11px; height: 11px; }
+.ph-team__add { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 1px dashed var(--color-border-divider); border-radius: 999px; background: none; color: var(--color-text-secondary); cursor: pointer; }
+.ph-team__add:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.ph-team__add svg { width: 12px; height: 12px; }
+.ph-team__in { width: 120px; height: 24px; box-sizing: border-box; padding: 0 9px; border: 1px solid var(--color-accent); border-radius: 999px; background: var(--color-bg-app); color: var(--color-text-primary); font: 400 12.5px/1 var(--font-family); outline: none; }
+.ph__sp { flex: 1; }
+.ph-line { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font: 400 12.5px/1.4 var(--font-family); color: var(--color-text-secondary); }
+.ph-line__bar { width: 160px; }
+.plan-seg--sm button { height: 22px; padding: 0 9px; font-size: 12px; }
+.plan-tools .map-btn > svg:last-child:not(:first-child) { margin: 0 0 0 2px; }
+
+/* ── 달력 팝오버 ── */
+.daypop { padding: 4px; }
+.daypop__cal { padding: 2px 4px 4px; }
+.daypop__hint { margin: 2px 8px 6px; font: 400 11.5px/1.4 var(--font-family); color: var(--color-text-tertiary); }
+.daypop__hint.is-top { margin: 6px 8px 2px; color: var(--color-text-secondary); }
+.daypop__words { padding: 2px 8px 6px; }
+
+/* ── ＋ 할 일(새로 + 이미 있는 할 일) ── */
+.plan-addall__new { margin: 8px 8px 0; }
+.plan-addall__field { position: relative; flex: 1; min-width: 0; height: 100%; display: flex; }
+.plan-addall__field .np__hl { inset: 0; font: 400 13px/1 var(--font-family); }
+.plan-addall__field input { position: relative; z-index: 2; }
+.plan-add__h { margin: 8px 12px 2px; font: 600 11.5px/1 var(--font-family); color: var(--color-text-tertiary); }
+.plan-add__row.is-btn { width: 100%; border: 0; background: none; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.plan-add__row.is-btn > svg { flex: none; width: 13px; height: 13px; color: var(--color-text-tertiary); }
+.plan-add__row.is-hi, .plan-add__row.is-btn:hover { background: var(--color-bg-hover); }
+
+/* ── 타임라인 틀: 가로 스크롤 + 줄 이름 칸 고정 + 오른쪽 언젠가 칸 ── */
+.plan-tl__scroll { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.plan-tl__inner { position: relative; }
+.plan-tl__inner .plan-tl__axis span { top: 4px; }
+.plan-tl__inner .plan-tl__axis span.is-major { color: var(--color-text-secondary); font-weight: 600; }
+.plan-tl__corner { position: absolute; top: 0; bottom: -1px; width: 120px; background: var(--color-bg-app); z-index: 5; transform: none !important; }
+.plan-tl__someday { position: absolute; top: 0; right: 0; border-left: 1px dashed var(--color-border-divider); background: var(--color-bg-app); }
+.plan-tl__someday .plan-tl__axis span { left: 8px; transform: none; }
+.plan-tl__sdlanes { position: relative; }
+.plan-sdlane { position: absolute; left: 0; right: 0; border-bottom: 1px solid var(--color-border-divider); }
+.plan-sdlane.is-drop { background: var(--color-accent-subtle); }
+.plan-tl .plan-vline { top: 0; bottom: auto; height: 100%; }
+.plan-tl .plan-vline.is-today { bottom: 0; }
+.plan-tl .plan-vline span { top: 3px; }
+.plan-tl .plan-vline.is-dl span { top: 3px; bottom: auto; z-index: 8; }
+
+/* 줄 머리(고정) */
+.plan-tl .plan-lane__h { position: sticky; left: 0; z-index: 7; display: flex; align-items: flex-start; gap: 2px; width: 120px; height: 100%; box-sizing: border-box; padding: 7px 6px 0 4px; border-right: 1px solid var(--color-border-divider); background: var(--color-bg-app); }
+.plan-lane.is-drop .plan-lane__h { background: color-mix(in srgb, var(--color-accent-subtle) 70%, var(--color-bg-app)); }
+.plan-lane.is-moving { opacity: .6; }
+.plan-tl .plan-lane__h .plan-lane__n { width: auto; max-width: 78px; margin: 0; padding: 1px 4px; border: 1px solid transparent; border-radius: 5px; background: none; font: 500 12px/16px var(--font-family); color: var(--color-text-secondary); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; }
+.plan-tl .plan-lane__h .plan-lane__n.is-edit { cursor: text; }
+.plan-tl .plan-lane__h .plan-lane__n.is-edit:hover { background: var(--color-bg-hover); }
+.plan-lane__c { font: 400 11px/18px var(--font-family); color: var(--color-text-tertiary); }
+.plan-lane__grip { display: grid; place-items: center; width: 12px; height: 18px; margin-left: -2px; color: var(--color-text-quaternary, var(--color-text-tertiary)); opacity: 0; cursor: grab; }
+.plan-lane__grip svg { width: 12px; height: 12px; }
+.plan-lane:hover .plan-lane__grip { opacity: 1; }
+.plan-tl.is-lanedrag, .plan-tl.is-lanedrag * { cursor: grabbing !important; }
+.plan-lane__x { display: grid; place-items: center; width: 18px; height: 18px; margin-left: auto; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--color-text-tertiary); opacity: 0; cursor: pointer; }
+.plan-lane__x svg { width: 12px; height: 12px; }
+.plan-lane:hover .plan-lane__x { opacity: 1; }
+.plan-lane__x:hover { color: var(--color-text-danger); background: var(--color-bg-hover); }
+.plan-lane__ren { position: relative; display: flex; align-items: center; gap: 1px; width: 100%; }
+.plan-lane__hash { font: 500 12px/1 var(--font-family); color: var(--color-text-tertiary); }
+.plan-lane__ren input, .plan-newlane__in input { min-width: 0; flex: 1; height: 22px; box-sizing: border-box; padding: 0 5px; border: 1px solid var(--color-accent); border-radius: 5px; background: var(--color-bg-app); color: var(--color-text-primary); font: 400 12px/1 var(--font-family); outline: none; box-shadow: 0 0 0 3px var(--color-accent-subtle); }
+.plan-lane__tip { position: absolute; left: 0; top: 26px; z-index: 12; display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--color-border-divider); border-radius: 7px; background: var(--color-bg-popover, var(--color-bg-app)); box-shadow: var(--shadow-popover); font: 400 11.5px/1.3 var(--font-family); color: var(--color-text-secondary); white-space: nowrap; }
+.plan-lane__tip button { padding: 2px 6px; border: 1px solid var(--color-border-divider); border-radius: 5px; background: var(--color-bg-app); color: var(--color-accent); font: 500 11.5px/1 var(--font-family); cursor: pointer; }
+.plan-newlane { position: absolute; z-index: 7; display: flex; align-items: center; height: 34px; padding: 0 10px; box-sizing: border-box; background: var(--color-bg-app); }
+.plan-newlane > button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 2px; border: 0; background: none; color: var(--color-text-secondary); font: 500 12.5px/1 var(--font-family); cursor: pointer; }
+.plan-newlane > button svg { width: 13px; height: 13px; }
+.plan-newlane > button:hover { color: var(--color-accent); }
+.plan-newlane > small { font: 400 11.5px/1.3 var(--font-family); color: var(--color-text-tertiary); }
+.plan-newlane__in { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.plan-newlane__in input { width: 200px; flex: none; height: 26px; font-size: 12.5px; }
+.plan-newlane__in small { margin-left: 6px; font: 400 11.5px/1 var(--font-family); color: var(--color-text-tertiary); white-space: nowrap; }
+.plan-newlane__sugg { position: absolute; left: 10px; top: 30px; z-index: 12; display: flex; flex-direction: column; min-width: 180px; padding: 4px; border: 1px solid var(--color-border-divider); border-radius: 8px; background: var(--color-bg-popover, var(--color-bg-app)); box-shadow: var(--shadow-popover); }
+.plan-newlane__sugg button { padding: 6px 8px; border: 0; border-radius: 5px; background: none; text-align: left; font: 400 12.5px/1 var(--font-family); color: var(--color-text-primary); cursor: pointer; }
+.plan-newlane__sugg button:hover, .plan-newlane__sugg button.is-hi { background: var(--color-bg-hover); }
+.plan-lanehint { position: absolute; z-index: 3; display: inline-flex; align-items: center; gap: 6px; font: 400 11.5px/1 var(--font-family); color: var(--color-text-tertiary); white-space: nowrap; }
+.plan-lanehint button { padding: 3px 7px; border: 1px solid var(--color-border-divider); border-radius: 5px; background: var(--color-bg-app); color: var(--color-accent); font: 500 11.5px/1 var(--font-family); cursor: pointer; }
+
+/* 칩: 기간 막대 · ⚑ · 날짜 글자 · +1 · 끝 끌기 · 바깥 잇기 점 */
+.plan-tk.is-bar { width: var(--w); max-width: none; background: var(--color-bg-card, var(--color-bg-app)); }
+.plan-tk.is-bar:hover, .plan-tk.is-bar:focus-visible, .plan-tk.is-bar.is-renaming { width: auto; min-width: var(--w); }
+.plan-tk.is-key { border-color: var(--color-text-tertiary); }
+.plan-tk__flag { flex: none; font-size: 12px; color: var(--color-text-secondary); }
+.plan-tk em.plan-tk__d { margin: 0 -3px; padding: 2px 3px; border-radius: 4px; cursor: pointer; }
+.plan-tk em.plan-tk__d:hover { background: var(--color-accent-subtle); color: var(--color-accent); }
+.plan-tk.is-selected .plan-tk__t { cursor: text; border-radius: 4px; }
+.plan-tk.is-selected .plan-tk__t:hover { background: var(--color-bg-hover); }
+.plan-tk__more { flex: none; font: 400 10.5px/1 var(--font-family); color: var(--color-text-tertiary); }
+.plan-tk__e { position: absolute; top: 3px; bottom: 3px; width: 6px; border-radius: 3px; cursor: ew-resize; z-index: 1; }
+.plan-tk__e.is-l { left: -1px; }
+.plan-tk__e.is-r { right: -1px; }
+.plan-tk__e:hover, .plan-tk.is-resize .plan-tk__e { background: var(--color-accent); opacity: .5; }
+.plan-tk.is-resize { z-index: 8; border-color: var(--color-accent); }
+.plan-tk__tip { position: absolute; top: -22px; left: 0; padding: 4px 6px; border-radius: 5px; background: var(--color-accent); color: #fff; font: 600 11px/1 var(--font-family); white-space: nowrap; pointer-events: none; }
+.plan-tl .plan-tk__h { right: -16px; }
+.plan-tl .plan-tk.is-float { position: fixed; z-index: 50; }
+@media (prefers-reduced-motion: reduce) {
+  .plan-tl .plan-tk.is-float { box-shadow: none; }
+  .plan-grid .pc-card--new { transition: none; }
+}

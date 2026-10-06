@@ -5,12 +5,10 @@ import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type M
 import { daysBetween, projectTitle, type Proposal } from '@sprout/schema/projects'
 import { projectCardLine } from '@sprout/schema/planView'
 import { addToProject, createProjectFrom, dismissSuggestion, notProject } from '../../../data/projects'
-import { createProject, deleteProject, linkTeam, mergeProject, renameProject, setCategory, setFocus } from '../../../data/projectEdit'
-import { splitPeople } from '@sprout/schema/projectScore'
+import { deleteProject, mergeProject, renameProject, setFocus } from '../../../data/projectEdit'
+import { NewProjectCard } from './NewProject'
 import { ProjectAskBubble } from './ProjectAsk'
-import { categoryOf, CATEGORY_WORDS } from '@sprout/schema/projects'
 import { projectStore } from '../../../data/projects'
-import { planCandidates } from '../../../data/planActions'
 import { openTarget } from '../../../data/wiki'
 import { dayKey } from '../../../lib/dates'
 import { checkboxColor } from '../../../lib/priority'
@@ -74,14 +72,14 @@ export function ProjectBoard({ data, onOpen, onPlan, actions, autoOn }: { data: 
     if (p.members.some((m) => m.id === id)) { toast.show('이미 이 프로젝트에 있어요'); return }
     toast.show(`'${p.title}'에 넣었어요`, await addToProject([id], p.tag.id))
   }
-  const newBtn = (e: MouseEvent<HTMLElement>) => setNaming({ anchor: e.currentTarget })
+  // 41 §2.1 입구는 하나: 머리 `＋ 새 프로젝트` = 점선 카드로 스크롤 + 그 자리 입력 카드
+  const [creating, setCreating] = useState(0)
+  const newCard = useRef<HTMLDivElement>(null)
+  const newBtn = () => { setCreating((n) => n + 1); requestAnimationFrame(() => newCard.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })) }
+  // 사용법 창 `만들어 보기`(34)
+  useEffect(() => { const f = () => newBtn(); window.addEventListener('sprout:new-project', f); return () => window.removeEventListener('sprout:new-project', f) }, [])
 
-  if (!live.length && !done.length && !data.suggestion) return (
-    <>
-      <PlanEmpty onPlan={onPlan} onNew={newBtn} autoOn={autoOn} />
-      {naming && <NameDialog anchor={naming.anchor} cats={data.categories.map((c) => c.word)} onClose={() => setNaming(undefined)} onDone={(id) => onOpen(id)} />}
-    </>
-  )
+  if (!live.length && !done.length && !data.suggestion) return <PlanEmpty onDone={onOpen} autoOn={autoOn} />
 
   // §12.10 분류 묶음: 분류 없는 프로젝트 먼저, 그다음 분류마다(가까운 마감 순)
   const groups: { key: string; word: string | null; items: ProjectView[]; loose: PlanData['categories'][number]['loose'] }[] = []
@@ -96,7 +94,7 @@ export function ProjectBoard({ data, onOpen, onPlan, actions, autoOn }: { data: 
     <div className="plan-board">
       <div className="plan-board__head">
         <span className="plan-board__sum">{head}{tail}</span>
-        <button className="map-btn" onClick={newBtn}><Plus />새 프로젝트</button>
+        <button className="map-btn map-btn--primary" onClick={newBtn}><Plus />새 프로젝트</button>
       </div>
       <ProjectAskBubble />
       {groups.map((g) => (
@@ -123,10 +121,13 @@ export function ProjectBoard({ data, onOpen, onPlan, actions, autoOn }: { data: 
             </div>
           </div>
         )}
-        <button className="pc-card pc-card--new" onClick={() => onPlan({ makeProject: true })}>
-          <b>같이 계획 짜기</b>
-          <span>새 큰 일을 말해 주면 프로젝트로 만들고 단계도 나눠 줄게요</span>
-        </button>
+        <div ref={newCard} className={`pc-card pc-card--new${creating ? ' is-edit' : ''}`} role={creating ? undefined : 'button'} tabIndex={creating ? -1 : 0}
+          onClick={() => { if (!creating) setCreating(1) }} onKeyDown={(e) => { if (!creating && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setCreating(1) } }}>
+          {creating ? <NewProjectCard focusKey={creating} onCancel={() => setCreating(0)} onDone={(id) => { setCreating(0); onOpen(id) }} /> : <>
+            <b>＋ 새 프로젝트</b>
+            <span>이름과 날짜를 한 줄로. 예: 투자자산운용사 시험 11/23</span>
+          </>}
+        </div>
       </div>
       {loose && <LoosePicker anchor={loose.anchor} group={data.categories.find((c) => c.word === loose.word)} data={data} onClose={() => setLoose(undefined)} />}
       {done.length > 0 && (
@@ -139,7 +140,7 @@ export function ProjectBoard({ data, onOpen, onPlan, actions, autoOn }: { data: 
         <ProjectMenu p={menu.p} all={data.projects} point={menu.point} onClose={() => setMenu(undefined)} onOpen={() => onOpen(menu.p.tag.id)} onPlan={onPlan}
           onRename={() => { const el = document.querySelector<HTMLElement>(`[data-project="${menu.p.tag.id}"]`); if (el) setNaming({ anchor: el, p: menu.p }) }} />
       )}
-      {naming && <NameDialog anchor={naming.anchor} p={naming.p} cats={data.categories.map((c) => c.word)} onClose={() => setNaming(undefined)} onDone={(id) => { if (!naming.p) onOpen(id) }} />}
+      {naming?.p && <NameDialog anchor={naming.anchor} p={naming.p} onClose={() => setNaming(undefined)} />}
     </div>
   )
 }
@@ -160,7 +161,7 @@ export function ProjectMenu({ p, all, point, anchor, onClose, onOpen, onPlan, on
       })} />
       <div className="menu__divider" />
       {onOpen && <MenuItem label="열기" onClick={go(onOpen)} />}
-      <MenuItem label="이름 바꾸기" onClick={go(onRename)} />
+      <MenuItem label="이름·아이콘 바꾸기" onClick={go(onRename)} />
       <SubMenu label="다른 프로젝트와 합치기" disabled={!others.length} width={230}>
         {others.map((o) => <MenuItem key={o.tag.id} label={`${o.title} (으)로 합치기`} onClick={go(async () => { const u = await mergeProject(p.tag.id, o.tag.id); onGone?.(); toast.show(`'${p.title}'을 '${o.title}'에 합쳤어요`, u) })} />)}
       </SubMenu>
@@ -173,59 +174,31 @@ export function ProjectMenu({ p, all, point, anchor, onClose, onOpen, onPlan, on
   )
 }
 
-/** `＋ 새 프로젝트`·이름 바꾸기 창: 아이콘(이모지, 비우면 폴더) + 이름 20자 */
-const COMMON_CATS = ['공모전', '해커톤', '창업', '시험', '논문']
-export function NameDialog({ anchor, p, cats = [], onClose, onDone }: { anchor: HTMLElement; p?: ProjectView; cats?: string[]; onClose: () => void; onDone?: (tagId: string) => void }) {
+/** 이름·아이콘 바꾸기 창(⋯ 메뉴): 아이콘(이모지, 비우면 🚀) + 이름 20자. 41 §2: 만들기는 한 줄 카드(NewProject), 분류 칸은 없다 */
+export function NameDialog({ anchor, p, onClose }: { anchor: HTMLElement; p: ProjectView; onClose: () => void }) {
   const toast = useToast()
-  const [name, setName] = useState(p ? p.title : '')
-  const [emoji, setEmoji] = useState<string | null>(p ? iconOf(p.tag.name) : null)
-  // §12.10.4 분류: 고르지 않으면 이름에서(이름에 분류 낱말이 있으면 그것이 미리 골라짐)
-  const [cat, setCat] = useState<string | null | undefined>(p ? p.category : undefined)
-  const auto = categoryOf(name)
-  const shownCat = cat === undefined ? auto : cat
-  const catList = [...new Set([...cats, ...COMMON_CATS, ...(shownCat ? [shownCat] : [])])].filter((c) => c === '시험' || CATEGORY_WORDS.includes(c) || cats.includes(c))
+  const [name, setName] = useState(p.title)
+  const [emoji, setEmoji] = useState<string | null>(iconOf(p.tag.name))
   const [picking, setPicking] = useState(false)
   const [err, setErr] = useState('')
-  const [team, setTeam] = useState('') // 31 §12.13.2 팀원(새 프로젝트만)
   const btn = useRef<HTMLButtonElement>(null)
   const save = async () => {
     if (!name.trim()) { setErr('이름을 입력해 주세요'); return }
-    // 이름에서 읽히는 분류와 다르게 골랐을 때만 기록('' = 없음으로 고름)
-    const want = shownCat ?? ''
-    const keepCat = async (tagId: string) => (want !== (categoryOf(name) ?? '') ? setCategory(tagId, want) : setCategory(tagId, null))
-    if (p) { const u = await renameProject(p.tag.id, name, emoji); const c = await keepCat(p.tag.id); toast.show('이름을 바꿨어요', async () => { await c(); await u() }); onClose(); return }
-    const r = await createProject(name, emoji)
-    const c = await keepCat(r.tagId)
-    const people = splitPeople(team)
-    const t = people.length ? await linkTeam(r.tagId, people) : async () => {}
-    toast.show(`'${name.trim()}' 프로젝트를 만들었어요${people.length ? ` · 팀원 ${people.length}명` : ''}`, async () => { await t(); await c(); await r.undo() })
+    toast.show('이름을 바꿨어요', await renameProject(p.tag.id, name, emoji))
     onClose()
-    onDone?.(r.tagId)
   }
   return (
     <Popover anchor={anchor} onClose={() => { if (!picking) onClose() }} width={300} className="plan-name">
-      <div className="plan-name__h">{p ? '프로젝트 이름 바꾸기' : '새 프로젝트'}</div>
+      <div className="plan-name__h">이름·아이콘 바꾸기</div>
       <div className="plan-name__row">
         <button ref={btn} className="plan-name__icon" aria-label="아이콘 고르기" onClick={() => setPicking(true)}>{emoji ?? '🚀'}</button>
         <input autoFocus className="plan-add__q" maxLength={20} placeholder="프로젝트 이름" value={name} aria-label="프로젝트 이름"
           onChange={(e) => { setName(e.target.value); setErr('') }} onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void save() }} />
       </div>
       {err && <p className="plan-name__err">{err}</p>}
-      {!p && (
-        <label className="plan-name__team">
-          <span>팀원</span>
-          <input className="plan-add__q" placeholder="예: 민수, 지은" value={team} aria-label="팀원" onChange={(e) => setTeam(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void save() }} />
-        </label>
-      )}
-      <div className="plan-name__cat" role="radiogroup" aria-label="분류">
-        <span>분류</span>
-        {catList.map((c) => <button key={c} role="radio" aria-checked={shownCat === c} className={shownCat === c ? 'is-on' : ''} onClick={() => setCat(shownCat === c ? null : c)}>{c}</button>)}
-        <button role="radio" aria-checked={!shownCat} className={!shownCat ? 'is-on' : ''} onClick={() => setCat(null)}>없음</button>
-      </div>
       <div className="plan-name__acts">
         <button className="map-btn" onClick={onClose}>취소</button>
-        <button className="map-btn map-btn--primary" onClick={() => void save()}>{p ? '저장' : '만들기'}</button>
+        <button className="map-btn map-btn--primary" onClick={() => void save()}>저장</button>
       </div>
       {picking && <EmojiPicker anchor={btn.current} onPick={(e) => setEmoji(e)} onClose={() => setPicking(false)} />}
     </Popover>
@@ -279,21 +252,15 @@ function NextRow({ t, today, actions }: { t: PTaskRow; today: string; actions: T
   )
 }
 
-/** 빈 상태(시안 ④) */
-function PlanEmpty({ onPlan, onNew, autoOn }: { onPlan: PlanOpen; onNew: (e: MouseEvent<HTMLElement>) => void; autoOn: boolean }) {
-  const [cands, setCands] = useState<{ id: string; title: string }[]>([])
-  useEffect(() => { let on = true; void planCandidates(dayKey(), 4).then((c) => { if (on) setCands(c) }).catch(() => {}); return () => { on = false } }, [])
+/** 빈 상태(41 §2.1 · §2.5): 가운데 입력칸이 바로 보이고 아래 `이럴 때 써요` */
+function PlanEmpty({ onDone, autoOn }: { onDone: (tagId: string) => void; autoOn: boolean }) {
   const { buddy, stage } = useBuddy()
   return (
     <div className="plan-empty">
-      <BuddyAvatar buddy={buddy} stage={stage} size={96} />
-      <h3>아직 프로젝트가 없어요</h3>
-      <p>{autoOn ? '관련된 일이 생기면 알아서 묶어 드려요. 직접 만들어도 돼요.' : '자동으로 만들기가 꺼져 있어요. 직접 만들어 보세요.'}</p>
-      {cands.length > 0 && <div className="plan-empty__chips">{cands.map((c) => <button key={c.id} onClick={() => onPlan({ taskId: c.id, makeProject: true })}>{c.title}</button>)}</div>}
-      <div className="plan-empty__acts">
-        <button className="map-btn map-btn--primary plan-empty__go" onClick={onNew}><Plus />새 프로젝트</button>
-        <button className="map-btn plan-empty__go" onClick={() => onPlan({ makeProject: true })}>같이 계획 짜기</button>
-      </div>
+      <BuddyAvatar buddy={buddy} stage={stage} size={72} />
+      <h3>날짜가 있는 큰 일을 프로젝트로 만들어요</h3>
+      <p>{autoOn ? '여러 리스트에 흩어진 일을 한 화면에 모아 보고, 줄로 나눠 직접 고쳐요.' : '자동으로 만들기가 꺼져 있어요. 직접 만들어 보세요.'}</p>
+      <div className="plan-empty__new"><NewProjectCard bare onDone={onDone} /></div>
     </div>
   )
 }

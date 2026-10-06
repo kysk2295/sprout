@@ -25,6 +25,12 @@ const KINDS_SQL = "SELECT from_id AS task_id, to_id AS kind FROM relations WHERE
 const SCORE_REL_SQL = "SELECT from_type, from_id, to_type, to_id, field, state FROM relations WHERE from_type = 'tag' AND field IN ('project', 'hint', 'focus') AND COALESCE(state, 'accepted') = 'accepted'"
 const NOTES_SQL = `SELECT r.to_id AS tag_id, n.id, n.content, n.link_title FROM relations r JOIN notes n ON n.id = r.from_id
   WHERE r.from_type = 'note' AND r.to_type = 'tag' AND COALESCE(r.state, 'accepted') = 'accepted'`
+// 41 §9 ⚑ 핵심 날짜(tag → task deadline) · 만든 줄(tag → tag lane) · 프로젝트 설정(view_settings project:*) · 팀원(tag → tag project) — 모두 동기화 표
+const DEADLINES_SQL = "SELECT from_id AS tag_id, to_id AS task_id FROM relations WHERE from_type = 'tag' AND to_type = 'task' AND field = 'deadline' AND COALESCE(state, 'accepted') = 'accepted'"
+const LANES_SQL = "SELECT from_id AS project_id, to_id AS tag_id, created_at FROM relations WHERE from_type = 'tag' AND to_type = 'tag' AND field = 'lane' AND COALESCE(state, 'accepted') = 'accepted'"
+const SETTINGS_SQL = "SELECT view_key, options_json FROM view_settings WHERE view_key LIKE 'project:%' ORDER BY modified_at"
+const TEAM_SQL = `SELECT r.from_id AS project_id, r.to_id AS tag_id, g.name FROM relations r JOIN tags g ON g.id = r.to_id
+  WHERE r.from_type = 'tag' AND r.to_type = 'tag' AND r.field = 'project' AND COALESCE(r.state, 'accepted') = 'accepted' ORDER BY r.created_at`
 
 const useStore = <T,>(s: { get: () => T; subscribe: (f: () => void) => () => void }) => useSyncExternalStore(s.subscribe, s.get)
 const cutoffDay = () => new Date(Date.now() - 120 * 86_400_000).toISOString().slice(0, 10)
@@ -43,11 +49,15 @@ export function usePlanData(): PlanData {
   const cats = useQuery<{ tag_id: string; word: string }>(CATS_SQL)
   const rels = useQuery<ScoreRel>(SCORE_REL_SQL)
   const focus = rels?.find((r) => r.to_type === 'focus')?.from_id ?? null
+  const deadlines = useQuery<{ tag_id: string; task_id: string }>(DEADLINES_SQL)
+  const lanes = useQuery<{ project_id: string; tag_id: string; created_at: string | null }>(LANES_SQL)
+  const settings = useQuery<{ view_key: string | null; options_json: string | null }>(SETTINGS_SQL)
+  const team = useQuery<{ project_id: string; tag_id: string; name: string }>(TEAM_SQL)
   const pstore = useStore(projectStore)
   const astore = useStore(autoTagStore)
   const today = dayKey()
 
-  return useMemo<PlanData>(() => buildPlanView({ tasks, tags, links, lists, folders, seq, topics, notes, pstore, blocked: astore.blocked, today, kindOverrides: kinds, categoryOverrides: cats, skip: pstore.skip, suggest: pstore.auto !== false, focus }), [tasks, tags, links, lists, folders, seq, topics, notes, kinds, cats, pstore, astore, today, focus])
+  return useMemo<PlanData>(() => buildPlanView({ tasks: deadlines && lanes && settings && team ? tasks : undefined, tags, links, lists, folders, seq, topics, notes, pstore, blocked: astore.blocked, today, kindOverrides: kinds, categoryOverrides: cats, skip: pstore.skip, suggest: pstore.auto !== false, focus, deadlines, lanes, settings, team }), [tasks, tags, links, lists, folders, seq, topics, notes, kinds, cats, pstore, astore, today, focus, deadlines, lanes, settings, team])
 }
 
 
