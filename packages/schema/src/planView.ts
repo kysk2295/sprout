@@ -345,7 +345,7 @@ export function parseProjectSettings(json: string | null | undefined): ProjectSe
 }
 /** 지금 options_json + 바꿀 것 → 저장할 options_json(모르는 칸은 남긴다 — 새 앱이 더한 칸을 옛 앱이 지우지 않게) */
 export function patchProjectSettings(json: string | null | undefined, patch: ProjectSettings): string {
-  const o = { ...obj(json), ...patch }
+  const o: Record<string, unknown> = { ...obj(json), ...patch }
   for (const k of Object.keys(o)) if (o[k] === undefined) delete o[k]
   return JSON.stringify(o)
 }
