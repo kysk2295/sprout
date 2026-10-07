@@ -296,7 +296,8 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
     const { refresh_token } = await readJson(req, 10_000)
     if (typeof refresh_token !== 'string') throw new UploadError('unauthorized', 401)
     const r = await pool.query(
-      `DELETE FROM sessions s USING users u WHERE s.token_hash = $1 AND s.user_id = u.id AND s.expires_at > now() RETURNING u.id, u.email`,
+      // 지운 대신 2분만 더 살려 둔다: 응답이 기기에 닿기 전에 끊기거나 두 요청이 겹쳐 같은 토큰을 다시 보내도 로그아웃되지 않게(2026-10-08)
+      `UPDATE sessions s SET expires_at = LEAST(s.expires_at, now() + interval '2 minutes') FROM users u WHERE s.token_hash = $1 AND s.user_id = u.id AND s.expires_at > now() RETURNING u.id, u.email`,
       [hashToken(refresh_token)]
     )
     if (!r.rowCount) throw new UploadError('unauthorized', 401)

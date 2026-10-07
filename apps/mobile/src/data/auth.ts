@@ -89,11 +89,16 @@ export async function freshToken(): Promise<string | null> {
   if (!session) return null
   if (session.expires_at - Date.now() > 5 * 60_000) return session.access_token
   refreshing ??= (async () => {
+    const used = session!.refresh_token
     try {
-      await save(toSession(await api<TokenResponse>('/auth/refresh', { body: { refresh_token: session!.refresh_token } })))
+      await save(toSession(await api<TokenResponse>('/auth/refresh', { body: { refresh_token: used } })))
       return session!.access_token
     } catch (e) {
-      if (e instanceof ApiError && e.status === 401) await signOutLocal()
+      // 그사이 다른 곳(로그인·공유 확장 등)에서 세션이 새로 바뀌었으면 로그아웃하지 않는다
+      if (e instanceof ApiError && e.status === 401) {
+        if (session && session.refresh_token !== used) return session.access_token
+        await signOutLocal()
+      }
       return null
     } finally {
       refreshing = undefined

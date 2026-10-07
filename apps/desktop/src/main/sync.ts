@@ -66,17 +66,29 @@ async function api<T>(path: string, init: { method?: string; body?: unknown; tok
 type TokenResponse = { user: { id: string; email: string }; access_token: string; refresh_token: string; expires_in: number }
 const toSession = (r: TokenResponse): Session => ({ user: r.user, access_token: r.access_token, refresh_token: r.refresh_token, expires_at: Date.now() + r.expires_in * 1000 })
 
-/** 접근 토큰이 5분 안에 끝나면 새로 받는다 */
+/** 접근 토큰이 5분 안에 끝나면 새로 받는다.
+ * 한 번에 하나만 보낸다 — 동기화·업로드·AI가 같은 리프레시 토큰으로 동시에 보내면 먼저 간 요청이 토큰을 바꿔
+ * 나머지가 401을 받고 로그아웃되던 문제(2026-10-08). 401이어도 그사이 세션이 새 토큰으로 바뀌었으면 로그아웃하지 않는다. */
+let refreshing: Promise<string | null> | undefined
 async function freshToken(): Promise<string | null> {
   if (!session) return null
   if (session.expires_at - Date.now() > 5 * 60_000) return session.access_token
-  try {
-    save(toSession(await api<TokenResponse>('/auth/refresh', { body: { refresh_token: session.refresh_token } })))
-    return session!.access_token
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 401) { save(undefined); broadcast() } // 세션 만료 → 로그아웃 상태
-    return null
-  }
+  refreshing ??= (async () => {
+    const used = session!.refresh_token
+    try {
+      save(toSession(await api<TokenResponse>('/auth/refresh', { body: { refresh_token: used } })))
+      return session!.access_token
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        if (session && session.refresh_token !== used) return session.access_token
+        save(undefined); broadcast() // 세션 만료 → 로그아웃 상태
+      }
+      return null
+    } finally {
+      refreshing = undefined
+    }
+  })()
+  return refreshing
 }
 
 // ── PowerSync 연결자 ──
