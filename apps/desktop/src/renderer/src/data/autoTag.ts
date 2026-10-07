@@ -446,10 +446,10 @@ export async function undoAutoTagAt(ats: string[]): Promise<{ dismissed: number;
 
 // ── 화면 경계(data/wiki.ts AutoTagApi): 요약 = 이번 주, 되돌리기 = 일괄(24시간 안이면) 아니면 이번 주 ──
 export const pipelineAutoTagApi: AutoTagApi = {
-  async summary() {
-    const w = await weeklySummary()
+  async summary(at = now()) {
+    const w = await weeklySummary(at)
     const b = autoTagStore.get().backfill
-    const lastRun = canUndoBackfill() && b.runId ? { id: b.runId, at: b.finishedAt ?? b.startedAt ?? now(), count: await runCount(b.runId) } : undefined
+    const lastRun = canUndoBackfill(at) && b.runId ? { id: b.runId, at: b.finishedAt ?? b.startedAt ?? at, count: await runCount(b.runId) } : undefined
     return { count: w.count, tasks: w.tasks, lastRun }
   },
   async undoLastRun() {

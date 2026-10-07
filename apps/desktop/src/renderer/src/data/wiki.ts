@@ -194,7 +194,8 @@ export async function linkMention(taskId: string, name: string, wrap: (text: str
  * 기본 구현은 로컬 DB만으로 계산한다(source ai·rule, run_id 묶음, 24시간 되돌리기 — 31 §4.3·30 §B.3 규칙).
  */
 export interface AutoTagApi {
-  summary(): Promise<{ count: number; tasks: number; lastRun?: { id: string; at: string; count: number } }>
+  /** at: 기준 시각(시험용 고정 시계, 기본은 지금) */
+  summary(at?: string): Promise<{ count: number; tasks: number; lastRun?: { id: string; at: string; count: number } }>
   undoLastRun(): Promise<number>
 }
 const DAY = 24 * 60 * 60 * 1000

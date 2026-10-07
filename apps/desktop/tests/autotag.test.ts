@@ -277,7 +277,7 @@ const gKey = (payload: any, name: string) => payload.tags.find((g: any) => g.nam
 {
   const w = await weeklySummary('2026-10-06T00:00:00.000Z')
   assert.ok(w.count >= 7 && w.createdTags === 1, JSON.stringify(w))
-  const s = await autoTag().summary()
+  const s = await autoTag().summary('2026-10-06T00:00:00.000Z')
   assert.equal(s.lastRun, undefined, '일괄 전엔 lastRun 없음')
   const u = await undoWeek('2026-10-06T00:00:00.000Z')
   assert.equal(u.tags, 1, 'AI가 만든 태그(사람 연결 없음)는 지움')
@@ -324,7 +324,7 @@ const gKey = (payload: any, name: string) => payload.tags.find((g: any) => g.nam
   assert.equal(tagsOf('old').length, 0)
   assert.ok(canUndoBackfill('2026-10-07T08:00:00.000Z'))
   assert.ok(!canUndoBackfill('2026-10-07T10:00:00.000Z'), '24시간 뒤엔 안 됨')
-  const api = await autoTag().summary()
+  const api = await autoTag().summary('2026-10-06T10:00:00.000Z') // 고정 시계(실제 시계면 24시간 지나 lastRun이 사라짐)
   assert.equal(api.lastRun?.id, b.runId)
   // 사용자가 하나는 직접 켬(손댄 것은 남는다)
   db.run("UPDATE task_tags SET source = 'user' WHERE task_id = 'c0'")
