@@ -16,11 +16,24 @@ const subscribe = (f: () => void) => { subs.add(f); return () => { subs.delete(f
 export const useTasksViewSetter = () => setTasksView
 export const useCurrentTasksView = () => useSyncExternalStore(subscribe, () => current)
 
+// 묶음 접힘(보기|묶음 → 접힘). 컨텍스트 밖 저장소 — 묶음 하나를 접고 펼 때 그 카드만 다시 그린다
+// (예전엔 컨텍스트 값이 바뀌어 할 일 목록 전체·서랍까지 다시 그려 누른 뒤 움직임이 늦게 시작했다 — 39 §11.5)
+let folded: Record<string, boolean> = {}
+const foldSubs = new Set<() => void>()
+const foldSubscribe = (f: () => void) => { foldSubs.add(f); return () => { foldSubs.delete(f) } }
+/** 지금 접혀 있나(byDefault = 기록이 없을 때) */
+export const isGroupCollapsed = (view: string, groupId: string, byDefault = false) => folded[`${view}|${groupId}`] ?? byDefault
+export function toggleGroup(view: string, groupId: string, byDefault = false) {
+  const k = `${view}|${groupId}`
+  folded = { ...folded, [k]: !(folded[k] ?? byDefault) }
+  foldSubs.forEach((f) => f())
+}
+export const useGroupCollapsed = (view: string, groupId: string, byDefault = false) =>
+  useSyncExternalStore(foldSubscribe, () => isGroupCollapsed(view, groupId, byDefault))
+
 type State = {
   view: ViewKey
   setView: (v: ViewKey) => void
-  isCollapsed: (groupId: string, byDefault?: boolean) => boolean
-  toggleGroup: (groupId: string, byDefault?: boolean) => void
   isExpanded: (taskId: string) => boolean
   toggleExpand: (taskId: string) => void
   showDetails: boolean
@@ -34,19 +47,16 @@ const Ctx = createContext<State | null>(null)
 
 export function TasksViewProvider({ children }: { children: ReactNode }) {
   const view = useCurrentTasksView()
-  const [groups, setGroups] = useState<Record<string, boolean>>({})
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [showDetails, setShowDetails] = useState(false)
   const [showCompleted, setShowCompleted] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const setView = useCallback((v: ViewKey) => setTasksView(v), [])
-  const isCollapsed = useCallback((g: string, byDefault = false) => groups[`${view}|${g}`] ?? byDefault, [groups, view])
-  const toggleGroup = useCallback((g: string, byDefault = false) => setGroups((s) => ({ ...s, [`${view}|${g}`]: !(s[`${view}|${g}`] ?? byDefault) })), [view])
   const isExpanded = useCallback((id: string) => !!expanded[id], [expanded])
   const toggleExpand = useCallback((id: string) => setExpanded((s) => ({ ...s, [id]: !s[id] })), [])
   const value = useMemo(
-    () => ({ view, setView, isCollapsed, toggleGroup, isExpanded, toggleExpand, showDetails, setShowDetails, showCompleted, setShowCompleted, drawerOpen, setDrawerOpen }),
-    [view, setView, isCollapsed, toggleGroup, isExpanded, toggleExpand, showDetails, showCompleted, drawerOpen]
+    () => ({ view, setView, isExpanded, toggleExpand, showDetails, setShowDetails, showCompleted, setShowCompleted, drawerOpen, setDrawerOpen }),
+    [view, setView, isExpanded, toggleExpand, showDetails, showCompleted, drawerOpen]
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

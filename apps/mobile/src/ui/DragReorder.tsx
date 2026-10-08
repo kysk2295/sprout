@@ -17,7 +17,7 @@ import { DUR, SPRING } from './motion'
 export type Slot = { id: string; group: string; y: number; h: number; x: number; w: number }
 export type DropAt = { id: string; group: string; before: string | null; after: string | null }
 
-export function useDragReorder(opts: { canCross: (from: string, to: string) => boolean; onDrop: (d: DropAt) => void; onMenu: (id: string) => void }) {
+export function useDragReorder(opts: { canCross: (from: string, to: string) => boolean; /** 접힌 묶음 — 행이 남아 있어도 놓을 자리에서 뺀다 */ hidden?: (group: string) => boolean; onDrop: (d: DropAt) => void; onMenu: (id: string) => void }) {
   const refs = useRef(new Map<string, { view: View | null; group: string }>())
   const slots = useSharedValue<Slot[]>([])
   const active = useSharedValue<string | null>(null)
@@ -40,7 +40,8 @@ export function useDragReorder(opts: { canCross: (from: string, to: string) => b
   /** 잡은 순간: 모든 행 위치를 화면 좌표로 재서 UI 스레드에 넘긴다 */
   const begin = useCallback((id: string) => {
     hx.lift()
-    const entries = [...refs.current.entries()]
+    const hidden = optsRef.current.hidden
+    const entries = [...refs.current.entries()].filter(([rid, r]) => rid === id || !hidden?.(r.group))
     const out: Slot[] = []
     let left = entries.length
     if (!left) return

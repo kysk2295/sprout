@@ -20,7 +20,7 @@ import {
   buildGroups, doneSql, GROUP_LABEL, groupOptions, isArchive, isListView, openSql, showsListName, SORT_LABEL, sortOptions, viewTitle, type Node, type TaskRow
 } from '../data/views'
 import { dayKey, longDay, nextMonday } from '../lib/dates'
-import { useTasksView } from '../state/tasksView'
+import { isGroupCollapsed, toggleGroup, useGroupCollapsed, useTasksView } from '../state/tasksView'
 import { useCompleting } from '../state/useCompleting'
 import { hx } from '../ui/haptics'
 import { playComplete } from '../ui/sound'
@@ -33,6 +33,7 @@ import { CompanionEmpty, EmptyState } from '../ui/EmptyState'
 import { OfflineBand } from '../ui/OfflineBand'
 import { GlassButton, GlassGroup } from '../ui/Glass'
 import { GroupCard } from '../ui/GroupCard'
+import type { ListMotion } from '../ui/listMotion'
 import { BigTitle, NavRow, useCollapsingTitle } from '../ui/Header'
 import { LongPressMenu, type LongPressAction } from '../ui/LongPressMenu'
 import { PopMenu, useAnchor, type Rect } from '../ui/Menu'
@@ -111,7 +112,8 @@ export default function TaskListScreen() {
   )
   const shownGroups = useMemo(() => mergeEventGroups(groups, evByGroup, settings.group_by === 'time'), [groups, evByGroup, settings.group_by])
   const evMenu = useEventMenu()
-  const rowCount = shownGroups.reduce((n, g) => n + (v.isCollapsed(g.id, !!(g.done && (isListView(view) || open.data.length === 0))) ? 0 : g.rows.length), 0)
+  // 접힌 묶음도 센다 — 접고 펼 때 수가 30 넘게 바뀌어 카드 전환이 꺼지던 것(39 §11.5)
+  const rowCount = shownGroups.reduce((n, g) => n + g.rows.length, 0)
   const motion = useListMotion(listView, rowCount)
   const { title, emoji } = viewTitle(view, lists, folders, { tags, filters })
   const isToday = view === 'smart:today'
@@ -219,7 +221,9 @@ export default function TaskListScreen() {
     if (settings.sort_by !== 'custom') await saveViewSettings(view, { sort_by: 'custom' })
     if (cross) withUndo('옮겼어요', undo)
   }
-  const drag = useDragReorder({ canCross: (a, b) => a.startsWith('s:') && b.startsWith('s:'), onDrop: (d) => void onDrop(d), onMenu: openMenuFor })
+  // 접힌 묶음의 행은 남아 있지만(GroupCard) 끌어 놓을 자리에서는 뺀다
+  const foldDefault = useRef(new Map<string, boolean>())
+  const drag = useDragReorder({ hidden: (gid) => isGroupCollapsed(view, gid, foldDefault.current.get(gid)), canCross: (a, b) => a.startsWith('s:') && b.startsWith('s:'), onDrop: (d) => void onDrop(d), onMenu: openMenuFor })
   const canDrag = !archive
   // 39 §11: 행이 쓰는 손잡이는 ref 하나로(행 memo가 화면이 다시 그려질 때마다 깨지지 않게), 행 설정은 바뀔 때만 새 객체
   const acts = useRef<RowActs>(null!)
@@ -329,16 +333,17 @@ export default function TaskListScreen() {
         {!firstLoad && archive && openCount === 0 ? <EmptyState title={view === 'smart:trash' ? '휴지통이 비어 있어요' : view === 'smart:wontdo' ? '계획 취소한 할 일이 없어요' : '완료한 할 일이 없어요'} /> : null}
         <View style={openCount === 0 && doneCount > 0 ? { marginTop: 28 } : undefined}>
           {shownGroups.map((g) => {
-            const byDefault = g.done && (isListView(view) || openCount === 0)
-            const collapsed = v.isCollapsed(g.id, !!byDefault)
+            const byDefault = !!(g.done && (isListView(view) || openCount === 0))
+            foldDefault.current.set(g.id, byDefault)
             return (
-              <GroupCard
+              <TaskGroup
                 key={g.id}
+                view={view}
+                gid={g.id}
+                byDefault={byDefault}
                 motion={motion}
                 title={g.title}
                 count={g.count}
-                collapsed={g.title ? collapsed : false}
-                onToggle={() => v.toggleGroup(g.id, !!byDefault)}
                 onPostpone={g.postpone ? postpone.open : undefined}
                 onLongPress={g.sectionId ? (e: GestureResponderEvent) => setSecMenu({ id: g.sectionId!, name: g.title, rect: { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, width: 0, height: 0 } }) : undefined}
               >
@@ -346,7 +351,7 @@ export default function TaskListScreen() {
                   <EventRowView key={it.key} evt={it.evt} start={it.start} end={it.end} color={it.color} onPress={() => evMenu.act.open(it.evt.id)} onLongPress={(rect) => evMenu.openMenu(it.evt.id, rect)} />
                 ))}
                 {g.rows.map((n) => { groupOfTask.current.set(n.task.id, g.id); return renderNode(n, 0, g.id) })}
-              </GroupCard>
+              </TaskGroup>
             )
           })}
         </View>
@@ -511,6 +516,14 @@ const TaskItem = memo(function TaskItem(props: { task: TaskRow; depth: number; g
     </DragRow>
   )
 })
+
+/** 묶음 카드 + 접힘 구독 — 접고 펼 때 이 카드만 다시 그린다(목록 화면 전체는 그대로, 39 §11.5) */
+function TaskGroup(props: { view: string; gid: string; byDefault: boolean; title: string; count: number; motion: ListMotion; onPostpone?: () => void; onLongPress?: (e: GestureResponderEvent) => void; children?: React.ReactNode }) {
+  const { view, gid, byDefault, ...rest } = props
+  const folded = useGroupCollapsed(view, gid, byDefault)
+  const onToggle = useCallback(() => toggleGroup(view, gid, byDefault), [view, gid, byDefault])
+  return <GroupCard {...rest} collapsed={props.title ? folded : false} onToggle={onToggle} />
+}
 
 function Skeleton() {
   const p = usePalette()

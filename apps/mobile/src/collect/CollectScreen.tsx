@@ -294,7 +294,7 @@ function WikiTopics({ query, onOpen, onBack }: { query: string; onOpen: (id: str
   const changed = (iso: string) => (Math.abs(Date.now() - Date.parse(iso)) < 60_000 ? '방금 바뀜' : localDay(iso) === dayKey() ? timeKo(iso) : monthDayKo(iso))
   return (
     <>
-      <GroupCard title="주제" count={shown.length} collapsed={false} onToggle={() => {}}>
+      <GroupCard title="주제" count={shown.length} collapsed={false}>
         {shown.map((t) => {
           const fresh = !!seen && t.version > (seen[t.id] ?? 0)
           return (

@@ -6,7 +6,7 @@
 // 고르면 같은 목록 화면에 그 목록. 아이콘은 Lucide(오픈 라이선스), 색 배치만 틱틱처럼 여러 색.
 import { useRouter } from 'expo-router'
 import {
-  ArrowUpToLine, Ban, CalendarCheck, CalendarRange, ChevronDown, ChevronRight, CircleCheck, Funnel, Hash, Inbox, Layers, Pencil, Plus, Settings, SlidersHorizontal, Sunrise, Trash2
+  ArrowUpToLine, Ban, CalendarCheck, CalendarRange, CircleCheck, Funnel, Hash, Inbox, Layers, Pencil, Plus, Settings, SlidersHorizontal, Sunrise, Trash2
 } from 'lucide-react-native'
 import { useEffect, useState, type ReactNode } from 'react'
 import { BlurView } from 'expo-blur'
@@ -33,6 +33,7 @@ import { SwipeRow, type SwipeAction } from './SwipeRow'
 import { FilterEditSheet, FolderEditSheet, ListEditSheet, TagEditSheet } from './OrgSheets'
 import { useToast } from './Toast'
 import { DUR, EASE, SPRING, useReducedMotion } from './motion'
+import { FoldBody, FoldChevron, groupLayout } from './Fold'
 
 /** 서랍 열림 정도(0 닫힘 ~ 1 열림)와 판 폭 — 탭 화면 밀기((tabs)/_layout)·왼쪽 끝 끌기(DrawerEdge)가 같이 쓴다 */
 export const drawerP = makeMutable(0)
@@ -187,7 +188,7 @@ export function Drawer() {
       <Pressable accessibilityRole="button" accessibilityLabel={`${r.label} ${open ? '접기' : '펼치기'}`} onPress={() => setOpenSec((x) => ({ ...x, [r.id]: !open }))} style={s.sec}>
         <Text style={[FONT.meta, { color: p.textTertiary, flex: 1, fontWeight: '600' }]}>{r.label}</Text>
         <Pressable accessibilityRole="button" accessibilityLabel={`${r.label} 추가`} hitSlop={10} onPress={r.onAdd} style={{ paddingHorizontal: 6 }}><Plus size={15} color={p.textTertiary} /></Pressable>
-        {open ? <ChevronDown size={14} color={p.textQuaternary} /> : <ChevronRight size={14} color={p.textQuaternary} />}
+        <FoldChevron open={open} size={14} color={p.textQuaternary} />
       </Pressable>
     )
   }
@@ -236,7 +237,7 @@ export function Drawer() {
               const kids = normal.filter((l) => l.folder_id === f.id)
               const open = !!openFolders[f.id]
               return (
-                <View key={f.id}>
+                <Animated.View key={f.id} layout={groupLayout} style={s.fold}>
                   <Row
                     v={`folder:${f.id}`}
                     icon={<FolderGlyph name={f.name} />}
@@ -245,37 +246,39 @@ export function Drawer() {
                     onLongPress={(e) => folderMenu(f, e)}
                     right={
                       <Pressable accessibilityRole="button" accessibilityLabel={open ? '폴더 접기' : '폴더 펼치기'} hitSlop={10} onPress={() => setOpenFolders((s) => ({ ...s, [f.id]: !open }))}>
-                        {open ? <ChevronDown size={14} color={p.textQuaternary} /> : <ChevronRight size={14} color={p.textQuaternary} />}
+                        <FoldChevron open={open} size={14} color={p.textQuaternary} />
                       </Pressable>
                     }
                   />
-                  {open ? kids.map((l) => <SwipeRow key={l.id} round right={swipeList(l)}><Row depth={1} v={`list:${l.id}`} icon={listIcon(l)} label={listShow(l).name} n={counts.lists[l.id]} right={<ColorDot color={l.color} />} onLongPress={(e) => listMenu(l, e)} /></SwipeRow>) : null}
-                </View>
+                  <FoldBody open={open}>{kids.map((l) => <SwipeRow key={l.id} round right={swipeList(l)}><Row depth={1} v={`list:${l.id}`} icon={listIcon(l)} label={listShow(l).name} n={counts.lists[l.id]} right={<ColorDot color={l.color} />} onLongPress={(e) => listMenu(l, e)} /></SwipeRow>)}</FoldBody>
+                </Animated.View>
               )
             })}
             {show('filters') ? (
-              <>
+              <Animated.View layout={groupLayout} style={s.fold}>
                 <Section id="filters" label="필터" onAdd={() => setEdit({ kind: 'filter', id: null })} />
-                {openSec.filters ? (filters.length ? filters.map((f) => (
+                <FoldBody open={!!openSec.filters}>{filters.length ? filters.map((f) => (
                   <SwipeRow key={f.id} round right={swipeFilter(f)}><Row v={`filter:${f.id}`} icon={f.emoji ? <Text style={{ fontSize: 17 }}>{f.emoji}</Text> : <Funnel size={20} color={p.textSecondary} />} label={f.name} onLongPress={(e) => filterMenu(f, e)} /></SwipeRow>
-                )) : <Text style={[s.hint, { color: p.textQuaternary }]}>조건으로 할 일을 모아 보세요</Text>) : null}
-              </>
+                )) : <Text style={[s.hint, { color: p.textQuaternary }]}>조건으로 할 일을 모아 보세요</Text>}</FoldBody>
+              </Animated.View>
             ) : null}
             {show('tags') ? (
-              <>
+              <Animated.View layout={groupLayout} style={s.fold}>
                 <Section id="tags" label="태그" onAdd={() => setEdit({ kind: 'tag', id: null })} />
-                {openSec.tags ? (topTags.length ? topTags.map((t) => (
+                <FoldBody open={!!openSec.tags}>{topTags.length ? topTags.map((t) => (
                   <View key={t.id}>
                     <SwipeRow round right={swipeTag(t)}><Row v={`tag:${t.id}`} icon={tagIcon(t, 20)} label={tagName(t)} n={org.tags[t.id]} onLongPress={(e) => tagMenu(t, e)} /></SwipeRow>
                     {tags.filter((c) => c.parent_id === t.id).map((c) => <SwipeRow key={c.id} round right={swipeTag(c)}><Row depth={1} v={`tag:${c.id}`} icon={tagIcon(c, 18)} label={tagName(c)} n={org.tags[c.id]} onLongPress={(e) => tagMenu(c, e)} /></SwipeRow>)}
                   </View>
-                )) : <Text style={[s.hint, { color: p.textQuaternary }]}>할 일에 #태그를 붙이면 여기에 보여요</Text>) : null}
-              </>
+                )) : <Text style={[s.hint, { color: p.textQuaternary }]}>할 일에 #태그를 붙이면 여기에 보여요</Text>}</FoldBody>
+              </Animated.View>
             ) : null}
-            {hr}
-            {show('completed', arch.completed) ? <Row v="smart:completed" icon={<CircleCheck size={22} color={p.textSecondary} />} label="완료" /> : null}
-            {show('wontdo', arch.wontdo) ? <Row v="smart:wontdo" icon={<Ban size={22} color={p.textSecondary} />} label="계획 취소" /> : null}
-            {show('trash', arch.trash) ? <Row v="smart:trash" icon={<Trash2 size={22} color={p.textSecondary} />} label="휴지통" /> : null}
+            <Animated.View layout={groupLayout}>
+              {hr}
+              {show('completed', arch.completed) ? <Row v="smart:completed" icon={<CircleCheck size={22} color={p.textSecondary} />} label="완료" /> : null}
+              {show('wontdo', arch.wontdo) ? <Row v="smart:wontdo" icon={<Ban size={22} color={p.textSecondary} />} label="계획 취소" /> : null}
+              {show('trash', arch.trash) ? <Row v="smart:trash" icon={<Trash2 size={22} color={p.textSecondary} />} label="휴지통" /> : null}
+            </Animated.View>
           </ScrollView>
           <View style={[s.foot, { paddingBottom: insets.bottom + 8, borderTopColor: p.borderDivider }]}>
             <Pressable accessibilityRole="button" accessibilityLabel="추가" onPress={addMenu} style={s.footBtn}>
@@ -321,6 +324,8 @@ const s = StyleSheet.create({
   icon: { width: 22, alignItems: 'center' },
   ldot: { width: 9, height: 9, borderRadius: 5 },
   hr: { borderTopWidth: StyleSheet.hairlineWidth, marginVertical: 6, marginHorizontal: 10 },
+  // 접는 덩어리(39 §11.5): 접힌 줄은 남아 있고 덩어리가 가린다
+  fold: { overflow: 'hidden' },
   sec: { height: 34, flexDirection: 'row', alignItems: 'center', paddingLeft: 12, paddingRight: 10, marginTop: 6 },
   hint: { fontSize: 12, paddingHorizontal: 12, paddingVertical: 6 },
   foot: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingTop: 6, borderTopWidth: StyleSheet.hairlineWidth },

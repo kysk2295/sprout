@@ -779,7 +779,7 @@ function DayList(props: { day: string; today: string; items: Item[]; onCheck: (t
         scrollEventThrottle={16}
       >
         {props.items.length ? (
-          <GroupCard title={agendaTitle(props.day, props.today)} count={props.items.length} collapsed={false} onToggle={() => {}}>
+          <GroupCard title={agendaTitle(props.day, props.today)} count={props.items.length} collapsed={false}>
             {props.items.map((it) => evtOf(it) ? (
               <EventRowView key={it.key} evt={evtOf(it)!} start={it.start} end={it.end} color={it.task.list_color ?? ''} calName={it.task.list_name} onPress={() => props.onOpen(it.task)} onLongPress={(rect) => props.onLong({ task: it.task, rect })} />
             ) : (
