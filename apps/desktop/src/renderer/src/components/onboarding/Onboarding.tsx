@@ -51,7 +51,7 @@ export function Onboarding({ state, ready, onChange, onHide, onOpenCalendar }: P
           <ol className="onb__dots" aria-label={`${index + 1}/${total}단계`}>
             {STEPS.map((s, i) => <li key={s} className={i === index ? 'is-on' : i < index ? 'is-past' : ''} />)}
           </ol>
-          <button className="onb__close icon-btn" aria-label="닫기(다음에 이어서)" title="닫기 — 다음에 이어서 볼 수 있어요" disabled={busy} onClick={onHide}><X size={16} /></button>
+          <button className="onb__close icon-btn" aria-label="닫기" title="닫기 — ⌘K › 시작 안내로 다시 볼 수 있어요" disabled={busy} onClick={onHide}><X size={16} /></button>
         </header>
         {step === 'welcome' && <Welcome onStart={() => go('done')} onSkipAll={() => onChange(skipAll(state))} />}
         {step === 'calendar' && <CalendarStep onBusy={setBusy} onNext={(any) => go(any ? 'done' : 'skip')} onSkip={() => go('skip')} onOpenCalendar={onOpenCalendar} />}

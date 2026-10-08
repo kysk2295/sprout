@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../data/auth'
-import { initialState, loadState, OPEN_EVENT, reopen, saveState, shouldOpen, type OnboardingState } from '../../data/onboarding'
+import { initialState, loadState, OPEN_EVENT, reopen, saveState, shouldOpen, skipAll, type OnboardingState } from '../../data/onboarding'
 import { Onboarding } from './Onboarding'
 
 // 18 첫 실행 안내를 띄우는 자리. App.tsx의 Shell 안에 한 번 둔다(로그인 뒤에만 그려지는 곳).
@@ -47,7 +47,8 @@ export function OnboardingHost({ onOpenCalendar }: { onOpenCalendar?: () => void
       state={st}
       ready={ready}
       onChange={(s) => { setSt(s); saveState(userId, s); if (s.done) setOpen(false) }}
-      onHide={() => setOpen(false)}
+      // 2026-10-08 사용자 결정: 안내는 처음 한 번만 — ✕·Esc로 닫으면 남은 단계를 건너뛴 것으로 끝낸다(다시 저절로 안 뜸, ⌘K '시작 안내'로는 다시 열림)
+      onHide={() => { const s = skipAll(st); setSt(s); saveState(userId, s); setOpen(false) }}
       onOpenCalendar={onOpenCalendar}
     />
   )
