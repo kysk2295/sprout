@@ -497,7 +497,8 @@ function MonthView(props: { ws: WeekStart; today: string; cursor: string; items:
 // 39 §11: 움직임은 translateY·opacity만(UI 스레드), 높이는 처음 한 번 잰다, 칸은 memo(MonthWeeks · DayCell)
 const SPLIT_OPEN = timing(200) // [영상 실측 research 35 §2: 190ms 감속]
 const SPLIT_CLOSE = timing(180) // [영상 실측 180ms]
-const PANEL_OUT = timing(80) // 판은 첫 프레임 안에 사라짐 [영상 실측]
+const PANEL_OUT = timing(80)
+const PAGE_X = timing(240) // 월 가로 넘김 놓은 뒤 [영상 실측 230~250ms 감속] // 판은 첫 프레임 안에 사라짐 [영상 실측]
 /** 판 아래 남는 다음 주 줄 높이(숫자 줄) [영상 실측 약 44pt] */
 const PEEK = 42
 
@@ -507,6 +508,7 @@ function MonthFull(props: { ws: WeekStart; today: string; cursor: string; items:
   const weeks = days.length / 7
   const month = props.cursor.slice(0, 7)
   const [gridH, setGridH] = useState(0)
+  const [gridW, setGridW] = useState(0)
   const rowH = gridH ? Math.max(66, Math.floor((gridH - props.clear) / weeks)) : 0
   const fullH = weeks * rowH
   const selW = Math.max(0, Math.floor(days.indexOf(props.cursor) / 7))
@@ -557,8 +559,13 @@ function MonthFull(props: { ws: WeekStart; today: string; cursor: string; items:
   const nextDays = useMemo(() => monthDays(nextC, props.ws), [nextC, props.ws])
   const prevH = (prevDays.length / 7) * rowH
   const pageY = useSharedValue(0)
-  useLayoutEffect(() => { pageY.value = 0 }, [month, pageY])
-  const monthSwipe = Gesture.Pan().enabled(!open && rowH > 0).activeOffsetY([-12, 12]).failOffsetX([-20, 20])
+  const pageX = useSharedValue(0)
+  /** 끄는 방향: 0 = 세로(앞뒤 달이 위아래), 1 = 가로(앞뒤 달이 좌우) — 앞뒤 달 칸은 한 벌만 그리고 transform으로 자리를 바꾼다 */
+  const axis = useSharedValue(0)
+  useLayoutEffect(() => { pageY.value = 0; pageX.value = 0 }, [month, pageY, pageX])
+  // 세로·가로 둘 다 [영상 실측 research 35 §1 — 10~13초 세로, 13~20초 가로]. 먼저 12pt 넘는 축으로 잠근다(다른 축은 실패)
+  const monthSwipe = Gesture.Pan().enabled(!open && rowH > 0).activeOffsetY([-12, 12]).failOffsetX([-12, 12])
+    .onStart(() => { axis.value = 0 })
     .onUpdate((e) => { pageY.value = e.translationY })
     .onEnd((e) => {
       const thr = fullH * 0.2
@@ -567,15 +574,33 @@ function MonthFull(props: { ws: WeekStart; today: string; cursor: string; items:
       else if (e.translationY > thr || v > 500) pageY.value = withSpring(prevH, { ...SPRING.page, velocity: v }, (fin) => { if (fin) scheduleOnRN(onShift, -1) })
       else pageY.value = withSpring(0, { ...SPRING.page, velocity: v })
     })
+  // 가로: 다음 달이 오른쪽에서 나란히 따라 들어오고, 놓으면 폭 20% 또는 속도 500 넘으면 넘김 [영상 실측 손 뗀 뒤 약 230ms 감속]
+  const monthSwipeX = Gesture.Pan().enabled(!open && rowH > 0 && gridW > 0).activeOffsetX([-12, 12]).failOffsetY([-12, 12])
+    .onStart(() => { axis.value = 1 })
+    .onUpdate((e) => { pageX.value = e.translationX })
+    .onEnd((e) => {
+      const thr = gridW * 0.2
+      const v = e.velocityX
+      // 스프링은 눈에 멈춘 뒤에도 끝 알림이 늦어 머리 달 이름이 0.3초쯤 늦게 바뀐다 → 영상 길이 그대로 감속 시간
+      if (e.translationX < -thr || v < -500) pageX.value = withTiming(-gridW, PAGE_X, (fin) => { if (fin) scheduleOnRN(onShift, 1) })
+      else if (e.translationX > thr || v > 500) pageX.value = withTiming(gridW, PAGE_X, (fin) => { if (fin) scheduleOnRN(onShift, -1) })
+      else pageX.value = withSpring(0, { ...SPRING.page, velocity: v })
+    })
+  const gridGesture = Gesture.Race(monthSwipe, monthSwipeX)
 
   const panelTop = rowH + 6
   const panelBottom = gridH - props.clear - PEEK
   const belowTop = (selW + 1) * rowH
   const dBelow = panelBottom + 4 - belowTop
   const lift = selW * rowH
-  const strip = useAnimatedStyle(() => ({ transform: [{ translateY: pageY.value }] }))
-  const above = useAnimatedStyle(() => ({ transform: [{ translateY: pageY.value - lift * op.value }] }))
-  const below = useAnimatedStyle(() => ({ transform: [{ translateY: pageY.value + dBelow * op.value }] }))
+  const prevStyle = useAnimatedStyle(() => (axis.value === 1
+    ? { transform: [{ translateX: pageX.value - gridW }, { translateY: 0 }] }
+    : { transform: [{ translateX: 0 }, { translateY: pageY.value - prevH }] }))
+  const nextStyle = useAnimatedStyle(() => (axis.value === 1
+    ? { transform: [{ translateX: pageX.value + gridW }, { translateY: 0 }] }
+    : { transform: [{ translateX: 0 }, { translateY: pageY.value + fullH }] }))
+  const above = useAnimatedStyle(() => ({ transform: [{ translateX: pageX.value }, { translateY: pageY.value - lift * op.value }] }))
+  const below = useAnimatedStyle(() => ({ transform: [{ translateX: pageX.value }, { translateY: pageY.value + dBelow * op.value }] }))
   const panelStyle = useAnimatedStyle(() => ({ opacity: pv.value, transform: [{ translateY: lift * (1 - op.value) }] }))
 
   const byDay = useMemo(() => itemsByDay(props.items, prevDays[0], nextDays[nextDays.length - 1]), [props.items, prevDays, nextDays])
@@ -587,19 +612,19 @@ function MonthFull(props: { ws: WeekStart; today: string; cursor: string; items:
       <View style={s.wd}>
         {weekHeadOf(props.ws).map((w, i) => { const dow = headWeekday(i, props.ws); return <Text key={w} style={[s.wdText, { color: dow === 0 ? p.holiday : dow === 6 ? p.saturday : p.textTertiary }]}>{w}</Text> })}
       </View>
-      <GestureDetector gesture={monthSwipe}>
+      <GestureDetector gesture={gridGesture}>
         <View
           style={{ flex: 1, overflow: 'hidden' }}
-          onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); setGridH((x) => (x === h ? x : h)) }}
+          onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); const w = Math.round(e.nativeEvent.layout.width); setGridH((x) => (x === h ? x : h)); setGridW((x) => (x === w ? x : w)) }}
           accessibilityHint={open ? '고른 날을 다시 누르면 닫혀요' : '위아래로 밀면 달이 바뀌어요. 날짜를 누르면 그날 일정이 열려요'}
         >
           {rowH ? (
             <>
               {!open ? (
-                <Animated.View style={[s.abs, strip]} pointerEvents="none">
-                  <View style={[s.abs, { top: -prevH }]}><MonthWeeks ds={prevDays} mkey={prevC.slice(0, 7)} live={false} sel="" {...weeksProps} /></View>
-                  <View style={[s.abs, { top: fullH }]}><MonthWeeks ds={nextDays} mkey={nextC.slice(0, 7)} live={false} sel="" {...weeksProps} /></View>
-                </Animated.View>
+                <>
+                  <Animated.View pointerEvents="none" style={[s.abs, prevStyle]}><MonthWeeks ds={prevDays} mkey={prevC.slice(0, 7)} live={false} sel="" {...weeksProps} /></Animated.View>
+                  <Animated.View pointerEvents="none" style={[s.abs, nextStyle]}><MonthWeeks ds={nextDays} mkey={nextC.slice(0, 7)} live={false} sel="" {...weeksProps} /></Animated.View>
+                </>
               ) : null}
               <Animated.View style={[s.abs, above]}>
                 <MonthWeeks ds={top} mkey={month} live sel={props.cursor} tint={open} {...weeksProps} />
