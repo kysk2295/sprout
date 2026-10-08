@@ -1,8 +1,8 @@
 // 캘린더 탭(06 데스크톱 캘린더의 휴대폰판 — 시안 G): 머리 = 왼쪽 보기 전환(목록·일·3일·월) · 가운데 달 · 오른쪽 오늘로 · ⋯
-// - 월: 주 시작 설정(기본 일요일) 칸, 칸 안에 리스트 색 옅은 띠 + 제목(넘치면 +n), 오늘 = 강조색 원. 날짜를 누르면 아래에 그날 목록. 위아래로 밀면 달이 바뀜
-//   아래 목록을 위로 끌면 달이 고른 날의 한 주 줄로 접히고, 접힌 채 목록 맨 위에서 아래로 끌면 펼침(틱틱 목록 캘린더 — 20 §7, research 24 §10)
+// - 월: 화면 가득한 격자(주 시작 설정 칸, 리스트 색 옅은 띠 + 제목, 넘치면 +n). 날짜를 누르면 그 주가 맨 위로 올라가고 아래가 갈라지며 그날 판,
+//   같은 날 다시 누르면 닫힘(research 35 · 39 §4.11). 위아래로 밀면 달이 바뀜
+// - 목록: 작은 달 + 아래 그날 목록. 아래 목록을 위로 끌면 달이 고른 날의 한 주 줄로 접히고, 접힌 채 목록 맨 위에서 아래로 끌면 펼침(틱틱 목록 캘린더 — 20 §7, research 24 §10·34 §3.4)
 // - 일·3일: 위 주 줄(점 = 할 일 있음)·종일 줄·시간 칸(1시간 56). 빈 칸 누르면 그 시각으로 빠른 입력, 블록을 길게 눌러 끌면 옮김(15분 단위, 3일은 다른 날로도)
-// - 목록: 오늘부터 30일 날짜별 묶음 카드
 // - ⋯ → 완료 보기/숨기기 · 날짜 없는 할 일(누르면 고른 날에 일정 잡기 — 06 §9 할일 정렬 패널의 휴대폰판)
 // - sprout 일정(20 §7.1, 06 §14.4): 할 일과 같은 띠·블록·행에 섞어 그린다 — 체크박스 자리 캘린더 아이콘, 누르면 일정 시트, 길게 누르면 일정 메뉴
 // - 모양(06 §14.2): 취소선 없음. 완료 = 옅게 + 체크된 칸, 지난 미완료 = 옅은 채움 + 빈 칸 + 글자 한 단계 진하게, 색 = 리스트 색(없으면 강조색)
@@ -30,7 +30,8 @@ import { completeTasks, moveDates, reopenTasks, setPinned, setPriority, trashTas
 import { COLUMNS, type TaskRow } from '../data/views'
 import { dayKey, nextMonday } from '../lib/dates'
 import { hx } from '../ui/haptics'
-import { DUR, popIn, SPRING } from '../ui/motion'
+import { DUR, popIn, SPRING, timing } from '../ui/motion'
+import Svg, { Circle, Ellipse, Path, Rect as SvgRect } from 'react-native-svg'
 import { alpha, FONT, M, mix, type Palette } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { useEventMenu } from '../ui/EventMenu'
@@ -114,7 +115,7 @@ export default function CalendarScreen() {
     if (view === 'day') { const from = weekStart(cursor, ws); return { from, to: dayKey(6, new Date(`${from}T00:00`)) } }
     const r = rangeOf(view, cursor, ws)
     // 39 §4.11: 월 보기는 끌 때 앞뒤 달이 보이므로 그 달까지 읽는다
-    if (view === 'month') return { from: rangeOf('month', shiftCursor('month', cursor, -1), ws).from, to: rangeOf('month', shiftCursor('month', cursor, 1), ws).to }
+    if (view === 'month' || view === 'list') return { from: rangeOf('month', shiftCursor('month', cursor, -1), ws).from, to: rangeOf('month', shiftCursor('month', cursor, 1), ws).to }
     return { from: r.from, to: r.to }
   }, [view, cursor, ws])
   // 39 §11: 바뀐 행만 새 객체(칸 memo가 그대로인 날을 건너뜀)
@@ -189,8 +190,10 @@ export default function CalendarScreen() {
     withUndo('옮겼어요', () => updateTask(t.id, before))
   }
 
-  const title = view === 'year' ? `${cursor.slice(0, 4)}년` : monthTitle(view === 'month' ? `${cursor.slice(0, 7)}-01` : cursor, today)
-  const shift = (n: number) => setCursor((c) => (view === 'month' ? (() => { const m = shiftCursor('month', c, n); return m.slice(0, 7) === today.slice(0, 7) ? today : m })() : shiftCursor(view, c, n)))
+  // 목록 = 작은 달 + 그날 목록(틱틱 목록 보기 — research 34 §3.4), 월 = 화면 가득한 달(research 35). 둘 다 한 달씩 넘긴다
+  const monthLike = view === 'month' || view === 'list'
+  const title = view === 'year' ? `${cursor.slice(0, 4)}년` : monthTitle(monthLike ? `${cursor.slice(0, 7)}-01` : cursor, today)
+  const shift = (n: number) => setCursor((c) => (monthLike ? (() => { const m = shiftCursor('month', c, n); return m.slice(0, 7) === today.slice(0, 7) ? today : m })() : shiftCursor(view, c, n)))
   const bottomPad = space.padFab
   const ViewIcon = VIEW_ICON[view]
   const timeline = view === 'day' || view === '3day' || view === 'week'
@@ -199,7 +202,7 @@ export default function CalendarScreen() {
   const openMonth = (m: string) => { setFromYear((n) => n + 1); setCursor(m.slice(0, 7) === today.slice(0, 7) ? today : m); setView('month') }
 
   return (
-    <View style={{ flex: 1, backgroundColor: view === 'list' ? p.pageBg : p.cardBg }}>
+    <View style={{ flex: 1, backgroundColor: view === 'month' ? p.pageBg : p.cardBg }}>
       <View style={[s.head, { marginTop: insets.top }]}>
         <View ref={viewMenu.ref} collapsable={false}>
           <GlassButton label="보기 전환" onPress={viewMenu.open}><ViewIcon size={20} color={p.textPrimary} /></GlassButton>
@@ -216,6 +219,21 @@ export default function CalendarScreen() {
       {view === 'year' ? <YearView year={cursor.slice(0, 4)} today={today} items={items} ws={ws} onPick={openMonth} onShift={shift} bottomPad={bottomPad} /> : null}
       {view === 'month' ? (
         <Animated.View key={`m${fromYear}`} entering={fromYear ? monthZoom : undefined} style={{ flex: 1 }}>
+          <MonthFull
+            ws={ws}
+            today={today}
+            cursor={cursor}
+            items={items}
+            onPick={setCursor}
+            onShift={shift}
+            onAdd={addAt}
+            marks={marks}
+            clear={space.clear}
+            panel={<DayPanel day={cursor} today={today} items={itemsOnDay(items, cursor)} onCheck={check} onOpen={openDetail} onLong={setLp} />}
+          />
+        </Animated.View>
+      ) : null}
+      {view === 'list' ? (
         <MonthView
           ws={ws}
           today={today}
@@ -227,7 +245,6 @@ export default function CalendarScreen() {
           marks={marks}
           list={(fold) => <DayList day={cursor} today={today} items={itemsOnDay(items, cursor)} onCheck={check} onOpen={openDetail} onLong={setLp} onAdd={() => addAt(cursor)} bottomPad={bottomPad} fold={fold} />}
         />
-        </Animated.View>
       ) : null}
       {timeline ? (
         <Timeline
@@ -247,7 +264,6 @@ export default function CalendarScreen() {
           marks={marks}
         />
       ) : null}
-      {view === 'list' ? <Agenda today={today} cursor={cursor} items={items} onCheck={check} onOpen={openDetail} onLong={setLp} onMore={() => shift(1)} onBack={cursor > today ? () => setCursor(today) : undefined} bottomPad={bottomPad} /> : null}
 
       <Fab onPress={() => addAt(timeline ? floatingAt(cursor, Math.min(23 * 60, (new Date().getHours() + 1) * 60)) : cursor)} />
 
@@ -474,9 +490,194 @@ function MonthView(props: { ws: WeekStart; today: string; cursor: string; items:
   )
 }
 
+// ── 월(화면 가득한 달 — research 35 [영상 실측]) ──
+// 닫힘: 달 격자가 탭 알약 위까지 채우고, 위아래로 끌면 앞뒤 달(목록 보기와 같은 세로 띠).
+// 날짜 누름: 고른 주가 맨 위로 미끄러져 올라가고, 그 아래가 갈라지며 흰 그날 판이 나타난다. 그 아래 주 줄 하나는 판 밑(탭 알약 위)에 남는다.
+// 같은 날을 다시 누르면 판이 먼저 사라지고 격자가 제자리로 내려온다.
+// 39 §11: 움직임은 translateY·opacity만(UI 스레드), 높이는 처음 한 번 잰다, 칸은 memo(MonthWeeks · DayCell)
+const SPLIT_OPEN = timing(200) // [영상 실측 research 35 §2: 190ms 감속]
+const SPLIT_CLOSE = timing(180) // [영상 실측 180ms]
+const PANEL_OUT = timing(80) // 판은 첫 프레임 안에 사라짐 [영상 실측]
+/** 판 아래 남는 다음 주 줄 높이(숫자 줄) [영상 실측 약 44pt] */
+const PEEK = 42
+
+function MonthFull(props: { ws: WeekStart; today: string; cursor: string; items: Item[]; onPick: (d: string) => void; onShift: (n: number) => void; onAdd: (d: string) => void; marks: (d: string, firstOfRow: boolean) => DayMarks; clear: number; panel: ReactNode }) {
+  const p = usePalette()
+  const days = useMemo(() => monthDays(props.cursor, props.ws), [props.cursor.slice(0, 7), props.ws]) // eslint-disable-line react-hooks/exhaustive-deps
+  const weeks = days.length / 7
+  const month = props.cursor.slice(0, 7)
+  const [gridH, setGridH] = useState(0)
+  const rowH = gridH ? Math.max(66, Math.floor((gridH - props.clear) / weeks)) : 0
+  const fullH = weeks * rowH
+  const selW = Math.max(0, Math.floor(days.indexOf(props.cursor) / 7))
+  const { onShift } = props
+
+  // 갈라짐: op 0 = 닫힘, 1 = 열림. pv = 판 보임(닫을 때 먼저 사라짐)
+  const [open, setOpen] = useState(false)
+  const op = useSharedValue(0)
+  const pv = useSharedValue(0)
+  const openRef = useRef(false)
+  openRef.current = open
+  const curRef = useRef(props.cursor)
+  curRef.current = props.cursor
+  const pending = useRef(false)
+  const doClose = useCallback(() => {
+    if (!openRef.current) return
+    hx.tick()
+    pv.value = withTiming(0, PANEL_OUT)
+    op.value = withTiming(0, SPLIT_CLOSE, (fin) => { if (fin) scheduleOnRN(setOpen, false) })
+  }, [op, pv])
+  const pickRef = useRef(props.onPick)
+  pickRef.current = props.onPick
+  const pick = useCallback((d: string) => {
+    if (openRef.current && d === curRef.current) return doClose()
+    hx.tick()
+    pickRef.current(d)
+    if (!openRef.current || op.value < 1) {
+      openRef.current = true
+      pending.current = true
+      setOpen(true)
+    }
+  }, [doClose, op])
+  // 고른 날·열림이 그려진 뒤에 움직임을 시작한다 — 새 주(selW) 값이 워클릿에 들어가기 전에 움직이면 중간에 튄다
+  useLayoutEffect(() => {
+    if (!pending.current) return
+    pending.current = false
+    pv.value = 1
+    op.value = withTiming(1, SPLIT_OPEN)
+  }, [open, props.cursor, op, pv])
+  const addRef = useRef(props.onAdd)
+  addRef.current = props.onAdd
+  const add = useCallback((d: string) => addRef.current(d), [])
+
+  // 앞뒤 달 세로 띠(닫혀 있을 때만)
+  const prevC = `${shiftCursor('month', `${month}-01`, -1).slice(0, 7)}-01`
+  const nextC = `${shiftCursor('month', `${month}-01`, 1).slice(0, 7)}-01`
+  const prevDays = useMemo(() => monthDays(prevC, props.ws), [prevC, props.ws])
+  const nextDays = useMemo(() => monthDays(nextC, props.ws), [nextC, props.ws])
+  const prevH = (prevDays.length / 7) * rowH
+  const pageY = useSharedValue(0)
+  useLayoutEffect(() => { pageY.value = 0 }, [month, pageY])
+  const monthSwipe = Gesture.Pan().enabled(!open && rowH > 0).activeOffsetY([-12, 12]).failOffsetX([-20, 20])
+    .onUpdate((e) => { pageY.value = e.translationY })
+    .onEnd((e) => {
+      const thr = fullH * 0.2
+      const v = e.velocityY
+      if (e.translationY < -thr || v < -500) pageY.value = withSpring(-fullH, { ...SPRING.page, velocity: v }, (fin) => { if (fin) scheduleOnRN(onShift, 1) })
+      else if (e.translationY > thr || v > 500) pageY.value = withSpring(prevH, { ...SPRING.page, velocity: v }, (fin) => { if (fin) scheduleOnRN(onShift, -1) })
+      else pageY.value = withSpring(0, { ...SPRING.page, velocity: v })
+    })
+
+  const panelTop = rowH + 6
+  const panelBottom = gridH - props.clear - PEEK
+  const belowTop = (selW + 1) * rowH
+  const dBelow = panelBottom + 4 - belowTop
+  const lift = selW * rowH
+  const strip = useAnimatedStyle(() => ({ transform: [{ translateY: pageY.value }] }))
+  const above = useAnimatedStyle(() => ({ transform: [{ translateY: pageY.value - lift * op.value }] }))
+  const below = useAnimatedStyle(() => ({ transform: [{ translateY: pageY.value + dBelow * op.value }] }))
+  const panelStyle = useAnimatedStyle(() => ({ opacity: pv.value, transform: [{ translateY: lift * (1 - op.value) }] }))
+
+  const byDay = useMemo(() => itemsByDay(props.items, prevDays[0], nextDays[nextDays.length - 1]), [props.items, prevDays, nextDays])
+  const top = useMemo(() => days.slice(0, (selW + 1) * 7), [days, selW])
+  const rest = useMemo(() => days.slice((selW + 1) * 7), [days, selW])
+  const weeksProps = { rowH, today: props.today, collapsed: open, onlyWeek: -1, byDay, marks: props.marks, onPick: pick, onAdd: add }
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={s.wd}>
+        {weekHeadOf(props.ws).map((w, i) => { const dow = headWeekday(i, props.ws); return <Text key={w} style={[s.wdText, { color: dow === 0 ? p.holiday : dow === 6 ? p.saturday : p.textTertiary }]}>{w}</Text> })}
+      </View>
+      <GestureDetector gesture={monthSwipe}>
+        <View
+          style={{ flex: 1, overflow: 'hidden' }}
+          onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); setGridH((x) => (x === h ? x : h)) }}
+          accessibilityHint={open ? '고른 날을 다시 누르면 닫혀요' : '위아래로 밀면 달이 바뀌어요. 날짜를 누르면 그날 일정이 열려요'}
+        >
+          {rowH ? (
+            <>
+              {!open ? (
+                <Animated.View style={[s.abs, strip]} pointerEvents="none">
+                  <View style={[s.abs, { top: -prevH }]}><MonthWeeks ds={prevDays} mkey={prevC.slice(0, 7)} live={false} sel="" {...weeksProps} /></View>
+                  <View style={[s.abs, { top: fullH }]}><MonthWeeks ds={nextDays} mkey={nextC.slice(0, 7)} live={false} sel="" {...weeksProps} /></View>
+                </Animated.View>
+              ) : null}
+              <Animated.View style={[s.abs, above]}>
+                <MonthWeeks ds={top} mkey={month} live sel={props.cursor} tint={open} {...weeksProps} />
+              </Animated.View>
+              {open ? (
+                <View pointerEvents="box-none" style={[s.abs, { top: panelTop, height: Math.max(0, panelBottom - panelTop), overflow: 'hidden' }]}>
+                  <Animated.View style={[s.panel, { top: 0, bottom: 0, backgroundColor: p.cardBg }, panelStyle]}>{props.panel}</Animated.View>
+                </View>
+              ) : null}
+              <Animated.View style={[s.abs, { top: belowTop }, open && { backgroundColor: p.pageBg, paddingBottom: gridH }, below]}>
+                <MonthWeeks ds={rest} mkey={month} live sel={props.cursor} tint={open} {...weeksProps} />
+              </Animated.View>
+            </>
+          ) : null}
+        </View>
+      </GestureDetector>
+    </View>
+  )
+}
+
+/** 월 보기 그날 판(research 35 §3): 흰 카드 안에 행(묶음 머리 없음), 비면 그림 + `이 날에는 일정이 없어요` · `편하게 해요`.
+ *  안을 끌면 내용만 고무줄(영상 — 판은 닫히지 않음). 닫기는 같은 날 다시 누름 */
+function DayPanel(props: { day: string; today: string; items: Item[]; onCheck: (t: TaskRow) => void; onOpen: (t: TaskRow) => void; onLong: (v: { task: TaskRow; rect: Rect }) => void }) {
+  const p = usePalette()
+  const refs = useRef(new Map<string, View | null>())
+  return (
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ paddingVertical: 6, flexGrow: 1 }}
+    >
+      {props.items.length ? props.items.map((it) => evtOf(it) ? (
+        <EventRowView key={it.key} evt={evtOf(it)!} start={it.start} end={it.end} color={it.task.list_color ?? ''} calName={it.task.list_name} onPress={() => props.onOpen(it.task)} onLongPress={(rect) => props.onLong({ task: it.task, rect })} />
+      ) : (
+        <View key={it.key} ref={(r) => { refs.current.set(it.key, r) }} collapsable={false} style={s.prow}>
+          <TaskRowView
+            task={it.task}
+            today={props.today}
+            showList
+            onCheck={() => props.onCheck(it.task)}
+            onPress={() => props.onOpen(it.task)}
+            onLongPress={() => refs.current.get(it.key)?.measureInWindow((x, y, width, height) => props.onLong({ task: it.task, rect: { x, y, width, height } }))}
+          />
+        </View>
+      )) : (
+        <Animated.View entering={dayEmptyIn} style={s.panelEmpty}>
+          <CalendarArt />
+          <Text style={{ fontSize: 15, fontWeight: '500', color: p.textPrimary, marginTop: 14 }}>이 날에는 일정이 없어요</Text>
+          <Text style={[FONT.meta, { color: p.textTertiary, marginTop: 4 }]}>편하게 해요</Text>
+        </Animated.View>
+      )}
+    </ScrollView>
+  )
+}
+const dayEmptyIn = popIn(0.96, DUR.base)
+
+/** 빈 날 그림 — 직접 그린 달력(틱틱 그림 아님, CLAUDE.md 자산 규칙) */
+function CalendarArt() {
+  const p = usePalette()
+  const a = p.accent.slice(0, 7)
+  return (
+    <Svg width={150} height={110} viewBox="0 0 150 110" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <Ellipse cx={75} cy={60} rx={56} ry={44} fill={p.bgSelected} />
+      <SvgRect x={42} y={30} width={66} height={52} rx={6} fill={p.cardBg} stroke={p.textSecondary} strokeWidth={2} />
+      <SvgRect x={42} y={30} width={66} height={13} rx={6} fill={alpha(a, 0.55)} stroke={p.textSecondary} strokeWidth={2} />
+      {[52, 64, 76, 88].map((x) => <Path key={x} d={`M${x} 25v10`} stroke={p.textSecondary} strokeWidth={2.5} />)}
+      {[50, 62].map((y) => <Path key={y} d={`M46 ${y}h58`} stroke={p.borderDivider} strokeWidth={1.5} />)}
+      {[58, 75, 92].map((x) => <Path key={x} d={`M${x} 44v35`} stroke={p.borderDivider} strokeWidth={1.5} />)}
+      <Circle cx={83} cy={56} r={6} fill={a} />
+      <Path d="M30 30l2 4 4 2-4 2-2 4-2-4-4-2 4-2z" fill={a} />
+      <Path d="M122 70l1.5 3 3 1.5-3 1.5-1.5 3-1.5-3-3-1.5 3-1.5z" fill={p.textSecondary} />
+      <Circle cx={118} cy={28} r={2} fill={p.textTertiary} />
+    </Svg>
+  )
+}
+
 const NO_ITEMS: Item[] = []
 /** 한 달의 주 줄들(39 §11 — memo). sel = 고른 날(살아 있는 달만), onlyWeek = 접혔을 때 보이는 주 */
-const MonthWeeks = memo(function MonthWeeks(props: { ds: string[]; mkey: string; live: boolean; rowH: number; today: string; sel: string; collapsed: boolean; onlyWeek: number; byDay: Map<string, Item[]>; marks: (d: string, firstOfRow: boolean) => DayMarks; onPick: (d: string) => void; onAdd: (d: string) => void }) {
+const MonthWeeks = memo(function MonthWeeks(props: { ds: string[]; mkey: string; live: boolean; rowH: number; today: string; sel: string; tint?: boolean; collapsed: boolean; onlyWeek: number; byDay: Map<string, Item[]>; marks: (d: string, firstOfRow: boolean) => DayMarks; onPick: (d: string) => void; onAdd: (d: string) => void }) {
   const p = usePalette()
   const { ds, mkey, live, rowH, collapsed } = props
   return (
@@ -486,7 +687,7 @@ const MonthWeeks = memo(function MonthWeeks(props: { ds: string[]; mkey: string;
         return (
           <View key={`${mkey}-${w}`} pointerEvents={live ? 'auto' : 'none'} style={[s.week, { height: rowH, borderTopColor: p.borderDivider }]} importantForAccessibility={hidden ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={hidden}>
             {ds.slice(w * 7, w * 7 + 7).map((d, c) => (
-              <DayCell key={d} d={d} first={c === 0} items={props.byDay.get(d) ?? NO_ITEMS} rowH={rowH} isToday={d === props.today} sel={d === props.sel} faded={d.slice(0, 7) !== mkey && !collapsed} marks={props.marks} onPick={props.onPick} onAdd={props.onAdd} />
+              <DayCell key={d} d={d} first={c === 0} items={props.byDay.get(d) ?? NO_ITEMS} rowH={rowH} isToday={d === props.today} sel={d === props.sel} tint={!!props.tint && d === props.sel} faded={d.slice(0, 7) !== mkey && !collapsed} marks={props.marks} onPick={props.onPick} onAdd={props.onAdd} />
             ))}
           </View>
         )
@@ -494,7 +695,7 @@ const MonthWeeks = memo(function MonthWeeks(props: { ds: string[]; mkey: string;
     </>
   )
 })
-type CellProps = { d: string; first: boolean; items: Item[]; rowH: number; isToday: boolean; sel: boolean; faded: boolean; marks: (d: string, firstOfRow: boolean) => DayMarks; onPick: (d: string) => void; onAdd: (d: string) => void }
+type CellProps = { d: string; first: boolean; items: Item[]; rowH: number; isToday: boolean; sel: boolean; tint: boolean; faded: boolean; marks: (d: string, firstOfRow: boolean) => DayMarks; onPick: (d: string) => void; onAdd: (d: string) => void }
 const sameItems = (a: Item[], b: Item[]) => a === b || (a.length === b.length && a.every((x, i) => x.key === b[i].key && x.task === b[i].task && x.start === b[i].start && x.end === b[i].end))
 /** 날짜 칸 하나 — 항목이 그대로면(같은 키·같은 할 일 객체) 다시 그리지 않는다 */
 const DayCell = memo(function DayCell(props: CellProps) {
@@ -502,7 +703,9 @@ const DayCell = memo(function DayCell(props: CellProps) {
   const { d } = props
   // 06 §16 숫자 아래 한 줄(휴일 이름·주 번호·음력)이 있으면 띠를 하나 덜 보인다
   const mk = props.marks(d, props.first)
-  const max = (props.rowH > 60 ? 3 : 2) - (mk.side ? 1 : 0)
+  // 큰 칸(월 — research 35)은 높이만큼 띠를 더 보인다(숫자 줄 28 + 띠 14.5)
+  const big = props.rowH > 80
+  const max = (big ? Math.max(3, Math.floor((props.rowH - 30) / 14.5)) : props.rowH > 60 ? 3 : 2) - (mk.side ? 1 : 0)
   const all = props.items
   const shown = all.length <= max ? all : all.slice(0, max - 1)
   const more = all.length - shown.length
@@ -514,10 +717,11 @@ const DayCell = memo(function DayCell(props: CellProps) {
       accessibilityState={{ selected: props.sel }}
       onPress={() => props.onPick(d)}
       onLongPress={() => props.onAdd(d)}
-      style={[s.cell, props.sel && { backgroundColor: p.bgSelected }]}
+      style={[s.cell, props.tint && { backgroundColor: alpha(p.accent.slice(0, 7), 0.14), borderRadius: 8 }]}
     >
-      <View style={[s.num, props.isToday && { backgroundColor: p.accent }]}>
-        <Text style={{ fontSize: 12, fontWeight: props.isToday || props.sel ? '700' : '500', color: props.isToday ? '#fff' : dayTone(p, d, mk, props.faded) }}>{Number(d.slice(8))}</Text>
+      {/* [영상 실측 research 35 §3] 고른 날 = 강조색 채운 원 + 흰 숫자, 오늘(안 고름) = 옅은 원 + 강조색 숫자. 그날 판이 열리면 고른 칸 전체에 옅은 강조색 면 */}
+      <View style={[s.num, big && s.numBig, props.sel ? { backgroundColor: p.accent } : props.isToday ? { backgroundColor: alpha(p.accent.slice(0, 7), 0.14) } : null]}>
+        <Text style={{ fontSize: big ? 14 : 12, fontWeight: props.isToday || props.sel ? '700' : '500', color: props.sel ? '#fff' : props.isToday ? p.accent : dayTone(p, d, mk, props.faded) }}>{Number(d.slice(8))}</Text>
       </View>
       <View style={{ marginTop: -1, opacity: props.faded ? 0.55 : 1 }}><SideLabel marks={mk} /></View>
       {shown.map((it) => {
@@ -531,7 +735,7 @@ const DayCell = memo(function DayCell(props: CellProps) {
       {more ? <Text style={{ fontSize: 10, lineHeight: 13, color: p.textTertiary, paddingLeft: 3 }}>+{more}</Text> : null}
     </Pressable>
   )
-}, (a, b) => a.d === b.d && a.first === b.first && a.rowH === b.rowH && a.isToday === b.isToday && a.sel === b.sel && a.faded === b.faded && a.marks === b.marks && a.onPick === b.onPick && a.onAdd === b.onAdd && sameItems(a.items, b.items))
+}, (a, b) => a.d === b.d && a.first === b.first && a.rowH === b.rowH && a.isToday === b.isToday && a.sel === b.sel && a.tint === b.tint && a.faded === b.faded && a.marks === b.marks && a.onPick === b.onPick && a.onAdd === b.onAdd && sameItems(a.items, b.items))
 
 function DayList(props: { day: string; today: string; items: Item[]; onCheck: (t: TaskRow) => void; onOpen: (t: TaskRow) => void; onLong: (v: { task: TaskRow; rect: Rect }) => void; onAdd: () => void; bottomPad: number; fold: Fold }) {
   const p = usePalette()
@@ -802,41 +1006,6 @@ function DragBlock(props: { block: Block<TaskRow>; colW: number; colIndex: numbe
   )
 }
 
-// ── 목록(일정) ──
-function Agenda(props: { today: string; cursor: string; items: Item[]; onCheck: (t: TaskRow) => void; onOpen: (t: TaskRow) => void; onLong: (v: { task: TaskRow; rect: Rect }) => void; onMore: () => void; onBack?: () => void; bottomPad: number }) {
-  const p = usePalette()
-  const scroll = useRef<ScrollView>(null)
-  useScrollToTop(scroll)
-  const refs = useRef(new Map<string, View | null>())
-  const days = rangeOf('list', props.cursor).days
-  const groups = days.map((d) => ({ d, items: itemsOnDay(props.items, d) })).filter((g) => g.items.length)
-  return (
-    <ScrollView ref={scroll} contentContainerStyle={{ paddingTop: 6, paddingBottom: props.bottomPad }}>
-      {props.onBack ? <Pressable onPress={props.onBack} style={s.more}><Text style={[FONT.sub, { color: p.accent }]}>오늘부터 보기</Text></Pressable> : null}
-      {!groups.length ? <EmptyState title="앞으로 30일 동안 일정이 없어요" sub="+를 눌러 추가하세요" /> : null}
-      {groups.map((g) => (
-        <GroupCard key={g.d} title={agendaTitle(g.d, props.today)} count={g.items.length} collapsed={false} onToggle={() => {}}>
-          {g.items.map((it) => evtOf(it) ? (
-            <EventRowView key={`${g.d}:${it.key}`} evt={evtOf(it)!} start={it.start} end={it.end} color={it.task.list_color ?? ''} calName={it.task.list_name} onPress={() => props.onOpen(it.task)} onLongPress={(rect) => props.onLong({ task: it.task, rect })} />
-          ) : (
-            <View key={`${g.d}:${it.key}`} ref={(r) => { refs.current.set(`${g.d}:${it.key}`, r) }} collapsable={false}>
-              <TaskRowView
-                task={it.task}
-                today={props.today}
-                showList
-                onCheck={() => props.onCheck(it.task)}
-                onPress={() => props.onOpen(it.task)}
-                onLongPress={() => refs.current.get(`${g.d}:${it.key}`)?.measureInWindow((x, y, width, height) => props.onLong({ task: it.task, rect: { x, y, width, height } }))}
-              />
-            </View>
-          ))}
-        </GroupCard>
-      ))}
-      <Pressable accessibilityRole="button" onPress={props.onMore} style={s.more}><Text style={[FONT.sub, { color: p.accent }]}>다음 30일</Text></Pressable>
-    </ScrollView>
-  )
-}
-
 // ── 날짜 없는 할 일(06 §9 휴대폰판) ──
 function UndatedSheet(props: { open: boolean; day: string; today: string; onClose: () => void; onOpen: (t: TaskRow) => void }) {
   const p = usePalette()
@@ -883,6 +1052,11 @@ const s = StyleSheet.create({
   week: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth },
   cell: { flex: 1, paddingTop: 3, paddingHorizontal: 1.5, gap: 1.5, overflow: 'hidden' },
   num: { alignSelf: 'center', width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 1 },
+  numBig: { width: 26, height: 26, borderRadius: 13, marginBottom: 2 },
+  panel: { position: 'absolute', left: M.cardInset - 4, right: M.cardInset - 4, borderRadius: M.radiusCard + 2, overflow: 'hidden' },
+  prow: { paddingHorizontal: 4 },
+  abs: { position: 'absolute', left: 0, right: 0, top: 0 },
+  panelEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 24 },
   bar: { borderRadius: 3, paddingHorizontal: 3 },
   dayEmpty: { alignItems: 'center', paddingVertical: 28 },
   strip: { flexDirection: 'row', paddingHorizontal: 6, paddingBottom: 4 },

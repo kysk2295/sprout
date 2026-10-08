@@ -68,7 +68,7 @@ function Screens({ signedIn }: { signedIn: boolean }) {
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" />
           {/* 상세: 반 시트 → 끌어 올리면 전체 화면(21 §5) */}
-          <Stack.Screen name="task/[id]" options={sheet([0.6, 1])} />
+          <Stack.Screen name="task/[id]" options={sheet([0.55, 1])} />{/* 반 시트 55% [영상 실측 research 35 §4] */}
           {/* 일정 시트(20 §7.1): 상세와 같은 반 시트 */}
           <Stack.Screen name="event/[id]" options={sheet([0.6, 1])} />
           {/* 38 §2.3 휴대폰 캘린더 일정 시트 */}
