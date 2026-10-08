@@ -87,9 +87,7 @@
 .mg-tour__card p b { color: var(--color-text-primary); font-weight: 600; }
 .mg-tour__ill { display: flex; justify-content: center; margin-top: 10px; padding: 6px 0; border-radius: var(--radius-md); background: var(--color-bg-input); }
 .mg-tour__ill .mg-ill { width: 112px; height: 77px; }
-.mg-tour__foot { display: flex; align-items: center; gap: 6px; margin-top: 14px; }
-.mg-tour__never { margin-right: auto; padding: 0; background: none; border: 0; font: var(--text-meta); color: var(--color-text-tertiary); cursor: pointer; }
-.mg-tour__never:hover { color: var(--color-text-secondary); text-decoration: underline; }
+.mg-tour__foot { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 14px; }
 .mg-tour__foot .mg-btn { height: 28px; padding: 0 12px; }
 
 @keyframes mg-fade { from { opacity: 0; } }

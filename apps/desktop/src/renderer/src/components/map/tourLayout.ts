@@ -6,6 +6,6 @@ import { shouldAutoTour as autoTour } from '../guide/core'
 export { placeTourCard, type TourBox } from '../guide/core'
 
 /** 저절로 뜨는 조건 — 계획 모드 화면(v2 프로젝트 보드)에서만. 점검·정리에는 가리킬 곳이 없다 */
-export function shouldAutoTour(o: { loaded: boolean; done: boolean; closedThisRun: boolean; open: boolean; mode: MapMode }): boolean {
-  return autoTour({ ready: o.loaded, done: o.done, closedThisRun: o.closedThisRun, open: o.open, allowed: o.mode === 'plan' })
+export function shouldAutoTour(o: { loaded: boolean; done: boolean; open: boolean; mode: MapMode }): boolean {
+  return autoTour({ ready: o.loaded, done: o.done, open: o.open, allowed: o.mode === 'plan' })
 }

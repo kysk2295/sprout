@@ -1,15 +1,17 @@
 // 37 탭 사용법 공통 — 첫 둘러보기(코치 마크 3단계까지) · 머리 `?` 사용법 창 · 레일 도움말로 열기.
 // 탭은 useGuide(tab, { ready })로 상태를 얻고, 머리에 <GuideButton>, 아무 곳에 <GuidePanel>·<GuideTour>를 둔다.
 // 규칙(34 §2와 같음): 그 탭 자료가 다 읽힌 뒤 0.6초에 한 번. 다른 창·팝오버·첫 실행 안내·다른 둘러보기가 있으면 기다린다.
-// ✕ · Esc · 막 누르기 = 이번 실행 동안만 닫기, `다시 보지 않기` · 마지막 `시작하기` = 끝(기기 기억).
+// 평생 한 번(2026-10-08): ✕ · Esc · 막 누르기 · 마지막 `시작하기` 어느 것으로 닫아도 본 것(계정 기억 — guide/seen.ts). 다시 보기는 `?` 창.
+// 다른 창이 끼어들어 조용히 접힌 것만 본 것으로 치지 않는다.
 import { HelpCircle, X } from 'lucide-react'
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Popover } from '../Popover'
 import {
-  BLOCKERS, INTERRUPTERS, OPEN_GUIDE, OPEN_SHORTCUTS, claimTour, loadSeen, markClosed, pickTarget, placeTourCard, releaseTour, saveSeen, shouldAutoTour, wasClosed,
+  BLOCKERS, INTERRUPTERS, OPEN_GUIDE, OPEN_SHORTCUTS, claimTour, pickTarget, placeTourCard, releaseTour, shouldAutoTour,
   activeTour, type GuideTab, type OpenGuideDetail, type Seen, type TourBox
 } from './core'
+import { guideSeen } from './seen'
 import { GUIDES } from './content'
 import { ILLUS } from './illustrations'
 import './guide.css'
@@ -28,7 +30,9 @@ type Options = {
 }
 
 export function useGuide(tab: GuideTab, { ready, allowed = true, beforeTour }: Options) {
-  const [seen, setSeenState] = useState<Seen>(() => loadSeen(tab))
+  const done = useSyncExternalStore(guideSeen.subscribe, () => guideSeen.has(tab))
+  const known = useSyncExternalStore(guideSeen.subscribe, guideSeen.loaded)
+  const seen: Seen = useMemo(() => ({ tour: done ? 'done' : 'new' }), [done])
   const [tour, setTour] = useState(false)
   const [panel, setPanel] = useState<{ section?: string; n: number } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -37,7 +41,7 @@ export function useGuide(tab: GuideTab, { ready, allowed = true, beforeTour }: O
 
   // 처음 열고 자료가 다 읽힌 뒤 0.6초. 다른 창·팝오버·첫 실행 안내·다른 둘러보기가 있으면 0.8초마다 다시 본다
   useEffect(() => {
-    if (!shouldAutoTour({ ready, done: seen.tour === 'done', closedThisRun: wasClosed(tab), open: tour, allowed })) return
+    if (!shouldAutoTour({ ready: ready && known, done, open: tour, allowed })) return
     let timer = 0
     const tryOpen = () => {
       if (document.querySelector(BLOCKERS) || (activeTour() && activeTour() !== tab)) { timer = window.setTimeout(tryOpen, 800); return }
@@ -45,7 +49,7 @@ export function useGuide(tab: GuideTab, { ready, allowed = true, beforeTour }: O
     }
     timer = window.setTimeout(tryOpen, 600)
     return () => window.clearTimeout(timer)
-  }, [tab, ready, seen.tour, tour, allowed])
+  }, [tab, ready, known, done, tour, allowed])
   // 한 번에 하나 — 떠 있는 동안 자리를 잡고, 닫히거나 탭을 떠나면 놓는다
   useEffect(() => {
     if (!tour) return
@@ -67,11 +71,12 @@ export function useGuide(tab: GuideTab, { ready, allowed = true, beforeTour }: O
     return () => window.removeEventListener(OPEN_GUIDE, on)
   }, [tab])
 
-  const finish = useCallback(() => { const s: Seen = { tour: 'done' }; saveSeen(tab, s); setSeenState(s); setTour(false) }, [tab])
+  /** 어떻게 닫든(✕ · Esc · 막 · 시작하기) 본 것 — 다시는 저절로 안 뜬다 */
+  const finish = useCallback(() => { guideSeen.mark(tab); setTour(false) }, [tab])
   return useMemo(() => ({
     tab, content: GUIDES[tab], seen, btnRef, tour, panel,
     startTour: () => { setPanel(null); before.current?.(); setTour(true) },
-    closeTour: () => { markClosed(tab); setTour(false) },
+    closeTour: finish,
     /** 다른 창이 끼어들면 조용히 접는다 — 닫힌 뒤 다시 뜬다 */
     suspendTour: () => setTour(false),
     finishTour: finish,
@@ -222,7 +227,6 @@ export function GuideTour({ guide }: { guide: Guide }) {
         <p><Rich text={step.body} /></p>
         {step.ill && <div className="mg-tour__ill">{ILLUS[step.ill]}</div>}
         <div className="mg-tour__foot">
-          <button className="mg-tour__never" onClick={guide.finishTour}>다시 보지 않기</button>
           {i > 0 && <button className="mg-btn" onClick={prev}>이전</button>}
           <button className="mg-btn mg-btn--primary" data-autofocus onClick={next}>{last ? '시작하기' : '다음'}</button>
         </div>

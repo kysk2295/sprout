@@ -2,12 +2,11 @@
 import assert from 'node:assert/strict'
 import { placeTourCard, shouldAutoTour } from '../src/renderer/src/components/map/tourLayout'
 
-const base = { loaded: true, done: false, closedThisRun: false, open: false }
+const base = { loaded: true, done: false, open: false }
 assert.equal(shouldAutoTour({ ...base, mode: 'plan' }), true)
 assert.equal(shouldAutoTour({ ...base, mode: 'review' }), false, '점검에선 저절로 안 뜸')
 assert.equal(shouldAutoTour({ ...base, mode: 'tidy' }), false, '정리에선 저절로 안 뜸')
 assert.equal(shouldAutoTour({ ...base, mode: 'plan', done: true }), false)
-assert.equal(shouldAutoTour({ ...base, mode: 'plan', closedThisRun: true }), false)
 assert.equal(shouldAutoTour({ ...base, mode: 'plan', loaded: false }), false)
 
 // 대상이 없으면 화면 가운데 — 언제나 화면 안(막만 남는 일 없음)

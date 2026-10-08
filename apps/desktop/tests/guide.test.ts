@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  GUIDE_TABS, activeTour, boxVisible, claimTour, guideTabOf, loadSeen, markClosed, pickTarget, placeTourCard, releaseTour, requestGuide, resetGuideRun,
-  saveSeen, seenKey, shouldAutoTour, wasClosed, type TourBox
+  GUIDE_TABS, GUIDES_VIEW_KEY, activeTour, boxVisible, claimTour, encodeGuidesSeen, guideTabOf, loadSeen, localSeenTabs, mergeGuidesSeen, pickTarget, placeTourCard,
+  releaseTour, requestGuide, resetGuideRun, saveSeen, seenKey, shouldAutoTour, type TourBox
 } from '../src/renderer/src/components/guide/core'
 import { GUIDES, LIMITS } from '../src/renderer/src/components/guide/content'
 
@@ -35,12 +35,21 @@ saveSeen('diary', { tour: 'done' }, fake)
 assert.equal(loadSeen('diary', fake).tour, 'done', '깨진 값은 덮는다')
 assert.equal(loadSeen('growth', null).tour, 'new', '저장소가 없어도')
 
-// ── 이번 실행 닫기 · 한 번에 하나 ──
+// ── 예전 기기 기억 → 동기화 행으로 옮길 탭 ──
+assert.deepEqual(localSeenTabs(fake), ['calendar', 'diary'], '예전 `다시 보지 않기`·`시작하기`로 done인 탭(map은 위에서 new로 되돌림)')
+assert.deepEqual(localSeenTabs(null), [])
+
+// ── 동기화 행(view_settings guides) — 합집합 · 깨진 값 · 모르는 탭 ──
+assert.equal(GUIDES_VIEW_KEY, 'guides')
+assert.deepEqual(mergeGuidesSeen([]), [])
+assert.deepEqual(mergeGuidesSeen([{ options_json: encodeGuidesSeen(['map', 'tasks']) }, { options_json: '{"seen":["tasks","diary","settings",3]}' }, { options_json: '{깨짐' }, { options_json: null }]),
+  ['tasks', 'diary', 'map'], '기기마다 만든 행을 합치고, 모르는 탭·깨진 행은 버린다')
+assert.equal(encodeGuidesSeen(new Set(['map', 'tasks', 'map'] as const)), '{"seen":["tasks","map"]}', '탭 순서로 한 번씩')
+// 기기 A가 쓰고 기기 B가 읽는다
+assert.deepEqual(mergeGuidesSeen([{ options_json: encodeGuidesSeen(['growth']) }]), ['growth'])
+
+// ── 한 번에 하나 ──
 resetGuideRun()
-assert.equal(wasClosed('tasks'), false)
-markClosed('tasks')
-assert.equal(wasClosed('tasks'), true)
-assert.equal(wasClosed('calendar'), false)
 assert.equal(claimTour('growth'), true)
 assert.equal(claimTour('growth'), true, '같은 탭은 다시 잡아도 된다')
 assert.equal(claimTour('diary'), false, '다른 탭 둘러보기가 떠 있으면 안 됨')
@@ -52,12 +61,20 @@ assert.equal(activeTour(), null)
 assert.equal(claimTour('diary'), true)
 resetGuideRun()
 
-// ── 언제 뜨나 ──
-const base = { ready: true, done: false, closedThisRun: false, open: false }
-assert.equal(shouldAutoTour(base), true)
-assert.equal(shouldAutoTour({ ...base, ready: false }), false, '자료가 다 읽히기 전엔 안 뜸')
-assert.equal(shouldAutoTour({ ...base, done: true }), false)
-assert.equal(shouldAutoTour({ ...base, closedThisRun: true }), false)
+// ── 언제 뜨나 — 평생 한 번 ──
+const base = { ready: true, done: false, open: false }
+assert.equal(shouldAutoTour(base), true, '처음은 뜬다')
+assert.equal(shouldAutoTour({ ...base, ready: false }), false, '자료(본 기억 포함)가 다 읽히기 전엔 안 뜸')
+assert.equal(shouldAutoTour({ ...base, done: true }), false, '한 번 본 뒤엔(✕로 닫았어도) 다시 안 뜸')
+// 한 번 보고 ✕로 닫은 흐름: 닫기 = 본 것으로 저장 → 다음 실행(새로 읽기)에도 done
+{
+  const m = new Map<string, string>()
+  const st = { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) }
+  assert.equal(shouldAutoTour({ ...base, done: loadSeen('tasks', st).tour === 'done' }), true)
+  saveSeen('tasks', { tour: 'done' }, st) // closeTour·finishTour 모두 이렇게 저장
+  assert.equal(shouldAutoTour({ ...base, done: loadSeen('tasks', st).tour === 'done' }), false, '다음 실행에도 안 뜸')
+  assert.equal(shouldAutoTour({ ...base, done: mergeGuidesSeen([{ options_json: encodeGuidesSeen(localSeenTabs(st)) }]).includes('tasks') }), false, '다른 기기(동기화 행)에서도 안 뜸')
+}
 assert.equal(shouldAutoTour({ ...base, open: true }), false)
 assert.equal(shouldAutoTour({ ...base, allowed: false }), false, '탭별 조건(작업 지도 = 계획 화면)')
 assert.equal(requestGuide('tasks'), false, '창이 없으면(노드) 처리 안 됨 → 단축키 시트')
@@ -130,4 +147,8 @@ for (const tab of GUIDE_TABS) {
     }
   }
 }
+// `다시 보지 않기` 단추는 없다(닫으면 곧 본 것) · 닫기와 끝내기는 같은 저장
+const guideSrc = readFileSync(join(root, 'components/guide/Guide.tsx'), 'utf8')
+assert.ok(!guideSrc.includes('다시 보지 않기'), '둘러보기 카드에 `다시 보지 않기`가 없다')
+assert.ok(/closeTour: finish\b/.test(guideSrc), '✕ · Esc · 막 누르기도 본 것으로 저장')
 console.log('guide ok')

@@ -1,5 +1,5 @@
 // 34 작업 지도 사용법 — 2026-10-05부터 37 탭 사용법 공통 체계(components/guide) 위에서 돈다. 글·단계는 guide/content.ts `map`.
-// 기기 기억 키는 예전 그대로 sprout.map.guide(이미 끝낸 사람에게 다시 뜨지 않게). 저절로 뜨는 건 계획(프로젝트) 화면에서만.
+// 본 기억은 계정 단위(guide/seen.ts — 기기 키는 예전 그대로 sprout.map.guide). 저절로 뜨는 건 계획(프로젝트) 화면에서 평생 한 번.
 import { GuideButton, GuidePanel, GuideTour, useGuide, type Guide } from '../guide/Guide'
 import type { MapMode } from '../../data/mapMoments'
 
