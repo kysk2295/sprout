@@ -1010,11 +1010,50 @@ HAT = ['acorn-cap', 'leaf-hat', 'straw', 'beanie', 'santa']
 NECK = ['ribbon', 'bandana', 'bowtie', 'lei']
 HAND = ['pencil', 'balloon', 'mug', 'flag', 'songpyeon', 'bok']
 BACK = ['backpack', 'wings', 'lantern']
+# 작은 손·등 옷이 둥근 몸 뒤에서 잘 안 보였다(49 §14 다듬기) → 손·등 자리를 기준으로 키우고, 카메라 쪽으로 내밀고,
+# 카메라 방향(오른쪽 14°)으로 살짝 돌려(3/4) 앞면이 보이게. 종·단계마다 몸 모양이 달라 표로 다듬는다.
+#   (배율, 옮김 x·y·z, 돌림 rad) — x = 화면 오른쪽, y = 카메라 반대(뒤), z = 위
+HAND_POSE = {'*': (1.32, (0.1, -0.2, 0.02), 0.32)}
+HAND_POSE_SP = {
+    ('snail', 1): (1.3, (0.14, -0.22, 0.0), 0.32), ('bee', 1): (1.3, (0.14, -0.22, 0.0), 0.32), ('worm', 1): (1.3, (0.14, -0.22, 0.0), 0.32),
+    ('frog', 1): (1.3, (0.12, -0.2, 0.02), 0.3),
+    ('snail', 2): (1.3, (0.16, -0.2, 0.04), 0.32),
+    ('bee', 2): (1.32, (0.16, -0.22, 0.0), 0.32), ('bee', 3): (1.34, (0.16, -0.24, 0.0), 0.32), ('bee', 4): (1.34, (0.16, -0.24, 0.0), 0.32), ('bee', 5): (1.3, (0.16, -0.24, 0.0), 0.32),
+    ('worm', 2): (1.3, (0.2, -0.2, 0.04), 0.32), ('worm', 3): (1.26, (0.2, -0.2, 0.04), 0.32),
+    ('worm', 4): (1.3, (0.14, -0.24, 0.0), 0.32), ('worm', 5): (1.3, (0.1, -0.26, 0.0), 0.32),
+}
+BACK_POSE = {'*': (1.22, (0.16, 0.0, 0.08), 0.3)}
+BACK_POSE_SP = {
+    ('snail', 2): (1.2, (-0.04, -0.06, 0.08), 0.3), ('snail', 3): (1.2, (-0.04, -0.06, 0.08), 0.3),
+    ('snail', 4): (1.2, (-0.04, -0.06, 0.08), 0.3), ('snail', 5): (1.2, (-0.04, -0.06, 0.08), 0.3),
+    ('bee', 2): (1.25, (0.18, 0.0, 0.1), 0.3),
+    ('bee', 3): (1.28, (0.24, -0.04, -0.12), 0.34), ('bee', 4): (1.28, (0.24, -0.04, -0.16), 0.34), ('bee', 5): (1.28, (0.24, -0.04, -0.16), 0.34),
+    ('worm', 5): (1.15, (0.36, -0.2, -0.3), 0.4),
+}
+
+def pose(objs, pivot, spec):
+    sc_, off, yaw = spec
+    bpy.context.view_layer.update()  # rotation_euler·quaternion으로 놓은 것도 matrix_world에 반영된 뒤에
+    pv = Vector(pivot)
+    M = Matrix.Translation(pv + Vector(off)) @ Matrix.Rotation(yaw, 4, 'Z') @ Matrix.Scale(sc_, 4) @ Matrix.Translation(-pv)
+    for o in objs: o.matrix_world = M @ o.matrix_world
+    return objs
+
 def make_acc(P, aid):
     if aid in HAT: return acc_hat(P, aid)
     if aid in NECK or aid == 'scarf': return acc_neck(P, aid) if P.neck else []
-    if aid in HAND: return acc_hand(P, aid) if P.hand else []
-    if aid in BACK: return acc_back(P, aid) if P.back else []
+    key = (P.sp, P.st)
+    if aid in HAND:
+        if not P.hand: return []
+        # 풍선은 이미 머리 위로 떠서 잘 보인다 — 앞으로 내밀면 큰 풍선 그림자가 얼굴에 얼룩처럼 진다(그대로 둔다)
+        if aid == 'balloon': return acc_hand(P, aid)
+        return pose(acc_hand(P, aid), P.hand, HAND_POSE_SP.get(key, HAND_POSE['*']))
+    if aid in BACK:
+        if not P.back: return []
+        sc_, off, yaw = BACK_POSE_SP.get(key, BACK_POSE['*'])
+        # 초롱은 장대가 이미 몸 옆으로 휘어 나온다 — 키우거나 내밀면 캔버스 밖으로 나가므로 돌림만(조금만 비킴)
+        if aid == 'lantern': sc_, off = 1.0, (off[0] * 0.3, off[1] * 0.3, -0.06)
+        return pose(acc_back(P, aid), P.back, (sc_, off, yaw))
     return []
 SLOT_OF = {**{k: 'hat' for k in HAT}, **{k: 'neck' for k in NECK}, **{k: 'hand' for k in HAND}, **{k: 'back' for k in BACK}}
 
@@ -1120,7 +1159,7 @@ def do_char(it, out, size, samples):
     layer = body | faces(표정 5) | accs(ids 목록, 옷마다 full·mask) | props(칸 소품 full·mask)"""
     reset(); MATS.clear(); BVH.clear()
     sc = bpy.context.scene; sc.render.film_transparent = True; sc.cycles.film_transparent_glass = True; sc.cycles.film_transparent_roughness = 0.2
-    P = Parts()
+    P = Parts(); P.sp, P.st = it['species'], it['stage']
     SPECIES[it['species']](it['stage'], it.get('branch', 'a'), it.get('seed', 0), P)
     layer = it.get('layer', 'body')
     b, fx, fz, fs = P.face

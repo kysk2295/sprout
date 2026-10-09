@@ -125,7 +125,8 @@ const base = tierBytes('base')
 assert.ok(base <= 2 * 1024 * 1024, `기본 묶음 ${Math.round(base / 1024)} KB`)
 for (const sp of SPECIES_IDS) {
   const pk = tierBytes('pack', sp)
-  assert.ok(pk > 0 && pk <= 2 * 1024 * 1024, `${sp} 종 묶음 ${Math.round(pk / 1024)} KB`) // 49 §14: 768로 올린 뒤 꿀벌(반투명 날개)만 1.5 MB를 넘는다
+  assert.ok(pk > 0 && pk <= 1.5 * 1024 * 1024, `${sp} 종 묶음 ${Math.round(pk / 1024)} KB`) // 49 §14.1: 내 씨앗 것만 받고 날개 노이즈를 지운 뒤 모든 종 ≤ 1.5 MB
+  assert.ok(packFiles(sp, 2).every((f) => !/-1s[013]/.test(f)) && packFiles(sp, 2).length < packFiles(sp).length || sp === 'frog')
   assert.ok(packFiles(sp).every((f) => f.startsWith(sp + '-') && (/@(768|384)\.webp$/.test(f) || /-spin@\d+\.webp$/.test(f))))
   for (let st = 1; st <= 5; st++) for (const path of ['a', 'b'] as const) {
     const L = layers3d(sp, st, { path, eq: { hat: 'straw', neck: 'bowtie', hand: 'mug', back: 'backpack' }, size: 240 })

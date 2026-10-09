@@ -39,14 +39,14 @@ export function packUri(file: string): string | null {
 
 const running = new Map<string, Promise<void>>()
 /** 이 종의 묶음을 받아 둔다(이미 받은 파일은 건너뜀). 동시에 4개씩, 실패한 파일은 다음에 다시 */
-export function ensurePack(sp: Species): Promise<void> {
+export function ensurePack(sp: Species, seed?: number): Promise<void> {
   const prev = running.get(sp)
   if (prev) return prev
   const job = (async () => {
     const d = packDir()
     if (!d) return
     seen.clear()
-    const need = packFiles(sp).filter((f) => !packUri(f))
+    const need = packFiles(sp, seed).filter((f) => !packUri(f)) // 내 씨앗의 아기 그림만(49 §14.1)
     let got = 0
     const next = async (): Promise<void> => {
       const f = need.shift()

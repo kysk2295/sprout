@@ -241,12 +241,15 @@ export function mobileTier(file: string): ArtTier {
   return st === 1 && !/-prop$/.test(key) ? 'base' : 'pack'
 }
 const ACC_HATS = new Set(['acorn-cap', 'leaf-hat', 'straw', 'beanie', 'santa'])
-/** 종 묶음 파일 이름 */
-export function packFiles(sp: Species | string): string[] {
+/** 아기 단계의 다른 씨앗 껍질 그림인가(`<종>-1s<n>`, n ≠ seed) — 종 묶음은 내 씨앗 것만 받는다(49 §14.1, 씨앗은 한 번 고르면 그대로) */
+const otherSeed = (f: string, seed: number | undefined) => { if (seed == null) return false; const m = /^[a-z]+-1s(\d)/.exec(f); return !!m && Number(m[1]) !== seed }
+/** 종 묶음 파일 이름. seed를 주면 다른 씨앗의 아기 그림(384·회전 띠)은 뺀다 */
+export function packFiles(sp: Species | string, seed?: number): string[] {
   const s = SP(sp)
-  return Object.keys(FILE_BYTES).filter((f) => f.startsWith(`${s}-`) && mobileTier(f) === 'pack').sort()
+  return Object.keys(FILE_BYTES).filter((f) => f.startsWith(`${s}-`) && mobileTier(f) === 'pack' && !otherSeed(f, seed)).sort()
 }
-export const tierBytes = (tier: ArtTier, sp?: Species) => artBytes((f) => mobileTier(f) === tier && (!sp || f.startsWith(`${sp}-`)))
+/** 묶음 크기. 종 묶음(pack)은 씨앗 하나 기준(seed 기본 0 — 씨앗마다 크기가 거의 같다) */
+export const tierBytes = (tier: ArtTier, sp?: Species, seed: number | undefined = tier === 'pack' ? 0 : undefined) => artBytes((f) => mobileTier(f) === tier && (!sp || f.startsWith(`${sp}-`)) && !otherSeed(f, seed))
 
 /* ───────── 한 바퀴 회전 띠(만지기 — 49 §5.3) ───────── */
 /** 이 몸의 회전 띠: 파일 키·컷 수·컷 px. 없으면 null(아직 안 구웠거나 휴대폰에서 종 묶음 전) */

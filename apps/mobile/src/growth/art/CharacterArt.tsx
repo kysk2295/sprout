@@ -19,7 +19,8 @@ const WearContext = createContext<WearCtx>(null)
 /** 내 캐릭터의 모습을 아래 모든 CharacterArt에 준다(앱 맨 위에서 한 번). 종을 알면 그 종 묶음(512)을 뒤에서 받아 둔다(49 §4.4) */
 export function CharacterWearProvider({ value, children }: { value: WearCtx; children: ReactNode }) {
   const sp = value?.species ?? null
-  useEffect(() => { if (sp) void ensurePack(sp) }, [sp])
+  const seed = value?.wear.seed ?? 0
+  useEffect(() => { if (sp) void ensurePack(sp, seed) }, [sp, seed])
   return <WearContext.Provider value={value}>{children}</WearContext.Provider>
 }
 export const useCharacterWear = () => useContext(WearContext)
@@ -44,7 +45,8 @@ export const ArtImage = memo(function ArtImage({ artKey, size, box, px, tint, st
   if (!src) return <View style={[{ width: size, height: size }, style]} />
   return (
     <View style={[{ width: size, height: size, overflow: 'hidden' }, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Image source={src} style={{ position: 'absolute', width: full, height: full, left: -b.x * full, top: -b.y * full, ...(tint ? { tintColor: tint } : null) } as ImageStyle} fadeDuration={0} />
+      {/* tintColor를 뺄 때는 다시 만든다 — iOS RN Image는 tintColor를 지워도 템플릿 그리기가 남아 시스템 파랑으로 칠한다(도감 `나` 칸이 파랗던 것) */}
+      <Image key={tint ? 'tint' : 'plain'} source={src} style={{ position: 'absolute', width: full, height: full, left: -b.x * full, top: -b.y * full, ...(tint ? { tintColor: tint } : null) } as ImageStyle} fadeDuration={0} />
     </View>
   )
 })
@@ -125,7 +127,7 @@ export const CharacterArt = memo(function CharacterArt({ species, stage = 1, siz
         const src = artSource(k, px)
         if (!src) return null
         const isFace = /-face-/.test(k)
-        return <Image key={k} source={src} style={[img, isFace && sleepy && blink ? s.hide : null]} fadeDuration={0} />
+        return <Image key={`${k}${tint ? '-t' : ''}`} source={src} style={[img, isFace && sleepy && blink ? s.hide : null]} fadeDuration={0} />
       })}
       {sleepySrc ? <Image source={sleepySrc} style={[img, blink ? null : s.hide]} fadeDuration={0} /> : null}
     </View>

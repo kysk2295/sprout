@@ -17,10 +17,13 @@ OUT = os.path.abspath(arg('--out', os.path.join(ROOT, 'packages/schema/art3d')))
 MAN = os.path.join(ROOT, 'packages/schema/src/art3dManifest.ts')
 os.makedirs(OUT, exist_ok=True)
 for f in glob.glob(os.path.join(OUT, '*.webp')): os.remove(f)  # 지난 굽기에서 남은 이름이 섞이지 않게
-Q = {'char': 84, 'small': 82, 'acc': 74, 'scene': 76, 'seed': 80}
+Q = {'char': 84, 'small': 82, 'acc': 66, 'scene': 76, 'seed': 80}  # acc 74 → 66(49 §14.1 종 묶음 예산 — 옷 층은 작고 무늬가 적어 눈으로 차이 없음)
 # 알파는 손실 압축(무손실 알파가 파일의 2/3였다). 가장자리 확인: 60이면 눈으로 차이 없음
-AQ = {'body': 90, 'face': 95, 'acc': 70, 'prop': 85, 'seed': 80, 'decor': 85}
+AQ = {'body': 90, 'face': 95, 'acc': 62, 'prop': 85, 'seed': 80, 'decor': 85}
 total = {'base': 0}
+import re as _re
+# 반투명 날개가 있는 몸 — 노이즈 지우기 대상
+TRANSLUCENT = _re.compile(r'^bee-[2-5]')  # 물방울 알·유리 덮개는 안의 몸까지 흐려져 뺀다
 sizes = {}
 
 def load(p):
@@ -42,6 +45,32 @@ def contact(a):
     a[..., 3] = np.where(haze, 0, a[..., 3])
     return a
 
+def clean_translucent(a, r=3.0):
+    """반투명 판(꿀벌·나비 날개, 물방울 알)의 알갱이 노이즈 지우기(49 §14 다듬기).
+    Cycles는 알파를 확률로 굽고 OIDN은 색만 지워서, 반투명 면에 알파·색 알갱이가 남는다(샘플을 4배 늘려도 절반).
+    → 두꺼운 반투명 영역(α 0.06~0.96, 3px 열고 닫기로 1~2px 가장자리 선은 뺌) 안에서만 미리 곱한 RGBA를
+      마스크로 정규화한 가우스 흐림(불투명한 몸·테두리 색이 번져 들어오지 않게). 경계는 그대로라 윤곽은 안 흐려진다."""
+    al = a[..., 3]
+    semi = ((al > 0.06) & (al < 0.96)).astype(np.uint8) * 255
+    m = Image.fromarray(semi).filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.MinFilter(3))  # 닫기: 노이즈 구멍 메움
+    m = m.filter(ImageFilter.MinFilter(5)).filter(ImageFilter.MaxFilter(5))  # 열기: 가장자리 선(1~2px) 뺌
+    mk = np.asarray(m).astype(np.float32) / 255
+    if mk.sum() < 400: return a
+    mk = mk * ((al > 0.02) & (al < 0.985))  # 영역 안이라도 불투명·빈 픽셀은 그대로
+    t = np.arange(-int(r * 3), int(r * 3) + 1); g = np.exp(-t * t / (2 * r * r)); g /= g.sum()
+    def fblur(ch):  # 나눌 수 있는 가우스(float 그대로)
+        x = np.apply_along_axis(lambda v: np.convolve(v, g, 'same'), 0, ch)
+        return np.apply_along_axis(lambda v: np.convolve(v, g, 'same'), 1, x)
+    w = fblur(mk)
+    pre = [fblur(a[..., c] * al * mk) for c in range(3)]
+    na = fblur(al * mk) / np.maximum(w, 1e-4)
+    rgb = np.stack([pre[c] / np.maximum(fblur(al * mk), 1e-4) for c in range(3)], -1)
+    out = a.copy()
+    k = (mk > 0)[..., None]
+    out[..., :3] = np.where(k, np.clip(rgb, 0, 1), a[..., :3])
+    out[..., 3] = np.where(mk > 0, np.clip(na, 0, 1), al)
+    return out
+
 def over(top, bot):
     ta, ba = top[..., 3:4], bot[..., 3:4]
     oa = ta + ba * (1 - ta)
@@ -57,7 +86,7 @@ def bbox(a, thr=0.06):
     ys, xs = np.where(m); h, w = m.shape
     return [round(xs.min() / w, 4), round(ys.min() / h, 4), round((xs.max() + 1) / w, 4), round((ys.max() + 1) / h, 4)]
 
-def save(a, name, px, q, group):
+def save(a, name, px, q, group, aq=None):
     a = np.clip(a, 0, 1)
     # 줄일 때 가장자리 무리(halo) 방지: 미리 곱한 알파(premultiplied)로 줄이고 다시 나눈다 — 투명 픽셀의 색이 가장자리로 번지지 않게
     pm = Image.fromarray((np.concatenate([a[..., :3] * a[..., 3:4], a[..., 3:4]], -1) * 255 + 0.5).astype(np.uint8), 'RGBA')
@@ -72,7 +101,7 @@ def save(a, name, px, q, group):
         fn = f'{name}@{s}.webp'
         p = os.path.join(OUT, fn)
         if im2.mode == 'RGBA' and a.shape[-1] == 4 and (a[..., 3] < 0.999).any():
-            im2.save(p, 'WEBP', quality=q, method=6, exact=False, alpha_quality=AQ.get(group, 60))
+            im2.save(p, 'WEBP', quality=q, method=6, exact=False, alpha_quality=aq or AQ.get(group, 60))
         else:
             im2.convert('RGB').save(p, 'WEBP', quality=q, method=6)
         sz = os.path.getsize(p); sizes[fn] = sz
@@ -91,8 +120,9 @@ for name, m in sorted(bm.items()):
     p = os.path.join(B, 'body', name + '.png')
     if not os.path.exists(p): continue
     raw = load(p); RAW[name] = raw
-    a = contact(raw)
-    save(a, name, [768, 384, 160], Q['char'], 'body')
+    a = contact(clean_translucent(raw) if TRANSLUCENT.match(name) else raw)
+    # 날개 몸: 알파가 파일의 대부분이다 — 반투명 면은 흐려 둔 뒤라 알파 품질 75로도 가장자리 차이가 안 보인다(49 §14.1 꿀벌 묶음 예산)
+    save(a, name, [768, 384, 160], Q['char'], 'body', 75 if TRANSLUCENT.match(name) else None)
     BODY[name] = {k: m[k] for k in ('head', 'face', 'top', 'neck', 'hand', 'back') if k in m}
     BODY[name]['props'] = m.get('props', [])
     BODY[name]['box'] = bbox(a)
@@ -167,7 +197,12 @@ for name, m in sorted(spm.items()):
     n = m.get('frames', 12)
     fr = [os.path.join(B, 'spin', f'{name}-t{k:02d}.png') for k in range(n)]
     if not all(os.path.exists(f) for f in fr): continue
-    ims = [Image.open(f).convert('RGBA').resize((300, 300), Image.LANCZOS) for f in fr]  # 회전은 0.5초 동안만 보인다 — 300px(100pt @3x)
+    def spin_img(f):
+        im = Image.open(f).convert('RGBA')
+        if TRANSLUCENT.match(name):
+            im = Image.fromarray((clean_translucent(np.asarray(im).astype(np.float32) / 255) * 255 + 0.5).astype(np.uint8), 'RGBA')
+        return im.resize((300, 300), Image.LANCZOS)
+    ims = [spin_img(f) for f in fr]  # 회전은 0.5초 동안만 보인다 — 300px(100pt @3x)
     w = ims[0].width
     strip = Image.new('RGBA', (w * n, w))
     for k, im in enumerate(ims): strip.paste(im, (k * w, 0))
@@ -175,7 +210,7 @@ for name, m in sorted(spm.items()):
     a[..., 3] = np.where(a[..., 3] < 8 / 255, 0, a[..., 3])
     im2 = Image.fromarray((a * 255 + 0.5).astype(np.uint8), 'RGBA')
     fn = f'{name}@{w}.webp'; pth = os.path.join(OUT, fn)
-    im2.save(pth, 'WEBP', quality=72, method=6, exact=False, alpha_quality=70)
+    im2.save(pth, 'WEBP', quality=54, method=6, exact=False, alpha_quality=56)  # 공중에서 0.5초만 보인다(49 §14.1 72 → 54, 움직이는 동안 차이 안 보임)
     sizes[fn] = os.path.getsize(pth); total['spin'] = total.get('spin', 0) + sizes[fn]
     SPIN[name[:-5]] = [n, w]
 
@@ -253,8 +288,8 @@ def tier(fn):
     return 'base' if st == 1 and not key.endswith('-prop') else 'pack'
 base = [fn for fn in sorted(sizes) if tier(fn) == 'base']
 print('mobile base', round(sum(sizes[f] for f in base) / 1024), 'KB ·', len(base), 'files')
-for sp in ('snail', 'bee', 'worm', 'frog'):
-    print(' pack', sp, round(sum(v for f, v in sizes.items() if f.startswith(sp + '-') and tier(f) == 'pack') / 1024), 'KB')
+for sp in ('snail', 'bee', 'worm', 'frog'):  # 씨앗 하나 기준(앱은 내 씨앗의 아기 그림만 받는다)
+    print(' pack', sp, round(sum(v for f, v in sizes.items() if f.startswith(sp + '-') and tier(f) == 'pack' and not re.match(r'^[a-z]+-1s[123]', f)) / 1024), 'KB')
 lines = [f"  '{fn}': require('{rel}/{fn}')," for fn in base]
 if DEFAULT_OUT: open(MOB, 'w').write("// 자동 생성 — scripts/characters3d/encode.py (손으로 고치지 않는다). 49 §4.4: 휴대폰 앱에 넣는 기본 묶음(파일 이름 → require). 종 묶음은 art3dPacks.ts가 내려받는다.\n"
                      "/* eslint-disable @typescript-eslint/no-require-imports */\nexport const ART_FILES: Record<string, number> = {\n" + "\n".join(lines) + "\n}\n")
