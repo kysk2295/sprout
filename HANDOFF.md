@@ -2,6 +2,15 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-10 캐릭터 v3 마무리 + 휴대폰 성장 홈 v1.2 (49 v1.1 §14.1 · §6.0)
+- **그림(49 §14.1):** 손 6 · 등 3 옷 층을 그 자리 기준으로 키우고 카메라 쪽으로 내밀며 3/4로 돌려 다시 구움(`kk3d.py` `HAND_POSE_SP`·`BACK_POSE_SP`, 풍선·초롱 예외). 꿀벌 날개 알갱이 = Cycles 확률 알파(OIDN은 색만) → `encode.py` `clean_translucent`(반투명 영역만 마스크 정규화 흐림). 예산: 기본 1.80 MB, 종 묶음 1.21/1.48/1.22/1.27 MB(꿀벌 포함 모두 ≤ 1.5) — 종 묶음은 내 씨앗 것만 받는다(`packFiles(sp, seed)`). 손 굽기용 `jobs/pose-*.json`은 일회용(커밋 안 함).
+- **사이트 배포 필요:** `packages/schema/art3d` 그림이 바뀜(옷 층·꿀벌 몸·회전 띠) → `cd site && npm run deploy`(`--no-gitignore`). 파일 이름이 같아 Caddy 변경 불가 캐시가 옛것을 줄 수 있음 — 이미 받은 기기는 옛 그림이 남는다(`ART3D_VERSION` 올리기는 [다음], 판단 필요).
+- **휴대폰 네이티브 다시 만들기 필요:** `expo-sensors`(흔들기 → 어지러움, 49 §7.1) — `npx expo prebuild --platform ios`(clean 금지) + pod install 뒤 기기 빌드. 모듈이 없는 지금 빌드에선 흔들기만 꺼짐(`requireOptionalNativeModule`) — 시뮬레이터에서 꺼진 채 멈춤 없음 확인. 가속도계는 시뮬레이터에 없어 손 확인은 기기에서.
+- **휴대폰 성장 홈 v1.2(사용자 요청, 49 §6.0 표):** 장면 · Lv 카드 · 옷장 · 도감 · 이번 주(목표 진행)를 한 장 고정 화면으로(스크롤·끄는 시트 없음, iPhone SE·17 Pro 확인). 오늘 할 일 카드는 뺌(할 일 탭과 같은 목록 — 다른 탭에서 끝내도 돌아오면 `+N`·막대 그대로). 나머지는 단추로 여는 팝업(공용 BottomSheet): `이번 주` 칸 → 목표, `%` → 진화 길, 머리 `기록` → 이번 주 XP·점검·리포트. 데스크톱은 그대로([다음] 같은 정리 제안).
+- **고른 배경 더 쓰기:** AI 비서 빈 대화(두 앱)·일기(흐리게)·위젯 캐릭터 그림(낮 짝 장면 + 둥근 칸, 그림 판 v6 — Swift 그대로) — 맥 앱 다시 빌드(메인 widgetArt3d 바뀜, `resources/art3d`에 `scene-*@390` 추가). 로그인 새벽 정원(두 앱), 성장 탭에서만 장면 톤 유리 탭 막대, 데스크톱 `정원으로 가기` = 성장 탭(`openGrowth`).
+- **고친 것:** 도감 `나` 칸이 파랗던 것(iOS RN Image가 tintColor를 지워도 템플릿 그리기가 남음 → 칠할 때·안 칠할 때 Image를 다시 만든다).
+- 시험 계정 charleft-1010@example.com — 확인 뒤 지움.
+
 ## ★ 2026-10-10 남은 것 정리 묶음 — 리드가 할 배포·빌드 (47 §19 · 태그 · 세그먼트 · Pretendard · 넣을지 묻기 · 시험 계정 · iOS 기여자 문서)
 - **서버 배포 필요:** `server/api` + 마이그레이션 `server/db/migrations/20261015-ai-ground.sql`(`ai_usage.ground_hits`, 두 번 돌려도 안전, 순서 무관 — 칸이 없으면 API가 안 쓰고 한 줄 로그). 위 47 B안 배포와 함께 하면 된다. 일정 넣기 도구(`propose_create kind`)·`/ai/ground`·features `'ground'`는 배포 뒤부터.
 - **맥 앱 다시 빌드:** 메인·preload가 바뀜(IPC `assistant:ground`) + 태그·세그먼트·넣을지 묻기(렌더러).
@@ -33,7 +42,7 @@
 - **화면:** 휴대폰 만들기 흐름 `app/growth/make.tsx`(새 사용자 `/growth/survey` → make), 성장 홈 `src/growth/Stage.tsx`, 옷장·도감 `Decorate.tsx`, 진화 `EvolutionMoment.tsx`, 할 일 장면 띠 `TaskListScreen`·`CalendarScreen`, 빈 상태 3D. 데스크톱 `MakeFlow.tsx`(SurveyDialog가 종 없으면 이걸), `Stage.tsx`·`RaisePanel.tsx`·`EvolutionMoment.tsx`, `ListSceneBand.tsx`. 만지기 `PlayableCharacter`(두 앱).
 - **확인 방법:** 데스크톱 `SPROUT_PROFILE=<이름> npx electron-vite dev --remoteDebuggingPort <포트>` + `scripts/devtools`. 휴대폰 키우기 데모 = `EXPO_PUBLIC_SPROUT_RAISE_DEMO=1`로 Release 빌드 → 앱 문서 폴더 `raise-demo.txt`에 `v=stage&sp=bee&lv=16&eq=beanie,lei,balloon&path=b` 같은 글을 쓰면 바뀜(종 묶음 확인은 문서 폴더 `art3d/v3/`에 512 파일을 넣어 흉내). 시뮬레이터 입력은 `axe`(한글 자판이면 pbcopy + ⌘V).
 - **배경 고르기(49 §6.1):** 옷장 `배경` 탭, 11개(자동 기본), 미리 보기 → `이 배경으로`, 할 일 띠도 고른 장면. AI 비서 빈 대화·일기 배경·위젯 배경은 아직(다른 작업 파일 · 네이티브).
-- **[다음]:** 꿀벌 날개 반투명 노이즈(샘플 늘리기), 아트 디렉터가 생성기 숫자 다듬기(작은 손 옷·등 옷이 둥근 몸 뒤에서 잘 안 보임), 로그인 새벽 정원, 성장 탭 유리 탭 막대, 흔들기(expo-sensors 네이티브), 데스크톱 성장 탭 열기 이벤트(지금 `정원으로 가기`는 OPEN_SCREEN 'review' 우회).
+- **[다음]:** 아트 디렉터가 생성기 숫자 다듬기. (날개 노이즈·손/등 옷·로그인·유리 탭 막대·흔들기·`정원으로 가기`는 위 마무리 항목에서 끝냄)
 
 ## ★ 2026-10-09 만료 2주 지난 할 일 자동 정리 (48, 사용자 요청 "만료됨 2주 지난 거는 자동으로 휴지통으로" — 기본 켬)
 - **규칙(공용 `packages/schema/src/autoTrash.ts`, 시험):** 열린 할 일 중 `마감 날짜 < 오늘 − 14일`(사용자 시간대, 날짜만) → 휴지통(`deleted_at`). 빼는 것: 반복·고정·보관 리스트·진행 중 프로젝트(⚑ 마감 또는 가장 늦은 구성원 마감 ≥ 오늘)·마감 없음·완료/하지 않음·**자동으로 옮겼다가 되살린 일(같은 마감인 동안)**. 하위: 열린 하위와 함께, 열린 하위 중 지켜야 할 것(반복·고정·프로젝트·2주 안 된 마감)이 있으면 부모 건너뜀, 완료한 하위는 그대로. XP·완료 행 안 건드림. 외부 캘린더 일정(events)은 대상 아님.

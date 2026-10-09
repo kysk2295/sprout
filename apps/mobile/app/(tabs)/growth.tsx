@@ -1,5 +1,6 @@
-// 성장 탭(49 §6 성장 홈, 시안 character-v3 B): 첫 화면 = 3D 정원 장면이 상태 막대 뒤까지 끝까지 + 유리 머리·주 달력 띠 + 받침 위 캐릭터 + 유리 카드
-// (Lv · 큰 % · 꼬리 칩 · 막대 · 옷장·도감·이번 주). 아래로 밀면 시트(위 모서리 26): 이번 주 목표 · 진화 길 · 이번 주 XP · 점검 · 리포트(`이번 주`가 여기로 내린다).
+// 성장 탭(49 §6 성장 홈, 시안 character-v3 B): 3D 정원 장면이 상태 막대 뒤까지 끝까지 + 유리 머리·주 달력 띠 + 받침 위 캐릭터 + 유리 카드
+// (Lv · 큰 % · 꼬리 칩 · 막대 · 옷장·도감·이번 주). v1.2(49 §6.0): 이 화면은 한 장 고정(스크롤·시트 없음). 나머지는 단추로 여는 팝업 시트:
+// 이번 주 칸 = 이번 주 목표, Lv 카드 = 진화 길, 머리 `기록` = 이번 주 XP · 점검 · 리포트. 오늘 할 일 목록은 뺐다(할 일 탭과 같은 목록).
 // 레벨업(무대에서 1.3초) · 진화(전체 화면 2.5초, 꼬마 → 친구 고르기)는 앱이 앞으로 올 때·이 탭을 열 때 확인한다(23 §4) → 0.7초 뒤 새 옷 카드.
 // 하루 장면(43 §4.2)은 이 탭을 그날 처음 볼 때 한 번. 연속 칩은 없다(한 날 누적 칩만). 휴대폰은 AI·주간 마감을 하지 않는다(M-G2).
 import { ReviewEntry } from '../../src/map/v2/ReviewEntry'
@@ -10,16 +11,18 @@ import { SPECIES, type Species } from '@sprout/schema/growth'
 import { activeDayList, dayJustDone, equipItem, isBusy, isNight, ITEM_BY_ID, momentLine, pickDayMoment, tapLines, TOUCH_LINES, trophyLine, type CharacterItemRow, type DayMoment } from '@sprout/schema/wardrobe'
 import { addDays } from '@sprout/schema/time'
 import { useIsFocused, useRouter } from 'expo-router'
-import { MoreHorizontal } from 'lucide-react-native'
+import { MoreHorizontal, ScrollText } from 'lucide-react-native'
 import { StatusBar } from 'expo-status-bar'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
+import { AppState, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { currentUserId, syncNow } from '../../src/data/auth'
+import { currentUserId } from '../../src/data/auth'
 import { coreDb } from '../../src/data/db'
 import { taskDone } from '../../src/data/events'
 import { useLiveQuery } from '../../src/data/rows'
-import { EvolutionRoad, GoalsCard, ReportsCard, TodayCard, XpCard } from '../../src/growth/Cards'
+import { EvolutionRoad, GoalsCard, ReportsCard, XpCard } from '../../src/growth/Cards'
+import { BottomSheet } from '../../src/ui/BottomSheet'
+import { SheetHead } from '../../src/ui/SheetHead'
 import { useGrowthData } from '../../src/growth/data'
 import { EvolutionMoment, type Evolution } from '../../src/growth/EvolutionMoment'
 import { dexCount } from '../../src/growth/home/dex'
@@ -193,16 +196,14 @@ export default function Growth() {
   const menu = useAnchor()
   const [rename, setRename] = useState(false)
   const [road, setRoad] = useState<number | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-  const onRefresh = async () => { setRefreshing(true); try { await syncNow() } finally { setRefreshing(false) } }
   const freshDot = raise.fresh.size > 0
 
-  // 장면(49 §6): 입은 배경 + 밤(다크 테마 또는 늦은 밤). 상태 막대 글자색은 장면 밝기에 따라, 시트까지 내리면 테마 그대로
+  // 장면(49 §6): 입은 배경 + 밤(다크 테마 또는 늦은 밤). 상태 막대 글자색은 장면 밝기에 따라, 시트를 열면 테마 그대로
   const win = useWindowDimensions()
   const H = win.height
-  const scroll = useRef<ScrollView>(null)
-  const [below, setBelow] = useState(false)
-  const darkTop = below ? p.dark : sceneDark(sceneKey)
+  // 49 §6.0 팝업(누르면 열리는 시트 — 39 §4.4 BottomSheet: 아래로 끌기·바깥 누르기·✕로 닫힘)
+  const [pop, setPop] = useState<'week' | 'road' | 'log' | null>(null)
+  const darkTop = sceneDark(sceneKey)
   const tone = glassTone(sceneDark(sceneKey)) // 49 §6.1 유리 톤 = 장면 밝기
 
   // 주 달력 띠: 이번 주(월~일) · 한 날(할 일 XP가 1 이상인 날 — 43 누적과 같은 계산)
@@ -213,7 +214,13 @@ export default function Growth() {
   }, [g.events, today])
 
   const menuBtn = (
-    <View ref={menu.ref} collapsable={false}>
+    <View ref={menu.ref} collapsable={false} style={{ flexDirection: 'row', gap: 8 }}>
+      {species ? (
+        <Pressable onPress={() => setPop('log')} hitSlop={8} accessibilityRole="button" accessibilityLabel="기록 — 이번 주 XP · 주간 점검 · 리포트"
+          style={({ pressed }) => [s.menuBtn, { backgroundColor: tone.bg, borderColor: tone.line }, pressed && { transform: [{ scale: 0.94 }] }]}>
+          <ScrollText size={17} color={tone.ink} />
+        </Pressable>
+      ) : null}
       <Pressable onPress={menu.open} hitSlop={8} accessibilityRole="button" accessibilityLabel="성장 메뉴"
         style={({ pressed }) => [s.menuBtn, { backgroundColor: tone.bg, borderColor: tone.line }, pressed && { transform: [{ scale: 0.94 }] }]}>
         <MoreHorizontal size={18} color={tone.ink} />
@@ -232,35 +239,29 @@ export default function Growth() {
         { key: 'survey', label: species ? '성향 다시 조사하기' : '성향 조사하기', onPress: () => router.push('/growth/survey') },
         { key: 'motion', label: '움직임 줄이기', checked: reduced, onPress: () => writeMotionPref(!reduced) }
       ]} />
-      <ScrollView
-        ref={scroll}
-        style={{ backgroundColor: p.cardBg }}
-        contentInsetAdjustmentBehavior="never"
-        onScrollBeginDrag={() => setRoad(null)}
-        scrollEventThrottle={64}
-        onScroll={(e) => { const b = e.nativeEvent.contentOffset.y > H - ins.top - 20; if (b !== below) setBelow(b) }}
-        contentContainerStyle={{ paddingBottom: space.pad }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={sceneDark(sceneKey) ? '#fff' : '#13211B'} progressViewOffset={ins.top} />}
-      >
-        <RaiseStage ref={stage} p={p} raise={raise} name={name} width={win.width} height={H} topInset={ins.top} bottomClear={space.clear} sceneKey={sceneKey}
-          reduced={reduced} live={live && !evo} night={night} calm={calm} lines={lines} onEgg={() => router.push('/growth/survey')}
-          week={week} dexN={dexCount(species, g.progress.stage)} freshDot={freshDot} menu={menuBtn}
-          onWard={() => router.push('/growth/decorate')}
-          onDex={() => router.push({ pathname: '/growth/decorate', params: { tab: 'dex' } })}
-          onWeek={() => scroll.current?.scrollTo({ y: H - ins.top - 8, animated: !reduced })} />
-        <View style={[s.sheet, { backgroundColor: p.cardBg }]}>
-          {ready ? (
-            <>
-              {species ? <TodayCard p={p} today={today} /> : null}
-              <GoalsCard p={p} today={today} week={g.week} goals={g.goals} xpIds={g.xpIds} drafts={g.drafts} draftUsed={g.draftUsed} reduced={reduced} />
-              <EvolutionRoad p={p} species={species} level={lv} stage={g.progress.stage} open={road} onOpen={setRoad} />
-              <XpCard p={p} events={g.events} week={g.week} today={today} />
-              <ReviewEntry />
-              <ReportsCard p={p} reports={g.reports} />
-            </>
+      {/* 49 §6.0 고정 화면 한 장 — 스크롤·시트 없음 */}
+      <RaiseStage ref={stage} p={p} raise={raise} name={name} width={win.width} height={H} topInset={ins.top} bottomClear={space.clear} sceneKey={sceneKey}
+        reduced={reduced} live={live && !evo && !pop} night={night} calm={calm} lines={lines} onEgg={() => router.push('/growth/survey')}
+        week={week} dexN={dexCount(species, g.progress.stage)} freshDot={freshDot} menu={menuBtn}
+        goals={{ done: g.goals.filter((x) => x.status === 'achieved').length, total: g.goals.length }}
+        onWard={() => router.push('/growth/decorate')}
+        onDex={() => router.push({ pathname: '/growth/decorate', params: { tab: 'dex' } })}
+        onWeek={() => setPop('week')} onRoad={() => setPop('road')} />
+      <BottomSheet visible={pop !== null} onClose={() => { setPop(null); setRoad(null) }} mid={pop === 'log' ? 0.72 : 0.6}
+        label={pop === 'week' ? '이번 주' : pop === 'road' ? '진화 길' : '기록'}
+        head={<SheetHead compact title={pop === 'week' ? '이번 주' : pop === 'road' ? '진화 길' : '기록'} onClose={() => { setPop(null); setRoad(null) }} />}>
+        <ScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: ins.bottom + 24 }} onScrollBeginDrag={() => setRoad(null)}>
+          {ready && pop ? (
+            pop === 'week' ? <GoalsCard p={p} today={today} week={g.week} goals={g.goals} xpIds={g.xpIds} drafts={g.drafts} draftUsed={g.draftUsed} reduced={reduced} />
+              : pop === 'road' ? <EvolutionRoad p={p} species={species} level={lv} stage={g.progress.stage} open={road} onOpen={setRoad} />
+                : <>
+                  <XpCard p={p} events={g.events} week={g.week} today={today} />
+                  <ReviewEntry />
+                  <ReportsCard p={p} reports={g.reports} />
+                </>
           ) : null}
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </BottomSheet>
       {toast ? <NewItemToast rows={toast} level={lv} bottom={space.clear + 12} reduced={reduced} onWear={wear} onClose={() => setToast(null)} /> : null}
       <EvolutionMoment evo={evo} reduced={reduced} onPick={(path) => { if (cid) void saveLook(cid, { ...raise.look, path }) }} onDone={evoDone} />
       <RenameModal p={p} visible={rename} initial={name} today={today} onClose={() => setRename(false)} />
@@ -269,6 +270,5 @@ export default function Growth() {
 }
 
 const s = StyleSheet.create({
-  sheet: { marginTop: -26, borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingTop: 16 },
   menuBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth }
 })

@@ -1,5 +1,6 @@
 // 49 §6 휴대폰 성장 홈(시안 character-v3 B): 3D 정원 장면이 상태 막대 뒤까지 화면 끝까지 + 위 `꿈틀`·유리 알약 `한 날 N일`·⋯ +
 // 유리 주 달력 띠(오늘 = 강조색 원, 한 날 = 옅은 원) + 받침(perch) 위 캐릭터(숨쉬기) + 아래 유리 카드(Lv 배지 · 큰 % · 꼬리 칩 · 14px 막대 · 옷장·도감·이번 주).
+// v1.2(49 §6.0): 이 무대 전체가 고정 화면 한 장(스크롤 없음). `이번 주` 칸 = 이번 주 목표 진행(누르면 팝업), Lv 카드 윗줄·%를 누르면 진화 길 팝업.
 // 만지기 v3(49 §7.1 — PlayableCharacter full): 누르기 = 깡충 + 유리 말풍선 한 줄 · 두 번/3번째 = 공중 한 바퀴 · 빠르게 4번 = 간지럼 · 길게 = 쓰다듬기 ·
 // 끌었다 놓기(받침 반경 안에서 따라옴) · 가만히 두면 8~15초마다 딴짓 · 이름 = 부르기.
 // 만지기는 아무것도 주지 않는다(XP·아이템 없음). 움직임은 감싸개의 transform·opacity만, UI 스레드(39 §11). 반복 움직임 캐릭터는 이 무대 하나.
@@ -50,10 +51,14 @@ export const RaiseStage = forwardRef<StageHandle, {
   sceneKey: string; reduced: boolean; live: boolean
   night: boolean; calm: boolean; lines: () => string; onEgg?: () => void
   week: WeekCell[]; dexN: number; freshDot?: boolean
+  /** 이번 주 목표 진행(49 §6.0 고정 카드 `이번 주` 칸) */
+  goals?: { done: number; total: number }
   onWard?: () => void; onDex?: () => void; onWeek?: () => void
+  /** Lv 카드(%·막대)를 누르면 — 진화 길 팝업(49 §6.0) */
+  onRoad?: () => void
   /** 머리 오른쪽(⋯ 메뉴) */
   menu?: ReactNode
-}>(function RaiseStage({ p, raise, name, width, height, topInset, bottomClear, sceneKey, reduced, live, night, calm, lines, onEgg, week, dexN, freshDot, onWard, onDex, onWeek, menu }, ref) {
+}>(function RaiseStage({ p, raise, name, width, height, topInset, bottomClear, sceneKey, reduced, live, night, calm, lines, onEgg, week, dexN, freshDot, goals, onWard, onDex, onWeek, onRoad, menu }, ref) {
   const { species, progress, look, worn, state, owned } = raise
   const lv = progress.level
   const st = progress.stage
@@ -231,8 +236,9 @@ export const RaiseStage = forwardRef<StageHandle, {
               <Text style={[s.who, { color: t.ink }]} numberOfLines={1}>{species ? `${name} · ${title}` : title}</Text>
             </Pressable>
           </View>
+          <Pressable onPress={() => { if (species && onRoad) { hx.tick(); onRoad() } }} disabled={!species || !onRoad} accessibilityRole="button" accessibilityLabel={`다음 레벨까지 ${pct}퍼센트. 진화 길 보기`} accessibilityHint="다음 모습과 열리는 레벨을 봐요">
           <View style={s.row2}>
-            <Text style={[s.big, { color: t.ink }]} accessibilityLabel={`다음 레벨까지 ${pct}퍼센트`}>{pct}<Text style={s.bigPct}>%</Text></Text>
+            <Text style={[s.big, { color: t.ink }]}>{pct}<Text style={s.bigPct}>%</Text></Text>
             <View style={[s.tail, { backgroundColor: tailBg }]}>
               <Text style={[s.tailT, { color: tailInk }]} numberOfLines={1}>할 일 {left}개 더 하면 Lv {lv + 1}</Text>
               <View style={[s.tailTip, { backgroundColor: tailBg }]} />
@@ -240,11 +246,14 @@ export const RaiseStage = forwardRef<StageHandle, {
           </View>
           <Text style={[s.lbl, { color: t.ink }]}>다음 레벨까지</Text>
           <XpBar pct={pct} live={live} reduced={reduced} track={t.track} from={p.accentHi} to={p.accent} into={progress.into} toNext={progress.toNext} />
+          </Pressable>
           {species ? (
             <View style={s.quick}>
               <Quick label="옷장" bg={t.soft} ink={t.ink} dot={freshDot ? p.accent : undefined} onPress={onWard}><AccThumb id={wardIcon} size={34} /></Quick>
               <Quick label={`도감 ${dexN}/${DEX_TOTAL}`} bg={t.soft} ink={t.ink} onPress={onDex}><CharacterArt species={species} stage={st} size={34} crop="bust" /></Quick>
-              <Quick label="이번 주" bg={t.soft} ink={t.ink} onPress={onWeek}><CharacterArt species={null} size={34} seed={seed} /></Quick>
+              <Quick label={goals?.total ? `이번 주 ${goals.done}/${goals.total}` : '이번 주'} bg={t.soft} ink={t.ink} onPress={onWeek}>
+                <GoalMini done={goals?.done ?? 0} total={goals?.total ?? 0} track={t.track} fill={p.accent} ink={t.ink} />
+              </Quick>
             </View>
           ) : (
             <Pressable onPress={onEgg} style={({ pressed }) => [s.eggBtn, { backgroundColor: p.accent }, pressed && { transform: [{ scale: 0.97 }] }]} accessibilityRole="button">
@@ -282,6 +291,18 @@ const XpBar = memo(function XpBar({ pct, live, reduced, track, from, to, into, t
     </View>
   )
 })
+
+/** 이번 주 칸 그림: 목표 진행 막대(없으면 '목표 적기' 대신 빈 칸 표시) — 34 높이에 맞춘다 */
+function GoalMini({ done, total, track, fill, ink }: { done: number; total: number; track: string; fill: string; ink: string }) {
+  return (
+    <View style={{ height: 34, justifyContent: 'center', alignItems: 'center', width: '82%' }} accessibilityElementsHidden>
+      <Text style={{ fontSize: 11, fontWeight: '700', color: ink, opacity: 0.62, marginBottom: 4 }}>{total ? '목표' : '목표 없음'}</Text>
+      <View style={{ height: 6, borderRadius: 3, backgroundColor: track, width: '100%', overflow: 'hidden' }}>
+        <View style={{ height: 6, borderRadius: 3, backgroundColor: fill, width: `${total ? (done / total) * 100 : 0}%` }} />
+      </View>
+    </View>
+  )
+}
 
 function Quick({ label, bg, ink, dot, onPress, children }: { label: string; bg: string; ink: string; dot?: string; onPress?: () => void; children: ReactNode }) {
   return (
