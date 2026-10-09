@@ -114,3 +114,26 @@ assert.ok(isLimit(new Error('지금은 AI를 쓰는 사람이 많아요. 잠시 
 assert.ok(!isLimit(new Error('network request failed')))
 
 console.log('assistant ok')
+
+// ── 47 B안 도우미 ──
+import { agentHistory, diaryForAssistant, editText, leftLine, parseAgentLine } from './core.ts'
+assert.equal(parseAgentLine(''), null)
+assert.deepEqual(parseAgentLine('{"queue":{"position":1,"waiting":2}}'), { queue: 1 })
+assert.deepEqual(parseAgentLine('{"message":{"role":"assistant","content":"안"},"done":false}'), { delta: '안' })
+assert.deepEqual(parseAgentLine('{"message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":"find_tasks","arguments":{"status":"open"}}}]},"done":false}'), { toolCalls: [{ name: 'find_tasks', args: { status: 'open' } }] })
+assert.deepEqual(parseAgentLine('{"message":{"content":"","tool_calls":[{"function":{"name":"when_last","arguments":"{\\"query\\":\\"미용실\\"}"}}]}}'), { toolCalls: [{ name: 'when_last', args: { query: '미용실' } }] }, 'arguments가 JSON 글이어도')
+assert.deepEqual(parseAgentLine('{"done":true,"eval_count":3}'), { done: true })
+assert.throws(() => parseAgentLine('{"error":"한 번에 너무 많이 찾았어요.","code":"turn_limit"}'), /너무 많이/)
+const msgs = Array.from({ length: 10 }, (_, i) => [{ role: 'user' as const, text: `q${i}` }, { role: 'assistant' as const, text: `a${i}` }]).flat()
+assert.deepEqual(agentHistory(msgs).map((h) => h.user), ['q4', 'q5', 'q6', 'q7', 'q8', 'q9'], '최근 6턴')
+assert.deepEqual(agentHistory([{ role: 'user', text: '오류 난 말' }, { role: 'user', text: '다시', sent: '다시 보냄' }, { role: 'assistant', text: '답' }]), [{ user: '다시 보냄', assistant: '답' }])
+assert.equal(diaryForAssistant(false, true), false, '설정 꺼짐이면 일기 도구 없음')
+assert.equal(diaryForAssistant(true, null), false, '일기 AI 동의 없으면 켜도 안 봄')
+assert.equal(diaryForAssistant(true, false), false)
+assert.equal(diaryForAssistant(true, true), true)
+assert.equal(leftLine({ used: 30, limit: 40 }), '오늘 남은 이야기 10번')
+assert.equal(leftLine({ used: 3, limit: 40 }), '')
+assert.equal(leftLine(null), '')
+assert.equal(editText({ title: '미용실 예약', start: '', due: '2026-10-17T14:00' }), '미용실 예약 10월 17일 오후 2시')
+assert.equal(editText({ title: '보고서', start: '', due: '2026-10-20' }), '보고서 10월 20일')
+console.log('assistant agent helpers: ok')

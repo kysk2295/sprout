@@ -3,7 +3,7 @@
 import * as SecureStore from 'expo-secure-store'
 import { useEffect, useState } from 'react'
 
-const K = { consent: 'sprout.diary.consent', memory: 'sprout.diary.memory', solo: 'sprout.diary.solo', notice: 'sprout.diary.notice', mode: 'sprout.diary.mode', met: 'sprout.diary.met' }
+const K = { consent: 'sprout.diary.consent', memory: 'sprout.diary.memory', solo: 'sprout.diary.solo', notice: 'sprout.diary.notice', mode: 'sprout.diary.mode', met: 'sprout.diary.met', assistant: 'sprout.assistant.diary' }
 const cache = new Map<string, string | null>()
 const listeners = new Set<() => void>()
 let loaded: Promise<void> | null = null
@@ -38,6 +38,9 @@ export const setWriteMode = (m: WriteMode) => write(K.mode, m)
 /** 캐릭터 소개(§8.3 0)는 처음 한 번만 — 첫 답을 남기면 켠다 */
 export const hasMet = () => read(K.met) === 'on'
 export const setMet = () => { if (!hasMet()) write(K.met, 'on') }
+/** 47 §8.4 AI 비서가 일기도 볼 수 있게(기본 꺼짐, 이 기기만). 일기 AI 동의가 있어야 실제로 쓴다(diaryForAssistant) */
+export const getAssistantDiary = () => read(K.assistant) === 'on'
+export const setAssistantDiary = (on: boolean) => write(K.assistant, on ? 'on' : 'off')
 /** 한계 안내는 처음 5번만 */
 export function takeNotice(limit = 5): boolean {
   const n = Number(read(K.notice) ?? 0)
@@ -56,5 +59,5 @@ export function useDiaryPrefs() {
     void preloadDiaryPrefs().then(() => setReady(true))
     return () => { listeners.delete(l) }
   }, [])
-  return { ready, consent: getConsent(), memory: getMemory(), isSolo, mode: getWriteMode(), met: hasMet() }
+  return { ready, consent: getConsent(), memory: getMemory(), isSolo, mode: getWriteMode(), met: hasMet(), assistantDiary: getAssistantDiary() }
 }

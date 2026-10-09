@@ -204,3 +204,56 @@ export function humanize(e: unknown) {
 }
 /** 상한·혼잡이면 다시 시도를 30초 막는다(13 §6) */
 export const isLimit = (e: unknown) => /너무 잦아요|한도|처리 중인 AI 요청|쓰는 사람이 많아요|이미 사용했어요|429/.test(messageOf(e))
+
+// ── 47 B안(자유 대화 + 도구) — 순수 도우미 ─────────────────────
+/** agent 스트림 한 줄: 글 조각 · 도구 호출(arguments는 객체 또는 JSON 글) · 대기열 · 끝. 오류 줄은 던진다 */
+export type AgentLine = { delta?: string; toolCalls?: { name: string; args: Record<string, unknown> }[]; queue?: number; done?: boolean }
+export function parseAgentLine(value: string): AgentLine | null {
+  if (!value.trim()) return null
+  const item = JSON.parse(value)
+  if (item.error) throw Object.assign(new Error(String(item.error)), { code: item.code })
+  if (item.queue && typeof item.queue.position === 'number') return { queue: item.queue.position }
+  const out: AgentLine = {}
+  const c = item.message?.content
+  if (typeof c === 'string' && c) out.delta = c
+  const calls = item.message?.tool_calls
+  if (Array.isArray(calls) && calls.length) {
+    out.toolCalls = calls.map((t: { function?: { name?: unknown; arguments?: unknown } }) => {
+      let args: unknown = t.function?.arguments ?? {}
+      if (typeof args === 'string') { try { args = JSON.parse(args) } catch { args = {} } }
+      return { name: String(t.function?.name ?? ''), args: args && typeof args === 'object' && !Array.isArray(args) ? (args as Record<string, unknown>) : {} }
+    }).filter((t: { name: string }) => t.name)
+  }
+  if (item.done) out.done = true
+  return out
+}
+/** 모델에게 보낼 최근 대화(§10): 내 말 + 캐릭터 답 짝, 최근 6턴. 답이 없는 말(오류)은 건너뜀 */
+export function agentHistory(messages: { role: 'user' | 'assistant'; text: string; sent?: string }[], turns = 6): { user: string; assistant: string }[] {
+  const pairs: { user: string; assistant: string }[] = []
+  for (let i = 0; i < messages.length - 1; i++) {
+    const u = messages[i], a = messages[i + 1]
+    if (u.role === 'user' && a.role === 'assistant' && a.text.trim()) pairs.push({ user: u.sent ?? u.text, assistant: a.text })
+  }
+  return pairs.slice(-turns)
+}
+/** §8.4 일기 보기: 설정 켬 + 일기 AI 동의(28 §5) 둘 다 */
+export const diaryForAssistant = (setting: boolean, consent: boolean | null) => setting && consent === true
+/** §9 상한 3차 줄: 10번 이하 남았을 때만 */
+export function leftLine(q: { used: number; limit: number } | null | undefined): string {
+  if (!q || !(q.limit > 0)) return ''
+  const left = Math.max(0, q.limit - q.used)
+  return left <= 10 ? `오늘 남은 이야기 ${left}번` : ''
+}
+export const ASSISTANT_DIARY_LABEL = 'AI 비서가 일기도 볼 수 있게'
+export const ASSISTANT_DIARY_HINT = '켜면 AI 비서가 질문에 답할 때 일기 글을 찾아볼 수 있어요. 나만 보기 날과 일기 대화 원문은 보내지 않아요.'
+export const ASSISTANT_DIARY_NEEDS = '일기에서 캐릭터와 나누기를 먼저 켜 주세요'
+
+/** 확인 카드 [고치기] → 빠른 입력에 넘길 글(인식기가 다시 읽는다) */
+export function editText(c: { title: string; start: string; due: string }): string {
+  const at = c.start || c.due
+  if (!at) return c.title
+  const d = `${Number(at.slice(5, 7))}월 ${Number(at.slice(8, 10))}일`
+  const t = at.includes('T') ? ` ${Number(at.slice(11, 13)) < 12 ? '오전' : '오후'} ${Number(at.slice(11, 13)) % 12 || 12}시${at.slice(14, 16) !== '00' ? ` ${Number(at.slice(14, 16))}분` : ''}` : ''
+  return `${c.title} ${d}${t}`
+}
+

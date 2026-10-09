@@ -7,10 +7,16 @@ import { listEvents } from '../calendars/device'
 import { getDeviceCal, shownCalendars } from '../calendars/store'
 import { fetch as streamFetch } from 'expo/fetch'
 import { currentUserId, serverAccess } from '../data/auth'
+import { AI_URL } from '../config'
+import { AgentUnsupportedError, runTurn, type AgentWrites, type ChatFn, type TurnEvent, type TurnResult } from '@sprout/schema/assistantAgent'
+import type { AgentMemory } from '@sprout/schema/assistantRouter'
+import type { ConfirmCard } from '@sprout/schema/assistantExec'
+import { completeTasks, reopenTasks } from '../data/tasks'
+import { getAssistantDiary, getConsent, preloadDiaryPrefs } from '../diary/prefs'
 import { db, run } from '../data/db'
 import { defaultListId } from '../data/tasks'
 import {
-  buildChatInput, interpret, parseStreamLine, querySql, queryResult, replyPreview, splitLines,
+  buildChatInput, diaryForAssistant, interpret, parseAgentLine, parseStreamLine, querySql, queryResult, replyPreview, splitLines,
   type AssistantProgress, type AssistantResult, type Intent, type ListLite, type TaskLite
 } from './core'
 
@@ -29,12 +35,13 @@ function withTimeout(ms: number, outer?: AbortSignal) {
   return { signal: abort.signal, done: () => { clearTimeout(timer); outer?.removeEventListener('abort', forward) } }
 }
 
-async function server(path: string, init: { method?: string; body?: string; signal?: AbortSignal } = {}) {
-  const { url, token } = await serverAccess()
+async function server(path: string, init: { method?: string; body?: string; signal?: AbortSignal; headers?: Record<string, string> } = {}) {
+  const { token } = await serverAccess()
+  const url = AI_URL
   if (!token) throw new Error('로그인하면 AI를 쓸 수 있어요.')
   let res: Awaited<ReturnType<typeof streamFetch>>
   try {
-    res = await streamFetch(`${url}${path}`, { method: init.method ?? 'GET', body: init.body, signal: init.signal, headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` } })
+    res = await streamFetch(`${url}${path}`, { method: init.method ?? 'GET', body: init.body, signal: init.signal, headers: { 'content-type': 'application/json', authorization: `Bearer ${token}`, ...init.headers } })
   } catch (e) {
     if (init.signal?.aborted) throw e
     throw new Error('network request failed')
@@ -52,11 +59,11 @@ async function server(path: string, init: { method?: string; body?: string; sign
   return res
 }
 
-export type AiStatus = { available: boolean; models: string[]; defaultModel: string | null; perDay?: number; usedToday?: number }
+export type AiStatus = { available: boolean; models: string[]; defaultModel: string | null; perDay?: number; usedToday?: number; agent: boolean; assistantDaily: { used: number; limit: number } | null }
 export async function aiStatus(): Promise<AiStatus> {
   const t = withTimeout(15000)
   try {
-    const s = (await (await server('/ai/status', { signal: t.signal })).json()) as { available?: boolean; models?: string[]; default_model?: string | null; limits?: { per_day?: number }; usage?: { today?: number } }
+    const s = (await (await server('/ai/status', { signal: t.signal })).json()) as { available?: boolean; models?: string[]; default_model?: string | null; limits?: { per_day?: number }; usage?: { today?: number; daily?: Record<string, { used?: number; limit?: number }> }; features?: string[] }
     const models = Array.isArray(s.models) ? s.models : []
     return {
       available: !!s.available && models.length > 0,
@@ -64,7 +71,9 @@ export async function aiStatus(): Promise<AiStatus> {
       models: s.default_model ? [s.default_model, ...models.filter((m) => m !== s.default_model)] : models,
       defaultModel: s.default_model ?? null,
       perDay: s.limits?.per_day,
-      usedToday: s.usage?.today
+      usedToday: s.usage?.today,
+      agent: Array.isArray(s.features) && s.features.includes('agent'),
+      assistantDaily: typeof s.usage?.daily?.assistant?.limit === 'number' ? { used: Number(s.usage.daily.assistant.used) || 0, limit: s.usage.daily.assistant.limit } : null
     }
   } finally { t.done() }
 }
@@ -180,4 +189,75 @@ export async function askAssistant(text: string, model: string, id: string, sign
   if (modelRecall) { onProgress({ phase: 'querying' }); return executeRecall(modelRecall, now) }
   onProgress({ phase: intent.action === 'create' ? 'saving' : intent.action === 'reply' ? 'validating' : 'querying' })
   return executeIntent(intent, id)
+}
+
+// ── 47 B안: 자유 대화 + 앱 도구(서버 /ai/assistant mode agent) ─────────────
+/** 모델 한 번. 같은 턴은 같은 X-Sprout-Turn — 서버가 상한을 턴 단위로 센다(§9). 턴 첫 호출이 400이면 서버가 agent를 모름(배포 전) */
+export function agentChat(model: string): ChatFn {
+  return async (req, h) => {
+    let res: Awaited<ReturnType<typeof server>>
+    try {
+      res = await server('/ai/assistant', { method: 'POST', body: JSON.stringify({ mode: 'agent', model, messages: req.messages, tools: req.tools, stream: true }), signal: h.signal, headers: { 'x-sprout-turn': req.turn } })
+    } catch (e) {
+      if (req.call === 1 && e instanceof AiHttpError && e.status === 400) throw new AgentUnsupportedError()
+      throw e
+    }
+    const reader = res.body?.getReader()
+    if (!reader) throw new Error('응답 스트림이 비어 있어요.')
+    const decoder = new TextDecoder()
+    let buffer = '', content = '', done = false
+    const calls: { name: string; args: Record<string, unknown> }[] = []
+    const take = (line: string) => {
+      const item = parseAgentLine(line)
+      if (!item) return
+      if (item.queue !== undefined) { h.onQueue(item.queue); return }
+      if (item.delta) { content += item.delta; h.onDelta(item.delta) }
+      if (item.toolCalls) calls.push(...item.toolCalls)
+      if (item.done) done = true
+    }
+    try {
+      while (!done) {
+        if (h.signal.aborted) throw new Error('aborted')
+        const chunk = await reader.read()
+        if (chunk.done) { buffer += decoder.decode(); if (buffer.trim()) take(buffer); break }
+        buffer += decoder.decode(chunk.value, { stream: true })
+        const { lines, rest } = splitLines(buffer)
+        buffer = rest
+        for (const l of lines) take(l)
+      }
+      if (h.signal.aborted) throw new Error('aborted')
+      if (!done) throw new Error('응답 연결이 끊겼어요. 다시 시도해 주세요.')
+      return { content, tool_calls: calls }
+    } finally {
+      await reader.cancel().catch(() => {})
+    }
+  }
+}
+
+/** 확인 카드 넣기·되돌리기(§6): 만들기 = executeIntent create와 같은 행, 완료 = 21 완료(XP), 되돌리기 = 완료 취소(XP 회수) */
+export const agentWrites: AgentWrites = {
+  newId: () => crypto.randomUUID(),
+  stamp: () => new Date().toISOString(),
+  async create(card: ConfirmCard, id: string, stamp: string) {
+    const listId = card.listId || (await defaultListId())
+    await run([insertStmt('tasks', { owner_id: currentUserId(), id, title: card.title, list_id: listId, content: '', content_mode: 'text', status: 0, priority: 0, sort_order: -Date.now(), start_at: card.start || null, due_at: card.due || null, is_all_day: card.due.includes('T') ? 0 : 1, time_zone: 'floating', repeat_rule: card.repeat || null, repeat_from: card.repeat ? 'due' : null }, stamp)])
+  },
+  async complete(ids) { await completeTasks(ids) },
+  async uncomplete(ids) { await reopenTasks(ids) },
+  run: (stmts) => run(stmts),
+  read: (ids) => (ids.length ? db.getAll(`SELECT id, modified_at, status, deleted_at, start_at, due_at FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`, ids) : Promise.resolve([]))
+}
+
+/** 이 기기에서 일기 보기(§8.4: 설정 + 일기 AI 동의) */
+export async function assistantDiaryOn() {
+  await preloadDiaryPrefs().catch(() => {})
+  return diaryForAssistant(getAssistantDiary(), getConsent())
+}
+
+export async function askAgent(o: { text: string; model: string; turn: string; signal: AbortSignal; history: { user: string; assistant: string }[]; memory: AgentMemory; pending: ConfirmCard | null; name: string; onEvent: (e: TurnEvent) => void }): Promise<TurnResult> {
+  return runTurn({
+    text: o.text, history: o.history, memory: o.memory, pending: o.pending, diary: await assistantDiaryOn(), name: o.name,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, db: { getAll: (sql, args) => db.getAll(sql, args ?? []) }, chat: agentChat(o.model),
+    turn: o.turn, signal: o.signal, onEvent: o.onEvent
+  })
 }

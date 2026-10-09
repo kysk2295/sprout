@@ -23,13 +23,18 @@ import { SoftIcon, type SoftIconName } from '../ui/SoftIcon'
 import { usePalette } from '../theme/ThemeProvider'
 import { Checkbox } from '../ui/Checkbox'
 import { OFFLINE, type AssistantProgress, type AssistantResult } from './core'
-import { cancel, refresh, send, setDraft, undo, type AssistantState, type Message } from './store'
+import { cancel, cancelAgentCard, refresh, saveAgentCard, send, setAgentLine, setBuddyName, setDraft, toggleTarget, undo, undoAgentCard, type AssistantState, type Message } from './store'
+import { AgentCards, Bands, editText, LiveText, ToolChips } from './AgentParts'
+import { leftLine } from './core'
+import { isConfirm, type ConfirmCard } from '@sprout/schema/assistantExec'
 
 /** "2026-10-05 ~ 2026-10-11" → "10/5–10/11" */
 const shortRange = (range: string) => range.split(' ~ ').map((d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`).join('–')
 // 40 §3.3: 빈 대화 예시는 회색 테두리 알약(색·아이콘 없음). 글은 13 그대로(누르면 바로 보냄)
 const SUGGESTIONS = ['내일 오후 3시에 기획 회의 한 시간 잡아줘', '이번 주 남은 할 일 보여줘', '이번 주에 완료한 거 몇 개야?']
 const SUG_ICONS: SoftIconName[] = ['today', 'week', 'done']
+// 47 §5.4 B안 빈 대화 예시(회색 테두리 알약 — 누르면 바로 보냄)
+const AGENT_SUGGESTIONS = ['미용실 간 지 얼마나 지났지', '이번 주 뭐가 제일 급해?', '내일 3시에 교수님 면담 잡아줘']
 const STEPS: { key: AssistantProgress['phase'][]; label: string }[] = [{ key: ['connecting'], label: '연결' }, { key: ['generating'], label: '해석' }, { key: ['validating', 'saving', 'querying'], label: '확인' }]
 
 /** 머리 상태 알약(13 §2.1): 연결됨(초록) · 대기 중 · 앞에 N명(주황) · 연결 중… · 지금은 쓸 수 없어요(회색). 누르면 다시 연결 */
@@ -58,6 +63,8 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
   const buddy = useBuddy()
   const egg = !buddy.species
   const who = companionName(buddy.species, buddy.name)
+  useEffect(() => { setBuddyName(buddy.species ? buddy.name : '') }, [buddy.species, buddy.name])
+  const router = useRouter()
   const today = dayKey()
   // 결과 카드에서 완료할 때 오늘 할 일 XP가 상한 아래였을 때만 +1(10 §6 — 등록만으로는 XP 없음, 40 결정 ④)
   const todayTaskXp = useLiveQuery<{ xp: number }>("SELECT COALESCE(SUM(amount), 0) AS xp FROM xp_events WHERE day = ? AND kind IN ('task', 'task_revoke')", [today]).data[0]?.xp ?? 0
@@ -93,6 +100,11 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
   }
   const faces = useMemo(() => a.messages.map((m, i): Face | null => {
     if (m.role !== 'assistant') return null
+    if (m.agent) {
+      if (m.agent.error && !m.text) return errorFace(m.agent.error, egg)
+      const happy = m.agent.mood === 'happy'
+      return { mood: happy ? 'happy' : 'smile', move: happy ? 'hop' : null, line: m.text || null }
+    }
     const r = m.result
     const kind = answerKindOf(r)
     const prev = a.messages[i - 1]
@@ -105,8 +117,25 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
     if (f?.move) setPlay((o) => ({ move: f.move, n: o.n + 1 }))
   }, [lastId, lastAi, faces])
   const phaseIndex = STEPS.findIndex((st) => st.key.includes(a.progress.phase))
+  const bump = (i: number) => { if (i === lastAi) setPlay((o) => ({ move: 'hop', n: o.n + 1 })) }
+  const actionsFor = (m: Message, i: number) => ({
+    onComplete: () => { bump(i); if (todayTaskXp < XP.taskDailyCap && i === lastAi) setXp((n) => n + 1) },
+    onSave: async (key: string) => {
+      const card = m.agent?.cards.find((c): c is ConfirmCard => isConfirm(c) && c.key === key)
+      const line = await saveAgentCard(m.id, key)
+      if (!line) return
+      setAgentLine(m.id, line)
+      bump(i)
+      if (card?.op === 'complete' && todayTaskXp < XP.taskDailyCap && i === lastAi) setXp((n) => n + 1)
+    },
+    onCancel: (key: string) => { cancelAgentCard(m.id, key); setAgentLine(m.id, '알겠어, 그대로 둘게.', 'smile') },
+    onUndo: async (key: string) => { try { await undoAgentCard(m.id, key); setAgentLine(m.id, '알겠어, 되돌렸어.', 'smile'); setNotice('되돌렸어요') } catch (e) { setNotice(e instanceof Error ? e.message : '되돌리지 못했어요.') } },
+    onToggle: (key: string, id: string) => toggleTarget(m.id, key, id),
+    onEdit: (c: ConfirmCard) => { cancelAgentCard(m.id, c.key); router.push({ pathname: '/quick-add', params: { text: editText(c) } }) }
+  })
+  const left = leftLine(a.daily)
   const cooling = a.cooldownUntil > now
-  const left = Math.ceil((a.cooldownUntil - now) / 1000)
+  const leftSec = Math.ceil((a.cooldownUntil - now) / 1000)
   const errShown = !!a.error && !a.busy
   const errFace = errShown ? errorFace(a.error, egg) : null
   // 마지막 답이 되묻기면 빠른 답 칩(40 §3.3) — 받는 중·오류·직접 쓰는 중이면 없음
@@ -146,7 +175,12 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
           <View key={m.id} style={[s.me, { backgroundColor: p.accent }]}><Text style={[s.text, { color: p.onAccent }]}>{m.text}</Text></View>
         ) : (
           <Ai key={m.id} name={who} face={faceOf(faces[i], i === animatedRow, i === lastAi ? 'last' : undefined)} xp={i === lastAi ? xp : 0}>
+            {m.agent ? <ToolChips chips={m.agent.chips.map((chip) => ({ chip, state: chip.failed ? 'failed' as const : 'done' as const }))} /> : null}
             {faces[i]?.line ? <Text style={[s.text, { color: p.textPrimary }]} selectable>{faces[i]!.line}</Text> : null}
+            {m.agent ? <Bands bands={m.agent.bands} /> : null}
+            {m.agent ? <AgentCards cards={m.agent.cards} actions={actionsFor(m, i)} /> : null}
+            {m.agent?.hint ? <Text style={[FONT.meta, { color: p.textTertiary }]}>{m.agent.hint}</Text> : null}
+            {m.agent?.action ? <View style={{ flexDirection: 'row' }}><Btn label={m.agent.action === 'diary' ? '일기로 가기' : '설정 열기'} onPress={() => router.push(m.agent!.action === 'diary' ? '/diary' : '/settings/assistant')} /></View> : null}
             {m.result?.recall ? <RecallCard r={m.result.recall} /> : null}
             {m.result && !m.result.recall ? <ResultCard r={m.result} onComplete={() => { if (i === lastAi) setPlay((o) => ({ move: 'hop', n: o.n + 1 })); if (todayTaskXp < XP.taskDailyCap && i === lastAi) setXp((n) => n + 1) }} /> : null}
             {m.result?.created && !m.undone ? (
@@ -165,7 +199,16 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
             ) : null}
           </Ai>
         ))}
-        {a.busy ? (
+        {a.busy && a.live ? (
+          <Ai name={who} face={faceOf(a.live.text ? { mood: 'smile', move: null, line: null } : WAITING_FACE, true)}>
+            <ToolChips chips={a.live.chips.filter(Boolean)} />
+            {a.live.text ? <LiveText /> : (
+              <Text style={[s.text, { color: p.textSecondary }]}>{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.live.chips.some((c) => c?.state === 'running') ? '찾아보는 중…' : '음…'}</Text>
+            )}
+            <AgentCards cards={a.live.cards.filter((c) => !isConfirm(c))} actions={{ onSave: () => {}, onCancel: () => {}, onUndo: () => {}, onToggle: () => {}, onEdit: () => {} }} />
+            <Text style={[s.step, { color: p.textTertiary }]}>{elapsed}초</Text>
+          </Ai>
+        ) : a.busy ? (
           <Ai name={who} face={faceOf(WAITING_FACE, true)}>
             {a.progress.preview ? <Text style={[s.text, { color: p.textPrimary }]}>{a.progress.preview}<Caret /></Text> : (
               <Text style={[s.text, { color: p.textSecondary }]}>{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.progress.phase === 'connecting' ? '꿈틀 AI에 연결하는 중…' : '생각하는 중…'}</Text>
@@ -188,7 +231,7 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
               </View>
               {a.error === OFFLINE && !a.models.length ? <Text style={[FONT.meta, { color: p.textTertiary }]}>1분 뒤 저절로 다시 확인해요</Text> : null}
               <View style={s.errActs}>
-                {a.lastRequest ? <Btn label={cooling ? `다시 시도 · ${left}초` : '다시 시도'} icon={<RefreshCw size={14} color={p.textPrimary} />} disabled={a.busy || cooling || !a.model} onPress={() => void submit(a.lastRequest, a.lastPrompt)} /> : null}
+                {a.lastRequest ? <Btn label={cooling ? `다시 시도 · ${leftSec}초` : '다시 시도'} icon={<RefreshCw size={14} color={p.textPrimary} />} disabled={a.busy || cooling || !a.model} onPress={() => void submit(a.lastRequest, a.lastPrompt)} /> : null}
                 {a.lastRequest ? <Btn label="입력으로 가져오기" onPress={() => setDraft(a.lastPrompt || a.lastRequest)} /> : null}
                 {!a.models.length ? <Btn label="다시 연결" disabled={a.connecting} onPress={() => void refresh()} /> : null}
               </View>
@@ -203,7 +246,8 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
       ) : null}
       {notice ? <Text style={[s.notice, { backgroundColor: p.toastBg }]}>{notice}</Text> : null}
       <Composer a={a} autoFocus={autoFocus} onSubmit={() => void submit()} />
-      {variant === 'full' ? <Text style={[s.foot, { color: p.textTertiary }]}>결과는 카드에서 되돌릴 수 있어요</Text> : null}
+      {a.agent ? <Text style={[s.foot, { color: p.textTertiary }]}>{[variant === 'full' ? '꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요' : 'Mac mini에서 돌아가요 · 인터넷은 못 봐요', left].filter(Boolean).join(' · ')}</Text>
+        : variant === 'full' ? <Text style={[s.foot, { color: p.textTertiary }]}>결과는 카드에서 되돌릴 수 있어요</Text> : null}
     </View>
   )
 }
@@ -233,8 +277,20 @@ function EmptyChat({ a, variant, onPick }: { a: AssistantState; variant: 'full' 
       </View>
       <Text style={[s.emptyName, { color: p.textPrimary }]}>{companionName(buddy.species, buddy.name)}</Text>
       <Text style={[s.emptyLv, { color: p.textTertiary }]}>{levelLine(buddy.species, buddy.level, buddy.stage)}</Text>
-      <Text style={[s.emptyOne, { color: p.textSecondary }]}>할 일을 말로 등록하거나, 내 일정과 완료 기록을 물어보세요.</Text>
-      <View style={s.emptyChips}>
+      {a.agent ? (
+        <>
+          <Text style={[s.emptyOne, { color: p.textPrimary }]}>뭐든 물어봐. 내 할 일도, 그냥 수다도.</Text>
+          <Text style={[FONT.meta, { color: p.textTertiary, marginTop: 4 }]}>할 일·일정은 찾아보고 답해요 · 인터넷은 못 봐요</Text>
+          <View style={[s.chips, { justifyContent: 'center', marginTop: 16, paddingHorizontal: 8 }]}>
+            {AGENT_SUGGESTIONS.map((text) => (
+              <Pressable key={text} accessibilityRole="button" disabled={a.busy || !a.model} onPress={() => onPick(text)} style={({ pressed }) => [s.chip, { borderColor: p.borderDivider, backgroundColor: pressed ? p.bgSelected : p.cardBg }, (!a.model || a.busy) && { opacity: 0.5 }]}>
+                <Text style={[s.chipText, { color: p.textPrimary }]}>{text}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </>
+      ) : <Text style={[s.emptyOne, { color: p.textSecondary }]}>할 일을 말로 등록하거나, 내 일정과 완료 기록을 물어보세요.</Text>}
+      {a.agent ? null : <View style={s.emptyChips}>
         {SUGGESTIONS.slice(0, variant === 'sheet' ? 2 : 4).map((text, i) => (
           // 44 §6.7: 제안 = 2열 카드(말랑 아이콘 + 두 줄)
           <Pressable key={text} accessibilityRole="button" disabled={a.busy || !a.model} onPress={() => onPick(text)} style={({ pressed }) => [s.sug, { backgroundColor: pressed ? p.bgSelected : p.bgInput }, (!a.model || a.busy) && { opacity: 0.5 }]}>
@@ -242,7 +298,7 @@ function EmptyChat({ a, variant, onPick }: { a: AssistantState; variant: 'full' 
             <Text style={[s.sugText, { color: p.textPrimary }]} numberOfLines={2}>{text}</Text>
           </Pressable>
         ))}
-      </View>
+      </View>}
     </View>
   )
 }

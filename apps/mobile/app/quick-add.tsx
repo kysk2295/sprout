@@ -54,7 +54,8 @@ function saveKind(k: Kind) {
 }
 
 export default function QuickAdd() {
-  const { view = 'smart:today' } = useLocalSearchParams<{ view?: string }>()
+  // text = 47 확인 카드 [고치기]가 넘기는 글(제목 + 날짜 말) — 빠른 입력 인식이 다시 읽는다
+  const { view = 'smart:today', text: initText } = useLocalSearchParams<{ view?: string; text?: string }>()
   const p = usePalette()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -62,7 +63,7 @@ export default function QuickAdd() {
   const lists = useLists()
   const tags = useTagMeta()
   const titleRef = useRef<TextInput>(null)
-  const [text, setText] = useState(draft.text)
+  const [text, setText] = useState(initText ?? draft.text)
   const [desc, setDesc] = useState(draft.desc)
   const [kind, setKindState] = useState<Kind>(loadKind)
   const setKind = (k: Kind) => { setKindState(k); saveKind(k) }
@@ -74,7 +75,7 @@ export default function QuickAdd() {
   const target = targets.find((c) => c.id === devCal.prefs.lastTarget) ?? null
   const calMenu = useAnchor()
   const isEvent = kind === 'event'
-  const [cursor, setCursor] = useState(draft.text.length)
+  const [cursor, setCursor] = useState((initText ?? draft.text).length)
   const [ignored, setIgnored] = useState<string[]>([])
   const [manual, setManual] = useState<Schedule | null>(null)
   const [priority, setPriority] = useState<number | null>(null)
