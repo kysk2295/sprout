@@ -2,6 +2,14 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-09 휴대폰 일기 v2.1 — 캐릭터와 편하게 이야기하고 일기로 옮기기 (28 §8.9·§8.10, 사용자 스킬 conversational-journal-to-wiki를 따름)
+- **흐름:** 인사(시간대 + 그날 할 일 수) → 기분 얼굴 5개(비·안개·꿀·잎·살구, 보라 없음) → (동의 전이면 대화 안 카드) → 자유 대화(캐릭터는 들은 말을 짚어 알아주고 묻지 않으면 조언 안 함, "조언 지친다"면 멈춤) → 머뭇거리면(20초) 정해진 질문 하나 → `일기로 정리해 줘` → 1인칭 일기 + 제목 + `#감정/#사건/#영역` 태그 초안(캐릭터 말 빠짐, 고치기·다시 정리·대화 그대로) → 저장 = 그날 글 끝에 `## HH:MM — 제목` 편으로 이어 붙임. 혼자 쓰기·나만 보기 = 정해진 질문 3개 + 내 말 그대로(AI 0). 그냥 쓰기(키보드 위 도구 막대, 기기 기억), 지난 날 좌우 밀기·편 카드, 기분 달력 하나(분포·이번 주 돌아보기, 연속·XP 없음).
+- **코드:** `apps/mobile/src/diary/` `talk.ts`(정해진 말·편 나누기·질문·내 말 초안, 시험) · `Conversation.tsx` · `FreeWrite.tsx` · `PastDay.tsx` · `chatParts.tsx` · `keyboard.ts`(useAnimatedKeyboard translateY) · `app/diary/index.tsx`·`calendar.tsx`. 지시문·형식·편 머리는 `packages/schema/src/diaryPrompts.ts`(서버·앱 같이, 시험). 없앤 것: WritePage·Review·chat 화면, 열 때 동의 시트, 종이·하늘 띠·연속 기록.
+- **데이터:** 마이그레이션 없음. 정해진 말은 `diary_messages.safety=2`(데스크톱은 안 보이고 AI에도 안 감), 제목·태그·시각은 일기 글 안의 머리 줄. 데스크톱 일기는 머리·태그 줄을 글자 그대로 보인다(편 보기 [다음]).
+- **서버(배포 필요, 리드):** `server/api/src/ai.ts` `/ai/diary` mode `chat`(용도 diary-chat 하루 30) · `distill`/`polish`(diary-distill 하루 5, 서버 지시·JSON 스키마만) · 예전 답에도 "들은 말만" 규칙. env `AI_DAILY_DIARY_CHAT`·`AI_DAILY_DIARY_DISTILL`. 배포 전에도 앱은 동작(예전 서버는 mode를 몰라 보통 답 — 상한만 배포 뒤부터).
+- **확인:** iOS 시뮬레이터 Release + Mac mini, 시험 계정(@example.com, 삭제함). 영상 scratchpad `diaryimpl/diary-skill-flow.mp4`(새 흐름)·`diary-v2-scripted.mp4`(정해진 질문 흐름) — 세션 임시.
+- **남은 것:** 서버 배포 후 다시 정리 한도(`오늘 정리 N번 남음`) 실기기 확인, 작은 모델이 가끔 존댓말·어색한 말("손을 뭉뚝 끊어버린")을 섞음(모델 쪽), 데스크톱 일기의 편 보기·같은 대화 흐름, 실기기 120Hz 키보드 따라오기 확인, 작은 휴대폰 360·다크 화면 대조.
+
 ## ★ 2026-10-09 브랜드 확정·적용 (45 "추천대로" — 씨앗 친구 × 깊은 숲)
 - **아이콘:** `scripts/brand/glyphs.mjs` `CONCEPTS.seed`(100 판 여러 색 mark + 단색 마스크) → `node scripts/brand/build-icons.mjs seed --apply`(= `sh apps/desktop/build/make-icon.sh`)가 데스크톱 icns·ico·png·svg·트레이, 휴대폰 `assets/brand/*`(iOS 기본·다크·색조, Android 적응형·단색·알림·스플래시), 사이트 파비콘·PWA, `docs/release/store/play-assets/icon-512.png`·`app-store-assets/icon-1024.png`를 덮어쓴다. 원본 SVG `docs/release/brand/kkumteul/`.
 - **글자 로고:** `scripts/brand/wordmark.mjs`(직접 그린 꿈틀·Kkumteul) → `build-marketing.mjs`(원본 SVG·README 배너·Play 그래픽 1024×500). 사이트 머리·바닥·OG도 이 획.
