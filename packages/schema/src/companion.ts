@@ -123,6 +123,7 @@ export function errorFace(error: string, egg?: boolean): CompanionFace {
   if (/^지금은 AI를 쓸 수 없어요/.test(e)) return f('sleepy', '나 지금 잠깐 쉬는 중이야.', null, true)
   if (/연결하지 못했어요|인터넷 연결/.test(e)) return f('sleepy', '연결이 끊겼어. 다시 불러 줘.', null, true)
   if (/너무 오래 걸려요/.test(e)) return f('sleepy', '생각이 너무 길어졌어.')
+  if (/한 번에 너무 많이 찾았어요/.test(e)) return f('puzzled', '너무 많이 찾았어. 조금 좁혀 줄래?', 'tilt')
   if (/너무 잦아요|처리 중인 AI 요청|쓰는 사람이 많아요|이미 사용했어요|바빠서|잠시 뒤 다시 시도/.test(e)) return f('sleepy', '숨 좀 고르고 다시 할게.')
   return f('puzzled', '잘 못 알아들었어.', 'tilt')
 }
