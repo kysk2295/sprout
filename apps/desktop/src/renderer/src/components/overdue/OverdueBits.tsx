@@ -9,6 +9,7 @@ import {
   bandDismissed, cardHidden, dismissBand, hideCard, KEYS, OVERDUE, readSnapshot, restoreRows, runAutoNoDate, snapshotValid, undoCleanup
 } from '../../data/overdue'
 import { now } from '../../data/mutations'
+import { AutoTrashSettingRows } from './AutoTrash'
 import { CleanupDialog } from './CleanupDialog'
 import { openOverdueCleanup, useDeviceFlag, useOpenRequests, useOverdueCount, type OpenOptions } from './hooks'
 import './overdue.css'
@@ -120,6 +121,7 @@ export function OverdueSettings() {
       <div className="settings-card">
         <div className="settings-row"><span>밀린 일 정리<small className="od-set__hint">만료된 할 일을 묶음·같은 일·하나씩으로 다시 정해요</small></span>
           <button className="od-set__btn" onClick={() => openOverdueCleanup()}>열기</button></div>
+        <AutoTrashSettingRows />
         <div className="settings-row"><span>오늘에서 오래된 만료 접기<small className="od-set__hint">{OVERDUE.foldDays}일 넘은 만료를 한 줄로 접어요</small></span>{sw(fold, setFold, '오늘에서 오래된 만료 접기')}</div>
         <div className="settings-row"><span>만료 {OVERDUE.autoDays}일이 지나면 자동으로 날짜 빼기<small className="od-set__hint">켜면 하루에 한 번, 토스트로 알려요</small></span>{sw(auto, setAuto, '자동으로 날짜 빼기')}</div>
         <div className="settings-row"><span>마지막 정리 되돌리기<small className="od-set__hint">{msg || (canUndo ? `${snap!.rows.length}개 · 정리 뒤 ${OVERDUE.undoHours}시간 안` : '되돌릴 정리가 없어요')}</small></span>

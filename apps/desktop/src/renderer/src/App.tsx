@@ -43,6 +43,7 @@ import { DesktopSettings } from './components/DesktopSettings'
 import { ExtAgenda } from './components/calendars/ExtSidebar'
 import { CalendarConnectHost } from './components/calendars/ConnectHost'
 import { OverdueHost, openOverdueCleanup } from './components/overdue/OverdueBits'
+import { AutoTrashNotice } from './components/overdue/AutoTrash'
 import { useLinkSync } from './components/wiki/LinkText'
 import type { OpenTarget } from './data/wiki'
 import { isEventKey, openEventById, requestCalendarDate, requestOpenEvent } from './data/events'
@@ -308,6 +309,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
         <ListSuggestHost />{/* 30 §B AI 리스트 제안: 새 할 일 자동 분류 + 기본함 정리 창 */}
         <TickTickImportHost onOpenMap={() => setView('map')} onOpenCalendar={() => setView('calendar')} />
         <OverdueHost />
+        <AutoTrashNotice onOpenTrash={() => { setView('tasks'); selectView('smart:trash') }} />
         <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={openAssistantItem} offset={view === 'tasks' && detailShown ? detailW : undefined}/>
         <ReminderCards onOpen={(id) => { if (isEventKey(id)) { setView('calendar'); void openEventById(id) } else setSelection([id]) }} onComplete={(id) => void actions.complete([id])} />
         <Rail view={view} onView={onRailView} sync={sync} email={email} onSettings={settings} onHelp={openHelp} onNotice={openNotice} />

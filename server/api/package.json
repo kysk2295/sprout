@@ -6,7 +6,7 @@
   "description": "sprout Node API — 이메일 로그인·JWT 발급(JWKS)·PowerSync 업로드·AI 프록시(Mac mini Ollama)",
   "scripts": {
     "start": "node --experimental-strip-types --no-warnings src/server.ts",
-    "test": "node --experimental-strip-types --no-warnings src/upload.test.ts && node --experimental-strip-types --no-warnings src/auth.test.ts && node --experimental-strip-types --no-warnings src/social.test.ts && node --experimental-strip-types --no-warnings src/ai.test.ts && node --experimental-strip-types --no-warnings src/ratelimit.test.ts && node --experimental-strip-types --no-warnings src/account.test.ts && node --experimental-strip-types --no-warnings src/link.test.ts && node --experimental-strip-types --no-warnings src/push.test.ts && node --experimental-strip-types --no-warnings src/defaultInbox.test.ts"
+    "test": "node --experimental-strip-types --no-warnings src/upload.test.ts && node --experimental-strip-types --no-warnings src/auth.test.ts && node --experimental-strip-types --no-warnings src/social.test.ts && node --experimental-strip-types --no-warnings src/ai.test.ts && node --experimental-strip-types --no-warnings src/ratelimit.test.ts && node --experimental-strip-types --no-warnings src/account.test.ts && node --experimental-strip-types --no-warnings src/link.test.ts && node --experimental-strip-types --no-warnings src/push.test.ts && node --experimental-strip-types --no-warnings src/defaultInbox.test.ts && node --experimental-strip-types --no-warnings src/autoTrash.test.ts"
   },
   "dependencies": {
     "jose": "^6.0.0",

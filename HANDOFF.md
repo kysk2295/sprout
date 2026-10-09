@@ -2,6 +2,14 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-09 만료 2주 지난 할 일 자동 정리 (48, 사용자 요청 "만료됨 2주 지난 거는 자동으로 휴지통으로" — 기본 켬)
+- **규칙(공용 `packages/schema/src/autoTrash.ts`, 시험):** 열린 할 일 중 `마감 날짜 < 오늘 − 14일`(사용자 시간대, 날짜만) → 휴지통(`deleted_at`). 빼는 것: 반복·고정·보관 리스트·진행 중 프로젝트(⚑ 마감 또는 가장 늦은 구성원 마감 ≥ 오늘)·마감 없음·완료/하지 않음·**자동으로 옮겼다가 되살린 일(같은 마감인 동안)**. 하위: 열린 하위와 함께, 열린 하위 중 지켜야 할 것(반복·고정·프로젝트·2주 안 된 마감)이 있으면 부모 건너뜀, 완료한 하위는 그대로. XP·완료 행 안 건드림. 외부 캘린더 일정(events)은 대상 아님.
+- **어디서:** 서버 API 프로세스 `server/api/src/autoTrash.ts`(10분마다, 사용자마다 그 시간대 날짜가 바뀐 뒤 한 번, advisory lock, 한 사용자 = 한 트랜잭션). Postgres에 바로 써서 PowerSync가 모든 기기로. 시간대 = 설정 행 `tz` → 최근 휴대폰 `device_tokens.timezone` → `Asia/Seoul`. `AUTO_TRASH=0`이면 끔.
+- **알림:** 서버가 `view_settings` `autoTrash:batch` 묶음 행(ids·at) → 앱이 다음에 열 때 토스트 `만료된 지 2주 지난 할 일 N개를 휴지통으로 옮겼어요` [보기]·⟲ 한 번(seen 동기화). 되돌리기 = 그 묶음 시각으로 아직 휴지통에 있는 것만. 데스크톱 `components/overdue/AutoTrash.tsx`·`data/autoTrash.ts`, 휴대폰 `src/ui/AutoTrashNotice.tsx`·`src/data/autoTrash.ts`(토스트에 이름 버튼 + 되돌리기 둘 다 보이게 `Toast.tsx` 수정).
+- **설정:** 데스크톱 설정 › 할 일 카드, 휴대폰 설정 › **할 일**(새 칸 `settings/tasks.tsx`). `view_settings` id `autotrash-<사용자 id>`, `options_json {on, tz}`, 행 없으면 켬. 마지막 자동 정리 되돌리기 줄.
+- **배포 필요(리드, 아직 안 함):** ① `server/db/migrations/20261014-auto-trash.sql`(서버 전용 표 `auto_trash_log`·`auto_trash_state`, publication·sync-config 변경 없음, 두 번 돌려도 안전) → ② API 재시작 → 앱은 아무 때나(앱이 먼저여도 문제없음 — 묶음 행이 안 올 뿐). **배포 직후 첫 확인 때 기존 계정의 만료 14일 넘은 할 일이 한꺼번에 휴지통으로 간다**(오너 계정 수백 개 예상, 되돌리기 가능).
+- 시험: schema `autoTrash.test.ts`(시간대 경계·14일 경계·제외·하위·프로젝트) · api `autoTrash.test.ts`(메모리 + `DATABASE_URL`이면 실제 Postgres — 로컬 임시 Postgres로 통과 확인) · desktop `tests/auto-trash.test.ts`(설정 행·본 것·그 묶음만 되돌리기). 남은 것: 배포 뒤 실기기에서 토스트 [보기]·⟲ 손 확인.
+
 ## ★ 2026-10-09 데스크톱 일기 v2 — 휴대폰과 같은 대화형 (15 §10, 28 §8.10 흐름)
 - **배치:** 왼쪽 260(미니 달력·목록, 미리보기 = 첫 편 제목) · 가운데 캐릭터와 대화(아래 기분 얼굴·칩·입력) · 오른쪽 340 `오늘 일기`(저장한 편 카드 = 시각·제목·태그 칩·본문·고치기 / 지금 쓰는 편 = 내 말이 모이는 중 / 초안 카드). 1180 아래는 초안·편 카드가 대화 안, 760 아래 왼쪽 접힘. 머리 ‹ › 날짜 · [오늘] · [그냥 쓰기/대화로](기기 기억 `sprout.diary.mode`) · ⋯(나만 보기·오늘은 혼자·기억하기·나누기 켬/끔·처음부터 다시 묻기·지우기). 세그먼트 `쓰기 · 기분 달력`(분포·이번 주 돌아보기·연 모자이크, 연속·XP 없음).
 - **흐름:** 휴대폰과 똑같다 — 인사 → 기분(1~5 키도) → 대화 안 동의(열 때 창 없음) → 자유 대화(mode chat) / 혼자·나만 보기 = 정해진 질문 3개 → `일기로 정리해 줘`(⌘Enter, mode distill) → 초안 → ⌘Enter 저장 = `## HH:MM — 제목` 편 이어 붙임 → 더 이야기 → 다음 편. Enter 보내기 · ⇧Enter 줄바꿈 · Esc 닫기 · ←/→ 날짜 · T 오늘.

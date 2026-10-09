@@ -17,6 +17,7 @@ import { useReminderNotifications } from '../src/notifications/background'
 import { ThemeProvider, usePalette } from '../src/theme/ThemeProvider'
 import { sheetScreenLayout } from '../src/ui/SheetScrollGuard'
 import { ToastProvider, useToast } from '../src/ui/Toast'
+import { useAutoTrashNotice } from '../src/ui/AutoTrashNotice'
 import { useDeviceCalBridge } from '../src/calendars/bridge'
 import { useDeviceCalLifecycle } from '../src/calendars/store'
 import { WikiIndexProvider } from '../src/wiki/WikiIndex'
@@ -103,5 +104,6 @@ function RootEffects({ signedIn }: { signedIn: boolean }) {
   const toast = useToast()
   useDeviceCalLifecycle(signedIn) // 38: 휴대폰 캘린더 권한·목록(앞으로 올 때 다시)
   useDeviceCalBridge(signedIn, (m) => toast.show(m)) // 38 §6: 이 휴대폰이 주인인 연결된 일정 ⇄ 휴대폰 캘린더
+  useAutoTrashNotice(signedIn) // 48: 서버가 만료 2주 지난 할 일을 휴지통으로 옮겼으면 한 번 알림(보기·되돌리기)
   return null
 }

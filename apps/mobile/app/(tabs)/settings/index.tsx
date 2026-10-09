@@ -79,6 +79,7 @@ export default function Settings() {
           <Cell first label="외관" value={findTheme(themeId)?.name} soft="palette" tone="petal" onPress={() => router.push('/settings/appearance')} />
           <NotificationCell />
           <Cell label="날짜와 시간" value="휴일 · 음력 · 주 번호" soft="week" tone="deep" onPress={() => router.push('/settings/datetime')} />
+          <Cell label="할 일" value="만료 2주 지난 할 일 자동 정리" soft="trash" tone="plain" onPress={() => router.push('/settings/tasks')} />
           <Cell label="캘린더 연동" value={devCalValue} soft="calendar" tone="petal" onPress={() => router.push('/settings/calendars')} />
           <Cell label="리스트 관리" value="스마트 목록 · 보관함" soft="list" tone="sprout" onPress={() => router.push('/lists/manage')} />
         </Cells>

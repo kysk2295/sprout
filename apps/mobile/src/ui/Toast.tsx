@@ -69,13 +69,15 @@ function ToastView({ toast, onClose }: { toast: Toast; onClose: () => void }) {
       <Animated.View style={[s.toast, { backgroundColor: p.toastBg, borderColor: toast.error ? p.danger : 'transparent' }, drag]}>
       {toast.error ? <CircleAlert size={16} color={p.danger} /> : toast.icon === false ? null : <Check size={16} color={p.accentHi} strokeWidth={2.6} />}
       <Text style={s.msg} numberOfLines={2}>{toast.message}</Text>
+      {/* 48: 둘 다 있으면 [이름 버튼] [되돌리기] 나란히(자동 정리 알림 — 보기 · 되돌리기) */}
+      {toast.action ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={toast.action.label} hitSlop={8} onPress={() => { onClose(); toast.action?.onPress() }}>
+          <Text style={[s.undo, { color: p.toastAction }]}>{toast.action.label}</Text>
+        </Pressable>
+      ) : null}
       {toast.undo ? (
         <Pressable accessibilityRole="button" accessibilityLabel="되돌리기" hitSlop={8} onPress={async () => { onClose(); await toast.undo?.() }}>
           <Text style={[s.undo, { color: p.toastAction }]}>되돌리기</Text>
-        </Pressable>
-      ) : toast.action ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={toast.action.label} hitSlop={8} onPress={() => { onClose(); toast.action?.onPress() }}>
-          <Text style={[s.undo, { color: p.toastAction }]}>{toast.action.label}</Text>
         </Pressable>
       ) : null}
       </Animated.View>

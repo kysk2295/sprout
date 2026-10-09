@@ -37,6 +37,7 @@ import { linkedView, linkIdentity, parseProvider, pgLinkStore, unlinkProvider } 
 import { aiConfigFromEnv, createAi, pgUsageStore } from './ai.ts'
 import { createPush, pushConfigFromEnv } from './push.ts'
 import { pgPushStore } from './push-store.ts'
+import { createAutoTrash, pgAutoTrashStore } from './autoTrash.ts'
 import { createFcmSender, fcmConfigFromEnv } from './fcm.ts'
 import { backendFromEnv } from './ai-backend.ts'
 import { TABLES } from '../../../packages/schema/src/index.ts'
@@ -88,6 +89,8 @@ const pushConfig = pushConfigFromEnv()
 const fcm = await fcmConfigFromEnv().catch((e) => { console.error(`[push] FCM 설정 오류 — 푸시 꺼짐: ${(e as Error).message}`); return null })
 const pushStore = pgPushStore(pool, pushConfig.ios)
 const push = createPush({ config: pushConfig, store: pushStore, sender: fcm ? createFcmSender(fcm) : null, auth: userFrom })
+// 48 만료 2주 지난 할 일 자동 정리: 사용자 시간대로 하루 한 번(10분마다 확인). AUTO_TRASH=0이면 끔
+const autoTrash = process.env.AUTO_TRASH === '0' ? null : createAutoTrash({ store: pgAutoTrashStore(pool) })
 
 // 시도 제한(ratelimit.ts, 메모리 — API는 한 대). 한도는 RL_* 환경 변수, IP는 TRUST_PROXY 앞단의 X-Forwarded-For만 믿는다(README)
 const limiter = new RateLimiter()
@@ -390,4 +393,5 @@ createServer(async (req, res) => {
 }).listen(PORT, () => {
   console.log(`sprout api :${PORT} · tables ${Object.keys(TABLES).length} · push ${push.enabled ? 'on' : 'off'}`)
   push.start()
+  autoTrash?.start()
 })
