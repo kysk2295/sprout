@@ -208,8 +208,13 @@ write(
 
 // ── 스토어 ────────────────────────────────────────────
 opaque(m('ios-light'), join(OUT, 'store', 'app-store-1024.png'))
-opaque(m('ios-light'), join(tmp, 'play-1024.png'))
-resize(join(tmp, 'play-1024.png'), mk(join(OUT, 'store', 'play-icon-512.png')), 512) // Play: 512×512, 32비트 PNG, 모서리는 Play가 깎음
+{
+  // Play: 512×512, 32비트(RGBA) PNG — 판이 꽉 차 투명한 곳은 없다, 모서리는 Play가 깎음
+  const p = mk(join(OUT, 'store', 'play-icon-512.png'))
+  resize(m('ios-light'), join(tmp, 'play-512.png'), 512)
+  writeFileSync(p, PNG.sync.write(PNG.sync.read(readFileSync(join(tmp, 'play-512.png'))), { colorType: 6 }))
+  note(p)
+}
 note(join(OUT, 'store', 'play-icon-512.png'))
 {
   // Play 그래픽 이미지 1024×500 — 글자 없는 판(기호만). 글자 로고가 들어간 판은 build-marketing.mjs가 만든다

@@ -2,6 +2,14 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-09 브랜드 확정·적용 (45 "추천대로" — 씨앗 친구 × 깊은 숲)
+- **아이콘:** `scripts/brand/glyphs.mjs` `CONCEPTS.seed`(100 판 여러 색 mark + 단색 마스크) → `node scripts/brand/build-icons.mjs seed --apply`(= `sh apps/desktop/build/make-icon.sh`)가 데스크톱 icns·ico·png·svg·트레이, 휴대폰 `assets/brand/*`(iOS 기본·다크·색조, Android 적응형·단색·알림·스플래시), 사이트 파비콘·PWA, `docs/release/store/play-assets/icon-512.png`·`app-store-assets/icon-1024.png`를 덮어쓴다. 원본 SVG `docs/release/brand/kkumteul/`.
+- **글자 로고:** `scripts/brand/wordmark.mjs`(직접 그린 꿈틀·Kkumteul) → `build-marketing.mjs`(원본 SVG·README 배너·Play 그래픽 1024×500). 사이트 머리·바닥·OG도 이 획.
+- **토큰 00 v2.1:** 기본 강조 `#12715E`(글자도 같은 색), 다크 채움 `#19856B`·글자 `#6EE0C2`(흰 글자 쓰는 버튼 때문에 45 시안의 `#3CC4A2` 대신 — 45 §8), 면·글자 청록 기운 회색, 위험 `#D9343A`, 우선순위 `#D9343A`·`#C98200`·`#4169E8`, `--color-brand-honey/apricot`. 다른 12개 테마 그대로. 위젯 기본 강조도 `#12715E`/`#19856B`(전엔 옛 파랑이 남아 있었음).
+- **사이트:** Railway 재배포 + GitHub Pages(`kysk2295.github.io`) 반영.
+- **리드가 할 것:** ① `app.json` 아이콘·스플래시·알림 색이 바뀌어 **`npx expo prebuild` 후 기기 빌드**(네이티브 ios/android 폴더의 아이콘은 아직 옛것). ② Play Console에 `play-assets/icon-512.png`·`feature-graphic-1024x500.png` 올리기. ③ 맥 위젯 확장은 다음 패키징 때 `npm run widget:build`로 다시 빌드(기본값 색만 바뀜).
+- **남은 것:** 사이트·README·스토어 스크린샷(앱 캡처)이 옛 초록 화면 — 다시 찍기. 휴대폰 성장 화면 XP 알약·새 물건 토스트의 `#22A45D` 하드코딩(성장 QA 작업 파일이라 이번엔 안 건드림). 데스크톱 `widget.test.ts`의 `v3-…` 그림 경로 기대값은 성장 QA 작업(v4)과 같이 고쳐야 함.
+
 ## ★ 2026-10-09 휴대폰 월 보기: 그날 판의 할 일을 끌어 다른 날로 (research 37 [영상 실측] · 39 §4.11)
 - `ui/DayDrag.tsx`(훅 + 행 + 떠 있는 카드·✕) + `CalendarScreen` MonthFull·DayPanel. 길게 눌러 움직이면 끌기 → 판 밖이면 판 닫힘 → 손가락 밑 날짜에 강조색 원 → 놓으면 `moveDates`(토스트 없음), 끄는 동안 + 자리에 ✕(취소). 그대로 떼면 지금 메뉴.
 - 남은 것: 기기에서 손으로 확인(특히 끌지 않고 뗄 때 메뉴), 판 안 순서 바꾸기·화면 끝 달 넘김·일정 행 끌기 [다음].

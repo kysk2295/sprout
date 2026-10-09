@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img alt="platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20iOS%20%7C%20Android-2BAE66?style=flat-square">
+  <img alt="platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20iOS%20%7C%20Android-12715E?style=flat-square">
   <img alt="node" src="https://img.shields.io/badge/node-22-339933?style=flat-square&logo=node.js&logoColor=white">
   <img alt="electron" src="https://img.shields.io/badge/Electron-React%20%2B%20TS-47848F?style=flat-square&logo=electron&logoColor=white">
   <img alt="expo" src="https://img.shields.io/badge/Expo-SDK%2057-000020?style=flat-square&logo=expo&logoColor=white">
