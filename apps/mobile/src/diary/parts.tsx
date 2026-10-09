@@ -77,7 +77,7 @@ export function MonthMoodGrid({ month, entries, today, selected, onPick, cell = 
                   d === selected && d !== today && { borderWidth: 2, borderStyle: 'solid', borderColor: p.textSecondary },
                   future && { opacity: 0.35 }
                 ]}>
-                  <Text style={[s.dnum, { color: d === today ? p.accent : p.textSecondary }]}>{Number(d.slice(8))}</Text>
+                  <Text style={[s.dnum, { color: d === today ? p.accentInk : p.textSecondary }]}>{Number(d.slice(8))}</Text>
                   {m ? <MoodFace mood={m.value} size={cell >= 48 ? 21 : 16} /> : written ? <PaperIcon size={cell >= 48 ? 20 : 15} paper={c.paper} line={p.textQuaternary} /> : null}
                 </View>
               </Pressable>

@@ -117,7 +117,7 @@ export default function TidyScreen() {
             </Text>
             {x ? (
               <View style={s.sugRow}>
-                <Text style={{ color: p.accent, fontSize: 13, fontWeight: '600', flexShrink: 1 }} numberOfLines={1}>→ {targetName(x.to)}{x.to.kind === 'project' ? ' (프로젝트)' : ''}</Text>
+                <Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '600', flexShrink: 1 }} numberOfLines={1}>→ {targetName(x.to)}{x.to.kind === 'project' ? ' (프로젝트)' : ''}</Text>
                 <Pressable onPress={() => yes(x)} accessibilityRole="button" style={[s.yes, { backgroundColor: p.accent }]}><Text style={{ color: '#fff', fontSize: 12.5, fontWeight: '700' }}>좋아</Text></Pressable>
                 <Pressable onPress={() => no(x)} accessibilityRole="button" style={[s.yes, { backgroundColor: p.bgSelected }]}><Text style={{ color: p.textSecondary, fontSize: 12.5, fontWeight: '600' }}>아니</Text></Pressable>
               </View>
@@ -131,7 +131,7 @@ export default function TidyScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
       <View style={[s.nav, { marginTop: insets.top }]}>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="뒤로" style={s.back} hitSlop={6}><ChevronLeft size={24} color={p.accent} /><Text style={{ color: p.accent, fontSize: 17 }}>뒤로</Text></Pressable>
+        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="뒤로" style={s.back} hitSlop={6}><ChevronLeft size={24} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 17 }}>뒤로</Text></Pressable>
       </View>
       <Text style={[s.title, { color: p.textPrimary }]}>정리</Text>
       {!data.loaded ? null : allClear ? (
@@ -139,7 +139,7 @@ export default function TidyScreen() {
           <Buddy size={96} mood="happy" still />
           <Text style={{ color: p.textPrimary, fontSize: 22, fontWeight: '700' }}>다 정리했어!</Text>
           <Text style={{ color: p.textTertiary, fontSize: 13.5 }}>{TIDY_TABS.map((t) => `${TAB_LABEL[t]} 0`).join(' · ')}</Text>
-          {xpRow.length ? <View style={[s.xp, { backgroundColor: p.accentSubtle }]}><Text style={{ color: p.accent, fontWeight: '700' }}>정리 보너스 +{XP.tidy} XP</Text></View> : null}
+          {xpRow.length ? <View style={[s.xp, { backgroundColor: p.accentSubtle }]}><Text style={{ color: p.accentInk, fontWeight: '700' }}>정리 보너스 +{XP.tidy} XP</Text></View> : null}
           <Pressable onPress={() => router.push('/map')} accessibilityRole="button" style={[s.big, { backgroundColor: p.accent, alignSelf: 'stretch', marginTop: 8 }]}><Text style={s.bigT}>작업 지도 보기</Text></Pressable>
         </View>
       ) : (
@@ -163,7 +163,7 @@ export default function TidyScreen() {
                   <View style={s.ghead}>
                     <Text style={{ color: p.textSecondary, fontSize: 13, fontWeight: '700', flex: 1 }}>{g.label} {g.tasks.length}</Text>
                     <Pressable onPress={() => { const ids = g.tasks.map((t) => t.id); const all = ids.every((id) => sel.includes(id)); setSel((x) => all ? x.filter((y) => !ids.includes(y)) : [...new Set([...x, ...ids])]) }} hitSlop={8} accessibilityRole="button">
-                      <Text style={{ color: p.accent, fontSize: 13, fontWeight: '600' }}>{g.tasks.every((t) => sel.includes(t.id)) ? '고름 풀기' : '모두 고르기'}</Text>
+                      <Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '600' }}>{g.tasks.every((t) => sel.includes(t.id)) ? '고름 풀기' : '모두 고르기'}</Text>
                     </Pressable>
                   </View>
                 ) : null}
@@ -173,7 +173,7 @@ export default function TidyScreen() {
             {props.length && !sel.length ? (
               <View style={s.applyRow}>
                 <Pressable onPress={() => void applyAll()} accessibilityRole="button" style={[s.big, { backgroundColor: p.accent, flex: 1 }]}><Text style={s.bigT}>제안 {props.length}개 모두 옮기기</Text></Pressable>
-                <Pressable onPress={() => setOne((v) => !v)} accessibilityRole="button" hitSlop={8}><Text style={{ color: p.accent, fontSize: 14, fontWeight: '600', padding: 8 }}>{one ? '모두 보기' : '하나씩 볼래'}</Text></Pressable>
+                <Pressable onPress={() => setOne((v) => !v)} accessibilityRole="button" hitSlop={8}><Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '600', padding: 8 }}>{one ? '모두 보기' : '하나씩 볼래'}</Text></Pressable>
               </View>
             ) : null}
           </ScrollView>
@@ -228,7 +228,7 @@ function MoveSheet({ ids, data, onClose, onPick }: { ids: string[] | null; data:
               <View style={s.pills}>
                 {data.projects.map(({ tag, count }) => (
                   <Pressable key={tag.id} onPress={() => onPick({ kind: 'project', id: tag.id })} accessibilityRole="button" style={[s.pill, { backgroundColor: p.accentSubtle }]}>
-                    <Text style={{ color: p.accent, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>{tag.name} <Text style={{ fontWeight: '400' }}>{count}</Text></Text>
+                    <Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>{tag.name} <Text style={{ fontWeight: '400' }}>{count}</Text></Text>
                   </Pressable>
                 ))}
               </View>

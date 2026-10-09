@@ -40,9 +40,9 @@ export function DetailTags({ taskId, onAdd }: { taskId: string; onAdd: () => voi
       {tags.map((t) => (
         <View key={t.id} style={[s.chip, { backgroundColor: p.accentSubtle }]}>
           <Pressable accessibilityRole="button" accessibilityLabel={`${t.auto ? 'AI가 붙인 ' : ''}태그 ${t.name} 페이지`} onPress={() => openView(router, `tag:${t.id}`)} style={s.name}>
-            {t.auto ? <Text style={[s.ai, { color: p.accent }]}>✦</Text> : null}
+            {t.auto ? <Text style={[s.ai, { color: p.accentInk }]}>✦</Text> : null}
             <KindGlyph kind={t.kind} size={12} color={p.accent} />
-            <Text style={{ color: p.accent, fontSize: 13, fontWeight: '500' }} numberOfLines={1}>{t.name}</Text>
+            <Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '500' }} numberOfLines={1}>{t.name}</Text>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={`태그 ${t.name} 떼기`} hitSlop={8} onPress={() => void remove(t)} style={s.x}>
             <X size={13} color={p.accent} />

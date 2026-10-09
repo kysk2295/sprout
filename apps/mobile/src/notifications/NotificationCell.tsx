@@ -1,6 +1,5 @@
 // 설정 › "소리와 알림" 칸(20 §4.4, 32 §7.1): 켜짐/꺼짐 표시. 누르면 소리와 알림 화면으로(아직 안 물었으면 먼저 권한을 묻는다).
 import { useFocusEffect, useRouter } from 'expo-router'
-import { Bell } from 'lucide-react-native'
 import { useCallback, useState } from 'react'
 import { AppState } from 'react-native'
 import { Cell } from '../ui/Cells'
@@ -22,8 +21,8 @@ export function NotificationCell({ first }: { first?: boolean }) {
       first={first}
       label="소리와 알림"
       value={value}
-      icon={<Bell size={18} color="#fff" />}
-      iconBg="#f0464a"
+      soft="bell"
+      tone="sun"
       onPress={async () => {
         if (state === 'undetermined') { await ensurePermission(); refresh() }
         router.push('/settings/notifications')

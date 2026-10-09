@@ -59,7 +59,7 @@ export default function CalendarSettings() {
             </Pressable>
             {denied && st.perm?.canAskAgain ? (
               <Pressable accessibilityRole="button" onPress={() => void openAppSettings()} style={s.link}>
-                <Text style={[FONT.sub, { color: p.accent }]}>설정 열기</Text>
+                <Text style={[FONT.sub, { color: p.accentInk }]}>설정 열기</Text>
               </Pressable>
             ) : null}
           </View>

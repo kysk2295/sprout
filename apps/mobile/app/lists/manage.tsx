@@ -50,7 +50,7 @@ export default function ManageLists() {
               chevron={false}
               right={
                 <View style={{ flexDirection: 'row', gap: 16 }}>
-                  <Text accessibilityRole="button" onPress={() => void archiveList(l.id, false).then(() => toast.show(`"${l.name}"을(를) 복원했어요`))} style={{ color: p.accent, fontSize: 15 }}>복원</Text>
+                  <Text accessibilityRole="button" onPress={() => void archiveList(l.id, false).then(() => toast.show(`"${l.name}"을(를) 복원했어요`))} style={{ color: p.accentInk, fontSize: 15 }}>복원</Text>
                   <Text
                     accessibilityRole="button"
                     onPress={() => Alert.alert(`"${l.name}" 리스트를 삭제할까요?`, '안의 할 일은 휴지통으로 옮겨져요.', [{ text: '취소', style: 'cancel' }, { text: '삭제', style: 'destructive', onPress: () => void deleteList(l.id) }])}

@@ -110,30 +110,47 @@ export const M = {
   tabBottom: 16,
   gutter: 16,
   cardInset: 16,
-  cardGap: 16,
+  cardGap: 12, // 44 §3.5 카드 사이 12
   groupH: 48,
   rowH: 48,
   rowH2: 62,
   rowPad: 18,
-  check: 17,
+  check: 22, // 44 §4 체크 칸 22 · 모서리 7
   fab: 60,
   fabRight: 20,
   fabGap: 17,
   navBtn: 42,
-  radiusSheet: 22,
-  radiusCard: 14,
+  radiusSheet: 20, // 44 §3.3 r-lg
+  radiusCard: 18, // 44 §4 묶음 카드
   radiusMenu: 20,
   tap: 44
 } as const
 
 export const FONT = {
-  large: { fontSize: 30, lineHeight: 36, fontWeight: '700' as const },
-  title: { fontSize: 28, lineHeight: 34, fontWeight: '700' as const },
+  // 44 §3.2: 큰 제목 800 30/36(자간 −2.5%), 카드 머리 15/700
+  large: { fontSize: 30, lineHeight: 36, fontWeight: '800' as const, letterSpacing: -0.75 },
+  title: { fontSize: 30, lineHeight: 36, fontWeight: '800' as const, letterSpacing: -0.75 },
   nav: { fontSize: 17, lineHeight: 22, fontWeight: '600' as const },
   detailTitle: { fontSize: 20, lineHeight: 27, fontWeight: '600' as const },
   body: { fontSize: 16, lineHeight: 22, fontWeight: '400' as const },
   bodyStrong: { fontSize: 16, lineHeight: 22, fontWeight: '600' as const },
   sub: { fontSize: 14, lineHeight: 20, fontWeight: '400' as const },
   meta: { fontSize: 12, lineHeight: 16, fontWeight: '400' as const },
-  group: { fontSize: 15, lineHeight: 20, fontWeight: '600' as const }
+  group: { fontSize: 15, lineHeight: 20, fontWeight: '700' as const },
+  /** 44 §3.2 h2 — 시트 제목·카드 머리 */
+  h2: { fontSize: 20, lineHeight: 26, fontWeight: '700' as const, letterSpacing: -0.35 },
+  /** 빈 상태 제목 17/650 */
+  emptyTitle: { fontSize: 17, lineHeight: 24, fontWeight: '600' as const, letterSpacing: -0.2 }
+}
+
+/** 44 §3.3 모서리(휴대폰) */
+export const R = { xs: 6, sm: 10, md: 14, lg: 20, xl: 28, card: 18, check: 7 } as const
+
+/** 44 §3.4 그림자 — 라이트는 초록 기운 남색 그림자, 다크는 그림자 대신 1px 선(호출하는 쪽이 borderWidth로) */
+export function shadow(p: { dark: boolean; accent: string }, kind: 'card' | 'float' | 'sheet' | 'accent') {
+  if (kind === 'accent') return { shadowColor: p.accent, shadowOpacity: p.dark ? 0.22 : 0.32, shadowRadius: 9, shadowOffset: { width: 0, height: 6 }, elevation: 8 }
+  if (p.dark) return kind === 'card' ? {} : { shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: kind === 'sheet' ? 25 : 14, shadowOffset: { width: 0, height: kind === 'sheet' ? 20 : 6 }, elevation: kind === 'sheet' ? 20 : 10 }
+  if (kind === 'card') return { shadowColor: '#12281a', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 1 }
+  if (kind === 'float') return { shadowColor: '#12281a', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 10 }, elevation: 6 }
+  return { shadowColor: '#12281a', shadowOpacity: 0.14, shadowRadius: 30, shadowOffset: { width: 0, height: 24 }, elevation: 20 }
 }

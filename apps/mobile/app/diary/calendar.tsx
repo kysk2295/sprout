@@ -28,7 +28,7 @@ export default function DiaryCalendar() {
         <Text style={[s.title, { color: p.textPrimary }]}>{month.slice(0, 4)}년 {Number(month.slice(5))}월</Text>
         <Pressable disabled={!canNext} onPress={() => setMonth(shift(month, 1))} accessibilityLabel="다음 달" hitSlop={8} style={[s.arrow, !canNext && { opacity: 0.3 }]}><ChevronRight size={22} color={p.textPrimary} /></Pressable>
         <View style={{ flex: 1 }} />
-        <Pressable onPress={() => { openDay(today); router.back() }} hitSlop={8}><Text style={{ color: p.accent, fontSize: 15, fontWeight: '600' }}>오늘</Text></Pressable>
+        <Pressable onPress={() => { openDay(today); router.back() }} hitSlop={8}><Text style={{ color: p.accentInk, fontSize: 15, fontWeight: '600' }}>오늘</Text></Pressable>
       </View>
       <View style={{ paddingHorizontal: 12 }}>
         <MonthMoodGrid month={month} entries={entries} today={today} selected={date} onPick={(d) => { openDay(d); router.back() }} />

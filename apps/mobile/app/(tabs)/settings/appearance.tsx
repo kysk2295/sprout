@@ -49,7 +49,7 @@ export default function Appearance() {
                     </View>
                     {on ? <View style={[s.ck, { backgroundColor: p.accent }]}><Check size={11} color="#fff" strokeWidth={3} /></View> : null}
                   </View>
-                  <Text style={{ fontSize: 12, color: on ? p.accent : p.textSecondary, fontWeight: on ? '600' : '400' }}>{t.name}</Text>
+                  <Text style={{ fontSize: 12, color: on ? p.accentInk : p.textSecondary, fontWeight: on ? '600' : '400' }}>{t.name}</Text>
                 </Pressable>
               )
             })}

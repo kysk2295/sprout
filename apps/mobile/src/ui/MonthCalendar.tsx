@@ -1,4 +1,4 @@
-// 날짜 시트 달력(시안 E .cal-mini, 03 §3): 머리 ‹ 2026년 10월 ›, 주 시작 설정(기본 일요일 — 06 §16.1) 6주 고정, 오늘 = 강조색 글자, 선택 = 강조색 원.
+// 날짜 시트 달력(시안 E .cal-mini, 03 §3): 머리 ‹ 2026년 10월 ›, 주 시작 설정(기본 일요일 — 06 §16.1) 6주 고정, 오늘 = 강조 옅은 원 + 강조 글자, 선택 = 강조색 원(44 §4).
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { usePalette } from '../theme/ThemeProvider'
@@ -37,12 +37,12 @@ export function MonthCalendar({ month, onMonth, today, selected, range = [], onP
           const mk = marks(d, false)
           return (
             <Pressable key={d} accessibilityRole="button" accessibilityLabel={d} accessibilityHint={mk.holiday ?? undefined} accessibilityState={{ selected: sel }} onPress={() => onPick(d)} style={s.cellWrap}>
-              <View style={[s.cell, sel && { backgroundColor: p.accent }, inRange && { backgroundColor: p.accentSubtle }]}>
+              <View style={[s.cell, isToday && !sel && { backgroundColor: p.accentSubtle }, sel && { backgroundColor: p.accent }, inRange && { backgroundColor: p.accentSubtle }]}>
                 <Text style={[
                   s.day,
                   { color: other ? p.calOther : sun || mk.holiday ? p.holiday : sat ? p.saturday : p.textPrimary },
-                  isToday && { color: p.accent, fontWeight: '600' },
-                  sel && { color: '#fff', fontWeight: '600' }
+                  isToday && { color: p.accentInk, fontWeight: '700' },
+                  sel && { color: p.onAccent, fontWeight: '700' }
                 ]}>{Number(d.slice(8))}</Text>
                 
               </View>
@@ -55,7 +55,7 @@ export function MonthCalendar({ month, onMonth, today, selected, range = [], onP
 }
 const s = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, paddingTop: 4, paddingBottom: 10 },
-  title: { fontSize: 16, lineHeight: 22, fontWeight: '600' },
+  title: { fontSize: 16, lineHeight: 22, fontWeight: '700' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 4 },
   wd: { width: `${100 / 7}%`, textAlign: 'center', fontSize: 11, lineHeight: 16, paddingBottom: 4 },
   cellWrap: { width: `${100 / 7}%`, alignItems: 'center' },

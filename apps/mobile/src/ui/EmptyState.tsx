@@ -8,6 +8,7 @@ import { CompanionFace } from './CompanionFace'
 import { popIn } from './motion'
 import Svg, { Circle, Ellipse, Path } from 'react-native-svg'
 import { FONT } from '../theme/palette'
+import { SoftIcon, type SoftIconName } from './SoftIcon'
 import { usePalette } from '../theme/ThemeProvider'
 
 export function SproutPot({ size = 150 }: { size?: number }) {
@@ -31,13 +32,14 @@ export function SproutPot({ size = 150 }: { size?: number }) {
 
 // 39 §4.1-5·§4.8: 나타날 때 옅게 + 0.96 → 1(250ms). 첫 화면에서는 animate=false로 바로
 const appear = popIn(0.96)
-export function EmptyState({ title, sub, animate = true }: { title: string; sub?: string; animate?: boolean }) {
+// 44 §4: 말랑 아이콘 88 + 제목 17/650 + 회색 한 줄(배치 그대로)
+export function EmptyState({ title, sub, animate = true, icon = 'list' }: { title: string; sub?: string; animate?: boolean; icon?: SoftIconName }) {
   const p = usePalette()
   return (
     <Animated.View entering={animate ? appear : undefined} style={s.wrap}>
-      <SproutPot />
-      <Text style={[s.title, { color: p.textPrimary }]}>{title}</Text>
-      {sub ? <Text style={[FONT.meta, { color: p.textTertiary, textAlign: 'center' }]}>{sub}</Text> : null}
+      <SoftIcon name={icon} size={88} day={icon === 'today' ? new Date().getDate() : undefined} />
+      <Text style={[FONT.emptyTitle, s.title, { color: p.textPrimary }]}>{title}</Text>
+      {sub ? <Text style={[s.sub, { color: p.textTertiary }]}>{sub}</Text> : null}
     </Animated.View>
   )
 }
@@ -52,13 +54,14 @@ export function CompanionEmpty({ kind, todayDone, animate = true }: { kind: 'tod
   return (
     <Animated.View entering={animate ? appear : undefined} style={s.wrap}>
       <CompanionFace species={buddy.species} stage={buddy.stage} size={COMPANION_SIZE.m} mood={kind === 'done' ? 'content' : 'smile'} play={{ move: 'hop', n }} onPress={() => setN((x) => x + 1)} label={companionLabel(buddy.species, buddy.name, buddy.level, buddy.stage)} />
-      <Text style={[s.title, { color: p.textPrimary }]}>{kind === 'done' ? '모두 완료했어요' : '오늘 할 일이 없어요'}</Text>
-      <Text accessibilityLiveRegion="polite" style={[FONT.meta, { color: p.textTertiary, textAlign: 'center' }]}>{lines[n % lines.length]}</Text>
+      <Text style={[FONT.emptyTitle, s.title, { color: p.textPrimary }]}>{kind === 'done' ? '모두 완료했어요' : '오늘 할 일이 없어요'}</Text>
+      <Text accessibilityLiveRegion="polite" style={[s.sub, { color: p.textTertiary }]}>{lines[n % lines.length]}</Text>
     </Animated.View>
   )
 }
 
 const s = StyleSheet.create({
   wrap: { alignItems: 'center', gap: 6, paddingTop: 70, paddingHorizontal: 40 },
-  title: { fontSize: 15, lineHeight: 21, fontWeight: '500', marginTop: 10 }
+  title: { marginTop: 10, textAlign: 'center' },
+  sub: { fontSize: 13, lineHeight: 18, fontWeight: '500', textAlign: 'center' }
 })

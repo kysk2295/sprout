@@ -65,7 +65,7 @@ function ToastView({ toast, onClose }: { toast: Toast; onClose: () => void }) {
     <GestureDetector gesture={pan}>
     <Animated.View entering={enter} exiting={leave} style={[s.pos, { bottom }]} accessibilityLiveRegion="polite">
       <Animated.View style={[s.toast, { backgroundColor: p.toastBg, borderColor: toast.error ? p.danger : 'transparent' }, drag]}>
-      {toast.error ? <CircleAlert size={16} color={p.danger} /> : toast.icon === false ? null : <Check size={16} color="#fff" />}
+      {toast.error ? <CircleAlert size={16} color={p.danger} /> : toast.icon === false ? null : <Check size={16} color={p.accentHi} strokeWidth={2.6} />}
       <Text style={s.msg} numberOfLines={2}>{toast.message}</Text>
       {toast.undo ? (
         <Pressable accessibilityRole="button" accessibilityLabel="되돌리기" hitSlop={8} onPress={async () => { onClose(); await toast.undo?.() }}>
@@ -83,7 +83,7 @@ function ToastView({ toast, onClose }: { toast: Toast; onClose: () => void }) {
 }
 const s = StyleSheet.create({
   pos: { position: 'absolute', left: 16, right: 16, zIndex: 100, elevation: 12 },
-  toast: { minHeight: 48, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 16, paddingRight: 8, borderWidth: 1, zIndex: 100, elevation: 12, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
-  msg: { flex: 1, color: '#fff', fontSize: 14, lineHeight: 20, paddingVertical: 14 },
-  undo: { fontSize: 14, fontWeight: '600', paddingHorizontal: 10, paddingVertical: 12 }
+  toast: { minHeight: 48, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 16, paddingRight: 8, borderWidth: 1, zIndex: 100, elevation: 12, shadowColor: '#12281a', shadowOpacity: 0.22, shadowRadius: 18, shadowOffset: { width: 0, height: 10 } }, // 44 §4: 짙은 둥근 사각 18 + sh-3
+  msg: { flex: 1, color: '#fff', fontSize: 14, lineHeight: 20, fontWeight: '500', paddingVertical: 14 },
+  undo: { fontSize: 14, fontWeight: '700', paddingHorizontal: 10, paddingVertical: 12 }
 })

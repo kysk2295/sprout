@@ -92,7 +92,7 @@ export default function DeviceEventSheet() {
           style={s.dateRow}
         >
           <Clock size={18} color={p.textTertiary} />
-          <Text style={[FONT.body, { fontSize: 15, color: w ? p.accent : p.textSecondary, flexShrink: 1 }]}>{eventSheetLabel(span.start_at, span.end_at)}</Text>
+          <Text style={[FONT.body, { fontSize: 15, color: w ? p.accentInk : p.textSecondary, flexShrink: 1 }]}>{eventSheetLabel(span.start_at, span.end_at)}</Text>
           {ref.recurring ? <Repeat size={15} color={w ? p.accent : p.textTertiary} /> : null}
         </Pressable>
 

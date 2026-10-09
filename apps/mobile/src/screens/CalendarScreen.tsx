@@ -37,6 +37,7 @@ import { usePalette } from '../theme/ThemeProvider'
 import { useEventMenu } from '../ui/EventMenu'
 import { EventRowView } from '../ui/EventRow'
 import { afterMenu } from '../ui/Drawer'
+import { SoftIcon } from '../ui/SoftIcon'
 import { EmptyState } from '../ui/EmptyState'
 import { GlassButton } from '../ui/Glass'
 import { SheetHead } from '../ui/SheetHead'
@@ -367,7 +368,7 @@ function YearView(props: { year: string; today: string; items: Item[]; ws: WeekS
           const days = monthDays(m, props.ws)
           return (
             <Pressable key={m} accessibilityRole="button" accessibilityLabel={`${i + 1}월`} onPress={() => props.onPick(m)} style={({ pressed }) => [s.ym, pressed && { opacity: 0.6 }]}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: m.slice(0, 7) === props.today.slice(0, 7) ? p.accent : p.textPrimary, marginBottom: 4 }}>{i + 1}월</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: m.slice(0, 7) === props.today.slice(0, 7) ? p.accentInk : p.textPrimary, marginBottom: 4 }}>{i + 1}월</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', width: cellW * 7 }}>
                 {days.map((d) => {
                   const other = d.slice(0, 7) !== m.slice(0, 7)
@@ -689,9 +690,9 @@ function DayPanel(props: { day: string; today: string; items: Item[]; onCheck: (
         </View>
       )) : (
         <Animated.View entering={dayEmptyIn} style={s.panelEmpty}>
-          <CalendarArt />
-          <Text style={{ fontSize: 15, fontWeight: '500', color: p.textPrimary, marginTop: 14 }}>이 날에는 일정이 없어요</Text>
-          <Text style={[FONT.meta, { color: p.textTertiary, marginTop: 4 }]}>편하게 해요</Text>
+          <SoftIcon name="calendar" size={64} />
+          <Text style={[FONT.emptyTitle, { fontSize: 15, color: p.textPrimary, marginTop: 12 }]}>이 날에는 일정이 없어요</Text>
+          <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '500', color: p.textTertiary, marginTop: 2 }}>편하게 해요</Text>
         </Animated.View>
       )}
     </ScrollView>
@@ -764,8 +765,8 @@ const DayCell = memo(function DayCell(props: CellProps) {
       style={[s.cell, props.tint && { backgroundColor: alpha(p.accent.slice(0, 7), 0.14), borderRadius: 8 }]}
     >
       {/* [영상 실측 research 35 §3] 고른 날 = 강조색 채운 원 + 흰 숫자, 오늘(안 고름) = 옅은 원 + 강조색 숫자. 그날 판이 열리면 고른 칸 전체에 옅은 강조색 면 */}
-      <View style={[s.num, big && s.numBig, props.sel ? { backgroundColor: p.accent } : props.isToday ? { backgroundColor: p.dark ? '#ffffff' : alpha(p.accent.slice(0, 7), 0.14) } : null]}>
-        <Text style={{ fontSize: big ? 14 : 12, fontWeight: props.isToday || props.sel ? '700' : '500', color: props.sel ? '#fff' : props.isToday ? p.accent : dayTone(p, d, mk, props.faded) }}>{Number(d.slice(8))}</Text>
+      <View style={[s.num, big && s.numBig, props.sel ? { backgroundColor: p.accent } : props.isToday ? { backgroundColor: p.accentSubtle } : null]}>
+        <Text style={{ fontSize: big ? 14 : 12, fontWeight: props.isToday || props.sel ? '700' : '500', color: props.sel ? p.onAccent : props.isToday ? p.accentInk : dayTone(p, d, mk, props.faded) }}>{Number(d.slice(8))}</Text>
       </View>
       <View style={{ marginTop: -1, opacity: props.faded ? 0.55 : 1 }}><SideLabel marks={mk} /></View>
       {shown.map((it) => {
@@ -819,7 +820,7 @@ function DayList(props: { day: string; today: string; items: Item[]; onCheck: (t
         ) : (
           <Pressable accessibilityRole="button" onPress={props.onAdd} style={s.dayEmpty}>
             <Text style={[FONT.sub, { color: p.textTertiary }]}>{agendaTitle(props.day, props.today)} · 할 일·일정이 없어요</Text>
-            <Text style={[FONT.sub, { color: p.accent, marginTop: 4 }]}>+ 추가</Text>
+            <Text style={[FONT.sub, { color: p.accentInk, marginTop: 4 }]}>+ 추가</Text>
           </Pressable>
         )}
       </Animated.ScrollView>
@@ -895,7 +896,7 @@ function Timeline(props: {
               return (
                 <Pressable key={d} accessibilityLabel={`${weekdayKo(d)} ${Number(d.slice(8))}${mk.holiday ? `, ${mk.holiday}` : ''}`} onPress={() => props.onPick(d)} style={{ width: colW, alignItems: 'center', paddingVertical: 6 }}>
                   <View>
-                    <Text style={{ fontSize: 12, color: d === props.today ? p.accent : dayTone(p, d, mk, false, p.textTertiary), fontWeight: d === props.today ? '700' : '400' }}>{`${weekdayKo(d)} ${Number(d.slice(8))}`}</Text>
+                    <Text style={{ fontSize: 12, color: d === props.today ? p.accentInk : dayTone(p, d, mk, false, p.textTertiary), fontWeight: d === props.today ? '700' : '400' }}>{`${weekdayKo(d)} ${Number(d.slice(8))}`}</Text>
                   </View>
                   <SideLabel marks={mk} size={9.5} />
                 </Pressable>
@@ -1081,7 +1082,7 @@ function UndatedSheet(props: { open: boolean; day: string; today: string; onClos
                 </View>
               ))}
             </View>
-          ) : <EmptyState title="날짜 없는 할 일이 없어요" />}
+          ) : <EmptyState icon="calendar" title="날짜 없는 할 일이 없어요" />}
         </ScrollView>
       </View>
     </Modal>
@@ -1104,11 +1105,11 @@ const s = StyleSheet.create({
   prow: { paddingHorizontal: 4 },
   abs: { position: 'absolute', left: 0, right: 0, top: 0 },
   panelEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 24 },
-  bar: { borderRadius: 3, paddingHorizontal: 3, flexDirection: 'row', alignItems: 'center', gap: 2, overflow: 'hidden' },
-  barBig: { height: 16, borderRadius: 3, paddingHorizontal: 3, flexDirection: 'row', alignItems: 'center', gap: 2, overflow: 'hidden' },
+  bar: { borderRadius: 4, paddingHorizontal: 3, flexDirection: 'row', alignItems: 'center', gap: 2, overflow: 'hidden' },
+  barBig: { height: 16, borderRadius: 4, paddingHorizontal: 3, flexDirection: 'row', alignItems: 'center', gap: 2, overflow: 'hidden' },
   barText: { flex: 1, fontSize: 10, lineHeight: 13 },
   barTextBig: { flex: 1, fontSize: 11, lineHeight: 14, fontWeight: '600' },
-  moreChip: { alignSelf: 'flex-start', borderRadius: 3, paddingHorizontal: 4 },
+  moreChip: { alignSelf: "flex-start", borderRadius: 4, paddingHorizontal: 4 },
   dayEmpty: { alignItems: 'center', paddingVertical: 28 },
   strip: { flexDirection: 'row', paddingHorizontal: 6, paddingBottom: 4 },
   stripDay: { flex: 1, alignItems: 'center', gap: 3 },

@@ -149,7 +149,7 @@ export function DateSheet({ initial, onDone, onClose, scroll = true, datesOnly =
               return (
                 <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: on }} onPress={() => onDone(quickSchedule(d, date, time))} style={s.q}>
                   <Icon size={26} color={on ? p.accent : p.textPrimary} />
-                  <Text style={{ fontSize: 11, lineHeight: 14, color: on ? p.accent : p.textSecondary }}>{label}</Text>
+                  <Text style={{ fontSize: 11, lineHeight: 14, color: on ? p.accentInk : p.textSecondary }}>{label}</Text>
                 </Pressable>
               )
             })}
@@ -219,11 +219,11 @@ function DurationBody(props: {
         <View style={[s.row, k === 'ed' && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }]}>
           <Text style={[FONT.body, { width: 44, color: p.textPrimary }]}>{label}</Text>
           <Pressable accessibilityRole="button" accessibilityLabel={`${label} 날짜`} onPress={() => { setMonth(v.slice(0, 7)); toggle(k) }} style={[s.field, { backgroundColor: open === k ? p.accentSubtle : p.bgSelected }]}>
-            <Text style={{ fontSize: 15, color: open === k ? p.accent : p.textPrimary }}>{fmt(v)}</Text>
+            <Text style={{ fontSize: 15, color: open === k ? p.accentInk : p.textPrimary }}>{fmt(v)}</Text>
           </Pressable>
           {!allDay ? (
             <Pressable accessibilityRole="button" accessibilityLabel={`${label} 시간`} onPress={() => toggle(tk)} style={[s.field, { backgroundColor: open === tk ? p.accentSubtle : p.bgSelected }]}>
-              <Text style={{ fontSize: 15, color: open === tk ? p.accent : p.textPrimary }}>{timePart(v)}</Text>
+              <Text style={{ fontSize: 15, color: open === tk ? p.accentInk : p.textPrimary }}>{timePart(v)}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -314,7 +314,7 @@ function Row({ icon, label, value, accent, onPress, onClear, first = true }: { i
       {icon}
       <Text style={[FONT.body, { color: p.textPrimary }]}>{label}</Text>
       <View style={{ flex: 1 }} />
-      <Text style={[FONT.sub, { color: accent ? p.accent : p.textTertiary, flexShrink: 1 }]} numberOfLines={1}>{value}</Text>
+      <Text style={[FONT.sub, { color: accent ? p.accentInk : p.textTertiary, flexShrink: 1 }]} numberOfLines={1}>{value}</Text>
       {onClear ? (
         <Pressable accessibilityRole="button" accessibilityLabel={`${label} 지우기`} hitSlop={8} onPress={onClear}><X size={14} color={p.textTertiary} /></Pressable>
       ) : <ChevronsUpDown size={14} color={p.textTertiary} />}
@@ -325,7 +325,7 @@ function Sub({ label, hint, on, accent, onPress }: { label: string; hint?: strin
   const p = usePalette()
   return (
     <Pressable accessibilityRole="button" accessibilityState={{ selected: !!on }} onPress={onPress} style={({ pressed }) => [s.sub, pressed && { opacity: 0.6 }]}>
-      <Text style={[FONT.body, { flex: 1, color: accent ? p.accent : p.textPrimary }]}>{label}{hint ? <Text style={{ color: p.textTertiary }}> ({hint})</Text> : null}</Text>
+      <Text style={[FONT.body, { flex: 1, color: accent ? p.accentInk : p.textPrimary }]}>{label}{hint ? <Text style={{ color: p.textTertiary }}> ({hint})</Text> : null}</Text>
       {on ? <Check size={18} color={p.accent} /> : null}
     </Pressable>
   )

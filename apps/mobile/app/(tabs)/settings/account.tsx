@@ -113,7 +113,7 @@ export default function Account() {
     if (provider === 'apple' && !appleReady) return <Text style={[FONT.sub, { color: p.textTertiary }]}>준비 중</Text>
     return (
       <Pressable accessibilityRole="button" accessibilityLabel={`${NAME[provider]} 연결`} disabled={!!linking} onPress={() => void link(provider)} hitSlop={8}>
-        <Text style={{ color: p.accent, fontSize: 15, fontWeight: '500', opacity: linking ? 0.4 : 1 }}>연결</Text>
+        <Text style={{ color: p.accentInk, fontSize: 15, fontWeight: '500', opacity: linking ? 0.4 : 1 }}>연결</Text>
       </Pressable>
     )
   }
@@ -193,7 +193,7 @@ export default function Account() {
         {/* 35 §2: 맨 위 아바타 + "프로필 이미지 바꾸기" → 고르기 시트 */}
         <Pressable accessibilityRole="button" accessibilityLabel="프로필 이미지 바꾸기" onPress={() => setAvatarOpen(true)} style={s.avatar}>
           <ProfileAvatar avatar={avatar} size={64} letter={letter} />
-          <Text style={{ color: p.accent, fontSize: 15, marginTop: 8 }}>프로필 이미지 바꾸기</Text>
+          <Text style={{ color: p.accentInk, fontSize: 15, marginTop: 8 }}>프로필 이미지 바꾸기</Text>
         </Pressable>
         <Cells>
           <Cell first label="이메일" value={user?.email} chevron={false} />
@@ -206,7 +206,7 @@ export default function Account() {
         {methodsError ? (
           <View style={s.methodsError}>
             <Text accessibilityRole="alert" style={{ color: p.danger, fontSize: 13, flex: 1 }}>{methodsError}</Text>
-            {!methods ? <Pressable accessibilityRole="button" onPress={() => void loadMethods()} hitSlop={8}><Text style={{ color: p.accent, fontSize: 13, fontWeight: '500' }}>다시 시도</Text></Pressable> : null}
+            {!methods ? <Pressable accessibilityRole="button" onPress={() => void loadMethods()} hitSlop={8}><Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '500' }}>다시 시도</Text></Pressable> : null}
           </View>
         ) : null}
         <Pressable accessibilityRole="button" onPress={confirmLogout} style={({ pressed }) => [s.btn, { backgroundColor: pressed ? p.bgSelected : p.cardBg }]}>

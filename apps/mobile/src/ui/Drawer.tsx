@@ -3,10 +3,10 @@
 // 계정 줄(아바타·이름·⚙) → 스마트 목록(전체·오늘·내일·다음 7일·기본함 — 설정의 표시/숨김/비어 있지 않으면) → 구분선
 // → 리스트·폴더(⌄ 펼침, 고정 먼저) → 필터 ⌄ → 태그 ⌄(하위 태그 들여) → 구분선 → 완료·계획 취소·휴지통 → 아래 "+ 추가"(리스트·폴더·태그·필터)와 관리 아이콘.
 // 행을 길게 누르면 메뉴(05: 리스트 편집·상단 고정·보관·삭제 / 폴더 편집·리스트 추가·그룹 해제 / 태그 편집·상단 고정·삭제 / 필터 편집·삭제).
-// 고르면 같은 목록 화면에 그 목록. 아이콘은 Lucide(오픈 라이선스), 색 배치만 틱틱처럼 여러 색.
+// 고르면 같은 목록 화면에 그 목록. 스마트 목록·보관함 아이콘은 말랑 아이콘(44 §4, 직접 그림), 나머지는 Lucide(오픈 라이선스).
 import { useRouter } from 'expo-router'
 import {
-  ArrowUpToLine, Ban, CalendarCheck, CalendarRange, CircleCheck, Funnel, Hash, Inbox, Layers, Pencil, Plus, Settings, SlidersHorizontal, Sunrise, Trash2
+  ArrowUpToLine, Funnel, Hash, Pencil, Plus, Settings, SlidersHorizontal, Trash2
 } from 'lucide-react-native'
 import { useEffect, useState, type ReactNode } from 'react'
 import { BlurView } from 'expo-blur'
@@ -34,6 +34,7 @@ import { FilterEditSheet, FolderEditSheet, ListEditSheet, TagEditSheet } from '.
 import { useToast } from './Toast'
 import { DUR, EASE, SPRING, useReducedMotion } from './motion'
 import { FoldBody, FoldChevron, groupLayout } from './Fold'
+import { SoftIcon } from './SoftIcon'
 
 /** 서랍 열림 정도(0 닫힘 ~ 1 열림)와 판 폭 — 탭 화면 밀기((tabs)/_layout)·왼쪽 끝 끌기(DrawerEdge)가 같이 쓴다 */
 export const drawerP = makeMutable(0)
@@ -226,11 +227,11 @@ export function Drawer() {
             </Pressable>
           </View>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 16 }}>
-            {show('all', org.all) ? <Row v="smart:all" icon={<Layers size={22} color={p.slTags} />} label="전체" n={org.all} /> : null}
-            {show('today', counts.smart.today) ? <Row v="smart:today" icon={<CalendarCheck size={22} color={p.slToday} />} label="오늘" n={counts.smart.today} /> : null}
-            {show('tomorrow', counts.smart.tomorrow) ? <Row v="smart:tomorrow" icon={<Sunrise size={22} color={p.slTomorrow} />} label="내일" n={counts.smart.tomorrow} /> : null}
-            {show('next7', counts.smart.next7) ? <Row v="smart:next7" icon={<CalendarRange size={22} color={p.slWeek} />} label="다음 7일" n={counts.smart.next7} /> : null}
-            {inbox ? <Row v="smart:inbox" icon={<Inbox size={22} color={p.slInbox} />} label="기본함" n={counts.smart.inbox} onLongPress={(e) => setMenu({ rect: at(e), items: [{ key: 'edit', label: '편집', onPress: () => afterMenu(() => setEdit({ kind: 'list', id: inbox.id })) }] })} /> : null}
+            {show('all', org.all) ? <Row v="smart:all" icon={<SoftIcon name="all" size={22} />} label="전체" n={org.all} /> : null}
+            {show('today', counts.smart.today) ? <Row v="smart:today" icon={<SoftIcon name="today" size={22} day={new Date().getDate()} />} label="오늘" n={counts.smart.today} /> : null}
+            {show('tomorrow', counts.smart.tomorrow) ? <Row v="smart:tomorrow" icon={<SoftIcon name="tomorrow" size={22} />} label="내일" n={counts.smart.tomorrow} /> : null}
+            {show('next7', counts.smart.next7) ? <Row v="smart:next7" icon={<SoftIcon name="week" size={22} />} label="다음 7일" n={counts.smart.next7} /> : null}
+            {inbox ? <Row v="smart:inbox" icon={<SoftIcon name="inbox" size={22} />} label="기본함" n={counts.smart.inbox} onLongPress={(e) => setMenu({ rect: at(e), items: [{ key: 'edit', label: '편집', onPress: () => afterMenu(() => setEdit({ kind: 'list', id: inbox.id })) }] })} /> : null}
             {hr}
             {loose.map((l) => <SwipeRow key={l.id} round right={swipeList(l)}><Row v={`list:${l.id}`} icon={listIcon(l)} label={listShow(l).name} n={counts.lists[l.id]} right={<ColorDot color={l.color} />} onLongPress={(e) => listMenu(l, e)} /></SwipeRow>)}
             {folders.map((f) => {
@@ -275,9 +276,9 @@ export function Drawer() {
             ) : null}
             <Animated.View layout={groupLayout}>
               {hr}
-              {show('completed', arch.completed) ? <Row v="smart:completed" icon={<CircleCheck size={22} color={p.textSecondary} />} label="완료" /> : null}
-              {show('wontdo', arch.wontdo) ? <Row v="smart:wontdo" icon={<Ban size={22} color={p.textSecondary} />} label="계획 취소" /> : null}
-              {show('trash', arch.trash) ? <Row v="smart:trash" icon={<Trash2 size={22} color={p.textSecondary} />} label="휴지통" /> : null}
+              {show('completed', arch.completed) ? <Row v="smart:completed" icon={<SoftIcon name="done" size={22} />} label="완료" /> : null}
+              {show('wontdo', arch.wontdo) ? <Row v="smart:wontdo" icon={<SoftIcon name="cancel" size={22} />} label="계획 취소" /> : null}
+              {show('trash', arch.trash) ? <Row v="smart:trash" icon={<SoftIcon name="trash" size={22} />} label="휴지통" /> : null}
             </Animated.View>
           </ScrollView>
           <View style={[s.foot, { paddingBottom: insets.bottom + 8, borderTopColor: p.borderDivider }]}>
@@ -320,7 +321,7 @@ const s = StyleSheet.create({
   panel: { position: 'absolute', top: 0, bottom: 0, left: 0, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 15, shadowOffset: { width: 8, height: 0 }, elevation: 20 },
   me: { height: 52, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 16, paddingRight: 8 },
   meBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  dr: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 10, borderRadius: 12 },
+  dr: { height: 48, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 10, borderRadius: 10 },
   icon: { width: 22, alignItems: 'center' },
   ldot: { width: 9, height: 9, borderRadius: 5 },
   hr: { borderTopWidth: StyleSheet.hairlineWidth, marginVertical: 6, marginHorizontal: 10 },

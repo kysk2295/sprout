@@ -105,7 +105,7 @@ export default function DiaryChat() {
                   {r.task ? (
                     <Pressable accessibilityRole="button" disabled={made.has(r.task)} onPress={() => void addTask(r.task!)} style={[s.chip, { borderColor: p.accent }]}>
                       {made.has(r.task) ? <Check size={14} color={p.accent} /> : <Plus size={14} color={p.accent} />}
-                      <Text style={{ color: p.accent, fontSize: 13, fontWeight: '600', flexShrink: 1 }} numberOfLines={2}>{made.has(r.task) ? '할 일에 넣었어요' : `할 일로: ${r.task}`}</Text>
+                      <Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '600', flexShrink: 1 }} numberOfLines={2}>{made.has(r.task) ? '할 일에 넣었어요' : `할 일로: ${r.task}`}</Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -124,13 +124,13 @@ export default function DiaryChat() {
           {error ? (
             <View style={[s.err, { backgroundColor: p.cardBg }]}>
               <Text style={{ color: p.textSecondary, fontSize: 14, lineHeight: 20 }}>지금은 {josa(name, '가', '이')} 쉬고 있어요. 일기는 그대로 저장돼요</Text>
-              <Pressable onPress={retry} accessibilityRole="button" hitSlop={6}><Text style={{ color: p.accent, fontWeight: '600' }}>다시 시도</Text></Pressable>
+              <Pressable onPress={retry} accessibilityRole="button" hitSlop={6}><Text style={{ color: p.accentInk, fontWeight: '600' }}>다시 시도</Text></Pressable>
             </View>
           ) : null}
           {!messages.length && !streaming && !error && allowed ? (
             <Pressable onPress={retry} accessibilityRole="button" style={[s.err, { backgroundColor: p.cardBg }]}>
               <Text style={{ color: p.textSecondary, fontSize: 14 }}>{josa(name, '가', '이')} 오늘 일기를 읽고 먼저 말을 걸어요</Text>
-              <Text style={{ color: p.accent, fontWeight: '600' }}>읽어 달라고 하기</Text>
+              <Text style={{ color: p.accentInk, fontWeight: '600' }}>읽어 달라고 하기</Text>
             </Pressable>
           ) : null}
         </ScrollView>

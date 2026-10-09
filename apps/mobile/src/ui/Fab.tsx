@@ -6,7 +6,7 @@ import { Plus } from 'lucide-react-native'
 import { useEffect, useSyncExternalStore } from 'react'
 import { StyleSheet } from 'react-native'
 import Animated, { FadeOut } from 'react-native-reanimated'
-import { M } from '../theme/palette'
+import { M, shadow } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { useTabBarSpace } from './tabBarSpace'
 import { DUR, popIn, PRESS } from './motion'
@@ -40,14 +40,14 @@ export function Fab({ onPress, label = '할 일 추가' }: { onPress: () => void
         accessibilityLabel={label}
         onPress={onPress}
         scale={PRESS.fab}
-        style={[s.fab, { backgroundColor: p.accent, shadowOpacity: p.dark ? 0.5 : 0.22 }]}
+        style={[s.fab, { backgroundColor: p.accent }, shadow(p, 'accent')]}
       >
-        <Plus size={28} color="#fff" strokeWidth={2.4} />
+        <Plus size={28} color={p.onAccent} strokeWidth={2.4} />
       </PressableScale>
     </Animated.View>
   )
 }
 const s = StyleSheet.create({
   wrap: { position: 'absolute', right: M.fabRight },
-  fab: { width: M.fab, height: M.fab, borderRadius: M.fab / 2, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowRadius: 8, shadowOffset: { width: 0, height: 6 }, elevation: 8 }
+  fab: { width: M.fab, height: M.fab, borderRadius: M.fab / 2, alignItems: 'center', justifyContent: 'center' } // 44 §4: 강조 원 + sh-accent
 })

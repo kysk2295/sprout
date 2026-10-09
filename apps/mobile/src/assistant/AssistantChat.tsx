@@ -16,7 +16,8 @@ import { completeTasks } from '../data/tasks'
 import { useBuddy } from '../diary/data'
 import { CompanionFace, SayBubble, StaticFace, XpPop } from '../ui/CompanionFace'
 import { dayKey, rowDateLabel } from '../lib/dates'
-import { FONT } from '../theme/palette'
+import { FONT, shadow } from '../theme/palette'
+import { SoftIcon, type SoftIconName } from '../ui/SoftIcon'
 import { usePalette } from '../theme/ThemeProvider'
 import { Checkbox } from '../ui/Checkbox'
 import { OFFLINE, type AssistantProgress, type AssistantResult } from './core'
@@ -26,6 +27,7 @@ import { cancel, refresh, send, setDraft, undo, type AssistantState, type Messag
 const shortRange = (range: string) => range.split(' ~ ').map((d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`).join('–')
 // 40 §3.3: 빈 대화 예시는 회색 테두리 알약(색·아이콘 없음). 글은 13 그대로(누르면 바로 보냄)
 const SUGGESTIONS = ['내일 오후 3시에 기획 회의 한 시간 잡아줘', '이번 주 남은 할 일 보여줘', '이번 주에 완료한 거 몇 개야?']
+const SUG_ICONS: SoftIconName[] = ['today', 'week', 'done']
 const STEPS: { key: AssistantProgress['phase'][]; label: string }[] = [{ key: ['connecting'], label: '연결' }, { key: ['generating'], label: '해석' }, { key: ['validating', 'saving', 'querying'], label: '확인' }]
 
 /** 머리 상태 알약(13 §2.1): 연결됨(초록) · 대기 중 · 앞에 N명(주황) · 연결 중… · 지금은 쓸 수 없어요(회색). 누르면 다시 연결 */
@@ -139,14 +141,14 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
       >
         {!a.messages.length ? <EmptyChat a={a} variant={variant} onPick={(t) => void submit(t)} /> : null}
         {a.messages.map((m, i) => m.role === 'user' ? (
-          <View key={m.id} style={[s.me, { backgroundColor: p.dark ? '#2c2c2e' : '#ececf0' }]}><Text style={[s.text, { color: p.textPrimary }]}>{m.text}</Text></View>
+          <View key={m.id} style={[s.me, { backgroundColor: p.accent }]}><Text style={[s.text, { color: p.onAccent }]}>{m.text}</Text></View>
         ) : (
           <Ai key={m.id} name={who} face={faceOf(faces[i], i === animatedRow, i === lastAi ? 'last' : undefined)} xp={i === lastAi ? xp : 0}>
             {faces[i]?.line ? <Text style={[s.text, { color: p.textPrimary }]} selectable>{faces[i]!.line}</Text> : null}
             {m.result ? <ResultCard r={m.result} onComplete={() => { if (i === lastAi) setPlay((o) => ({ move: 'hop', n: o.n + 1 })); if (todayTaskXp < XP.taskDailyCap && i === lastAi) setXp((n) => n + 1) }} /> : null}
             {m.result?.created && !m.undone ? (
               <Pressable accessibilityRole="button" onPress={() => void doUndo(m)} style={s.undo} hitSlop={6}>
-                <RotateCcw size={15} color={p.accent} /><Text style={[FONT.sub, { color: p.accent, fontWeight: '600' }]}>되돌리기</Text>
+                <RotateCcw size={15} color={p.accent} /><Text style={[FONT.sub, { color: p.accentInk, fontWeight: '600' }]}>되돌리기</Text>
               </Pressable>
             ) : null}
             {i === lastAi && chips.length ? (
@@ -167,7 +169,7 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
             )}
             <View style={s.steps} accessibilityRole="progressbar">
               {STEPS.map((st, i) => (
-                <Text key={st.label} style={[s.step, { color: i <= phaseIndex ? p.accent : p.textQuaternary }]}>{i > 0 ? <Text style={{ color: p.textQuaternary }}>{' › '}</Text> : null}● {st.label}</Text>
+                <Text key={st.label} style={[s.step, { color: i <= phaseIndex ? p.accentInk : p.textQuaternary }]}>{i > 0 ? <Text style={{ color: p.textQuaternary }}>{' › '}</Text> : null}● {st.label}</Text>
               ))}
               <Text style={[s.step, { color: p.textTertiary }]}> · {elapsed}초</Text>
             </View>
@@ -230,9 +232,11 @@ function EmptyChat({ a, variant, onPick }: { a: AssistantState; variant: 'full' 
       <Text style={[s.emptyLv, { color: p.textTertiary }]}>{levelLine(buddy.species, buddy.level, buddy.stage)}</Text>
       <Text style={[s.emptyOne, { color: p.textSecondary }]}>할 일을 말로 등록하거나, 내 일정과 완료 기록을 물어보세요.</Text>
       <View style={s.emptyChips}>
-        {SUGGESTIONS.slice(0, variant === 'sheet' ? 2 : 3).map((text) => (
-          <Pressable key={text} accessibilityRole="button" disabled={a.busy || !a.model} onPress={() => onPick(text)} style={({ pressed }) => [s.chip, s.chipWide, { borderColor: p.borderDivider, backgroundColor: pressed ? p.bgSelected : p.cardBg }, (!a.model || a.busy) && { opacity: 0.5 }]}>
-            <Text style={[s.chipText, { color: p.textPrimary }]} numberOfLines={1}>{text}</Text>
+        {SUGGESTIONS.slice(0, variant === 'sheet' ? 2 : 4).map((text, i) => (
+          // 44 §6.7: 제안 = 2열 카드(말랑 아이콘 + 두 줄)
+          <Pressable key={text} accessibilityRole="button" disabled={a.busy || !a.model} onPress={() => onPick(text)} style={({ pressed }) => [s.sug, { backgroundColor: pressed ? p.bgSelected : p.cardBg }, (!a.model || a.busy) && { opacity: 0.5 }]}>
+            <SoftIcon name={SUG_ICONS[i % SUG_ICONS.length]} size={28} />
+            <Text style={[s.sugText, { color: p.textPrimary }]} numberOfLines={2}>{text}</Text>
           </Pressable>
         ))}
       </View>
@@ -282,7 +286,7 @@ function Composer({ a, onSubmit, autoFocus }: { a: AssistantState; onSubmit: () 
   }, [autoFocus])
   const can = !a.busy && !!a.model && !!a.draft.trim() && !a.connecting
   return (
-    <View style={[s.composer, { backgroundColor: p.dark ? '#2a2a2c' : '#ececf0' }]}>
+    <View style={[s.composer, { backgroundColor: p.cardBg, borderColor: p.borderDivider }, shadow(p, 'float')]}>
       <TextInput
         ref={input}
         value={a.draft}
@@ -301,7 +305,7 @@ function Composer({ a, onSubmit, autoFocus }: { a: AssistantState; onSubmit: () 
       {a.busy ? (
         <Pressable accessibilityRole="button" accessibilityLabel="멈추기" onPress={cancel} style={[s.send, { backgroundColor: p.textPrimary }]}><Square size={12} color={p.cardBg} fill={p.cardBg} /></Pressable>
       ) : (
-        <Pressable accessibilityRole="button" accessibilityLabel="보내기" disabled={!can} onPress={onSubmit} style={[s.send, { backgroundColor: p.accent }, !can && { opacity: 0.35 }]}><ArrowUp size={18} color="#fff" strokeWidth={2.6} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="보내기" disabled={!can} onPress={onSubmit} style={[s.send, { backgroundColor: p.accent }, !can && { opacity: 0.35 }]}><ArrowUp size={18} color={p.onAccent} strokeWidth={2.6} /></Pressable>
       )}
     </View>
   )
@@ -351,7 +355,7 @@ function ResultCard({ r, onComplete }: { r: AssistantResult; onComplete?: () => 
         )
       })}
       {!more && tasks.length > limit ? (
-        <Pressable accessibilityRole="button" onPress={() => setMore(true)} style={s.more}><Text style={[FONT.sub, { color: p.accent }]}>더 보기 {tasks.length - limit}</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => setMore(true)} style={s.more}><Text style={[FONT.sub, { color: p.accentInk }]}>더 보기 {tasks.length - limit}</Text></Pressable>
       ) : null}
     </View>
   )
@@ -372,8 +376,10 @@ const s = StyleSheet.create({
   emptyName: { marginTop: 6, fontSize: 15, lineHeight: 22, fontWeight: '600' },
   emptyLv: { fontSize: 12, lineHeight: 16 },
   emptyOne: { marginTop: 10, fontSize: 14, lineHeight: 20, textAlign: 'center', paddingHorizontal: 20 },
-  emptyChips: { alignSelf: 'stretch', gap: 8, marginTop: 16, paddingHorizontal: 8 },
-  me: { alignSelf: 'flex-end', maxWidth: '80%', borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomLeftRadius: 16, borderBottomRightRadius: 4, paddingHorizontal: 14, paddingVertical: 9 },
+  emptyChips: { alignSelf: 'stretch', flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16, paddingHorizontal: 4 },
+  sug: { width: '48.5%', minHeight: 64, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  sugText: { flex: 1, fontSize: 13.5, lineHeight: 18, fontWeight: '600' },
+  me: { alignSelf: 'flex-end', maxWidth: '80%', borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomLeftRadius: 18, borderBottomRightRadius: 6, paddingHorizontal: 14, paddingVertical: 9 },
   text: { fontSize: 15.5, lineHeight: 22 },
   undo: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' },
   steps: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
@@ -383,11 +389,11 @@ const s = StyleSheet.create({
   btn: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 32, borderRadius: 9, paddingHorizontal: 11, borderWidth: StyleSheet.hairlineWidth },
   latest: { position: 'absolute', alignSelf: 'center', bottom: 70, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 16, paddingHorizontal: 12, height: 32, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   notice: { position: 'absolute', alignSelf: 'center', bottom: 72, color: '#fff', fontSize: 13.5, borderRadius: 10, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 9 },
-  composer: { marginHorizontal: 12, marginTop: 4, borderRadius: 22, flexDirection: 'row', alignItems: 'flex-end', paddingLeft: 16, paddingRight: 6, paddingVertical: 6, minHeight: 44 },
+  composer: { marginHorizontal: 12, marginTop: 4, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'flex-end', paddingLeft: 16, paddingRight: 6, paddingVertical: 6, minHeight: 44 },
   input: { flex: 1, fontSize: 16, lineHeight: 21, maxHeight: 6 * 21 + 12, paddingTop: 6, paddingBottom: 6 },
   send: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
   foot: { fontSize: 11, lineHeight: 15, textAlign: 'center', paddingHorizontal: 20, paddingTop: 6 },
-  card: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  card: { borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 36, borderBottomWidth: StyleSheet.hairlineWidth },
   stats: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6, gap: 2 },
   big: { fontSize: 24, lineHeight: 30, fontWeight: '700' },

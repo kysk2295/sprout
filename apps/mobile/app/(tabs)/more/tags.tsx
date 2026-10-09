@@ -34,7 +34,7 @@ export default function TagList() {
       <NavRow left={<GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>} />
       <BigTitle title="태그" />
       <ScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: space.pad }}>
-        {!rows.length ? <EmptyState title="태그가 없어요" sub="할 일 제목에 #이름 이나 [[이름]] 을 써 보세요" /> : null}
+        {!rows.length ? <EmptyState icon="tag" title="태그가 없어요" sub="할 일 제목에 #이름 이나 [[이름]] 을 써 보세요" /> : null}
         {ORDER.map((k) => {
           const list = rows.filter((r) => kindOf(r.kind) === k)
           if (!list.length) return null

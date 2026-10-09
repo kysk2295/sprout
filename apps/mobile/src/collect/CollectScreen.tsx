@@ -106,7 +106,7 @@ export default function CollectScreen() {
             <TextInput autoFocus value={search} onChangeText={setSearch} placeholder={section === 'wiki' ? '주제 검색' : section === 'watch' ? '볼 것 검색' : '수집함 검색'} placeholderTextColor={p.textTertiary} style={[s.searchInput, { color: p.textPrimary }]} returnKeyType="search" accessibilityLabel="수집함 검색" />
             {search ? <Pressable accessibilityLabel="검색어 지우기" hitSlop={8} onPress={() => setSearch('')}><X size={16} color={p.textTertiary} /></Pressable> : null}
           </View>
-          <Pressable accessibilityRole="button" onPress={() => { setSearch(null); Keyboard.dismiss() }} hitSlop={8}><Text style={[FONT.body, { color: p.accent }]}>취소</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => { setSearch(null); Keyboard.dismiss() }} hitSlop={8}><Text style={[FONT.body, { color: p.accentInk }]}>취소</Text></Pressable>
         </View>
       )}
       <ScrollView
@@ -286,7 +286,7 @@ function WikiTopics({ query, onOpen, onBack }: { query: string; onOpen: (id: str
   if (!topics.length) {
     return (
       <CollectEmpty icon="book" title="자료가 쌓이면 주제별로 정리해 드려요" sub="공부한 것·알게 된 것을 수집에 던져 두면 AI가 주제 페이지를 만들어요">
-        <Pressable accessibilityRole="button" onPress={onBack} style={{ marginTop: 10 }}><Text style={[FONT.sub, { color: p.accent, fontWeight: '600' }]}>수집으로 돌아가기</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={onBack} style={{ marginTop: 10 }}><Text style={[FONT.sub, { color: p.accentInk, fontWeight: '600' }]}>수집으로 돌아가기</Text></Pressable>
       </CollectEmpty>
     )
   }

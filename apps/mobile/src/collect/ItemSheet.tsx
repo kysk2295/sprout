@@ -144,13 +144,13 @@ function Body({ item, onClose, onTopic, onConvert }: { item: CollectItem; onClos
       {links.map((l) => (
         <Pressable key={l} accessibilityRole="link" onPress={() => void Linking.openURL(l)} style={s.link}>
           <Link2 size={15} color={p.accent} />
-          <Text style={[FONT.sub, { color: p.accent, flex: 1 }]} numberOfLines={1}>{l.replace(/^https?:\/\//, '')}</Text>
+          <Text style={[FONT.sub, { color: p.accentInk, flex: 1 }]} numberOfLines={1}>{l.replace(/^https?:\/\//, '')}</Text>
         </Pressable>
       ))}
       {item.task_id ? (
         gone ? <Text style={[FONT.sub, s.linked, { color: p.textTertiary }]}>연결된 항목이 삭제되었어요</Text> : (
           <Pressable accessibilityRole="button" onPress={() => { onClose(); router.push(`/task/${item.task_id}`) }} style={[s.linked, s.linkedRow, { backgroundColor: p.accentSubtle }]}>
-            <Text style={[FONT.sub, { color: p.accent, flex: 1 }]} numberOfLines={1}>↳ {scheduledWord(item)}: {item.task_title}</Text>
+            <Text style={[FONT.sub, { color: p.accentInk, flex: 1 }]} numberOfLines={1}>↳ {scheduledWord(item)}: {item.task_title}</Text>
             <ExternalLink size={15} color={p.accent} />
           </Pressable>
         )
@@ -178,7 +178,7 @@ function AiCard({ item, onTopic, onConvert, onRegistered }: { item: CollectItem;
       {others.map((k, i) => (
         <Pressable key={k} accessibilityRole="button" hitSlop={6} onPress={() => change(k)} style={{ flexDirection: 'row' }}>
           {i > 0 ? <Text style={[FONT.meta, { color: p.textTertiary }]}>· </Text> : null}
-          <Text style={[s.otherBtn, { color: p.accent }]}>{KIND_NAME[k]}</Text>
+          <Text style={[s.otherBtn, { color: p.accentInk }]}>{KIND_NAME[k]}</Text>
         </Pressable>
       ))}
     </View>
@@ -191,7 +191,7 @@ function AiCard({ item, onTopic, onConvert, onRegistered }: { item: CollectItem;
     </View>
   )
   const Field = ({ k, v, accent }: { k: string; v: string; accent?: boolean }) => (
-    <View style={s.field}><Text style={[FONT.sub, { color: p.textTertiary, width: 52 }]}>{k}</Text><Text style={[FONT.sub, { color: accent ? p.accent : p.textPrimary, flex: 1 }]} numberOfLines={2}>{v}</Text></View>
+    <View style={s.field}><Text style={[FONT.sub, { color: p.textTertiary, width: 52 }]}>{k}</Text><Text style={[FONT.sub, { color: accent ? p.accentInk : p.textPrimary, flex: 1 }]} numberOfLines={2}>{v}</Text></View>
   )
   const Btn = ({ label, primary, onPress, disabled }: { label: string; primary?: boolean; onPress: () => void; disabled?: boolean }) => (
     <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [s.btn, primary ? { backgroundColor: p.accent } : { backgroundColor: p.bgSelected }, (pressed || disabled) && { opacity: 0.6 }]}>
@@ -261,7 +261,7 @@ function AiCard({ item, onTopic, onConvert, onRegistered }: { item: CollectItem;
       <Card icon={<BookOpen size={16} color={p.accent} />} title={by ? '위키로 정했어요' : 'AI가 위키로 봤어요'}>
         {item.topic_id ? (
           <Pressable accessibilityRole="button" onPress={() => onTopic(item.topic_id!)} style={s.topicLink}>
-            <Text style={[FONT.sub, { color: p.accent }]}>{item.topic_name ?? '주제'} 주제에 반영됨</Text>
+            <Text style={[FONT.sub, { color: p.accentInk }]}>{item.topic_name ?? '주제'} 주제에 반영됨</Text>
             <ChevronRight size={15} color={p.accent} />
           </Pressable>
         ) : <Field k="주제" v="정리 전 — 컴퓨터에서 정리돼요" />}

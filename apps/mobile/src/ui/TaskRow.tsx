@@ -86,7 +86,7 @@ export const TaskRowView = memo(function TaskRowView(props: RowProps) {
         {details ? <Text style={[FONT.meta, { color: p.textTertiary }]} numberOfLines={1}>{details}</Text> : null}
       </View>
       <View style={s.right}>
-        {date ? <Text style={[FONT.meta, s.date, { color: date.tone === 'overdue' ? p.overdue : p.accent }]} numberOfLines={1}>{date.label}</Text> : null}
+        {date ? <Text style={[FONT.meta, s.date, { color: date.tone === "overdue" ? p.overdue : p.accentInk }]} numberOfLines={1}>{date.label}</Text> : null}
         {!done && (t.repeat_rule || t.reminder_count > 0 || (t.content && t.content_mode !== 'checklist')) ? (
           <View style={s.icons}>
             {t.repeat_rule ? <Repeat size={12} color={p.textTertiary} /> : null}

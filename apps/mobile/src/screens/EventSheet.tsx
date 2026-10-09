@@ -83,7 +83,7 @@ export default function EventSheet() {
 
         <Pressable accessibilityRole="button" accessibilityLabel={`날짜: ${eventSheetLabel(e.start_at, e.end_at)}`} onPress={() => { flush(); router.push({ pathname: '/date', params: { event: e.id } }) }} style={s.dateRow}>
           <Clock size={18} color={p.textTertiary} />
-          <Text style={[FONT.body, { fontSize: 15, color: p.accent, flexShrink: 1 }]}>{eventSheetLabel(e.start_at, e.end_at)}</Text>
+          <Text style={[FONT.body, { fontSize: 15, color: p.accentInk, flexShrink: 1 }]}>{eventSheetLabel(e.start_at, e.end_at)}</Text>
           {e.repeat_rule ? <Repeat size={15} color={p.accent} /> : null}
           {reminders ? <Bell size={15} color={p.accent} /> : null}
         </Pressable>

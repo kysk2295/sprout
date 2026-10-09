@@ -11,6 +11,7 @@ import { usePalette } from '../../theme/ThemeProvider'
 import { Checkbox } from '../../ui/Checkbox'
 import { PopMenu, type Rect } from '../../ui/Menu'
 import { useToast } from '../../ui/Toast'
+import { ProgressBar } from '../../ui/ProgressBar'
 import { openView } from '../../wiki/WikiIndex'
 import { Buddy, Card, md } from './bits'
 import { projectCardLine } from '@sprout/schema/planView'
@@ -76,7 +77,7 @@ export function ProjectBoard({ data }: { data: PlanData }) {
       {showDone ? done.map((x) => <ProjectCard key={x.tag.id} x={x} today={today} />) : null}
       <Pressable onPress={make} accessibilityRole="button" accessibilityHint="이름과 날짜를 한 줄로 적어 프로젝트를 만들어요" style={({ pressed }) => [s.together, { backgroundColor: pressed ? p.bgSelected : 'transparent' }]}>
         <Plus size={18} color={p.accent} />
-        <Text style={{ color: p.accent, fontSize: 15, fontWeight: '500' }}>새 프로젝트</Text>
+        <Text style={{ color: p.accentInk, fontSize: 15, fontWeight: '500' }}>새 프로젝트</Text>
       </Pressable>
       {sheet}
     </>
@@ -144,12 +145,12 @@ function ProjectCard({ x, today }: { x: ProjectView; today: string }) {
         <View style={s.cardTop}>
           <Text style={{ fontSize: 17 }}>{projectIcon(x.tag.name)}</Text>{/* 30 §A.5 — 폴더 그림은 폴더에만 */}
           <Text style={{ flex: 1, color: p.textPrimary, fontSize: 16, fontWeight: '600' }} numberOfLines={1}>{x.title}</Text>
-          {x.focus ? <Text style={{ color: p.accent, fontSize: 12.5, fontWeight: '500' }}>집중</Text> : null}
+          {x.focus ? <Text style={{ color: p.accentInk, fontSize: 12.5, fontWeight: '500' }}>집중</Text> : null}
           {x.auto ? <Text style={{ color: p.textTertiary, fontSize: 12.5 }}>자동</Text> : null}
           <ChevronRight size={16} color={p.textQuaternary} />
         </View>
         <CardLine x={x} today={today} />
-        <View style={[s.bar, { backgroundColor: p.bgSelected }]}><View style={[s.barIn, { width: `${projectCardLine(x, today).progress * 100}%`, backgroundColor: p.accent }]} /></View>
+        <ProgressBar ratio={projectCardLine(x, today).progress} style={s.bar} />
       </Pressable>
       {next ? <PlanTaskRow task={next} today={today} /> : (
         <Pressable onPress={() => router.push({ pathname: '/plan-chat', params: { project: x.tag.id } })} accessibilityRole="button" style={[s.trow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }]}>
@@ -169,16 +170,15 @@ function ProjectCard({ x, today }: { x: ProjectView; today: string }) {
 
 const s = StyleSheet.create({
   summary: { fontSize: 13, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8 },
-  card: { marginHorizontal: 12, marginBottom: 10, borderRadius: 14, overflow: 'hidden' },
+  card: { marginHorizontal: 12, marginBottom: 10, borderRadius: 20, overflow: 'hidden' }, // 44 §4 프로젝트 카드 20
   cardHead: { paddingHorizontal: 14, paddingTop: 13, paddingBottom: 12, gap: 6 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  bar: { height: 3, borderRadius: 2, overflow: 'hidden', marginTop: 4 },
-  barIn: { height: 3, borderRadius: 2 },
+  bar: { marginTop: 6 },
   trow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, minHeight: 46 },
   nowHead: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4 },
   nowMore: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, height: 42, borderTopWidth: StyleSheet.hairlineWidth },
   doneHead: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 20, paddingVertical: 10 },
-  together: { flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 12, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12 },
+  together: { flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 12, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 12 },
   primary: { marginTop: 14, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 10 },
   primaryText: { color: '#fff', fontWeight: '600', fontSize: 15 }
 })

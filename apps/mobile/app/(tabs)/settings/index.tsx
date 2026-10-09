@@ -5,7 +5,7 @@ import { useStatus } from '@powersync/react-native'
 import { useLiveQuery } from '../../../src/data/rows'
 import { progressFromEvents, SPECIES, type Species } from '@sprout/schema/growth'
 import { useRouter } from 'expo-router'
-import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Info, ListTree, Palette, RefreshCw } from 'lucide-react-native'
+import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { useState } from 'react'
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { AvatarSheet } from '../../../src/avatar/AvatarSheet'
@@ -16,7 +16,7 @@ import { shownCalendars, useDeviceCal } from '../../../src/calendars/store'
 import { logout, syncNow, useAuth } from '../../../src/data/auth'
 import { NotificationCell } from '../../../src/notifications/NotificationCell'
 import { findTheme } from '../../../src/theme/themes'
-import { M } from '../../../src/theme/palette'
+import { M, R } from '../../../src/theme/palette'
 import { usePalette, useTheme } from '../../../src/theme/ThemeProvider'
 import { Cell, Cells } from '../../../src/ui/Cells'
 import { GlassButton } from '../../../src/ui/Glass'
@@ -55,7 +55,6 @@ export default function Settings() {
       { text: '취소', style: 'cancel' },
       { text: '로그아웃', style: 'destructive', onPress: () => void logout() }
     ])
-  const white = { size: 18, color: '#fff' }
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
       <NavRow title="설정" left={<GlassButton label="뒤로" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/more'))}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>} right={<View style={{ width: 40 }} />} />
@@ -63,38 +62,39 @@ export default function Settings() {
         <Pressable accessibilityRole="button" accessibilityLabel="계정" onPress={() => router.push('/settings/account')} style={({ pressed }) => [s.prof, { backgroundColor: pressed ? p.bgSelected : p.cardBg }]}>
           {/* 35 §2: 아바타 = 고르기 시트, 카드 나머지 = 계정 화면 */}
           <Pressable accessibilityRole="button" accessibilityLabel="프로필 이미지 바꾸기" hitSlop={4} onPress={() => setAvatarOpen(true)}>
-            <ProfileAvatar avatar={avatar} size={48} letter={name.slice(0, 1).toUpperCase()} />
+            {/* 44 §6.8: 아바타 56 + 강조 테두리 */}
+            <View style={[s.ring, { borderColor: p.accent }]}><ProfileAvatar avatar={avatar} size={52} letter={name.slice(0, 1).toUpperCase()} /></View>
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={[s.name, { color: p.textPrimary }]} numberOfLines={1}>{name}</Text>
             <Text style={{ fontSize: 12, color: p.textTertiary }} numberOfLines={1}>{user?.email}</Text>
             <View style={s.badges}>
-              <Text style={[s.badge, { backgroundColor: p.accentSubtle, color: p.accent }]}>Lv {level}</Text>
-              {ch?.species ? <Text style={[s.badge, { backgroundColor: p.accentSubtle, color: p.accent }]}>{SPECIES[ch.species].name}</Text> : null}
+              <Text style={[s.badge, { backgroundColor: p.accentSubtle, color: p.accentInk }]}>Lv {level}</Text>
+              {ch?.species ? <Text style={[s.badge, { backgroundColor: p.accentSubtle, color: p.accentInk }]}>{SPECIES[ch.species].name}</Text> : null}
             </View>
           </View>
           <ChevronRight size={16} color={p.textQuaternary} />
         </Pressable>
         <Cells>
-          <Cell first label="외관" value={findTheme(themeId)?.name} icon={<Palette {...white} />} iconBg="#775dbe" onPress={() => router.push('/settings/appearance')} />
+          <Cell first label="외관" value={findTheme(themeId)?.name} soft="palette" tone="petal" onPress={() => router.push('/settings/appearance')} />
           <NotificationCell />
-          <Cell label="날짜와 시간" value="휴일 · 음력 · 주 번호" icon={<CalendarDays {...white} />} iconBg="#f29a2e" onPress={() => router.push('/settings/datetime')} />
-          <Cell label="캘린더 연동" value={devCalValue} icon={<CalendarPlus {...white} />} iconBg="#e5534b" onPress={() => router.push('/settings/calendars')} />
-          <Cell label="리스트 관리" value="스마트 목록 · 보관함" icon={<ListTree {...white} />} iconBg="#4e75f2" onPress={() => router.push('/lists/manage')} />
+          <Cell label="날짜와 시간" value="휴일 · 음력 · 주 번호" soft="week" tone="deep" onPress={() => router.push('/settings/datetime')} />
+          <Cell label="캘린더 연동" value={devCalValue} soft="calendar" tone="petal" onPress={() => router.push('/settings/calendars')} />
+          <Cell label="리스트 관리" value="스마트 목록 · 보관함" soft="list" tone="sprout" onPress={() => router.push('/lists/manage')} />
         </Cells>
         <Cells>
           <Cell
             first
             label="동기화"
             value={syncValue}
-            icon={<RefreshCw {...white} />}
-            iconBg="#8b8b8b"
+            soft="sync"
+            tone="sky"
             onPress={async () => { setSyncing(true); try { await syncNow() } finally { setSyncing(false) } toast.show('동기화했어요') }}
           />
-          <Cell label="앱 정보" value={`v${APP_VERSION}`} icon={<Info {...white} />} iconBg="#8b8b8b" chevron={false} />
+          <Cell label="앱 정보" value={`v${APP_VERSION}`} soft="help" tone="plain" chevron={false} />
         </Cells>
         <Pressable accessibilityRole="button" onPress={confirmLogout} style={({ pressed }) => [s.out, { backgroundColor: pressed ? p.bgSelected : p.cardBg }]}>
-          <Text style={{ color: p.danger, fontSize: 16 }}>로그아웃</Text>
+          <Text style={{ color: p.textDanger, fontSize: 15, fontWeight: '700' }}>로그아웃</Text>
         </Pressable>
       </ScrollView>
       <AvatarSheet visible={avatarOpen} onClose={() => setAvatarOpen(false)} letter={name.slice(0, 1).toUpperCase() || '?'} />
@@ -102,9 +102,10 @@ export default function Settings() {
   )
 }
 const s = StyleSheet.create({
-  prof: { marginHorizontal: M.cardInset, marginBottom: M.cardGap, borderRadius: M.radiusCard, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  name: { fontSize: 17, lineHeight: 22, fontWeight: '600' },
+  prof: { marginHorizontal: M.cardInset, marginBottom: M.cardGap, borderRadius: R.lg, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  ring: { width: 60, height: 60, borderRadius: 30, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  name: { fontSize: 18, lineHeight: 24, fontWeight: '700' },
   badges: { flexDirection: 'row', gap: 4, marginTop: 4 },
-  badge: { fontSize: 10.5, lineHeight: 16, fontWeight: '600', paddingHorizontal: 6, borderRadius: 8, overflow: 'hidden' },
-  out: { marginHorizontal: M.cardInset, marginTop: 14, height: 48, borderRadius: M.radiusCard, alignItems: 'center', justifyContent: 'center' }
+  badge: { fontSize: 11, lineHeight: 18, fontWeight: '700', paddingHorizontal: 8, borderRadius: 9, overflow: 'hidden' },
+  out: { marginHorizontal: M.cardInset, marginTop: 14, height: 52, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center' }
 })

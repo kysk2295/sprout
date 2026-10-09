@@ -173,7 +173,7 @@ export default function PlanChatScreen() {
         <View style={s.dots} accessibilityLabel={qn ? `${qn}번째 물음` : undefined}>
           {[1, 2, 3, 4].map((n) => <View key={n} style={[s.pd, { backgroundColor: qn && n <= qn ? p.accent : p.textQuaternary }]} />)}
         </View>
-        {changed ? <Pressable onPress={() => void undoAll()} hitSlop={8} accessibilityRole="button" accessibilityLabel="이번 대화 되돌리기" style={s.undo}><RotateCcw size={14} color={p.accent} /><Text style={{ color: p.accent, fontSize: 13.5, fontWeight: '600' }}>되돌리기</Text></Pressable> : null}
+        {changed ? <Pressable onPress={() => void undoAll()} hitSlop={8} accessibilityRole="button" accessibilityLabel="이번 대화 되돌리기" style={s.undo}><RotateCcw size={14} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 13.5, fontWeight: '600' }}>되돌리기</Text></Pressable> : null}
       </View>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 20 }} keyboardShouldPersistTaps="handled" accessibilityLiveRegion="polite">
@@ -199,7 +199,7 @@ export default function PlanChatScreen() {
           <ScrollView horizontal style={{ flexGrow: 0, flexShrink: 0, maxHeight: 52 }} showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips} keyboardShouldPersistTaps="handled" accessibilityLabel="빠른 답">
             {chips.slice(0, 6).map((c) => (
               <Pressable key={c.id} onPress={() => dispatch({ type: 'chip', id: c.id })} accessibilityRole="button" style={[s.chip, { backgroundColor: p.accentSubtle }]}>
-                <Text style={{ color: p.accent, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>{c.label}</Text>
+                <Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>{c.label}</Text>
               </Pressable>
             ))}
             {skip ? <Pressable onPress={() => dispatch({ type: 'skip' })} accessibilityRole="button" style={s.chip}><Text style={{ color: p.textTertiary, fontSize: 14 }}>건너뛰기</Text></Pressable> : null}

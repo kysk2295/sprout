@@ -42,7 +42,7 @@ export default function MapList() {
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
       <View style={[s.nav, { marginTop: insets.top }]}>
         <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={`${back}로 돌아가기`} style={s.back} hitSlop={6}>
-          <ChevronLeft size={24} color={p.accent} /><Text style={{ color: p.accent, fontSize: 17 }} numberOfLines={1}>{back}</Text>
+          <ChevronLeft size={24} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 17 }} numberOfLines={1}>{back}</Text>
         </Pressable>
         <View style={{ flex: 1 }} />
         {items.length ? <GlassButton label="리스트 메뉴" onPress={more.open}><View ref={more.ref} collapsable={false}><MoreHorizontal size={20} color={p.textPrimary} /></View></GlassButton> : null}

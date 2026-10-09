@@ -54,7 +54,7 @@ export function KeyDateSheet({ target, onClose }: { target: KeyDateTarget | null
             return (
               <Pressable key={w} onPress={() => setWord(w)} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={`날짜 이름 ${w}`}
                 style={[s.chip, { backgroundColor: on ? p.accentSubtle : p.bgSelected }]}>
-                <Text style={{ color: on ? p.accent : p.textSecondary, fontSize: 13.5, fontWeight: on ? '600' : '400' }}>{w}</Text>
+                <Text style={{ color: on ? p.accentInk : p.textSecondary, fontSize: 13.5, fontWeight: on ? '600' : '400' }}>{w}</Text>
               </Pressable>
             )
           })}

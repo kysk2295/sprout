@@ -10,7 +10,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { appleAvailable } from '../data/apple'
 import { authErrorText, login, loginWithApple, loginWithGoogle, signup, socialErrorText } from '../data/auth'
-import { FONT } from '../theme/palette'
+import { FONT, shadow } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { AppleMark, GoogleMark } from '../ui/BrandMarks'
 import { COMPANION_SIZE } from '@sprout/schema/companion'
@@ -146,7 +146,7 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
           </View>
           {err('password') ?? (signupMode ? <Text style={[s.err, { color: p.textTertiary }]}>비밀번호: 6-64자</Text> : null)}
           {err('form')}
-          <Pressable accessibilityRole="button" accessibilityLabel={signupMode ? '등록하기' : '로그인'} disabled={locked} onPress={submit} style={({ pressed }) => [s.btn, { backgroundColor: p.accent, opacity: pressed ? 0.85 : 1 }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={signupMode ? '등록하기' : '로그인'} disabled={locked} onPress={submit} style={({ pressed }) => [s.btn, { backgroundColor: p.accent, transform: [{ scale: pressed ? 0.97 : 1 }] }, shadow(p, "accent")]}>
             {busy ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>{signupMode ? '등록하기' : '로그인'}</Text>}
           </Pressable>
           <View style={[s.divider, { backgroundColor: p.loginInputBorder }]} />
@@ -162,7 +162,7 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
         >
           <Text style={[FONT.sub, { color: p.textSecondary, textAlign: 'center' }]}>
             {signupMode ? '이미 계정이 있으신가요? ' : '계정이 없으세요? '}
-            <Text style={{ color: p.accent, fontWeight: '500' }}>{signupMode ? '로그인' : '등록하기'}</Text>
+            <Text style={{ color: p.accentInk, fontWeight: '500' }}>{signupMode ? '로그인' : '등록하기'}</Text>
           </Text>
         </Pressable>
         <View style={{ flex: 1 }} />
@@ -200,14 +200,15 @@ const s = StyleSheet.create({
   mark: { alignItems: 'center', marginBottom: 10 },
   markLine: { fontSize: 12, lineHeight: 17, marginTop: 2 },
   stack: { gap: 12 },
-  input: { height: 50, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
+  // 44 §6.1: 입력 모서리 14, 큰 버튼 52 · 모서리 14 · 강조 그림자
+  input: { height: 52, borderRadius: 14, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
   text: { flex: 1, fontSize: 16, height: '100%' },
   err: { fontSize: 13, lineHeight: 18, marginTop: -4, marginHorizontal: 2 },
-  btn: { height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  btn: { height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   divider: { height: StyleSheet.hairlineWidth * 2, marginVertical: 6 },
-  social: { height: 50, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  socialText: { fontSize: 16, fontWeight: '500' },
+  social: { height: 52, borderRadius: 14, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  socialText: { fontSize: 16, fontWeight: '600' },
   soon: { position: 'absolute', right: 14, fontSize: 12 },
   switch: { marginTop: 18, paddingVertical: 6 },
   terms: { fontSize: 12, lineHeight: 17, textAlign: 'center', paddingHorizontal: 10, marginTop: 20 }

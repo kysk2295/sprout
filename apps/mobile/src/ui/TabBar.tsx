@@ -74,7 +74,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
           <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={tab.label} accessibilityState={{ selected: focused }} onPress={onPress} style={s.tab}>
             <tab.Icon size={25} color={color} strokeWidth={focused ? 2.3 : 1.9} />
             {route.name === 'growth' && xp ? (
-              <Animated.Text key={xp.k} entering={SlideInDown.duration(350)} exiting={FadeOut.duration(250)} style={[s.xp, { color: p.accent }]}>+{xp.n}</Animated.Text>
+              <Animated.Text key={xp.k} entering={SlideInDown.duration(350)} exiting={FadeOut.duration(250)} style={[s.xp, { color: p.accentInk }]}>+{xp.n}</Animated.Text>
             ) : null}
           </Pressable>
         )

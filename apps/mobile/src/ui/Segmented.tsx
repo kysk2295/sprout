@@ -1,4 +1,4 @@
-// 세그먼트(시안 키트 .m-seg): 회색 트랙 + 고른 칸 흰 알약. 일기 쓰기·돌아보기, 작업 지도 목록·보드, 월·연.
+// 세그먼트(시안 키트 .m-seg, 44 §4): 칸 면 트랙 + 고른 칸 흰 칸 + sh-1(다크 = 한 단계 밝은 칸). 일기 쓰기·돌아보기, 작업 지도 목록·보드, 월·연.
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import { usePalette } from '../theme/ThemeProvider'
 
@@ -20,7 +20,7 @@ export function Segmented<T extends string>({ items, value, onChange, style, sma
             accessibilityState={{ selected: on, disabled: off }}
             disabled={off}
             onPress={() => onChange(it.key)}
-            style={[s.item, off && { opacity: 0.4 }, on && { backgroundColor: p.segOn, shadowColor: '#000', shadowOpacity: p.dark ? 0.4 : 0.1, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } }]}
+            style={[s.item, off && { opacity: 0.4 }, on && { backgroundColor: p.segOn, shadowColor: p.dark ? '#000' : '#12281a', shadowOpacity: p.dark ? 0.4 : 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }]}
           >
             <Text style={{ fontSize: small ? 13 : 14, fontWeight: on ? '600' : '500', color: on ? p.textPrimary : p.textSecondary }}>{it.label}</Text>
           </Pressable>
@@ -30,6 +30,6 @@ export function Segmented<T extends string>({ items, value, onChange, style, sma
   )
 }
 const s = StyleSheet.create({
-  track: { flexDirection: 'row', borderRadius: 9, padding: 2 },
-  item: { flex: 1, borderRadius: 7, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 }
+  track: { flexDirection: 'row', borderRadius: 12, padding: 3 },
+  item: { flex: 1, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 }
 })

@@ -150,11 +150,11 @@ function Body({ kind, id, lists, filter, onFilter, descOpen, onDescClose }: Para
           {topic ? (
             <Pressable accessibilityRole="button" onPress={() => router.push(`/collect/wiki/${topic.id}`)} style={{ flex: 1, gap: 2 }}>
               <Text style={[FONT.sub, { color: c!.sections.overview[0] ? p.textSecondary : p.textTertiary }]} numberOfLines={2}>📖 {c!.sections.overview[0]?.text ?? '개요 없음'}</Text>
-              <Text style={[FONT.sub, { color: p.accent }]}>핵심 정리 {c!.sections.key.length}줄 ›</Text>
+              <Text style={[FONT.sub, { color: p.accentInk }]}>핵심 정리 {c!.sections.key.length}줄 ›</Text>
             </Pressable>
           ) : (
             <Pressable accessibilityRole="button" onPress={async () => { if (tag) router.push(`/collect/wiki/${await ensureTagTopic(tag)}`) }}>
-              <Text style={[FONT.sub, { color: p.accent }]}>+ 위키 페이지 만들기</Text>
+              <Text style={[FONT.sub, { color: p.accentInk }]}>+ 위키 페이지 만들기</Text>
             </Pressable>
           )}
         </Row>

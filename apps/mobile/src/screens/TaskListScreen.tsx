@@ -328,9 +328,9 @@ export default function TaskListScreen() {
         {!firstLoad && openCount === 0 && !archive && !evByGroup.size ? (
           isToday && doneCount > 0 ? <CompanionEmpty animate={!!motion.entering} kind="done" todayDone={doneCount} />
             : isToday ? <CompanionEmpty animate={!!motion.entering} kind="today" todayDone={0} />
-            : <EmptyState animate={!!motion.entering} title="할 일이 없어요" sub="+를 눌러 추가하세요" />
+            : <EmptyState animate={!!motion.entering} icon={view === 'smart:inbox' ? 'inbox' : view === 'smart:tomorrow' ? 'tomorrow' : view === 'smart:next7' ? 'week' : view === 'smart:all' ? 'all' : 'list'} title="할 일이 없어요" sub="+를 눌러 추가하세요" />
         ) : null}
-        {!firstLoad && archive && openCount === 0 ? <EmptyState title={view === 'smart:trash' ? '휴지통이 비어 있어요' : view === 'smart:wontdo' ? '계획 취소한 할 일이 없어요' : '완료한 할 일이 없어요'} /> : null}
+        {!firstLoad && archive && openCount === 0 ? <EmptyState icon={view === 'smart:trash' ? 'trash' : view === 'smart:wontdo' ? 'cancel' : 'done'} title={view === 'smart:trash' ? '휴지통이 비어 있어요' : view === 'smart:wontdo' ? '계획 취소한 할 일이 없어요' : '완료한 할 일이 없어요'} /> : null}
         <View style={openCount === 0 && doneCount > 0 ? { marginTop: 28 } : undefined}>
           {shownGroups.map((g) => {
             const byDefault = !!(g.done && (isListView(view) || openCount === 0))

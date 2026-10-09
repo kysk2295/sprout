@@ -159,7 +159,7 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
       return (
         <View style={{ gap: 8 }}>
           <Text style={[st.cTitle, { color: p.textPrimary }]}>🔒 이 날은 {josa(name, '가', '이')} 읽지 않아요</Text>
-          <Pressable accessibilityRole="button" onPress={() => void togglePrivate()} style={[st.pillLine, { borderColor: p.accent }]}><Text style={[st.pillLineText, { color: p.accent }]}>나만 보기 끄기</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => void togglePrivate()} style={[st.pillLine, { borderColor: p.accent }]}><Text style={[st.pillLineText, { color: p.accentInk }]}>나만 보기 끄기</Text></Pressable>
         </View>
       )
     }
@@ -167,7 +167,7 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
       return (
         <View style={{ gap: 8 }}>
           <Text style={[st.cTitle, { color: p.textPrimary }]}>오늘은 혼자 쓰는 날</Text>
-          <Pressable accessibilityRole="button" onPress={() => setSolo(date, false)} style={[st.pillLine, { borderColor: p.accent }]}><Text style={[st.pillLineText, { color: p.accent }]}>{josa(name, '와', '과')} 이야기하기</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => setSolo(date, false)} style={[st.pillLine, { borderColor: p.accent }]}><Text style={[st.pillLineText, { color: p.accentInk }]}>{josa(name, '와', '과')} 이야기하기</Text></Pressable>
         </View>
       )
     }
@@ -178,7 +178,7 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
       return (
         <View style={{ gap: 8 }}>
           <Text style={[st.cSub, { color: p.textSecondary }]}>지금은 {josa(name, '가', '이')} 쉬고 있어요. 일기는 그대로 저장돼요</Text>
-          <Pressable accessibilityRole="button" onPress={() => void runReply()} style={[st.pillLine, { borderColor: p.accent, flexDirection: 'row', gap: 6 }]}><RefreshCw size={14} color={p.accent} /><Text style={[st.pillLineText, { color: p.accent }]}>다시 시도</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => void runReply()} style={[st.pillLine, { borderColor: p.accent, flexDirection: 'row', gap: 6 }]}><RefreshCw size={14} color={p.accent} /><Text style={[st.pillLineText, { color: p.accentInk }]}>다시 시도</Text></Pressable>
         </View>
       )
     }
@@ -186,7 +186,7 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
       return (
         <Pressable accessibilityRole="button" accessibilityLabel={`${josa(name, '와', '과')} 이야기하기`} onPress={() => router.push({ pathname: '/diary/chat', params: { date } })} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={[st.cSub, { color: p.textPrimary, flex: 1 }]} numberOfLines={2}>{parseBuddyReply(firstReply.content).text}</Text>
-          <Text style={{ color: p.accent, fontSize: 13, fontWeight: '600' }}>이야기하기</Text>
+          <Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '600' }}>이야기하기</Text>
         </Pressable>
       )
     }
@@ -194,7 +194,7 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
     return (
       <Pressable onPress={() => router.push({ pathname: '/diary/chat', params: { date } })} style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Text style={[st.cSub, { color: p.textTertiary, flex: 1 }]}>잠깐 쉬면 {josa(name, '가', '이')} 먼저 말을 걸어요</Text>
-        <Text style={{ color: p.accent, fontSize: 13, fontWeight: '600' }}>이야기하기</Text>
+        <Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '600' }}>이야기하기</Text>
       </Pressable>
     )
   }
@@ -234,7 +234,7 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
           <View style={{ flex: 1, paddingTop: 6 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={[st.mline, { color: p.textPrimary }]}>{d.getFullYear() !== new Date().getFullYear() ? `${d.getFullYear()}년 ` : ''}{d.getMonth() + 1}월 · {'일월화수목금토'[d.getDay()]}요일</Text>
-              {isToday ? <View style={[st.todayChip, { backgroundColor: p.accentSubtle }]}><Text style={{ color: p.accent, fontSize: 11, fontWeight: '600' }}>오늘</Text></View> : null}
+              {isToday ? <View style={[st.todayChip, { backgroundColor: p.accentSubtle }]}><Text style={{ color: p.accentInk, fontSize: 11, fontWeight: '600' }}>오늘</Text></View> : null}
             </View>
             {savedLabel ? <Animated.Text key={savedAt} entering={FadeIn.duration(200)} style={[st.saved, { color: p.textTertiary }]}>{savedLabel} ✓</Animated.Text> : null}
           </View>
@@ -267,7 +267,7 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
               <Text style={[st.noteHead, { color: p.textTertiary }]}>오늘의 질문</Text>
               <Text style={[st.noteQ, { color: p.textPrimary }]}>{promptFor(date, shift)}</Text>
               <View style={{ flexDirection: 'row', gap: 16 }}>
-                <Pressable onPress={usePrompt} accessibilityRole="button" hitSlop={6}><Text style={{ color: p.accent, fontWeight: '600', fontSize: 13 }}>이 질문으로 쓰기</Text></Pressable>
+                <Pressable onPress={usePrompt} accessibilityRole="button" hitSlop={6}><Text style={{ color: p.accentInk, fontWeight: '600', fontSize: 13 }}>이 질문으로 쓰기</Text></Pressable>
                 <Pressable onPress={() => setShift((n) => n + 1)} accessibilityRole="button" hitSlop={6}><Text style={{ color: p.textSecondary, fontSize: 13 }}>다른 질문 ↻</Text></Pressable>
               </View>
             </Animated.View>
@@ -292,7 +292,7 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
           {/* 오늘 한 일 타임라인(15 §9.5, 읽기만) */}
           <View style={[st.doneHead, { borderTopColor: p.borderDivider }]}>
             <Text style={[st.doneTitle, { color: p.textSecondary }]}>{isToday ? '오늘' : '이 날'} 한 일 {done.rows.length}개</Text>
-            {done.xp > 0 ? <View style={[st.xp, { backgroundColor: p.accentSubtle }]}><Text style={{ color: p.accent, fontSize: 11.5, fontWeight: '600' }}>+{done.xp} XP</Text></View> : null}
+            {done.xp > 0 ? <View style={[st.xp, { backgroundColor: p.accentSubtle }]}><Text style={{ color: p.accentInk, fontSize: 11.5, fontWeight: '600' }}>+{done.xp} XP</Text></View> : null}
           </View>
           {done.rows.length === 0 ? <Text style={[st.cSub, { color: p.textTertiary }]}>{isToday ? '오늘' : '이 날'} 끝낸 할 일이 아직 없어요</Text> : (
             <View>
@@ -307,7 +307,7 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
                   <ChevronRight size={14} color={p.textQuaternary} />
                 </Pressable>
               ))}
-              {done.rows.length > 3 ? <Pressable onPress={() => setShowAll((v) => !v)} hitSlop={6}><Text style={{ color: p.accent, fontSize: 13, marginLeft: 58, marginTop: 2 }}>{showAll ? '접기' : `＋ ${done.rows.length - 3}개 더`}</Text></Pressable> : null}
+              {done.rows.length > 3 ? <Pressable onPress={() => setShowAll((v) => !v)} hitSlop={6}><Text style={{ color: p.accentInk, fontSize: 13, marginLeft: 58, marginTop: 2 }}>{showAll ? '접기' : `＋ ${done.rows.length - 3}개 더`}</Text></Pressable> : null}
             </View>
           )}
         </View>

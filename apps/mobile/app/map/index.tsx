@@ -68,7 +68,7 @@ export default function WorkMap() {
               {doneGoalRow ? (
                 <View style={[s.band, { backgroundColor: p.accentSubtle }]}>
                   <Text style={{ flex: 1, color: p.textPrimary, fontSize: 14 }}>'{doneGoalRow.title}'에 연결된 할 일을 다 끝냈어요</Text>
-                  <Pressable onPress={() => { setSkip((x) => new Set(x).add(doneGoalRow.id)); void setGoalProgress(dayKey(), doneGoalRow as GoalRow, doneGoalRow.target) }} hitSlop={6}><Text style={{ color: p.accent, fontWeight: '600' }}>달성으로 표시</Text></Pressable>
+                  <Pressable onPress={() => { setSkip((x) => new Set(x).add(doneGoalRow.id)); void setGoalProgress(dayKey(), doneGoalRow as GoalRow, doneGoalRow.target) }} hitSlop={6}><Text style={{ color: p.accentInk, fontWeight: '600' }}>달성으로 표시</Text></Pressable>
                 </View>
               ) : null}
               {linkedOpen ? (
@@ -92,8 +92,8 @@ export default function WorkMap() {
                 </Pressable>
               ) : null}
               <View style={{ flexDirection: 'row', gap: 4 }}>
-                <Pressable onPress={() => menus.newList(null)} accessibilityRole="button" style={s.newBtn}><Plus size={18} color={p.accent} /><Text style={{ color: p.accent, fontSize: 15, fontWeight: '500' }}>새로운 리스트</Text></Pressable>
-                <Pressable onPress={menus.newFolder} accessibilityRole="button" style={s.newBtn}><FolderPlus size={17} color={p.accent} /><Text style={{ color: p.accent, fontSize: 15, fontWeight: '500' }}>새 폴더</Text></Pressable>
+                <Pressable onPress={() => menus.newList(null)} accessibilityRole="button" style={s.newBtn}><Plus size={18} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 15, fontWeight: '500' }}>새로운 리스트</Text></Pressable>
+                <Pressable onPress={menus.newFolder} accessibilityRole="button" style={s.newBtn}><FolderPlus size={17} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 15, fontWeight: '500' }}>새 폴더</Text></Pressable>
               </View>
             </>
           )}
@@ -189,7 +189,7 @@ function Board({ data, onMenu, onNew, bottom }: { data: MapData; onMenu: (f: Fol
     <View style={{ flex: 1 }}>
       <ScrollView ref={scroll} horizontal snapToInterval={colW + gap} decelerationRate="fast" showsHorizontalScrollIndicator={false} onMomentumScrollEnd={onEnd} contentContainerStyle={{ paddingHorizontal: 16, gap }}>
         {cols.map((c) => <Column key={c.key} col={c} data={data} width={colW} onTitle={() => setGrid(true)} onMenu={onMenu} />)}
-        <Pressable onPress={onNew} accessibilityRole="button" style={[s.newCol, { width: colW * 0.6, borderColor: p.borderDivider }]}><Plus size={18} color={p.accent} /><Text style={{ color: p.accent, fontSize: 15 }}>새로운 리스트</Text></Pressable>
+        <Pressable onPress={onNew} accessibilityRole="button" style={[s.newCol, { width: colW * 0.6, borderColor: p.borderDivider }]}><Plus size={18} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 15 }}>새로운 리스트</Text></Pressable>
       </ScrollView>
       <View style={[s.dots, { paddingBottom: bottom + 8 }]}>
         {cols.map((c, i) => <View key={c.key} style={[s.pdot, { backgroundColor: i === page ? p.accent : p.textQuaternary }]} />)}
@@ -254,9 +254,9 @@ function Column({ col, data, width, onTitle, onMenu }: { col: { key: string; nod
 }
 
 const s = StyleSheet.create({
-  band: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginBottom: 10, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
-  goalStrip: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginBottom: 10, borderRadius: 12, paddingHorizontal: 12, height: 44 },
-  card: { marginHorizontal: 12, marginBottom: 10, borderRadius: 14, overflow: 'hidden' },
+  band: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginBottom: 10, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 },
+  goalStrip: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginBottom: 10, borderRadius: 16, paddingHorizontal: 12, height: 44 },
+  card: { marginHorizontal: 12, marginBottom: 10, borderRadius: 20, overflow: 'hidden' },
   dashed: { borderWidth: 1, borderStyle: 'dashed' },
   head: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 },
   dot: { width: 9, height: 9, borderRadius: 5 },
@@ -266,15 +266,15 @@ const s = StyleSheet.create({
   lrow: { height: 46, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
   lname: { flex: 1, fontSize: 15.5 },
   newBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingVertical: 12 },
-  col: { borderRadius: 14, padding: 8, paddingBottom: 0 },
+  col: { borderRadius: 20, padding: 8, paddingBottom: 0 },
   colHead: { flexDirection: 'row', alignItems: 'center', height: 36, paddingHorizontal: 6, gap: 8 },
   sub: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4, paddingTop: 6 },
-  kcard: { borderRadius: 8, overflow: 'hidden' },
-  newCol: { borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, alignSelf: 'flex-start', height: 60 },
+  kcard: { borderRadius: 12, overflow: 'hidden' },
+  newCol: { borderRadius: 20, borderWidth: 1, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, alignSelf: 'flex-start', height: 60 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingTop: 8 },
   pdot: { width: 6, height: 6, borderRadius: 3 },
   gridScrim: { flex: 1, justifyContent: 'center', padding: 24 },
-  gridBox: { borderRadius: 18, padding: 16 },
+  gridBox: { borderRadius: 24, padding: 16 },
   gridWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  gridCell: { width: '48%', borderRadius: 12, padding: 12, gap: 4 }
+  gridCell: { width: '48%', borderRadius: 16, padding: 12, gap: 4 }
 })

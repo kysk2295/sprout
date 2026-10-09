@@ -50,7 +50,7 @@ export function GroupCard(props: Props) {
           <View style={{ flex: 1 }} />
           {props.onPostpone ? (
             <Pressable accessibilityRole="button" hitSlop={8} onPress={props.onPostpone}>
-              <Text style={[s.link, { color: p.accent }]}>미루기</Text>
+              <Text style={[s.link, { color: p.accentInk }]}>미루기</Text>
             </Pressable>
           ) : null}
           <Text style={[FONT.sub, { color: p.textTertiary }]}>{props.count}</Text>

@@ -275,7 +275,7 @@ export default function QuickAdd() {
                 <Pressable accessibilityRole="button" accessibilityState={{ selected: focusOn }} accessibilityLabel={focusOn ? `${focus.name}에 넣기, 누르면 빼요` : `${focus.name}에 넣지 않음, 누르면 넣어요`}
                   onPress={() => setFocusOff((v) => !v)} hitSlop={6}
                   style={[s.focusChip, focusOn ? { borderColor: p.accent, backgroundColor: alpha(p.accent, p.dark ? 0.22 : 0.1) } : { borderColor: p.borderDivider }]}>
-                  <Text style={{ fontSize: 13, lineHeight: 18, color: focusOn ? p.accent : p.textTertiary }} numberOfLines={1}>🚀 {focus.name}</Text>
+                  <Text style={{ fontSize: 13, lineHeight: 18, color: focusOn ? p.accentInk : p.textTertiary }} numberOfLines={1}>🚀 {focus.name}</Text>
                   {focusOn ? <X size={12} color={p.accent} /> : null}
                 </Pressable>
               </View>
@@ -284,7 +284,7 @@ export default function QuickAdd() {
               {chip ? (
                 <Pressable accessibilityRole="button" accessibilityLabel={`날짜: ${chip}`} onPress={openDate} style={[s.dateChip, { borderColor: p.accent }]}>
                   <Calendar size={15} color={p.accent} />
-                  <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '500', color: p.accent }}>{chip}</Text>
+                  <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '500', color: p.accentInk }}>{chip}</Text>
                 </Pressable>
               ) : (
                 <Tool label="날짜" onPress={openDate}><Calendar size={21} color={p.textSecondary} /></Tool>
@@ -322,7 +322,7 @@ export default function QuickAdd() {
               {/* 27 §2.2: 도구 막대 ✦ AI에게. 날짜 칩이 자리를 차지하면 ✦만. 일정에는 없음(22 §3.5) */}
               {isEvent ? null : <Pressable accessibilityRole="button" accessibilityLabel="AI에게" onPress={askAI} hitSlop={4} style={({ pressed }) => [s.ai, { backgroundColor: p.accentSubtle }, pressed && { opacity: 0.6 }]}>
                 <Sparkles size={15} color={p.accent} />
-                {chip ? null : <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '600', color: p.accent }}>AI에게</Text>}
+                {chip ? null : <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '600', color: p.accentInk }}>AI에게</Text>}
               </Pressable>}
               <Pressable accessibilityRole="button" accessibilityLabel="추가" disabled={!canSend} onPress={() => void send()} style={[s.send, { backgroundColor: p.accent, opacity: canSend ? 1 : 0.35 }]}>
                 <ArrowUp size={19} color="#fff" />
@@ -338,7 +338,7 @@ export default function QuickAdd() {
                   : trigger?.kind === '~' || sg.group === 'list' ? <ListIcon size={13} color={p.textSecondary} />
                   : sg.group === 'task' ? <Square size={13} color={p.textSecondary} />
                   : <Flag size={13} color={priorityColor(p, sg.priority)} />}
-                <Text style={{ fontSize: 14, color: i === 0 && !sg.create ? p.accent : p.textPrimary, maxWidth: 200 }} numberOfLines={1}>{sg.label}</Text>
+                <Text style={{ fontSize: 14, color: i === 0 && !sg.create ? p.accentInk : p.textPrimary, maxWidth: 200 }} numberOfLines={1}>{sg.label}</Text>
                 {sg.sub ? <Text style={{ fontSize: 12, color: p.textTertiary, maxWidth: 120 }} numberOfLines={1}>{sg.sub}</Text> : null}
               </Pressable>
             ))}

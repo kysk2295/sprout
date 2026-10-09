@@ -289,7 +289,7 @@ export function TextPrompt(props: { open: boolean; title: string; initial?: stri
           {error ? <Text style={{ color: p.danger, fontSize: 13 }}>{error}</Text> : null}
           <View style={s.btns}>
             <Pressable accessibilityRole="button" onPress={props.onClose} style={s.btn}><Text style={{ fontSize: 16, color: p.textSecondary }}>취소</Text></Pressable>
-            <Pressable accessibilityRole="button" disabled={!v.trim()} onPress={() => void ok()} style={s.btn}><Text style={{ fontSize: 16, fontWeight: '600', color: v.trim() ? p.accent : p.textQuaternary }}>{props.confirm ?? '확인'}</Text></Pressable>
+            <Pressable accessibilityRole="button" disabled={!v.trim()} onPress={() => void ok()} style={s.btn}><Text style={{ fontSize: 16, fontWeight: '600', color: v.trim() ? p.accentInk : p.textQuaternary }}>{props.confirm ?? '확인'}</Text></Pressable>
           </View>
         </View>
       </KeyboardAvoidingView>

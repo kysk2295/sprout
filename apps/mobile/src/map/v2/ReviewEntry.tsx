@@ -20,7 +20,7 @@ export function ReviewEntry() {
       <ClipboardCheck size={18} color={due && !done ? p.accent : p.textSecondary} />
       <View style={{ flex: 1 }}>
         <Text style={{ color: p.textPrimary, fontSize: 15.5, fontWeight: '600' }}>주간 점검</Text>
-        <Text style={{ color: due && !done ? p.accent : p.textTertiary, fontSize: 12.5, marginTop: 1 }}>
+        <Text style={{ color: due && !done ? p.accentInk : p.textTertiary, fontSize: 12.5, marginTop: 1 }}>
           {done ? '이번 주 점검 끝 ✓' : due ? '지금 점검할 때예요 · 약 5분' : '돌아보기 · 밀린 일 · 다음 주 목표'}
         </Text>
       </View>

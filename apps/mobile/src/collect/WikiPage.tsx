@@ -127,7 +127,7 @@ export default function WikiPage() {
             <View style={{ flex: 1, gap: 8 }}>
               <Text style={[FONT.sub, { color: p.textPrimary }]}>버전 {preview.version} 미리보기 · {preview.reason}</Text>
               <View style={{ flexDirection: 'row', gap: 16 }}>
-                <Text accessibilityRole="button" onPress={() => void restore(preview.version, restoreReason(preview.version))} style={[s.bandBtn, { color: p.accent }]}>이 버전으로 되돌리기</Text>
+                <Text accessibilityRole="button" onPress={() => void restore(preview.version, restoreReason(preview.version))} style={[s.bandBtn, { color: p.accentInk }]}>이 버전으로 되돌리기</Text>
                 <Text accessibilityRole="button" onPress={() => setPreview(undefined)} style={[s.bandBtn, { color: p.textSecondary }]}>닫기</Text>
               </View>
             </View>
@@ -136,7 +136,7 @@ export default function WikiPage() {
           <View style={[s.band, { backgroundColor: p.accentSubtle }]}>
             <Sparkles size={16} color={p.accent} style={{ marginTop: 2 }} />
             <Text style={[FONT.sub, { color: p.textPrimary, flex: 1 }]}>{reason}</Text>
-            {base >= 1 ? <Text accessibilityRole="button" onPress={() => void restore(base, '되돌렸어요')} style={[s.bandBtn, { color: p.accent }]}>되돌리기</Text> : null}
+            {base >= 1 ? <Text accessibilityRole="button" onPress={() => void restore(base, '되돌렸어요')} style={[s.bandBtn, { color: p.accentInk }]}>되돌리기</Text> : null}
             <Pressable accessibilityLabel="띠 닫기" hitSlop={8} onPress={() => setBaseline(topic.version)}><X size={16} color={p.textTertiary} /></Pressable>
           </View>
         ) : null}

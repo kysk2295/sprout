@@ -33,6 +33,7 @@ import { PopMenu, useAnchor, type MenuItem, type Rect } from '../../../src/ui/Me
 import { recognizeWith, segments, type Range } from '../../../src/ui/quickAddModel'
 import { closeOpenRow, SwipeRow } from '../../../src/ui/SwipeRow'
 import { useToast } from '../../../src/ui/Toast'
+import { ProgressBar } from '../../../src/ui/ProgressBar'
 import { openView } from '../../../src/wiki/WikiIndex'
 import { useTagMeta } from '../../../src/wiki/data'
 
@@ -94,7 +95,7 @@ export default function ProjectScreen() {
   const nav = (
     <View style={[s.nav, { marginTop: insets.top }]}>
       <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="모든 프로젝트로 돌아가기" style={s.back} hitSlop={6}>
-        <ChevronLeft size={24} color={p.accent} /><Text style={{ color: p.accent, fontSize: 17 }}>모든 프로젝트</Text>
+        <ChevronLeft size={24} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 17 }}>모든 프로젝트</Text>
       </Pressable>
       {x ? (
         <View ref={more.ref} collapsable={false}>
@@ -211,7 +212,7 @@ export default function ProjectScreen() {
         <View style={s.head}>
           <TitleEdit x={x} onSave={(v) => tryDo(async () => { const u = await renameProject(x.tag.id, x.tag.name, v); if (u) toast.show('이름을 바꿨어요', { undo: u }) })} />
           <CardLine x={x} today={today} extra={x.auto ? ' · 자동으로 묶었어요' : ''} />
-          <View style={[s.bar, { backgroundColor: p.bgSelected }]}><View style={[s.barIn, { width: `${ratio * 100}%`, backgroundColor: p.accent }]} /></View>
+          <ProgressBar ratio={ratio} style={s.bar} />
           <HeadPills x={x} today={today} onKey={() => setKeySheet({ tagId: x.tag.id, name: x.title, keyTaskId: x.keyTask?.id ?? null, day: x.keyTask ? x.deadline?.day ?? null : null, word: x.keyTask ? x.deadline?.word ?? null : null })}
             onTeam={(names) => tryDo(async () => { const u = await linkTeam(x.tag.id, names); toast.show(`팀원 ${names.length}명을 이었어요`, { undo: u }) })}
             onUnteam={(pid, name) => tryDo(async () => toast.show(`${qEul(name)} 팀원에서 뺐어요 · 태그는 남아요`, { undo: await unlinkTeammate(x.tag.id, pid) }))}
@@ -224,7 +225,7 @@ export default function ProjectScreen() {
             {x.confirmed ? `관련 일 ${x.members.length}개` : `관련 일 ${x.members.length}개를 모았어요. 빠진 게 있으면 더 넣어요.`}
           </Text>
           {!x.confirmed ? <Pressable onPress={() => { void confirmProject(x.tag.id, x.members.length).catch(fail); setAdding(false) }} hitSlop={8} accessibilityRole="button"><Text style={{ color: p.textSecondary, fontSize: 14 }}>빠진 거 없어</Text></Pressable> : null}
-          <Pressable onPress={() => { setAdding((v) => !v); setQ('') }} hitSlop={8} accessibilityRole="button"><Text style={{ color: p.accent, fontSize: 14, fontWeight: '500' }}>{adding ? '닫기' : '더 넣기'}</Text></Pressable>
+          <Pressable onPress={() => { setAdding((v) => !v); setQ('') }} hitSlop={8} accessibilityRole="button"><Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '500' }}>{adding ? '닫기' : '더 넣기'}</Text></Pressable>
         </View>
         {adding ? (
           <Card>
@@ -238,7 +239,7 @@ export default function ProjectScreen() {
                   <Text style={{ color: p.textPrimary, fontSize: 15 }} numberOfLines={1}>{t.title}</Text>
                   <Text style={{ color: p.textTertiary, fontSize: 12 }} numberOfLines={1}>{data.listName(t.list_id)}</Text>
                 </View>
-                <Text style={{ color: p.accent, fontSize: 14 }}>넣기</Text>
+                <Text style={{ color: p.accentInk, fontSize: 14 }}>넣기</Text>
               </Pressable>
             ))}
             {!outside.length ? <Text style={{ color: p.textTertiary, padding: 14 }}>넣을 할 일이 없어요</Text> : null}
@@ -248,7 +249,7 @@ export default function ProjectScreen() {
         {ask ? (
           <View style={s.starter}>
             <Text style={{ flex: 1, color: p.textSecondary, fontSize: 13.5 }}>{ask.text}</Text>
-            <Pressable onPress={() => void starterYes()} accessibilityRole="button" hitSlop={6}><Text style={{ color: p.accent, fontSize: 14, fontWeight: '600' }}>{ask.lanes ? '그렇게' : `＋ ${ask.add} 추가`}</Text></Pressable>
+            <Pressable onPress={() => void starterYes()} accessibilityRole="button" hitSlop={6}><Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '600' }}>{ask.lanes ? '그렇게' : `＋ ${ask.add} 추가`}</Text></Pressable>
             <Pressable onPress={() => void tryDo(async () => { await seen() })} accessibilityRole="button" hitSlop={6}><Text style={{ color: p.textTertiary, fontSize: 14 }}>괜찮아요</Text></Pressable>
             <Pressable onPress={() => void tryDo(async () => { await seen() })} accessibilityRole="button" accessibilityLabel="제안 닫기" hitSlop={8}><X size={15} color={p.textTertiary} /></Pressable>
           </View>
@@ -300,7 +301,7 @@ export default function ProjectScreen() {
             </View>
           ) : (
             <Pressable onPress={() => setNewLane(true)} accessibilityRole="button" style={({ pressed }) => [s.addLane, pressed && { backgroundColor: p.bgSelected }]}>
-              <Plus size={18} color={p.accent} /><Text style={{ color: p.accent, fontSize: 15, fontWeight: '500' }}>묶음 추가</Text>
+              <Plus size={18} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 15, fontWeight: '500' }}>묶음 추가</Text>
             </Pressable>
           )
         ) : (
@@ -354,12 +355,12 @@ function HeadPills({ x, today, onKey, onTeam, onUnteam, onOpenPerson, onFocus }:
   const p = usePalette()
   const [typing, setTyping] = useState(false)
   const pill = keyPill(x.deadline, !!x.keyTask, today)
-  const gray = { backgroundColor: p.bgSelected }
+  const gray = { backgroundColor: p.bgInput } // 44 §4 칩 = 칸 면
   return (
     <View style={s.pills}>
-      <Pressable onPress={onKey} accessibilityRole="button" accessibilityLabel={pill ? `핵심 날짜 ${pill.text} ${pill.dday}` : '핵심 날짜 정하기'} style={[s.pill, gray]}>
+      <Pressable onPress={onKey} accessibilityRole="button" accessibilityLabel={pill ? `핵심 날짜 ${pill.text} ${pill.dday}` : '핵심 날짜 정하기'} style={[s.pill, pill?.hot ? { backgroundColor: p.dark ? 'rgba(255,127,166,0.15)' : '#FFE6EE' } : gray]}>
         {pill ? (
-          <Text style={{ color: pill.hot ? p.overdue : p.textSecondary, fontSize: 13 }}>{pill.text} <Text style={{ fontWeight: '600' }}>{pill.dday}</Text></Text>
+          <Text style={{ color: pill.hot ? (p.dark ? '#FF8FB1' : '#D6336C') : p.textSecondary, fontSize: 13, fontWeight: '600' }}>{pill.text} <Text style={{ fontWeight: '800' }}>{pill.dday}</Text></Text>
         ) : <Text style={{ color: p.textSecondary, fontSize: 13 }}>＋ 핵심 날짜</Text>}
       </Pressable>
       {x.team.map((m) => (
@@ -473,9 +474,8 @@ const s = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '700', lineHeight: 32 },
   titleIn: { borderWidth: 2, borderRadius: 6, paddingHorizontal: 4, marginHorizontal: -6, paddingVertical: 0 },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
-  pill: { flexDirection: 'row', alignItems: 'center', height: 30, borderRadius: 15, paddingHorizontal: 11 },
-  bar: { height: 3, borderRadius: 2, overflow: 'hidden', marginTop: 6 },
-  barIn: { height: 3, borderRadius: 2 },
+  pill: { flexDirection: 'row', alignItems: 'center', height: 28, borderRadius: 14, paddingHorizontal: 11 },
+  bar: { marginTop: 8 },
   notice: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 20, paddingBottom: 10 },
   starter: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingBottom: 10 },
   search: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 44, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth },
@@ -483,7 +483,7 @@ const s = StyleSheet.create({
   pick: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 6 },
   ghead: { flexDirection: 'row', alignItems: 'center', minHeight: 36, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 },
   gname: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  newLane: { marginHorizontal: 12, marginBottom: 10, borderRadius: 14, minHeight: 46, paddingHorizontal: 14, justifyContent: 'center' },
-  addLane: { flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 12, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12 },
+  newLane: { marginHorizontal: 12, marginBottom: 10, borderRadius: 20, minHeight: 46, paddingHorizontal: 14, justifyContent: 'center' },
+  addLane: { flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 12, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 12 },
   kindNote: { fontSize: 12, paddingHorizontal: 20, paddingTop: 2, paddingBottom: 8, lineHeight: 17 }
 })
