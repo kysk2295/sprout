@@ -112,7 +112,7 @@ section.s > p.lead { margin: 0 0 20px; color: var(--k-ink-2); font: 400 14.5px/1
 .mevo { position: absolute; inset: 0; z-index: 90; background: radial-gradient(120% 70% at 50% 42%, #2C6A43 0%, #12301E 55%, #08150D 100%); opacity: 0; pointer-events: none; transition: opacity .25s }
 .mevo.show { opacity: 1; pointer-events: auto }
 .mevo .glow { position: absolute; left: 50%; top: 40%; width: 320px; height: 320px; margin: -160px; border-radius: 50%; background: radial-gradient(circle, rgba(140, 240, 170, .42), rgba(140, 240, 170, 0) 65%) }
-.mevo .box { position: absolute; left: 50%; top: 40%; width: 0; height: 0 }
+.mevo .box { position: absolute; left: 50%; top: 33%; width: 0; height: 0 }
 .evl { position: absolute; top: 0; left: 0 }
 .evl .chr { width: 100%; height: 100% }
 .mevo .box .evl { top: -115px }
@@ -120,6 +120,7 @@ section.s > p.lead { margin: 0 0 20px; color: var(--k-ink-2); font: 400 14.5px/1
 .ecard .k { font: 650 13px/1 var(--k-font); color: #8FF0B5; margin-bottom: 10px }
 .ecard .n { font: 800 30px/1.1 var(--k-font); letter-spacing: -.03em }
 .ecard .f { margin-top: 12px; display: inline-block; font: 600 12.5px/1.4 var(--k-font); padding: 8px 12px; border-radius: 12px; background: rgba(255, 255, 255, .1) }
+.mevo .ecard { bottom: 70px }
 .mevo .skip { position: absolute; top: 56px; right: 18px; color: rgba(255, 255, 255, .7); background: rgba(255, 255, 255, .1); border: 0; border-radius: 999px; height: 30px; padding: 0 12px; font: 600 12.5px/1 var(--k-font) }
 
 /* ── 휴대폰: 꾸미기 ── */
@@ -205,9 +206,9 @@ section.s > p.lead { margin: 0 0 20px; color: var(--k-ink-2); font: 400 14.5px/1
 /* ── D 진화 무대 ── */
 #evo { height: 520px; border-radius: 28px; cursor: pointer }
 #evoDim { position: absolute; inset: 0; background: radial-gradient(90% 80% at 50% 45%, rgba(18, 52, 32, .55), rgba(6, 16, 10, .88)); opacity: 0; z-index: 2; pointer-events: none }
-#evoBox { position: absolute; left: 50%; top: 46%; width: 0; height: 0; z-index: 3 }
+#evoBox { position: absolute; left: 50%; top: 33%; width: 0; height: 0; z-index: 3 }
 #evoBox .evl { top: -130px }
-#evo .ecard { bottom: 34px; z-index: 4 }
+#evo .ecard { bottom: 22px; z-index: 4 }
 #evo .ecard .n { color: #fff; text-shadow: 0 2px 16px rgba(0, 0, 0, .3) }
 #evoChoice { position: absolute; inset: 0; z-index: 6; background: radial-gradient(80% 80% at 50% 50%, rgba(10, 30, 18, .78), rgba(4, 12, 8, .92)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; opacity: 0; pointer-events: none; transition: opacity .2s }
 #evoChoice.show { opacity: 1; pointer-events: auto }
@@ -251,6 +252,21 @@ table.ut td { padding: 6px 12px; border-top: 1px solid var(--k-line) }
 .lineup .lc b { display: block; font: 700 12.5px/1.2 var(--k-font) }
 .lineup .lc span { font: 500 11px/1 var(--k-font); color: var(--k-ink-3) }
 .lineup .hd { font: 700 12px/1 var(--k-font); color: var(--k-ink-3); text-align: center; padding-top: 4px }
+.lineup .hd small { display: block; margin-top: 4px; font: 800 11px/1 var(--k-num); color: var(--k-accent-ink) }
+.lineup .lhd { display: flex; align-items: flex-end }
+.lineup .lhd .seg button { white-space: nowrap; padding: 0 10px }
+.lineup .lc { position: relative; border-bottom: 2px solid var(--k-line-strong) }
+.lineup .lc span { display: block; min-height: 26px; line-height: 1.3; padding: 2px 4px 0 }
+/* 진화: 빛 방울 · 터지는 고리 · 전 → 후 카드 */
+.evorb { position: absolute; left: -60px; top: -40px; width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #fff 0 30%, rgba(200, 255, 220, .7) 45%, rgba(140, 240, 170, 0) 70%); opacity: 0; pointer-events: none }
+.evring { position: absolute; left: -60px; top: -40px; width: 120px; height: 120px; border-radius: 50%; box-shadow: inset 0 0 0 4px #fff, 0 0 0 2px var(--rc, #8FF0B5); opacity: 0; pointer-events: none }
+.evring.two { box-shadow: inset 0 0 0 3px var(--rc, #8FF0B5) }
+.bit.big { width: 16px; height: 16px; margin: -8px; top: 10px }
+.ecard .ba { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px }
+.ecard .ba .bi { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 8px 6px; border-radius: 14px; background: rgba(255, 255, 255, .1) }
+.ecard .ba .bi.now { background: rgba(143, 240, 181, .2); box-shadow: inset 0 0 0 1.5px #8FF0B5 }
+.ecard .ba em { font: 650 11px/1 var(--k-font); font-style: normal; color: rgba(255, 255, 255, .85) }
+.ecard .ba > b { color: #8FF0B5; font: 800 18px/1 var(--k-font) }
 .dirs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px }
 .dir { border-radius: 24px; padding: 18px 20px; background: var(--k-surface); box-shadow: var(--k-sh-1); position: relative }
 .dir.rec { box-shadow: inset 0 0 0 2px var(--k-accent), var(--k-sh-1) }
@@ -272,6 +288,7 @@ table.ut td { padding: 6px 12px; border-top: 1px solid var(--k-line) }
 <header class="top">
   <h1><span id="logoH"></span>캐릭터 키우기 v2 <small>42·43 + 44 시각 개편 · 레퍼런스 research 36</small></h1>
   <span class="sp"></span>
+  <div class="seg" id="segArt"><button data-v="new">새 그림</button><button data-v="old">이전 그림</button></div>
   <div class="seg" id="segSp"></div>
   <div class="seg" id="segTh"><button data-v="light">라이트</button><button data-v="dark">다크</button></div>
   <div class="seg" id="segMo"><button data-v="full">움직임</button><button data-v="reduce">줄이기</button></div>
@@ -284,13 +301,13 @@ table.ut td { padding: 6px 12px; border-top: 1px solid var(--k-line) }
 
 <section class="s" id="sec0">
   <h2>0. 새 캐릭터 — 꿈틀 정원 친구들</h2>
-  <p class="lead">씨앗 껍질에서 나와 머리 새싹과 함께 자란다. 성향 4칸(10 §2.1)은 그대로 두고 동물만 정원 친구로 바꾼다. 애벌레는 나비, 올챙이는 개구리가 되어서 단계마다 모습이 확 달라진다(42 원칙 1). 칸을 누르면 위 시안 전체가 그 종으로 바뀐다.</p>
+  <p class="lead">사용자 피드백 "더 귀엽게, 진화할 때 더 크게 바뀌게"(42 §11 · 43 §19). 아기 비율(머리가 몸보다 크다) · 큰 눈 빛점 둘 · 볼 번짐 · 짧은 팔다리로 귀엽게, 단계마다 <b>실루엣 자체</b>가 바뀌고(씨앗알·벌집 칸·잎 위의 알·물방울 → 몸 → 집·고치·개구리 → 장면) 크기가 0.7 → 1.0 → 1.15 → 1.3 → 1.45배로 자란다. 아래 줄은 크기를 실제 비율 그대로 놓았다. 맨 위 "이전 그림"을 누르면 같은 자리에 지난 그림이 나온다. 칸을 누르면 시안 전체가 그 종·단계로 바뀐다.</p>
   <div class="dirs">
     <div class="dir"><span class="chip tag">A</span><h3>A. 말랑 동물 — 거북·다람쥐·고양이·수달을 새 화풍으로</h3><p>종·소품·두 갈래(42·43)는 그대로 두고 화풍만 바꾼다: 둥근 음영, 하이라이트, 얇은 같은 색 선, 큰 눈. 데이터와 명세가 거의 그대로 간다. 다만 "꿈틀"이라는 이름과 관계가 약하고, 단계 차이는 소품에만 기댄다(그림은 v1 시안의 동물과 같은 구성).</p></div>
     <div class="dir rec"><span class="chip on tag">추천 B</span><h3>B. 꿈틀 정원 친구들 — 달팽이·꿀벌·애벌레·올챙이</h3><p>꿈틀(꿈틀거리며 자람)과 새싹 로고에 바로 이어진다. 탈바꿈(애벌레 → 나비, 올챙이 → 개구리)이 있어서 "확 다른 단계"가 소품 없이도 몸 모양으로 보인다. 성향 칸은 같고 종 id만 바뀐다: 거북 → 달팽이, 다람쥐 → 꿀벌, 고양이 → 애벌레, 수달 → 개구리. 이미 고른 사용자의 종도 이 표대로 옮긴다(결정 ⓐ).</p><div class="mini" id="dirMini"></div></div>
   </div>
   <div class="lineup" id="lineup"></div>
-  <p class="note" style="margin-top:10px">화풍: 빛은 왼쪽 위 한 곳. 면마다 둥근 음영(밝은 쪽 46% 흰색, 그늘 쪽 30% 남회색), 같은 색 계열의 얇은 선(0.9px, 45% 진하게, 투명도 50%), 흰 하이라이트 타원 하나, 바닥 접촉 그림자. 눈은 진한 보라 검정에 빛점 두 개. 그림자 색에 검정 대신 남회색을 섞어서 노랑·하늘색이 탁해지지 않는다.</p>
+  <p class="note" style="margin-top:10px">종 표시(모든 단계에 남는 것): 달팽이 하트 나선 · 꿀벌 솜털 목도리 · 애벌레 분홍 방울 더듬이 · 올챙이 잎 모자. 화풍: 빛은 왼쪽 위 한 곳. 면마다 둥근 음영(밝은 쪽 46% 흰색, 그늘 쪽 30% 남회색), 같은 색 계열의 얇은 선(0.9px, 45% 진하게, 투명도 50%), 흰 하이라이트 타원 하나, 바닥 접촉 그림자. 눈은 진한 보라 검정에 빛점 두 개. 그림자 색에 검정 대신 남회색을 섞어서 노랑·하늘색이 탁해지지 않는다.</p>
 </section>
 
 <section class="s" id="secA">
@@ -370,13 +387,13 @@ table.ut td { padding: 6px 12px; border-top: 1px solid var(--k-line) }
 
 <section class="s" id="secC">
   <h2>C. 레벨마다 자라는 게 보이게 — 키 · 새싹 잎 · 무늬 한 점 + 그 레벨의 선물</h2>
-  <p class="lead">43 §3.1 그대로(무대 크기 180 + 6 × (Lv − 1)). 같은 단계 안에서도 레벨마다 키 6px, 새싹 잎눈이나 무늬 점 하나가 바뀐다. 진화 레벨에서는 모습이 바뀐다.</p>
+  <p class="lead">43 §18.5: 무대 상자 236 + 3 × (Lv − 1), 단계 배율(0.7 → 1.45)은 그림 안에. 같은 단계 안에서는 레벨마다 조금 크고 새싹 잎눈이나 무늬 점 하나가 바뀐다. 진화 레벨에서는 실루엣과 크기가 확 바뀐다.</p>
   <div class="lvrow" id="lvRow"></div>
 </section>
 
 <section class="s" id="secD">
   <h2>D. 진화 + 고르는 순간 — 친구가 될 때 두 갈래 중 하나</h2>
-  <p class="lead">42 §4.3 순서: 어두워짐 → 실루엣 세 번 교체 → 톡 → 조각 8개 → 이름 카드(2.3초, 누르면 끝 장면). 새 화풍은 어두워질 때 뒤에 부드러운 초록 빛 원을 깔고(진화 순간에만), 이름 카드를 크게 쓴다. 꼬마 → 친구에서는 1.32초에 멈추고 두 갈래 카드를 보여 준다.</p>
+  <p class="lead">42 §11.3 순서(약 2.5초, transform·opacity만): 어두워지며 옛 모습이 웅크림 → 흰 실루엣이 되어 꿀렁꿀렁 세 번 → 작은 빛 방울로 쪼그라듦(1.18초) → 고리 두 겹이 터지며 새 모습이 톡 튀어나와 통통(1.24 → 0.9 → 1.06 → 1) → 실루엣이 걷히며 색이 듦 → 종 조각 16개(달팽이 꽃잎 · 꿀벌 꿀방울 · 애벌레 잎 · 올챙이 물방울) → 이름 카드 + 전 → 후 작은 카드. 빛은 캐릭터 자리에서만(결정 ⑦). 꼬마 → 친구에서는 빛 방울 상태로 멈추고 두 갈래를 고른다. 누르면 끝 장면.</p>
   <div class="stage" id="evo"><div id="evoDim"></div><div id="evoBox"></div><div class="ecard" id="evoCard"><div class="k"></div><div class="n"></div><div class="f"></div></div><div id="evoChoice"></div><button class="btn sm" id="evoSkip">건너뛰기</button></div>
   <div class="evo-ctrl"><button class="btn sm" data-evo="0">씨앗 → 아기</button><button class="btn sm" data-evo="1">아기 → 꼬마</button><button class="btn sm pri" data-evo="2">꼬마 → 친구 (고르기)</button><button class="btn sm" data-evo="3">친구 → 단짝</button><button class="btn sm" data-evo="4">단짝 → 전설</button></div>
 </section>
@@ -404,11 +421,12 @@ table.ut td { padding: 6px 12px; border-top: 1px solid var(--k-line) }
   <div class="vs"><div><b style="color:var(--k-ink)">v1</b><br>납작한 단색 면 · 진한 선 #3A3A3A · 흰 카드 HUD(작은 글자) · 동물 4종이 알에서 · 그라데이션·빛 금지<br><a href="character-raising.html">character-raising.html 열기 ›</a></div><div><b style="color:var(--k-ink)">v2</b><br>둥근 음영 · 같은 색 얇은 선 · 큰 눈 빛점 · 장면이 화면 끝까지 · 유리 카드 + 큰 숫자 · 정원 친구 4종이 씨앗에서 · 빛은 캐릭터 자리에만</div></div>
 </section>
 
+<script src="kkumteul-art-v1.js"></script>
 <script src="kkumteul-art.js"></script>
 <script>
 'use strict'
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)]
-const { f, SPECIES, STAGES, stageOf, need, PATHS, titleOf, MARK, SLOTS, ITEMS, DECOR, SEASON, byId, budsOf, marksOf, art, itemIcon, scene, decorIcon, sceneIcon, GOLD, LEAF, PINK, star5 } = KK
+const { f, SPECIES, STAGES, stageOf, need, PATHS, MARK, SLOTS, ITEMS, DECOR, SEASON, byId, budsOf, marksOf, itemIcon, scene, decorIcon, sceneIcon, GOLD, LEAF, PINK, star5 } = KK
 
 /* ───────── 상태 (v1 그대로, 종만 새 id) ───────── */
 const START = () => ({
@@ -417,12 +435,17 @@ const START = () => ({
   tasks: [{ t: '기획서 초안 보내기', d: '오늘', red: true, done: false, p: 3 }, { t: '운동 30분', d: '오후 7:00', done: false, p: 2 }, { t: '토익 단어 20개', d: '오늘', done: false, p: 0 }, { t: '장보기', d: '오늘', done: true, p: 0 }],
   quests: [{ t: '운동 3번', n: '2/3', done: false }, { t: '공모전 제출', n: '', done: true }, { t: '책 한 권 끝내기', n: '', done: false }],
   trophies: [{ k: 'cup', t: '공모전', s: '10/10에 끝낸 프로젝트' }, { k: 'medal', t: '한 날 7일', s: '9월에 7번째 날', n: 7 }, { k: 'stamp', t: '주간 점검 3번', s: '지난주 점검' }],
-  dayDone: false, theme: null, motion: 'full', night: false, calm: false, wardTab: 'hat', dTab: 'hat'
+  dayDone: false, artV: 'new', linePath: 'a', theme: null, motion: 'full', night: false, calm: false, wardTab: 'hat', dTab: 'hat'
 })
 let S = START()
+/* 이전 그림 / 새 그림 비교: 같은 화면에서 그림 모듈만 바꾼다(KK1 = 커밋 12a3ab4 그림, KK = 새 그림) */
+const OLD = () => S.artV === 'old' && window.KK1
+const art = (sp, st, o = {}) => OLD() ? KK1.art(sp, st, o) : KK.art(sp, st, o)
+const titleOf = (sp, st, p) => OLD() ? KK1.titleOf(sp, st, p) : KK.titleOf(sp, st, p)
 const reduced = () => S.motion === 'reduce' || matchMedia('(prefers-reduced-motion: reduce)').matches
 const stage = () => stageOf(S.lv)
-const sizeOf = (lv) => 180 + 6 * (Math.min(lv, 20) - 1)
+// 무대 상자: 새 그림은 단계 배율(0.7→1.45)이 그림 안에 있어서 상자는 레벨마다 3px만 큰다. 이전 그림은 43 §3.1 그대로
+const sizeOf = (lv) => OLD() ? 180 + 6 * (Math.min(lv, 20) - 1) : 236 + 3 * (Math.min(lv, 20) - 1)
 const cmOf = (lv) => 20 + 3 * lv
 const decorOn = () => DECOR.filter((d) => S.lv >= d.lv && !S.decorOff.includes(d.id)).map((d) => d.id)
 function has(it) { const r = it.rule; if (r.lv) return S.lv >= r.lv; if (r.days) return S.days >= r.days; if (r.reviews) return S.reviews >= r.reviews; if (r.projects) return S.projects >= r.projects; if (r.season) return !!S.seasons[r.season]; return false }
@@ -597,20 +620,22 @@ function showToast(items) {
 function hideToast() { $('#mToast').classList.remove('show'); $('#dToast') && $('#dToast').classList.remove('show') }
 function equip(it) { const slot = it.slot; S.eq[slot] = S.eq[slot] === it.id && slot !== 'bg' ? null : it.id; S.fresh.delete(it.id); paintAll() }
 
-/* 종 조각 */
+/* 캡처용 되감기: ?demo=evoAt&t=… 이면 시계를 멈춘 채 그 시각의 장면을 그대로 만든다(스크린숏 확인용) */
+function capSeek(a) { if (window.__cap != null) { a.pause(); a.currentTime = Math.max(0, window.__cap - window.__base) } }
+/* 종 조각: 달팽이 꽃잎 · 꿀벌 꿀방울 · 애벌레 잎 · 올챙이 물방울 */
+const RING = { snail: '#FF9DB8', bee: '#FFC93B', worm: '#8ED67A', frog: '#8FD3EE' }
 function bitSvg(sp, i) {
-  if (i % 3 === 0) return `<svg viewBox="0 0 10 10"><rect x="2" y="2" width="6" height="6" rx="2" fill="#5CD08F"/></svg>`
-  if (sp === 'snail') return `<svg viewBox="0 0 10 10"><ellipse cx="5" cy="5" rx="2.6" ry="4.6" fill="${i % 2 ? LEAF : PINK}"/></svg>`
-  if (sp === 'bee') return `<svg viewBox="0 0 10 10"><path d="M5 .8l3.7 2.1v4.2L5 9.2 1.3 7.1V2.9z" fill="${GOLD}"/></svg>`
-  if (sp === 'worm') return `<svg viewBox="0 0 10 10">${star5(5, 5.4, 4.2, '#F7C948')}</svg>`
-  return `<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="3.6" fill="#DFF6FF" stroke="#6CC0E6" stroke-width="1.2"/></svg>`
+  if (sp === 'snail') return `<svg viewBox="0 0 10 10"><ellipse cx="5" cy="5" rx="2.8" ry="4.6" fill="${['#FF9DB8', '#FFFFFF', '#FFC4D4'][i % 3]}" stroke="#F57FA2" stroke-width=".5"/></svg>`
+  if (sp === 'bee') return i % 3 === 2 ? `<svg viewBox="0 0 10 10"><path d="M5 .8l3.7 2.1v4.2L5 9.2 1.3 7.1V2.9z" fill="${GOLD}"/></svg>` : `<svg viewBox="0 0 10 10"><path d="M5 .6 C8 4.4 8 8.6 5 9.4 C2 8.6 2 4.4 5 .6Z" fill="#FFB21E"/><circle cx="4" cy="6" r="1" fill="#fff" opacity=".8"/></svg>`
+  if (sp === 'worm') return `<svg viewBox="0 0 10 10"><path d="M1 9 C1 4 5 1 9 1 C9 6 5 9 1 9Z" fill="${i % 2 ? LEAF : '#A9DE86'}"/><path d="M1.6 8.4 L8 2" stroke="#2E9E55" stroke-width=".6"/></svg>`
+  return `<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="${3 + (i % 3) * .5}" fill="#E6F7FF" fill-opacity=".6" stroke="#6CC0E6" stroke-width="1"/><circle cx="3.8" cy="3.8" r="1" fill="#fff"/></svg>`
 }
-function burst(host, sp, n, dist, delay = 0) {
+function burst(host, sp, n, dist, delay = 0, big) {
   if (reduced()) return
   for (let i = 0; i < n; i++) {
-    const b = document.createElement('div'); b.className = 'bit'; b.innerHTML = bitSvg(sp, i); host.appendChild(b)
-    const a = (i / n) * Math.PI * 2 - Math.PI / 2 + (i % 2 ? .2 : -.1), r = dist * (.75 + (i % 3) * .15)
-    b.animate([{ transform: 'translate(0,0) scale(.4) rotate(0)', opacity: 0 }, { opacity: 1, offset: .15 }, { transform: `translate(${f(Math.cos(a) * r)}px,${f(Math.sin(a) * r + 16)}px) scale(1) rotate(${i * 50}deg)`, opacity: 0 }], { duration: 780, delay, easing: 'cubic-bezier(.2,.8,.4,1)', fill: 'backwards' }).onfinish = () => b.remove()
+    const b = document.createElement('div'); b.className = 'bit' + (big ? ' big' : ''); b.innerHTML = bitSvg(sp, i); host.appendChild(b)
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2 + (i % 2 ? .2 : -.1), r = dist * (.7 + (i % 3) * .17), fall = sp === 'frog' ? -30 : sp === 'bee' ? 30 : 18
+    const an = b.animate([{ transform: 'translate(0,0) scale(.4) rotate(0)', opacity: 0 }, { opacity: 1, offset: .12 }, { transform: `translate(${f(Math.cos(a) * r * .8)}px,${f(Math.sin(a) * r * .8)}px) scale(1) rotate(${i * 40}deg)`, opacity: 1, offset: .55 }, { transform: `translate(${f(Math.cos(a) * r)}px,${f(Math.sin(a) * r + fall)}px) scale(.9) rotate(${i * 70}deg)`, opacity: 0 }], { duration: big ? 1100 : 780, delay, easing: 'cubic-bezier(.2,.8,.4,1)', fill: 'both' }); capSeek(an); an.onfinish = () => b.remove()
   }
 }
 
@@ -638,10 +663,10 @@ function moment(k) {
 /* ───────── 옷장 · 도감 ───────── */
 function baseName(tab) {
   const st = stage(), sp = S.sp
-  if (tab === 'hat') return st >= 5 ? '진화 관·핀' : '없음'
-  if (tab === 'neck') return { snail: '없음', bee: st >= 4 ? '털 + 목도리' : st >= 3 ? '목 털' : '없음', worm: st === 3 ? '고치 망토' : '없음', frog: st >= 3 ? '목걸이' : '없음' }[sp]
-  if (tab === 'hand') return st >= 2 ? '진화 소품' : '없음'
-  if (tab === 'back') return { snail: st >= 2 ? '껍데기 정원' : '없음', bee: '날개', worm: st >= 4 ? '날개(같이 보임)' : '없음', frog: '없음' }[sp]
+  if (tab === 'hat') return st >= 5 || (sp === 'bee' && st === 4) ? '진화 관' : sp === 'frog' && st >= 2 && st <= 4 ? '잎 모자' : '없음'
+  if (tab === 'neck') return { snail: '없음', bee: st >= 2 ? '솜털 목도리' : '없음', worm: '없음', frog: st >= 3 ? '목걸이' : '없음' }[sp]
+  if (tab === 'hand') return st >= 3 ? '진화 소품' : '없음'
+  if (tab === 'back') return { snail: '껍데기(그대로 남음)', bee: '날개(그대로 남음)', worm: st === 3 ? '잎 가방' : st >= 4 ? '날개(그대로 남음)' : '없음', frog: st === 5 ? '망토' : '없음' }[sp]
 }
 function wardrobe(gridEl, tabsEl, cols, tabKey) {
   const tab = S[tabKey] || 'hat'
@@ -686,63 +711,74 @@ function dex(el) {
 
 /* ───────── 진화 (42 순서 그대로 + 고르기) ───────── */
 function makeEvo(o) {
-  const E = { ...o, anims: [], done: null }
-  const layer = (html) => { const d = document.createElement('div'); d.className = 'evl'; d.style.cssText = `width:${E.size}px;height:${E.size}px;margin-left:${-E.size / 2}px`; d.innerHTML = html; E.box.appendChild(d); return d }
-  const tl = (el, frames, total, extra = {}) => { const k = frames.map(([t, p]) => ({ ...p, offset: t / total })); const a = el.animate(k, { duration: total, fill: 'forwards', ...extra }); E.anims.push(a); return a }
-  E.finish = () => { E.anims.forEach((a) => { try { a.finish() } catch (e) {} }); E.anims = []; if (E.choicePending) return; if (E.done) { const d = E.done; E.done = null; d() } }
-  E.card = (sp, st, path, at) => {
+  const E = { ...o, anims: [], done: null, timers: [] }
+  const layer = (html, cls = 'evl') => { const d = document.createElement('div'); d.className = cls; if (cls === 'evl') d.style.cssText = `width:${E.size}px;height:${E.size}px;margin-left:${-E.size / 2}px`; d.innerHTML = html; E.box.appendChild(d); return d }
+  const tl = (el, frames, total, extra = {}) => { const k = frames.map(([t, p]) => ({ ...p, offset: Math.min(1, t / total) })); const a = el.animate(k, { duration: total, fill: 'forwards', ...extra }); E.anims.push(a); capSeek(a); return a }
+  const later = (fn, ms) => { if (window.__cap != null) { if (window.__base + ms <= window.__cap) { const b = window.__base; window.__base = b + ms; fn(); window.__base = b } return } const t = setTimeout(fn, ms); E.timers.push(t); return t }
+  E.finish = () => { E.timers.forEach(clearTimeout); E.timers = []; E.anims.forEach((a) => { try { a.finish() } catch (e) {} }); E.anims = []; if (E.choicePending) return; if (E.done) { const d = E.done; E.done = null; d() } }
+  /** 이름 카드 + 전 → 후 작은 카드("아기 달팽이 → 꽃 달팽이") */
+  E.card = (sp, from, st, path, at) => {
     const c = E.cardEl
     c.querySelector('.k').textContent = st === 1 ? '태어났어요' : `${STAGES[st].name}${st === 4 ? '으로' : '로'} 자랐어요`
     c.querySelector('.n').textContent = titleOf(sp, st, path)
     const gift = ITEMS.find((i) => i.rule.lv === STAGES[st].from && st > 1)
-    const NEW = { 1: '새싹 하나와 함께', 2: '머리와 몸이 나뉘었어', 3: '새 길 · ' + PATHS[sp][path].name, 4: '새 모습 · 소품이 하나 더', 5: '새 모습 · 전설의 관' }
-    c.querySelector('.f').textContent = '+ ' + NEW[st] + (gift ? ` · 선물 ${gift.name}` : '')
+    const np = st >= 3 ? PATHS[sp][path].line.split(' → ')[Math.min(st - 3, 2)].replace(/ · .*/, '') : KK.NEWPART[sp][st]
+    c.querySelector('.f').textContent = '+ ' + np + (gift ? ` · 선물 ${gift.name}` : '')
+    let ba = c.querySelector('.ba'); if (!ba) { ba = document.createElement('div'); ba.className = 'ba'; c.insertBefore(ba, c.querySelector('.f')) }
+    ba.innerHTML = from ? `<span class="bi">${art(sp, from, { path, size: 52, mood: 'smile', noAura: true })}<em>${titleOf(sp, from, path)}</em></span><b>→</b><span class="bi now">${art(sp, st, { path, size: 52, mood: 'happy', noAura: true })}<em>${titleOf(sp, st, path)}</em></span>` : ''
     const r = reduced()
-    tl(c, [[0, { opacity: 0, transform: `translate(-50%, ${r ? 0 : 12}px)` }], [at, { opacity: 0, transform: `translate(-50%, ${r ? 0 : 12}px)` }], [at + 280, { opacity: 1, transform: 'translate(-50%, 0)' }], [at + 3300, { opacity: 1, transform: 'translate(-50%, 0)' }], [at + 3600, { opacity: 0, transform: 'translate(-50%, 0)' }]], at + 3600)
+    tl(c, [[0, { opacity: 0, transform: `translate(-50%, ${r ? 0 : 14}px)` }], [at, { opacity: 0, transform: `translate(-50%, ${r ? 0 : 14}px)` }], [at + 320, { opacity: 1, transform: 'translate(-50%, 0)' }], [at + 3600, { opacity: 1, transform: 'translate(-50%, 0)' }], [at + 3900, { opacity: 0, transform: 'translate(-50%, 0)' }]], at + 3900, { easing: 'cubic-bezier(.34,1.56,.64,1)' })
   }
   E.play = (sp, from, to, opts = {}) => {
     E.finish(); E.box.innerHTML = ''; E.root.classList.add('playing')
     const eq = opts.eq || {}, choose = to === 3 && opts.choose !== false
     let path = opts.path || 'a'
-    const end = () => { E.box.innerHTML = ''; layer(art(sp, to, { live: true, mood: 'smile', path, eq, lv: STAGES[to].from })); E.root.classList.remove('playing'); E.dim.style.opacity = 0; const c = E.cardEl; c.style.opacity = 1; c.style.transform = 'translate(-50%,0)'; clearTimeout(E._ct); E._ct = setTimeout(() => { c.style.opacity = 0; opts.onDone && opts.onDone() }, 2400) }
+    const end = () => { E.timers.forEach(clearTimeout); E.box.innerHTML = ''; layer(art(sp, to, { live: true, mood: 'smile', path, eq, lv: STAGES[to].from })); E.root.classList.remove('playing'); E.dim.style.opacity = 0; const c = E.cardEl; c.style.opacity = 1; c.style.transform = 'translate(-50%,0)'; clearTimeout(E._ct); E._ct = setTimeout(() => { c.style.opacity = 0; opts.onDone && opts.onDone() }, 2600) }
     E.done = end
-    const reveal = () => {
-      const B = layer(art(sp, to, { mood: 'happy', path, eq, lv: STAGES[to].from }))
-      if (reduced()) { tl(B, [[0, { opacity: 0 }], [300, { opacity: 1 }]], 300); E.card(sp, to, path, 200); E.anims.at(-1).onfinish = () => { if (E.done) { E.done = null; end() } }; return }
-      tl(B, [[0, { opacity: 0, transform: 'scale(1.14)' }], [40, { opacity: 1 }], [220, { transform: 'scale(.94,1.05)' }], [380, { transform: 'scale(1.03,.97)' }], [530, { transform: 'none', opacity: 1 }]], 530)
-      burst(E.box, sp, 8, 130)
-      E.card(sp, to, path, 130)
-      tl(E.dim, [[0, { opacity: 1 }], [480, { opacity: 1 }], [880, { opacity: E.keepDim ? 1 : 0 }]], 880)
-      setTimeout(() => { if (E.done === end) { E.done = null; end() } }, 940)
+    const fin = (ms) => later(() => { if (E.done === end) { E.done = null; end() } }, ms)
+    // 2) 새 모습이 톡 튀어나온다: 고리 두 겹 + 종 조각 + 통통 튐 → 실루엣이 걷히며 색이 든다 → 카드
+    const pop = () => {
+      const Bs = layer(art(sp, to, { sil: true, path, eq })), B = layer(art(sp, to, { mood: 'happy', path, eq, lv: STAGES[to].from }))
+      if (reduced()) { Bs.remove(); tl(B, [[0, { opacity: 0 }], [300, { opacity: 1 }]], 300); E.card(sp, from, to, path, 200); fin(520); return }
+      const bounce = [[0, { transform: 'scale(.12)' }], [150, { transform: 'scale(1.24,.84)' }], [280, { transform: 'scale(.9,1.12)' }], [400, { transform: 'scale(1.06,.96)' }], [500, { transform: 'none' }]]
+      tl(Bs, [[0, { opacity: 1, transform: 'scale(.12)' }], [150, { opacity: 1, transform: 'scale(1.24,.84)' }], [280, { opacity: 1, transform: 'scale(.9,1.12)' }], [400, { opacity: .35, transform: 'scale(1.06,.96)' }], [500, { opacity: 0, transform: 'none' }]], 500, { easing: 'cubic-bezier(.3,.7,.4,1)' })
+      tl(B, bounce.map(([t, p]) => [t, { ...p, opacity: t < 260 ? 0 : 1 }]), 500, { easing: 'cubic-bezier(.3,.7,.4,1)' })
+      for (const [i, cls] of [[0, 'ring'], [1, 'ring two']]) { const R = layer('', 'evring ' + cls); R.style.setProperty('--rc', RING[sp]); tl(R, [[0, { opacity: 0, transform: 'scale(.2)' }], [40 + i * 70, { opacity: 1, transform: 'scale(.3)' }], [520 + i * 90, { opacity: 0, transform: `scale(${2.6 + i * .6})` }]], 520 + i * 90, { easing: 'cubic-bezier(.2,.8,.3,1)' }) }
+      burst(E.box, sp, 16, 150, 0, true)
+      E.card(sp, from, to, path, 480)
+      tl(E.dim, [[0, { opacity: 1 }], [900, { opacity: 1 }], [1300, { opacity: E.keepDim ? 1 : 0 }]], 1300)
+      fin(1340)
     }
-    if (from === 0) { // 씨앗 깨기: 윗껍질이 날아가고 아기가 아랫껍질째 나온다
-      const B = layer(art(sp, 1, { mood: 'wow', path })), T = layer(`<svg class="chr" viewBox="0 0 120 120">${KK.hatchTop()}</svg>`)
-      if (reduced()) { tl(T, [[0, { opacity: 1 }], [300, { opacity: 0 }]], 300); E.card(sp, 1, path, 200); setTimeout(() => { if (E.done === end) { E.done = null; end() } }, 520); return }
+    if (from === 0) { // 알 깨기: 뚜껑이 날아가고(물방울은 터지고) 아기가 아랫단째 나온다
+      const B = layer(art(sp, 1, { mood: 'wow', path })), T = layer(`<svg class="chr" viewBox="0 0 120 120">${OLD() ? KK1.hatchTop() : KK.hatchTop(sp)}</svg>`)
+      if (reduced()) { tl(T, [[0, { opacity: 1 }], [300, { opacity: 0 }]], 300); E.card(sp, 0, 1, path, 200); fin(520); return }
       tl(E.dim, [[0, { opacity: 0 }], [200, { opacity: 1 }], [1500, { opacity: 1 }], [1900, { opacity: E.keepDim ? 1 : 0 }]], 1900)
-      tl(T, [[0, { transform: 'none' }], [180, { transform: 'rotate(-6deg)' }], [360, { transform: 'rotate(6deg)' }], [540, { transform: 'rotate(-8deg)' }], [720, { transform: 'rotate(8deg)' }], [900, { transform: 'none', opacity: 1 }], [1200, { transform: 'translate(40px,-120px) rotate(40deg)', opacity: 0 }]], 1200)
-      setTimeout(() => burst(E.box, sp, 8, 120), 900); E.card(sp, 1, path, 1000)
-      setTimeout(() => { if (E.done === end) { E.done = null; end() } }, 1700)
+      tl(T, [[0, { transform: 'none' }], [180, { transform: 'rotate(-6deg)' }], [360, { transform: 'rotate(6deg)' }], [540, { transform: 'rotate(-8deg)' }], [720, { transform: 'rotate(8deg)' }], [900, { transform: 'none', opacity: 1 }], [1200, sp === 'frog' ? { transform: 'scale(1.3)', opacity: 0 } : { transform: 'translate(40px,-120px) rotate(40deg)', opacity: 0 }]], 1200)
+      tl(B, [[0, { transform: 'none' }], [900, { transform: 'none' }], [1050, { transform: 'translateY(-10px) scale(.96,1.06)' }], [1200, { transform: 'scale(1.04,.96)' }], [1300, { transform: 'none' }]], 1300)
+      later(() => burst(E.box, sp, 12, 120, 0, true), 900); E.card(sp, 0, 1, path, 1000)
+      fin(1700)
       return
     }
-    const fromHtml = art(sp, from, { path, eq, lv: STAGES[to].from - 1 })
-    if (reduced()) { const A = layer(fromHtml); tl(A, [[0, { opacity: 1 }], [300, { opacity: 0 }]], 300); if (choose) return E.ask(sp, (p) => { path = p; reveal() }); return reveal() }
-    tl(E.dim, [[0, { opacity: 0 }], [250, { opacity: 1 }], [1320, { opacity: 1 }]], 1320)
-    const A = layer(fromHtml), As = layer(art(sp, from, { sil: true, path, eq })), Bs = layer(art(sp, to, { sil: true, path, eq }))
-    tl(A, [[0, { opacity: 1, transform: 'none' }], [120, { transform: 'scale(1.05,.94)' }], [250, { transform: 'none' }], [540, { opacity: 1 }], [560, { opacity: 0 }]], 560)
-    const sc = (t) => `scale(${f(1 + Math.min(1, Math.max(0, (t - 250) / 1070)) * .08)})`
-    tl(As, [[0, { opacity: 0, transform: 'none' }], [250, { opacity: 0, transform: sc(250) }], [550, { opacity: 1, transform: sc(550) }], [650, { opacity: 1, transform: sc(650) }], [770, { opacity: 0, transform: sc(770) }], [950, { opacity: 0, transform: sc(950) }], [1070, { opacity: 1, transform: sc(1070) }], [1200, { opacity: 1, transform: sc(1200) }], [1320, { opacity: 0, transform: sc(1320) }]], 1320)
-    tl(Bs, [[0, { opacity: 0, transform: 'none' }], [650, { opacity: 0, transform: sc(650) }], [770, { opacity: 1, transform: sc(770) }], [950, { opacity: 1, transform: sc(950) }], [1070, { opacity: 0, transform: sc(1070) }], [1200, { opacity: 0, transform: sc(1200) }], [1320, { opacity: 1, transform: sc(1320) }]], 1320)
-    E._phase = setTimeout(() => {
-      const puff = () => tl(Bs, [[0, { opacity: 1, transform: sc(1320) }], [100, { opacity: 1, transform: 'scale(1.18)' }], [240, { opacity: 0, transform: 'scale(1.02)' }]], 240)
-      if (choose) E.ask(sp, (p) => { path = p; puff(); setTimeout(reveal, 100) })
-      else { puff(); setTimeout(reveal, 100) }
-    }, 1320)
+    // 1) 옛 모습이 웅크렸다가 실루엣이 되어 꿀렁꿀렁 → 작은 빛 방울로 쪼그라든다(1.18초)
+    const A = layer(art(sp, from, { path, eq, lv: STAGES[to].from - 1, mood: 'wow' }))
+    if (reduced()) { tl(A, [[0, { opacity: 1 }], [300, { opacity: 0 }]], 300); if (choose) return E.ask(sp, (p) => { path = p; pop() }); return pop() }
+    const As = layer(art(sp, from, { sil: true, path, eq })), orb = layer('', 'evorb')
+    tl(E.dim, [[0, { opacity: 0 }], [250, { opacity: 1 }]], 250)
+    tl(A, [[0, { opacity: 1, transform: 'none' }], [140, { transform: 'scale(1.07,.9)' }], [260, { transform: 'scale(.97,1.04)' }], [380, { opacity: 1, transform: 'none' }], [460, { opacity: 0, transform: 'none' }]], 460)
+    const squish = [[0, { opacity: 0, transform: 'none' }], [260, { opacity: 0, transform: 'none' }], [440, { opacity: 1, transform: 'none' }], [600, { transform: 'scale(1.12,.88)' }], [760, { transform: 'scale(.92,1.14)' }], [910, { transform: 'scale(1.2,.84)' }], [1080, { opacity: 1, transform: 'scale(.16)' }], [1140, { opacity: 0, transform: 'scale(.1)' }]]
+    tl(As, squish, 1140, { easing: 'ease-in-out' })
+    tl(orb, [[0, { opacity: 0, transform: 'scale(.2)' }], [1000, { opacity: 0, transform: 'scale(.2)' }], [1100, { opacity: 1, transform: 'scale(.62)' }], [1180, { opacity: 1, transform: 'scale(.48)' }]], 1180)
+    later(() => {
+      const go = () => { tl(orb, [[0, { opacity: 1, transform: 'scale(.48)' }], [90, { opacity: 1, transform: 'scale(.9)' }], [260, { opacity: 0, transform: 'scale(1.8)' }]], 260); pop() }
+      if (choose) E.ask(sp, (p) => { path = p; go() })
+      else go()
+    }, 1180)
   }
   E.ask = (sp, pick) => {
     E.choicePending = true
     const P = PATHS[sp]
     if (!E.choiceEl) { E.choicePending = false; return pick('a') }
-    E.choiceEl.innerHTML = `<div class="q">어떤 친구로 자랄까?</div><div class="opts">${['a', 'b'].map((p) => `<div class="opt" data-p="${p}" role="button" tabindex="0">${art(sp, 3, { path: p, size: 116, mood: 'smile', live: true })}<b>${P[p].name}</b><span>${P[p].line}<br>→ ${P[p].t[2]}</span></div>`).join('')}</div><button class="later">나중에 고를래</button>`
+    E.choiceEl.innerHTML = `<div class="q">어떤 친구로 자랄까?</div><div class="opts">${['a', 'b'].map((p) => `<div class="opt" data-p="${p}" role="button" tabindex="0">${art(sp, 3, { path: p, size: 116, mood: 'smile', live: true, fit: true })}<b>${P[p].name}</b><span>${P[p].line}<br>→ ${P[p].t[2]}</span></div>`).join('')}</div><button class="later">나중에 고를래</button>`
     E.choiceEl.classList.add('show')
     const go = (p) => { E.choicePending = false; E.choiceEl.classList.remove('show'); pick(p); E.onPath && E.onPath(p) }
     E.choiceEl.querySelectorAll('.opt').forEach((b) => b.onclick = (e) => { e.stopPropagation(); go(b.dataset.p) })
@@ -765,7 +801,7 @@ function paintAll() {
   $('#dSub').textContent = `${SPECIES[S.sp].pet} · ${titleOf(S.sp, st, S.path)}`
   $('#dChip1').textContent = `한 날 ${S.days}일`; $('#dChip2').textContent = `오늘 ${done}/${S.tasks.length}`
   $('#dTaskSum').textContent = `${done}/${S.tasks.length}`
-  $('#dRoad').innerHTML = [1, 2, 3, 4, 5].map((s) => `<div class="rd ${s === st ? 'now' : ''}"><i>${art(S.sp, s, { size: 40, path: S.path, eq: s === st ? S.eq : {}, lv: s === st ? S.lv : STAGES[s].from, mood: 'smile' }).replace('class="chr', s > st ? 'class="lock chr' : 'class="chr')}</i>${STAGES[s].name}<span>Lv ${STAGES[s].from}</span></div>`).join('')
+  $('#dRoad').innerHTML = [1, 2, 3, 4, 5].map((s) => `<div class="rd ${s === st ? 'now' : ''}"><i>${art(S.sp, s, { size: 42, crop: 'full', fit: true, noAura: true, path: S.path, eq: s === st ? S.eq : {}, lv: s === st ? S.lv : STAGES[s].from, mood: 'smile' }).replace('class="chr', s > st ? 'class="lock chr' : 'class="chr')}</i>${STAGES[s].name}<span>Lv ${STAGES[s].from}</span></div>`).join('')
   $('#dQuests').innerHTML = S.quests.map((q) => `<div class="qrow ${q.done ? 'done' : ''}"><span class="check ${q.done ? 'on' : ''}"></span>${q.t}<small>${q.n ? q.n + ' · ' : ''}+30</small></div>`).join('')
   $('#dQuestSum').textContent = `${S.quests.filter((q) => q.done).length}/${S.quests.length}`
   $('#dAvatar').innerHTML = art(S.sp, st, { size: 34, path: S.path, eq: S.eq, lv: S.lv, mood: 'smile' })
@@ -793,16 +829,17 @@ function renderWhere() {
     `<div class="w">레일 아바타(34) · 설정 아바타(72)<div style="display:flex;gap:12px;align-items:center"><div class="avc" style="width:34px;height:34px">${art(S.sp, st, { ...o, size: 34 })}</div><div class="avc" style="width:72px;height:72px">${art(S.sp, st, { ...o, size: 72, crop: 'bust', detail: 'full' })}</div></div></div>` +
     `<div class="w">AI 비서 답 얼굴(30)<div class="ansrow">${art(S.sp, st, { ...o, size: 30 })}<div><div class="who">${SPECIES[S.sp].pet}</div><div class="bub">넣어 뒀어. 내일 오후 3시야.</div></div></div></div>` +
     `<div class="w">AI 비서 빈 대화(96)<div style="width:120px;height:110px;display:flex;align-items:flex-end;justify-content:center">${art(S.sp, st, { ...o, size: 96, noAura: true })}</div></div>` +
-    `<div class="w">휴대폰·맥 위젯<div class="widget"><div class="wtop"><span>오늘 ${S.tasks.filter((t) => t.done).length}/${S.tasks.length}</span><span style="opacity:.6">Lv ${S.lv}</span></div><div style="flex:1;display:flex;align-items:center;justify-content:center">${art(S.sp, st, { ...o, size: 80, noAura: true })}</div><div class="bar"><i style="width:${(S.xp / n) * 100}%"></i></div></div></div>`
+    `<div class="w">휴대폰·맥 위젯<div class="widget"><div class="wtop"><span>오늘 ${S.tasks.filter((t) => t.done).length}/${S.tasks.length}</span><span style="opacity:.6">Lv ${S.lv}</span></div><div style="flex:1;display:flex;align-items:center;justify-content:center">${art(S.sp, st, { ...o, size: 80, noAura: true, fit: true })}</div><div class="bar"><i style="width:${(S.xp / n) * 100}%"></i></div></div></div>`
 }
 function renderLineup() {
-  let h = '<div></div>' + [1, 2, 3, 4, 5].map((s) => `<div class="hd">${STAGES[s].name} · Lv ${STAGES[s].from}</div>`).join('')
+  const lp = S.linePath
+  let h = '<div class="lhd"><div class="seg" id="segLine"><button data-v="a">갈래 A</button><button data-v="b">갈래 B</button></div></div>' + [1, 2, 3, 4, 5].map((s) => `<div class="hd">${STAGES[s].name} · Lv ${STAGES[s].from}<small>${OLD() ? '' : '×' + KK.SCALE_X[s]}</small></div>`).join('')
   for (const sp of Object.keys(SPECIES)) {
-    const p = sp === S.sp ? S.path : 'a'
-    h += `<div class="sp"><b>${SPECIES[sp].full}</b><span>${SPECIES[sp].why}</span><em>${{ turtle: '거북이', squirrel: '다람쥐', cat: '고양이', otter: '수달' }[SPECIES[sp].old]} 자리</em></div>` + [1, 2, 3, 4, 5].map((s) => `<div class="lc" data-sp="${sp}" data-lv="${STAGES[s].from}">${art(sp, s, { path: p, lv: STAGES[s].from, mood: 'smile' })}<b>${titleOf(sp, s, p)}</b><span>${s >= 3 ? PATHS[sp][p].name : ''}</span></div>`).join('')
+    h += `<div class="sp"><b>${SPECIES[sp].full}</b><span>${SPECIES[sp].why}</span><em>${{ turtle: '거북이', squirrel: '다람쥐', cat: '고양이', otter: '수달' }[SPECIES[sp].old]} 자리 · ${PATHS[sp][lp].name}</em></div>` + [1, 2, 3, 4, 5].map((s) => `<div class="lc" data-sp="${sp}" data-lv="${STAGES[s].from}">${art(sp, s, { path: lp, lv: STAGES[s].from, mood: 'smile' })}<b>${titleOf(sp, s, lp)}</b><span>${OLD() ? '' : s >= 3 ? PATHS[sp][lp].line.split(' → ')[s - 3] : KK.NEWPART[sp][s]}</span></div>`).join('')
   }
   $('#lineup').innerHTML = h
-  $$('#lineup .lc').forEach((c) => c.onclick = () => { S.sp = c.dataset.sp; S.lv = +c.dataset.lv; S.xp = Math.min(S.xp, need(S.lv) - 1); $('#segSp')._sync(); paintAll() })
+  $$('#lineup .lc').forEach((c) => c.onclick = () => { S.sp = c.dataset.sp; S.lv = +c.dataset.lv; S.path = lp; S.xp = Math.min(S.xp, need(S.lv) - 1); $('#segSp')._sync(); paintAll() })
+  seg('#segLine', null, 'linePath', renderLineup)
 }
 function renderUnlockTable() {
   const src = (r) => r.lv ? (STAGES.some((s) => s && s.from === r.lv && r.lv > 1) ? '레벨 · 진화' : '레벨') : r.days ? '한 날 누적' : r.reviews ? '주간 점검' : r.projects ? '끝낸 프로젝트' : '계절'
@@ -858,6 +895,7 @@ function boot() {
   $('#bProject').onclick = () => { S.projects++; S.trophies.push({ k: 'cup', t: '토익 준비', s: '오늘 끝낸 프로젝트' }); paintAll(); mains.forEach((m) => { moodFor(m, 'happy', 2000); hop(m.chi); say(m, '트로피가 선반에 올라갔어!') }) }
   $('#bSeason').onclick = () => { S.seasons.xmas = true; S.fresh.add('santa'); S.fresh.add('snow'); paintAll(); showToast([byId.santa, byId.snow]) }
   $('#bReset').onclick = () => { const keep = { theme: S.theme, motion: S.motion, sp: S.sp }; S = Object.assign(START(), keep); hideToast(); paintAll() }
+  seg('#segArt', null, 'artV', paintAll)
   seg('#segSp', Object.entries(SPECIES).map(([k, v]) => [k, v.name]), 'sp', paintAll)
   seg('#segTh', null, 'theme', () => { document.documentElement.dataset.theme = S.theme; paintAll() })
   seg('#segMo', null, 'motion', () => { document.body.classList.toggle('reduce', S.motion === 'reduce'); paintAll() })
@@ -873,6 +911,10 @@ function boot() {
   if (demo === 'night') moment('night')
   if (demo === 'say') setTimeout(() => mains.forEach((m) => say(m, '오늘 3개 남았어. 하나만 같이 할까?', 60000)), 50)
   if (demo === 'evo') { S.lv = 9; S.xp = need(9) - 1; paintAll(); setTimeout(() => toggleTask(0), 50) }
+  if (demo === 'evoAt') { // 진화 장면 캡처용: from 단계에서 t ms 뒤 모든 움직임을 멈춘다
+    const from = +(qs.get('from') || 2), t = +(qs.get('t') || 1000)
+    setTimeout(() => { window.__cap = t; window.__base = 0; evoD.keepDim = true; evoD.play(S.sp, from, from + 1, { path: S.path, eq: S.eq, choose: false }) }, 60)
+  }
   if (demo === 'card') { evoD.keepDim = true; setTimeout(() => evoD.play(S.sp, 3, 4, { path: S.path, eq: S.eq }), 50) }
   if (qs.get('only')) { const keep = qs.get('only').split(','); $$('section.s').forEach((x) => { x.hidden = !keep.includes(x.id) }); $('.toc').hidden = true; mains.forEach((m) => m.render()) }
   if (qs.get('embed')) { document.querySelector('.top').hidden = true; document.querySelector('.toc').hidden = true }
@@ -883,6 +925,8 @@ if (qs.get('sp') && SPECIES[qs.get('sp')]) S.sp = qs.get('sp')
 if (qs.get('motion')) { S.motion = qs.get('motion'); document.body.classList.toggle('reduce', S.motion === 'reduce') }
 if (qs.get('lv')) { S.lv = +qs.get('lv'); S.xp = Math.min(S.xp, need(S.lv) - 1) }
 if (qs.get('path')) S.path = qs.get('path')
+if (qs.get('art')) S.artV = qs.get('art')
+if (qs.get('lp')) S.linePath = qs.get('lp')
 if (qs.get('eq')) for (const id of qs.get('eq').split(',')) if (byId[id]) S.eq[byId[id].slot] = id
 boot()
 </script>

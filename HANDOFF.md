@@ -2,6 +2,10 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-09 캐릭터 v0.3 "더 귀엽게, 진화마다 크게" (42 §10.6 · 43 §18.5 초안 · 사용자 확인 대기, 코드 없음)
+- 사용자 "방향은 좋은데 더 귀엽고 진화 때 변화가 크게". 그림 모듈 `docs/screens/mockups/kkumteul-art.js` v3(아기 비율·큰 눈 빛점 둘·볼·짧은 팔다리, 종 표시 = 달팽이 하트 나선·꿀벌 솜털 목도리·애벌레 방울 더듬이·올챙이 잎 모자). 4종 × 5단계 실루엣이 다 다르고 크기 0.7→1.45배(`SCALE`, 그림 안). 이전 그림은 `kkumteul-art-v1.js`(KK1), 시안 머리 `새 그림/이전 그림`으로 비교.
+- 진화 순간 2.5초: 웅크림 → 흰 실루엣 꿀렁 3번 → 빛 방울 → 고리 두 겹 + 톡 튀어나옴 → 종 조각(꽃잎·꿀방울·잎·물방울) → 이름 + 전→후 카드. 캡처용 `?demo=evoAt&from=2&t=1330`. 결정 ⑨(단계 배율을 어디에 쓸지) 추가.
+
 ## ★ 2026-10-09 시각 개편 시안 (44 초안 · 사용자 확인 대기, 코드 없음)
 - 사용자 "럭키즈(Behance) 레퍼런스 수준으로 UI 변경" → "캐릭터도 바꿔도 돼. 전체 UI를 수정해줘". 분석 [research 36](docs/ticktick-research/36-ref-luckkids.md)(이미지는 저장소에 안 넣음), 명세 [44](docs/screens/44-visual-refresh.md), 42 §10·43 §18 추가.
 - 시안: [visual-refresh.html](docs/screens/mockups/visual-refresh.html)(로그인·온보딩·오늘·빠른 입력·캘린더·프로젝트·성장·AI·설정 + 데스크톱 오늘·성장), [character-raising-v2.html](docs/screens/mockups/character-raising-v2.html)(v1 인터랙션 그대로). 공용 그림 `mockups/kkumteul-art.js` · 토큰 `mockups/kkumteul-skin.css`. 헤드리스 스크린샷은 `?only=<섹션>` 사용(해시 스크롤하면 빈 화면).
