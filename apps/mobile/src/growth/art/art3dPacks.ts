@@ -1,5 +1,5 @@
 // 49 §4.4 · 종 묶음 내려받기(휴대폰). 앱 안 기본 묶음(art3dFiles.ts, ≈ 1 MB)에 없는 512 그림(꼬마~전설 몸·얼굴·옷·소품)을
-// 내 종 것만 사이트 정적 파일(ART3D_PACK_URL, 변경 불가 캐시)에서 받아 문서 폴더(art3d/v3/)에 둔다. 받는 동안·실패하면 160 그림으로 대신 그린다.
+// 내 종 것만 사이트 정적 파일(ART3D_PACK_URL, 변경 불가 캐시)에서 받아 문서 폴더(art3d/v4/)에 둔다. 받는 동안·실패하면 160 그림으로 대신 그린다.
 // 받은 뒤 그리는 곳을 다시 그리게 판 번호(version)를 올린다 — CharacterArt가 useArtPackVersion으로 구독.
 import { Directory, File, Paths } from 'expo-file-system'
 import { useSyncExternalStore } from 'react'

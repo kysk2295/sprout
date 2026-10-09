@@ -245,7 +245,7 @@ def ts(o):
 
 src = f"""// 자동 생성 — scripts/characters3d/encode.py (손으로 고치지 않는다). 49 §4 그림 목록.
 // 좌표는 모두 캔버스 비율(0~1, 왼쪽 위 원점). 같은 종·단계의 층(몸·얼굴·옷·소품)은 같은 캔버스·같은 카메라다.
-export const ART3D_VERSION = 'v3'
+export const ART3D_VERSION = 'v4'
 /** 몸: head=[x,y,반지름], face=[x,y](얼굴 가운데), top=[x,y](새싹 꼭대기), neck·hand·back=[x,y], props=칸 소품의 칸, box=그려진 테두리 */
 export const BODIES: Record<string, {{ head: number[]; face: number[]; top: number[]; neck?: number[]; hand?: number[]; back?: number[]; props: string[]; box: number[] }}> = {ts(BODY)}
 /** 얼굴 층 테두리 상자 */

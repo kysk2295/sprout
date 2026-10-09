@@ -218,8 +218,8 @@ export function artBytes(filter: (file: string) => boolean = () => true): number
 /* ───────── 휴대폰 묶음 · 종별 내려받기(49 §4.4 예산) ─────────
    기본 묶음(앱 안, ≈ 1 MB): 모든 160 그림(몸·얼굴·모자 옷·소품 — 도감·아바타·작은 자리·내려받기 전 대체) + 씨앗 회전·금 + 장면·띠 + 방 장식 + 아기 단계 512(만들기 흐름·부화).
    종 묶음(처음 부화 뒤 내 종만 내려받기, ≈ 0.6 MB): 꼬마~전설 몸·얼굴 512 + 옷 512 + 칸 소품 512.
-   데스크톱은 앱 크기 제한이 없어 전부 넣는다. 정적 파일 주소 = 사이트(Railway, 변경 불가 캐시) /art3d/v3/ */
-export const ART3D_PACK_URL = 'https://web-production-cd889.up.railway.app/art3d/v3/'
+   데스크톱은 앱 크기 제한이 없어 전부 넣는다. 정적 파일 주소 = 사이트(Railway, 변경 불가 캐시) /art3d/v4/ */
+export const ART3D_PACK_URL = 'https://web-production-cd889.up.railway.app/art3d/v4/'
 export type ArtTier = 'base' | 'pack' | 'bg' | 'none'
 const FILE_RE = /^(.+)@(\d+)\.webp$/
 /** 파일 하나가 휴대폰에서 어디에 있나: base = 앱 안, pack = 종 묶음 내려받기, none = 휴대폰에서 안 씀(목·손·등 옷 160 — 작은 자리엔 모자만 그린다) */

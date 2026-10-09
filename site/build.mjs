@@ -236,9 +236,9 @@ writeFileSync(join(pub, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${cfg.
 writeFileSync(join(pub, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${['/', '/privacy', '/terms', '/account-deletion', '/support'].map((p) => `  <url><loc>${cfg.baseUrl}${p}</loc></url>`).join('\n')}\n</urlset>\n`)
 console.log('built:', Object.keys(files).join(', '))
 
-// 49 §4.4 휴대폰 종 묶음: 3D 그림 512를 /art3d/v3/에 둔다(앱이 처음 부화 뒤 내 종 것만 내려받는다). 원본은 packages/schema/art3d — 저장소에 두 번 넣지 않게 빌드 때 복사만
+// 49 §4.4 휴대폰 종 묶음: 3D 그림 512를 /art3d/v4/에 둔다(앱이 처음 부화 뒤 내 종 것만 내려받는다). 원본은 packages/schema/art3d — 저장소에 두 번 넣지 않게 빌드 때 복사만
 {
-  const src = join(here, '../packages/schema/art3d'), dst = join(pub, 'art3d/v3')
+  const src = join(here, '../packages/schema/art3d'), dst = join(pub, 'art3d/v4')
   if (existsSync(src)) {
     mkdirSync(dst, { recursive: true })
     let n = 0
