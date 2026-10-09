@@ -52,3 +52,19 @@
 @keyframes onb-fade { from { opacity: 0; } }
 @keyframes onb-in { from { opacity: 0; transform: translateY(4px); } }
 @media (prefers-reduced-motion: reduce) { .onb-scrim, .onb__body { animation: none; } .onb__dots li { transition: none; } }
+
+/* ── 44 §6.2 껍데기: 둥근 카드 24 · 큰 제목 · 굵은 주 버튼(강조 그림자) · 칸 모서리 14 (캐릭터 그림은 그대로) ── */
+.onb { border-radius: var(--radius-2xl, 28px); padding: 18px 34px 30px; }
+.onb__title { font: 800 24px/32px var(--font-family); letter-spacing: var(--tracking-tight, -0.025em); }
+.onb__lead { font-weight: 500; }
+.onb__row { border-radius: 14px; background: var(--color-bg-card); }
+.onb__row-icon { border-radius: 12px; color: var(--color-accent-ink); }
+.onb__ok, .onb__list svg, .onb__made svg { color: var(--color-accent-ink); }
+.onb__ghost { border-radius: var(--radius-md); }
+.onb__ghost:hover:not(:disabled) { color: var(--color-accent-ink); }
+.onb__input { height: 46px; border-radius: 14px; background: var(--color-bg-input); border-color: transparent; text-align: center; font: 600 16px/22px var(--font-family); }
+.onb__input:focus { background: var(--color-bg-app); }
+.onb__primary { height: 46px; border-radius: 14px; color: var(--color-on-accent); font: 700 15px var(--font-family); box-shadow: var(--shadow-accent); transition: transform 140ms var(--ease-spring); }
+.onb__primary:active:not(:disabled) { transform: scale(0.97); }
+.onb__primary:disabled { box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { .onb__primary { transition: none; } }
