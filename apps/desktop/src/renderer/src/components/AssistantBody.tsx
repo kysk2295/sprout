@@ -1,3 +1,5 @@
+import { SoftIcon } from './SoftIcon'
+import type { SoftIconName } from '@sprout/tokens/softIcons'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowDown, ArrowUp, ArrowUpRight, BarChart3, Check, Cpu, List, MoreHorizontal, Plus, RefreshCw, RotateCcw, Square, Trash2 } from 'lucide-react'
 import { answerFace, answerKindOf, COMPANION_SIZE, EGG_TAP_LINE, errorFace, pickLine, quickReplies, TAP_LINES, tapSpeaks } from '@sprout/schema/companion'
@@ -115,6 +117,8 @@ export function AssistantHeaderActions({ assistant: a, help }: { assistant: Assi
 }
 
 const SUGGESTIONS = ['내일 오후 3시에 기획 회의 한 시간 잡아줘', '이번 주 남은 할 일 보여줘', '이번 주에 완료한 거 몇 개야?']
+/** 44 §6.7 빈 대화 제안 = 말랑 아이콘 카드(제안 문장은 그대로) */
+const SUGGESTION_ICONS: SoftIconName[] = ['calendar', 'week', 'done']
 const STEPS: { key: AssistantProgress['phase'][]; label: string }[] = [{ key: ['connecting'], label: '연결' }, { key: ['generating'], label: '해석' }, { key: ['validating', 'saving', 'querying'], label: '확인' }]
 /** 최근 쓴 리스트(빠른 답 칩 — 리스트가 빠졌을 때) */
 const RECENT_LISTS_SQL = "SELECT l.name AS name FROM tasks t JOIN lists l ON l.id = t.list_id WHERE l.archived_at IS NULL AND COALESCE(l.kind, '') <> 'inbox' AND t.deleted_at IS NULL GROUP BY l.id ORDER BY MAX(t.modified_at) DESC LIMIT 3"
@@ -188,8 +192,8 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
                 <strong className="assistant-empty__name">{me.name}</strong>
                 <span className="assistant-empty__lv">{me.levelLine}</span>
                 <p className="assistant-empty__one">할 일을 말로 등록하거나, 내 일정과 완료 기록을 물어보세요.</p>
-                <div className="assistant-chips is-center">
-                  {SUGGESTIONS.map((text) => <button key={text} className="assistant-chip" disabled={a.busy || !a.model} onClick={() => void submit(text)}>{text}</button>)}
+                <div className="assistant-sugs">
+                  {SUGGESTIONS.map((text, i) => <button key={text} className="assistant-sug" disabled={a.busy || !a.model} onClick={() => void submit(text)}><SoftIcon name={SUGGESTION_ICONS[i] ?? 'ai'} size={28} /><span>{text}</span></button>)}
                 </div>
               </div>
             )}

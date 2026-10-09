@@ -329,3 +329,13 @@
 .plan-name__team { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .plan-name__team > span { flex: none; font: 400 12px/1 var(--font-family); color: var(--color-text-tertiary); }
 .plan-name__team input { flex: 1; min-width: 0; }
+
+/* ── 44 §6.5 프로젝트 카드 껍데기: 모서리 20 · 카드 그림자 · 진행 막대만 강조 그라데이션 ── */
+.pc-card { border-radius: var(--radius-xl); box-shadow: var(--shadow-card); padding: 16px 18px 14px; }
+.pc-card:hover { box-shadow: var(--shadow-float); }
+.pc-card__t { font: 700 15.5px/22px var(--font-family); letter-spacing: -0.01em; }
+.pc-icon { display: inline-grid; place-items: center; }
+.pc-bar { height: 6px; border-radius: 4px; background: var(--color-bg-input); }
+.pc-bar i { border-radius: 4px; background: linear-gradient(90deg, var(--color-accent), var(--color-accent-hi)); }
+.pc-card--new, .pc-card--sugg { box-shadow: none; }
+.plan-grid { gap: 12px; }

@@ -754,7 +754,7 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .settings-pick svg { width:14px; height:14px; }
 .settings-caption { margin:0 0 16px; color:var(--color-text-secondary); }
 /* 테마 고르기 견본: components/ThemePicker.css (01 §9.1) */
-[data-theme="dark"] { --color-bg-settings-nav:#242424; }
+/* 다크 설정 탐색 면은 tokens.css(00 v2.0)가 정한다 */
 .organization-dialog { width:480px; padding:24px; }
 .organization-dialog header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
 .organization-dialog h2 { font:var(--text-body-strong); margin:0; }
@@ -816,7 +816,7 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 [data-theme="dark"] .pane-header__title, [data-theme="dark"] .cal__title { color: #ffffff; }
 [data-theme="dark"] .group__name, [data-theme="dark"] .sidebar__label, [data-theme="dark"] .cal-side__group { color: var(--color-text-secondary); }
 /* 다크 막대·블록 색은 위 "막대·블록" 규칙(06 §14.2 2026-10-09)이 다크까지 정한다 — 안 한 할 일 글자 = --item-ink, 지난 날로 흐리게 하지 않음 */
-[data-theme="dark"] .tg__num.is-today, [data-theme="dark"] .mv__num.is-today { background: var(--color-accent); }
+/* 오늘 숫자(다크)는 아래 44 껍데기 블록 */
 .qc__date {border:0;background:transparent;cursor:pointer;text-align:left;padding:4px 0;}
 .qc__date:hover {text-decoration:underline;}
 
@@ -1089,3 +1089,112 @@ html:has(.mini), html:has(.mini) body { background: transparent; }
 .detail__flag + .panel-close, .detail__header > .panel-close { margin-right: -8px; }
 .detail__close-float { position: absolute; top: calc(var(--size-header-pad-top) + 8px); right: 12px; z-index: 2; }
 .detail--empty { position: relative; }
+
+/* ════════ 44 시각 개편 껍데기 (00 v2.0) ════════
+   배치·크기·움직임 길이는 위(틱틱 실측) 그대로 두고, 색·면·모서리·글자·그림자만 덮는다.
+   할 일 자리에는 그라데이션·빛·글로우를 쓰지 않는다(44 결정 ⓑ). 진행 막대 강조 그라데이션만 예외. */
+
+/* 레일: 바닥 위 아이콘, 고른 것 = 강조 옅은 칸 */
+.rail { border-right: 1px solid var(--color-border-divider); box-sizing: border-box; }
+.rail__btn { border-radius: 11px; }
+.rail__btn[data-tooltip]:hover::after { background: var(--color-toast-bg); border-radius: var(--radius-sm); font-weight: 600; }
+
+/* 사이드바: 말랑 아이콘 20 · 고른 행 = 강조 옅은 면(모서리 10) */
+.sidebar__item { border-radius: var(--radius-md); gap: 10px; }
+.sidebar__item.is-active .sidebar__label { font-weight: 650; }
+.sidebar__icon { width: var(--size-soft-icon); height: var(--size-soft-icon); }
+.sidebar__icon .soft-ic { width: var(--size-soft-icon); height: var(--size-soft-icon); }
+.sidebar__count { font: 600 11px/14px var(--font-family); font-variant-numeric: tabular-nums; }
+.sidebar__section { font: 650 11.5px/15px var(--font-family); color: var(--color-text-tertiary); }
+
+/* 목록: 바닥 + 둥근 흰 묶음 카드 */
+.list { background: var(--color-bg-ground); }
+.pane-header__title { letter-spacing: var(--tracking-tight); }
+.addbar { background: var(--color-bg-app); border-radius: 12px; box-shadow: var(--shadow-card); }
+.addbar:focus-within, .addbar.is-active, .addbar.has-desc { background: var(--color-bg-app); }
+.addbar__icon, .addbar__tool.is-set { color: var(--color-accent-ink); }
+.list__scroll > .group { background: var(--color-bg-app); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); padding: 2px 6px 6px; margin-bottom: 12px; }
+.list__scroll > .group > .group__header { padding: 0 8px 0 10px; height: 40px; }
+.group__name { font: var(--text-group); }
+.group__count { font: 500 12.5px/18px var(--font-family); }
+.group__action { font: 650 11.5px/15px var(--font-family); }
+.list__scroll > .group .row { border-radius: var(--radius-md); }
+.list__scroll > .group .row::after { left: calc(12px + var(--size-checkbox) + var(--space-row-icon-gap)); right: 8px; }
+.list__scroll > .group .row:last-child::after { opacity: 0; }
+
+/* 체크 칸: 17 · 모서리 5 · 우선순위 색 테두리 + 안쪽 8% 면, 완료 = 강조 채움 + 흰 체크, 누르면 톡(스프링) */
+.checkbox { border-radius: var(--radius-check); border-width: 1.6px; background: color-mix(in srgb, var(--checkbox-color, var(--color-priority-none)) 8%, transparent); transition: background var(--motion-fast), border-color var(--motion-fast), transform 140ms var(--ease-spring); }
+.checkbox:active { transform: scale(0.88); }
+.row.is-done .checkbox, .checkbox.is-checked, .row.is-done-row .checkbox { background: var(--color-accent); border-color: var(--color-accent); box-shadow: none; color: var(--color-on-accent); }
+.row.is-done-row .checkbox { opacity: 0.55; }
+.row.is-wontdo .checkbox { background: var(--color-text-quaternary); border-color: var(--color-text-quaternary); }
+@media (prefers-reduced-motion: reduce) { .checkbox:active { transform: none; } }
+
+/* 강조 글자는 accent-ink(작은 글자 4.5:1) */
+.row__date.is-today, .detail__date.is-set, .detail__date.is-today, .detail__date.is-future, .icon-btn.is-on, .subtasks__title:hover,
+.dp__row.is-set, .dp__item.is-on, .dp__slot.is-on, .dp__timelist button.is-on, .menu__item.is-active, .menu__flag.is-on, .cal-side__row.is-strong,
+.login__switch button, .login__waiting button, .toast__action { color: var(--color-accent-ink); }
+
+/* 상세: 큰 제목·체크리스트 칸 카드 */
+.detail__title { letter-spacing: -0.02em; }
+.check:has(.check__row) { background: var(--color-bg-card); border-radius: var(--radius-lg); padding: 6px 12px 6px 12px; }
+
+/* 떠 있는 것: 시트·메뉴·팝오버 = 둥근 16 + 초록 기운 그림자(다크는 선) */
+.popover { border-radius: var(--radius-lg); }
+.popover.menu { border-radius: 12px; }
+.menu__item { border-radius: var(--radius-sm); }
+.modal { border-radius: var(--radius-xl); }
+.desktop-dialog { border-radius: var(--radius-lg); }
+.reminder-card { border-radius: var(--radius-lg); }
+
+/* 토스트: 짙은 둥근 사각 + 스프링으로 올라옴(움직임 줄이기면 곡선만) */
+.toast { background: var(--color-toast-bg); color: #fff; border: 0; border-radius: 14px; box-shadow: var(--shadow-modal); padding: 10px 10px 10px 18px; font-weight: 500; animation: toast-in var(--motion-spring); }
+.toast__action { color: #8fe3b3; }
+.toast__action:hover, .toast__undo:hover { background: rgba(255, 255, 255, 0.1); }
+[data-theme="dark"] .toast__action { color: #8fe3b3; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 16px) scale(0.96); } }
+
+/* 빈 상태: 말랑 아이콘 88 + 제목 15/650 + 회색 한 줄 */
+.empty__title { margin: 14px 0 0; font: 650 15px/22px var(--font-family); color: var(--color-text-primary); }
+.empty__hint { font: 500 12.5px/18px var(--font-family); }
+
+/* 주요 버튼 = 강조 채움(굵게 — 흰 글자 3.2:1 보완), 모서리 10 */
+.dp__ok, .reminder-card__actions .is-primary, .quick-add-tools .entry-primary, .organization-dialog footer .entry-primary { background: var(--color-accent); color: var(--color-on-accent); font-weight: 650; border-radius: var(--radius-md); }
+.dp__clear, .dp__plain, .reminder-card__actions button { border-radius: var(--radius-md); }
+.dp__day.is-today { color: var(--color-accent-ink); font-weight: 700; }
+.dp__day.is-selected { color: var(--color-on-accent); font-weight: 700; }
+.dp__pills button.is-on { color: var(--color-on-accent); font-weight: 650; }
+
+/* 세그먼트: 트랙 칸 면 + 고른 칸 흰 면(카드 그림자) */
+.dp__tabs, .dp__seg, .seg { padding: 3px; border-radius: 10px; background: var(--color-seg-track); }
+.dp__tabs button.is-on, .dp__seg button.is-on, .seg button.is-on { background: var(--color-seg-on); box-shadow: var(--shadow-card); font-weight: 600; border-radius: 8px; }
+
+/* 캘린더: 오늘 = 강조 옅은 원 + 강조 글자, 막대 모서리 4(06 §14.2 색 규칙은 그대로) */
+.cal-item { border-radius: var(--radius-xs); }
+.mv__num.is-today, .tg__num.is-today, [data-theme="dark"] .mv__num.is-today, [data-theme="dark"] .tg__num.is-today { background: var(--color-accent-subtle); color: var(--color-accent-ink); font-weight: 750; }
+.cal__btn, .cal__seg { border-radius: var(--radius-md); }
+.cal__filter-chip { color: var(--color-accent-ink); font-weight: 600; }
+
+/* 설정 */
+.settings-card { border-radius: var(--radius-lg); }
+.settings-nav > button:not(.icon-btn) { border-radius: var(--radius-md); }
+.settings-nav > button.is-active { font-weight: 650; }
+.settings-content h2 { font: var(--text-h2); letter-spacing: -0.015em; }
+.settings-nav .soft-ic { width: 20px; height: 20px; }
+
+/* 로그인: 바닥 + 카드, 큰 문장(display) — 알 뒤 옅은 초록 빛 원은 캐릭터 자리라 허용(44 ⓑ) */
+.login__card { border-radius: var(--radius-xl); box-shadow: var(--shadow-float); }
+.login__title { font: 800 24px/32px var(--font-family); letter-spacing: var(--tracking-tight); }
+.login__input, .login__social { border-radius: 12px; }
+.login__input { height: 44px; background: var(--color-bg-input); border-color: transparent; }
+.login__input:focus { background: var(--color-bg-app); }
+.login__submit { height: 46px; border-radius: 12px; color: var(--color-on-accent); font: 700 15px/15px var(--font-family); box-shadow: var(--shadow-accent); }
+.login__social { height: 44px; font-weight: 600; }
+.login__mark { position: relative; }
+.login__mark::before { content: ""; position: absolute; left: 50%; top: 40px; width: 300px; height: 300px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--color-accent-hi) 30%, transparent) 0, color-mix(in srgb, var(--color-accent-hi) 9%, transparent) 45%, transparent 70%); pointer-events: none; z-index: -1; }
+.login__hero { margin: 4px 0 0; font: var(--text-display); letter-spacing: -0.035em; color: var(--color-text-primary); text-align: center; }
+.login__sub { margin: 4px 0 0; font: 500 14px/21px var(--font-family); color: var(--color-text-secondary); text-align: center; }
+
+/* 캘린더 머리 = 큰 제목(목록 머리와 같은 단계) */
+.cal__title { font: var(--text-h1); letter-spacing: var(--tracking-tight); }
+[data-theme="dark"] .pane-header__title, [data-theme="dark"] .cal__title { color: var(--color-text-primary); }

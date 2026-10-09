@@ -72,6 +72,9 @@ export function LoginScreen() {
       <div className="login__mark">
         <CompanionFace species={null} stage={1} size={COMPANION_SIZE.m} loop="wiggle" play={hop ? { move: 'hop', n: hop } : null} onPress={() => setHop((n) => n + 1)} label="알. 눌러 보기" />
         {mode === 'signup' && <p className="login__mark-line">가입하면 이 알에서 나와 닮은 친구가 깨어나요</p>}
+        {/* 44 §6.1 큰 문장(display) — 시안 visual-refresh 1 */}
+        <h2 className="login__hero">할 일이 자라는 곳</h2>
+        <p className="login__sub">끝낸 일만큼 친구가 자라요.</p>
       </div>
       <form className="login__card" noValidate onSubmit={(e) => { e.preventDefault(); void submit() }}>
         <h1 className="login__title">{mode === 'login' ? '로그인' : '등록하기'}</h1>

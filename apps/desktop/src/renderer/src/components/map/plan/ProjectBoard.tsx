@@ -1,5 +1,6 @@
 // 31 §12.2 프로젝트 보드 + §12.9.0 차분한 카드(아이콘·이름·자동 / N개 중 M개 완료 · 마감 / 진행 막대 / 다음 할 일 행) +
 // §12.9.1 손으로 만들기(＋ 새 프로젝트 · 이름 바꾸기 · 합치기 · 삭제 · 끌어 넣기).
+import { SoftIcon } from '../../SoftIcon'
 import { Check, MoreHorizontal, Plus } from 'lucide-react'
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react'
 import { daysBetween, projectTitle, type Proposal } from '@sprout/schema/projects'
@@ -25,11 +26,11 @@ export const TASK_DND = 'application/x-sprout-task'
 
 const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
 export const dLabel = (day: string, today: string) => { const n = daysBetween(today, day); return n === 0 ? 'D-day' : n > 0 ? `D-${n}` : `D+${-n}` }
-/** 이름 앞 이모지(사람이 고른 아이콘). 없으면 null — 🚀(폴더 그림은 폴더에만, 30 §A.5) */
+/** 이름 앞 이모지(사람이 고른 아이콘). 없으면 null — 말랑 프로젝트 그림(44 §6.5: 41의 🚀 자리, 사람이 고른 이모지가 앞선다) */
 export const iconOf = (name: string) => { const t = projectTitle(name); return t !== name.trim() ? name.trim().slice(0, name.trim().length - t.length).trim() : null }
 export function ProjectIcon({ name, size = 16 }: { name: string; size?: number }) {
   const e = iconOf(name)
-  return <span className="pc-icon" style={{ fontSize: size }}>{e ?? '🚀'}</span>
+  return e ? <span className="pc-icon" style={{ fontSize: size }}>{e}</span> : <span className="pc-icon"><SoftIcon name="project" size={Math.round(size * 1.35)} /></span>
 }
 /** `N개 중 M개 완료 · 제출 10/10` (급하면 마감만 빨강) */
 export function CardLine({ p, today }: { p: ProjectView; today: string }) {

@@ -1,6 +1,7 @@
+import { SoftIcon } from './SoftIcon'
 import { useEffect, useRef, useState } from 'react'
 import { ListSuggestSettings } from './listSuggest/ListSuggest'
-import { Bell, CalendarClock, CircleUser, Keyboard, ListChecks, ListFilter, Palette, Pencil, Plug, Settings2, X } from 'lucide-react'
+import { Pencil, X } from 'lucide-react'
 import { DateTimeSettings } from './calendar/DateTimeSettings'
 import { OverdueSettings } from './overdue/OverdueBits'
 import { NotifySettings } from './NotifySettings'
@@ -35,7 +36,7 @@ export function DesktopSettings({ onClose, initial = authApi() ? 'account' : 'sm
   return <Dialog label="설정" className="settings-dialog" onClose={onClose}>
     <nav className="settings-nav" aria-label="설정 항목">
       <button className="icon-btn" aria-label="설정 닫기" onClick={onClose}><X /></button><h2>설정</h2>
-      {([...(authApi() ? [['account','계정',CircleUser]] as const : []),['smart','스마트 목록',ListFilter],['tasks','할 일',ListChecks],['datetime','날짜 & 시간',CalendarClock],['appearance','외관',Palette],['integrations','연동',Plug],['notify','알림',Bell],['general','일반',Settings2],['shortcuts','단축키',Keyboard]] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><Icon />{label}</button>)}
+      {([...(authApi() ? [['account','계정','person']] as const : []),['smart','스마트 목록','filter'],['tasks','할 일','list'],['datetime','날짜 & 시간','calendar'],['appearance','외관','palette'],['integrations','연동','sync'],['notify','알림','bell'],['general','일반','settings'],['shortcuts','단축키','note']] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><SoftIcon name={Icon} size={20} />{label}</button>)}
     </nav>
     <section className="settings-content">
       {error && <p role="alert" className="form-error">{error}</p>}

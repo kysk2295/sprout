@@ -159,3 +159,13 @@
   .plan-tl .plan-tk.is-float { box-shadow: none; }
   .plan-grid .pc-card--new { transition: none; }
 }
+
+/* ── 44 §6.5 프로젝트 머리 껍데기: 큰 제목 · D-day 알약(7일 안 = 꽃잎 옅은 면) · 알약 모서리 ── */
+.ph__name { font: 800 24px/32px var(--font-family); letter-spacing: var(--tracking-tight); }
+.ph-pill { height: 28px; border-radius: var(--radius-full); padding: 0 12px; font-weight: 600; }
+.ph-pill:has(b.is-hot) { background: #ffe6ee; border-color: transparent; color: #b4235a; }
+.ph-pill b.is-hot { color: #b4235a; }
+[data-theme="dark"] .ph-pill:has(b.is-hot) { background: rgba(255, 127, 166, .15); color: #ff9fbd; }
+[data-theme="dark"] .ph-pill b.is-hot { color: #ff9fbd; }
+.ph-focus.is-on { color: var(--color-accent-ink); }
+.ph-team__p { border-radius: var(--radius-full); }

@@ -706,8 +706,8 @@ export function TaskListView(props: Props) {
         {view === 'smart:today' && <TodayMoments today={today} onPick={(id) => onSelectionChange([id])} />}{/* 31 §10.3 ②③ ⚡ 줄 · 이번 주 돌아보기 */}
         {empty && (
           view === 'smart:today' ? <TodayEmpty />
-            : archive ? <EmptyState title={view === 'smart:trash' ? '휴지통이 비어 있어요' : '태스크가 없어요'} />
-              : view.startsWith('tag:') && !tagFilter.length ? (() => { const n = tags.find((t) => t.id === view.slice(4))?.name ?? ''; return <EmptyState title="아직 이 태그가 붙은 할 일이 없어요" hint={`#${n} 이나 [[${n}]] 을 써 보세요`} /> })()
+            : archive ? <EmptyState icon={view === 'smart:trash' ? 'trash' : view === 'smart:wontdo' ? 'cancel' : 'done'} title={view === 'smart:trash' ? '휴지통이 비어 있어요' : '태스크가 없어요'} />
+              : view.startsWith('tag:') && !tagFilter.length ? (() => { const n = tags.find((t) => t.id === view.slice(4))?.name ?? ''; return <EmptyState icon="tag" title="아직 이 태그가 붙은 할 일이 없어요" hint={`#${n} 이나 [[${n}]] 을 써 보세요`} /> })()
               : <EmptyState title="할 일이 없어요" hint="입력창을 눌러 추가하세요" />
         )}
         {allDone && <AllDoneEmpty />}

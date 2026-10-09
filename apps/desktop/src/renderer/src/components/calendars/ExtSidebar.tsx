@@ -76,7 +76,7 @@ export function ExtAgenda({ accountId, onToggleSidebar, detailWidth }: { account
         {account && <AddBar accountId={account.id} label={account.label} />}
         {st?.danger && <p className="ext-agenda__warn"><AlertTriangle />{st.text}{st.action === 'reconnect' && account && <button onClick={() => void connectCalendar(account.provider)}>다시 연결</button>}{st.action === 'settings' && <button onClick={() => void calendarsApi()?.openPrivacy()}>시스템 설정 열기</button>}</p>}
         <div className="list__scroll">
-          {!groups.length && <EmptyState title="앞으로 3개월 동안 일정이 없어요." />}
+          {!groups.length && <EmptyState icon="calendar" title="앞으로 3개월 동안 일정이 없어요." />}
           {groups.map((g) => (
             <section key={g.id} className="group">
               <div className="group__header" onClick={() => setClosed((c) => (c.includes(g.id) ? c.filter((x) => x !== g.id) : [...c, g.id]))}>

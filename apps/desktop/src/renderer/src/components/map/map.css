@@ -297,3 +297,12 @@
 
 /* 31 §12 머리 ⧉ 전체 지도(눌림 = 강조색) */
 .map-head .icon-btn.map-whole.is-on { color: var(--color-accent); background: var(--color-accent-subtle); }
+
+/* ── 44 껍데기: 세그먼트 = 칸 면 트랙 + 흰 칸, 작은 강조 글자 = accent-ink ── */
+.map-seg { border: 0; border-radius: 10px; padding: 3px; }
+.map-seg button { border-radius: 8px; font-weight: 600; }
+.map-seg button.is-on { box-shadow: var(--shadow-card); }
+.map-btn { border-radius: var(--radius-md); }
+.map-btn--text, .map-xp { color: var(--color-accent-ink); }
+.map-btn--primary { color: var(--color-on-accent); font-weight: 650; }
+.map-card { border-radius: var(--radius-md); }
