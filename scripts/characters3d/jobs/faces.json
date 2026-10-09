@@ -1,0 +1,148 @@
+{
+"out": "build/face",
+"size": 640,
+"samples": 64,
+"skip_existing": true,
+"items": [
+{
+"kind": "char",
+"species": "snail",
+"stage": 1,
+"layer": "faces",
+"name": "snail-1-face"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 2,
+"layer": "faces",
+"name": "snail-2-face"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 3,
+"layer": "faces",
+"name": "snail-3-face"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 4,
+"layer": "faces",
+"name": "snail-4-face"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 5,
+"layer": "faces",
+"name": "snail-5-face"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 1,
+"layer": "faces",
+"name": "bee-1-face"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 2,
+"layer": "faces",
+"name": "bee-2-face"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 3,
+"layer": "faces",
+"name": "bee-3-face"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 4,
+"layer": "faces",
+"name": "bee-4-face"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 5,
+"layer": "faces",
+"name": "bee-5-face"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 1,
+"layer": "faces",
+"name": "worm-1-face"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 2,
+"layer": "faces",
+"name": "worm-2-face"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 3,
+"layer": "faces",
+"name": "worm-3-face"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 4,
+"layer": "faces",
+"name": "worm-4-face"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 5,
+"layer": "faces",
+"name": "worm-5-face"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 1,
+"layer": "faces",
+"name": "frog-1-face"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 2,
+"layer": "faces",
+"name": "frog-2-face"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 3,
+"layer": "faces",
+"name": "frog-3-face"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 4,
+"layer": "faces",
+"name": "frog-4-face"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 5,
+"layer": "faces",
+"name": "frog-5-face"
+}
+]
+}

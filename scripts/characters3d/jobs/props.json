@@ -1,0 +1,72 @@
+{
+"out": "build/prop",
+"size": 640,
+"samples": 64,
+"skip_existing": true,
+"items": [
+{
+"kind": "char",
+"species": "frog",
+"stage": 5,
+"branch": "a",
+"layer": "props",
+"name": "frog-5a-prop"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 5,
+"branch": "b",
+"layer": "props",
+"name": "frog-5b-prop"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 4,
+"branch": "a",
+"layer": "props",
+"name": "bee-4a-prop"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 4,
+"branch": "b",
+"layer": "props",
+"name": "bee-4b-prop"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 5,
+"branch": "a",
+"layer": "props",
+"name": "bee-5a-prop"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 5,
+"branch": "b",
+"layer": "props",
+"name": "bee-5b-prop"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 3,
+"branch": "a",
+"layer": "props",
+"name": "worm-3a-prop"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 3,
+"branch": "b",
+"layer": "props",
+"name": "worm-3b-prop"
+}
+]
+}

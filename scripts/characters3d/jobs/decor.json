@@ -1,0 +1,53 @@
+{
+"out": "build/decor",
+"size": 320,
+"samples": 48,
+"skip_existing": true,
+"items": [
+{
+"kind": "decor",
+"id": "pot",
+"name": "decor-pot"
+},
+{
+"kind": "decor",
+"id": "fence",
+"name": "decor-fence"
+},
+{
+"kind": "decor",
+"id": "mushlamp",
+"name": "decor-mushlamp"
+},
+{
+"kind": "decor",
+"id": "butterfly",
+"name": "decor-butterfly"
+},
+{
+"kind": "decor",
+"id": "ball",
+"name": "decor-ball"
+},
+{
+"kind": "decor",
+"id": "bunting",
+"name": "decor-bunting"
+},
+{
+"kind": "decor",
+"id": "tent",
+"name": "decor-tent"
+},
+{
+"kind": "decor",
+"id": "firefly",
+"name": "decor-firefly"
+},
+{
+"kind": "decor",
+"id": "arch",
+"name": "decor-arch"
+}
+]
+}

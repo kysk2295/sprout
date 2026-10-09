@@ -1,11 +1,10 @@
 #!/bin/sh
-# 49 §4 · 3D 스프라이트 전체 굽기: Blender(헤드리스) → PNG(build/, 커밋 안 함) → WebP(docs/screens/mockups/assets/char3d/)
-# 사용: sh scripts/characters3d/build.sh [characters|seeds|scenes ...]   (기본: 셋 다)
-# Blender 5.2 이상(brew install --cask blender). Node 쪽 의존 없음. PIL(python3) 필요.
+# 49 §4 · 3D 스프라이트 전체 굽기: jobs.py(구울 목록) → Blender 헤드리스(run_all.sh, PNG는 build/ — 커밋 안 함) → encode.py
+#   → packages/schema/art3d/*.webp + packages/schema/src/art3dManifest.ts + apps/mobile/src/growth/art/art3dFiles.ts
+# 준비: brew install --cask blender (5.2+) · python3 -m venv .venv && .venv/bin/pip install numpy pillow
+# 이어 굽기: 이미 구운 항목은 건너뛴다. 처음부터 = rm -rf build. 전체 ≈ 1시간(M3 Pro CPU, 640px · 64샘플 + OIDN).
 set -e
 cd "$(dirname "$0")"
-OUT=../../docs/screens/mockups/assets/char3d
-for j in ${@:-characters seeds scenes}; do
-  blender -b --factory-startup -P kk3d.py -- "jobs/$j.json" 2>&1 | grep -E "DONE|Error|Traceback" || true
-done
-for d in char seed scene; do [ -f "build/$d/meta.json" ] && python3 encode.py "build/$d" "$OUT/$d"; done
+python3 jobs.py
+./run_all.sh
+.venv/bin/python encode.py
