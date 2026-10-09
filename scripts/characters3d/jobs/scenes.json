@@ -1,0 +1,49 @@
+{
+ "out": "build/scene",
+ "samples": 64,
+ "items": [
+  {
+   "kind": "scene",
+   "time": "day",
+   "w": 780,
+   "h": 1560,
+   "name": "scene-garden-day"
+  },
+  {
+   "kind": "scene",
+   "time": "dusk",
+   "w": 780,
+   "h": 1560,
+   "name": "scene-garden-dusk"
+  },
+  {
+   "kind": "scene",
+   "time": "dawn",
+   "w": 780,
+   "h": 1560,
+   "name": "scene-garden-dawn"
+  },
+  {
+   "kind": "scene",
+   "time": "day",
+   "w": 1170,
+   "h": 420,
+   "band": true,
+   "cz": 1.4,
+   "tz": 1.6,
+   "lens": 40,
+   "name": "band-garden-day"
+  },
+  {
+   "kind": "scene",
+   "time": "dusk",
+   "w": 1170,
+   "h": 420,
+   "band": true,
+   "cz": 1.4,
+   "tz": 1.6,
+   "lens": 40,
+   "name": "band-garden-dusk"
+  }
+ ]
+}

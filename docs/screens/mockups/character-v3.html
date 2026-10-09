@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>꿈틀 · 캐릭터 v3 (49 시안)</title>
+<!-- 49 캐릭터 v3 시안. 그림은 전부 scripts/characters3d(Blender 절차 생성)에서 구운 assets/char3d/*.webp.
+     v2 비교만 같은 폴더의 kkumteul-art.js(지금 그림)를 읽는다. 외부 네트워크 없음.
+     주소 인자: ?theme=dark · ?sp=snail|frog|bee|worm · ?only=cmp,make,home,ward,dex,evo,where,calm,budget(한 섹션만, 캡처용)
+                · ?step=0..6(만들기 흐름 시작 단계) · ?calm=subtle|bold -->
+<style>
+:root {
+  --font: "Pretendard", "Pretendard Variable", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+  --ground: #EEF1EC; --surface: #FFFFFF; --surface-2: #F5F7F4; --line: #E1E6E0;
+  --ink: #151B18; --ink-2: #4A544F; --ink-3: #87918B;
+  --accent: #12715E; --accent-hi: #3DB79B; --accent-subtle: #DCEFE9; --on-accent: #fff;
+  --honey: #F2B84B; --apricot: #F08A5D;
+  --glass: rgba(255, 255, 255, .58); --glass-line: rgba(255, 255, 255, .7); --glass-ink: #13211B;
+  --glass-dark: rgba(14, 26, 21, .46);
+  --sheet: rgba(250, 252, 249, .9);
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --ground: #090D0C; --surface: #141A18; --surface-2: #1B2220; --line: #26302C;
+  --ink: #EEF3F0; --ink-2: #B3BDB8; --ink-3: #75817B;
+  --accent: #19856B; --accent-hi: #6EE0C2; --accent-subtle: #133A31;
+  --glass: rgba(16, 24, 30, .5); --glass-line: rgba(255, 255, 255, .12); --glass-ink: #EEF3F0;
+  --sheet: rgba(18, 24, 22, .9);
+  color-scheme: dark;
+}
+* { box-sizing: border-box }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 400 14px/1.5 var(--font); -webkit-font-smoothing: antialiased }
+button { font: inherit; color: inherit; cursor: pointer }
+.top { position: sticky; top: 0; z-index: 50; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 24px; background: color-mix(in srgb, var(--ground) 84%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--line) }
+.top h1 { margin: 0; font: 800 18px/1.2 var(--font); letter-spacing: -.02em }
+.top h1 small { font: 500 12.5px var(--font); color: var(--ink-3); margin-left: 8px; letter-spacing: 0 }
+.top .sp { flex: 1 }
+.seg { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; gap: 2px }
+.seg button { border: 0; background: none; padding: 6px 12px; border-radius: 8px; font: 600 12.5px var(--font); color: var(--ink-2) }
+.seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12) }
+nav.toc { display: flex; gap: 6px; flex-wrap: wrap; padding: 14px 24px 0 }
+nav.toc a { text-decoration: none; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font: 600 12.5px var(--font) }
+section.s { padding: 40px 24px 8px; max-width: 1500px }
+section.s > h2 { margin: 0 0 6px; font: 800 26px/1.25 var(--font); letter-spacing: -.03em }
+section.s > p.lead { margin: 0 0 22px; color: var(--ink-2); font: 400 14.5px/1.65 var(--font); max-width: 940px }
+.row { display: flex; gap: 32px; flex-wrap: wrap; align-items: flex-start }
+.panel { background: var(--surface); border-radius: 20px; padding: 18px 20px; flex: 1; min-width: 280px; border: 1px solid var(--line) }
+.panel h3 { margin: 0 0 8px; font: 750 15px/1.3 var(--font) }
+.panel ul, .panel ol { margin: 0; padding-left: 18px; color: var(--ink-2); font: 400 13px/1.75 var(--font) }
+.panel .btns { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 12px }
+.chipbtn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 6px 11px; font: 600 12.5px var(--font) }
+.chipbtn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-subtle) }
+:root[data-theme="dark"] .chipbtn.on { color: var(--accent-hi) }
+.cap { margin-top: 10px; text-align: center; color: var(--ink-3); font: 600 12px/1.4 var(--font) }
+.rec { display: inline-block; background: var(--accent); color: #fff; border-radius: 6px; padding: 1px 7px; font: 700 11px/18px var(--font); margin-left: 6px }
+
+/* ── 휴대폰 틀 ── */
+.phone { position: relative; width: 390px; height: 844px; border-radius: 48px; overflow: hidden; background: #000; box-shadow: 0 0 0 10px #101312, 0 0 0 11px #2A302D, 0 30px 60px rgba(0,0,0,.28); isolation: isolate; flex: none; color: var(--glass-ink) }
+.phone.sm { transform: scale(.72); transform-origin: top left; margin: 0 -109px -236px 0 }
+.phone .status { position: absolute; top: 0; left: 0; right: 0; height: 50px; z-index: 40; display: flex; justify-content: space-between; align-items: center; padding: 14px 30px 0; font: 650 15px var(--font); pointer-events: none }
+.phone .island { position: absolute; top: 11px; left: 50%; width: 120px; height: 34px; margin-left: -60px; border-radius: 20px; background: #000; z-index: 41 }
+.phone .homebar { position: absolute; bottom: 8px; left: 50%; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: currentColor; opacity: .55; z-index: 41 }
+.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0 }
+.scr { position: absolute; inset: 0; z-index: 2; transition: opacity .38s ease, transform .5s cubic-bezier(.2,.8,.2,1) }
+.scr:not(.on) { opacity: 0; pointer-events: none; transform: translateY(14px) scale(.985) }
+.glass { background: var(--glass); border: 1px solid var(--glass-line); backdrop-filter: blur(22px) saturate(1.5); -webkit-backdrop-filter: blur(22px) saturate(1.5); border-radius: 26px; color: var(--glass-ink) }
+.glass.dark { background: var(--glass-dark); border-color: rgba(255,255,255,.14); color: #fff }
+.btn { display: flex; align-items: center; justify-content: center; height: 56px; border: 0; border-radius: 18px; background: var(--accent); color: #fff; font: 750 16.5px var(--font); letter-spacing: -.01em; width: 100% }
+.btn:active { transform: scale(.98) }
+.btn.ghost { background: transparent; color: inherit; height: 44px; font-weight: 600; font-size: 14.5px; opacity: .8 }
+.h-xl { font: 800 31px/1.22 var(--font); letter-spacing: -.035em; margin: 0 }
+.sub { font: 500 14.5px/1.55 var(--font); opacity: .72; margin: 8px 0 0 }
+.ch { position: absolute; z-index: 5; user-select: none; -webkit-user-drag: none }
+.ch img { width: 100%; height: 100%; display: block; pointer-events: none }
+.ch .stack { position: relative; width: 100%; height: 100% }
+.ch .stack img { position: absolute; inset: 0 }
+.idle { animation: breathe 3.4s ease-in-out infinite; transform-origin: 50% 90% }
+@keyframes breathe { 0%,100% { transform: scale(1, 1) } 50% { transform: scale(1.012, 1.028) } }
+@keyframes hop { 0% { transform: scale(1,1) } 18% { transform: scale(1.08,.9) } 45% { transform: translateY(-22px) scale(.95,1.06) } 70% { transform: translateY(0) scale(1.06,.94) } 85% { transform: scale(.98,1.02) } 100% { transform: scale(1,1) } }
+@keyframes bob { 0%,100% { transform: translateY(0) rotate(-2deg) } 50% { transform: translateY(-10px) rotate(2deg) } }
+@keyframes wob { 0%,100% { transform: rotate(0) } 20% { transform: rotate(-7deg) } 45% { transform: rotate(6deg) } 70% { transform: rotate(-3deg) } }
+.reduce * { animation: none !important; transition: none !important }
+
+/* 탭 막대(유리, 장면 위) */
+.tabbar { position: absolute; left: 12px; right: 12px; bottom: 24px; height: 64px; z-index: 20; display: flex; justify-content: space-around; align-items: center; border-radius: 26px; padding: 0 6px }
+.tabbar span { display: flex; flex-direction: column; align-items: center; gap: 3px; font: 650 10.5px var(--font); opacity: .62 }
+.tabbar span.on { opacity: 1; color: var(--accent) }
+:root[data-theme="dark"] .tabbar span.on { color: var(--accent-hi) }
+.tabbar i { display: block; width: 22px; height: 22px; border: 2px solid currentColor; border-radius: 7px }
+.tabbar span:nth-child(2) i { border-radius: 4px; border-top-width: 5px }
+.tabbar span:nth-child(3) i { border-radius: 50% 50% 50% 50% / 60% 60% 40% 40% }
+.tabbar span:nth-child(4) i { border-radius: 11px 11px 11px 3px }
+.tabbar span:nth-child(5) i { border: 0; background: radial-gradient(circle, currentColor 2.2px, transparent 2.6px) 0 50% / 7.3px 7px repeat-x }
+
+/* ── 만들기 흐름 ── */
+.make .top-copy { position: absolute; left: 26px; right: 26px; top: 92px; z-index: 6 }
+.make .bottom { position: absolute; left: 20px; right: 20px; bottom: 34px; z-index: 6 }
+.dots { display: flex; gap: 6px; position: absolute; top: 62px; left: 26px; z-index: 7 }
+.dots i { width: 22px; height: 4px; border-radius: 2px; background: currentColor; opacity: .2; transition: opacity .3s, width .3s }
+.dots i.on { opacity: .9; width: 34px }
+.seedwrap { position: absolute; left: 50%; width: 240px; height: 240px; margin-left: -120px; z-index: 5; touch-action: none; cursor: grab }
+.seedwrap img { width: 100%; height: 100%; pointer-events: none }
+.seedwrap .shadow { position: absolute; bottom: 6px; left: 50%; width: 120px; height: 18px; margin-left: -60px; border-radius: 50%; background: rgba(0,0,0,.18); filter: blur(6px); z-index: -1 }
+.seedname { text-align: center; font: 750 19px var(--font); letter-spacing: -.02em }
+.seedname small { display: block; font: 500 13px var(--font); opacity: .66; margin-top: 3px }
+.seedpick { display: flex; justify-content: center; gap: 10px; margin: 14px 0 18px }
+.seedpick button { width: 56px; height: 56px; border-radius: 18px; border: 2px solid transparent; padding: 4px; background: var(--glass); backdrop-filter: blur(12px) }
+.seedpick button.on { border-color: var(--accent) }
+.seedpick img { width: 100%; height: 100%; object-fit: contain }
+.drag-hint { text-align: center; font: 600 12px var(--font); opacity: .6; margin-top: -6px }
+.qcard { position: absolute; left: 20px; right: 20px; top: 252px; padding: 26px 22px 20px; z-index: 6; transition: transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s }
+.qcard.out-l { transform: translateX(-120%) rotate(-10deg); opacity: 0 }
+.qcard.out-r { transform: translateX(120%) rotate(10deg); opacity: 0 }
+.qcard.in { transform: translateY(30px) scale(.94); opacity: 0 }
+.qcard .n { font: 750 12.5px var(--font); color: var(--accent); letter-spacing: .02em }
+:root[data-theme="dark"] .qcard .n { color: var(--accent-hi) }
+.qcard h3 { margin: 6px 0 18px; font: 800 24px/1.3 var(--font); letter-spacing: -.03em }
+.opt { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 0; border-radius: 18px; padding: 16px; margin-top: 10px; background: rgba(255,255,255,.66); font: 650 16px/1.35 var(--font); color: #13211B; transition: transform .15s }
+:root[data-theme="dark"] .opt { background: rgba(255,255,255,.09); color: #EEF3F0 }
+.opt:active { transform: scale(.97) }
+.opt b { flex: none; width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-subtle); color: var(--accent); font: 800 13px var(--font) }
+.qback { position: absolute; top: 56px; right: 22px; z-index: 7; border: 0; background: none; font: 600 13px var(--font); opacity: .7 }
+.mini-seed { position: absolute; top: 110px; left: 50%; width: 120px; height: 120px; margin-left: -60px; z-index: 5 }
+.mini-seed img { width: 100%; height: 100% }
+.flash { position: absolute; inset: 0; z-index: 30; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 52%, #fff 0, rgba(255,255,255,.95) 30%, rgba(220,250,236,.7) 60%, rgba(255,255,255,0) 100%) }
+.halo { position: absolute; left: 50%; width: 360px; height: 360px; margin-left: -180px; border-radius: 50%; z-index: 4; pointer-events: none; opacity: 0; background: radial-gradient(circle, rgba(255,255,255,.95) 0, rgba(255,250,225,.55) 34%, rgba(255,255,255,0) 68%) }
+.ring { position: absolute; left: 50%; width: 160px; height: 160px; margin-left: -80px; border-radius: 50%; border: 3px solid rgba(255,255,255,.9); z-index: 6; pointer-events: none; opacity: 0 }
+.typecard { position: absolute; left: 20px; right: 20px; bottom: 112px; padding: 18px 20px; z-index: 8; transition: transform .6s cubic-bezier(.2,1.3,.4,1), opacity .4s }
+.typecard.hide { transform: translateY(40px); opacity: 0 }
+.typecard .k { font: 700 12.5px var(--font); opacity: .7 }
+.typecard h3 { margin: 2px 0 6px; font: 800 26px/1.2 var(--font); letter-spacing: -.03em }
+.axis { display: grid; grid-template-columns: 54px 1fr 54px; gap: 8px; align-items: center; font: 600 12px var(--font); margin-top: 8px }
+.axis .bar { height: 8px; border-radius: 4px; background: rgba(127,127,127,.22); overflow: hidden }
+.axis .bar i { display: block; height: 100%; border-radius: 4px; background: var(--accent) }
+.axis span:last-child { text-align: right; opacity: .6 }
+.namefield { display: flex; align-items: center; gap: 10px; padding: 0 18px; height: 60px; border-radius: 20px }
+.namefield input { flex: 1; border: 0; background: none; font: 800 24px var(--font); letter-spacing: -.02em; color: inherit; outline: none; min-width: 0 }
+.namechips { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 18px }
+.namechips button { border: 0; border-radius: 999px; padding: 8px 14px; font: 650 13.5px var(--font) }
+.task { display: flex; align-items: center; gap: 12px; padding: 16px 16px; border-radius: 20px; margin-bottom: 10px }
+.task .cb { width: 24px; height: 24px; border-radius: 50%; border: 2px solid currentColor; opacity: .5; flex: none; display: grid; place-items: center; transition: all .2s }
+.task.done .cb { background: var(--accent); border-color: var(--accent); opacity: 1 }
+.task.done .cb::after { content: ""; width: 9px; height: 5px; border: solid #fff; border-width: 0 0 2.5px 2.5px; transform: rotate(-45deg) translate(1px, -1px) }
+.task.done .t { text-decoration: line-through; opacity: .55 }
+.task .t { flex: 1; font: 650 16px var(--font) }
+.xp { position: absolute; z-index: 12; font: 800 22px var(--font); color: var(--honey); text-shadow: 0 2px 8px rgba(0,0,0,.25); pointer-events: none; opacity: 0 }
+.speech { position: absolute; z-index: 9; padding: 10px 14px; border-radius: 18px; font: 650 14px/1.35 var(--font); max-width: 230px; transition: opacity .3s, transform .3s }
+.speech::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 14px; height: 14px; margin-left: -7px; background: inherit; transform: rotate(45deg); border-radius: 3px; border-right: 1px solid var(--glass-line); border-bottom: 1px solid var(--glass-line) }
+.speech.hide { opacity: 0; transform: translateY(6px) }
+
+/* ── 성장 홈 ── */
+.home-head { position: absolute; top: 54px; left: 18px; right: 18px; z-index: 8; display: flex; align-items: center; gap: 8px }
+.home-head .logo { font: 850 21px var(--font); letter-spacing: -.04em }
+.pill { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; font: 700 13px var(--font) }
+.week { position: absolute; top: 98px; left: 14px; right: 14px; z-index: 8; display: grid; grid-template-columns: repeat(7, 1fr); padding: 10px 6px; border-radius: 22px; text-align: center }
+.week b { display: block; font: 600 11px var(--font); opacity: .6; margin-bottom: 6px }
+.week span { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font: 700 14.5px var(--font) }
+.week span.did { background: rgba(255,255,255,.55) }
+:root[data-theme="dark"] .week span.did { background: rgba(255,255,255,.14) }
+.week span.today { background: var(--accent); color: #fff }
+.hud { position: absolute; left: 14px; right: 14px; bottom: 100px; z-index: 8; padding: 16px 18px 14px }
+.hud .lv { display: flex; align-items: center; gap: 8px; font: 700 13px var(--font); opacity: .82 }
+.hud .lv em { font-style: normal; background: var(--accent); color: #fff; border-radius: 7px; padding: 2px 7px; font: 800 11.5px var(--font) }
+.big { font: 850 54px/1 var(--font); letter-spacing: -.05em; margin-top: 6px }
+.big small { font-size: 28px; letter-spacing: -.02em; margin-left: 2px }
+.hud .row2 { display: flex; align-items: flex-end; justify-content: space-between }
+.tailchip { position: relative; background: #13211B; color: #fff; border-radius: 12px; padding: 7px 11px; font: 700 12.5px var(--font); margin-bottom: 10px }
+.tailchip::after { content: ""; position: absolute; left: 22px; bottom: -5px; width: 10px; height: 10px; background: inherit; transform: rotate(45deg); border-radius: 2px }
+:root[data-theme="dark"] .tailchip { background: #EEF3F0; color: #13211B }
+.xpbar { height: 14px; border-radius: 7px; background: rgba(127,127,127,.24); margin-top: 12px; overflow: hidden }
+.xpbar i { display: block; height: 100%; border-radius: 7px; background: linear-gradient(90deg, var(--accent-hi), var(--accent)); transition: width .8s cubic-bezier(.2,.8,.2,1) }
+.quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px }
+.quick button { border: 0; border-radius: 16px; padding: 4px 6px 7px; background: rgba(255,255,255,.5); display: flex; flex-direction: column; align-items: center; gap: 2px; font: 700 12.5px var(--font); color: inherit }
+:root[data-theme="dark"] .quick button { background: rgba(255,255,255,.08) }
+.quick img { width: 34px; height: 34px; object-fit: contain }
+
+/* ── 옷장·도감 ── */
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 10; border-radius: 30px 30px 0 0; background: var(--sheet); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); padding: 10px 18px 40px; color: var(--ink) }
+.sheet .grab { width: 38px; height: 5px; border-radius: 3px; background: var(--ink-3); opacity: .45; margin: 0 auto 12px }
+.tabs { display: flex; gap: 18px; border-bottom: 1px solid var(--line); margin-bottom: 14px }
+.tabs span { padding: 8px 0 10px; font: 700 14.5px var(--font); color: var(--ink-3); position: relative }
+.tabs span.on { color: var(--ink) }
+.tabs span.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2.5px; border-radius: 2px; background: var(--accent) }
+.grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
+.cell { border: 2px solid transparent; border-radius: 18px; background: var(--surface-2); aspect-ratio: .86; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font: 650 11.5px var(--font); color: var(--ink-2); position: relative; padding: 6px }
+.cell.on { border-color: var(--accent); background: var(--accent-subtle); color: var(--ink) }
+.cell .ico { width: 56px; height: 52px; display: grid; place-items: center }
+.cell .ico img { width: 100%; height: 100%; object-fit: contain }
+.cell.lock .ico i { width: 34px; height: 26px; border-radius: 14px; background: var(--ink-3); opacity: .28 }
+.cell.lock small { color: var(--ink-3); font: 600 10.5px var(--font) }
+.cell .newdot { position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent) }
+.crop { overflow: hidden; position: relative }
+.crop img { position: absolute }
+.dexgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px }
+.dexcell { border-radius: 22px; aspect-ratio: 1; position: relative; display: grid; place-items: center; overflow: hidden }
+.dexcell img { width: 84%; height: 84%; object-fit: contain; margin-top: -12% }
+.dexcell.lock img { filter: brightness(0) saturate(0); opacity: .16 }
+:root[data-theme="dark"] .dexcell.lock img { filter: brightness(0) invert(1); opacity: .1 }
+.dexcell .me { position: absolute; top: 8px; right: 8px; background: var(--accent); color: #fff; border-radius: 7px; font: 800 10.5px var(--font); padding: 2px 6px }
+.dexcell .nm { position: absolute; left: 0; right: 0; bottom: 7px; text-align: center; font: 700 11px var(--font); opacity: .8 }
+
+/* ── 진화 ── */
+.evo-dim { position: absolute; inset: 0; z-index: 7; background: #050807; opacity: 0; pointer-events: none }
+.evocard { position: absolute; left: 20px; right: 20px; bottom: 110px; z-index: 12; padding: 18px 20px; text-align: center }
+.evocard .k { font: 700 13px var(--font); opacity: .7 }
+.evocard h3 { margin: 4px 0 10px; font: 850 30px/1.15 var(--font); letter-spacing: -.035em }
+.evocard .pair { display: flex; align-items: center; justify-content: center; gap: 10px; font: 700 12px var(--font) }
+.evocard .pair div { width: 70px; height: 70px; border-radius: 18px; background: rgba(255,255,255,.4); display: grid; place-items: center }
+.evocard .pair div.now { outline: 2px solid var(--accent-hi) }
+.evocard .pair img { width: 64px; height: 64px }
+
+/* ── 할 일 화면(차분) ── */
+.calm { background: var(--surface); color: var(--ink) }
+.calm .band { position: absolute; left: 0; right: 0; top: 0; width: 100%; height: 200px; object-fit: cover; object-position: 50% 30%; z-index: 0 }
+.calm .bandfade { position: absolute; left: 0; right: 0; top: 0; height: 200px; z-index: 1; background: linear-gradient(180deg, rgba(0,0,0,0) 35%, var(--surface) 100%) }
+.calm .title { position: absolute; left: 20px; right: 20px; top: 92px; z-index: 3; display: flex; align-items: flex-end; justify-content: space-between }
+.calm .title h3 { margin: 0; font: 800 30px var(--font); letter-spacing: -.03em }
+.calm .title .n { font: 700 14px var(--font); opacity: .6 }
+.calm .list { position: absolute; left: 0; right: 0; top: 168px; bottom: 0; z-index: 3; padding: 0 16px }
+.calm .grp { font: 700 13px var(--font); color: var(--ink-3); padding: 14px 4px 6px }
+.calm .it { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--line); font: 500 15.5px var(--font) }
+.calm .it i { width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--ink-3); flex: none }
+.calm .it i.p1 { border-color: #D9343A } .calm .it i.p2 { border-color: #C98200 } .calm .it i.p3 { border-color: #4169E8 }
+.calm .it span { flex: 1 }
+.calm .it small { color: var(--ink-3); font: 500 12.5px var(--font) }
+.calm.bold .band { height: 300px }
+.calm.bold .bandfade { height: 300px; background: linear-gradient(180deg, rgba(0,0,0,0) 55%, var(--surface) 100%) }
+.calm.bold .title { top: 104px; color: #fff; text-shadow: 0 1px 10px rgba(0,0,0,.25) }
+.calm.bold .list { top: 214px }
+.calm.bold .cardlist { background: var(--surface); border-radius: 22px; padding: 2px 14px; box-shadow: 0 8px 26px rgba(0,0,0,.08) }
+.calm .peek { position: absolute; z-index: 4; width: 86px; height: 86px; right: 14px; top: 104px }
+.calm .fab { position: absolute; right: 20px; bottom: 104px; width: 56px; height: 56px; border-radius: 50%; background: var(--accent); z-index: 6; box-shadow: 0 8px 18px rgba(18,113,94,.35) }
+.calm .fab::before, .calm .fab::after { content: ""; position: absolute; left: 50%; top: 50%; width: 20px; height: 2.5px; margin: -1.25px 0 0 -10px; background: #fff; border-radius: 2px }
+.calm .fab::after { transform: rotate(90deg) }
+.calm .tabbar.plain { background: var(--surface); border: 1px solid var(--line); backdrop-filter: none }
+.calm .tabstrip { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 130px; object-fit: cover; object-position: 50% 75%; z-index: 5; -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 60%); mask-image: linear-gradient(180deg, transparent 0, #000 60%) }
+.calgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; font: 600 12.5px var(--font) }
+.calgrid div { height: 74px; border-top: 1px solid var(--line); padding: 4px 3px; color: var(--ink-2) }
+.calgrid div i { display: block; margin-top: 3px; height: 14px; border-radius: 3px; background: var(--accent-subtle); font: 600 9.5px/14px var(--font); padding: 0 3px; color: var(--accent); overflow: hidden; white-space: nowrap; font-style: normal }
+.empty { text-align: center; padding-top: 40px }
+.empty img { width: 170px; height: 170px }
+.empty h4 { margin: 4px 0 4px; font: 750 17px var(--font) }
+.empty p { margin: 0; color: var(--ink-3); font: 500 13.5px var(--font) }
+
+/* ── 비교 ── */
+.cmp { display: grid; grid-template-columns: 120px repeat(3, 1fr); gap: 10px; align-items: center }
+.cmp .lab { font: 750 13px/1.4 var(--font); color: var(--ink-2) }
+.cmp .lab small { display: block; color: var(--ink-3); font-weight: 500 }
+.cmp .box { background: var(--surface); border-radius: 22px; aspect-ratio: 1.05; display: grid; place-items: center; border: 1px solid var(--line); overflow: hidden; position: relative }
+.cmp .box img, .cmp .box svg { width: 82%; height: 82% }
+.cmp .box.v3 { background: linear-gradient(180deg, #F3F5EF, #E3E9E0) }
+:root[data-theme="dark"] .cmp .box.v3 { background: linear-gradient(180deg, #1A2220, #101614) }
+.cmp .hdr { text-align: center; font: 700 12.5px var(--font); color: var(--ink-3) }
+.layers { display: flex; gap: 14px; align-items: center; flex-wrap: wrap }
+.layers .lay { width: 150px; height: 150px; border-radius: 18px; background: repeating-conic-gradient(var(--surface-2) 0 25%, var(--surface) 0 50%) 0 0 / 16px 16px; border: 1px solid var(--line); position: relative }
+.layers .lay img { position: absolute; inset: 0; width: 100%; height: 100% }
+.layers .op { font: 800 22px var(--font); color: var(--ink-3) }
+table.t { border-collapse: collapse; width: 100%; font: 400 13px/1.55 var(--font) }
+table.t th, table.t td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top }
+table.t th { color: var(--ink-3); font-weight: 700; font-size: 12px }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>캐릭터 v3 <small>49 · 3D 비닐 인형 화풍 · 장면 가득 · 만들기 흐름</small></h1>
+  <span class="sp"></span>
+  <div class="seg" id="spSeg"><button data-v="snail">달팽이</button><button data-v="frog">개구리</button><button data-v="bee">꿀벌</button><button data-v="worm">애벌레</button></div>
+  <div class="seg" id="thSeg"><button data-v="light">라이트</button><button data-v="dark">다크</button></div>
+  <div class="seg" id="mvSeg"><button data-v="on">움직임</button><button data-v="off">줄이기</button></div>
+</header>
+<nav class="toc">
+  <a href="#cmp">0 v2 ↔ v3</a><a href="#make">A 만들기 흐름</a><a href="#home">B 성장 홈</a><a href="#ward">C 옷장</a><a href="#dex">D 도감</a><a href="#evo">E 진화</a><a href="#where">F 보이는 곳</a><a href="#calm">G 할 일 화면 채움 정도</a><a href="#budget">H 파이프라인·예산</a>
+</nav>
+
+<!-- 0. 비교 -->
+<section class="s" id="cmp">
+  <h2>0. 지금(v2) ↔ v3</h2>
+  <p class="lead">같은 종·같은 단계를 나란히 놓았다. v2는 큰 만화 눈 + 빛점 둘 + 볼 번짐 + 진한 소품 여러 개라 "아기 그림"으로 읽힌다. v3는 몸 덩어리 하나가 형태를 맡고, 얼굴은 작은 점 눈 + 가는 입뿐이며, 빛·그림자·속살 빛이 진짜 3D라 "잘 만든 비닐 인형"으로 읽힌다. 아래 그림은 모두 <code>scripts/characters3d</code>에서 Blender로 구운 실제 결과물이다.</p>
+  <div class="row">
+    <div style="flex:2;min-width:620px">
+      <div class="cmp" id="cmpGrid"></div>
+    </div>
+    <div class="panel" style="max-width:420px">
+      <h3>왜 유치해 보였나 → v3에서 바꾼 것</h3>
+      <ul>
+        <li><b>얼굴이 화면을 다 먹는다</b> — 눈이 머리 반지름의 25%, 빛점 둘, 볼 번짐, ω 입. → 눈 = 몸 높이의 약 4%, 빛점 없음(유광 재질이 저절로 빛을 받음), 볼 없음, 입은 가는 선 하나.</li>
+        <li><b>가짜 입체</b> — 그라데이션 하나에 외곽선. → 진짜 빛(왼쪽 위 큰 면광 + 뒤 테두리 빛) · 접촉 그림자 · 맞닿은 곳 어두움(AO) · 속살 빛(subsurface).</li>
+        <li><b>소품이 많다</b> — 단계마다 꽃·리본·별·조각을 얹었다. → 단계마다 <b>실루엣 하나</b>만 바뀐다(씨앗 그릇 → 나선 껍데기 → 껍데기 위 작은 숲).</li>
+        <li><b>색이 다 세다</b> — 채도 높은 파스텔 8~10색. → 종마다 한 색 계열 + 무채색 받침, 강조는 소품 하나.</li>
+        <li><b>장면이 없다</b> — 흰 카드 위 그림. → 끝까지 깔린 3D 정원 장면 + 유리 카드(사용자 추가 요청: "화면에 디자인이 가득 찬").</li>
+      </ul>
+    </div>
+  </div>
+  <h3 style="margin:30px 0 10px;font:750 16px var(--font)">층으로 굽는다 — 몸 + 얼굴 + 옷 (49 §4.3)</h3>
+  <div class="layers">
+    <div><div class="lay"><img id="layBody" alt=""></div><div class="cap">몸(얼굴 없음)</div></div><span class="op">+</span>
+    <div><div class="lay"><img id="layFace" alt=""></div><div class="cap">얼굴 층 <button class="chipbtn" id="layMood" style="padding:2px 8px">기본 ↔ 웃음</button></div></div><span class="op">+</span>
+    <div><div class="lay"><img id="layAcc" alt=""></div><div class="cap">옷 층(목도리, 몸에 진 그림자 포함)</div></div><span class="op">=</span>
+    <div><div class="lay" id="layAll"></div><div class="cap">겹친 결과</div></div>
+    <div><div class="lay"><img id="layCheck" alt=""></div><div class="cap">한 번에 구운 것(검증)</div></div>
+  </div>
+  <p class="cap" style="text-align:left;max-width:900px">옷 층은 몸·얼굴을 "그림자만 받는 투명면"으로 두고 구워서, 겹치면 옷이 몸 뒤로 돌아가는 부분은 가려지고 몸에 지는 그림자는 남는다. 목 둘레는 생성기가 몸 표면을 광선으로 재서 맞춘다 — 같은 목도리 정의가 달팽이 친구·전설, 개구리 친구에 그대로 맞는다.</p>
+</section>
+
+<!-- A. 만들기 흐름 -->
+<section class="s" id="make">
+  <h2>A. 만들기 흐름 — 씨앗 고르기 → 성향 카드 8장 → 부화 → 이름 → 첫 할 일</h2>
+  <p class="lead">눌러서 끝까지 진행된다. 씨앗은 좌우로 끌면 돌아간다(12컷 회전). 카드는 고르면 그쪽으로 날아간다. 부화는 씨앗을 세 번 두드린다 — 금 한 줄 → 두 줄 → 빛. 종은 성향 카드가 정한다(10 §2.2 그대로), 씨앗은 껍질 무늬만 정한다(결정 ③).</p>
+  <div class="row">
+    <div class="phone make" id="makePhone">
+      <img class="bg" id="makeBg" alt="">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div><div class="island"></div>
+      <div class="dots" id="makeDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <!-- 0 시작 -->
+      <div class="scr on" data-step="0">
+        <div class="top-copy"><p class="h-xl">할 일을 끝낼 때마다<br>함께 자라는 친구</p><p class="sub">씨앗 하나에서 시작해요. 무엇이 나올지는 당신이 일하는 방식이 정해요.</p></div>
+        <div class="seedwrap" style="top:330px;animation:bob 3.6s ease-in-out infinite"><div class="shadow"></div><img id="s0seed" alt=""></div>
+        <div class="bottom"><button class="btn" data-go="1">씨앗 고르기</button><button class="btn ghost">이미 계정이 있어요</button></div>
+      </div>
+      <!-- 1 씨앗 고르기 -->
+      <div class="scr" data-step="1">
+        <div class="top-copy"><p class="h-xl">마음이 가는<br>씨앗을 골라요</p><p class="sub">좌우로 끌어서 돌려 보세요. 껍질 무늬는 도감에 남아요.</p></div>
+        <div class="seedwrap" id="turn" style="top:300px"><div class="shadow"></div><img id="turnImg" alt=""></div>
+        <div class="bottom">
+          <div class="seedname" id="seedName"></div>
+          <div class="seedpick" id="seedPick"></div>
+          <button class="btn" data-go="2">이 씨앗으로</button>
+        </div>
+      </div>
+      <!-- 2 성향 카드 -->
+      <div class="scr" data-step="2">
+        <div class="top-copy" style="top:92px"><p class="h-xl" style="font-size:24px">어떤 친구가 나올까요</p></div>
+        <button class="qback" id="qBack">‹ 이전</button>
+        <div class="mini-seed" id="miniSeed" style="top:128px"><img id="miniSeedImg" alt=""></div>
+        <div class="qcard glass" id="qCard"><div class="n" id="qN"></div><h3 id="qT"></h3><button class="opt" data-a="0"><b>A</b><span id="qA"></span></button><button class="opt" data-a="1"><b>B</b><span id="qB"></span></button></div>
+      </div>
+      <!-- 3 부화 -->
+      <div class="scr" data-step="3">
+        <div class="top-copy" id="hatchCopy"><p class="h-xl">씨앗을 톡톡<br>두드려 주세요</p><p class="sub" id="hatchSub">세 번이면 깨어나요.</p></div>
+        <div class="halo" id="halo" style="top:224px"></div>
+        <div class="ring" id="ring1" style="top:330px"></div><div class="ring" id="ring2" style="top:330px"></div>
+        <div class="seedwrap" id="hatchSeed" style="top:300px;cursor:pointer"><div class="shadow"></div><img id="hatchImg" alt=""></div>
+        <div class="ch" id="hatchCh" style="left:65px;top:274px;width:260px;height:260px;opacity:0"><img id="hatchChImg" alt=""></div>
+        <div class="typecard glass hide" id="typeCard">
+          <div class="k">당신은</div><h3 id="typeName"></h3><div class="sub" id="typeLine" style="margin:0"></div>
+          <div class="axis"><span>계획</span><div class="bar"><i id="axP"></i></div><span>즉흥</span></div>
+          <div class="axis"><span>몰입</span><div class="bar"><i id="axF"></i></div><span>멀티</span></div>
+        </div>
+        <div class="bottom"><button class="btn" id="toName" data-go="4" style="opacity:0;pointer-events:none">이름 지어 주기</button></div>
+      </div>
+      <!-- 4 이름 -->
+      <div class="scr" data-step="4">
+        <div class="top-copy"><p class="h-xl">이름을 지어 줄까요?</p><p class="sub">나중에 성장 화면에서 바꿀 수 있어요.</p></div>
+        <div class="ch idle" id="nameCh" style="left:80px;top:301px;width:230px;height:230px"><img id="nameChImg" alt=""></div>
+        <div class="bottom">
+          <div class="namefield glass"><input id="nameIn" maxlength="10" value=""><span style="font:600 13px var(--font);opacity:.55" id="nameCount"></span></div>
+          <div class="namechips" id="nameChips"></div>
+          <button class="btn" data-go="5">좋아요</button>
+        </div>
+      </div>
+      <!-- 5 첫 할 일 -->
+      <div class="scr" data-step="5">
+        <div class="top-copy"><p class="h-xl" id="firstTitle">첫 할 일 하나만<br>끝내 볼까요?</p><p class="sub">끝내면 바로 자라요. 작아도 괜찮아요.</p></div>
+        <div class="ch idle" id="firstCh" style="left:110px;top:355px;width:170px;height:170px"><img id="firstChImg" alt=""></div>
+        <div class="speech glass hide" id="firstSpeech" style="left:116px;top:300px"></div>
+        <div class="xp" id="firstXp" style="left:240px;top:350px">+10</div>
+        <div class="bottom">
+          <div class="namechips" id="taskChips"></div>
+          <div id="firstTask"></div>
+          <button class="btn" data-go="6" id="toHome" style="opacity:.35;pointer-events:none">정원으로 가기</button>
+        </div>
+      </div>
+      <!-- 6 끝 = 성장 홈 -->
+      <div class="scr" data-step="6" id="makeHome"></div>
+      <div class="flash" id="flash"></div>
+      <div class="homebar"></div>
+    </div>
+    <div class="panel" style="max-width:460px">
+      <h3>단계 (49 §5)</h3>
+      <ol>
+        <li><b>시작</b> — 새벽 정원 장면이 끝까지. 둥실 뜬 씨앗 하나 + 굵은 두 줄 + 버튼 하나. 한 화면에 한 가지 일.</li>
+        <li><b>씨앗 고르기</b> — 4개(흙빛·장미·올리브·새벽). 끌면 12컷 회전(30°씩), 놓으면 가까운 컷에서 멈춤. 고른 무늬는 <code>characters.look_json.seed</code>.</li>
+        <li><b>성향 카드</b> — 10 §2.2의 8문항 그대로, 한 장에 하나. 고르면 카드가 그쪽으로 날아가고 위 씨앗이 조금씩 더 흔들린다(두근). ‹ 이전.</li>
+        <li><b>부화</b> — 두드림 1 = 흔들 + 금 한 줄, 2 = 금 두 줄, 3 = 화면 빛 번짐(0.35초) → 아기 톡 등장 + 고리 둘 + 빛무리 → 유형 카드가 스프링으로. 움직임 줄이기 = 페이드만.</li>
+        <li><b>이름</b> — 기본값 = 종 별명, 추천 칩 3개, 10자. 입력하는 동안 캐릭터가 웃는 얼굴.</li>
+        <li><b>첫 할 일</b> — 추천 칩 또는 직접. 체크하면 <code>+10</code>이 떠오르고 캐릭터가 깡충 + 정해진 한 줄. 진짜 할 일로 저장된다(오늘 목록).</li>
+        <li><b>정원</b> — 성장 홈으로 페이드. 이후 앱은 오늘 탭부터(할 일 앱이 먼저).</li>
+      </ol>
+      <div class="btns" style="margin-top:14px"><button class="chipbtn" id="makeRestart">처음부터</button><button class="chipbtn" data-jump="3">부화로 건너뛰기</button><button class="chipbtn" data-jump="4">이름</button><button class="chipbtn" data-jump="5">첫 할 일</button></div>
+      <p class="cap" style="text-align:left">결과 종은 답에서 정해진다(계획·몰입 달팽이 · 계획·멀티 꿀벌 · 즉흥·몰입 애벌레 · 즉흥·멀티 개구리). 위 막대의 종 버튼은 부화 이후 화면을 그 종으로 바꿔 본다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- B. 성장 홈 -->
+<section class="s" id="home">
+  <h2>B. 성장 홈 — 장면이 화면 끝까지, 유리 카드에 큰 숫자 하나</h2>
+  <p class="lead">상태 막대 뒤까지 3D 정원(라이트 = 낮, 다크 = 밤). 위에 주 달력 띠, 가운데 이끼 돌 받침 위 캐릭터(숨쉬기), 아래 유리 카드: Lv 배지 + <b>다음 레벨까지 %</b> + 꼬리 칩 + 굵은 막대 + 옷장·도감·이번 주. 캐릭터를 누르면 웃는 얼굴로 깡충 + 한 줄.</p>
+  <div class="row">
+    <div class="phone" id="homePhone"></div>
+    <div class="panel" style="max-width:420px">
+      <h3>해 보기</h3>
+      <div class="btns"><button class="chipbtn" data-st="1">아기</button><button class="chipbtn" data-st="3">친구</button><button class="chipbtn" data-st="5">전설</button><button class="chipbtn" id="homeDone">할 일 하나 끝내기 +10</button></div>
+      <ul>
+        <li>캐릭터 크기는 단계와 상관없이 같다(42 §10.6.1 그대로). 성장은 실루엣으로 보인다.</li>
+        <li>장면은 받침 자리(<code>perch</code>)를 함께 내보내서, 앱이 캐릭터를 그 자리에 얹는다. 장면·캐릭터가 같은 카메라 높이(10°)라 그림자가 맞는다.</li>
+        <li>% = 다음 레벨까지(10 §6 XP 그대로). 큰 숫자 60px/850, 단위 절반 크기.</li>
+        <li>유리 카드는 캐릭터 화면에서만. 할 일 화면에는 쓰지 않는다(§G).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- C. 옷장 -->
+<section class="s" id="ward">
+  <h2>C. 옷장 — 장면 위 미리보기, 아래 시트</h2>
+  <p class="lead">위 절반은 성장 홈과 같은 장면에서 캐릭터를 크게. 아래는 반투명 시트(모자·목·손·등·방). 목도리 칸을 누르면 옷 층이 겹쳐지고 캐릭터가 깡충. 잠긴 칸은 회색 덩어리 + 조건.</p>
+  <div class="row">
+    <div class="phone" id="wardPhone"></div>
+    <div class="panel" style="max-width:420px"><h3>옷 층 규칙 (49 §4.3)</h3><ul>
+      <li>옷 1개 = 종 × 단계(× 갈래)마다 한 장, 몸·얼굴은 그림자만 받는 투명면으로 굽는다.</li>
+      <li>앱은 <code>[몸] [얼굴] [등 옷 뒤] … [목] [손] [모자]</code> 순서로 같은 크기 그림을 겹친다. 기준점 계산이 앱에 없다(구울 때 맞춤).</li>
+      <li>칸 수는 43 그대로 5칸. 옷 23개 × 4종 × 5단계(+갈래) ≈ 690장 — 처음엔 받은 옷만 내려받는다(§H).</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- D. 도감 -->
+<section class="s" id="dex">
+  <h2>D. 도감 — 모은 모습이 3D 피규어 진열장처럼</h2>
+  <p class="lead">밤 정원이 위로 흐리게 깔리고, 3열 유리 칸에 단계별 모습. 아직 안 본 모습은 같은 그림의 어두운 실루엣(앱은 미리 구운 실루엣 층을 쓴다). 칸을 누르면 아래 카드에 이름·생긴 때.</p>
+  <div class="row"><div class="phone" id="dexPhone"></div></div>
+</section>
+
+<!-- E. 진화 -->
+<section class="s" id="evo">
+  <h2>E. 진화 — 실루엣 → 빛 방울 → 새 모습</h2>
+  <p class="lead">42 §10.6 순서 그대로, 그림만 3D. 실루엣은 같은 그림의 한 색 층(미리 구움), 빛 방울·고리는 캐릭터 자리에서만. 약 2.5초, 누르면 끝 장면.</p>
+  <div class="row"><div class="phone" id="evoPhone"></div>
+    <div class="panel" style="max-width:420px"><div class="btns"><button class="chipbtn" id="evoPlay">진화 재생 (친구 → 전설)</button><button class="chipbtn" id="evoPlay2">부화 재생 (씨앗 → 아기)</button></div>
+    <ul><li>0–0.25초 어두워짐 + 옛 모습 웅크림 · 0.26–0.9초 흰 실루엣 꿀렁 세 번 · 0.9–1.2초 빛 방울로 쪼그라듦 · 1.2초 고리 두 겹 + 새 실루엣 톡 · 1.45초 색 그림이 드러남 · 1.66초 이름 카드.</li><li>쓰는 속성은 transform·opacity뿐(39 §11).</li></ul></div>
+  </div>
+</section>
+
+<!-- F. 보이는 곳 -->
+<section class="s" id="where">
+  <h2>F. 다른 화면에 보이는 법 — 할 일 화면은 조용하게</h2>
+  <p class="lead">오늘(할 일)은 틱틱처럼 차분: 캐릭터는 빈 상태와 완료 순간에만. AI 비서 빈 대화·일기 대화는 캐릭터 자리라 장면을 끝까지 깐다(사용자 추가 요청).</p>
+  <div class="row" id="whereRow"></div>
+</section>
+
+<!-- G. 할 일 화면 채움 정도 -->
+<section class="s" id="calm">
+  <h2>G. 할 일 화면에 "가득 찬" 느낌을 어디까지 — 은은하게 / 과감하게</h2>
+  <p class="lead">오늘·캘린더·프로젝트에 같은 장면 언어를 두 단계로 입혀 봤다. <b>은은하게</b> = 큰 제목 뒤 장면 띠(200px, 아래로 흰 면에 녹음) + 그림 빈 상태. <b>과감하게</b> = 장면 300px + 흰 목록 카드가 장면 위에 뜸 + 탭 막대 뒤 장면 띠. 추천은 <b>은은하게</b><span class="rec">추천</span> — 목록 첫 줄이 지금과 같은 높이에 오고, 장면은 스크롤하면 사라진다.</p>
+  <div class="btns" style="display:flex;gap:6px;margin-bottom:16px"><button class="chipbtn" data-calm="subtle">은은하게</button><button class="chipbtn" data-calm="bold">과감하게</button><button class="chipbtn" data-calm="both">둘 다 보기</button></div>
+  <div class="row" id="calmRow"></div>
+</section>
+
+<!-- H. 예산 -->
+<section class="s" id="budget">
+  <h2>H. 파이프라인 · 예산</h2>
+  <p class="lead">고른 것: <b>(a) Blender 헤드리스 + 파이썬 절차 모델 → 미리 구운 WebP 스프라이트</b>. 자세한 비교와 숫자는 49 §4.</p>
+  <div class="row">
+    <div class="panel"><table class="t" id="budgetT"></table></div>
+  </div>
+</section>
+
+<script src="kkumteul-art.js"></script>
+<script>
+'use strict'
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)]
+const qs = new URLSearchParams(location.search)
+const ROOT = 'assets/char3d/'
+const C = (n, small) => `${ROOT}char/${n}${small ? '@160' : ''}.webp`
+const SEEDIMG = (i, t) => `${ROOT}seed/seed${i}-${t}.webp`
+const SCENE = (n) => `${ROOT}scene/${n}.webp`
+// 구운 결과의 메타데이터(scripts/characters3d/build/*/meta.json에서 옮김): 장면 받침 자리
+const META = /*META*/{ perch: 0.6019 }/*/META*/
+const AV = { snail: [1, 3, 5], frog: [1, 3, 5], bee: [1, 3], worm: [1, 3] }
+const SPN = { snail: '꾸준한 달팽이', bee: '차곡차곡 꿀벌', worm: '몰두하는 애벌레', frog: '재주 많은 개구리' }
+const SPLINE = { snail: '정한 일을 끝까지 차근차근', bee: '여러 일을 빠짐없이 챙겨요', worm: '꽂히면 깊게 빠져요', frog: '아이디어가 많고 빨라요' }
+const PET = { snail: '도토', bee: '꿀이', worm: '꼼지', frog: '퐁' }
+const TITLE = { snail: { 1: '씨앗 달팽이', 3: '나선 달팽이', 5: '나무집 달팽이' }, frog: { 1: '물방울 올챙이', 3: '꼬마 개구리', 5: '연잎 개구리' }, bee: { 1: '씨앗 꿀벌', 3: '줄무늬 꿀벌' }, worm: { 1: '씨앗 애벌레', 3: '마디 애벌레' } }
+const STN = { 1: '아기', 3: '친구', 5: '전설' }
+const SEEDS = [['흙빛 씨앗', '따뜻하고 단단한 껍질'], ['장미 씨앗', '분홍빛이 도는 껍질'], ['올리브 씨앗', '풀빛 결이 있는 껍질'], ['새벽 씨앗', '푸른 새벽빛 껍질']]
+const Q = [['월요일 아침, 이번 주 할 일은?', '미리 다 적어 둔다', '그날그날 떠오르는 대로'], ['보고서를 쓰다 메시지가 오면?', '다 쓰고 나서 확인한다', '바로 답하고 돌아온다'],
+  ['여행을 간다면?', '시간표처럼 일정을 짠다', '숙소만 정하고 가서 정한다'], ['일이 제일 잘되는 순간은?', '알림을 끄고 한 가지만 할 때', '창을 여러 개 켜 두고 오갈 때'],
+  ['마감이 2주 남은 과제는?', '오늘부터 조금씩 나눠 한다', '감이 올 때 몰아서 한다'], ['할 일 목록에 10개가 있으면?', '가장 중요한 하나부터 끝낸다', '금방 끝나는 것부터 여러 개 지운다'],
+  ['하루를 마칠 때 나는?', '내일 할 일을 적어 두고 잔다', '내일 일은 내일 생각한다'], ['새 취미가 생기면?', '하나를 깊게 파고든다', '이것저것 조금씩 해 본다']]
+const S = { sp: AV[qs.get('sp')] ? qs.get('sp') : 'snail', theme: qs.get('theme') === 'dark' ? 'dark' : 'light', seed: 0, turn: 0, step: +(qs.get('step') || 0), ans: [], taps: 0, name: '', lv: 6, pct: 62, st: 3, scarf: true }
+const dark = () => S.theme === 'dark'
+const sceneFor = (kind) => SCENE(kind === 'make' ? (dark() ? 'scene-garden-dusk' : 'scene-garden-dawn') : (dark() ? 'scene-garden-dusk' : 'scene-garden-day'))
+const stOf = (sp, st) => AV[sp].includes(st) ? st : AV[sp].filter((x) => x <= st).pop()
+const imgOf = (sp, st, mood = 'default', small) => C(`${sp}-${stOf(sp, st)}-${mood}`, small)
+const reduce = () => document.body.classList.contains('reduce')
+function anim(el, frames, o) { return reduce() ? { finished: Promise.resolve() } : el.animate(frames, o) }
+function hop(el) { anim(el, [{ transform: 'scale(1,1)' }, { transform: 'scale(1.08,.9)', offset: .18 }, { transform: 'translateY(-22px) scale(.95,1.06)', offset: .45 }, { transform: 'translateY(0) scale(1.06,.94)', offset: .7 }, { transform: 'scale(1,1)' }], { duration: 520, easing: 'ease-out' }) }
+function phoneChrome(el) { el.insertAdjacentHTML('beforeend', '<div class="status"><span>9:41</span><span>●●● ▮</span></div><div class="island"></div><div class="homebar"></div>') }
+// 받침 자리: 장면은 780×1560(1:2) → 390×844 휴대폰에 cover. 높이 기준으로 맞으니 y만 쓴다.
+// 장면을 위로 170 올려 받침이 화면 가운데쯤 오게(아래는 유리 카드 자리)
+const SHIFT = 170, SHIFT_CSS = `top:-${SHIFT}px;height:${844 + SHIFT}px`
+const perchY = () => META.perch * (844 + SHIFT) - SHIFT
+function placeCh(el, w, h = 844, lift = 0) { el.style.width = el.style.height = w + 'px'; el.style.left = (390 - w) / 2 + 'px'; el.style.top = (perchY(h) - w * 0.9 - lift) + 'px' }
+
+/* ───────── 0. 비교 ───────── */
+function renderCmp() {
+  const g = $('#cmpGrid'); let h = '<div></div>' + [1, 3, 5].map((s) => `<div class="hdr">${STN[s]}</div>`).join('')
+  for (const sp of ['snail', 'frog']) {
+    h += `<div class="lab">${SPN[sp]}<small>v2 · SVG</small></div>` + [1, 3, 5].map((s) => `<div class="box">${window.KK ? KK.art(sp, s, { size: 200, fit: true }) : ''}</div>`).join('')
+    h += `<div class="lab">${SPN[sp]}<small>v3 · 3D 스프라이트</small></div>` + [1, 3, 5].map((s) => `<div class="box v3"><img src="${C(`${sp}-${s}-default`)}" alt=""></div>`).join('')
+  }
+  g.innerHTML = h
+  let happy = false
+  const set = () => { $('#layBody').src = C('L-snail-3-body'); $('#layFace').src = C(`L-snail-3-face-${happy ? 'happy' : 'default'}`); $('#layAcc').src = C('L-snail-3-acc-scarf'); $('#layCheck').src = C('check-snail-3-scarf-full')
+    $('#layAll').innerHTML = `<img src="${C('L-snail-3-body')}"><img src="${C(`L-snail-3-face-${happy ? 'happy' : 'default'}`)}"><img src="${C('L-snail-3-acc-scarf')}">` }
+  $('#layMood').onclick = () => { happy = !happy; set() }; set()
+}
+
+/* ───────── A. 만들기 흐름 ───────── */
+const mk = $('#makePhone')
+function go(n) {
+  S.step = n
+  $$('.scr', mk).forEach((x) => x.classList.toggle('on', +x.dataset.step === n))
+  $$('#makeDots i').forEach((d, i) => d.classList.toggle('on', i === Math.min(n, 5)))
+  $('#makeDots').style.display = n === 6 ? 'none' : ''
+  mk.style.color = dark() || n === 6 ? '' : ''
+  if (n === 1) drawTurn()
+  if (n === 2) { if (S.ans.length >= 8) S.ans = []; drawQ() }
+  if (n === 3) resetHatch()
+  if (n === 4) drawName()
+  if (n === 5) drawFirst()
+  if (n === 6) { $('#makeBg').style.opacity = 0; buildHome($('#makeHome'), true) } else $('#makeBg').style.opacity = 1
+}
+$$('[data-go]', mk).forEach((b) => b.addEventListener('click', () => go(+b.dataset.go)))
+// 씨앗 회전: 끌면 30°씩 12컷
+function drawTurn() {
+  $('#turnImg').src = SEEDIMG(S.seed, 't' + String(S.turn).padStart(2, '0'))
+  $('#seedName').innerHTML = `${SEEDS[S.seed][0]}<small>${SEEDS[S.seed][1]}</small>`
+  $('#seedPick').innerHTML = SEEDS.map((_, i) => `<button class="${i === S.seed ? 'on' : ''}" data-i="${i}"><img src="${SEEDIMG(i, 't00')}" alt=""></button>`).join('')
+  $$('#seedPick button').forEach((b) => b.onclick = () => { S.seed = +b.dataset.i; S.turn = 0; drawTurn(); anim($('#turn'), [{ transform: 'scale(.9)' }, { transform: 'scale(1.04)' }, { transform: 'scale(1)' }], { duration: 380, easing: 'ease-out' }) })
+  $('#s0seed').src = SEEDIMG(S.seed, 't00'); $('#miniSeedImg').src = SEEDIMG(S.seed, 't00'); $('#hatchImg').src = SEEDIMG(S.seed, 't00')
+}
+;(() => {
+  const t = $('#turn'); let x0 = null, t0 = 0, spin = null
+  for (let i = 0; i < 4; i++) for (let k = 0; k < 12; k++) { const im = new Image(); im.src = SEEDIMG(i, 't' + String(k).padStart(2, '0')) }
+  t.addEventListener('pointerdown', (e) => { x0 = e.clientX; t0 = S.turn; t.setPointerCapture(e.pointerId); clearInterval(spin) })
+  t.addEventListener('pointermove', (e) => { if (x0 === null) return; const k = Math.round((x0 - e.clientX) / 18); S.turn = ((t0 + k) % 12 + 12) % 12; $('#turnImg').src = SEEDIMG(S.seed, 't' + String(S.turn).padStart(2, '0')) })
+  t.addEventListener('pointerup', () => { x0 = null })
+  // 처음 들어오면 한 바퀴 살짝 돌려 "돌릴 수 있다"를 보여 준다
+  let shown = false
+  new MutationObserver(() => { if (S.step === 1 && !shown && !reduce()) { shown = true; let n = 0; spin = setInterval(() => { S.turn = (S.turn + 1) % 12; $('#turnImg').src = SEEDIMG(S.seed, 't' + String(S.turn).padStart(2, '0')); if (++n >= 12) clearInterval(spin) }, 70) } }).observe($('[data-step="1"]', mk), { attributes: true })
+})()
+// 성향 카드
+function drawQ() {
+  const i = S.ans.length, q = Q[i]
+  $('#qN').textContent = `${i + 1} / 8`; $('#qT').textContent = q[0]; $('#qA').textContent = q[1]; $('#qB').textContent = q[2]
+  $('#qBack').style.visibility = i ? 'visible' : 'hidden'
+  const c = $('#qCard'); c.className = 'qcard glass in'; requestAnimationFrame(() => requestAnimationFrame(() => c.className = 'qcard glass'))
+  $('#miniSeed').style.animation = reduce() ? '' : `wob ${Math.max(.5, 1.6 - i * .14)}s ease-in-out infinite`
+}
+$$('.opt', mk).forEach((b) => b.addEventListener('click', () => {
+  const a = +b.dataset.a; S.ans.push(a); $('#qCard').className = 'qcard glass ' + (a ? 'out-r' : 'out-l')
+  setTimeout(() => S.ans.length >= 8 ? go(3) : drawQ(), reduce() ? 0 : 300)
+}))
+$('#qBack').onclick = () => { S.ans.pop(); drawQ() }
+function result() {
+  if (S.ans.length < 8) return S.sp
+  const plan = S.ans.filter((a, i) => i % 2 === 0 && a === 0).length, focus = S.ans.filter((a, i) => i % 2 === 1 && a === 0).length
+  const P = plan >= 2 ? (plan === 2 ? S.ans[0] === 0 : true) : false, F = focus >= 2 ? (focus === 2 ? S.ans[1] === 0 : true) : false
+  return P ? (F ? 'snail' : 'bee') : (F ? 'worm' : 'frog')
+}
+// 부화
+function resetHatch() {
+  S.taps = 0; const sp = result(); S.sp = sp; syncSeg()
+  $('#hatchImg').src = SEEDIMG(S.seed, 't00'); $('#hatchSeed').style.opacity = 1; $('#hatchSeed').style.transform = ''
+  $('#hatchCh').style.opacity = 0; $('#typeCard').classList.add('hide'); $('#toName').style.cssText = 'opacity:0;pointer-events:none'
+  $('#hatchCopy').style.opacity = 1; $('#hatchSub').textContent = '세 번이면 깨어나요.'
+  $('#hatchChImg').src = imgOf(sp, 1)
+  const plan = S.ans.length ? S.ans.filter((a, i) => i % 2 === 0 && a === 0).length : (sp === 'snail' || sp === 'bee' ? 3 : 1)
+  const foc = S.ans.length ? S.ans.filter((a, i) => i % 2 === 1 && a === 0).length : (sp === 'snail' || sp === 'worm' ? 3 : 1)
+  $('#typeName').textContent = SPN[sp] + '형'; $('#typeLine').textContent = SPLINE[sp]
+  $('#axP').style.width = plan / 4 * 100 + '%'; $('#axF').style.width = foc / 4 * 100 + '%'
+}
+$('#hatchSeed').addEventListener('click', () => {
+  if (S.taps >= 3) return
+  S.taps++
+  anim($('#hatchSeed'), [{ transform: 'rotate(0)' }, { transform: 'rotate(-9deg)' }, { transform: 'rotate(8deg)' }, { transform: 'rotate(-4deg)' }, { transform: 'rotate(0)' }], { duration: 420, easing: 'ease-out' })
+  if (S.taps < 3) { $('#hatchImg').src = SEEDIMG(S.seed, 'crack' + S.taps); $('#hatchSub').textContent = S.taps === 1 ? '조금만 더…' : '거의 다 왔어요!'; navigator.vibrate?.(10); return }
+  // 세 번째: 빛 → 등장
+  const fl = $('#flash'), ch = $('#hatchCh')
+  $('#hatchCopy').style.opacity = 0
+  anim(fl, [{ opacity: 0 }, { opacity: 1, offset: .35 }, { opacity: 0 }], { duration: 900, easing: 'ease-out' })
+  setTimeout(() => { $('#hatchSeed').style.opacity = 0 }, reduce() ? 0 : 300)
+  setTimeout(() => {
+    ch.style.opacity = 1
+    anim(ch, [{ transform: 'scale(.15)', opacity: 0 }, { transform: 'scale(1.16,.86)', opacity: 1, offset: .45 }, { transform: 'scale(.93,1.08)', offset: .7 }, { transform: 'scale(1)' }], { duration: 640, easing: 'cubic-bezier(.2,.8,.2,1)' })
+    anim($('#halo'), [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1)', offset: .4 }, { opacity: .55, transform: 'scale(1.05)' }], { duration: 1400, fill: 'forwards' })
+    for (const [r, d] of [['#ring1', 0], ['#ring2', 120]]) anim($(r), [{ opacity: .9, transform: 'scale(.4)' }, { opacity: 0, transform: 'scale(2.8)' }], { duration: 760, delay: d, easing: 'ease-out' })
+    setTimeout(() => { $('#typeCard').classList.remove('hide'); $('#toName').style.cssText = 'opacity:1;pointer-events:auto;transition:opacity .4s' }, reduce() ? 0 : 560)
+  }, reduce() ? 0 : 320)
+})
+// 이름
+function drawName() {
+  const sp = S.sp; S.name = S.name || PET[sp]; $('#nameIn').value = S.name; $('#nameCount').textContent = `${S.name.length}/10`
+  $('#nameChImg').src = imgOf(sp, 1)
+  $('#nameChips').innerHTML = [PET[sp], '몽글', '새싹'].map((n) => `<button class="glass">${n}</button>`).join('')
+  $$('#nameChips button').forEach((b) => b.onclick = () => { S.name = b.textContent; $('#nameIn').value = S.name; $('#nameCount').textContent = `${S.name.length}/10`; hop($('#nameCh')) })
+}
+$('#nameIn').addEventListener('input', (e) => { S.name = e.target.value; $('#nameCount').textContent = `${S.name.length}/10`; $('#nameChImg').src = imgOf(S.sp, 1, 'happy'); clearTimeout(window.__nt); window.__nt = setTimeout(() => $('#nameChImg').src = imgOf(S.sp, 1), 900) })
+// 첫 할 일
+function drawFirst() {
+  $('#firstChImg').src = imgOf(S.sp, 1); $('#firstSpeech').classList.add('hide'); $('#toHome').style.cssText = 'opacity:.35;pointer-events:none'
+  $('#firstTitle').innerHTML = `${S.name || PET[S.sp]}와 함께<br>첫 할 일 하나만`
+  $('#taskChips').innerHTML = ['물 한 잔 마시기', '책상 5분 정리', '내일 일정 보기'].map((n) => `<button class="glass">${n}</button>`).join('')
+  $('#firstTask').innerHTML = ''
+  $$('#taskChips button').forEach((b) => b.onclick = () => {
+    $('#firstTask').innerHTML = `<div class="task glass" id="ft"><span class="cb"></span><span class="t">${b.textContent}</span><span style="font:600 12px var(--font);opacity:.6">오늘</span></div>`
+    $('#taskChips').innerHTML = ''
+    $('#ft').onclick = () => {
+      const t = $('#ft'); if (t.classList.contains('done')) return; t.classList.add('done'); navigator.vibrate?.(12)
+      $('#firstChImg').src = imgOf(S.sp, 1, 'happy'); hop($('#firstCh'))
+      anim($('#firstXp'), [{ opacity: 0, transform: 'translateY(0)' }, { opacity: 1, transform: 'translateY(-10px)', offset: .25 }, { opacity: 0, transform: 'translateY(-34px)' }], { duration: 1000, easing: 'ease-out' })
+      const sp = $('#firstSpeech'); sp.textContent = '하나 끝! 같이 자랐어'; sp.classList.remove('hide')
+      $('#toHome').style.cssText = 'opacity:1;pointer-events:auto'
+    }
+  })
+}
+$('#makeRestart').onclick = () => { S.ans = []; S.name = ''; go(0) }
+$$('[data-jump]').forEach((b) => b.onclick = () => { go(+b.dataset.jump) })
+
+/* ───────── B. 성장 홈 ───────── */
+function buildHome(host, inMake) {
+  const st = inMake ? 1 : S.st, sp = S.sp
+  host.innerHTML = `<img class="bg" src="${sceneFor('home')}" style="${SHIFT_CSS}" alt="">
+  <div class="home-head" style="color:${dark() ? '#fff' : '#13211B'}"><span class="logo">꿈틀</span><span style="flex:1"></span><span class="pill glass">한 날 <b>${inMake ? 1 : 12}</b>일</span><span class="pill glass" style="width:32px;padding:0;justify-content:center">🔔︎</span></div>
+  <div class="week glass">${['일', '월', '화', '수', '목', '금', '토'].map((d, i) => `<div><b>${d}</b><span class="${i === 4 ? 'today' : (!inMake && [1, 2, 3].includes(i)) ? 'did' : ''}">${5 + i}</span></div>`).join('')}</div>
+  <div class="speech glass hide" style="left:110px;top:${perchY() - 300}px">오늘 세 개 했네. 좋은 속도야</div>
+  <div class="ch idle" data-ch><div class="stack"><img data-body src="${imgOf(sp, st)}" alt=""></div></div>
+  <div class="xp" style="left:236px;top:${perchY() - 230}px">+10</div>
+  <div class="hud glass">
+    <div class="lv"><em>Lv ${inMake ? 1 : S.lv}</em>${S.name || PET[sp]} · ${TITLE[sp][stOf(sp, st)]}</div>
+    <div class="row2"><div class="big" data-pct>${inMake ? 10 : S.pct}<small>%</small></div><div class="tailchip">${inMake ? '할 일 9개 더 하면 Lv 2' : '할 일 4개 더 하면 Lv 7'}</div></div>
+    <div style="font:600 12.5px var(--font);opacity:.6;margin-top:2px">다음 레벨까지</div>
+    <div class="xpbar"><i data-bar style="width:${inMake ? 10 : S.pct}%"></i></div>
+    <div class="quick"><button><img src="${C('check-snail-3-scarf-full', true)}" alt="">옷장</button><button><img src="${imgOf('frog', 3, 'default', true)}" alt="">도감 6/20</button><button><img src="${SEEDIMG(S.seed, 't00')}" alt="">이번 주</button></div>
+  </div>
+  <div class="tabbar glass"><span><i></i>오늘</span><span><i></i>캘린더</span><span class="on"><i></i>성장</span><span><i></i>비서</span><span><i></i>더보기</span></div>`
+  phoneChrome(host)
+  host.style.color = dark() ? '#fff' : '#13211B'
+  const ch = $('[data-ch]', host); placeCh(ch, 240)
+  ch.addEventListener('click', () => {
+    const b = $('[data-body]', ch); b.src = imgOf(sp, st, 'happy'); hop(ch)
+    const s = $('.speech', host); s.classList.remove('hide'); clearTimeout(host.__t); host.__t = setTimeout(() => { s.classList.add('hide'); b.src = imgOf(sp, st) }, 2400)
+  })
+  return host
+}
+function renderHome() { buildHome($('#homePhone')) }
+$$('[data-st]').forEach((b) => b.onclick = () => { S.st = +b.dataset.st; S.lv = { 1: 2, 3: 6, 5: 15 }[S.st]; renderHome(); renderWard() })
+$('#homeDone').onclick = () => {
+  const h = $('#homePhone'); S.pct = Math.min(99, S.pct + 9)
+  $('[data-pct]', h).innerHTML = `${S.pct}<small>%</small>`; $('[data-bar]', h).style.width = S.pct + '%'
+  const ch = $('[data-ch]', h); $('[data-body]', ch).src = imgOf(S.sp, S.st, 'happy'); hop(ch)
+  anim($('.xp', h), [{ opacity: 0 }, { opacity: 1, transform: 'translateY(-10px)', offset: .25 }, { opacity: 0, transform: 'translateY(-34px)' }], { duration: 1000 })
+  setTimeout(() => $('[data-body]', ch).src = imgOf(S.sp, S.st), 2000)
+}
+
+/* ───────── C. 옷장 ───────── */
+const NECK = {"L-snail-3-acc-scarf": [0.3434, 0.7407], "L-snail-5-acc-scarf": [0.3556, 0.7527], "L-frog-3-acc-scarf": [0.447, 0.7301]}
+const ACC = { 'snail-3': 'L-snail-3-acc-scarf', 'snail-5': 'L-snail-5-acc-scarf', 'frog-3': 'L-frog-3-acc-scarf' }
+function renderWard() {
+  const h = $('#wardPhone'), sp = S.sp, st = stOf(sp, S.st === 1 ? 3 : S.st), key = `${sp}-${st}`, acc = ACC[key]
+  h.innerHTML = `<img class="bg" src="${sceneFor('home')}" alt="" style="height:70%;object-position:50% 70%">
+  <div style="position:absolute;top:56px;left:18px;right:18px;display:flex;align-items:center;z-index:8;color:${dark() ? '#fff' : '#13211B'}"><span style="font:600 16px var(--font)">‹ 성장</span><span style="flex:1;text-align:center;font:800 17px var(--font)">꾸미기</span><span style="width:50px"></span></div>
+  <div class="ch idle" data-ch style="left:85px;top:150px;width:220px;height:220px"><div class="stack"><img src="${imgOf(sp, st)}" alt="">${acc ? `<img data-acc src="${C(acc)}" alt="" style="opacity:${S.scarf ? 1 : 0};transition:opacity .25s">` : ''}</div></div>
+  <div class="sheet" style="top:430px"><div class="grab"></div>
+    <div class="seg" style="width:100%;margin-bottom:12px"><button class="on" style="flex:1">옷장</button><button style="flex:1">도감</button></div>
+    <div class="tabs"><span>모자</span><span class="on">목</span><span>손</span><span>등</span><span>방</span></div>
+    <div class="grid4">
+      <div class="cell"><div class="ico" style="font:700 12px var(--font);color:var(--ink-3)">기본</div>없음</div>
+      <div class="cell ${S.scarf ? 'on' : ''}" data-scarf><span class="newdot"></span><div class="ico crop" style="width:56px;height:52px">${(() => { const n = acc || 'L-snail-3-acc-scarf', [x, y] = NECK[n] || [.4, .6], W = 150; return `<img src="${C(n, true)}" style="width:${W}px;height:${W}px;left:${28 - x * W}px;top:${30 - y * W}px" alt="">` })()}</div>겨자 목도리</div>
+      <div class="cell lock"><div class="ico"><i></i></div>나비 리본<small>Lv 9</small></div>
+      <div class="cell lock"><div class="ico"><i style="border-radius:50%;width:28px;height:28px"></i></div>조개 목걸이<small>한 날 30일 · 23일</small></div>
+      <div class="cell lock"><div class="ico"><i style="width:40px;height:16px"></i></div>뜨개 깃<small>Lv 14</small></div>
+      <div class="cell lock"><div class="ico"><i></i></div>방울 목줄<small>주간 점검 4번</small></div>
+    </div>
+    ${acc ? '' : '<p class="cap">이 시안은 달팽이 친구·전설, 개구리 친구에만 목도리 층을 구웠다.</p>'}
+  </div>`
+  phoneChrome(h); h.style.color = dark() ? '#fff' : '#13211B'
+  const c = $('[data-scarf]', h); if (c && acc) c.onclick = () => { S.scarf = !S.scarf; c.classList.toggle('on', S.scarf); $('[data-acc]', h).style.opacity = S.scarf ? 1 : 0; hop($('[data-ch]', h)) }
+}
+
+/* ───────── D. 도감 ───────── */
+function renderDex() {
+  const h = $('#dexPhone')
+  const cells = [['snail', 1], ['snail', 3], ['snail', 5], ['frog', 1], ['frog', 3], ['frog', 5], ['bee', 1], ['bee', 3], ['worm', 1], ['worm', 3]]
+  const seen = (sp, st) => sp === S.sp ? st <= Math.max(S.st, 1) : (sp === 'frog' && st <= 3)
+  h.innerHTML = `<img class="bg" src="${SCENE(dark() ? 'scene-garden-dusk' : 'scene-garden-day')}" style="height:46%;object-position:50% 30%;filter:blur(1px)" alt="">
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 0,var(--ground) 40%);z-index:1"></div>
+  <div style="position:absolute;top:58px;left:20px;right:20px;z-index:3;color:${dark() ? '#fff' : '#13211B'}"><div style="font:600 16px var(--font)">‹ 성장</div><div style="font:850 32px var(--font);letter-spacing:-.035em;margin-top:24px">도감</div><div style="font:600 14px var(--font);opacity:.7">모은 모습 <b>${cells.filter(([a, b]) => seen(a, b)).length}</b> / 20</div></div>
+  <div style="position:absolute;top:208px;left:16px;right:16px;bottom:0;z-index:3;overflow:auto;padding-bottom:120px">
+    <div class="dexgrid">${cells.map(([sp, st]) => `<div class="dexcell glass ${seen(sp, st) ? '' : 'lock'}" style="color:var(--ink)">${sp === S.sp && st === stOf(sp, S.st) ? '<span class="me">나</span>' : ''}<img src="${C(`${sp}-${st}-default`, true)}" alt=""><span class="nm">${seen(sp, st) ? TITLE[sp][st] : '?'}</span></div>`).join('')}${'<div class="dexcell glass lock"><span class="nm">?</span></div>'.repeat(2)}</div>
+  </div>
+  <div class="tabbar glass"><span><i></i>오늘</span><span><i></i>캘린더</span><span class="on"><i></i>성장</span><span><i></i>비서</span><span><i></i>더보기</span></div>`
+  phoneChrome(h); h.style.color = 'var(--ink)'
+}
+
+/* ───────── E. 진화 ───────── */
+function renderEvo() {
+  const h = $('#evoPhone'), sp = AV[S.sp].includes(5) ? S.sp : 'snail'
+  h.innerHTML = `<img class="bg" src="${sceneFor('home')}" style="${SHIFT_CSS}" alt=""><div class="evo-dim" data-dim></div>
+  <div class="halo" data-halo style="top:${perchY() - 360}px;z-index:8"></div>
+  <div class="ring" data-r1 style="top:${perchY() - 250}px;z-index:9"></div><div class="ring" data-r2 style="top:${perchY() - 250}px;z-index:9"></div>
+  <div class="ch" data-old style="z-index:9"><img src="${imgOf(sp, 3)}" alt=""></div>
+  <div class="ch" data-sil style="z-index:10;opacity:0"><img src="${imgOf(sp, 3)}" style="filter:brightness(0) invert(1);clip-path:inset(0 0 12% 0)" alt=""></div>
+  <div class="ch" data-new style="z-index:10;opacity:0"><img src="${imgOf(sp, 5)}" alt=""></div>
+  <div class="ch" data-nsil style="z-index:11;opacity:0"><img src="${imgOf(sp, 5)}" style="filter:brightness(0) invert(1);clip-path:inset(0 0 12% 0)" alt=""></div>
+  <div class="evocard glass" data-card style="opacity:0"><div class="k">전설로 자랐어요</div><h3>${TITLE[sp][5]}</h3>
+    <div class="pair"><div><img src="${imgOf(sp, 3, 'default', true)}" alt=""></div><span>→</span><div class="now"><img src="${imgOf(sp, 5, 'default', true)}" alt=""></div></div>
+    <div style="font:600 12.5px var(--font);opacity:.7;margin-top:10px">+ ${sp === 'snail' ? '껍데기 위 작은 숲' : '연꽃 관 · 연잎 양산'}</div></div>
+  <div class="tabbar glass"><span><i></i>오늘</span><span><i></i>캘린더</span><span class="on"><i></i>성장</span><span><i></i>비서</span><span><i></i>더보기</span></div>`
+  phoneChrome(h); h.style.color = dark() ? '#fff' : '#13211B'
+  for (const k of ['old', 'sil', 'new', 'nsil']) placeCh($(`[data-${k}]`, h), 250)
+}
+function playEvo(fromSeed) {
+  renderEvo(); const h = $('#evoPhone'), q = (k) => $(`[data-${k}]`, h)
+  if (fromSeed) { const sp = S.sp; q('old').innerHTML = `<img src="${SEEDIMG(S.seed, 't00')}" style="width:70%;height:70%;margin:15% 15% 0" alt="">`; q('sil').innerHTML = q('old').innerHTML.replace('alt', 'style="filter:brightness(0) invert(1);width:70%;height:70%;margin:15% 15% 0" alt'); q('new').innerHTML = `<img src="${imgOf(sp, 1)}" alt="">`; q('nsil').innerHTML = `<img src="${imgOf(sp, 1)}" style="filter:brightness(0) invert(1);clip-path:inset(0 0 12% 0)" alt="">`; $('h3', q('card')).textContent = TITLE[sp][1]; $('.k', q('card')).textContent = '씨앗이 깨어났어요' }
+  if (reduce()) { q('old').style.opacity = 0; q('new').style.opacity = 1; q('card').style.opacity = 1; return }
+  const E = (k, fr, o) => q(k).animate(fr, { fill: 'forwards', easing: 'ease-out', ...o })
+  E('dim', [{ opacity: 0 }, { opacity: .55 }], { duration: 250 })
+  E('old', [{ transform: 'scale(1)' }, { transform: 'scale(1.07,.9)' }, { transform: 'scale(1)' }], { duration: 250 })
+  E('sil', [{ opacity: 0 }, { opacity: 1 }], { duration: 180, delay: 260 })
+  E('sil', [{ transform: 'scale(1)' }, { transform: 'scale(1.12,.88)' }, { transform: 'scale(.92,1.14)' }, { transform: 'scale(1.2,.84)' }, { transform: 'scale(.16)', opacity: 1 }, { transform: 'scale(.1)', opacity: 0 }], { duration: 920, delay: 440, composite: 'replace' })
+  setTimeout(() => { q('old').style.opacity = 0 }, 450)
+  E('halo', [{ opacity: 0, transform: 'scale(.3)' }, { opacity: 1, transform: 'scale(1)' }, { opacity: .5, transform: 'scale(1.05)' }], { duration: 900, delay: 900 })
+  E('r1', [{ opacity: .9, transform: 'scale(.4)' }, { opacity: 0, transform: 'scale(2.6)' }], { duration: 700, delay: 1180, fill: 'none' })
+  E('r2', [{ opacity: .9, transform: 'scale(.4)' }, { opacity: 0, transform: 'scale(3.2)' }], { duration: 760, delay: 1260, fill: 'none' })
+  E('nsil', [{ opacity: 1, transform: 'scale(.12)' }, { opacity: 1, transform: 'scale(1.24,.84)', offset: .4 }, { opacity: 1, transform: 'scale(.9,1.12)', offset: .65 }, { opacity: 1, transform: 'scale(1)', offset: .8 }, { opacity: 0, transform: 'scale(1)' }], { duration: 640, delay: 1180 })
+  E('new', [{ opacity: 0, transform: 'scale(.9)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 260, delay: 1440 })
+  E('card', [{ opacity: 0, transform: 'translateY(26px)' }, { opacity: 1, transform: 'translateY(-4px)', offset: .7 }, { opacity: 1, transform: 'translateY(0)' }], { duration: 520, delay: 1660 })
+  E('dim', [{ opacity: .55 }, { opacity: 0 }], { duration: 400, delay: 2100 })
+  setTimeout(() => q('new').classList.add('idle'), 2500)
+}
+$('#evoPlay').onclick = () => playEvo(false); $('#evoPlay2').onclick = () => playEvo(true)
+
+/* ───────── F. 보이는 곳 ───────── */
+function renderWhere() {
+  const sp = S.sp, st = stOf(sp, S.st), face = imgOf(sp, st, 'default', true)
+  const av = (s) => `<span class="crop" style="display:inline-block;width:${s}px;height:${s}px;border-radius:50%;background:var(--accent-subtle);flex:none"><img src="${face}" style="width:${s * 2}px;height:${s * 2}px;left:${-s * (sp === 'snail' ? .3 : .5)}px;top:${-s * .38}px" alt=""></span>`
+  $('#whereRow').innerHTML = `
+  <div><div class="phone calm" id="wToday">
+    <div class="title" style="top:64px"><h3>오늘</h3><span class="n">5</span></div>
+    <div class="list" style="top:120px"><div class="grp">지난 일 1</div>
+      <div class="it"><i class="p1"></i><span>견적서 보내기</span><small>어제</small></div>
+      <div class="grp">오늘 4</div>
+      <div class="it"><i class="p2"></i><span>주간 회의 준비</span><small>10:00</small></div>
+      <div class="it"><i></i><span>디자인 리뷰 답장</span><small>14:00</small></div>
+      <div class="it"><i class="p3"></i><span>운동 30분</span><small></small></div>
+      <div class="it" style="opacity:.5"><i style="background:var(--accent);border-color:var(--accent)"></i><span style="text-decoration:line-through">물 한 잔 마시기</span></div>
+    </div>
+    <div class="glass" style="position:absolute;left:16px;right:16px;bottom:104px;z-index:6;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:20px;background:var(--surface);border:1px solid var(--line);color:var(--ink);box-shadow:0 10px 26px rgba(0,0,0,.12)">${av(36)}<span style="flex:1;font:650 14px var(--font)">하나 끝! <b style="color:var(--honey)">+10</b></span><span style="font:600 12.5px var(--font);color:var(--ink-3)">실행 취소</span></div>
+    <div class="tabbar plain"><span class="on"><i></i>오늘</span><span><i></i>캘린더</span><span><i></i>성장</span><span><i></i>비서</span><span><i></i>더보기</span></div>
+  </div><div class="cap">오늘: 틱틱 그대로 + 완료 토스트에 얼굴 36</div></div>
+  <div><div class="phone" id="wAsst">
+    <img class="bg" src="${SCENE(dark() ? 'scene-garden-dusk' : 'scene-garden-dawn')}" style="${SHIFT_CSS}" alt="">
+    <div style="position:absolute;top:56px;left:20px;z-index:4;font:800 17px var(--font)">비서</div>
+    <div class="ch idle" style="left:105px;top:${perchY() - 180 * .9}px;width:180px;height:180px"><img src="${imgOf(sp, st)}" alt=""></div>
+    <div style="position:absolute;left:20px;right:20px;top:150px;z-index:4;text-align:center"><div style="font:800 25px/1.3 var(--font);letter-spacing:-.03em">무엇을 도와줄까?</div><div style="font:500 14px var(--font);opacity:.7;margin-top:6px">${S.name || PET[sp]}가 오늘 할 일을 같이 봐 줄게</div></div>
+    <div style="position:absolute;left:16px;right:16px;bottom:170px;z-index:6;display:flex;flex-direction:column;gap:8px">${['오늘 할 일 정리해 줘', '이번 주 마감 알려 줘', '회의록을 할 일로'].map((t) => `<div class="glass" style="padding:13px 16px;border-radius:18px;font:650 14.5px var(--font)">${t}</div>`).join('')}</div>
+    <div class="glass" style="position:absolute;left:16px;right:16px;bottom:100px;height:54px;border-radius:27px;z-index:6;display:flex;align-items:center;padding:0 18px;font:500 15px var(--font);opacity:.95"><span style="opacity:.6;flex:1">물어보기…</span><span style="width:34px;height:34px;border-radius:50%;background:var(--accent)"></span></div>
+    <div class="tabbar glass"><span><i></i>오늘</span><span><i></i>캘린더</span><span><i></i>성장</span><span class="on"><i></i>비서</span><span><i></i>더보기</span></div>
+  </div><div class="cap">AI 비서 빈 대화: 장면 끝까지 + 유리 칩</div></div>
+  <div><div class="phone" id="wDiary">
+    <img class="bg" src="${SCENE('scene-garden-dusk')}" style="filter:blur(3px) brightness(.9);transform:scale(1.05)" alt="">
+    <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,14,20,.1),rgba(10,14,20,.55));z-index:1"></div>
+    <div style="position:absolute;top:56px;left:20px;right:20px;z-index:4;color:#fff;display:flex;justify-content:space-between"><span style="font:800 17px var(--font)">10월 9일 목요일</span><span style="font:600 14px var(--font);opacity:.8">일기로 정리</span></div>
+    <div style="position:absolute;left:14px;right:14px;top:110px;z-index:4;display:flex;flex-direction:column;gap:10px;color:#fff">
+      <div style="display:flex;gap:8px;align-items:flex-end">${av(30)}<div class="glass dark" style="padding:11px 14px;border-radius:18px 18px 18px 6px;font:500 15px/1.45 var(--font);max-width:260px">오늘 하루 어땠어? 마음에 남은 거 하나만.</div></div>
+      <div style="align-self:flex-end;background:var(--accent);padding:11px 14px;border-radius:18px 18px 6px 18px;font:500 15px/1.45 var(--font);max-width:260px">회의가 길어서 지쳤는데, 끝나고 산책한 게 좋았어</div>
+      <div style="display:flex;gap:8px;align-items:flex-end">${av(30)}<div class="glass dark" style="padding:11px 14px;border-radius:18px 18px 18px 6px;font:500 15px/1.45 var(--font);max-width:260px">긴 회의 뒤에 걸은 시간이 쉬는 틈이 됐구나.</div></div>
+    </div>
+    <div class="glass dark" style="position:absolute;left:14px;right:14px;bottom:40px;height:54px;border-radius:27px;z-index:6;display:flex;align-items:center;padding:0 18px;font:500 15px var(--font);color:#fff"><span style="opacity:.6">이야기하기…</span></div>
+  </div><div class="cap">일기 대화: 밤 정원을 흐리게 깔고 어두운 유리 말풍선</div></div>`
+  $$('#whereRow .phone').forEach((p) => { phoneChrome(p); if (!p.classList.contains('calm')) p.style.color = p.id === 'wDiary' || dark() ? '#fff' : '#13211B' })
+}
+
+/* ───────── G. 할 일 화면 채움 정도 ───────── */
+function calmPhone(kind, level) {
+  const band = SCENE(dark() ? 'scene-garden-dusk' : 'scene-garden-day'), sp = S.sp  // 휴대폰은 세로 장면의 위쪽(하늘·언덕)을 자른다. 가로 띠(band-*)는 데스크톱 머리용
+  const head = level === 'bold' ? 'bold' : ''
+  let body = ''
+  if (kind === 'today') body = `<div class="${level === 'bold' ? 'cardlist' : ''}"><div class="grp">오늘 4</div>
+    <div class="it"><i class="p2"></i><span>주간 회의 준비</span><small>10:00</small></div><div class="it"><i></i><span>디자인 리뷰 답장</span><small>14:00</small></div>
+    <div class="it"><i class="p3"></i><span>운동 30분</span><small></small></div><div class="it" style="border:0"><i></i><span>장보기 목록</span><small>저녁</small></div></div>`
+  if (kind === 'cal') body = `<div class="${level === 'bold' ? 'cardlist' : ''}" style="padding-top:8px"><div class="calgrid">${Array.from({ length: 28 }, (_, i) => `<div>${i + 1}${[2, 5, 9, 15, 16, 22].includes(i) ? '<i>회의</i>' : ''}${[9, 23].includes(i) ? '<i style="background:#FBEFD6;color:#9A6A00">마감</i>' : ''}</div>`).join('')}</div></div>`
+  if (kind === 'proj') body = `<div class="${level === 'bold' ? 'cardlist' : ''}"><div class="empty"><img src="${imgOf(sp, stOf(sp, 3), 'default')}" alt=""><h4>아직 할 일이 없어요</h4><p>+ 를 눌러 이 프로젝트의 첫 할 일을 적어요</p></div></div>`
+  const title = { today: '오늘', cal: '10월', proj: '집 이사' }[kind]
+  return `<div><div class="phone sm calm ${head}">
+    <img class="band" src="${band}" alt=""><div class="bandfade"></div>
+    <div class="title"><h3>${title}</h3><span class="n">${kind === 'today' ? '4' : ''}</span></div>
+    <div class="list">${body}</div>
+    ${level === 'bold' ? `<img class="tabstrip" src="${band}" alt="">` : ''}
+    <div class="fab"></div>
+    <div class="tabbar ${level === 'bold' ? 'glass' : 'plain'}"><span class="${kind === 'today' ? 'on' : ''}"><i></i>오늘</span><span class="${kind === 'cal' ? 'on' : ''}"><i></i>캘린더</span><span><i></i>성장</span><span><i></i>비서</span><span class="${kind === 'proj' ? 'on' : ''}"><i></i>더보기</span></div>
+  </div><div class="cap">${{ today: '오늘', cal: '캘린더 월', proj: '프로젝트 빈 상태' }[kind]} · ${level === 'bold' ? '과감하게' : '은은하게'}</div></div>`
+}
+function renderCalm(which = qs.get('calm') || 'both') {
+  const lv = which === 'both' ? ['subtle', 'bold'] : [which]
+  $('#calmRow').innerHTML = lv.map((l) => ['today', 'cal', 'proj'].map((k) => calmPhone(k, l)).join('')).join('<div style="flex-basis:100%;height:0"></div>')
+  $$('#calmRow .phone').forEach((p) => phoneChrome(p))
+  $$('[data-calm]').forEach((b) => b.classList.toggle('on', b.dataset.calm === which))
+}
+$$('[data-calm]').forEach((b) => b.onclick = () => renderCalm(b.dataset.calm))
+
+/* ───────── H. 예산 ───────── */
+function renderBudget() {
+  $('#budgetT').innerHTML = /*BUDGET*/"<tr><th>항목<\/th><th>이번 시제품 실측<\/th><\/tr><tr><td>캐릭터 512 (몸+얼굴)<\/td><td>20장 · 평균 20 KB<\/td><\/tr><tr><td>캐릭터 160<\/td><td>27장 · 평균 4 KB<\/td><\/tr><tr><td>얼굴 층 512<\/td><td>평균 2 KB<\/td><\/tr><tr><td>옷 층 512<\/td><td>평균 7 KB<\/td><\/tr><tr><td>씨앗 320 (4 × 회전 12 + 금 2)<\/td><td>56장 · 합 397 KB<\/td><\/tr><tr><td>장면 780×1560 (낮·새벽·밤)<\/td><td>합 38 KB<\/td><\/tr><tr><td>머리 띠 780×280 (낮·밤)<\/td><td>합 9 KB<\/td><\/tr><tr><td>앱 기본 묶음 추정<\/td><td>≈ 0.76 MB (씨앗 + 아기 4종×2 512 + 160 40장 + 장면 + 띠)<\/td><\/tr><tr><td>내 종 내려받기 추정<\/td><td>≈ 0.36 MB (몸 512 ×10 + 얼굴 50 + 160 ×10)<\/td><\/tr><tr><td>굽는 시간(M3 Pro CPU)<\/td><td>768px 캐릭터 30~45초 · 씨앗 320 ≈ 5초 · 장면 780×1560 ≈ 1분<\/td><\/tr>"/*/BUDGET*/
+}
+
+/* ───────── 공통 ───────── */
+function syncSeg() {
+  $$('#spSeg button').forEach((b) => b.classList.toggle('on', b.dataset.v === S.sp))
+  $$('#thSeg button').forEach((b) => b.classList.toggle('on', b.dataset.v === S.theme))
+  $$('#mvSeg button').forEach((b) => b.classList.toggle('on', (b.dataset.v === 'off') === reduce()))
+  $$('[data-st]').forEach((b) => b.classList.toggle('on', +b.dataset.st === S.st))
+}
+function renderAll() {
+  document.documentElement.dataset.theme = S.theme
+  $('#makeBg').src = sceneFor('make'); mk.style.color = dark() ? '#fff' : '#13211B'
+  renderCmp(); renderHome(); renderWard(); renderDex(); renderEvo(); renderWhere(); renderCalm(); renderBudget(); drawTurn(); syncSeg()
+  if (S.step) go(S.step)
+}
+$$('#spSeg button').forEach((b) => b.onclick = () => { S.sp = b.dataset.v; renderAll() })
+$$('#thSeg button').forEach((b) => b.onclick = () => { S.theme = b.dataset.v; renderAll() })
+$$('#mvSeg button').forEach((b) => b.onclick = () => { document.body.classList.toggle('reduce', b.dataset.v === 'off'); syncSeg() })
+if (qs.get('only')) { const keep = qs.get('only').split(','); $$('section.s').forEach((x) => { x.hidden = !keep.includes(x.id) }); $('nav.toc').hidden = true }
+renderAll()
+// 캡처용: ?step=3&taps=1..3 = 씨앗 두드림, ?step=5&done=1 = 첫 할 일 완료, ?evo=0.3|1.0|1.4|2.4 = 진화를 그 초에서 멈춤
+if (qs.get('taps')) for (let i = 0; i < +qs.get('taps'); i++) setTimeout(() => $('#hatchSeed').click(), 300 + i * 500)
+if (qs.get('done')) setTimeout(() => { $('#taskChips button').click(); setTimeout(() => $('#ft').click(), 100) }, 200)
+if (qs.get('evo')) { playEvo(qs.get('seed') === '1'); const t = +qs.get('evo') * 1000; document.getAnimations().forEach((a) => { a.pause(); a.currentTime = t }); if (t > 450) $('#evoPhone [data-old]').style.opacity = 0 }
+</script>
+</body>
+</html>

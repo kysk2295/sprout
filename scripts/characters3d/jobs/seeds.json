@@ -1,0 +1,406 @@
+{
+ "out": "build/seed",
+ "samples": 48,
+ "items": [
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 0,
+   "size": 320,
+   "name": "seed0-t00"
+  },
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 30,
+   "size": 320,
+   "name": "seed0-t01"
+  },
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 60,
+   "size": 320,
+   "name": "seed0-t02"
+  },
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 90,
+   "size": 320,
+   "name": "seed0-t03"
+  },
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 120,
+   "size": 320,
+   "name": "seed0-t04"
+  },
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 150,
+   "size": 320,
+   "name": "seed0-t05"
+  },
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 180,
+   "size": 320,
+   "name": "seed0-t06"
+  },
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 210,
+   "size": 320,
+   "name": "seed0-t07"
+  },
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 240,
+   "size": 320,
+   "name": "seed0-t08"
+  },
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 270,
+   "size": 320,
+   "name": "seed0-t09"
+  },
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 300,
+   "size": 320,
+   "name": "seed0-t10"
+  },
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 330,
+   "size": 320,
+   "name": "seed0-t11"
+  },
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 0,
+   "crack": 1,
+   "size": 320,
+   "name": "seed0-crack1"
+  },
+  {
+   "kind": "seed",
+   "seed": 0,
+   "turn": 0,
+   "crack": 2,
+   "size": 320,
+   "name": "seed0-crack2"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 0,
+   "size": 320,
+   "name": "seed1-t00"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 30,
+   "size": 320,
+   "name": "seed1-t01"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 60,
+   "size": 320,
+   "name": "seed1-t02"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 90,
+   "size": 320,
+   "name": "seed1-t03"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 120,
+   "size": 320,
+   "name": "seed1-t04"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 150,
+   "size": 320,
+   "name": "seed1-t05"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 180,
+   "size": 320,
+   "name": "seed1-t06"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 210,
+   "size": 320,
+   "name": "seed1-t07"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 240,
+   "size": 320,
+   "name": "seed1-t08"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 270,
+   "size": 320,
+   "name": "seed1-t09"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 300,
+   "size": 320,
+   "name": "seed1-t10"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 330,
+   "size": 320,
+   "name": "seed1-t11"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 0,
+   "crack": 1,
+   "size": 320,
+   "name": "seed1-crack1"
+  },
+  {
+   "kind": "seed",
+   "seed": 1,
+   "turn": 0,
+   "crack": 2,
+   "size": 320,
+   "name": "seed1-crack2"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 0,
+   "size": 320,
+   "name": "seed2-t00"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 30,
+   "size": 320,
+   "name": "seed2-t01"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 60,
+   "size": 320,
+   "name": "seed2-t02"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 90,
+   "size": 320,
+   "name": "seed2-t03"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 120,
+   "size": 320,
+   "name": "seed2-t04"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 150,
+   "size": 320,
+   "name": "seed2-t05"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 180,
+   "size": 320,
+   "name": "seed2-t06"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 210,
+   "size": 320,
+   "name": "seed2-t07"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 240,
+   "size": 320,
+   "name": "seed2-t08"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 270,
+   "size": 320,
+   "name": "seed2-t09"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 300,
+   "size": 320,
+   "name": "seed2-t10"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 330,
+   "size": 320,
+   "name": "seed2-t11"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 0,
+   "crack": 1,
+   "size": 320,
+   "name": "seed2-crack1"
+  },
+  {
+   "kind": "seed",
+   "seed": 2,
+   "turn": 0,
+   "crack": 2,
+   "size": 320,
+   "name": "seed2-crack2"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 0,
+   "size": 320,
+   "name": "seed3-t00"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 30,
+   "size": 320,
+   "name": "seed3-t01"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 60,
+   "size": 320,
+   "name": "seed3-t02"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 90,
+   "size": 320,
+   "name": "seed3-t03"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 120,
+   "size": 320,
+   "name": "seed3-t04"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 150,
+   "size": 320,
+   "name": "seed3-t05"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 180,
+   "size": 320,
+   "name": "seed3-t06"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 210,
+   "size": 320,
+   "name": "seed3-t07"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 240,
+   "size": 320,
+   "name": "seed3-t08"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 270,
+   "size": 320,
+   "name": "seed3-t09"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 300,
+   "size": 320,
+   "name": "seed3-t10"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 330,
+   "size": 320,
+   "name": "seed3-t11"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 0,
+   "crack": 1,
+   "size": 320,
+   "name": "seed3-crack1"
+  },
+  {
+   "kind": "seed",
+   "seed": 3,
+   "turn": 0,
+   "crack": 2,
+   "size": 320,
+   "name": "seed3-crack2"
+  }
+ ]
+}
