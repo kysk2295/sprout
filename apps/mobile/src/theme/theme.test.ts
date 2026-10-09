@@ -10,11 +10,12 @@ for (const t of THEMES) {
   assert.equal(p.dark, t.family === 'dark')
   for (const [k, v] of Object.entries(p)) if (typeof v === 'string' && k !== 'id') assert.ok(!v.includes('var('), `${t.id}.${k} 미해결: ${v}`)
 }
-// 라이트 기본 바닥은 #F4F6F3(44 §3.1), 색 테마는 견본색 9%
-assert.equal(paletteOf('default').pageBg, '#f4f6f3')
-assert.equal(paletteOf('default').accent, '#22a45d')
-assert.equal(paletteOf('dark').pageBg, '#0c0f0d')
-assert.equal(paletteOf('dark').cardBg, '#161a17')
+// 라이트 기본 바닥은 #F3F5F1(45), 색 테마는 견본색 9%
+assert.equal(paletteOf('default').pageBg, '#f3f5f1')
+assert.equal(paletteOf('default').accent, '#12715e') // 45 깊은 숲
+assert.equal(paletteOf('dark').accent, '#19856b') // 다크도 같은 청록 집안
+assert.equal(paletteOf('dark').pageBg, '#0a100e')
+assert.equal(paletteOf('dark').cardBg, '#141b18')
 assert.equal(paletteOf('sky').pageBg, mix('#6387f5', '#f3f3f6', 0.09))
 // 트루 블랙
 assert.equal(paletteOf('black').pageBg, '#000000')

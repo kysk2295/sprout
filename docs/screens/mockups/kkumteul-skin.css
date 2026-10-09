@@ -3,24 +3,24 @@
 :root {
   color-scheme: light;
   /* 면 */
-  --k-ground: #F4F6F3;          /* 앱 바닥(아주 옅은 초록 회색) */
+  --k-ground: #F3F5F1;          /* 앱 바닥(아주 옅은 초록 회색) */
   --k-surface: #FFFFFF;         /* 카드·목록 면 */
-  --k-surface-2: #EEF2EE;       /* 입력·세그먼트 트랙·칩 */
-  --k-surface-3: #E4EAE5;       /* 눌림 */
+  --k-surface-2: #EBEFEA;       /* 입력·세그먼트 트랙·칩 */
+  --k-surface-3: #DFE5DF;       /* 눌림 */
   --k-raised: #FFFFFF;          /* 떠 있는 것(시트·팝오버) */
-  --k-line: #E5EAE6;
-  --k-line-strong: #D3DBD5;
+  --k-line: #E3E8E2;
+  --k-line-strong: #CFD8D0;
   --k-scrim: rgba(12, 24, 16, .32);
   /* 글자 */
-  --k-ink: #16201A;
-  --k-ink-2: #59665E;
-  --k-ink-3: #8F9B93;
-  --k-ink-4: #B6C0B9;
+  --k-ink: #13201C;
+  --k-ink-2: #56655F;
+  --k-ink-3: #8D9A94;
+  --k-ink-4: #B5C0BA;
   /* 브랜드 · 강조 (틱틱 파랑 → 꿈틀 초록, 결정 ⓒ) */
-  --k-accent: #22A45D;          /* 채움·체크·선택 */
-  --k-accent-ink: #138548;      /* 흰 바탕 위 글자 4.5:1 */
-  --k-accent-soft: #E2F5E9;
-  --k-accent-hi: #5CD08F;       /* 막대·빛 끝 */
+  --k-accent: #12715E;          /* 채움·체크·선택 */
+  --k-accent-ink: #12715E;      /* 흰 바탕 위 글자 4.5:1 */
+  --k-accent-soft: #DCEFE9;
+  --k-accent-hi: #3DB79B;       /* 막대·빛 끝 */
   --k-on-accent: #FFFFFF;
   /* 꿈틀 5색(리스트·카테고리·캐릭터 소품) — 색 + 옅은 면 */
   --k-sprout: #4FBF6A; --k-sprout-soft: #E3F5E6;
@@ -28,13 +28,13 @@
   --k-petal: #FF7FA6;  --k-petal-soft: #FFE6EE;
   --k-sky: #5AB4F0;    --k-sky-soft: #E3F2FD;
   --k-deep: #4E75F2;   --k-deep-soft: #E8EDFD;
-  --k-danger: #E5484D;
-  --k-pri-high: #E5484D; --k-pri-mid: #FFB927; --k-pri-low: #4E75F2;
+  --k-danger: #D9343A;
+  --k-pri-high: #D9343A; --k-pri-mid: #C98200; --k-pri-low: #4169E8;
   /* 캐릭터 자리(성장 무대·빈 상태·AI) */
   --k-stage-sky1: #A9DFFF; --k-stage-sky2: #E6F7EC;
   --k-glass: rgba(255, 255, 255, .74);
   --k-glass-line: rgba(255, 255, 255, .9);
-  --k-glass-ink: #16201A;
+  --k-glass-ink: #13201C;
   --k-lockc: #D9E0DB;
   --sil: #FFFFFF;
   /* 글자 */
@@ -46,7 +46,7 @@
   --k-sh-1: 0 1px 2px rgba(18, 40, 26, .04), 0 2px 8px rgba(18, 40, 26, .04);
   --k-sh-2: 0 2px 6px rgba(18, 40, 26, .05), 0 10px 28px rgba(18, 40, 26, .08);
   --k-sh-3: 0 8px 24px rgba(18, 40, 26, .12), 0 24px 60px rgba(18, 40, 26, .14);
-  --k-sh-accent: 0 6px 18px rgba(34, 164, 93, .32);
+  --k-sh-accent: 0 6px 18px rgba(18, 113, 94, .30);
   /* 움직임 */
   --k-ease: cubic-bezier(.2, .8, .2, 1);
   --k-spring: cubic-bezier(.34, 1.56, .64, 1);
@@ -54,28 +54,28 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --k-ground: #0C0F0D; --k-surface: #161A17; --k-surface-2: #1F2420; --k-surface-3: #282E29; --k-raised: #1C211D;
-  --k-line: #232925; --k-line-strong: #313833; --k-scrim: rgba(0, 0, 0, .55);
-  --k-ink: #EEF3EF; --k-ink-2: #A2ADA5; --k-ink-3: #6E7A72; --k-ink-4: #4A544D;
-  --k-accent: #3FC27A; --k-accent-ink: #6FE09F; --k-accent-soft: rgba(63, 194, 122, .16); --k-accent-hi: #7BE8A8; --k-on-accent: #06210F;
+  --k-ground: #0A100E; --k-surface: #141B18; --k-surface-2: #1C2521; --k-surface-3: #25302B; --k-raised: #1A2320;
+  --k-line: #202925; --k-line-strong: #2E3934; --k-scrim: rgba(0, 0, 0, .55);
+  --k-ink: #ECF4F0; --k-ink-2: #A0B0A9; --k-ink-3: #6B7C75; --k-ink-4: #46544E;
+  --k-accent: #3CC4A2; --k-accent-ink: #6EE0C2; --k-accent-soft: rgba(60, 196, 162, .15); --k-accent-hi: #86EBD0; --k-on-accent: #032119;
   --k-sprout-soft: rgba(79, 191, 106, .16); --k-sun-soft: rgba(255, 185, 39, .14); --k-petal-soft: rgba(255, 127, 166, .15); --k-sky-soft: rgba(90, 180, 240, .15); --k-deep-soft: rgba(78, 117, 242, .18);
   --k-glass: rgba(18, 24, 20, .66); --k-glass-line: rgba(255, 255, 255, .08); --k-glass-ink: #EEF3EF;
   --k-lockc: #2C332E; --sil: #EAF7EE;
   --k-sh-1: 0 0 0 1px rgba(255, 255, 255, .035); --k-sh-2: 0 0 0 1px rgba(255, 255, 255, .05); --k-sh-3: 0 0 0 1px rgba(255, 255, 255, .06), 0 20px 50px rgba(0, 0, 0, .5);
-  --k-sh-accent: 0 6px 18px rgba(63, 194, 122, .22);
+  --k-sh-accent: 0 6px 18px rgba(60, 196, 162, .22);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --k-ground: #0C0F0D; --k-surface: #161A17; --k-surface-2: #1F2420; --k-surface-3: #282E29; --k-raised: #1C211D;
-    --k-line: #232925; --k-line-strong: #313833; --k-scrim: rgba(0, 0, 0, .55);
-    --k-ink: #EEF3EF; --k-ink-2: #A2ADA5; --k-ink-3: #6E7A72; --k-ink-4: #4A544D;
-    --k-accent: #3FC27A; --k-accent-ink: #6FE09F; --k-accent-soft: rgba(63, 194, 122, .16); --k-accent-hi: #7BE8A8; --k-on-accent: #06210F;
+    --k-ground: #0A100E; --k-surface: #141B18; --k-surface-2: #1C2521; --k-surface-3: #25302B; --k-raised: #1A2320;
+    --k-line: #202925; --k-line-strong: #2E3934; --k-scrim: rgba(0, 0, 0, .55);
+    --k-ink: #ECF4F0; --k-ink-2: #A0B0A9; --k-ink-3: #6B7C75; --k-ink-4: #46544E;
+    --k-accent: #3CC4A2; --k-accent-ink: #6EE0C2; --k-accent-soft: rgba(60, 196, 162, .15); --k-accent-hi: #86EBD0; --k-on-accent: #032119;
     --k-sprout-soft: rgba(79, 191, 106, .16); --k-sun-soft: rgba(255, 185, 39, .14); --k-petal-soft: rgba(255, 127, 166, .15); --k-sky-soft: rgba(90, 180, 240, .15); --k-deep-soft: rgba(78, 117, 242, .18);
     --k-glass: rgba(18, 24, 20, .66); --k-glass-line: rgba(255, 255, 255, .08); --k-glass-ink: #EEF3EF;
     --k-lockc: #2C332E; --sil: #EAF7EE;
     --k-sh-1: 0 0 0 1px rgba(255, 255, 255, .035); --k-sh-2: 0 0 0 1px rgba(255, 255, 255, .05); --k-sh-3: 0 0 0 1px rgba(255, 255, 255, .06), 0 20px 50px rgba(0, 0, 0, .5);
-    --k-sh-accent: 0 6px 18px rgba(63, 194, 122, .22);
+    --k-sh-accent: 0 6px 18px rgba(60, 196, 162, .22);
   }
 }
 

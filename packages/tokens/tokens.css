@@ -1,65 +1,69 @@
-/* sprout 디자인 토큰 — 정본: docs/screens/00-design-tokens.md (v1.1)
+/* sprout 디자인 토큰 — 정본: docs/screens/00-design-tokens.md (v2.1 — 45 브랜드 깊은 숲)
    화면 코드에서는 이 변수만 쓴다. 테마는 [data-theme]에서 변수만 덮어쓴다.
    테마 목록·대비 규칙: 00 §5. 다크 계열은 모두 data-theme="dark"이고, 변형은 data-theme-variant로 덮는다(00 §5.3).
    [data-theme="default"]는 설정의 테마 견본처럼 문서 안 일부를 기본 테마로 되돌릴 때 쓴다. */
 :root, [data-theme="default"] {
   /* v2.0 (44 시각 개편, 2026-10-09): 배치·크기는 틱틱 실측 그대로, 색·글자·면·모서리·그림자만 꿈틀답게.
-     기본 테마 강조 = 꿈틀 초록(결정 ⓒ). 다른 색 테마는 강조·레일·면을 각자 덮고, 글자·선·모서리·그림자는 이 값을 받는다. */
+     기본 테마 강조 = 브랜드 깊은 숲 #12715E(45 결정 ③, 44 결정 ⓒ를 갱신). 다른 색 테마는 강조·레일·면을 각자 덮고, 글자·선·모서리·그림자는 이 값을 받는다. */
   /* 면 — 바닥(ground) 위에 흰 카드(app). 데스크톱: 레일·목록 칸 = 바닥, 사이드바·상세 = 흰 면 */
-  --color-bg-ground: #f7f9f6;       /* 목록 칸·레일 뒤 바닥(44 §3.1 --k-ground, 데스크톱은 한 칸 밝게) */
+  --color-bg-ground: #f6f8f4;       /* 목록 칸·레일 뒤 바닥(44 §3.1 --k-ground, 데스크톱은 한 칸 밝게) */
   --color-bg-app: #ffffff;          /* 카드·상세·대화 상자 면 */
-  --color-bg-rail: #eef2ee;
-  --color-bg-sidebar: #fafbf9;
-  --color-bg-input: #eef2ee;
-  --color-bg-selected: #e2f5e9;     /* 고른 행 = 강조 옅은 면 */
-  --color-bg-hover: #f1f4f0;
-  --color-bg-card: #f6f8f5;         /* 흰 면 위의 옅은 칸(설정 묶음·체크리스트·작은 판) */
-  --color-bg-settings-nav: #f4f6f3;
+  --color-bg-rail: #ebefea;
+  --color-bg-sidebar: #f9fbf8;
+  --color-bg-input: #ebefea;
+  --color-bg-selected: #dcefe9;     /* 고른 행 = 강조 옅은 면 */
+  --color-bg-hover: #eff3ee;
+  --color-bg-card: #f5f7f4;         /* 흰 면 위의 옅은 칸(설정 묶음·체크리스트·작은 판) */
+  --color-bg-settings-nav: #f3f5f1;
   --color-bg-popover: #ffffff;
-  --color-overlay-scrim: rgba(12, 24, 16, 0.32);
+  --color-overlay-scrim: rgba(10, 24, 20, 0.32);
   /* 선 */
-  --color-border-divider: #e5eae6;
-  --color-border-row: #edf1ed;
-  --color-border-strong: #d3dbd5;   /* 체크 칸 빈 테두리·점선 */
+  --color-border-divider: #e3e8e2;
+  --color-border-row: #eaeee9;
+  --color-border-strong: #cfd8d0;   /* 체크 칸 빈 테두리·점선 */
   --color-border-input-focus: var(--color-accent);
-  /* 글자 — 초록 기운 회색 */
-  --color-text-primary: #16201a;
-  --color-text-secondary: #59665e;
-  --color-text-tertiary: #8f9b93;
-  --color-text-quaternary: #b6c0b9;
+  /* 글자 — 청록 기운 회색(45 깊은 숲) */
+  --color-text-primary: #13201c;
+  --color-text-secondary: #56655f;
+  --color-text-tertiary: #8d9a94;
+  --color-text-quaternary: #b5c0ba;
   --color-text-link: var(--color-accent-ink);
-  --color-text-danger: #cf3e3e;     /* 작은 빨강 글자(만료 날짜) — 흰 면 4.7:1 */
+  --color-text-danger: #d9343a;     /* 작은 빨강 글자(만료 날짜) — 흰 면 4.7:1 (45 위험색) */
   --color-menu-icon: var(--color-text-secondary);
   --color-border-popover: transparent;
-  --color-seg-track: #eef2ee;
+  --color-seg-track: #ebefea;
   --color-seg-on: var(--color-bg-popover);
   --color-dp-muted: var(--color-text-tertiary);
   --color-dp-icon: var(--color-text-secondary);
   --color-cal-other: var(--color-text-quaternary);
-  --color-login-bg: #f4f6f3;
+  --color-login-bg: #f3f5f1;
   --color-login-card: #ffffff;
-  --color-login-input-border: rgba(22, 32, 26, 0.1);
+  --color-login-input-border: rgba(19, 32, 28, 0.1);
   /* 강조·상태 */
-  --color-accent: #22a45d;          /* 채움·체크·선택. 흰 글자는 3.2:1이라 굵은 15px 이상·아이콘에만(44 §8) */
-  --color-accent-ink: #117f44;      /* 작은 강조 글자·링크 — 흰 면 5.1:1 · 바닥 4.8:1 */
-  --color-accent-subtle: #e2f5e9;
-  --color-accent-hi: #5cd08f;       /* 진행 막대 끝 */
+  /* 45 확정(2026-10-09): 기본 테마 강조 = 브랜드 깊은 숲 청록. 흰 글자 5.9:1이라 작은 글자에도 그대로 쓴다 */
+  --color-accent: #12715e;          /* 채움·체크·선택 — 흰 면 5.9:1 · 바닥 5.4:1 */
+  --color-accent-ink: #12715e;      /* 작은 강조 글자·링크 — 채움과 같은 색(흰 면 5.9:1 · 고른 면 5.0:1) */
+  --color-accent-subtle: #dcefe9;
+  --color-accent-hi: #3db79b;       /* 진행 막대 끝 */
   --color-on-accent: #ffffff;
-  --color-danger: #e5484d;
+  --color-brand-honey: #f2b84b;     /* 45 보조 — 캐릭터·축하 자리에만(할 일 화면에는 쓰지 않는다) */
+  --color-brand-apricot: #f08a5d;   /* 45 포인트 — 캐릭터·축하 자리에만 */
+  --color-danger: #d9343a;
   --color-search-highlight: #fbe38e;
   --color-saturday: #3d74e0;        /* 06 §16 토요일 날짜·요일 파랑(사용자 결정 2026-10-05 "주말도 표시" — 한국 달력 관례, 틱틱은 칠 없음) */
   --color-holiday: #e5484d;         /* 06 §16 공휴일 날짜·이름·"휴" 배지 — 빨강(사용자 결정 2026-10-05: "공휴일은 빨간색". 틱틱/디다는 초록 休, research 17 §15.2) */
-  --color-toast-bg: #16201a;
+  --color-toast-bg: #13201c;
   /* 우선순위 */
-  --color-priority-high: #e5484d;
-  --color-priority-medium: #ffb927;
-  --color-priority-low: #4e75f2;
-  --color-priority-none: #b6c0b9;
+  /* 우선순위(45 §3): 높음 = 위험색, 중간 = 짙은 꿀색(체크 테두리 흰 면 3.2:1), 낮음 = 파랑 */
+  --color-priority-high: #d9343a;
+  --color-priority-medium: #c98200;
+  --color-priority-low: #4169e8;
+  --color-priority-none: #b5c0ba;
   /* 레일 (Default) */
-  --color-rail-icon: #7d8a81;
+  --color-rail-icon: #7b8a84;
   --color-rail-icon-selected: var(--color-accent-ink);
-  --color-rail-icon-selected-bg: #e2f5e9;
-  --color-rail-hover: #e4eae5;      /* 레일 버튼 호버 면 — 색 레일 테마는 레일색 위에서 보이게 덮는다 */
+  --color-rail-icon-selected-bg: #dcefe9;
+  --color-rail-hover: #e1e8e2;      /* 레일 버튼 호버 면 — 색 레일 테마는 레일색 위에서 보이게 덮는다 */
   --color-rail-icon-hover: var(--color-text-secondary);
 
   /* 글꼴 — Pretendard(OFL, 앱에 같이 넣음) 우선 */
@@ -118,12 +122,12 @@
   --radius-xl: 20px;
   --radius-2xl: 28px;
   --radius-full: 999px;
-  /* 그림자 색은 검정이 아니라 초록 기운 남색(18,40,26) — 다크는 선으로 바꾼다 */
-  --shadow-card: 0 1px 2px rgba(18, 40, 26, 0.04), 0 2px 8px rgba(18, 40, 26, 0.04);
-  --shadow-float: 0 2px 6px rgba(18, 40, 26, 0.05), 0 10px 28px rgba(18, 40, 26, 0.08);
-  --shadow-popover: 0 8px 24px rgba(18, 40, 26, 0.12), 0 0 0 1px rgba(18, 40, 26, 0.04);
-  --shadow-modal: 0 8px 24px rgba(18, 40, 26, 0.12), 0 24px 60px rgba(18, 40, 26, 0.14);
-  --shadow-accent: 0 6px 18px rgba(34, 164, 93, 0.32);
+  /* 그림자 색은 검정이 아니라 청록 기운 남색(14,40,34) — 다크는 선으로 바꾼다 */
+  --shadow-card: 0 1px 2px rgba(14, 40, 34, 0.04), 0 2px 8px rgba(14, 40, 34, 0.04);
+  --shadow-float: 0 2px 6px rgba(14, 40, 34, 0.05), 0 10px 28px rgba(14, 40, 34, 0.08);
+  --shadow-popover: 0 8px 24px rgba(14, 40, 34, 0.12), 0 0 0 1px rgba(14, 40, 34, 0.04);
+  --shadow-modal: 0 8px 24px rgba(14, 40, 34, 0.12), 0 24px 60px rgba(14, 40, 34, 0.14);
+  --shadow-accent: 0 6px 18px rgba(18, 113, 94, 0.30);
   --motion-fast: 120ms ease-out;
   --motion-base: 180ms ease-out;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -350,53 +354,58 @@
 }
 
 [data-theme="dark"] {
-  /* v2.0 (44 §3.1 다크 열): 면 세 단계 — 바닥 #0C0F0D → 카드 #161A17 → 칸 #1F2420. 그림자 대신 1px 선.
-     기본 테마와 짝인 다크(시스템 다크일 때 기본값)라 강조도 꿈틀 초록. 흰 글자 3:1을 지키려고 채움은 라이트와 같은 #22A45D, 글자는 밝은 #6FE09F */
+  /* v2.1 (45 깊은 숲 다크 열): 면 세 단계 — 바닥 #0A100E → 카드 #141B18 → 칸 #1C2521. 그림자 대신 1px 선.
+     기본 테마와 짝인 다크(시스템 다크일 때 기본값)라 강조도 브랜드 청록(45). 시스템 다크로 바뀌어도 강조색 집안이 바뀌지 않게,
+     채움은 라이트 #12715E를 한 단계 밝힌 #19856B(흰 글자 4.6:1 · 카드 위 3.8:1 — 흰 글자를 쓰는 버튼·체크가 그대로 읽힌다), 글자는 밝은 #6EE0C2.
+     45 시안의 다크 주색 #3CC4A2는 어두운 글자를 전제로 해서, 흰 글자를 쓰는 지금 화면에 맞춰 포커스 테두리에만 쓴다 */
   color-scheme: dark; /* 스크롤 막대·기본 입력 요소도 어둡게 */
-  --color-bg-ground: #0c0f0d;
-  --color-bg-app: #161a17;
-  --color-bg-sidebar: #161a17;
-  --color-bg-rail: #0c0f0d;
-  --color-bg-popover: #1c211d;
-  --color-bg-selected: #1d3527;
-  --color-bg-hover: #1f2420;
-  --color-bg-input: #1f2420;
-  --color-bg-card: #1f2420;
-  --color-bg-settings-nav: #121513;
+  --color-bg-ground: #0a100e;
+  --color-bg-app: #141b18;
+  --color-bg-sidebar: #141b18;
+  --color-bg-rail: #0a100e;
+  --color-bg-popover: #1a2320;
+  --color-bg-selected: #1a342d;
+  --color-bg-hover: #1c2521;
+  --color-bg-input: #1c2521;
+  --color-bg-card: #1c2521;
+  --color-bg-settings-nav: #101614;
   --color-overlay-scrim: rgba(0, 0, 0, 0.55);
-  --color-border-divider: #232925;
-  --color-border-row: #1e231f;
-  --color-border-strong: #313833;
-  --color-text-primary: #eef3ef;
-  --color-text-secondary: #a2ada5;
-  --color-text-tertiary: #6e7a72;
-  --color-text-quaternary: #4a544d;
-  --color-text-danger: #f2555a;
-  --color-priority-none: #4a544d;
-  --color-accent: #22a45d;
-  --color-accent-ink: #6fe09f;
-  --color-accent-hi: #7be8a8;
-  --color-border-input-focus: #3fc27a;
-  --color-rail-icon: #6e7a72;
-  --color-rail-icon-selected: #6fe09f;
-  --color-rail-icon-selected-bg: #142c1e;
-  --color-rail-hover: #1f2420;
-  --color-rail-icon-hover: #a2ada5;
+  --color-border-divider: #202925;
+  --color-border-row: #1b2420;
+  --color-border-strong: #2e3934;
+  --color-text-primary: #ecf4f0;
+  --color-text-secondary: #a0b0a9;
+  --color-text-tertiary: #6b7c75;
+  --color-text-quaternary: #46544e;
+  --color-text-danger: #ff6369;
+  --color-priority-none: #46544e;
+  --color-priority-high: #ff6369;
+  --color-priority-medium: #ffc23d;
+  --color-priority-low: #7090ff;
+  --color-accent: #19856b;
+  --color-accent-ink: #6ee0c2;
+  --color-accent-hi: #86ebd0;
+  --color-border-input-focus: #3cc4a2;
+  --color-rail-icon: #6b7c75;
+  --color-rail-icon-selected: #6ee0c2;
+  --color-rail-icon-selected-bg: #12302a;
+  --color-rail-hover: #1c2521;
+  --color-rail-icon-hover: #a0b0a9;
   --color-search-highlight: #dcbf77;
   --color-saturday: #6b9cff;
   --color-holiday: #f2555a;
-  --color-accent-subtle: #1d3829;
-  --color-menu-icon: #a2ada5;
-  --color-border-popover: #313833;
-  --color-seg-track: #1f2420;
-  --color-seg-on: #282e29;
-  --color-dp-muted: #7d8a81;
-  --color-dp-icon: #a2ada5;
-  --color-cal-other: #5a655d;
-  --color-login-bg: #0c0f0d;
-  --color-login-card: #161a17;
+  --color-accent-subtle: #1a3a32;
+  --color-menu-icon: #a0b0a9;
+  --color-border-popover: #2e3934;
+  --color-seg-track: #1c2521;
+  --color-seg-on: #25302b;
+  --color-dp-muted: #7b8a84;
+  --color-dp-icon: #a0b0a9;
+  --color-cal-other: #586661;
+  --color-login-bg: #0a100e;
+  --color-login-card: #141b18;
   --color-login-input-border: rgba(255, 255, 255, 0.1);
-  --color-toast-bg: #26302a;
+  --color-toast-bg: #24302b;
   --cal-fill: 62%;
   --cal-fill-past: 20%;
   --cal-text: #ffffff;
@@ -404,12 +413,12 @@
   --shadow-float: 0 0 0 1px rgba(255, 255, 255, 0.05);
   --shadow-popover: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 12px 32px rgba(0, 0, 0, 0.45);
   --shadow-modal: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 20px 50px rgba(0, 0, 0, 0.5);
-  --shadow-accent: 0 6px 18px rgba(63, 194, 122, 0.22);
+  --shadow-accent: 0 6px 18px rgba(60, 196, 162, 0.22);
 }
 
 /* 00 §5.2 트루 블랙 [sprout] — 다크 계열 변형. data-theme="dark"의 화면별 다크 규칙을 그대로 받고 면만 더 검게 덮는다 */
 [data-theme="dark"][data-theme-variant="black"] {
-  /* 트루 블랙은 v2.0에서도 그대로(44 §9) — 다크의 초록 강조·면을 받지 않게 강조 계열을 다시 덮는다 */
+  /* 트루 블랙은 v2.0에서도 그대로(44 §9) — 다크의 청록 강조·면을 받지 않게 강조 계열을 다시 덮는다 */
   --color-bg-ground: #000000;
   --color-accent-ink: #8f95ff;      /* 고른 면(#222) 위 작은 글자 6:1 */
   --color-accent-hi: var(--color-accent);

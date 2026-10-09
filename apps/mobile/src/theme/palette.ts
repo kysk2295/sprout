@@ -8,7 +8,7 @@ export type ThemeId = keyof typeof TOKEN_THEMES
 export type Palette = TokenColors & {
   id: ThemeId
   dark: boolean
-  /** 회색 바닥(목록·설정) — 기본 #F4F6F3(44), 색 테마는 견본색 9% 섞음 [sprout 해석 research 24 §11] */
+  /** 회색 바닥(목록·설정) — 기본 #F3F5F1(45 깊은 숲), 색 테마는 견본색 9% 섞음 [sprout 해석 research 24 §11] */
   pageBg: string
   /** 묶음 카드 면 */
   cardBg: string
@@ -60,13 +60,13 @@ export function paletteOf(id: string): Palette {
     toastBg: '#2b2b2e', toastAction: '#8fa6ff'
   }
   if (dark) {
-    // 44 §3.1 다크: 바닥 #0C0F0D → 카드 #161A17 → 칸 #1F2420 (트루 블랙은 그대로)
+    // 45 다크: 바닥 #0A100E → 카드 #141B18 → 칸 #1C2521 (트루 블랙은 그대로)
     return {
       ...t, ...base, id: themeId, dark,
       pageBg: black ? '#000000' : t.bgGround,
       cardBg: black ? '#121212' : t.bgApp,
       sheetBg: t.bgPopover,
-      glass: black ? 'rgba(28,28,30,0.85)' : 'rgba(31,36,32,0.82)',
+      glass: black ? 'rgba(28,28,30,0.85)' : 'rgba(28,37,33,0.82)',
       glassLine: 'rgba(255,255,255,0.08)',
       drawerBg: black ? '#0a0a0a' : t.bgApp,
       drawerSel: black ? '#222222' : t.bgSelected,
@@ -75,24 +75,24 @@ export function paletteOf(id: string): Palette {
       scrim: 'rgba(0,0,0,0.55)',
       overdue: t.textDanger,
       toastBg: black ? '#3a3a3c' : t.toastBg,
-      toastAction: black ? base.toastAction : '#6fe09f'
+      toastAction: black ? base.toastAction : t.accentInk
     }
   }
   return {
     ...t, ...base, id: themeId, dark,
-    // 44 §3.1: 기본 테마 바닥 #F4F6F3(옅은 초록 회색) + 흰 카드. 색 테마는 견본색 9%
-    pageBg: colored ? mix(t.bgRail, '#f3f3f6', 0.09) : '#f4f6f3',
+    // 45: 기본 테마 바닥 #F3F5F1(옅은 청록 회색) + 흰 카드. 색 테마는 견본색 9%
+    pageBg: colored ? mix(t.bgRail, '#f3f3f6', 0.09) : '#f3f5f1',
     cardBg: t.bgApp,
     sheetBg: t.bgPopover,
     glass: 'rgba(255,255,255,0.82)',
     glassLine: 'rgba(0,0,0,0.06)',
     drawerBg: t.bgSidebar,
     drawerSel: colored ? t.bgSelected : t.accentSubtle,
-    tabIcon: colored ? '#3c3c43' : '#59665e',
+    tabIcon: colored ? '#3c3c43' : t.textSecondary,
     tabOn: colored ? t.accent : t.accentInk,
     scrim: colored ? 'rgba(0,0,0,0.30)' : t.overlayScrim,
     overdue: t.textDanger,
-    ...(colored ? {} : { toastBg: t.toastBg, toastAction: '#8fe3b3' })
+    ...(colored ? {} : { toastBg: t.toastBg, toastAction: '#86ebd0' })
   }
 }
 
@@ -150,7 +150,7 @@ export const R = { xs: 6, sm: 10, md: 14, lg: 20, xl: 28, card: 18, check: 7 } a
 export function shadow(p: { dark: boolean; accent: string }, kind: 'card' | 'float' | 'sheet' | 'accent') {
   if (kind === 'accent') return { shadowColor: p.accent, shadowOpacity: p.dark ? 0.22 : 0.32, shadowRadius: 9, shadowOffset: { width: 0, height: 6 }, elevation: 8 }
   if (p.dark) return kind === 'card' ? {} : { shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: kind === 'sheet' ? 25 : 14, shadowOffset: { width: 0, height: kind === 'sheet' ? 20 : 6 }, elevation: kind === 'sheet' ? 20 : 10 }
-  if (kind === 'card') return { shadowColor: '#12281a', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 1 }
-  if (kind === 'float') return { shadowColor: '#12281a', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 10 }, elevation: 6 }
-  return { shadowColor: '#12281a', shadowOpacity: 0.14, shadowRadius: 30, shadowOffset: { width: 0, height: 24 }, elevation: 20 }
+  if (kind === 'card') return { shadowColor: '#0e2822', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 1 }
+  if (kind === 'float') return { shadowColor: '#0e2822', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 10 }, elevation: 6 }
+  return { shadowColor: '#0e2822', shadowOpacity: 0.14, shadowRadius: 30, shadowOffset: { width: 0, height: 24 }, elevation: 20 }
 }

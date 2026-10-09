@@ -84,8 +84,17 @@ for (const t of THEMES) {
   check(contrast(get('--color-priority-high'), get('--color-bg-app')) >= 3, `${t.id}: 높음 체크 테두리 / 면 < 3`)
   check(contrast(get('--color-on-accent'), get('--color-accent')) >= (MEASURED.has(t.id) ? 3 : 4.5), `${t.id}: 강조 위 글자 < 기준`)
 }
-// 기본 테마 = 꿈틀 초록(44 결정 ⓒ), 다른 색 테마는 각자 강조색
-assert.equal(resolved('default').get('--color-accent'), '#22a45d')
+// 기본 테마 = 브랜드 깊은 숲(45 결정 ③), 다크도 같은 청록 집안. 다른 색 테마는 각자 강조색
+assert.equal(resolved('default').get('--color-accent'), '#12715e')
+assert.equal(resolved('dark').get('--color-accent'), '#19856b')
+// 45: 기본 테마는 강조 채움 위 흰 글자·강조 글자 모두 4.5:1 이상(예전 초록은 3.2:1이라 굵은 글자에만 썼다)
+for (const id of ['default', 'dark']) {
+  const { get } = resolved(id)
+  assert.ok(contrast(get('--color-on-accent'), get('--color-accent')) >= 4.5, `${id}: 강조 위 글자 < 4.5`)
+  for (const s of ['--color-bg-app', '--color-bg-ground']) assert.ok(contrast(get('--color-accent-ink'), get(s)) >= 4.5, `${id}: 강조 글자 / ${s} < 4.5`)
+  for (const k of ['--color-priority-high', '--color-priority-medium', '--color-priority-low']) assert.ok(contrast(get(k), get('--color-bg-app')) >= 3, `${id}: ${k} 체크 테두리 < 3`)
+  assert.ok(contrast(get('--color-text-danger'), get('--color-bg-app')) >= 4.5, `${id}: 위험 글자 < 4.5`)
+}
 assert.equal(resolved('sky').get('--color-accent'), '#4e75f2')
 assert.equal(resolved('black').get('--color-accent'), '#5a62fa')
 assert.deepEqual(failures, [], `대비 기준 미달:\n${failures.join('\n')}`)
