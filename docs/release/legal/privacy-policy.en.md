@@ -67,7 +67,7 @@ Our server and AI run on **a computer owned by the operator in the Republic of K
 
 ## 7. AI and your data
 1. All AI features run on **an AI model hosted on the operator's own computer**. Your text is **not sent to third-party AI providers** (such as OpenAI, Google or Anthropic).
-2. Only what a feature needs is sent (e.g. a note to sort, task titles and list names, the day's journal text when journal conversation is on and the entry is not "private"). **Calendar events from Google/Apple or your phone's calendars are never sent to AI.**
+2. Only what a feature needs is sent (e.g. a note to sort, task titles and list names, the tasks, events and notes the AI assistant looks up to answer your question, the day's journal text when journal conversation is on and the entry is not "private", and journal text when you turn on journal access for the AI assistant). **Calendar events from Google/Apple or your phone's calendars are never sent to AI.**
 3. The server **does not store or log AI request or response text**; it keeps only usage counts to enforce limits.
 4. AI output you keep in the app (journal conversation and summary, weekly reports, sorting/tag results) is stored and synced as your content under Section 3.
 5. AI output is an automated suggestion and may be wrong. Auto-sorting and auto-tagging are not automated decisions with significant effects on your rights; you can change or undo them at any time.
