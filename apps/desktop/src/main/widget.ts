@@ -11,6 +11,7 @@ import { planCompleteWithXp, planReopenWithXp, type CoreDb } from '@sprout/schem
 import { db } from './db'
 import { actionTooOld, buildSnapshot, MAX_APPLIED, parseAction, snapshotKey, type WidgetAction, type WidgetSnapshot } from './widgetSnapshot'
 import { bakeArt } from './widgetArt'
+import type { Species } from '@sprout/schema/growth'
 import { onCalendarsChanged, panelEvents } from './calendars'
 
 /** App Group 이름 = 팀 ID + 번들 ID. 팀 ID는 서명 인증서의 OU(지금 개발 인증서: BU697KN34B).
@@ -103,7 +104,9 @@ async function writeSnapshot(force = false) {
   mkdirSync(root(), { recursive: true })
   if (snap.growth) {
     const g = snap.growth
-    try { await bakeArt(join(root(), g.art), g.species, g.stage, g.mood) } catch (e) { console.warn('[widget] 캐릭터 그림 굽기 실패:', e) }
+    // 43 §17: 입은 옷·갈래까지 같이 굽는다(파일 이름에 모습 열쇠가 들어 있다)
+    const look = await coreDb.get<{ look_json: string | null }>('SELECT look_json FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1').catch(() => null)
+    try { await bakeArt(join(root(), g.art), g.species as Species | null, g.stage, g.mood, look?.look_json) } catch (e) { console.warn('[widget] 캐릭터 그림 굽기 실패:', e) }
   }
   const key = snapshotKey(snap)
   if (!force && key === lastKey && existsSync(join(root(), 'snapshot.json'))) return

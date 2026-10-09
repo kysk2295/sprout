@@ -24,7 +24,7 @@ Node 22에서 돌린다(`. ../scripts/node22.sh`).
 - **법률 문서**: 정본은 `docs/release/legal/*.md`. 고친 뒤 `npm run build`만 하면 된다. 맨 위 "초안" 인용 메모는 빌드에서 빠지고, 대신 `legalDraftBanner: true`면 "출시 전 초안" 띠가 붙는다. 남은 `[ ]` 칸은 노란 표시.
 - **첫 화면 문구**: `src/pages.mjs` (`T('한국어', 'English')` 쌍). 스타일은 `src/styles.css`, 동작은 `src/app.js`, 첫 화면의 직접 해 보기 창(빠른 추가·성장·작업 지도·캘린더)은 `src/demos.js`(브라우저 안에서만 도는 흉내 — 서버 호출 없음).
 - **스크린샷**: `public/assets/img/*.webp` — 데스크톱 앱을 1440×900(2배)으로 찍어 1600×1000 WebP q82로 줄인 것(틀 없이, macOS 창 틀은 CSS `.win`). `data-dark`가 있으면 어두운 화면에서 그 그림으로 바뀐다. 시연 계정(`demo-site-…@sprout.test`, 찍은 뒤 삭제)의 예시 데이터만 쓴다 — 실제 사용자 데이터 금지.
-- **캐릭터 그림**: 앱의 `CharacterArt.tsx`를 그대로 SVG로 뽑는다 — `npm run characters` (레포 루트 node_modules 필요).
+- **캐릭터 그림**: 앱과 같은 그림 데이터(`@sprout/schema/characterArt`)를 SVG로 뽑는다 — `npm run characters` (레포 루트 node_modules 필요).
 - **OG 이미지**: `npm run og` (맥 Chrome 헤드리스로 `scripts/og.html`을 찍어 `public/og.png`).
 
 미리보기: `npm run dev` → http://localhost:4173 (Caddy와 같은 주소 규칙).

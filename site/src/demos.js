@@ -194,7 +194,7 @@
   function bump(el, cls) { if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls) }
 
   // 성장 체험에서 고른 종을 첫 화면 캐릭터에도
-  var species = 'cat'
+  var species = 'worm'
   var onSpecies = []
   var charSrc = function (sp, st) { return '/assets/characters/' + (st ? sp + '-' + st : 'egg') + '.svg' }
 
@@ -426,10 +426,10 @@
   // 2. 성장 — 끝내면 자라는 캐릭터
   // ════════════════════════════════════════════════════════════════
   var SPECIES = [
-    { id: 'turtle', ko: '꾸준한 거북이', en: 'Steady Turtle', dko: '계획·몰입 — 정한 일을 끝까지 차근차근', den: 'Planner & deep focus: finishes what it starts' },
-    { id: 'squirrel', ko: '차곡차곡 다람쥐', en: 'Tidy Squirrel', dko: '계획·멀티 — 여러 일을 빠짐없이 챙겨요', den: 'Planner & multitasker: keeps every plate spinning' },
-    { id: 'cat', ko: '몰두하는 고양이', en: 'Absorbed Cat', dko: '즉흥·몰입 — 꽂히면 깊게 빠져요', den: 'Spontaneous & deep focus: dives deep once hooked' },
-    { id: 'otter', ko: '재주 많은 수달', en: 'Handy Otter', dko: '즉흥·멀티 — 아이디어가 많고 빨라요', den: 'Spontaneous & multitasker: quick and full of ideas' }
+    { id: 'snail', ko: '꾸준한 달팽이', en: 'Steady Snail', dko: '계획·몰입 — 정한 일을 끝까지 차근차근', den: 'Planner & deep focus: finishes what it starts' },
+    { id: 'bee', ko: '차곡차곡 꿀벌', en: 'Tidy Bee', dko: '계획·멀티 — 여러 일을 빠짐없이 챙겨요', den: 'Planner & multitasker: keeps every plate spinning' },
+    { id: 'worm', ko: '몰두하는 애벌레', en: 'Absorbed Caterpillar', dko: '즉흥·몰입 — 꽂히면 깊게 빠져요', den: 'Spontaneous & deep focus: dives deep once hooked' },
+    { id: 'frog', ko: '재주 많은 개구리', en: 'Handy Frog', dko: '즉흥·멀티 — 아이디어가 많고 빨라요', den: 'Spontaneous & multitasker: quick and full of ideas' }
   ]
   var STAGES = [{ ko: '아기', ro: '아기로', en: 'Baby', lv: 1 }, { ko: '꼬마', ro: '꼬마로', en: 'Kid', lv: 3 }, { ko: '친구', ro: '친구로', en: 'Buddy', lv: 6 }, { ko: '단짝', ro: '단짝으로', en: 'Best friend', lv: 10 }, { ko: '전설', ro: '전설로', en: 'Legend', lv: 15 }]
   // 체험용 레벨 표(실제 앱보다 훨씬 빨리 오른다): 레벨 L이 시작되는 XP
