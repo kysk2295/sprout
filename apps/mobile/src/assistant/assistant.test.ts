@@ -52,6 +52,9 @@ const lists = [{ id: 'inbox1', name: '기본함', kind: 'inbox' }, { id: 'l2', n
   assert.match(input.messages[0].content, /This week is 2026-10-05 through 2026-10-11/)
   assert.deepEqual((input.format as { properties: { listId: { enum: string[] } } }).properties.listId.enum, ['', 'inbox1', 'l2'])
   assert.equal(input.messages.length, 3)
+  // 13 §3.1 기록 묻기 규칙(앞 규칙이 놓친 말은 모델이 recall:last·recall:count로 표시)
+  assert.match(input.messages[0].content, /recall:last/)
+  assert.match(input.messages[0].content, /recall:count/)
 }
 assert.equal(isConversational('너 무슨 기능 할 수 있어?'), true)
 assert.equal(isConversational('오늘 할 일 보여 줘'), false)

@@ -1,9 +1,10 @@
 import { SoftIcon } from './SoftIcon'
 import type { SoftIconName } from '@sprout/tokens/softIcons'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpRight, BarChart3, Check, Cpu, List, MoreHorizontal, Plus, RefreshCw, RotateCcw, Square, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpRight, BarChart3, CalendarDays, Check, Cpu, History, List, MoreHorizontal, Plus, RefreshCw, RotateCcw, Square, Trash2 } from 'lucide-react'
 import { answerFace, answerKindOf, COMPANION_SIZE, EGG_TAP_LINE, errorFace, pickLine, quickReplies, TAP_LINES, tapSpeaks } from '@sprout/schema/companion'
 import { canGrantTaskXp } from '@sprout/schema/growth'
+import { daysBetween, dayWord, ymdOf, type RecallHit, type RecallResult } from '@sprout/schema/recall'
 import { useGrowth } from '../data/growth'
 import { CompanionFace, CompanionSay, CompanionXp, StillFace, useCompanion } from './companion/CompanionFace'
 import { localModels, type AssistantProgress } from '../../../shared/assistant'
@@ -213,8 +214,9 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
                     : <StillFace species={me.species} stage={me.stage} size={size} mood={face.mood} dim={face.dim} />}
                   <div className="assistant-ai__body">
                     {nameLine}
-                    <p className="assistant-text">{kind === 'create' || kind === 'query' || kind === 'stats' || m.undone ? face.line : m.text}</p>
-                    {m.result && <ResultCard result={m.result} onOpen={onOpen} onDone={() => setBump((b) => ({ id: m.id, move: 'hop', n: (b?.n ?? 0) + 1, xp: canXp }))} />}
+                    <p className="assistant-text">{kind === 'create' || kind === 'query' || kind === 'stats' || kind === 'recall' || m.undone ? face.line : m.text}</p>
+                    {m.result?.recall && <RecallCard recall={m.result.recall} onOpen={onOpen} />}
+                    {m.result && !m.result.recall && <ResultCard result={m.result} onOpen={onOpen} onDone={() => setBump((b) => ({ id: m.id, move: 'hop', n: (b?.n ?? 0) + 1, xp: canXp }))} />}
                     {m.result?.created && !m.undone && <button className="assistant-undo" onClick={() => void a.undo(m)}><RotateCcw />되돌리기</button>}
                     {m === lastMsg && chips.length > 0 && (
                       <div className="assistant-chips" role="group" aria-label="빠른 답">
@@ -330,6 +332,41 @@ function ResultCard({ result: r, onOpen, onDone }: { result: AssistantResult; on
         )
       })}
       {!more && tasks.length > limit && <button className="assistant-card__more" onClick={() => setMore(true)}>더 보기 {tasks.length - limit}</button>}
+    </div>
+  )
+}
+
+/** 13 §3.1 기록 카드: 마지막으로 한 것 1행(+ 다음 예정 1행), 횟수면 그 기간 기록 행(최대 5, 더 보기). 행 = 열기(할 일 상세 · 일정 팝오버 · 그날 캘린더) */
+function RecallCard({ recall: r, onOpen }: { recall: RecallResult; onOpen: (id: string) => void }) {
+  const [more, setMore] = useState(false)
+  const now = new Date()
+  const today = ymdOf(now)
+  const rows: { hit: RecallHit; meta: string; tone: 'past' | 'future' }[] = []
+  if (r.mode === 'last' && r.last) rows.push({ hit: r.last, meta: `${dayWord(r.last.date, now)}${r.last.date === today ? '' : ` · ${daysBetween(r.last.date, today)}일 전`}`, tone: 'past' })
+  if (r.mode === 'count') for (const hit of r.hits ?? []) rows.push({ hit, meta: dayWord(hit.date, now), tone: 'past' })
+  const limit = r.mode === 'count' && !more ? 5 : rows.length
+  const shown = rows.slice(0, limit)
+  if (r.next) shown.push({ hit: r.next, meta: `다음 예정 · ${dayWord(r.next.date, now)}`, tone: 'future' })
+  if (!shown.length) return null
+  const head = r.mode === 'last' ? '마지막 기록' : `${r.scope ?? '지금까지'} 기록`
+  return (
+    <div className="assistant-card">
+      <div className="assistant-card__head">
+        <History />
+        <span>{head}</span>
+        {r.mode === 'count' && <em>{r.count ?? 0}번</em>}
+      </div>
+      {shown.map(({ hit, meta, tone }) => (
+        <div key={`${tone}:${hit.id}`} className={`assistant-row${tone === 'past' && hit.source === 'task' ? ' is-done' : ''}`} onClick={() => onOpen(hit.open)}>
+          {hit.source === 'task'
+            ? <span className={`checkbox${tone === 'past' ? ' is-checked' : ''}`} aria-hidden>{tone === 'past' && <Check />}</span>
+            : <CalendarDays className="assistant-row__icon" aria-hidden />}
+          <span className="assistant-row__title">{hit.title}</span>
+          <span className={`assistant-row__meta${tone === 'future' ? ' is-future' : ''}`}>{meta}</span>
+          <ArrowUpRight className="assistant-row__go" />
+        </div>
+      ))}
+      {r.mode === 'count' && !more && rows.length > 5 && <button className="assistant-card__more" onClick={() => setMore(true)}>더 보기 {rows.length - 5}</button>}
     </div>
   )
 }

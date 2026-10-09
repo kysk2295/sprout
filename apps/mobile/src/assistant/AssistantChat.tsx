@@ -6,11 +6,13 @@
 // · ↓ 최신으로 · 입력창(1줄 44 → 최대 6줄, Return = 보내기, 처리 중 = ■ 정지)
 import { useLiveQuery } from '../data/rows'
 import { useRouter } from 'expo-router'
-import { ArrowDown, ArrowUp, BarChart3, Check, List, RefreshCw, RotateCcw, Square, TriangleAlert } from 'lucide-react-native'
+import { ArrowDown, ArrowUp, BarChart3, CalendarDays, Check, History, List, RefreshCw, RotateCcw, Square, TriangleAlert } from 'lucide-react-native'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AccessibilityInfo, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 import { XP } from '@sprout/schema/growth'
+import { daysBetween, dayWord, ymdOf, type RecallHit, type RecallResult } from '@sprout/schema/recall'
+import { openInCalendarApp } from '../calendars/device'
 import { answerFace, answerKindOf, COMPANION_SIZE, companionLabel, companionName, EGG_TAP_LINE, errorFace, levelLine, pickLine, quickReplies, tapSpeaks, TAP_LINES, WAITING_FACE, type CompanionFace as Face, type CompanionMove } from '@sprout/schema/companion'
 import { completeTasks } from '../data/tasks'
 import { useBuddy } from '../diary/data'
@@ -145,7 +147,8 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
         ) : (
           <Ai key={m.id} name={who} face={faceOf(faces[i], i === animatedRow, i === lastAi ? 'last' : undefined)} xp={i === lastAi ? xp : 0}>
             {faces[i]?.line ? <Text style={[s.text, { color: p.textPrimary }]} selectable>{faces[i]!.line}</Text> : null}
-            {m.result ? <ResultCard r={m.result} onComplete={() => { if (i === lastAi) setPlay((o) => ({ move: 'hop', n: o.n + 1 })); if (todayTaskXp < XP.taskDailyCap && i === lastAi) setXp((n) => n + 1) }} /> : null}
+            {m.result?.recall ? <RecallCard r={m.result.recall} /> : null}
+            {m.result && !m.result.recall ? <ResultCard r={m.result} onComplete={() => { if (i === lastAi) setPlay((o) => ({ move: 'hop', n: o.n + 1 })); if (todayTaskXp < XP.taskDailyCap && i === lastAi) setXp((n) => n + 1) }} /> : null}
             {m.result?.created && !m.undone ? (
               <Pressable accessibilityRole="button" onPress={() => void doUndo(m)} style={s.undo} hitSlop={6}>
                 <RotateCcw size={15} color={p.accent} /><Text style={[FONT.sub, { color: p.accentInk, fontWeight: '600' }]}>되돌리기</Text>
@@ -356,6 +359,45 @@ function ResultCard({ r, onComplete }: { r: AssistantResult; onComplete?: () => 
       })}
       {!more && tasks.length > limit ? (
         <Pressable accessibilityRole="button" onPress={() => setMore(true)} style={s.more}><Text style={[FONT.sub, { color: p.accentInk }]}>더 보기 {tasks.length - limit}</Text></Pressable>
+      ) : null}
+    </View>
+  )
+}
+
+/** 13 §3.1 기록 카드: 마지막으로 한 것 1행(+ 다음 예정), 횟수면 그 기간 기록(최대 5, 더 보기). 누름 = 할 일 상세 · 일정 시트 · 휴대폰 캘린더 앱 */
+function RecallCard({ r }: { r: RecallResult }) {
+  const p = usePalette()
+  const router = useRouter()
+  const [more, setMore] = useState(false)
+  const now = new Date()
+  const today = ymdOf(now)
+  const rows: { hit: RecallHit; meta: string; future?: boolean }[] = []
+  if (r.mode === 'last' && r.last) rows.push({ hit: r.last, meta: `${dayWord(r.last.date, now)}${r.last.date === today ? '' : ` · ${daysBetween(r.last.date, today)}일 전`}` })
+  if (r.mode === 'count') for (const hit of r.hits ?? []) rows.push({ hit, meta: dayWord(hit.date, now) })
+  const shown = rows.slice(0, r.mode === 'count' && !more ? 5 : rows.length)
+  if (r.next) shown.push({ hit: r.next, meta: `다음 예정 · ${dayWord(r.next.date, now)}`, future: true })
+  if (!shown.length) return null
+  const open = (key: string) => {
+    if (key.startsWith('ev:')) router.push(`/event/${key.slice(3)}`)
+    else if (key.startsWith('dev:')) { const [id, at] = key.slice(4).split('|'); void openInCalendarApp(id, at) }
+    else router.push(`/task/${key}`)
+  }
+  return (
+    <View style={[s.card, { backgroundColor: p.cardBg, borderColor: p.borderDivider }]}>
+      <View style={[s.cardHead, { borderBottomColor: p.borderDivider }]}>
+        <History size={14} color={p.textSecondary} />
+        <Text style={[FONT.sub, { color: p.textSecondary, flex: 1, fontWeight: '600' }]} numberOfLines={1}>{r.mode === 'last' ? '마지막 기록' : `${r.scope ?? '지금까지'} 기록`}</Text>
+        {r.mode === 'count' ? <Text style={[FONT.meta, { color: p.textTertiary }]}>{r.count ?? 0}번</Text> : null}
+      </View>
+      {shown.map(({ hit, meta, future }) => (
+        <Pressable key={`${future ? 'n' : 'p'}:${hit.id}`} accessibilityRole="button" accessibilityLabel={`${hit.title} 열기`} onPress={() => open(hit.open)} style={({ pressed }) => [s.row, pressed && { backgroundColor: p.bgSelected }]}>
+          {hit.source === 'task' && !future ? <Check size={18} color={p.textTertiary} /> : <CalendarDays size={18} color={future ? p.accent : p.textTertiary} />}
+          <Text style={[FONT.body, { flex: 1, fontSize: 15, color: future ? p.textPrimary : p.textSecondary }]} numberOfLines={1}>{hit.title}</Text>
+          <Text style={[FONT.meta, { color: future ? p.accent : p.textTertiary, fontSize: 13 }]}>{meta}</Text>
+        </Pressable>
+      ))}
+      {r.mode === 'count' && !more && rows.length > 5 ? (
+        <Pressable accessibilityRole="button" onPress={() => setMore(true)} style={s.more}><Text style={[FONT.sub, { color: p.accentInk }]}>더 보기 {rows.length - 5}</Text></Pressable>
       ) : null}
     </View>
   )

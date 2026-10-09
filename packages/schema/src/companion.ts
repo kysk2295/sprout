@@ -50,7 +50,8 @@ export function scopeOf(request: string): string | null {
 }
 
 // ── AI 비서 답(13 §3 결과 종류) → 얼굴·한 줄 ─────────────────────
-export type AnswerKind = 'create' | 'query' | 'stats' | 'reply' | 'chat'
+/** recall = 기록 묻기(13 §3.1 — 한 줄은 recall.ts recallLine이 고른 글) */
+export type AnswerKind = 'create' | 'query' | 'stats' | 'reply' | 'chat' | 'recall'
 export type AnswerInput = {
   kind: AnswerKind
   /** 결과 행 수(조회는 total) */
@@ -72,8 +73,9 @@ export type AnswerInput = {
 export const isQuestion = (text: string) => /[?？]\s*$|까요?\s*[.!]?\s*$|나요\s*[.!]?\s*$|알려\s*주(세요|어|라)|말씀해\s*주세요|어떻게 할까/.test(text.trim())
 
 /** 이전 기록(종류 칸이 없던 답)도 결과 모양으로 종류를 짐작한다 */
-export function answerKindOf(r: { kind?: AnswerKind; created?: unknown; stats?: unknown; tasks?: unknown[] } | undefined): AnswerKind {
+export function answerKindOf(r: { kind?: AnswerKind; created?: unknown; stats?: unknown; tasks?: unknown[]; recall?: unknown } | undefined): AnswerKind {
   if (r?.kind) return r.kind
+  if (r?.recall) return 'recall'
   if (r?.created) return 'create'
   if (r?.stats) return 'stats'
   if (r?.tasks) return 'query'
@@ -91,6 +93,8 @@ export function answerFace(a: AnswerInput): CompanionFace {
     const at = a.first?.start_at || a.first?.due_at
     return { mood: 'happy', move: 'hop', line: egged(at ? `넣어 뒀어. ${ya(whenLabel(at, now))}.` : '넣어 뒀어.', a.egg) }
   }
+  // 기록 묻기: 앱이 고른 답 한 줄(recallLine) 그대로
+  if (a.kind === 'recall') return { mood: 'smile', move: null, line: egged((a.text ?? '').trim(), a.egg) || null }
   if (a.kind === 'stats') return { mood: 'smile', move: null, line: egged(scope ? `${eunNeun(scope)} 이만큼 했어.` : '이만큼 했어.', a.egg) }
   if (a.kind === 'query') {
     const lead = scope ? `${scope} ` : ''

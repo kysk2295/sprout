@@ -2,6 +2,9 @@
 // 데스크톱 main/assistant.ts(서버 호출·오류) + renderer/data/assistant.ts(askAssistant·executeIntent·undoAssistant)와 같은 흐름.
 // 스트림은 expo/fetch(ReadableStream 지원). 사용자가 직접 보낸 요청만 부른다 — 수집함 분류는 부르지 않는다(26 M-C5).
 import { insertStmt } from '@sprout/schema/taskCore'
+import { externalRange, recallAsk, recallFromModel, recallLine, recallResult, recallSql, type RecallAsk, type RecallRow } from '@sprout/schema/recall'
+import { listEvents } from '../calendars/device'
+import { getDeviceCal, shownCalendars } from '../calendars/store'
 import { fetch as streamFetch } from 'expo/fetch'
 import { currentUserId, serverAccess } from '../data/auth'
 import { db, run } from '../data/db'
@@ -119,6 +122,32 @@ async function executeIntent(intent: Intent, id: string): Promise<AssistantResul
   return queryResult(intent, rows)
 }
 
+/** 13 §3.1 기록 묻기: 할 일 + 꿈틀 일정 + 켜 둔 휴대폰 캘린더에서 찾아 앱이 답 한 줄을 고른다 */
+export async function executeRecall(ask: RecallAsk, now = new Date()): Promise<AssistantResult> {
+  const q = recallSql(ask)
+  const tasks = await db.getAll<{ id: string; title: string; status: number; completed_at: string | null; start_at: string | null; due_at: string | null }>(q.tasks.sql, q.tasks.args)
+  const events = await db.getAll<{ id: string; title: string; start_at: string | null }>(q.events.sql, q.events.args).catch(() => [])
+  const rows: RecallRow[] = [...tasks.map((t) => ({ ...t, source: 'task' as const })), ...events.map((e) => ({ id: e.id, title: e.title, start_at: e.start_at, source: 'event' as const, open: `ev:${e.id}` }))]
+  const cals = shownCalendars(getDeviceCal()).map((c) => c.id)
+  if (cals.length) {
+    const { from, to } = externalRange(now)
+    const [y1, m1, d1] = from.split('-').map(Number)
+    const [y2, m2, d2] = to.split('-').map(Number)
+    // 권한이 없거나 느리면 건너뛴다(3초)
+    const dev = await Promise.race([listEvents(cals, new Date(y1, m1 - 1, d1), new Date(y2, m2 - 1, d2)).catch(() => []), new Promise<[]>((r) => setTimeout(() => r([]), 3000))])
+    for (const e of dev) {
+      if (!e.title) continue
+      const start = e.startDate instanceof Date ? e.startDate : new Date(e.startDate)
+      if (Number.isNaN(start.getTime())) continue
+      const p2 = (n: number) => String(n).padStart(2, '0')
+      const day = `${start.getFullYear()}-${p2(start.getMonth() + 1)}-${p2(start.getDate())}`
+      rows.push({ id: `${e.id}|${start.toISOString()}`, title: e.title, start_at: e.allDay ? day : `${day}T${p2(start.getHours())}:${p2(start.getMinutes())}`, source: 'external', open: `dev:${e.id}|${start.toISOString()}` })
+    }
+  }
+  const recall = recallResult(ask, rows, now)
+  return { kind: 'recall', text: recallLine(ask, recall, now), recall }
+}
+
 /** 13 §5: 생성 직후와 수정 시각·상태가 같을 때만 되돌린다 */
 export async function undoAssistant(created: { id: string; stamp: string }) {
   const t = await db.getOptional<{ modified_at: string; status: number; deleted_at: string | null }>('SELECT modified_at, status, deleted_at FROM tasks WHERE id = ?', [created.id])
@@ -128,9 +157,12 @@ export async function undoAssistant(created: { id: string; stamp: string }) {
 }
 
 export async function askAssistant(text: string, model: string, id: string, signal: AbortSignal, history: { role: 'user' | 'assistant'; content: string }[], onProgress: (p: AssistantProgress) => void): Promise<AssistantResult> {
+  const now = new Date()
+  // 13 §3.1 "언제 마지막으로 / 얼마나 지났지 / 몇 번 했지"는 앞 규칙으로 바로 찾는다(모델을 부르지 않음)
+  const recall = recallAsk(text, now)
+  if (recall) { onProgress({ phase: 'querying' }); return executeRecall(recall, now) }
   onProgress({ phase: 'connecting' })
   const lists = await db.getAll<ListLite>('SELECT id, name, kind FROM lists WHERE archived_at IS NULL')
-  const now = new Date()
   const { input, conversational } = buildChatInput(text, model, lists, history, now, Intl.DateTimeFormat().resolvedOptions().timeZone)
   let partial = ''
   const raw = await chat(
@@ -144,6 +176,8 @@ export async function askAssistant(text: string, model: string, id: string, sign
   onProgress({ phase: 'validating' })
   const intent = interpret(raw, text, now)
   if ('reply' in intent) return { text: intent.reply, kind: 'reply' }
+  const modelRecall = intent.action !== 'create' ? recallFromModel(intent, text, now) : null
+  if (modelRecall) { onProgress({ phase: 'querying' }); return executeRecall(modelRecall, now) }
   onProgress({ phase: intent.action === 'create' ? 'saving' : intent.action === 'reply' ? 'validating' : 'querying' })
   return executeIntent(intent, id)
 }

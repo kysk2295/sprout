@@ -119,6 +119,8 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   // 기본함은 사이드바에서 스마트 목록으로 보이므로 list:<기본함 id> 대신 smart:inbox로(선택 표시가 맞게)
   const listView = (listId: string) => (listId === inboxId ? 'smart:inbox' : `list:${listId}`)
   const openTask = (id: string) => { setView('tasks'); setSelected('smart:all'); setSelection([id]) }
+  // 13 §3.1 AI 비서 카드: 할 일 · 꿈틀 일정('ev:') · 연결된 캘린더 일정('day:<날짜>' = 그날 캘린더)
+  const openAssistantItem = (id: string) => { if (isEventKey(id)) { setView('calendar'); void openEventById(id) } else if (id.startsWith('day:')) { setView('calendar'); requestCalendarDate(id.slice(4)) } else openTask(id) }
   // 뒤에서 도는 정리: 수집함 AI 분류·링크 제목(11 v3-3), 새 할 일 영역 분류(14 §0.3)
   useCollector(lists)
   useLinkSync() // 33 §6.4 [[링크]] 글 ↔ 관계
@@ -306,14 +308,14 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
         <ListSuggestHost />{/* 30 §B AI 리스트 제안: 새 할 일 자동 분류 + 기본함 정리 창 */}
         <TickTickImportHost onOpenMap={() => setView('map')} onOpenCalendar={() => setView('calendar')} />
         <OverdueHost />
-        <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}} offset={view === 'tasks' && detailShown ? detailW : undefined}/>
+        <AssistantLauncher view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={openAssistantItem} offset={view === 'tasks' && detailShown ? detailW : undefined}/>
         <ReminderCards onOpen={(id) => { if (isEventKey(id)) { setView('calendar'); void openEventById(id) } else setSelection([id]) }} onComplete={(id) => void actions.complete([id])} />
         <Rail view={view} onView={onRailView} sync={sync} email={email} onSettings={settings} onHelp={openHelp} onNotice={openNotice} />
         {overlay==='command' && <CommandMenu commands={commands} onClose={()=>setOverlay(undefined)} onSearch={(q)=>{setSearchQuery(q);setOverlay('search')}}/>}
         {overlay==='search' && <SearchDialog initial={searchQuery} onClose={()=>setOverlay(undefined)} onPick={(r)=>{if(r.kind==='event'){setView('calendar');requestOpenEvent(r.id,r.list_id??dayKey());return}setView('tasks');if(r.kind==='task'){setSelected(r.list_id?listView(r.list_id):'smart:all');setSelection([r.id])}else selectView(`${r.kind}:${r.id}`)}}/>}
         {overlay==='quick' && <QuickAdd lists={lists} tags={tags} inboxId={inboxId} onClose={()=>setOverlay(undefined)} onCreated={(id,listId)=>{setView('tasks');setSelected(listView(listId));setSelection([id])}}/>}
         {(overlay==='settings'||overlay==='shortcuts') && <DesktopSettings initial={overlay==='shortcuts'?'shortcuts':'smart'} onClose={()=>setOverlay(undefined)}/> }
-        {tidyOpen ? <TidyScreen lists={lists} onClose={() => setTidyOpen(false)} /> : view === 'growth' ? <GrowthView lists={lists} onSurvey={() => setSurvey(true)} /> : view === 'map' ? <WorkMapView lists={lists} onOpen={openTask} onTasks={() => setView('tasks')} onGrowth={() => setView('growth')}/> : view === 'diary' ? <DiaryView onOpen={openTask}/> : view === 'assistant' ? <WorkspaceView view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={openTask}/> : (view === 'notes' || view === 'watch' || view === 'wiki') ? <NotesView section={view} onSection={setView} lists={lists} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : view === 'calendar' ? (
+        {tidyOpen ? <TidyScreen lists={lists} onClose={() => setTidyOpen(false)} /> : view === 'growth' ? <GrowthView lists={lists} onSurvey={() => setSurvey(true)} /> : view === 'map' ? <WorkMapView lists={lists} onOpen={openTask} onTasks={() => setView('tasks')} onGrowth={() => setView('growth')}/> : view === 'diary' ? <DiaryView onOpen={openTask}/> : view === 'assistant' ? <WorkspaceView view={view} onView={setView} draft={assistantDraft} onDraft={setAssistantDraft} assistant={assistant} onOpen={openAssistantItem}/> : (view === 'notes' || view === 'watch' || view === 'wiki') ? <NotesView section={view} onSection={setView} lists={lists} onOpen={id=>{setView('tasks');setSelected('smart:all');setSelection([id])}}/> : view === 'calendar' ? (
           <CalendarView lists={lists} tags={tags} inboxId={inboxId} actions={actions} />
         ) : (
           <>
