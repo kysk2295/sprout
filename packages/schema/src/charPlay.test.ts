@@ -1,6 +1,6 @@
 // 49 §5.3 만지기 v3 시험: 누르기 판정(깡충·두 번·3번째·간지럼·쉼), 움직임 키, 회전 컷, 착지, 움직임 줄이기
 import assert from 'node:assert/strict'
-import { DIZZY, GIGGLE, HOP, IDLE, PET, PULSE, SPIN, WOBBLE, landAt, newTapState, nextIdleMs, onTap, pickIdle, sample, spinFrame, track, type Motion } from './charPlay.ts'
+import { DIZZY, GIGGLE, HOP, IDLE, PET, PULSE, SPIN, WOBBLE, landAt, newShakeState, newTapState, nextIdleMs, onAccel, onTap, SHAKE, pickIdle, sample, spinFrame, track, type Motion } from './charPlay.ts'
 
 const seq = (times: number[], reduced = false) => { let s = newTapState(); return times.map((t) => { const r = onTap(s, t, reduced); s = r.state; return r.motion.kind }) }
 // 천천히 누르기: 깡충 · 깡충 · 한 바퀴(3번째) · 깡충 …
@@ -33,4 +33,19 @@ for (let t = SPIN.spin!.from; t <= SPIN.spin!.to; t += 0.02) assert.ok(sample(SP
 assert.equal(landAt(HOP), Math.round(0.66 * HOP.ms)); assert.ok(landAt(SPIN)! > SPIN.spin!.to * SPIN.ms); assert.equal(landAt(GIGGLE), null)
 const tr = track(HOP, 'y', 0); assert.equal(tr.reduce((a, b) => a + b.ms, 0), HOP.ms)
 assert.ok(nextIdleMs(0) === 8000 && nextIdleMs(1) === 15000)
+// 흔들기(49 §7.1): 세 번 크게 흔들어야 켜지고, 10초 동안은 다시 안 켜진다. 가만히·한두 번 툭 = 아니다
+{
+  const feed = (s: ReturnType<typeof newShakeState>, seq: [number, number][]) => seq.map(([t, x]) => onAccel(s, x, 0, -1, t))
+  const s = newShakeState()
+  assert.deepEqual(feed(s, [[0, 0], [60, 0.02], [120, -0.01]]), [false, false, false], '가만히')
+  const s2 = newShakeState()
+  assert.ok(!feed(s2, [[0, 0], [60, 1.6], [120, 1.6], [400, 1.6]]).some(Boolean), '한 번 툭(그 뒤 같은 값) = 아니다')
+  const s3 = newShakeState()
+  const r = feed(s3, [[0, 0], [60, 1.5], [180, -0.2], [300, 1.5], [420, -0.2]])
+  assert.equal(r.filter(Boolean).length, 1, '세 번 흔들면 한 번'); assert.equal(r.indexOf(true), 3)
+  assert.ok(!feed(s3, [[3000, 1.5], [3120, -0.2], [3240, 1.5], [3360, -0.2]]).some(Boolean), '10초 쉼')
+  assert.ok(feed(s3, [[300 + SHAKE.cooldownMs + 100, 1.5], [300 + SHAKE.cooldownMs + 220, -0.2], [300 + SHAKE.cooldownMs + 340, 1.5]]).some(Boolean), '쉼 뒤 다시')
+  const s4 = newShakeState()
+  assert.ok(!feed(s4, [[0, 0], [60, 1.5], [1000, -0.2], [2000, 1.5]]).some(Boolean), '느린 세 번(창 밖) = 아니다')
+}
 console.log('charPlay ok')

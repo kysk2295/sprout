@@ -8,7 +8,7 @@ import { useLiveQuery } from '../data/rows'
 import { useRouter } from 'expo-router'
 import { ArrowDown, ArrowUp, BarChart3, CalendarDays, Check, History, List, RefreshCw, RotateCcw, Square, TriangleAlert } from 'lucide-react-native'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { AccessibilityInfo, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { AccessibilityInfo, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 import { XP } from '@sprout/schema/growth'
 import { daysBetween, dayWord, ymdOf, type RecallHit, type RecallResult } from '@sprout/schema/recall'
@@ -25,6 +25,8 @@ import { Checkbox } from '../ui/Checkbox'
 import { OFFLINE, type AssistantProgress, type AssistantResult } from './core'
 import { cancel, cancelAgentCard, refresh, saveAgentCard, send, setAgentLine, setBuddyName, setDraft, toggleTarget, undo, undoAgentCard, type AssistantState, type Message } from './store'
 import { AgentCards, Bands, editParams, LiveText, ToolChips } from './AgentParts'
+import { SceneBand } from '../growth/art/Scene3D'
+import { useMyBandScene } from '../growth/home/glass'
 import { leftLine } from './core'
 import { isConfirm, type ConfirmCard } from '@sprout/schema/assistantExec'
 
@@ -270,8 +272,13 @@ function EmptyChat({ a, variant, onPick }: { a: AssistantState; variant: 'full' 
     prev.current = i
     setSay((o) => ({ text: TAP_LINES[i], n: o.n + 1 }))
   }
+  // 49 §6.1 · §8.1: 전체 화면 빈 대화는 고른 배경(look eq.bg) 장면이 캐릭터 뒤에 깔리고 아래로 화면 바탕에 녹는다(할 일 화면 띠와 같은 규칙 — 다크 = 밤 짝)
+  const { width } = useWindowDimensions()
+  const band = useMyBandScene(p.dark)
+  const top = variant === 'sheet' ? 16 : 56
   return (
-    <View style={[s.empty, { paddingTop: variant === 'sheet' ? 16 : 56 }]}>
+    <View style={[s.empty, { paddingTop: top }]}>
+      {variant === 'full' && buddy.species ? <SceneBand dark={p.dark} sceneKey={band} width={width} height={12 + top + size + 64} bg={p.cardBg} fade={0.42} style={{ position: 'absolute', top: -12, left: -16 }} /> : null}
       <View style={{ alignItems: 'center' }}>
         <SayBubble text={say.text} n={say.n} style={{ bottom: size * 0.86 }} />
         <CompanionFace species={buddy.species} stage={buddy.stage} size={size} mood="smile" loop="breathe" play={play} onPress={tap} label={companionLabel(buddy.species, buddy.name, buddy.level, buddy.stage)} />

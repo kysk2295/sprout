@@ -2,19 +2,23 @@
 // 이메일 → 비밀번호 → 보내기 키 = 제출. 버튼 안 스피너 = 로딩(입력 잠금). 전환할 때 이메일은 유지.
 // 20 §4.3.1: 주 버튼 아래 구분선 → iOS "Apple로 계속하기" · "Google로 계속하기", Android는 Google만.
 // Apple은 애플 로그인 권한을 넣은 빌드(SPROUT_APPLE_SIGN_IN=1)에서만 진짜 버튼, 아니면 "준비 중"(누르면 안내).
-// 40 §2.2·§2.3: 제목 위 가운데 알 56(4초마다 꿈틀, 누르면 깡충). 오류가 나도 알은 그대로. 가입 화면만 알 아래 회색 한 줄.
+// 49 §8.1 로그인 = 새벽 정원(다크 = 별밤)이 끝까지 + 둥실 씨앗(3.6초 ±10px·±2°, 움직임 줄이기면 멈춤) + 굵은 두 줄 + 유리 카드 위 입력·버튼. 흰 페이지 없음.
+// 글자색은 장면 밝기를 따른다(sceneTone — 밝은 새벽 = 짙은 글자, 별밤 = 흰 글자). 입력칸은 흰 면 그대로(읽기).
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft, Lock, Mail } from 'lucide-react-native'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { appleAvailable } from '../data/apple'
 import { authErrorText, login, loginWithApple, loginWithGoogle, signup, socialErrorText } from '../data/auth'
 import { FONT, shadow } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { AppleMark, GoogleMark } from '../ui/BrandMarks'
-import { COMPANION_SIZE } from '@sprout/schema/companion'
-import { CompanionFace } from '../ui/CompanionFace'
+import { sceneDark } from '@sprout/schema/characterArt'
+import { SceneBackdrop } from '../growth/art/Scene3D'
+import { Glass, sceneTone } from '../growth/home/glass'
+import { FloatingSeed } from '../growth/make/parts'
+import { useMotionReduced } from '../growth/motion'
 import { GlassButton } from '../ui/Glass'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -35,7 +39,11 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
   const pw = useRef<TextInput>(null)
   const signupMode = mode === 'signup'
   const locked = busy || !!social
-  const [hop, setHop] = useState(0)
+  const reduced = useMotionReduced()
+  const { width, height } = useWindowDimensions()
+  const sceneKey = p.dark ? 'scene-dusk' : 'scene-dawn'
+  const tone = sceneTone(sceneKey)
+  const darkScene = sceneDark(sceneKey)
 
   const continueWithGoogle = async () => {
     if (locked) return
@@ -86,21 +94,22 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
   const err = (field: 'email' | 'password' | 'form') => (error?.field === field ? <Text style={[s.err, { color: p.danger }]}>{error.text}</Text> : null)
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: p.loginBg }}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.page, { paddingTop: insets.top + (signupMode ? 0 : 28), paddingBottom: insets.bottom + 20 }]}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: darkScene ? '#1F2846' : '#EDC4B1' }}>
+      <SceneBackdrop sceneKey={sceneKey} width={width} height={height} align="center" style={StyleSheet.absoluteFill} />
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.page, { paddingTop: insets.top + (signupMode ? 0 : 20), paddingBottom: insets.bottom + 20 }]}>
         {signupMode ? (
           <View style={s.nav}>
             <GlassButton label="뒤로" onPress={() => (router.canGoBack() ? router.back() : router.replace({ pathname: '/login', params: { email } }))}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>
           </View>
         ) : null}
-        <View style={[s.mark, { marginTop: signupMode ? 0 : 6 }]}>
-          <CompanionFace species={null} stage={1} size={COMPANION_SIZE.mPhone} loop="wiggle" play={{ move: 'hop', n: hop }} onPress={() => setHop((n) => n + 1)} label="알. 눌러 보기" />
-          {signupMode ? <Text style={[s.markLine, { color: p.textSecondary }]}>가입하면 이 알에서 나와 닮은 친구가 깨어나요</Text> : null}
-        </View>
-        <Text style={[FONT.large, { color: p.textPrimary, marginBottom: 6 }]}>{signupMode ? '등록하기' : '로그인'}</Text>
-        <Text style={[FONT.sub, { color: p.textSecondary, marginBottom: 26 }]}>
-          {signupMode ? '이메일과 비밀번호만 있으면 돼요.' : '컴퓨터와 같은 계정으로 들어가면\n할 일과 캐릭터가 그대로 이어져요.'}
+        <Text accessibilityRole="header" style={[s.title, { color: tone.ink }]}>{signupMode ? '씨앗 하나로\n시작해요' : '할 일을 끝낼 때마다\n함께 자라는 친구'}</Text>
+        <Text style={[s.lead, { color: tone.sub }]}>
+          {signupMode ? '이메일과 비밀번호만 있으면 돼요. 가입하면 씨앗에서 닮은 친구가 깨어나요.' : '컴퓨터와 같은 계정으로 들어가면 할 일과 캐릭터가 그대로 이어져요.'}
         </Text>
+        <View style={s.mark} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <FloatingSeed seed={0} size={signupMode ? 104 : 132} reduced={reduced} />
+        </View>
+        <Glass dark={darkScene} radius={26} style={s.card}>
         <View style={s.stack}>
           <View style={[s.input, input('email')]}>
             <Mail size={18} color={p.textTertiary} />
@@ -155,20 +164,21 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
           ) : null}
           <SocialButton label="Google로 계속하기" waiting={social === 'google'} disabled={locked} onPress={() => void continueWithGoogle()} icon={<GoogleMark />} />
         </View>
+        </Glass>
         <Pressable
           accessibilityRole="link"
           onPress={() => (signupMode ? router.replace({ pathname: '/login', params: { email } }) : router.push({ pathname: '/signup', params: { email } }))}
           style={s.switch}
         >
-          <Text style={[FONT.sub, { color: p.textSecondary, textAlign: 'center' }]}>
+          <Text style={[FONT.sub, { color: tone.sub, textAlign: 'center' }]}>
             {signupMode ? '이미 계정이 있으신가요? ' : '계정이 없으세요? '}
-            <Text style={{ color: p.accentInk, fontWeight: '500' }}>{signupMode ? '로그인' : '등록하기'}</Text>
+            <Text style={{ color: tone.ink, fontWeight: '700', textDecorationLine: 'underline' }}>{signupMode ? '로그인' : '등록하기'}</Text>
           </Text>
         </Pressable>
         <View style={{ flex: 1 }} />
         {signupMode ? (
-          <Text style={[s.terms, { color: p.textTertiary }]}>
-            가입함으로써 <Text style={{ textDecorationLine: 'underline', color: p.textSecondary }}>이용 약관</Text> 및 <Text style={{ textDecorationLine: 'underline', color: p.textSecondary }}>개인정보 처리방침</Text>에{'\n'}동의하게 됩니다.
+          <Text style={[s.terms, { color: tone.sub }]}>
+            가입함으로써 <Text style={{ textDecorationLine: 'underline', color: tone.ink }}>이용 약관</Text> 및 <Text style={{ textDecorationLine: 'underline', color: tone.ink }}>개인정보 처리방침</Text>에{'\n'}동의하게 됩니다.
           </Text>
         ) : null}
       </ScrollView>
@@ -197,8 +207,11 @@ function SocialButton({ label, icon, onPress, disabled, waiting, soon }: { label
 const s = StyleSheet.create({
   page: { flexGrow: 1, paddingHorizontal: 24 },
   nav: { height: 52, justifyContent: 'center', marginLeft: -12, marginBottom: 6 },
-  mark: { alignItems: 'center', marginBottom: 10 },
-  markLine: { fontSize: 12, lineHeight: 17, marginTop: 2 },
+  // 49 §1: 31/800 두 줄 제목 + 회색 한 줄, 씨앗은 장면 위에 둥실, 입력은 유리 카드 위
+  title: { fontSize: 31, lineHeight: 38, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
+  lead: { fontSize: 15, lineHeight: 21, marginTop: 8 },
+  mark: { alignItems: 'center', marginVertical: 14 },
+  card: { padding: 16 },
   stack: { gap: 12 },
   // 44 §6.1: 입력 모서리 14, 큰 버튼 52 · 모서리 14 · 강조 그림자
   input: { height: 52, borderRadius: 14, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },

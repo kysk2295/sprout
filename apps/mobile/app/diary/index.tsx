@@ -4,7 +4,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { CalendarDays, ChevronLeft, Lock, MoreHorizontal } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { Gesture } from 'react-native-gesture-handler'
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -20,6 +20,9 @@ import { clearWant, openDay, useDiaryState } from '../../src/diary/state'
 import { BYE_ME, composeDraft, replay, SCRIPTED } from '../../src/diary/talk'
 import { KEY, preload } from '../../src/growth/store'
 import { useMotionReduced } from '../../src/growth/motion'
+import { SoftScene } from '../../src/growth/art/Scene3D'
+import { useCharacterWear } from '../../src/growth/art/CharacterArt'
+import { myScene } from '../../src/growth/home/glass'
 import { dayKey } from '../../src/lib/dates'
 import { usePalette } from '../../src/theme/ThemeProvider'
 import { GlassButton, GlassGroup } from '../../src/ui/Glass'
@@ -111,8 +114,13 @@ export default function Diary() {
     ? (freeStatus === 'saving' ? '저장 중…' : freeStatus === 'saved' || written ? '자동 저장됨 ✓' : '그냥 쓰기')
     : written ? '저장됨 ✓' : past ? '지난 일기' : '오늘 일기'
 
+  // 49 §6.1: 고른 배경 장면을 은은하게(흐리게 + 바탕색 막 80%) — 글 읽기가 먼저
+  const win = useWindowDimensions()
+  const wear = useCharacterWear()
+  const soft = wear?.species ? myScene(wear.wear.eq?.bg, p.dark) : null
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
+      {soft ? <SoftScene sceneKey={soft} width={win.width} height={win.height} veil={p.pageBg} veilOpacity={p.dark ? 0.78 : 0.8} /> : null}
       <View style={[s.hdr, { marginTop: insets.top }]}>
         <GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>
         <Pressable style={s.mid} onPress={() => router.push('/diary/calendar')} accessibilityRole="button" accessibilityLabel={`${dayTitle(date)}, ${priv ? '나만 보기, ' : ''}${status}. 기분 달력 열기`}>

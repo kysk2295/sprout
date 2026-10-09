@@ -119,3 +119,27 @@ export function landAt(m: Motion): number | null {
   }
   return null
 }
+
+/* ───────── 휴대폰 흔들기 판정(49 §7.1 — 어지러움) ─────────
+   가속도계(g 단위, 중력 포함)를 SHAKE.intervalMs마다 받는다. 앞 표본과의 차이(|Δa|)가 thresholdG를 넘는 순간을 "한 번 흔듦"으로 세고
+   (가까운 두 번은 gapMs 안이면 하나로), windowMs 안에 peaks번이면 흔들기. 한 번 반응하면 cooldownMs(10초) 동안은 다시 반응하지 않는다.
+   걷기·주머니에서 꺼내기(한두 번 큰 변화)로는 안 켜지게 세 번을 요구한다. */
+export const SHAKE = { intervalMs: 60, thresholdG: 1.2, gapMs: 110, peaks: 3, windowMs: 800, cooldownMs: 10_000 } as const
+export type ShakeState = { prev: [number, number, number] | null; peaks: number[]; until: number }
+export const newShakeState = (): ShakeState => ({ prev: null, peaks: [], until: 0 })
+/** 가속도 표본 하나 → 흔들기면 true(그리고 쉬는 시간 시작). 상태는 제자리에서 바꾼다(초당 16번 — 새 객체를 만들지 않게) */
+export function onAccel(s: ShakeState, x: number, y: number, z: number, now: number): boolean {
+  const p = s.prev
+  s.prev = [x, y, z]
+  if (!p) return false
+  const d = Math.hypot(x - p[0], y - p[1], z - p[2])
+  if (d < SHAKE.thresholdG) return false
+  const last = s.peaks[s.peaks.length - 1]
+  if (last !== undefined && now - last < SHAKE.gapMs) return false
+  s.peaks = s.peaks.filter((t) => now - t < SHAKE.windowMs)
+  s.peaks.push(now)
+  if (s.peaks.length < SHAKE.peaks || now < s.until) return false
+  s.peaks = []
+  s.until = now + SHAKE.cooldownMs
+  return true
+}

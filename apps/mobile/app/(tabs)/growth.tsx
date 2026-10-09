@@ -35,6 +35,7 @@ import { dayKey } from '../../src/lib/dates'
 import { usePalette } from '../../src/theme/ThemeProvider'
 import { PopMenu, useAnchor } from '../../src/ui/Menu'
 import { useTabBarSpace } from '../../src/ui/tabBarSpace'
+import { useShake } from '../../src/growth/useShake'
 import { useToast } from '../../src/ui/Toast'
 
 /** 새 옷 카드 순서: 레벨 선물 먼저, 그중 높은 레벨(방금 오른 레벨 · 진화 선물)부터 — 나머지(한 날·계절…)는 `외 N개` */
@@ -90,6 +91,8 @@ export default function Growth() {
   const [toast, setToast] = useState<CharacterItemRow[] | null>(null)
   const [evo, setEvo] = useState<Evolution | null>(null)
   const evoOn = useRef(false)
+  // 49 §7.1 흔들기 → 어지러움(성장 탭이 보이고 앱이 앞에 있을 때만 가속도계를 켠다. 움직임 줄이기면 맥박 + 생각 얼굴)
+  useShake(live && !!species && !evo, () => { stage.current?.play('dizzy'); stage.current?.say(TOUCH_LINES.dizzy, 1800) })
   const showFresh = useCallback(() => {
     if (evoOn.current) return
     const rows = takeFresh()

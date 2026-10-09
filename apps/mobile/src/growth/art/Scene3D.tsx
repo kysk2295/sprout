@@ -6,7 +6,7 @@ import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'reac
 import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
-import { BAND_CROP, BAND_PX, DECOR3D, DECOR_SPOTS, SCENE_PX, SCENE_TINT, SCENES3D, bandKeyFor, decorKey, sceneLayout, standOnPerch } from '@sprout/schema/characterArt'
+import { BAND_CROP, BAND_PX, DECOR3D, DECOR_SPOTS, SCENE_LOW_PX, SCENE_PX, SCENE_TINT, SCENES3D, bandKeyFor, decorKey, sceneLayout, standOnPerch } from '@sprout/schema/characterArt'
 import { artSource, useArtPackVersion } from './CharacterArt'
 
 export type SceneLayout = ReturnType<typeof sceneLayout>
@@ -98,6 +98,21 @@ export const SceneBand = memo(function SceneBand({ dark, sceneKey, width, height
         </Defs>
         <Rect x="0" y="0" width={width} height={height} fill={`url(#${id})`} />
       </Svg>
+    </View>
+  )
+})
+
+/** 은은한 배경(49 §6.1 · §8.1 일기): 고른 장면의 390 미리보기를 흐리게(blurRadius) 깔고 바탕색 막을 덮어 글을 읽기 쉽게.
+ *  작은 그림 하나 + 막 하나라 가볍다(39 §11). 화면 크기에 꽉 채운다(cover, 가운데) */
+export const SoftScene = memo(function SoftScene({ sceneKey, width, height, veil, veilOpacity = 0.8, blur = 8 }: { sceneKey: string; width: number; height: number; veil: string; veilOpacity?: number; blur?: number }) {
+  const src = artSource(sceneKey, SCENE_LOW_PX) ?? artSource(sceneKey, SCENE_PX)
+  const tint = SCENE_TINT[sceneKey] ?? SCENE_TINT['scene-day']
+  const aspect = SCENES3D[sceneKey]?.aspect ?? 2
+  const w = Math.max(width, height / aspect), h = w * aspect
+  return (
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: tint.bottom, overflow: 'hidden' }]} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {src ? <Image source={src} blurRadius={blur} style={{ position: 'absolute', left: (width - w) / 2, top: (height - h) / 2, width: w, height: h }} fadeDuration={0} /> : null}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: veil, opacity: veilOpacity }]} />
     </View>
   )
 })

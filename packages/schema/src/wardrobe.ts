@@ -353,6 +353,7 @@ export const TOUCH_LINES = {
   wake: '으음… 안 잤어!',
   wear: '어때? 잘 어울려?',
   bg: '여기 좋다!',
+  dizzy: '어지러워… 빙글빙글',
   trophy: '트로피가 선반에 올라갔어!'
 } as const
 /** 만지기 숫자(43 §4.1) */

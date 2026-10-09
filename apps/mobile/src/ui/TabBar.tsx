@@ -1,6 +1,7 @@
 // 떠 있는 탭 알약(20 §2 [틱틱 iOS 26]): 좌우 20, 화면 바닥 위 16, 높이 58 [영상 실측], 고른 탭 뒤 미끄러지는 알약, 아이콘만(접근성 라벨은 붙임).
 // 2026-10-05 5칸: 할 일 · 캘린더(오늘 날짜 숫자) · 수집함 · 성장 · 더보기. 설정은 더보기 안 화면이라 설정에 있으면 더보기가 켜진다.
 // 선택 = 강조색. 탭을 다시 누르면 맨 위로(목록이 useScrollToTop). 완료로 XP가 들어오면 성장 아이콘 위 "+1"(21 §3, 0.9초).
+// 49 §6: 성장 탭에서만 장면 위 유리 — 더 비치는 면(sceneGlass) + 장면 밝기에 맞춘 글자색(어두운 장면 = 짙은 유리 + 흰 아이콘). 다른 탭은 지금 막대 그대로.
 import type { BottomTabBarProps } from 'expo-router/tabs'
 import { BlurView } from 'expo-blur'
 import { CircleEllipsis, Layers, Settings, SquareCheckBig, Sprout } from 'lucide-react-native'
@@ -13,6 +14,9 @@ import { xpGained } from '../data/events'
 import { M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { tabBarBottom } from './tabBarSpace'
+import { useCharacterWear } from '../growth/art/CharacterArt'
+import { sceneTone, myScene } from '../growth/home/glass'
+import { sceneDark } from '@sprout/schema/characterArt'
 
 type IconT = typeof Settings
 /** 캘린더 탭 아이콘: 둥근 사각 안 오늘 날짜 숫자(시안 .date-ic) — 선택이면 채움 */
@@ -56,17 +60,22 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const px = useSharedValue(0)
   useEffect(() => { px.value = reduce || !tabW ? sel * tabW : withSpring(sel * tabW, SPRING.snappy) }, [sel, tabW, reduce, px])
   const pill = useAnimatedStyle(() => ({ transform: [{ translateX: px.value }] }))
+  // 성장 탭: 장면 위 유리(49 §6) — 내 배경 장면의 밝기를 따른다
+  const wear = useCharacterWear()
+  const sceneKey = cur === 'growth' ? myScene(wear?.wear.eq?.bg, p.dark) : null
+  const tone = sceneKey ? sceneTone(sceneKey) : null
+  const sceneDarkTone = sceneKey ? sceneDark(sceneKey) : p.dark
   return (
-    <View onLayout={(e) => setBarW(e.nativeEvent.layout.width)} style={[s.bar, { bottom: tabBarBottom(insets.bottom), borderColor: p.glassLine, shadowOpacity: p.dark ? 0.5 : 0.1 }]}>
-      {Platform.OS === 'ios' ? <BlurView intensity={30} tint={p.dark ? 'dark' : 'light'} style={[StyleSheet.absoluteFill, s.round]} /> : null}
-      <View style={[StyleSheet.absoluteFill, s.round, { backgroundColor: Platform.OS === 'ios' ? p.glass : p.cardBg }]} />
-      {tabW ? <Animated.View pointerEvents="none" style={[s.pill, { width: tabW - 4, backgroundColor: p.bgSelected }, pill]} /> : null}
+    <View onLayout={(e) => setBarW(e.nativeEvent.layout.width)} style={[s.bar, { bottom: tabBarBottom(insets.bottom), borderColor: tone ? tone.line : p.glassLine, shadowOpacity: tone ? 0.12 : p.dark ? 0.5 : 0.1 }]}>
+      {Platform.OS === 'ios' ? <BlurView intensity={tone ? 24 : 30} tint={sceneDarkTone ? 'dark' : 'light'} style={[StyleSheet.absoluteFill, s.round]} /> : null}
+      <View style={[StyleSheet.absoluteFill, s.round, { backgroundColor: tone ? tone.bg : Platform.OS === 'ios' ? p.glass : p.cardBg }]} />
+      {tabW ? <Animated.View pointerEvents="none" style={[s.pill, { width: tabW - 4, backgroundColor: tone ? tone.did : p.bgSelected }, pill]} /> : null}
       {state.routes.map((route, i) => {
         const tab = TABS[route.name]
         if (!tab) return null
         const cur = state.routes[state.index]?.name
         const focused = state.index === i || OWNER[cur] === route.name
-        const color = focused ? p.tabOn : p.tabIcon
+        const color = tone ? (focused ? tone.ink : tone.sub) : focused ? p.tabOn : p.tabIcon
         const onPress = () => {
           const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true })
           if (state.index !== i && !e.defaultPrevented) navigation.navigate(route.name, route.params)
