@@ -63,19 +63,34 @@ type Item = CalItem<TaskRow>
 const VIEW_ICON: Record<MobileCalView, typeof List> = { list: List, year: Grid3x3, month: CalendarDays, week: Columns4, '3day': Columns3, day: Square }
 const GUTTER = 48
 
-/** 항목 모양(06 §14.2·§14.3): 일정 / 완료 / 지난 미완료 / 보통 */
+/**
+ * 항목 모양(20 §7 v1.4 — 틱틱 다크 사진 + 사용자 2026-10-09 "할일과 안한일이 색상이 차이가 있어야"):
+ * - 안 한 할 일(지난 날 포함) = 리스트 색 그대로 채운 막대 + 흰 굵은 글자. 날짜가 지났다고 옅게 하지 않는다
+ * - 한 할 일 = 같은 모양, 리스트 색을 바탕에 어둡게 섞은 면(다크 32%·라이트 22%) + 흐린 글자. 취소선 없음
+ * - 일정 = 제 색을 섞은 옅은 면(다크 50%·라이트 25%) + 캘린더 아이콘, 지난 일정은 한 할 일과 같이 흐리게
+ */
 function lookOf(p: Palette, it: Item, now: Date) {
   const ev = isEventId(it.task.id)
   const done = !ev && it.task.status !== 0
   const past = isPast(it.end, now)
   const overdue = !ev && !done && past
-  const faded = done || past
+  const faded = done || (ev && past)
   const color = it.task.list_color ?? p.accent
+  const c = color.slice(0, 7)
+  const base = p.pageBg
+  const dimText = p.dark ? 'rgba(255,255,255,0.48)' : alpha(p.textPrimary.slice(0, 7), 0.42)
+  const fill = faded ? mix(c, base, p.dark ? 0.32 : 0.22) : ev ? mix(c, base, p.dark ? 0.5 : 0.25) : c
+  const text = faded ? dimText : ev && !p.dark ? mix(c, p.textPrimary.slice(0, 7), 0.45) : '#ffffff'
   return {
-    ev, done, overdue, faded, color,
-    text: done || (ev && past) ? p.textTertiary : overdue ? p.textSecondary : p.textPrimary,
-    /** 체크박스 테두리·일정 아이콘 색: 리스트 색 70% + 글자색(다크는 흰색 쪽) */
-    mark: ev && past ? p.textTertiary : mix(color.slice(0, 7), p.dark ? '#ffffff' : p.textSecondary, 0.7)
+    ev, done, overdue, faded, color, fill, text,
+    /** 시각 블록 왼쪽 줄 */
+    edge: faded ? mix(c, base, p.dark ? 0.55 : 0.45) : ev ? c : mix(c, '#000000', 0.82),
+    /** 블록 둘째 줄(시각) */
+    sub: faded ? dimText : ev && !p.dark ? p.textSecondary : 'rgba(255,255,255,0.82)',
+    /** 체크박스 테두리·일정 아이콘 색 — 채운 막대 위라 글자색 쪽 */
+    mark: faded ? dimText : ev && !p.dark ? mix(c, p.textPrimary.slice(0, 7), 0.7) : 'rgba(255,255,255,0.9)',
+    /** 체크된 칸 채움(흐린 면 위에서 너무 튀지 않게) */
+    checkFill: mix(c, base, 0.7)
   }
 }
 
@@ -207,9 +222,13 @@ export default function CalendarScreen() {
         <View ref={viewMenu.ref} collapsable={false}>
           <GlassButton label="보기 전환" onPress={viewMenu.open}><ViewIcon size={20} color={p.textPrimary} /></GlassButton>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${title}, 오늘로`} onPress={() => setCursor(today)} style={{ flex: 1 }}>
-          <Text style={[FONT.nav, { color: p.textPrimary, textAlign: 'center', fontSize: 19 }]}>{title}</Text>
-        </Pressable>
+        {/* 달 이름은 화면 가운데에 고정(좌 버튼 1개·우 버튼 2개 폭과 상관없이 — 틱틱 사진, 사용자 2026-10-09) */}
+        <View pointerEvents="box-none" style={s.headTitle}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`${title}, 오늘로`} onPress={() => setCursor(today)} hitSlop={8}>
+            <Text style={[FONT.nav, { color: p.textPrimary, textAlign: 'center', fontSize: 19 }]}>{title}</Text>
+          </Pressable>
+        </View>
+        <View style={{ flex: 1 }} />
         <GlassButton label="오늘로" onPress={() => setCursor(today)}><CalendarCheck size={20} color={cursor === today ? p.accent : p.textPrimary} /></GlassButton>
         <View ref={more.ref} collapsable={false}>
           <GlassButton label="더보기" onPress={more.open}><Ellipsis size={22} color={p.textPrimary} /></GlassButton>
@@ -728,9 +747,9 @@ const DayCell = memo(function DayCell(props: CellProps) {
   const { d } = props
   // 06 §16 숫자 아래 한 줄(휴일 이름·주 번호·음력)이 있으면 띠를 하나 덜 보인다
   const mk = props.marks(d, props.first)
-  // 큰 칸(월 — research 35)은 높이만큼 띠를 더 보인다(숫자 줄 28 + 띠 14.5)
+  // 큰 칸(월 — research 35)은 높이만큼 띠를 더 보인다(숫자 줄 30 + 띠 17.5 = 높이 16 + 사이 1.5 — 틱틱 다크 사진)
   const big = props.rowH > 80
-  const max = (big ? Math.max(3, Math.floor((props.rowH - 30) / 14.5)) : props.rowH > 60 ? 3 : 2) - (mk.side ? 1 : 0)
+  const max = (big ? Math.max(3, Math.floor((props.rowH - 30) / 17.5)) : props.rowH > 60 ? 3 : 2) - (mk.side ? 1 : 0)
   const all = props.items
   const shown = all.length <= max ? all : all.slice(0, max - 1)
   const more = all.length - shown.length
@@ -745,19 +764,21 @@ const DayCell = memo(function DayCell(props: CellProps) {
       style={[s.cell, props.tint && { backgroundColor: alpha(p.accent.slice(0, 7), 0.14), borderRadius: 8 }]}
     >
       {/* [영상 실측 research 35 §3] 고른 날 = 강조색 채운 원 + 흰 숫자, 오늘(안 고름) = 옅은 원 + 강조색 숫자. 그날 판이 열리면 고른 칸 전체에 옅은 강조색 면 */}
-      <View style={[s.num, big && s.numBig, props.sel ? { backgroundColor: p.accent } : props.isToday ? { backgroundColor: alpha(p.accent.slice(0, 7), 0.14) } : null]}>
+      <View style={[s.num, big && s.numBig, props.sel ? { backgroundColor: p.accent } : props.isToday ? { backgroundColor: p.dark ? '#ffffff' : alpha(p.accent.slice(0, 7), 0.14) } : null]}>
         <Text style={{ fontSize: big ? 14 : 12, fontWeight: props.isToday || props.sel ? '700' : '500', color: props.sel ? '#fff' : props.isToday ? p.accent : dayTone(p, d, mk, props.faded) }}>{Number(d.slice(8))}</Text>
       </View>
       <View style={{ marginTop: -1, opacity: props.faded ? 0.55 : 1 }}><SideLabel marks={mk} /></View>
       {shown.map((it) => {
         const k = lookOf(p, it, now)
         return (
-          <View key={it.key} style={[s.bar, { backgroundColor: alpha(k.color.slice(0, 7), k.faded ? 0.08 : 0.18) }]}>
-            <Text numberOfLines={1} style={{ fontSize: 10, lineHeight: 13, color: k.text }}>{it.task.title}</Text>
+          <View key={it.key} style={[big ? s.barBig : s.bar, { backgroundColor: k.fill }]}>
+            {k.ev ? <CalendarDays size={big ? 9 : 8} color={k.mark} strokeWidth={2.4} /> : null}
+            {/* 틱틱처럼 말줄임 없이 칸 끝에서 자른다 */}
+            <Text numberOfLines={1} ellipsizeMode="clip" style={[big ? s.barTextBig : s.barText, { color: k.text }, k.faded && { fontWeight: '500' }]}>{it.task.title}</Text>
           </View>
         )
       })}
-      {more ? <Text style={{ fontSize: 10, lineHeight: 13, color: p.textTertiary, paddingLeft: 3 }}>+{more}</Text> : null}
+      {more ? <View style={[s.moreChip, { backgroundColor: p.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}><Text style={{ fontSize: 10, lineHeight: 13, fontWeight: '600', color: p.textTertiary }}>+{more}</Text></View> : null}
     </Pressable>
   )
 }, (a, b) => a.d === b.d && a.first === b.first && a.rowH === b.rowH && a.isToday === b.isToday && a.sel === b.sel && a.tint === b.tint && a.faded === b.faded && a.marks === b.marks && a.onPick === b.onPick && a.onAdd === b.onAdd && sameItems(a.items, b.items))
@@ -893,9 +914,9 @@ function Timeline(props: {
               {b.slice(0, 3).map((it) => {
                 const k = lookOf(p, it, now)
                 return (
-                  <Pressable key={it.key} accessibilityLabel={`${k.ev ? '일정 ' : ''}${it.task.title}`} onPress={() => props.onOpen(it.task)} onLongPress={(e) => props.onMenu(it.task, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, width: 0, height: 0 })} style={[s.chip, { backgroundColor: alpha(k.color.slice(0, 7), k.faded ? 0.1 : 0.2) }]}>
+                  <Pressable key={it.key} accessibilityLabel={`${k.ev ? '일정 ' : ''}${it.task.title}`} onPress={() => props.onOpen(it.task)} onLongPress={(e) => props.onMenu(it.task, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, width: 0, height: 0 })} style={[s.chip, { backgroundColor: k.fill }]}>
                     {colW >= 48 ? <Mark look={k} onCheck={() => props.onCheck(it.task)} /> : null}
-                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, color: k.text }}>{it.task.title}</Text>
+                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, fontWeight: k.faded ? '500' : '600', color: k.text }}>{it.task.title}</Text>
                   </Pressable>
                 )
               })}
@@ -939,7 +960,7 @@ function Timeline(props: {
 /** 체크박스(할 일, 누르면 완료·완료 취소) 또는 캘린더 아이콘(일정) — 같은 자리·같은 크기 11(06 §14.3) */
 function Mark({ look: k, onCheck }: { look: ReturnType<typeof lookOf>; onCheck?: () => void }) {
   if (k.ev) return <View style={s.mark}><CalendarDays size={11} color={k.mark} strokeWidth={2.4} /></View>
-  const box = [s.mark, s.box, { borderColor: k.done ? k.color : k.mark, backgroundColor: k.done ? k.color : 'transparent' }]
+  const box = [s.mark, s.box, { borderColor: k.done ? k.checkFill : k.mark, backgroundColor: k.done ? k.checkFill : 'transparent' }]
   const check = k.done ? <Check size={8} color="#fff" strokeWidth={4} /> : null
   // 시간 칸 블록은 블록 탭이 자리로 나눠 처리(onCheck 없음), 종일 칩은 Pressable
   if (!onCheck) return <View style={box}>{check}</View>
@@ -1009,13 +1030,13 @@ function DragBlock(props: { block: Block<TaskRow>; colW: number; colIndex: numbe
   const g = Gesture.Exclusive(pan, tap)
   const style = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: 1 + 0.03 * lifted.value }], zIndex: lifted.value > 0.01 || dropped.value ? 10 : 1, opacity: 1 - 0.1 * lifted.value, shadowOpacity: 0.25 * lifted.value }))
   const ghost = useAnimatedStyle(() => ({ opacity: lifted.value > 0.01 ? 0.4 * lifted.value : 0 }))
-  const box = { top, height: h, left: b.col * w + 1, width: w - 3, backgroundColor: alpha(k.color.slice(0, 7), k.faded ? 0.1 : 0.22), borderLeftColor: k.faded ? alpha(k.color.slice(0, 7), 0.5) : k.color }
+  const box = { top, height: h, left: b.col * w + 1, width: w - 3, backgroundColor: k.fill, borderLeftColor: k.edge }
   const body = (
     <>
       {markShown ? <Mark look={k} /> : null}
       <View style={{ flex: 1 }}>
-        <Text numberOfLines={h > 36 ? 2 : 1} style={{ fontSize: 12, lineHeight: 15, fontWeight: '500', color: k.text }}>{t.title}</Text>
-        {h > 40 ? <Text numberOfLines={1} style={{ fontSize: 10, color: k.faded ? p.textTertiary : p.textSecondary }}>{blockTime(b.item.start, b.item.end)}</Text> : null}
+        <Text numberOfLines={h > 36 ? 2 : 1} style={{ fontSize: 12, lineHeight: 15, fontWeight: k.faded ? '500' : '600', color: k.text }}>{t.title}</Text>
+        {h > 40 ? <Text numberOfLines={1} style={{ fontSize: 10, color: k.sub }}>{blockTime(b.item.start, b.item.end)}</Text> : null}
       </View>
     </>
   )
@@ -1072,6 +1093,7 @@ const s = StyleSheet.create({
   ym: { width: '33.33%', paddingHorizontal: 7, paddingVertical: 8 },
   yc: { alignItems: 'center', justifyContent: 'center', borderRadius: 3 },
   head: { height: M.navH, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 },
+  headTitle: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   wd: { flexDirection: 'row', height: 26, alignItems: 'center' },
   wdText: { flex: 1, textAlign: 'center', fontSize: 12 },
   week: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth },
@@ -1082,7 +1104,11 @@ const s = StyleSheet.create({
   prow: { paddingHorizontal: 4 },
   abs: { position: 'absolute', left: 0, right: 0, top: 0 },
   panelEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 24 },
-  bar: { borderRadius: 3, paddingHorizontal: 3 },
+  bar: { borderRadius: 3, paddingHorizontal: 3, flexDirection: 'row', alignItems: 'center', gap: 2, overflow: 'hidden' },
+  barBig: { height: 16, borderRadius: 3, paddingHorizontal: 3, flexDirection: 'row', alignItems: 'center', gap: 2, overflow: 'hidden' },
+  barText: { flex: 1, fontSize: 10, lineHeight: 13 },
+  barTextBig: { flex: 1, fontSize: 11, lineHeight: 14, fontWeight: '600' },
+  moreChip: { alignSelf: 'flex-start', borderRadius: 3, paddingHorizontal: 4 },
   dayEmpty: { alignItems: 'center', paddingVertical: 28 },
   strip: { flexDirection: 'row', paddingHorizontal: 6, paddingBottom: 4 },
   stripDay: { flex: 1, alignItems: 'center', gap: 3 },
