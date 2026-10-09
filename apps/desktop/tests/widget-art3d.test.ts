@@ -35,4 +35,14 @@ const DIR = resolve('packages/schema/art3d')
   assert.equal((html.match(/<img /g) ?? []).length, 1)
   assert.match(html, /width:384px;height:384px;left:-96px;top:-38\.4px/)
 }
+{ // 49 §6.1 위젯 배경: 고른 배경의 낮 짝 장면(390)이 맨 뒤, 받침이 발밑, 둥근 칸
+  const p = widgetArtPlan('frog', 3, 'default', JSON.stringify({ eq: { bg: 'flowers' } }))
+  assert.equal(p.scene?.file, 'scene-flowers@390.webp')
+  assert.ok(p.scene!.at.w > 1 && p.scene!.at.x < 0, '장면이 캐릭터 캔버스보다 넓다')
+  assert.equal(widgetArtPlan('frog', 3, 'default', null).scene?.file, 'scene-day@390.webp')
+  if (existsSync(DIR)) assert.ok(existsSync(resolve(DIR, p.scene!.file)))
+  const html = widgetArtHtml(p, () => 'data:image/webp;base64,AA', 192)
+  assert.ok(html.indexOf('<img') === html.indexOf(`<img src="data:image/webp;base64,AA" style="width:${Math.round(p.scene!.at.w * (192 / p.box.w) * 100) / 100}px`), '장면이 맨 앞(뒤 층)')
+  assert.match(html, /border-radius:38\.4px/)
+}
 console.log('widget-art3d ok')

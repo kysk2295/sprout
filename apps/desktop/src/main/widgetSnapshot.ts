@@ -13,7 +13,7 @@ import { MY_CAL_COLOR, occurrences } from '@sprout/schema/events'
 import { holidayMap } from '@sprout/schema/holidays'
 import { toWeekStart, type WeekStart } from '@sprout/schema/weekStart'
 import { addDays, datePart, daysBetween, hasTime } from '@sprout/schema/time'
-import { widgetArtPath, widgetLookKey } from '@sprout/schema/widget'
+import { widgetArtPath, widgetLookKey, widgetSceneKey } from '@sprout/schema/widget'
 import { colorOf, DEFAULT_OPTIONS, itemsOf, rangeOf, type CalOptions } from '../renderer/src/lib/calendar'
 import { TASK_COLUMNS } from '../renderer/src/data/taskQueries'
 import type { ExtEvent } from '../shared/calendars'
@@ -144,7 +144,7 @@ export function growthOf(character: { name: string | null; species: string | nul
     todayTaskXp: Math.max(0, todayTaskXp),
     todayTaskXpCap: 10,
     mood,
-    art: artPath(species, p.stage, mood, widgetLookKey(character?.look_json))
+    art: artPath(species, p.stage, mood, widgetLookKey(character?.look_json), widgetSceneKey(character?.look_json))
   }
 }
 

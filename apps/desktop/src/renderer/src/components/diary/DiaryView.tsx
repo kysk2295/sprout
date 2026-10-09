@@ -20,6 +20,7 @@ import { MoodCalendar } from './MoodCalendar'
 import { EntryList, MiniCalendar } from './Side'
 import { Dock, Talk, useTalk, type FullBuddy } from './Talk'
 import './diary.css'
+import { SoftSceneBack } from '../ListSceneBand'
 
 // 15 §10 일기 v2 — 왼쪽 260(미니 달력·목록) · 가운데 캐릭터와 이야기(또는 그냥 쓰기) · 오른쪽 340 `오늘 일기`(저장한 편 + 지금 쓰는 편 / 초안).
 // 흐름·말·데이터는 휴대폰 28 §8.10과 같다(packages/schema diaryTalk). 1180 미만이면 오른쪽 열 대신 대화 안 카드, 760 미만이면 왼쪽이 접힌다.
@@ -114,7 +115,9 @@ export function DiaryView({ onOpen }: { onOpen: (taskId: string) => void }) {
   )
 
   return (
-    <div ref={rootRef} className={`diary${narrow ? ' is-narrow' : ''}${wide ? ' is-wide' : ''}${reduced ? ' is-reduced' : ''}`}>
+    <div ref={rootRef} className={`diary has-soft${narrow ? ' is-narrow' : ''}${wide ? ' is-wide' : ''}${reduced ? ' is-reduced' : ''}`}>
+      {/* 49 §6.1: 고른 배경 장면을 흐리게 — 대화 칸이 반투명 바탕으로 덮어 글은 그대로 읽힌다 */}
+      <SoftSceneBack />
       <aside className={`diary__side${narrow ? (sideOpen ? ' is-open' : ' is-closed') : ''}`} aria-hidden={narrow && !sideOpen ? true : undefined}>
         {sideHead}
         {search !== null && (

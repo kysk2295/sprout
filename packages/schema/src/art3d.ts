@@ -109,6 +109,13 @@ export function headTop3d(sp: Species | string, st: number, path: Path = 'a', se
 }
 /** 발밑 자리: 모든 그림이 같다(캔버스 아래 10%, 가운데) */
 export const FOOT = { x: 0.5, y: 0.9 } as const
+/** 위젯·작은 카드에서 캐릭터 뒤에 장면을 깔 자리(49 §6.1): 캐릭터 캔버스 비율 좌표(0~1, 캔버스 밖으로 넘친다).
+ *  장면 받침(perch)이 발밑(FOOT)에 오고, 캐릭터 캔버스가 장면 폭의 charFrac(성장 홈 ≈ 0.64)을 차지한다 */
+export function sceneBehind(sceneKey: string, charFrac = 0.62): { x: number; y: number; w: number; h: number } {
+  const m = SCENES3D[sceneKey] ?? SCENES3D['scene-day'] ?? { perch: [0.5, 0.7], unit: 0.2, aspect: 2 }
+  const w = 1 / charFrac, h = w * m.aspect
+  return { x: FOOT.x - m.perch[0] * w, y: FOOT.y - m.perch[1] * h, w, h }
+}
 
 /** 옷장 칸 그림: 옷 층을 그 옷 자리로 확대해 자른 상자(49 §7). 기준 몸 = 꿀벌 친구(둥근 몸이라 모든 옷이 가운데) */
 export const ICON_BASE: { sp: Species; st: number } = { sp: 'bee', st: 3 }

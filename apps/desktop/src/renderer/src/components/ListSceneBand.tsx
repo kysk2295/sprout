@@ -1,7 +1,8 @@
 // 49 §8.2 할 일 화면 "은은하게"(결정 ②) — 큰 제목 뒤 장면 띠. 자리를 차지하지 않는 배경이라 목록 첫 줄 높이는 그대로다.
 // 49 §6.1: 띠 = 내 배경 장면(look.eq.bg)을 BAND_CROP으로 가로로 자른 것. 낮 짝·밤 짝(sceneKeyFor(bg, true))을 둘 다 깔고 테마(data-theme)로 하나만 보인다(다크 = 밤). 스크롤하면 띠가 위로 밀리며 옅어진다 — transform·opacity만, 리렌더 없음.
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import { sceneKeyFor } from '@sprout/schema/characterArt'
+import { SCENE_LOW_PX, SCENE_PX, sceneKeyFor } from '@sprout/schema/characterArt'
+import { artUrl } from './growth/art3dUrls'
 import { useRaise } from '../data/raise'
 import { SceneBand } from './growth/Scene3D'
 import './listScene.css'
@@ -54,6 +55,30 @@ export function HeaderSceneBand() {
     <div className="lband lband--head" aria-hidden="true">
       <SceneBand dark={false} height={0} className="lband__day" sceneKey={sc.day} />
       <SceneBand dark height={0} className="lband__night" sceneKey={sc.night} />
+    </div>
+  )
+}
+
+/** 캐릭터 뒤 장면 띠(49 §6.1 · §8.1 AI 비서 빈 대화) — 내 배경(낮·밤 짝)을 높이 height로 깔고 아래로 녹는다. 스크롤 따라가기 없음 */
+export function BackSceneBand({ height, className }: { height: number; className?: string }) {
+  const sc = useBandScenes()
+  return (
+    <div className={`lband lband--back${className ? ` ${className}` : ''}`} style={{ height }} aria-hidden="true">
+      <SceneBand dark={false} height={height} className="lband__day" sceneKey={sc.day} />
+      <SceneBand dark height={height} className="lband__night" sceneKey={sc.night} />
+    </div>
+  )
+}
+
+/** 은은한 배경(49 §6.1 · 일기): 내 배경 장면(낮·밤 짝)의 작은 미리보기를 흐리게 깔고, 부르는 쪽 면이 반투명 바탕색으로 덮는다(글 읽기 먼저) */
+export function SoftSceneBack({ className }: { className?: string }) {
+  const sc = useBandScenes()
+  const day = artUrl(sc.day, SCENE_LOW_PX) ?? artUrl(sc.day, SCENE_PX)
+  const night = artUrl(sc.night, SCENE_LOW_PX) ?? artUrl(sc.night, SCENE_PX)
+  return (
+    <div className={`softscene${className ? ` ${className}` : ''}`} aria-hidden="true">
+      {day ? <img className="lband__day" src={day} alt="" draggable={false} /> : null}
+      {night ? <img className="lband__night" src={night} alt="" draggable={false} /> : null}
     </div>
   )
 }

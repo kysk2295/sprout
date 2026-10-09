@@ -3,6 +3,7 @@
 // - 순수 함수만(시험: widget.test.ts). DB 읽기는 앱 쪽(모바일 src/widgets/snapshot.ts).
 // - Swift(plugins/widgets/ios/Snapshot.swift)·Kotlin(modules/sprout-widgets/android …/Snapshot.kt)이 같은 필드를 읽는다.
 import { lookKey, parseLook } from './wardrobe.ts'
+import { sceneKeyFor } from './art3d.ts'
 import { toDate } from './time.ts'
 import { holidayMap } from './holidays.ts'
 import { monthWeeksDays, weekdayTone, weekHead, type WeekStart } from './weekStart.ts'
@@ -185,8 +186,14 @@ export function widgetLookKey(raw: string | null | undefined): string {
   const l = parseLook(raw)
   return l.path === 'a' && !l.eq.hat && !l.eq.neck && !l.eq.hand && !l.eq.back && !l.seed ? '' : lookKey(l)
 }
-/** 저장 칸 안 캐릭터 그림 경로(25 §8.4) — 조합마다 한 장. 그림 판 v5(49 3D 스프라이트) + 입은 모습 열쇠(43 §17 6 — wardrobe.lookKey) */
-export const widgetArtPath = (species: string | null, stage: number, mood: WidgetMood, look = '') => (species ? `art/v5-${species}-${stage}${look ? `-${look}` : ''}-${mood}@2x.png` : 'art/v5-egg@2x.png')
+/** 위젯 캐릭터 뒤 장면(49 §6.1 고른 배경). 위젯은 시각·다크를 따라 다시 굽지 않으므로 `자동`(기본)은 정원 낮, 나머지는 그 배경의 낮 짝 */
+export function widgetSceneKey(raw: string | null | undefined): string {
+  const bg = parseLook(raw).eq.bg
+  return !bg || bg === 'auto' ? 'scene-day' : sceneKeyFor(bg, false, 12)
+}
+/** 저장 칸 안 캐릭터 그림 경로(25 §8.4) — 조합마다 한 장. 그림 판 v6(49 3D 스프라이트 + 고른 배경 장면) + 입은 모습 열쇠(43 §17 6 — wardrobe.lookKey) + 장면 */
+export const widgetArtPath = (species: string | null, stage: number, mood: WidgetMood, look = '', scene = 'scene-day') =>
+  species ? `art/v6-${species}-${stage}${look ? `-${look}` : ''}-${scene.replace(/^scene-/, '')}-${mood}@2x.png` : `art/v6-egg-${scene.replace(/^scene-/, '')}@2x.png`
 
 /** "2026-10-04T09:12:03+09:00" — 로컬 시각 + 오프셋 */
 export function isoLocal(d: Date): string {

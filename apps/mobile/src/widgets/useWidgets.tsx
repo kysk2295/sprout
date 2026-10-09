@@ -7,8 +7,9 @@ import { planWidgetActions, signedOutSnapshot, widgetSnapshotKey, type WidgetMoo
 import { parseLook, type Look } from '@sprout/schema/wardrobe'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { AppState, View } from 'react-native'
-import Svg, { Image as SvgImage } from 'react-native-svg'
-import { bodyBox, bodyKey, layers3d, seedTurnKey, type Box } from '@sprout/schema/characterArt'
+import Svg, { ClipPath, Defs, G, Image as SvgImage, Rect } from 'react-native-svg'
+import { bodyBox, bodyKey, layers3d, sceneBehind, SCENE_LOW_PX, SCENES3D, seedTurnKey, type Box } from '@sprout/schema/characterArt'
+import { widgetSceneKey } from '@sprout/schema/widget'
 import type { Species } from '@sprout/schema/growth'
 import { useAuth } from '../data/auth'
 import { coreDb, db } from '../data/db'
@@ -24,7 +25,7 @@ let running: Promise<void> | null = null
 let again = false
 
 // ── 굽기 요청(그림이 저장 칸에 없을 때) ──
-type ArtJob = { rel: string; species: Species | null; stage: number; level: number; mood: WidgetMood; look: Look }
+type ArtJob = { rel: string; species: Species | null; stage: number; level: number; mood: WidgetMood; look: Look; scene: string }
 let artJob: ArtJob | null = null
 const artListeners = new Set<() => void>()
 const setArtJob = (j: ArtJob | null) => { artJob = j; artListeners.forEach((l) => l()) }
@@ -46,7 +47,7 @@ export function refreshWidgets(signedIn: boolean): Promise<void> {
         if (await writeSnapshot(JSON.stringify(snap), true)) lastKey = key
         const g = snap.growth
         // 43 §17 6: 입힌 모습(look_json)까지 같이 굽는다 — 파일 이름에 모습 열쇠가 들어 있어 옷을 바꾸면 새로 굽는다
-        if (g && !hasArt(g.art)) setArtJob({ rel: g.art, species: g.species as Species | null, stage: g.stage, level: g.level, mood: g.mood, look: parseLook(data?.character?.look_json) })
+        if (g && !hasArt(g.art)) setArtJob({ rel: g.art, species: g.species as Species | null, stage: g.stage, level: g.level, mood: g.mood, look: parseLook(data?.character?.look_json), scene: widgetSceneKey(data?.character?.look_json) })
       } while (again)
     } catch (e) {
       console.warn('[widgets] refresh failed:', e)
@@ -129,15 +130,22 @@ export function useWidgets() {
 /** 굽는 그림 층(뒤 → 앞)과 꽉 채울 상자 — 앱 CharacterArt와 같은 층(공용 layers3d), 몸 테두리(bodyBox)로 192 칸을 채운다 */
 const EGG_BOX: Box = { x: 0.12, y: 0.06, w: 0.76, h: 0.76 }
 type ArtSrc = NonNullable<ReturnType<typeof artSource>>
-function widgetLayers(job: ArtJob): { srcs: ArtSrc[]; box: Box } {
+/** 49 §6.1: 캐릭터 뒤 장면(고른 배경의 낮 짝 — 공용 widgetSceneKey) 390 미리보기 + 자리(sceneBehind, 캔버스 비율). 둥근 칸으로 자른다(모서리 = 칸의 20%) */
+type SceneBack = { src: ArtSrc; at: { x: number; y: number; w: number; h: number } }
+function sceneBack(job: ArtJob): SceneBack | null {
+  const src = SCENES3D[job.scene] ? artSource(job.scene, SCENE_LOW_PX) : null
+  return src ? { src, at: sceneBehind(job.scene) } : null
+}
+function widgetLayers(job: ArtJob): { srcs: ArtSrc[]; box: Box; scene: SceneBack | null } {
   const seed = job.look.seed ?? 0
+  const scene = sceneBack(job)
   if (!job.species) {
     const src = artSource(seedTurnKey(seed, 0), 512)
-    return { srcs: src ? [src] : [], box: EGG_BOX }
+    return { srcs: src ? [src] : [], box: EGG_BOX, scene }
   }
   const L = layers3d(job.species, job.stage, { path: job.look.path, seed, eq: job.look.eq, mood: job.mood, size: 192 })
   const srcs = L.map((l) => artSource(l.key, 768)).filter((x): x is ArtSrc => x != null)
-  return { srcs, box: bodyBox(bodyKey(job.species, job.stage, job.look.path, seed)) }
+  return { srcs, box: bodyBox(bodyKey(job.species, job.stage, job.look.path, seed)), scene }
 }
 
 /** §7.3 캐릭터 그림 굽기: 굽기 요청이 있을 때만 화면 밖에 192pt로 그려 PNG(base64)로 저장 칸에 쓴다.
@@ -150,7 +158,7 @@ export function WidgetArtBaker() {
   const [loaded, setLoaded] = useState(0)
   const art = useMemo(() => (job ? widgetLayers(job) : null), [job])
   useEffect(() => { setLoaded(0); setTries(0) }, [job])
-  const ready = !!art && loaded >= art.srcs.length
+  const ready = !!art && loaded >= art.srcs.length + (art.scene ? 1 : 0)
   useEffect(() => {
     if (!job || !art) return
     if (!art.srcs.length) { if (artJob === job) setArtJob(null); return } // 그림 파일이 없다 — 위젯은 그림 없이
@@ -170,7 +178,11 @@ export function WidgetArtBaker() {
   return (
     <View pointerEvents="none" style={{ position: 'absolute', left: -1000, top: -1000, width: 192, height: 192, opacity: 0 }} importantForAccessibility="no-hide-descendants">
       <Svg key={job.rel} ref={ref} width={192} height={192} viewBox={`${b.x * U} ${b.y * U} ${b.w * U} ${b.h * U}`}>
-        {art.srcs.map((src, i) => <SvgImage key={i} href={src} x={0} y={0} width={U} height={U} preserveAspectRatio="none" onLoad={() => setLoaded((n) => n + 1)} />)}
+        <Defs><ClipPath id="wclip"><Rect x={b.x * U} y={b.y * U} width={b.w * U} height={b.h * U} rx={b.w * U * 0.2} /></ClipPath></Defs>
+        <G clipPath={art.scene ? 'url(#wclip)' : undefined}>
+          {art.scene ? <SvgImage href={art.scene.src} x={art.scene.at.x * U} y={art.scene.at.y * U} width={art.scene.at.w * U} height={art.scene.at.h * U} preserveAspectRatio="none" onLoad={() => setLoaded((n) => n + 1)} /> : null}
+          {art.srcs.map((src, i) => <SvgImage key={i} href={src} x={0} y={0} width={U} height={U} preserveAspectRatio="none" onLoad={() => setLoaded((n) => n + 1)} />)}
+        </G>
       </Svg>
     </View>
   )

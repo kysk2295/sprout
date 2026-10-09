@@ -1,0 +1,24 @@
+/* 49 §8.1 로그인 = 장면 위. 장면은 맨 뒤(고정), 글자색은 장면 밝기(밝은 새벽 = 짙은 글자, 별밤 = 흰 글자), 카드는 유리. */
+.login--scene { background: transparent; isolation: isolate; }
+.login__scene { position: fixed; inset: 0; z-index: -1; }
+.login--scene .login__mark::before { display: none; }
+.login--scene .login__seed { width: 132px; height: 132px; display: block; margin: 0 auto 6px; animation: login-seed 3.6s ease-in-out infinite; filter: drop-shadow(0 10px 12px rgba(40, 30, 20, 0.16)); }
+@keyframes login-seed { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-10px) rotate(2deg); } }
+.login--scene .login__hero { font: 800 31px/38px var(--font-family); letter-spacing: -0.03em; color: #1F2A24; }
+.login--scene .login__sub { color: rgba(31, 42, 36, 0.66); }
+.login--scene .login__card { background: rgba(255, 255, 255, 0.62); border: 1px solid rgba(255, 255, 255, 0.7); backdrop-filter: blur(22px) saturate(1.2); -webkit-backdrop-filter: blur(22px) saturate(1.2); }
+.login--scene .login__input { background: rgba(255, 255, 255, 0.92); }
+.login--scene .login__input:focus { background: #fff; }
+.login--scene .login__switch { color: rgba(31, 42, 36, 0.7); }
+.login--scene.is-dark .login__hero { color: #F4F6F8; }
+.login--scene.is-dark .login__sub, .login--scene.is-dark .login__switch { color: rgba(244, 246, 248, 0.74); }
+.login--scene.is-dark .login__card { background: rgba(22, 28, 40, 0.58); border-color: rgba(255, 255, 255, 0.14); }
+.login--scene.is-dark .login__input { background: rgba(255, 255, 255, 0.08); }
+.login--scene.is-dark .login__input:focus { background: rgba(255, 255, 255, 0.12); }
+.login--scene.is-dark .login__switch button { color: #6EE0C2; }
+@media (prefers-reduced-motion: reduce) { .login--scene .login__seed { animation: none; } }
+:root[data-motion="reduce"] .login--scene .login__seed { animation: none; }
+.login__scene { overflow: hidden; }
+.login__scene img { position: absolute; display: block; max-width: none; pointer-events: none; user-select: none; }
+.login__scene-blur { filter: blur(28px) saturate(1.05); transform: scale(1.08); }
+.login__scene-img.is-faded { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%); }

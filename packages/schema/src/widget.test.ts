@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import {
   buildWidgetCalendar, buildWidgetMonth, isWidgetDate, isWidgetId, parseWidgetAction, planWidgetActions, shiftMonth, widgetAccents,
-  widgetArtPath, widgetCalendarRange, widgetDayTone, widgetMonthDays, widgetMonthTitle, widgetSnapshotKey, type WidgetCalItem
+  widgetArtPath, widgetSceneKey, widgetCalendarRange, widgetDayTone, widgetMonthDays, widgetMonthTitle, widgetSnapshotKey, type WidgetCalItem
 } from './widget.ts'
 
 // 달 넘기기
@@ -79,9 +79,14 @@ assert.deepEqual(widgetAccents(null), { accentLight: '#12715E', accentDark: '#19
 assert.deepEqual(widgetAccents('teal|black'), { accentLight: '#237973', accentDark: '#5A62FA' })
 assert.deepEqual(widgetAccents('dark'), { accentLight: '#12715E', accentDark: '#19856B' })
 assert.deepEqual(widgetAccents('모름|이상'), { accentLight: '#12715E', accentDark: '#19856B' })
-assert.equal(widgetArtPath('worm', 2, 'happy'), 'art/v5-worm-2-happy@2x.png')
-assert.equal(widgetArtPath('worm', 2, 'happy', 'abc'), 'art/v5-worm-2-abc-happy@2x.png')
-assert.equal(widgetArtPath(null, 1, 'default'), 'art/v5-egg@2x.png')
+assert.equal(widgetArtPath('worm', 2, 'happy'), 'art/v6-worm-2-day-happy@2x.png')
+assert.equal(widgetArtPath('worm', 2, 'happy', 'abc', 'scene-rain'), 'art/v6-worm-2-abc-rain-happy@2x.png')
+assert.equal(widgetArtPath(null, 1, 'default'), 'art/v6-egg-day@2x.png')
+// 49 §6.1 위젯 배경 = 고른 배경의 낮 짝(자동 = 정원 낮)
+assert.equal(widgetSceneKey(null), 'scene-day')
+assert.equal(widgetSceneKey(JSON.stringify({ eq: { bg: 'auto' } })), 'scene-day')
+assert.equal(widgetSceneKey(JSON.stringify({ eq: { bg: 'flowers' } })), 'scene-flowers')
+assert.equal(widgetSceneKey(JSON.stringify({ eq: { bg: 'night' } })), 'scene-dusk')
 
 // 대기열
 const now = new Date('2026-10-05T10:00:00+09:00')

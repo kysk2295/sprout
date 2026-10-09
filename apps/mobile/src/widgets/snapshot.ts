@@ -6,7 +6,7 @@ import { normalizeSpecies, progressFromEvents, SPECIES, STAGES } from '@sprout/s
 import { addDays, daysBetween } from '@sprout/schema/time'
 import type { CoreDb } from '@sprout/schema/taskCore'
 import {
-  buildWidgetCalendar, isoLocal, widgetAccents, widgetArtPath, widgetCalendarRange, widgetLookKey, WIDGET_MAX_APPLIED, WIDGET_MAX_TASKS,
+  buildWidgetCalendar, isoLocal, widgetAccents, widgetArtPath, widgetCalendarRange, widgetLookKey, widgetSceneKey, WIDGET_MAX_APPLIED, WIDGET_MAX_TASKS,
   type WidgetCalItem, type WidgetGrowth, type WidgetMood, type WidgetSnapshot, type WidgetTask
 } from '@sprout/schema/widget'
 import { displayTitle } from '@sprout/schema/wikiLink'
@@ -105,7 +105,7 @@ export function growthOf(character: WidgetData['character'], events: XpRow[], to
     todayTaskXp: Math.max(0, todayTaskXp),
     todayTaskXpCap: 10,
     mood,
-    art: widgetArtPath(species, p.stage, mood, widgetLookKey(character?.look_json))
+    art: widgetArtPath(species, p.stage, mood, widgetLookKey(character?.look_json), widgetSceneKey(character?.look_json))
   }
 }
 

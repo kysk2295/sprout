@@ -12,6 +12,7 @@ import { agentFeatures, agentWrites, askAgent, askAssistant, assistantDiaryOn, u
 import { AgentUnsupportedError, pendingCard, saveCard, undoCard, type TurnEvent } from '@sprout/schema/assistantAgent'
 import { savedLine, type Card, type Chip, type ConfirmCard } from '@sprout/schema/assistantExec'
 import { emptyMemory, type AgentMemory } from '@sprout/schema/assistantRouter'
+import { BackSceneBand } from './ListSceneBand'
 import { createTextStream } from '@sprout/schema/diaryTalk'
 import { useMotionReduced } from '../data/growth'
 import { StreamText } from './diary/Stream'
@@ -271,7 +272,9 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
         <div ref={scroll} className="assistant-messages" role="log" aria-label="AI 대화 기록" aria-live="polite" onScroll={() => { const el = scroll.current; if (el) { follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 70; setShowLatest(!follow.current) } }}>
           <div className="assistant-col">
             {!a.messages.length && (
-              <div className="assistant-empty">
+              <div className={`assistant-empty${variant !== 'quick' && me.species ? ' has-band' : ''}`}>
+                {/* 49 §6.1: 고른 배경 장면이 캐릭터 뒤에(전체 보기만 — 빠른 창은 좁아 그대로) */}
+                {variant !== 'quick' && me.species ? <BackSceneBand height={300} /> : null}
                 <CompanionFace species={me.species} stage={me.stage} size={variant === 'quick' ? COMPANION_SIZE.sheet : COMPANION_SIZE.l} mood="smile" loop={me.egg ? 'wiggle' : 'breathe'} play={bump?.id === 'empty' ? bump : null} onPress={tapEmpty} label={me.label}>
                   {say && <CompanionSay key={say.n} text={say.text} />}
                 </CompanionFace>

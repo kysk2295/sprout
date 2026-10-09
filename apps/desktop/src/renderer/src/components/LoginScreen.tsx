@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { authApi, authErrorText, useAuth } from '../data/auth'
-import { COMPANION_SIZE } from '@sprout/schema/companion'
-import { CompanionFace } from './companion/CompanionFace'
+import { SCENE_PX, SCENE_TINT, SCENES3D, SEED_PX, sceneDark, seedTurnKey } from '@sprout/schema/characterArt'
+import { artUrl } from './growth/art3dUrls'
+import { useDocDark } from './growth/MakeFlow'
 import './login-social.css'
+import './login-scene.css'
 
 type Provider = 'google' | 'apple'
 
 // 08 §3~§5: 틱틱 웹 로그인·가입 화면 기준. §3.1 구글·애플로 계속하기(2026-10-06). 비밀번호 찾기는 [다음].
+// 49 §8.1: 뒤는 새벽 정원(다크 = 별밤)이 끝까지, 둥실 씨앗 + 굵은 두 줄, 로그인 카드는 장면 위 유리(입력칸은 흰 면 그대로). 흰 페이지 없음.
 export function LoginScreen() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
@@ -61,20 +64,21 @@ export function LoginScreen() {
     return () => window.removeEventListener('keydown', key)
   }, [social])
 
-  // 40 §2.3: 로그인 전엔 누구의 캐릭터인지 모르니 알 하나(4초마다 꿈틀). 누르면 깡충. 오류가 나도 얼굴은 그대로
-  const [hop, setHop] = useState(0)
+  const dark = useDocDark()
+  const sceneKey = dark ? 'scene-dusk' : 'scene-dawn'
+  const seedUrl = artUrl(seedTurnKey(0, 0), SEED_PX)
   const switchMode = () => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setPassword('') }
 
   return (
-    <div className="login">
+    <div className={`login login--scene${sceneDark(sceneKey) ? ' is-dark' : ''}`}>
+      <LoginScene sceneKey={sceneKey} />
       <div className="login__drag" />
       {toast && <div className="toast" role="status"><span>{toast}</span></div>}
       <div className="login__mark">
-        <CompanionFace species={null} stage={1} size={COMPANION_SIZE.m} loop="wiggle" play={hop ? { move: 'hop', n: hop } : null} onPress={() => setHop((n) => n + 1)} label="알. 눌러 보기" />
-        {mode === 'signup' && <p className="login__mark-line">가입하면 이 알에서 나와 닮은 친구가 깨어나요</p>}
-        {/* 44 §6.1 큰 문장(display) — 시안 visual-refresh 1 */}
-        <h2 className="login__hero">할 일이 자라는 곳</h2>
-        <p className="login__sub">끝낸 일만큼 친구가 자라요.</p>
+        {seedUrl ? <img className="login__seed" src={seedUrl} alt="" draggable={false} /> : null}
+        {/* 49 §1: 31/800 두 줄 + 회색 한 줄 */}
+        <h2 className="login__hero">할 일을 끝낼 때마다<br />함께 자라는 친구</h2>
+        <p className="login__sub">{mode === 'signup' ? '가입하면 이 씨앗에서 닮은 친구가 깨어나요.' : '끝낸 일만큼 친구가 자라요.'}</p>
       </div>
       <form className="login__card" noValidate onSubmit={(e) => { e.preventDefault(); void submit() }}>
         <h1 className="login__title">{mode === 'login' ? '로그인' : '등록하기'}</h1>
@@ -120,6 +124,27 @@ export function LoginScreen() {
         {mode === 'login' ? '계정이 없으세요?' : '이미 계정이 있으신가요?'}
         <button type="button" onClick={switchMode} disabled={locked}>{mode === 'login' ? '등록하기' : '로그인'}</button>
       </p>
+    </div>
+  )
+}
+
+/** 49 §8.1 로그인 장면: 세로 장면(1:2)을 넓은 창에 cover로 깔면 나무만 크게 보이므로, 하늘~받침(장면 높이 0.16~받침)이 창 높이에 들어오게
+ *  가운데 선명한 장면 한 장(좌우 끝은 녹임) + 그 뒤 같은 장면을 흐리게 cover로(빈 옆을 채움). 창 크기는 resize로 */
+function LoginScene({ sceneKey }: { sceneKey: string }) {
+  const [vw, setVw] = useState(() => window.innerWidth)
+  const [vh, setVh] = useState(() => window.innerHeight)
+  useEffect(() => { const on = () => { setVw(window.innerWidth); setVh(window.innerHeight) }; window.addEventListener('resize', on); return () => window.removeEventListener('resize', on) }, [])
+  const m = SCENES3D[sceneKey]
+  const url = artUrl(sceneKey, SCENE_PX)
+  const tint = SCENE_TINT[sceneKey] ?? SCENE_TINT['scene-dawn']
+  if (!m || !url) return <div className="login__scene" style={{ background: `linear-gradient(${tint.top}, ${tint.bottom})` }} aria-hidden="true" />
+  const top0 = 0.16, foot = 0.94 // 장면에서 보일 위 끝 · 받침이 올 창 높이 비율
+  const h = (vh * foot) / (m.perch[1] - top0), w = h / m.aspect
+  const cw = Math.max(w, vw), ch = cw * m.aspect
+  return (
+    <div className="login__scene" style={{ background: tint.bottom }} aria-hidden="true">
+      <img className="login__scene-blur" src={url} alt="" draggable={false} style={{ width: cw, height: ch, left: (vw - cw) / 2, top: vh * foot - m.perch[1] * ch }} />
+      <img className={`login__scene-img${w < vw ? ' is-faded' : ''}`} src={url} alt="" draggable={false} style={{ width: w, height: h, left: (vw - w) / 2, top: vh * foot - m.perch[1] * h }} />
     </div>
   )
 }

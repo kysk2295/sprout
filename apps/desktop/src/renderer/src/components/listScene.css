@@ -17,3 +17,19 @@
 .cal__header.has-band > :not(.lband) { position: relative; }
 .lband--head { bottom: 0; }
 .lband--head .s3-band { height: auto !important; background-position: center 38%; }
+
+/* AI 비서 빈 대화(49 §8.1): 캐릭터 뒤에 내 배경 장면 띠. 대화 칸 폭 끝까지 펴고(가운데 기둥 밖으로) 아래로 녹는다 */
+.assistant-empty.has-band { position: relative; }
+.assistant-empty.has-band > :not(.lband) { position: relative; }
+.lband--back { left: 50%; right: auto; width: 100vw; transform: translateX(-50%); top: -48px; will-change: auto; }
+.assistant-messages:has(.lband--back) { overflow-x: hidden; }
+
+/* 일기 배경(49 §6.1): 흐린 장면 + 반투명 바탕 면. .diary를 쌓임 맥락으로 만들어 장면(z -1)이 바탕 위·내용 아래에 온다 */
+.diary.has-soft { isolation: isolate; }
+.softscene { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.softscene img { position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); object-fit: cover; filter: blur(14px) saturate(1.05); }
+.softscene .lband__night { display: none; }
+[data-theme="dark"] .softscene .lband__day { display: none; }
+[data-theme="dark"] .softscene .lband__night { display: block; }
+.diary.has-soft .diary__editor, .diary.has-soft .dhead { background: color-mix(in srgb, var(--color-bg-ground) 80%, transparent); }
+[data-theme="dark"] .diary.has-soft .diary__editor, [data-theme="dark"] .diary.has-soft .dhead { background: color-mix(in srgb, var(--color-bg-ground) 76%, transparent); }
