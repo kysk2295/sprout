@@ -7,6 +7,9 @@ import {
   setConsent, setMemory, setPrivate, streakOf, deleteEntry, taskFromChip,
   averageMood, buddyLine, DONE_SQL, highlightsOf, longestStreak, monthGrid, moodFaceOf, moodTrend, skyOf, WEEK_DAYS, weekDaysHead, weekdayIdx, weekOf
 } from '../src/renderer/src/data/diary'
+import { addScripted, chatTurn, clearScripted, distillSession, isDailyCap, previewOf, replaceSection, saveSection, setSolo } from '../src/renderer/src/data/diary'
+import { SCRIPTED, sessionLinesOf, talkStateOf } from '@sprout/schema/diaryTalk'
+import { parseSections } from '@sprout/schema/diaryPrompts'
 import { insert, run } from '../src/renderer/src/data/mutations'
 const SQL = await initSqlJs()
 const db = new SQL.Database()
@@ -169,7 +172,68 @@ assert.equal(buddyLine({ kind: 'open', hour: 23 }), '늦게까지 고생했어')
 // 오늘 한 일 타임라인은 완료 시각도 읽는다
 assert.ok(DONE_SQL.includes('completed_at FROM tasks'))
 
-// ── §9.9 종이 대비: 13개 테마 모두 본문 글자 / 종이 ≥ 4.5:1, 보조 글자 / 종이 ≥ 3.8:1 ──
+
+// ── 15 §10 v2: 대화로 쓰고 일기로 옮기기(28 §8.10과 같은 데이터) ──
+{
+  const D = '2026-10-09'
+  const sentBefore = calls.length
+  // 정해진 말(safety 2) — 그날 행이 없어도 만든다
+  const ids = await addScripted(D, [{ role: 'buddy', content: '저녁이네. 오늘 할 일 5개 중 4개 끝냈네! 어땠어?' }, { role: 'me', content: '좋았어요' }, { role: 'buddy', content: '좋았다니 나도 좋다!' }, { role: 'buddy', content: '무슨 일 있었어? 편하게 말해 줘. 한 줄도 괜찮아.' }])
+  assert.equal(ids.length, 4)
+  assert.ok(msgs(D).every((m) => m.safety === SCRIPTED))
+  // 이야기 한 턴: mode chat, 정해진 말은 대화 맥락으로 가지만 일기 글이 비어 있으면 <diary> 없음, 대화 규칙·들은 말만
+  answer = '시험이 코앞인데 손에 안 잡혔구나. 그 마음 무겁겠다.'
+  assert.equal(await chatTurn(D, '시험이 코앞인데 손에 안 잡혀', { buddy, signal }), 'reply')
+  const chat = calls.at(-1) as unknown as { mode?: string; purpose?: string; messages: { role: string; content: string }[] }
+  assert.equal(chat.mode, 'chat')
+  assert.equal(chat.purpose, 'diary')
+  assert.equal(chat.messages.at(-1)!.role, 'user')
+  assert.ok(chat.messages[0].content.includes('묻지 않으면 조언하지 마') && chat.messages[0].content.includes('들은 말만'))
+  assert.equal(msgs(D).at(-1)!.safety, 0)
+  // 옮기기: mode distill · 서버 스키마 · 캐릭터 말은 물음만
+  answer = JSON.stringify({ title: '손에 잡히지 않는 하루', tags: ['감정/무기력', '#영역/공부', '이상한태그'], entry: '시험이 코앞인데 손에 잡히지 않았다.' })
+  const st = talkStateOf(all('SELECT * FROM diary_messages WHERE entry_id = ? ORDER BY created_at, id', [entryId(D)]) as never[])
+  const d = await distillSession(D, sessionLinesOf(st.S), 4, signal)
+  const dist = calls.at(-1) as unknown as { mode?: string; format?: unknown; temperature?: number; messages: { role: string; content: string }[] }
+  assert.equal(dist.mode, 'distill')
+  assert.ok(dist.format && dist.temperature === 0.2)
+  assert.ok(!dist.messages[1].content.includes('할 일 5개'), '캐릭터가 말한 사실은 옮기기 입력에 없다')
+  assert.deepEqual(d, { title: '손에 잡히지 않는 하루', tags: ['#감정/무기력', '#영역/공부'], entry: '시험이 코앞인데 손에 잡히지 않았다.' })
+  // 저장 = 편 이어 붙이기, 두 번째 편도 앞 편 그대로
+  await saveSection(D, { time: '21:45', title: d.title, tags: d.tags, body: d.entry }, 4)
+  await saveSection(D, { time: '22:10', title: '두 번째', tags: [], body: '그래도 밥은 먹었다.' }, null)
+  const content = String(all('SELECT content FROM diary_entries WHERE id = ?', [entryId(D)])[0].content)
+  assert.equal(content, '## 21:45 — 손에 잡히지 않는 하루\n#감정/무기력 #영역/공부\n\n시험이 코앞인데 손에 잡히지 않았다.\n\n## 22:10 — 두 번째\n\n그래도 밥은 먹었다.')
+  assert.equal(all('SELECT mood FROM diary_entries WHERE id = ?', [entryId(D)])[0].mood, 4)
+  assert.equal(previewOf({ content, private: 0 }), '손에 잡히지 않는 하루', '목록 미리보기 = 제목(머리 줄이 글자로 안 보임)')
+  await replaceSection(D, 1, { time: '22:10', title: '두 번째 편', tags: ['#감정/안도'], body: '그래도 밥은 먹었다.' })
+  const ss = parseSections(String(all('SELECT content FROM diary_entries WHERE id = ?', [entryId(D)])[0].content))
+  assert.deepEqual(ss.map((x) => x.title), ['손에 잡히지 않는 하루', '두 번째 편'])
+  assert.deepEqual(ss[1].tags, ['#감정/안도'])
+  // 첫 답(예전 흐름)·기억하기 입력에 정해진 말(safety 2)은 없다
+  answer = '그랬구나.'
+  await buddyReply(D, opts)
+  assert.ok(!JSON.stringify(calls.at(-1)).includes('할 일 5개'), '정해진 말은 AI 입력에 없다')
+  // 처음부터 다시 묻기 = 정해진 행만 지움
+  await clearScripted(D)
+  assert.ok(msgs(D).length > 0 && msgs(D).every((m) => m.safety === 0))
+  // 나만 보기·오늘은 혼자 = 호출 0
+  const n = calls.length
+  await setPrivate(D, true)
+  assert.equal(await chatTurn(D, '비밀 이야기', { buddy, signal }), 'blocked')
+  await assert.rejects(distillSession(D, [{ who: 'me', text: '비밀' }], null, signal))
+  await setPrivate(D, false)
+  setSolo(D, true)
+  assert.equal(await chatTurn(D, '혼자', { buddy, signal }), 'blocked')
+  setSolo(D, false)
+  assert.equal(calls.length, n, '나만 보기·혼자 쓰기에서는 AI 호출 0')
+  assert.ok(calls.length > sentBefore)
+  // 하루 한도(429 daily) 서버 문구
+  assert.ok(isDailyCap(new Error("Error invoking remote method 'assistant:chat': Error: 오늘은 이 AI 기능을 다 썼어요. 내일 다시 쓸 수 있어요.")))
+  assert.ok(!isDailyCap(new Error('지금은 AI를 쓸 수 없어요.')))
+}
+
+// ── §10 대비: 대화 말풍선·카드(흰 면)와 바닥 위 글자 — 13개 테마 ──
 {
   const { readFileSync } = await import('node:fs')
   const { THEMES, themeAttrs } = await import('../src/renderer/src/data/theme')
@@ -188,10 +252,12 @@ assert.ok(DONE_SQL.includes('completed_at FROM tasks'))
     const { theme, variant } = themeAttrs(t.id)
     const v: Record<string, string> = { ...blocks.get(':root'), ...blocks.get(`[data-theme="${theme}"]`), ...(variant ? blocks.get(`[data-theme="${theme}"][data-theme-variant="${variant}"]`) : {}) }
     const get = (n: string): string => { const r = v[n]; const ref = r?.match(/^var\((--[\w-]+)\)$/); return ref ? get(ref[1]) : r }
-    // diary.css의 --diary-paper와 같은 식
-    const paper = variant === 'black' ? hex('#0d0d0d') : theme === 'dark' ? mix(hex(get('--color-bg-card')), hex('#3a3226'), 0.94) : mix(hex(get('--color-bg-app')), hex('#f3e6cf'), 0.92)
-    assert.ok(ratio(hex(get('--color-text-primary')), paper) >= 4.5, `${t.id}: 본문 / 종이`)
-    assert.ok(ratio(hex(get('--color-text-secondary')), paper) >= 3.8, `${t.id}: 보조 / 종이 ${ratio(hex(get('--color-text-secondary')), paper).toFixed(2)}`)
+    for (const face of ['--color-bg-app', '--color-bg-ground', '--color-bg-card', '--color-accent-subtle']) {
+      const bg = get(face)
+      if (!bg?.startsWith('#')) continue
+      assert.ok(ratio(hex(get('--color-text-primary')), hex(bg)) >= 4.5, `${t.id}: 본문 / ${face}`)
+    }
+    void mix
   }
 }
 console.log('diary tests passed')

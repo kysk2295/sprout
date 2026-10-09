@@ -1,39 +1,11 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { isWritten, monthGrid, moodOf, weekDaysHead, weekOf, type DiaryEntry } from '../../data/diary'
+import { isWritten, monthGrid, moodOf, previewOf, weekDaysHead, type DiaryEntry } from '../../data/diary'
 import { useWeekStart } from '../../data/calendarOptions'
-import { dateLabel, firstLine, monthOf, parse, shiftMonth } from './dates'
-import { LeafIcon, MoodFace, PaperIcon } from './MoodFace'
+import { dateLabel, monthOf, parse, shiftMonth } from './dates'
+import { MoodFace, PaperIcon } from './MoodFace'
 
-// 15 §9.1 왼쪽 260 — 이어 쓰기 카드 · 미니 달력(주 시작 설정 — 06 §16.1, 기분 색 칸) · 날짜 목록
-
-/** 이어 쓰기 카드: 연속 N일(새싹 잎) + 이번 주 7칸(주 시작 설정) */
-export function StreakCard({ streak, byDate, today }: { streak: { days: number; today: boolean }; byDate: Map<string, DiaryEntry>; today: string }) {
-  const n = streak.days
-  const ws = useWeekStart()
-  return (
-    <div className="diary-streak">
-      <span className="diary-streak__leaf"><LeafIcon /></span>
-      <span className="diary-streak__text">
-        <b>{n ? `${n}일째 이어 쓰는 중` : '오늘부터 시작해요'}</b>
-        <small>{n ? (streak.today ? '지난 날을 채워도 이어져요' : '오늘도 이어 가요') : '하루 한 줄이면 충분해요'}</small>
-      </span>
-      <span className="diary-streak__week" aria-label="이번 주 기록">
-        {weekOf(today, ws).map((d, i) => {
-          const e = byDate.get(d)
-          const on = !!e && isWritten(e)
-          const m = moodOf(e?.mood)
-          return (
-            <span key={d} title={d}>
-              <small>{weekDaysHead(ws)[i]}</small>
-              <i className={`${on ? 'is-on' : ''}${d === today ? ' is-today' : ''}${d > today ? ' is-future' : ''}`} style={on ? { background: m?.color ?? 'var(--color-accent)' } : undefined} />
-            </span>
-          )
-        })}
-      </span>
-    </div>
-  )
-}
+// 15 §9.1·§10.1 왼쪽 260 — 미니 달력(주 시작 설정 — 06 §16.1, 기분 색 칸) · 날짜 목록(첫 줄 = 첫 편 제목, 머리·태그 줄은 안 보임). 이어 쓰기(연속) 카드는 없앴다(§10)
 
 export function MiniCalendar({ date, today, byDate, onPick }: { date: string; today: string; byDate: Map<string, DiaryEntry>; onPick: (d: string) => void }) {
   const [month, setMonth] = useState(monthOf(date))
@@ -107,7 +79,7 @@ export function EntryList({ entries, date, today, query, onPick }: { entries?: D
                   {/* 나만 보기 날은 미리보기를 숨긴다(결정 ⑥, 화면 공유 대비) — 검색 중에는 내가 찾은 글이라 보인다 */}
                   {e.private && !q
                     ? <span className="diary-row__preview is-locked"><Lock aria-hidden="true" />나만 보기</span>
-                    : <span className="diary-row__preview">{firstLine(e.content) || moodOf(e.mood)?.label}</span>}
+                    : <span className="diary-row__preview">{previewOf(e, { search: true }) || moodOf(e.mood)?.label}</span>}
                 </span>
               </button>
             ))}

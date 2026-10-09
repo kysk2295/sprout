@@ -39,6 +39,14 @@ async function remainingToday() {
 
 function createServerAi() {
   return {
+    /** 용도별 하루 사용량(/ai/status usage.daily) — 예전 서버·연결 실패면 null */
+    daily: async (key: string): Promise<{ used: number; limit: number } | null> => {
+      try {
+        const status = await (await server('/ai/status', { signal: AbortSignal.timeout(8000) })).json()
+        const q = status?.usage?.daily?.[key]
+        return status?.available && q && typeof q.limit === 'number' ? { used: Number(q.used) || 0, limit: q.limit } : null
+      } catch { return null }
+    },
     models: async () => {
       const status = await (await server('/ai/status', { signal: AbortSignal.timeout(15000) })).json()
       if (!status.available) throw new Error(UNAVAILABLE)
@@ -48,7 +56,10 @@ function createServerAi() {
     },
     chat: async (input: ChatInput, signal: AbortSignal, onDelta?: (text: string) => void, onQueue?: (position: number) => void) => {
       const purpose = input.purpose && PURPOSES.includes(input.purpose) ? input.purpose : 'assistant'
-      const body = JSON.stringify({ model: input.model, messages: input.messages, format: input.format, stream: true })
+      // 일기 갈래(15 §10.8 · 28 §8.10): mode·temperature를 몸에 싣는다 — 서버가 용도(diary-chat·diary-distill)와 하루 상한을 정한다
+      const diary = purpose === 'diary' && input.mode ? { mode: input.mode } : {}
+      const options = typeof input.temperature === 'number' ? { options: { temperature: input.temperature } } : {}
+      const body = JSON.stringify({ model: input.model, messages: input.messages, format: input.format, stream: true, ...diary, ...options })
       // 뒷일(자동 태그·분류)은 서버 대기열에서 사람이 기다리는 요청 뒤로. 서버가 바쁘면 503/429 + "잠시 뒤" → 부른 쪽이 조용히 나중에(isUnavailable)
       const headers: Record<string, string> = input.priority === 'background' ? { 'x-sprout-priority': 'background' } : {}
       const res = await server(`/ai/${purpose}`, { method: 'POST', body, signal, headers })
@@ -59,11 +70,13 @@ function createServerAi() {
 
 export function registerAssistant() {
   const remote = process.env.SPROUT_AI_SSH === '1' ? createRemoteOllama() : undefined
-  const ai: ReturnType<typeof createServerAi> = remote ?? createServerAi()
+  type Ai = Omit<ReturnType<typeof createServerAi>, 'daily'> & Partial<Pick<ReturnType<typeof createServerAi>, 'daily'>>
+  const ai: Ai = remote ?? createServerAi()
   app.on('before-quit', () => remote?.close())
   const requests = new Map<string, AbortController>()
   const cancelled = new Set<string>() // 사용자가 멈춘 요청(시간 초과와 구분)
   ipcMain.handle('assistant:models', () => ai.models())
+  ipcMain.handle('assistant:daily', (_e, key: string) => (typeof key === 'string' && key.length < 40 && ai.daily ? ai.daily(key) : null))
   ipcMain.handle('assistant:chat', async (event, id: string, input: ChatInput) => {
     if (typeof id !== 'string' || id.length > 100) throw new Error('잘못된 요청')
     const key = `${event.sender.id}:${id}`

@@ -80,7 +80,7 @@ const miniApi = {
   onShown: (cb: () => void) => on('mini:shown', cb)
 }
 
-const assistantApi = { onDelta:(cb:(data:{id:string;text:string})=>void)=>on('assistant:delta',cb), models:()=>ipcRenderer.invoke('assistant:models') as Promise<string[]>, chat:(id:string,input:ChatInput)=>ipcRenderer.invoke('assistant:chat',id,input) as Promise<string>, cancel:(id:string)=>ipcRenderer.send('assistant:cancel',id) }
+const assistantApi = { onDelta:(cb:(data:{id:string;text:string})=>void)=>on('assistant:delta',cb), models:()=>ipcRenderer.invoke('assistant:models') as Promise<string[]>, chat:(id:string,input:ChatInput)=>ipcRenderer.invoke('assistant:chat',id,input) as Promise<string>, cancel:(id:string)=>ipcRenderer.send('assistant:cancel',id), daily:(key:string)=>ipcRenderer.invoke('assistant:daily',key) as Promise<{used:number;limit:number}|null> }
 export type SproutAssistantApi = typeof assistantApi
 // 17 틱틱에서 가져오기: 연결·토큰은 메인 프로세스에만, 화면은 진행 상황과 결과만 받는다
 const ticktickApi = {

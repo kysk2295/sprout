@@ -1,6 +1,6 @@
 /** 서버 AI 프록시 경로(/ai/<용도>) — 용도별로 상한을 센다 */
 export type AiPurpose='assistant'|'classify'|'map'|'diary'|'kpi-draft'|'weekly-report'|'breakdown'|'tag'
-export interface ChatInput {model:string;messages:{role:'system'|'user'|'assistant';content:string}[];format?:Record<string,unknown>;purpose?:AiPurpose;/** 앱이 저절로 부르는 뒷일 — 서버 대기열에서 사람이 기다리는 요청 뒤로(X-Sprout-Priority) */priority?:'background'}
+export interface ChatInput {model:string;messages:{role:'system'|'user'|'assistant';content:string}[];format?:Record<string,unknown>;purpose?:AiPurpose;/** /ai/diary 갈래(28 §8.10): chat = 이야기 한 턴, distill·polish = 일기로 옮기기. 없으면 예전 답 */mode?:'chat'|'distill'|'polish';/** 0~2, 없으면 서버 기본(0) */temperature?:number;/** 앱이 저절로 부르는 뒷일 — 서버 대기열에서 사람이 기다리는 요청 뒤로(X-Sprout-Priority) */priority?:'background'}
 export interface Intent {action:'create'|'query'|'stats'|'reply';message:string;title:string;listId:string;start:string;due:string;from:string;to:string;keyword:string;status:'all'|'open'|'completed';repeat:string}
 const fields=['message','title','listId','start','due','from','to','keyword','repeat'] as const
 export const intentSchema={type:'object',properties:{action:{type:'string',enum:['create','query','stats','reply']},status:{type:'string',enum:['all','open','completed']},...Object.fromEntries(fields.map(key=>[key,{type:'string'}]))},required:['action','status',...fields],additionalProperties:false}
@@ -40,7 +40,7 @@ export async function localModels(signal?:AbortSignal,base='/api/assistant'):Pro
 export async function localChat(input:ChatInput,signal?:AbortSignal,base='/api/assistant',onDelta?:(text:string)=>void):Promise<string>{
  if(!input||typeof input.model!=='string'||!Array.isArray(input.messages)||input.messages.length>30||input.messages.some(m=>!['system','user','assistant'].includes(m.role)||typeof m.content!=='string'||m.content.length>30000))throw new Error('요청이 너무 크거나 올바르지 않아요.')
  if(!(await localModels(signal,base)).includes(input.model))throw new Error('설치된 로컬 모델을 선택해 주세요.')
- const res=await fetch(`${base}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({...input,purpose:undefined,priority:undefined,stream:!!onDelta,think:false,keep_alive:'5m',options:{temperature:0,num_ctx:4096,num_predict:input.purpose==='tag'?1600:700}})})
+ const res=await fetch(`${base}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({...input,purpose:undefined,priority:undefined,mode:undefined,temperature:undefined,stream:!!onDelta,think:false,keep_alive:'5m',options:{temperature:input.temperature??0,num_ctx:4096,num_predict:input.purpose==='tag'?1600:700}})})
  if(!res.ok){const error=await res.json().catch(()=>null);throw new Error(typeof error?.error==='string'?error.error:`맥미니 모델 요청 실패 (${res.status})`)}
  if(onDelta)return readChatStream(res,onDelta,signal)
  const json=await res.json()
