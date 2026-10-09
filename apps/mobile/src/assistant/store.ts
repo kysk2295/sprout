@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { currentUserId } from '../data/auth'
 import { readJson, writeJson } from '../collect/localStore'
 import { humanize, isLimit, STOPPED, TOO_LONG, agentHistory, type AssistantProgress, type AssistantResult } from './core'
-import { agentWrites, aiStatus, askAgent, askAssistant, undoAssistant } from './data'
+import { agentWrites, aiStatus, askAgent, askAssistant, reportGround, undoAssistant } from './data'
 import { AgentUnsupportedError, pendingCard, saveCard, undoCard, type TurnEvent } from '@sprout/schema/assistantAgent'
 import { emptyMemory, type AgentMemory, type Band } from '@sprout/schema/assistantRouter'
 import { isConfirm, savedLine, type Card, type Chip, type ConfirmCard } from '@sprout/schema/assistantExec'
@@ -163,6 +163,7 @@ async function agentTurn(ask: string, id: string, abort: AbortController) {
   }
   if (text) await liveText.whenShown(1200)
   if (request !== abort) return
+  if (r.grounding.hits > 0) reportGround(r.grounding.hits) // 47 §19.4 숫자만
   const agent: AgentAnswer = { chips: r.chips, cards: r.cards, bands: r.bands, calls: r.calls, ms: r.ms, hits: r.grounding.hits, ...(r.hint ? { hint: r.hint } : {}), ...(r.action ? { action: r.action } : {}), ...(r.error ? { error: r.error } : {}), ...(r.stopped ? { stopped: true } : {}), ...(r.busyFallback ? { busy: true } : {}) }
   set((o) => ({ live: null, memory: r.memory, ...(r.error ? { error: r.error } : {}), messages: [...o.messages, { id, role: 'assistant', text: r.text, agent }] }))
   void aiStatus().then((st) => set({ daily: st.assistantDaily })).catch(() => {})

@@ -1,7 +1,7 @@
 import { CalendarDays, Check, ChevronDown, Copy, ExternalLink, FileText, MessageSquareText, MoreHorizontal, Plus, Search, Sparkles, SquareCheck, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '../data/useQuery'
-import { convertNote } from '../data/notes'
+import { convertNote, OPEN_NOTE, takeOpenNote } from '../data/notes'
 import { deleteItem, registerSuggestion, saveItem, suggestionOf, type CollectItem } from '../data/collect'
 import { collector, useCollectorStatus } from '../data/collector'
 import { listLabel, type ListRow } from '../data/types'
@@ -156,6 +156,15 @@ export function NotesView({ lists, onOpen, section, onSection }: Props) {
     onSection('notes')
   }
   const showTopic = (id: string) => { setWikiTopic(id); onSection('wiki') }
+  // 47 §19.1 AI 비서 메모 카드: 그 메모를 고르고 상세 열기(접힌 묶음은 펼침, 검색 중이면 검색을 닫은 뒤)
+  const [openNote, setOpenNote] = useState<string | undefined>(takeOpenNote)
+  useEffect(() => { const on = () => { const id = takeOpenNote(); if (id) setOpenNote(id) }; window.addEventListener(OPEN_NOTE, on); return () => window.removeEventListener(OPEN_NOTE, on) }, [])
+  useEffect(() => {
+    if (!openNote || items === undefined) return
+    if (q && !items.some((n) => n.id === openNote)) { setSearch(null); return }
+    if (items.some((n) => n.id === openNote)) jump(openNote)
+    setOpenNote(undefined)
+  }, [openNote, items]) // eslint-disable-line react-hooks/exhaustive-deps
   const rowMenu = (item: CollectItem, e: React.MouseEvent) => { e.preventDefault(); setSelected(item.id); setMenu({ item, point: { x: e.clientX, y: e.clientY } }) }
 
   return (

@@ -1,8 +1,8 @@
 // 47 §2·§4 한 턴: 길잡이(§2.2) → (모델 ↔ 도구) 최대 4번 → 근거 검사(§8.2). 데스크톱·휴대폰 같은 코드 — 모델 호출(chat)·DB·저장만 앱이 넣는다.
 // 루프: 모델 호출 최대 4번(도구 라운드 3 + 답 1), 한 번에 도구 3개, 도구 2초, 턴 150초. 데이터 질문인데 도구를 안 부르면 한 번만 재촉(research 39 v3),
 // 그래도 안 부르면 앱이 find_tasks를 직접 부르고 '찾아본 건 카드에 있어.'. 마지막 답만 글자 스트림(도구 라운드는 칩만). 대기열 503이면 길잡이로 찾은 카드만.
-import { agentContext, NUDGE, PROPOSE_TOOLS, toolsFor, type ToolName } from './assistantTools.ts'
-import { createCard, failedRun, isConfirm, listsOf, pickList, runTool, runningChip, updateCard, undoStmts, moveStmts, deleteStmts, words, type AssistantDb, type Card, type Chip, type ConfirmCard, type Facts, type Stmt, type ToolRun } from './assistantExec.ts'
+import { agentContext, NUDGE, PROPOSE_TOOLS, toolsFor, ymd, type ToolName } from './assistantTools.ts'
+import { createCard, createdChip, failedRun, isConfirm, listsOf, pickList, runTool, runningChip, updateCard, undoStmts, moveStmts, deleteStmts, words, type AssistantDb, type Card, type Chip, type ConfirmCard, type Facts, type Stmt, type ToolRun } from './assistantExec.ts'
 import { claimsSearched, ground, offersToSearch } from './assistantGround.ts'
 import { memoryBlock, route, userContent, type AgentMemory, type Band, type Route } from './assistantRouter.ts'
 
@@ -142,9 +142,9 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
   if (rt.kind === 'cancel') return result('알겠어, 안 넣을게.', { confirm: { key: rt.key, action: 'cancel' } })
   if (rt.kind === 'fixed') return result(rt.text, { ...(rt.hint ? { hint: rt.hint } : {}), ...(rt.action ? { action: rt.action } : {}) })
   if (rt.kind === 'create') {
-    const card = createCard({ title: rt.title, start: rt.start, due: rt.due, list: pickList(lists, rt.list ?? ''), repeat: rt.repeat, said: rt.said, durationMin: rt.durationMin, assumedPm: rt.assumedPm, basis: rt.basis, key: i.newKey?.() ?? `c${t0.toString(36)}` })
+    const card = createCard({ title: rt.title, start: rt.start, due: rt.due, list: pickList(lists, rt.list ?? ''), repeat: rt.repeat, said: rt.said, durationMin: rt.durationMin, assumedPm: rt.assumedPm, basis: rt.basis, key: i.newKey?.() ?? `c${t0.toString(36)}`, kind: rt.event ? 'event' : 'task', today: ymd(now) })
     if (card) {
-      chips.push({ tool: 'propose_create', running: runningChip('propose_create', { due: card.due }), done: card.due.includes('T') ? '일정 하나 준비했어' : '할 일 하나 준비했어', detail: '' })
+      chips.push({ tool: 'propose_create', running: runningChip('propose_create', { kind: card.kind }), done: createdChip(card), detail: '' })
       addCard(card)
       memory.subject = card.title
       return result(confirmLine(card))
@@ -277,6 +277,10 @@ export interface AgentWrites {
   stamp(): string
   /** 만들기 = 13 executeIntent create 경로(tasks status 0, 기본함 없으면 만든다). 쓴 modified_at을 돌려준다 */
   create(card: ConfirmCard, id: string, stamp: string): Promise<void>
+  /** 일정 카드 넣기(47 §19.3) = events 한 행(eventFieldsOf), modified_at = stamp. 없으면 일정 카드는 넣을 수 없다 */
+  createEvent?(card: ConfirmCard, id: string, stamp: string): Promise<void>
+  /** 일정 되돌리기 확인용(id·modified_at·deleted_at) */
+  readEvents?(ids: string[]): Promise<{ id: string; modified_at: string | null; deleted_at: string | null }[]>
   /** 21 완료(XP 포함) */
   complete(ids: string[]): Promise<void>
   /** 완료 되돌리기(XP 되돌림) — 없으면 완료 되돌리기 단추를 숨긴다 */
@@ -289,6 +293,12 @@ export const UNDO_BLOCKED = '등록 뒤에 바뀐 항목은 되돌릴 수 없어
 export async function saveCard(card: ConfirmCard, w: AgentWrites, picked?: string[]): Promise<ConfirmCard> {
   if (card.state !== 'pending') return card
   const stamp = w.stamp()
+  if (card.op === 'create' && card.kind === 'event') {
+    if (!w.createEvent) throw new Error('일정을 넣지 못했어요.')
+    const id = w.newId()
+    await w.createEvent(card, id, stamp)
+    return { ...card, state: 'saved', saved: { ids: [id], stamp } }
+  }
   if (card.op === 'create') {
     const id = w.newId()
     await w.create(card, id, stamp)
@@ -312,7 +322,9 @@ export async function saveCard(card: ConfirmCard, w: AgentWrites, picked?: strin
 /** 되돌리기(13 규칙: 넣은/바꾼 직후와 같을 때만) */
 export async function undoCard(card: ConfirmCard, w: AgentWrites): Promise<ConfirmCard> {
   if (card.state !== 'saved' || !card.saved) return card
-  const cur = await w.read(card.saved.ids)
+  const cur = card.op === 'create' && card.kind === 'event'
+    ? (w.readEvents ? (await w.readEvents(card.saved.ids)).map((e) => ({ ...e, status: 0 })) : [])
+    : await w.read(card.saved.ids)
   if (card.op === 'complete') {
     if (!w.uncomplete || cur.some((c) => c.modified_at !== card.saved!.stamp || c.status !== 1)) throw new Error(UNDO_BLOCKED)
     await w.uncomplete(card.saved.ids)
@@ -322,6 +334,10 @@ export async function undoCard(card: ConfirmCard, w: AgentWrites): Promise<Confi
   if (!stmts) throw new Error(UNDO_BLOCKED)
   await w.run(stmts)
   return { ...card, state: 'undone' }
+}
+/** 편집기([고치기], 47 §19.2)에서 넣은 것을 카드에 붙인다 — 그 뒤 되돌리기는 같은 규칙(넣은 직후와 같을 때만) */
+export function savedFromEditor(card: ConfirmCard, o: { id: string; stamp: string; kind: 'task' | 'event'; title?: string; start?: string | null; due?: string | null }): ConfirmCard {
+  return { ...card, op: 'create', kind: o.kind === 'event' ? 'event' : undefined, ...(o.title ? { title: o.title } : {}), ...(o.start !== undefined ? { start: o.start ?? '' } : {}), ...(o.due !== undefined ? { due: o.due ?? '' } : {}), state: 'saved', saved: { ids: [o.id], stamp: o.stamp } }
 }
 /** 같은 턴의 카드 중 아직 저장 전인 확인 카드(말로 확인할 대상 — 하나일 때만) */
 export function pendingCard(cardLists: Card[][]): ConfirmCard | null {

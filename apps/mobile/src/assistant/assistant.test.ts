@@ -116,7 +116,7 @@ assert.ok(!isLimit(new Error('network request failed')))
 console.log('assistant ok')
 
 // ── 47 B안 도우미 ──
-import { agentHistory, diaryForAssistant, editText, leftLine, parseAgentLine } from './core.ts'
+import { agentHistory, diaryForAssistant, editParams, leftLine, parseAgentLine } from './core.ts'
 assert.equal(parseAgentLine(''), null)
 assert.deepEqual(parseAgentLine('{"queue":{"position":1,"waiting":2}}'), { queue: 1 })
 assert.deepEqual(parseAgentLine('{"message":{"role":"assistant","content":"안"},"done":false}'), { delta: '안' })
@@ -134,6 +134,8 @@ assert.equal(diaryForAssistant(true, true), true)
 assert.equal(leftLine({ used: 30, limit: 40 }), '오늘 남은 이야기 10번')
 assert.equal(leftLine({ used: 3, limit: 40 }), '')
 assert.equal(leftLine(null), '')
-assert.equal(editText({ title: '미용실 예약', start: '', due: '2026-10-17T14:00' }), '미용실 예약 10월 17일 오후 2시')
-assert.equal(editText({ title: '보고서', start: '', due: '2026-10-20' }), '보고서 10월 20일')
+// 47 §19.2 [고치기] → 빠른 입력 인자(제목 그대로 · 시작·끝 · 리스트 · 반복 · 할 일/일정)
+assert.deepEqual(editParams({ title: '미용실 예약', start: '', due: '2026-10-17T14:00', listId: 'life', repeat: '' }), { edit: '1', title: '미용실 예약', kind: 'task', due: '2026-10-17T14:00', list: 'life' })
+assert.deepEqual(editParams({ title: '팀 회의', start: '2026-10-10T15:00', due: '2026-10-10T17:00', listId: '', repeat: 'FREQ=WEEKLY;BYDAY=FR', kind: 'event' }), { edit: '1', title: '팀 회의', kind: 'event', due: '2026-10-10T17:00', start: '2026-10-10T15:00', repeat: 'FREQ=WEEKLY;BYDAY=FR' })
+assert.deepEqual(editParams({ title: '보고서', start: '', due: '', repeat: 'FREQ=DAILY' }), { edit: '1', title: '보고서', kind: 'task' }, '날짜 없으면 반복도 없음')
 console.log('assistant agent helpers: ok')

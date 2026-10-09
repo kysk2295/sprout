@@ -2,7 +2,7 @@
 // 데스크톱·휴대폰 같은 코드(db = getAll만 있는 얇은 껍데기). 쓰기 도구는 저장하지 않는다 — 확인 카드만(§5.3·§6). 외부 캘린더(구글·iCloud·휴대폰)는
 // 읽지 않는다(처리방침 제7조 2항 — §8.5). 일기는 ctx.diary(설정 + 일기 AI 동의)일 때만, 나만 보기 날은 빼고(§8.4). 시험: assistantAgent.test.ts.
 import { dateLabel, dayGap, isToolName, isYmd, mdw, mondayOf, plusDays, TOOL_RESULT_HEAD, weekdayOf, whenLine, ymd, type ToolName } from './assistantTools.ts'
-import { occurrences } from './events.ts'
+import { eventSpan, occurrences } from './events.ts'
 import { progressFromEvents, STAGES } from './growth.ts'
 import { buildPlanView, type PTaskRow } from './planView.ts'
 import { recallMatches, occurrenceOf, type RecallAsk, type RecallRow } from './recall.ts'
@@ -31,6 +31,8 @@ export type ConfirmCard = {
   type: 'confirm'
   key: string
   op: ConfirmOp
+  /** create: 넣을 곳 — 할 일(tasks, 기본) 또는 꿈틀 일정(events, 47 §19.3). 없으면 할 일 */
+  kind?: 'task' | 'event'
   /** create: 제목·시작·끝/마감·리스트·반복 */
   title: string
   start: string
@@ -165,7 +167,7 @@ const RUNNING: Record<ToolName, string> = {
 /** 부르는 중 칩 글(§3.1). 인자를 알면 더 구체적으로 */
 export function runningChip(name: ToolName, args: Record<string, unknown> = {}): string {
   if (name === 'when_last' && str(args.query)) return `‘${str(args.query, 20)}’ 기록 찾는 중…`
-  if (name === 'propose_create') return str(args.start) || /T/.test(str(args.due)) ? '일정 만들 준비 중…' : '할 일 만들 준비 중…'
+  if (name === 'propose_create') return args.kind === 'event' ? '일정 만들 준비 중…' : '할 일 만들 준비 중…'
   return RUNNING[name]
 }
 const FAILED: Record<ToolName, string> = {
@@ -461,20 +463,31 @@ export function pickList(lists: ListLite[], name: string): { id: string; name: s
   const inbox = lists.find((l) => l.kind === 'inbox')
   return { id: inbox?.id ?? '', name: '기본함' }
 }
-/** 확인 카드(만들기) — 앱 길잡이와 propose_create가 같이 쓴다. 값이 틀리면 null(되묻기) */
-export function createCard(o: { title: string; start?: string; due?: string; list?: { id: string; name: string }; repeat?: string; said?: string; durationMin?: number; assumedPm?: boolean; basis?: string; key: string }): ConfirmCard | null {
+/** 확인 카드(만들기) — 앱 길잡이와 propose_create가 같이 쓴다. 값이 틀리면 null(되묻기).
+ *  kind 'event' = 꿈틀 일정(47 §19.3): 날짜가 없으면 today 종일, 시각 하나면 넣을 때 1시간(06 §14.4.2 eventSpan) */
+export function createCard(o: { title: string; start?: string; due?: string; list?: { id: string; name: string }; repeat?: string; said?: string; durationMin?: number; assumedPm?: boolean; basis?: string; key: string; kind?: 'task' | 'event'; today?: string }): ConfirmCard | null {
   const title = o.title.replace(/\s+/g, ' ').trim().slice(0, 200)
   if (!title) return null
+  const event = o.kind === 'event'
   let start = o.start ?? '', due = o.due ?? ''
   if (start && !due) { due = start; start = '' }
   if (start && (start.length !== due.length || start >= due)) start = ''
+  if (event && !due && o.today) due = o.today
   const repeat = o.repeat && RRULE.test(o.repeat) && due ? o.repeat : ''
-  const length = due.includes('T') ? (start ? durationText(start, due) : '시각만 (길이 말 안 해서 안 붙였어요)') : undefined
+  const length = event
+    ? (!due ? undefined : !due.includes('T') ? (start && start < due ? `${dayGap(start, due) + 1}일` : '하루 종일') : start ? durationText(start, due) : '1시간 (길이를 말 안 해서 기본 1시간)')
+    : due.includes('T') ? (start ? durationText(start, due) : '시각만 (길이 말 안 해서 안 붙였어요)') : undefined
   return {
-    type: 'confirm', key: o.key, op: 'create', title, start, due, listId: o.list?.id ?? '', listName: o.list?.name ?? '기본함', repeat,
+    type: 'confirm', key: o.key, op: 'create', ...(event ? { kind: 'event' as const } : {}), title, start, due, listId: event ? '' : o.list?.id ?? '', listName: event ? '내 일정' : o.list?.name ?? '기본함', repeat,
     ...(o.said ? { said: o.said } : {}), ...(length ? { length } : {}), ...(o.assumedPm ? { assumed: '오전·오후를 안 말해서 오후로 읽었어요' } : {}), ...(o.basis ? { basis: o.basis } : {}),
     state: 'pending'
   }
+}
+/** 만들기 칩 끝 글: 넣을 곳(할 일/일정)으로 */
+export const createdChip = (card: ConfirmCard) => (card.kind === 'event' ? '일정 하나 준비했어' : '할 일 하나 준비했어')
+/** 일정 카드 → events 행 칸(06 §14.4: 시각 하나 = 1시간, 날짜만 = 종일). 알림·색·외부 캘린더 없음(꿈틀 내 일정) — 47 §19.3 */
+export function eventFieldsOf(card: Pick<ConfirmCard, 'title' | 'start' | 'due' | 'repeat'>, today: string) {
+  return { title: card.title.trim(), notes: null, location: null, ...eventSpan(card.start || null, card.due || today), time_zone: 'floating', repeat_rule: card.repeat || null, reminders: null, color: null, deleted_at: null }
 }
 function durationText(start: string, end: string) {
   const min = Math.round((new Date(`${end}:00`).getTime() - new Date(`${start}:00`).getTime()) / 60000)
@@ -485,10 +498,11 @@ async function proposeCreate(a: Record<string, unknown>, ctx: ExecCtx): Promise<
   const now = ctx.now
   const lists = await listsOf(ctx.db)
   const due = normAt(a.due, now), start = normAt(a.start, now)
-  const card = createCard({ title: str(a.title, 200), start: start.includes('T') ? start : '', due: due || start, list: pickList(lists, str(a.list, 40)), repeat: str(a.repeat, 80), key: nextKey(ctx) })
+  const kind = a.kind === 'event' ? 'event' : 'task'
+  const card = createCard({ title: str(a.title, 200), start: start.includes('T') ? start : '', due: due || start, list: pickList(lists, str(a.list, 40)), repeat: str(a.repeat, 80), key: nextKey(ctx), kind, today: ymd(now) })
   if (!card) return failedRun('propose_create', a, 'title required')
-  const model = { pending: true, note: '확인 카드를 띄웠어. 사용자가 넣기를 눌러야 저장돼', title: card.title, ...withLabel('when', card.start || card.due, now), list: card.listName }
-  return { name: 'propose_create', args: a, ok: true, chip: { tool: 'propose_create', running: runningChip('propose_create', a), done: card.due.includes('T') ? '일정 하나 준비했어' : '할 일 하나 준비했어', detail: '' }, card, forModel: out(model), facts: factsOf(model, [card.title]) }
+  const model = { pending: true, note: '확인 카드를 띄웠어. 사용자가 넣기를 눌러야 저장돼', kind, title: card.title, ...withLabel('when', card.start || card.due, now), ...(kind === 'event' ? { calendar: '내 일정' } : { list: card.listName }) }
+  return { name: 'propose_create', args: a, ok: true, chip: { tool: 'propose_create', running: runningChip('propose_create', a), done: createdChip(card), detail: '' }, card, forModel: out(model), facts: factsOf(model, [card.title]) }
 }
 /** 확인 카드(완료·옮기기·지우기) — 길잡이와 propose_update가 같이 쓴다 */
 export function updateCard(op: Exclude<ConfirmOp, 'create'>, targets: { id: string; title: string; start_at: string | null; due_at: string | null }[], key: string, moveTo?: string, said?: string): ConfirmCard | null {
@@ -526,6 +540,7 @@ export function undoStmts(card: ConfirmCard, current: { id: string; modified_at:
   if (!s) return null
   const cur = new Map(current.map((c) => [c.id, c]))
   if (s.ids.some((id) => cur.get(id)?.modified_at !== s.stamp)) return null
+  if (card.op === 'create' && card.kind === 'event') return s.ids.some((id) => cur.get(id)!.deleted_at) ? null : s.ids.map((id) => ({ sql: 'UPDATE events SET deleted_at = ?, modified_at = ? WHERE id = ? AND modified_at = ? AND deleted_at IS NULL', params: [stamp, stamp, id, s.stamp] }))
   if (card.op === 'create') return s.ids.some((id) => cur.get(id)!.status !== 0 || cur.get(id)!.deleted_at) ? null : s.ids.map((id) => ({ sql: 'UPDATE tasks SET deleted_at = ?, modified_at = ? WHERE id = ? AND modified_at = ? AND status = 0', params: [stamp, stamp, id, s.stamp] }))
   if (card.op === 'delete') return s.ids.map((id) => ({ sql: 'UPDATE tasks SET deleted_at = NULL, modified_at = ? WHERE id = ? AND modified_at = ?', params: [stamp, id, s.stamp] }))
   if (card.op === 'move') return (s.prev ?? []).map((p) => ({ sql: 'UPDATE tasks SET start_at = ?, due_at = ?, modified_at = ? WHERE id = ? AND modified_at = ?', params: [p.start_at, p.due_at, stamp, p.id, s.stamp] }))

@@ -21,6 +21,7 @@
 //     대기열 맨 앞(front 갈래)으로. 5번째는 turn_limit, 턴 시작 150초 뒤는 timeout, 3분 지나면 잊는다. 첫 호출이 실패하면 턴도 지운다(다시 시도 = 새 턴)
 //   num_ctx 6144(AI_AGENT_NUM_CTX) · 출력 도구 있음 300 / 답 450 [임시] · 호출당 60초. 스트림은 Ollama 줄 그대로(tool_calls도 message 안에).
 //   mode 없음 = 예전 의도 JSON 경로 그대로. /ai/status features에 'agent'가 있으면 앱이 이 경로를 쓴다(없으면 예전 경로)
+//   POST /ai/ground {hits} (47 §19.4) — 앱 근거 검사가 뺀 문장 수(1~20)만 ai_usage(assistant·그날).ground_hits에 더한다. 상한에 안 셈, 204. 원문·이유 없음
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AiBackend } from './ai-backend.ts'
 import { COMPANION_RULES, DIARY_GROUNDING, DISTILL_SCHEMA, DISTILL_SYSTEM } from '../../../packages/schema/src/diaryPrompts.ts'
@@ -192,6 +193,8 @@ export interface UsageStore {
   /** fromDay(포함) 이후 requests 합. endpoint를 주면 그것만 */
   count(userId: string, fromDay: string, endpoint?: Endpoint): Promise<number>
   add(userId: string, endpoint: Endpoint, day: string, delta: UsageDelta): Promise<void>
+  /** 47 §19.4 근거 검사가 뺀 문장 수(숫자만) → ai_usage(사용자 · assistant · 그날).ground_hits. 칸이 없는 DB면 false(쓰지 않음) */
+  addGround?(userId: string, day: string, hits: number): Promise<boolean>
 }
 
 type Query = (sql: string, params: unknown[]) => Promise<{ rows: any[] }>
@@ -217,6 +220,20 @@ export function pgUsageStore(query: Query): UsageStore {
            updated_at = now()`,
         [userId, endpoint, day, int(d.requests), int(d.failures), int(d.prompt_tokens), int(d.output_tokens), int(d.duration_ms)]
       )
+    },
+    async addGround(userId, day, hits) {
+      try {
+        await query(
+          `INSERT INTO ai_usage (user_id, endpoint, day, ground_hits) VALUES ($1, 'assistant', $2, $3)
+           ON CONFLICT (user_id, endpoint, day) DO UPDATE SET ground_hits = ai_usage.ground_hits + EXCLUDED.ground_hits, updated_at = now()`,
+          [userId, day, int(hits)]
+        )
+        return true
+      } catch (e) {
+        // 마이그레이션(20261015-ai-ground.sql) 전: 칸이 없으면 이 숫자만 건너뛴다(API는 그대로)
+        if ((e as { code?: string })?.code === '42703') return false
+        throw e
+      }
     }
   }
 }
@@ -225,9 +242,17 @@ export function pgUsageStore(query: Query): UsageStore {
 export function memoryUsageStore() {
   const rows = new Map<string, Required<UsageDelta> & { userId: string; endpoint: Endpoint; day: string }>()
   const calls: unknown[] = []
-  const store: UsageStore & { rows: typeof rows; calls: unknown[] } = {
+  /** `${사용자}|${날짜}` → ground_hits */
+  const ground = new Map<string, number>()
+  const store: UsageStore & { rows: typeof rows; calls: unknown[]; ground: typeof ground } = {
     rows,
     calls,
+    ground,
+    async addGround(userId, day, hits) {
+      calls.push(['ground', userId, day, hits])
+      ground.set(`${userId}|${day}`, (ground.get(`${userId}|${day}`) ?? 0) + hits)
+      return true
+    },
     async count(userId, fromDay, endpoint) {
       calls.push(['count', userId, fromDay, endpoint])
       let n = 0
@@ -514,6 +539,9 @@ export function assistantModeOf(body: unknown): 'agent' | null {
   throw new AiError('bad_request')
 }
 export const TURN_HEADER = 'x-sprout-turn'
+/** 47 §19.4 근거 검사 횟수: 한 번에 1~20, 사용자당 1분 30번 */
+export const GROUND_MAX_HITS = 20
+export const GROUND_PER_MINUTE = 30
 export function turnIdOf(header: string | string[] | undefined): string {
   const v = Array.isArray(header) ? header[0] : header
   if (typeof v !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(v)) throw new AiError('bad_request')
@@ -767,10 +795,30 @@ export function createAi(deps: AiDeps) {
       default_model: names.includes(cfg.defaultModel) ? cfg.defaultModel : names[0] ?? null,
       backend: deps.backend.name,
       queue: queue.stats(), // 갈래별 길이만(누가 기다리는지는 없다)
-      features: ['agent'], // 47: 앱은 이게 있으면 자유 대화 + 도구 경로를 쓴다
+      features: ['agent', 'ground'], // 47: agent = 자유 대화 + 도구 경로, ground = 근거 검사 횟수 받기(§19.4)
       limits: { per_minute: cfg.perMinute, per_day: cfg.perDay, num_ctx: cfg.numCtx, num_predict: cfg.numPredict, timeout_ms: cfg.timeoutMs },
       usage: { today: await deps.store.count(userId, today), weekly, daily }
     }))
+  }
+
+  /** 47 §19.4 POST /ai/ground {hits} — 근거 검사가 뺀 문장 수만(원문·이유·턴 id 없음). 상한에 세지 않는다. 1분 30번 넘으면 조용히 버림 */
+  const groundRecent = new Map<string, number[]>()
+  let groundMissingLogged = false
+  async function groundReport(req: IncomingMessage, res: ServerResponse) {
+    const userId = await deps.auth(req).catch(() => { throw new AiError('unauthorized') })
+    const body = await readBody(req, 1024)
+    const hits = isObj(body) ? body.hits : undefined
+    if (typeof hits !== 'number' || !Number.isInteger(hits) || hits < 1 || hits > GROUND_MAX_HITS || Object.keys(body as object).length !== 1) throw new AiError('bad_request')
+    const t = now()
+    const recent = (groundRecent.get(userId) ?? []).filter((x) => t - x < 60_000)
+    if (recent.length < GROUND_PER_MINUTE) {
+      recent.push(t)
+      groundRecent.set(userId, recent)
+      const ok = await deps.store.addGround?.(userId, dayKey(t, cfg.tzOffsetMin), hits).catch(() => { log('ai ground write failed'); return true })
+      if (ok === false && !groundMissingLogged) { groundMissingLogged = true; log('ai ground: ai_usage.ground_hits 칸 없음 — server/db/migrations/20261015-ai-ground.sql 필요') }
+    }
+    res.writeHead(204)
+    res.end()
   }
 
   async function run(endpoint: Endpoint, req: IncomingMessage, res: ServerResponse) {
@@ -930,6 +978,7 @@ export function createAi(deps: AiDeps) {
       }
       const name = path.slice(4)
       if (name === 'status' && req.method === 'GET') await status(req, res)
+      else if (name === 'ground' && req.method === 'POST') await groundReport(req, res)
       else if (req.method === 'POST' && isEndpoint(name) && !name.startsWith('diary-')) await run(name, req, res) // 일기 용도는 /ai/diary {mode}로만
       else throw new AiError('not_found')
     } catch (e) {

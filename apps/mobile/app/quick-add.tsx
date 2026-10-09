@@ -29,7 +29,7 @@ import { ensurePermission } from '../src/notifications'
 import { alpha, priorityColor } from '../src/theme/palette'
 import { usePalette } from '../src/theme/ThemeProvider'
 import { DateSheet } from '../src/ui/DateSheet'
-import { chipLabel, EMPTY_SCHEDULE, type Schedule } from '../src/ui/dateSheetModel'
+import { chipLabel, EMPTY_SCHEDULE, ON_TIME, type Schedule } from '../src/ui/dateSheetModel'
 import { PopMenu, useAnchor } from '../src/ui/Menu'
 import { PF } from '../src/calendars/device'
 import { calHash, providerFor } from '../src/calendars/link'
@@ -55,8 +55,11 @@ function saveKind(k: Kind) {
 }
 
 export default function QuickAdd() {
-  // text = 47 확인 카드 [고치기]가 넘기는 글(제목 + 날짜 말) — 빠른 입력 인식이 다시 읽는다
-  const { view = 'smart:today', text: initText } = useLocalSearchParams<{ view?: string; text?: string }>()
+  // 47 §19.2 확인 카드 [고치기]: edit=1 + 제목·날짜(시작·끝·반복)·리스트·할 일/일정 — 날짜는 시트에서 고른 값처럼, 초안에는 남기지 않는다
+  const { view = 'smart:today', text: initText, edit: editFlag, title: editTitle, start: editStart, due: editDue, list: editList, repeat: editRepeat, kind: editKind } =
+    useLocalSearchParams<{ view?: string; text?: string; edit?: string; title?: string; start?: string; due?: string; list?: string; repeat?: string; kind?: string }>()
+  const isEdit = editFlag === '1'
+  const firstText = isEdit ? (editTitle ?? '') : (initText ?? draft.text)
   const p = usePalette()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -64,23 +67,27 @@ export default function QuickAdd() {
   const lists = useLists()
   const tags = useTagMeta()
   const titleRef = useRef<TextInput>(null)
-  const [text, setText] = useState(initText ?? draft.text)
-  const [desc, setDesc] = useState(draft.desc)
-  const [kind, setKindState] = useState<Kind>(loadKind)
-  const setKind = (k: Kind) => { setKindState(k); saveKind(k) }
-  const [place, setPlace] = useState(draft.place)
+  const [text, setText] = useState(firstText)
+  const [desc, setDesc] = useState(isEdit ? '' : draft.desc)
+  const [kind, setKindState] = useState<Kind>(() => (isEdit ? (editKind === 'event' ? 'event' : 'task') : loadKind()))
+  const setKind = (k: Kind) => { setKindState(k); if (!isEdit) saveKind(k) }
+  const [place, setPlace] = useState(isEdit ? '' : draft.place)
   const myColor = useMyCalColor() ?? MY_CAL_COLOR
   // 38 §2.4 캘린더 고르기: 내 일정 + 쓸 수 있고 켜 둔 휴대폰 캘린더. 기본 = 마지막으로 고른 것(사라졌으면 내 일정)
   const devCal = useDeviceCal()
   const targets = targetCalendars(devCal)
-  const target = targets.find((c) => c.id === devCal.prefs.lastTarget) ?? null
+  // [고치기]로 연 일정은 내 일정에서 시작(47 §19.3 — 꿈틀 일정). 직접 고르면 그 캘린더
+  const [editTarget, setEditTarget] = useState<string | null | undefined>(isEdit ? null : undefined)
+  const targetId = editTarget !== undefined ? editTarget : devCal.prefs.lastTarget
+  const target = targets.find((c) => c.id === targetId) ?? null
+  const pickTarget = (id: string | null) => { if (editTarget !== undefined) setEditTarget(id); else setLastTarget(id) }
   const calMenu = useAnchor()
   const isEvent = kind === 'event'
-  const [cursor, setCursor] = useState((initText ?? draft.text).length)
+  const [cursor, setCursor] = useState(firstText.length)
   const [ignored, setIgnored] = useState<string[]>([])
-  const [manual, setManual] = useState<Schedule | null>(null)
+  const [manual, setManual] = useState<Schedule | null>(() => (isEdit && editDue ? { start_at: editStart || null, due_at: editDue, is_all_day: editDue.includes('T') ? 0 : 1, repeat_rule: editRepeat || null, repeat_from: editRepeat ? 'due' : null, reminders: editDue.includes('T') ? [ON_TIME] : [] } : null))
   const [priority, setPriority] = useState<number | null>(null)
-  const [listId, setListId] = useState<string | null>(null)
+  const [listId, setListId] = useState<string | null>(isEdit && editList ? editList : null)
   const [dateOpen, setDateOpen] = useState(false)
   const toast = useToast()
   const [flash, setFlash] = useState<{ msg: string; error?: boolean; id: number } | null>(null)
@@ -89,7 +96,7 @@ export default function QuickAdd() {
   const listMenu = useAnchor()
   const more = useAnchor()
 
-  useEffect(() => { draft.text = text; draft.desc = desc; draft.place = place }, [text, desc, place])
+  useEffect(() => { if (!isEdit) { draft.text = text; draft.desc = desc; draft.place = place } }, [text, desc, place, isEdit])
   // 키보드가 없을 때(하드웨어 키보드·키보드 내림) 도구 막대가 홈 표시줄·둥근 화면 모서리에 붙지 않게 아래 안전 영역만큼 띄운다
   const [kb, setKb] = useState(false)
   const keyboard = useAnimatedKeyboard()
@@ -384,8 +391,8 @@ export default function QuickAdd() {
         align="left"
         width={260}
         items={[
-          { key: 'sprout', label: '내 일정', checked: !target, icon: <View style={[s.myDot, { backgroundColor: myColor }]} />, onPress: () => setLastTarget(null) },
-          ...targets.map((c) => ({ key: c.id, label: `${c.title} · ${sourceName(c)}`, checked: target?.id === c.id, icon: <View style={[s.myDot, { backgroundColor: c.color }]} />, onPress: () => setLastTarget(c.id) }))
+          { key: 'sprout', label: '내 일정', checked: !target, icon: <View style={[s.myDot, { backgroundColor: myColor }]} />, onPress: () => pickTarget(null) },
+          ...targets.map((c) => ({ key: c.id, label: `${c.title} · ${sourceName(c)}`, checked: target?.id === c.id, icon: <View style={[s.myDot, { backgroundColor: c.color }]} />, onPress: () => pickTarget(c.id) }))
         ]}
       />
       <PopMenu

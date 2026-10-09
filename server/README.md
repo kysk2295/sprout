@@ -104,6 +104,7 @@ npm start                                                                       
 `ai_usage` 테이블은 새 DB면 `db/init/03-ai-usage.sql`로, 이미 있는 DB면 마이그레이션으로 만든다(다시 돌려도 안전):
 ```bash
 docker compose exec -T db psql -U sprout -d sprout -v ON_ERROR_STOP=1 < db/migrations/20261005-ai-usage.sql
+docker compose exec -T db psql -U sprout -d sprout -v ON_ERROR_STOP=1 < db/migrations/20261015-ai-ground.sql   # 47 §19.4 ground_hits 칸(POST /ai/ground — 근거 검사가 뺀 문장 수만)
 docker compose up -d --build api
 curl -s localhost:6060/ai/status -H "authorization: Bearer <접근 토큰>"   # available: true 확인
 ```

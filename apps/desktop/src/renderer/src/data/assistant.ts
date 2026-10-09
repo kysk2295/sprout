@@ -1,6 +1,7 @@
 import { intentSchema, localChat, parseIntent, replyPreview, type AssistantProgress, type ChatInput, type Intent } from '../../../shared/assistant'
 import { getDb } from './db'
 import { insert, run, now, taskListId } from './mutations'
+import { eventFieldsOf } from '@sprout/schema/assistantExec'
 import type { ListRow, TaskRow } from './types'
 import { AgentUnsupportedError, runTurn, type AgentWrites, type ChatFn, type TurnEvent, type TurnResult } from '@sprout/schema/assistantAgent'
 import type { AgentMemory } from '@sprout/schema/assistantRouter'
@@ -166,6 +167,14 @@ export function agentWrites(o: { complete: (ids: string[]) => Promise<void>; unc
       const listId = await taskListId(card.listId || null)
       await run(insert('tasks', { id, title: card.title.trim(), list_id: listId, content: '', content_mode: 'text', status: 0, priority: 0, sort_order: -Date.now(), start_at: card.start || null, due_at: card.due || null, is_all_day: card.due.includes('T') ? 0 : 1, time_zone: 'floating', repeat_rule: card.repeat || null, repeat_from: 'due', modified_at: stamp }))
     },
+    // 47 §19.3 일정 카드 = events 한 행(꿈틀 내 일정 — 외부 캘린더·알림 없음)
+    async createEvent(card, id, stamp) {
+      await run(insert('events', { id, ...eventFieldsOf(card, ymdLocal()), modified_at: stamp }))
+    },
+    async readEvents(ids) {
+      if (!ids.length) return []
+      return (await getDb()).getAll(`SELECT id, modified_at, deleted_at FROM events WHERE id IN (${ids.map(() => '?').join(',')})`, ids)
+    },
     complete: o.complete,
     ...(o.uncomplete ? { uncomplete: o.uncomplete } : {}),
     run: (stmts) => run(...stmts),
@@ -175,6 +184,16 @@ export function agentWrites(o: { complete: (ids: string[]) => Promise<void>; unc
     }
   }
 }
+const ymdLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+/** [고치기] 편집기에서 넣은 행(47 §19.2) — 카드에 붙일 값과 되돌리기 도장 */
+export async function editedRow(id: string, kind: 'task' | 'event') {
+  const db = await getDb()
+  return kind === 'event'
+    ? db.get<{ title: string | null; start_at: string | null; due_at: string | null; modified_at: string | null }>('SELECT title, start_at, end_at AS due_at, modified_at FROM events WHERE id = ?', [id])
+    : db.get<{ title: string | null; start_at: string | null; due_at: string | null; modified_at: string | null }>('SELECT title, start_at, due_at, modified_at FROM tasks WHERE id = ?', [id])
+}
+/** 47 §19.4 근거 검사가 뺀 문장 수만 서버로(메인 IPC, 응답 안 기다림) */
+export const reportGround = (hits: number) => { try { window.sprout?.assistant?.ground?.(Math.min(20, Math.max(1, Math.round(hits)))) } catch { /* 숫자 하나 — 잃어도 됨 */ } }
 export type AgentAsk = { text: string; model: string; history: { user: string; assistant: string }[]; memory: AgentMemory; pending: ConfirmCard | null; diary: boolean; name: string; signal: AbortSignal; onEvent?: (e: TurnEvent) => void; chat?: ChatFn }
 export async function askAgent(a: AgentAsk): Promise<TurnResult> {
   const db = await getDb()

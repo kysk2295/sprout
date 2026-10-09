@@ -10,7 +10,8 @@ import { currentUserId, serverAccess } from '../data/auth'
 import { AI_URL } from '../config'
 import { AgentUnsupportedError, runTurn, type AgentWrites, type ChatFn, type TurnEvent, type TurnResult } from '@sprout/schema/assistantAgent'
 import type { AgentMemory } from '@sprout/schema/assistantRouter'
-import type { ConfirmCard } from '@sprout/schema/assistantExec'
+import { eventFieldsOf, type ConfirmCard } from '@sprout/schema/assistantExec'
+import { dayKey } from '../lib/dates'
 import { completeTasks, reopenTasks } from '../data/tasks'
 import { getAssistantDiary, getConsent, preloadDiaryPrefs } from '../diary/prefs'
 import { db, run } from '../data/db'
@@ -242,10 +243,21 @@ export const agentWrites: AgentWrites = {
     const listId = card.listId || (await defaultListId())
     await run([insertStmt('tasks', { owner_id: currentUserId(), id, title: card.title, list_id: listId, content: '', content_mode: 'text', status: 0, priority: 0, sort_order: -Date.now(), start_at: card.start || null, due_at: card.due || null, is_all_day: card.due.includes('T') ? 0 : 1, time_zone: 'floating', repeat_rule: card.repeat || null, repeat_from: card.repeat ? 'due' : null }, stamp)])
   },
+  // 47 §19.3 일정 카드 = events 한 행(꿈틀 내 일정 — 휴대폰 캘린더·알림 없음)
+  async createEvent(card: ConfirmCard, id: string, stamp: string) {
+    await run([insertStmt('events', { owner_id: currentUserId(), id, ...eventFieldsOf(card, dayKey()) }, stamp)])
+  },
+  readEvents: (ids) => (ids.length ? db.getAll(`SELECT id, modified_at, deleted_at FROM events WHERE id IN (${ids.map(() => '?').join(',')})`, ids) : Promise.resolve([])),
   async complete(ids) { await completeTasks(ids) },
   async uncomplete(ids) { await reopenTasks(ids) },
   run: (stmts) => run(stmts),
   read: (ids) => (ids.length ? db.getAll(`SELECT id, modified_at, status, deleted_at, start_at, due_at FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`, ids) : Promise.resolve([]))
+}
+
+/** 47 §19.4 근거 검사가 뺀 문장 수만 서버로(POST /ai/ground {hits}). 기다리지 않고, 실패·예전 서버(404)는 버린다 */
+export function reportGround(hits: number) {
+  const n = Math.min(20, Math.max(1, Math.round(hits)))
+  void server('/ai/ground', { method: 'POST', body: JSON.stringify({ hits: n }), signal: AbortSignal.timeout?.(8000) }).then((r) => r.body?.cancel?.()).catch(() => {})
 }
 
 /** 이 기기에서 일기 보기(§8.4: 설정 + 일기 AI 동의) */

@@ -1,11 +1,11 @@
 // 47 AI 비서 B안 — 길잡이·도구 실행·근거 검사·루프·넣기/되돌리기(모델 없이, 가짜 chat). research 39 22문항을 고정 시험으로(§12).
 import assert from 'node:assert/strict'
 import initSqlJs from 'sql.js'
-import { AGENT_SYSTEM, agentContext, dateLabel, toolsFor, TOOL_NAMES } from './assistantTools.ts'
-import { runTool, type ConfirmCard } from './assistantExec.ts'
+import { AGENT_SYSTEM, agentContext, dateLabel, toolsFor, TOOL_NAMES, TOOL_SPECS } from './assistantTools.ts'
+import { eventFieldsOf, runTool, type ConfirmCard } from './assistantExec.ts'
 import { ground, tidyAnswer } from './assistantGround.ts'
 import { route, emptyMemory, dateNotes, periodIn } from './assistantRouter.ts'
-import { runTurn, saveCard, undoCard, pendingCard, type ChatFn, type AgentWrites, type AgentMessage } from './assistantAgent.ts'
+import { runTurn, saveCard, undoCard, pendingCard, savedFromEditor, type ChatFn, type AgentWrites, type AgentMessage } from './assistantAgent.ts'
 import { createTables, seedFixture, FIXTURE_NOW as now } from './assistantFixture.ts'
 
 const SQL = await initSqlJs()
@@ -271,3 +271,72 @@ assert.equal(G('레벨 8이야. 등록했어!', { facts: { dates: [], titles: []
 assert.equal(G('작년에 할 일 기록은 없어. AI가 못 보게 해 뒀어.', { facts: { dates: [], titles: [], numbers: [] }, user: '작년에 뭐 했어?' }), '작년에 할 일 기록은 없어.')
 assert.deepEqual(R('내 할 일 목록 기억나는 대로 5개만 말해줘. 확인 안 해도 돼'), { kind: 'prefetch', calls: [{ name: 'find_tasks', args: { status: 'open', sort: 'due' } }] })
 console.log('assistantAgent (실측 3차): ok')
+
+// ── 47 §19.3 꿈틀 일정 넣기: 길잡이 갈래 · 카드 · 넣기 · 되돌리기 ──
+{
+  const E = (t: string) => R(t) as any
+  const a = E('내일 3시~5시 팀 회의 잡아줘')
+  assert.deepEqual([a.kind, a.event, a.title, a.start, a.due, a.said], ['create', true, '팀 회의', '2026-10-10T15:00', '2026-10-10T17:00', '내일 3시~5시'], '시간 범위 = 일정')
+  const b2 = E('내일 오후 2시부터 4시 디자인 리뷰 넣어줘')
+  assert.deepEqual([b2.event, b2.start, b2.due, b2.said], [true, '2026-10-10T14:00', '2026-10-10T16:00', '내일 오후 2시~4시'], '~부터 ~ = 일정')
+  assert.deepEqual([E('내일 3시부터 5시까지 동아리 모임 잡아줘').event, E('내일 3시부터 5시까지 동아리 모임 잡아줘').said], [true, '내일 3시~5시'])
+  const c2 = E('토요일 친구 약속 일정으로 잡아줘')
+  assert.deepEqual([c2.event, c2.title, c2.due], [true, '친구 약속', '2026-10-10'], "'일정' 말 = 일정(날짜만 = 종일)")
+  assert.deepEqual([E('금요일 3시-5시 스터디 일정 잡아줘').event, E('금요일 3시-5시 스터디 일정 잡아줘').title], [true, '스터디'], "제목에서 '일정' 떼기")
+  assert.equal(E('내일 3시에 교수님 면담 잡아줘').event, true, '약속 낱말 + 시각 = 일정')
+  assert.equal(E('내일 7시 저녁 약속 잡아줘').event, true)
+  assert.equal(E('내일 오후 3시 기획 회의 한 시간 등록해 줘').event, true, '시각 + 길이 = 일정')
+  assert.equal(E('10월 20일 보고서 제출 추가해줘').event, undefined, '날짜만 할 일 = 할 일')
+  assert.equal(E('내일 회의록 정리 추가해줘').event, undefined, '약속 낱말이어도 시각이 없으면 할 일')
+  const t2 = E('보고서 할 일로 내일 추가해줘')
+  assert.deepEqual([t2.event, t2.title], [undefined, '보고서'], "'할 일로'면 늘 할 일")
+  assert.equal(E('내일 3시 회의 할 일로 넣어줘').event, undefined)
+  // 카드: 머리 말·길이·캘린더 줄
+  const s = script([() => ({ content: 'x' })])
+  const r1 = await runTurn({ ...base, text: '내일 3시~5시 팀 회의 잡아줘', chat: s.chat })
+  const ec = r1.cards[0] as ConfirmCard
+  assert.deepEqual([r1.calls, ec.kind, ec.length, ec.listName, r1.chips[0].done, r1.text], [0, 'event', '2시간', '내 일정', '일정 하나 준비했어', '이렇게 넣을까?'])
+  const r2 = await runTurn({ ...base, text: '내일 3시에 교수님 면담 잡아줘', chat: s.chat })
+  assert.equal((r2.cards[0] as ConfirmCard).length, '1시간 (길이를 말 안 해서 기본 1시간)')
+  const r3 = await runTurn({ ...base, text: '10월 20일 보고서 제출 추가해줘', chat: s.chat })
+  assert.deepEqual([(r3.cards[0] as ConfirmCard).kind, (r3.cards[0] as ConfirmCard).listName, r3.chips[0].done], [undefined, '기본함', '할 일 하나 준비했어'])
+  // 모델 경로 propose_create kind
+  const pe = await runTool('propose_create', { title: '팀 회의', kind: 'event', start: '2026-10-14T19:00', due: '2026-10-14T20:00' }, ctx())
+  assert.deepEqual([(pe.card as ConfirmCard).kind, pe.chip.done, /"kind":"event"/.test(pe.forModel)], ['event', '일정 하나 준비했어', true])
+  const pt = await runTool('propose_create', { title: '보고서', due: '2026-10-14' }, ctx())
+  assert.equal((pt.card as ConfirmCard).kind, undefined)
+  const pd = await runTool('propose_create', { title: '워크숍', kind: 'event' }, ctx())
+  assert.deepEqual([(pd.card as ConfirmCard).due, (pd.card as ConfirmCard).length], ['2026-10-09', '하루 종일'], '날짜 없는 일정 = 오늘 종일')
+  assert.ok(TOOL_SPECS.propose_create.function.parameters.properties.kind, '서버로 가는 도구 정의에 kind')
+  // 일정 행 칸(06 §14.4 eventSpan): 시각 하나 = 1시간, 알림·색 없음
+  assert.deepEqual(eventFieldsOf({ title: ' 면담 ', start: '', due: '2026-10-10T15:00', repeat: '' }, '2026-10-09'), { title: '면담', notes: null, location: null, start_at: '2026-10-10T15:00', end_at: '2026-10-10T16:00', is_all_day: 0, time_zone: 'floating', repeat_rule: null, reminders: null, color: null, deleted_at: null })
+  assert.deepEqual([eventFieldsOf({ title: 'x', start: '', due: '2026-10-10', repeat: 'FREQ=WEEKLY;BYDAY=SA' }, '2026-10-09').is_all_day, eventFieldsOf({ title: 'x', start: '', due: '2026-10-10', repeat: 'FREQ=WEEKLY;BYDAY=SA' }, '2026-10-09').repeat_rule], [1, 'FREQ=WEEKLY;BYDAY=SA'])
+  // 넣기 → events 한 행 → 되돌리기(넣은 직후와 같을 때만)
+  const ew: AgentWrites = {
+    ...writes,
+    createEvent: async (card, id, st) => { const f = eventFieldsOf(card, '2026-10-09'); exec('INSERT INTO events (id, title, start_at, end_at, is_all_day, repeat_rule, deleted_at, modified_at) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)', [id, f.title, f.start_at, f.end_at, f.is_all_day, f.repeat_rule, st]) },
+    readEvents: async (ids) => all(`SELECT id, modified_at, deleted_at FROM events WHERE id IN (${ids.map(() => '?').join(',')})`, ids)
+  }
+  const es = await saveCard(ec, ew)
+  const evId = es.saved!.ids[0]
+  assert.deepEqual(all('SELECT title, start_at, end_at, is_all_day FROM events WHERE id = ?', [evId])[0], { title: '팀 회의', start_at: '2026-10-10T15:00', end_at: '2026-10-10T17:00', is_all_day: 0 })
+  assert.equal(all('SELECT COUNT(*) AS n FROM tasks WHERE id = ?', [evId])[0].n, 0, '일정 카드는 할 일을 만들지 않는다')
+  const found = await runTool('find_events', { from: '2026-10-10', to: '2026-10-10' }, ctx())
+  assert.ok((found.card as any).events.some((e: any) => e.id === evId), '넣은 일정은 find_events에 나온다')
+  const eu = await undoCard(es, ew)
+  assert.equal(eu.state, 'undone')
+  assert.ok(all('SELECT deleted_at FROM events WHERE id = ?', [evId])[0].deleted_at)
+  const es2 = await saveCard(ec, ew)
+  exec('UPDATE events SET title = ?, modified_at = ? WHERE id = ?', ['바뀐 회의', tick(), es2.saved!.ids[0]])
+  await assert.rejects(undoCard(es2, ew), /등록 뒤에 바뀐 항목은 되돌릴 수 없어요/)
+  await assert.rejects(saveCard(ec, writes), /일정을 넣지 못했어요/, 'createEvent 없는 앱은 일정 카드를 넣지 않는다')
+  // 말로 확인('응')도 일정 카드
+  assert.deepEqual(R('응', { pending: ec }), { kind: 'confirm', key: ec.key })
+  // [고치기] 편집기에서 넣은 것 → 카드 저장 상태 + 같은 되돌리기
+  const fromEd = savedFromEditor(ec, { id: 'ed-1', stamp: '2026-10-09T02:00:00.000Z', kind: 'task', title: '팀 회의 준비', start: null, due: '2026-10-10' })
+  assert.deepEqual([fromEd.state, fromEd.kind, fromEd.title, fromEd.start, fromEd.due, fromEd.saved], ['saved', undefined, '팀 회의 준비', '', '2026-10-10', { ids: ['ed-1'], stamp: '2026-10-09T02:00:00.000Z' }])
+  exec("INSERT INTO tasks (id, title, list_id, status, due_at, modified_at) VALUES ('ed-1', '팀 회의 준비', 'in', 0, '2026-10-10', '2026-10-09T02:00:00.000Z')")
+  assert.equal((await undoCard(fromEd, ew)).state, 'undone')
+  assert.ok(all("SELECT deleted_at FROM tasks WHERE id = 'ed-1'")[0].deleted_at)
+}
+console.log('assistantAgent (일정 넣기 · 고치기 47 §19): ok')

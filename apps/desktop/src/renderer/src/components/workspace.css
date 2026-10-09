@@ -209,6 +209,8 @@
 .assistant-v2 .aa-confirm dd { margin: 0; color: var(--color-text-primary); }
 .assistant-v2 .aa-confirm dd.is-hl { color: var(--color-accent-ink, var(--color-accent)); font-weight: 600; }
 .assistant-v2 .aa-said { color: var(--color-text-tertiary); font-weight: 500; }
+/* 47 §19.3 일정 카드 '캘린더 · 내 일정' 점 */
+.assistant-v2 .aa-caldot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
 .assistant-v2 .aa-confirm__pick { margin: 6px -14px 0; }
 .assistant-v2 .aa-confirm__pick input { accent-color: var(--color-accent); }
 .assistant-v2 .aa-confirm .assistant-row { margin: 4px -14px 0; }

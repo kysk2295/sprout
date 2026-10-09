@@ -34,8 +34,8 @@ export const TOOL_SPECS: Record<ToolName, ToolSpec> = {
   date_calc: fn('date_calc', 'Date math: days_between(a,b), add_days(a,n), weekday(a).', {
     op: { type: 'string', enum: ['days_between', 'add_days', 'weekday'] }, a: D('date'), b: D('date'), n: { type: 'integer' }
   }, ['op', 'a']),
-  propose_create: fn('propose_create', 'Propose a new task/event; the user must tap to save. start = event start.', {
-    title: S(), due: S('YYYY-MM-DD or YYYY-MM-DDTHH:mm'), start: S('YYYY-MM-DDTHH:mm'), list: S(), repeat: S('e.g. FREQ=WEEKLY;BYDAY=MO')
+  propose_create: fn('propose_create', 'Propose a new task or calendar event; the user must tap to save. kind event for meetings/appointments/time ranges.', {
+    title: S(), kind: { type: 'string', enum: ['task', 'event'] }, due: S('YYYY-MM-DD or YYYY-MM-DDTHH:mm (event end)'), start: S('YYYY-MM-DDTHH:mm'), list: S(), repeat: S('e.g. FREQ=WEEKLY;BYDAY=MO')
   }, ['title']),
   propose_update: fn('propose_update', 'Propose completing, moving or deleting a task (id from find_tasks); the user must tap.', {
     id: S(), action: { type: 'string', enum: ['complete', 'move', 'delete'] }, due: S('new date for move')

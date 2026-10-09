@@ -59,6 +59,10 @@ function createServerAi() {
         return { agent: !!status?.available && Array.isArray(status?.features) && status.features.includes('agent'), daily: q && typeof q.limit === 'number' ? { used: Number(q.used) || 0, limit: q.limit } : null }
       } catch { return { agent: false, daily: null } }
     },
+    /** 47 §19.4 근거 검사가 뺀 문장 수만(POST /ai/ground {hits}). 실패·예전 서버(404)는 조용히 버린다 */
+    ground: async (hits: number) => {
+      await server('/ai/ground', { method: 'POST', body: JSON.stringify({ hits }), signal: AbortSignal.timeout(8000) }).then((r) => r.body?.cancel()).catch(() => {})
+    },
     /** 47 agent 한 번(같은 턴 id). 글 조각·대기열은 IPC로, 끝나면 {content, tool_calls} */
     agent: async (input: AgentInput & { model?: string; call?: number }, signal: AbortSignal, onDelta: (text: string) => void, onQueue: (position: number) => void) => {
       const body = JSON.stringify({ mode: 'agent', ...(input.model ? { model: input.model } : {}), messages: input.messages, tools: input.tools, stream: true })
@@ -89,7 +93,7 @@ function createServerAi() {
 
 export function registerAssistant() {
   const remote = process.env.SPROUT_AI_SSH === '1' ? createRemoteOllama() : undefined
-  type Ai = Omit<ReturnType<typeof createServerAi>, 'daily' | 'features' | 'agent'> & Partial<Pick<ReturnType<typeof createServerAi>, 'daily' | 'features' | 'agent'>>
+  type Ai = Omit<ReturnType<typeof createServerAi>, 'daily' | 'features' | 'agent' | 'ground'> & Partial<Pick<ReturnType<typeof createServerAi>, 'daily' | 'features' | 'agent' | 'ground'>>
   const ai: Ai = remote ?? createServerAi()
   app.on('before-quit', () => remote?.close())
   const requests = new Map<string, AbortController>()
@@ -131,5 +135,6 @@ export function registerAssistant() {
     catch (e) { if (abort.signal.aborted && !cancelled.has(key)) throw new Error('AI 응답이 너무 오래 걸려요. 다시 시도해 주세요.'); throw e }
     finally { clearTimeout(timer); requests.delete(key); cancelled.delete(key); if (!event.sender.isDestroyed()) event.sender.off('destroyed', drop) }
   })
+  ipcMain.on('assistant:ground', (_e, hits: unknown) => { if (typeof hits === 'number' && Number.isInteger(hits) && hits >= 1 && hits <= 20) void ai.ground?.(hits) })
   ipcMain.on('assistant:cancel', (event, id: string) => { const key = `${event.sender.id}:${id}`; const r = requests.get(key); if (r) { cancelled.add(key); r.abort() } })
 }

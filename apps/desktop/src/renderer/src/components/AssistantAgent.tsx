@@ -5,6 +5,8 @@ import { dateLabel, mdw, whenLine, ymd } from '@sprout/schema/assistantTools'
 import type { Card, Chip, ConfirmCard } from '@sprout/schema/assistantExec'
 import type { Band } from '@sprout/schema/assistantRouter'
 import { useQuery } from '../data/useQuery'
+import { useMyCalColor } from '../data/events'
+import { MY_CAL_COLOR } from '@sprout/schema/events'
 import { dayKey, rowDateLabel } from '../lib/dates'
 import { StillFace } from './companion/CompanionFace'
 import type { Species } from '@sprout/schema/growth'
@@ -58,6 +60,15 @@ export function Bands({ bands }: { bands: Band[] }) {
 }
 
 type Live = { id: string; status: number; deleted_at: string | null; title: string; start_at: string | null; due_at: string | null }
+/** 일정 카드(47 §19.3) 넣은 뒤: 지금 행(되돌리기·지움 표시). status는 늘 0 */
+function useLiveEvents(ids: string[]) {
+  return useQuery<Live>(ids.length ? `SELECT id, 0 AS status, deleted_at, title, start_at, end_at AS due_at FROM events WHERE id IN (${ids.map(() => '?').join(',')})` : 'SELECT NULL AS id WHERE 0', ids)
+}
+/** 확인 카드 '캘린더 · 내 일정' 점(06 §14.3 내 일정 색) */
+function MyCalDot() {
+  const color = useMyCalColor()
+  return <i className="aa-caldot" style={{ background: color || MY_CAL_COLOR }} aria-hidden />
+}
 function useLiveTasks(ids: string[]) {
   return useQuery<Live>(ids.length ? `SELECT id, status, deleted_at, title, start_at, due_at FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})` : 'SELECT NULL AS id WHERE 0', ids)
 }
@@ -218,14 +229,18 @@ function SinceCard({ card, h }: { card: Extract<Card, { type: 'since' }>; h: Car
 }
 
 /** 확인 카드(§5.3) — 넣기 전엔 아무것도 바뀌지 않는다. 지우기는 위험색·단추로만 */
-export function ConfirmView({ card, onSave, onEdit, onCancel, onUndo, onOpen, busy }: { card: ConfirmCard; onSave: (picked?: string[]) => void; onEdit: () => void; onCancel: () => void; onUndo: () => void; onOpen: (id: string) => void; busy?: boolean }) {
+export function ConfirmView({ card, onSave, onEdit, onCancel, onUndo, onOpen, busy }: { card: ConfirmCard; onSave: (picked?: string[]) => void; onEdit: (anchor: HTMLElement) => void; onCancel: () => void; onUndo: () => void; onOpen: (id: string) => void; busy?: boolean }) {
   const now = new Date()
   const multi = (card.targets?.length ?? 0) > 1
   const [picked, setPicked] = useState<string[]>(() => card.targets?.filter((t) => t.picked).map((t) => t.id) ?? [])
   const danger = card.op === 'delete'
   const ids = card.saved?.ids ?? []
-  const live = useLiveTasks(card.state === 'saved' ? ids : [])
-  const kind = card.op === 'create' ? ((card.start || card.due).includes('T') ? '일정' : '할 일') : ''
+  const isEvent = card.op === 'create' && card.kind === 'event'
+  const liveTasks = useLiveTasks(card.state === 'saved' && !isEvent ? ids : [])
+  const liveEvents = useLiveEvents(card.state === 'saved' && isEvent ? ids : [])
+  const live = isEvent ? liveEvents : liveTasks
+  // 47 §19.3 머리 말 = 실제 넣을 곳(일정 = events, 그 밖 = 할 일)
+  const kind = card.op === 'create' ? (isEvent ? '일정' : '할 일') : ''
   if (card.state === 'cancelled') return <div className="aa-confirm is-cancel"><div className="aa-confirm__head"><X />{card.op === 'create' ? '넣지 않았어요' : '바꾸지 않았어요'}</div><div className="aa-confirm__title">{card.title}</div></div>
   if (card.state === 'saved' || card.state === 'undone') {
     const undone = card.state === 'undone'
@@ -238,8 +253,8 @@ export function ConfirmView({ card, onSave, onEdit, onCancel, onUndo, onOpen, bu
           const cur = (live ?? []).find((x) => x.id === r.id)
           const gone = (undone && card.op === 'create') || (card.op === 'delete' && !undone) || !!cur?.deleted_at
           return (
-            <div key={r.id} className={`assistant-row${gone ? ' is-gone' : ''}${cur?.status === 1 ? ' is-done' : ''}`} onClick={() => !gone && onOpen(r.id)}>
-              <span className={`checkbox${cur?.status === 1 ? ' is-checked' : ''}`} aria-hidden>{cur?.status === 1 && <Check />}</span>
+            <div key={r.id} className={`assistant-row${gone ? ' is-gone' : ''}${cur?.status === 1 ? ' is-done' : ''}`} onClick={() => !gone && onOpen(isEvent ? `ev:${r.id}` : r.id)}>
+              {isEvent ? <span className="aa-evbar" aria-hidden /> : <span className={`checkbox${cur?.status === 1 ? ' is-checked' : ''}`} aria-hidden>{cur?.status === 1 && <Check />}</span>}
               <span className="assistant-row__title">{cur?.title ?? r.title}</span>
               <span className="assistant-row__meta">{gone ? '삭제됨' : r.at ? whenLine(r.at, now) : ''}</span>
             </div>
@@ -273,7 +288,7 @@ export function ConfirmView({ card, onSave, onEdit, onCancel, onUndo, onOpen, bu
       <dl>
         {card.op === 'create' && <><dt>언제</dt><dd className="is-hl">{whenLine(at, now)}{card.said && <span className="aa-said"> (“{card.said}”)</span>}</dd></>}
         {card.op === 'create' && card.length && <><dt>길이</dt><dd>{card.length}</dd></>}
-        {card.op === 'create' && <><dt>리스트</dt><dd>{card.listName || '기본함'}</dd></>}
+        {card.op === 'create' && (isEvent ? <><dt>캘린더</dt><dd><MyCalDot />내 일정</dd></> : <><dt>리스트</dt><dd>{card.listName || '기본함'}</dd></>)}
         {card.op === 'create' && card.repeat && <><dt>반복</dt><dd>{repeatWord(card.repeat)}</dd></>}
         {card.op === 'move' && !multi && <><dt>언제</dt><dd className="is-hl">{card.due ? `${whenLine(card.due, now)} → ` : ''}{card.moveTo ? whenLine(card.moveTo, now) : ''}{card.said && <span className="aa-said"> (“{card.said}”)</span>}</dd></>}
         {card.op === 'move' && multi && <><dt>옮길 날</dt><dd className="is-hl">{card.moveTo ? whenLine(card.moveTo, now) : ''}</dd></>}
@@ -283,7 +298,7 @@ export function ConfirmView({ card, onSave, onEdit, onCancel, onUndo, onOpen, bu
       </dl>
       <div className="aa-confirm__act">
         <button className={`aa-btn ${danger ? 'is-danger' : 'is-primary'}`} disabled={busy || (multi && !picked.length)} onClick={() => onSave(multi ? picked : undefined)}>{multi ? `골라서 ${verb} ${picked.length}` : verb}</button>
-        {!danger && <button className="aa-btn" disabled={busy} onClick={onEdit}>고치기</button>}
+        {!danger && <button className="aa-btn" disabled={busy} onClick={(e) => onEdit(e.currentTarget)}>고치기</button>}
         <button className="aa-btn is-ghost" disabled={busy} onClick={onCancel}>취소</button>
       </div>
       <div className="aa-confirm__note">{danger ? '지우기는 단추로만 할 수 있어요 · 지운 뒤 되돌릴 수 있어요' : `‘${verb}’를 누르기 전엔 ${card.op === 'create' ? '저장되지' : '바뀌지'} 않아요 · “응”이라고 답해도 돼요`}</div>
@@ -300,14 +315,3 @@ function repeatWord(rule: string) {
   return rule
 }
 
-/** 고치기 = 이 값으로 다시 말할 수 있게 입력창에 문장으로(편집 시트 대신 — 넣기 전 값이라 할 일 행이 아직 없다) */
-export function editSentence(card: ConfirmCard): string {
-  const now = new Date()
-  if (card.op !== 'create') return card.title
-  const at = card.start || card.due
-  const day = at ? `${Number(at.slice(5, 7))}월 ${Number(at.slice(8, 10))}일` : ''
-  const time = at.includes('T') ? ` ${timeOf(at).replace(/:00$/, '시').replace(/(\d+):(\d+)$/, '$1시 $2분')}` : ''
-  void now
-  const len = card.start && card.due.includes('T') ? ` ${card.length}` : ''
-  return `${day}${time} ${card.title}${len} 잡아줘`.trim()
-}

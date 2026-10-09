@@ -8,15 +8,18 @@ import { daysBetween, dayWord, ymdOf, type RecallHit, type RecallResult } from '
 import { useGrowth } from '../data/growth'
 import { CompanionFace, CompanionSay, CompanionXp, StillFace, useCompanion } from './companion/CompanionFace'
 import { localModels, type AssistantProgress } from '../../../shared/assistant'
-import { agentFeatures, agentWrites, askAgent, askAssistant, assistantDiaryOn, undoAssistant, type AgentFeatures, type AssistantResult } from '../data/assistant'
-import { AgentUnsupportedError, pendingCard, saveCard, undoCard, type TurnEvent } from '@sprout/schema/assistantAgent'
+import { agentFeatures, agentWrites, askAgent, askAssistant, assistantDiaryOn, editedRow, reportGround, undoAssistant, type AgentFeatures, type AssistantResult } from '../data/assistant'
+import { AgentUnsupportedError, pendingCard, saveCard, savedFromEditor, undoCard, type TurnEvent } from '@sprout/schema/assistantAgent'
 import { savedLine, type Card, type Chip, type ConfirmCard } from '@sprout/schema/assistantExec'
 import { emptyMemory, type AgentMemory } from '@sprout/schema/assistantRouter'
 import { BackSceneBand } from './ListSceneBand'
 import { createTextStream } from '@sprout/schema/diaryTalk'
 import { useMotionReduced } from '../data/growth'
 import { StreamText } from './diary/Stream'
-import { AgentCard, Bands, ConfirmView, editSentence, ToolChips, type AgentView } from './AssistantAgent'
+import { AgentCard, Bands, ConfirmView, ToolChips, type AgentView } from './AssistantAgent'
+import { QuickCreate } from './calendar/QuickCreate'
+import type { Rect } from './calendar/types'
+import type { ListRow } from '../data/types'
 import { useQuery } from '../data/useQuery'
 import { dayKey, rowDateLabel } from '../lib/dates'
 import { useTaskActions } from '../lib/taskActions'
@@ -77,6 +80,14 @@ export function useAssistant(account: string) {
     catch (e) { setError(e instanceof Error ? e.message : '저장하지 못했어요.'); return null }
   }
   const cancelConfirm = (msgId: string, card: ConfirmCard) => putCard(msgId, { ...card, state: 'cancelled' }, card.op === 'create' ? '알겠어, 안 넣을게.' : '알겠어, 그대로 둘게.')
+  /** [고치기](47 §19.2): 카드는 '넣지 않았어요'로, 편집기에서 넣으면 savedFromEditor로 '넣었어요' + 되돌리기 */
+  const editConfirm = (msgId: string, card: ConfirmCard) => putCard(msgId, { ...card, state: 'cancelled' })
+  const editedConfirm = async (msgId: string, card: ConfirmCard, id: string, kind: 'task' | 'event') => {
+    const row = await editedRow(id, kind).catch(() => null)
+    if (!row) return
+    const saved = savedFromEditor(card, { id, kind, stamp: row.modified_at ?? '', title: row.title ?? undefined, start: kind === 'event' ? (row.start_at === row.due_at ? null : row.start_at) : row.start_at, due: row.due_at })
+    putCard(msgId, saved, savedLine(saved, new Date()))
+  }
   const undoConfirm = async (msgId: string, card: ConfirmCard) => {
     try { putCard(msgId, await undoCard(card, writes), '알겠어, 되돌렸어.') } catch (e) { setError(e instanceof Error ? e.message : '되돌리지 못했어요.') }
   }
@@ -96,6 +107,7 @@ export function useAssistant(account: string) {
     const r = await askAgent({ text: prompt, model, history: pairsOf(msgs), memory, pending: pendingCard(msgs.map((m) => m.agent?.cards ?? [])), diary: assistantDiaryOn(account), name: me.name, signal, onEvent })
     await stream.whenShown(600)
     setMemory(r.memory)
+    if (r.grounding.hits > 0) reportGround(r.grounding.hits) // 47 §19.4 숫자만(실패해도 그만)
     let line: string | undefined
     if (r.confirm) {
       const found = cardOf(r.confirm.key)
@@ -132,7 +144,7 @@ export function useAssistant(account: string) {
   const left = features.daily ? Math.max(0, features.daily.limit - features.daily.used) : null
   return {
     cooldown: cooldown > Date.now(), progress, started, lastRequest, messages, models, model, setModel, busy, connecting, error, refresh, send, undo, agent: features.agent, left, live, stream,
-    saveConfirm, cancelConfirm, undoConfirm, setError,
+    saveConfirm, cancelConfirm, editConfirm, editedConfirm, undoConfirm, setError,
     cancel: () => request.current?.abort(),
     // 새 대화면 이어 받을 것도 비운다(47 §10) — 저장 안 된 확인 카드도 같이 사라진다
     clear: () => { if (!request.current) { setMessages([]); setMemory(emptyMemory()); setError('') } }
@@ -216,6 +228,15 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
   const recentLists = useQuery<{ name: string }>(RECENT_LISTS_SQL)
   const reduced = useMotionReduced()
   const { complete } = useTaskActions()
+  // 47 §19.2 [고치기] = 빠른 만들기 팝오버(06 §7.1)를 카드 값으로
+  const lists = useQuery<ListRow>('SELECT id, name, emoji, color, kind, sort_order FROM lists WHERE archived_at IS NULL ORDER BY sort_order, created_at, id') ?? []
+  const [editing, setEditing] = useState<{ msgId: string; card: ConfirmCard; rect: Rect } | null>(null)
+  const startEdit = (msgId: string, c: ConfirmCard, el: HTMLElement) => {
+    if (c.op !== 'create') { const t = c.targets?.find((x) => x.picked) ?? c.targets?.[0]; if (t) onOpen(t.id); return }
+    const r = el.getBoundingClientRect()
+    a.editConfirm(msgId, c)
+    setEditing({ msgId, card: c, rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom } })
+  }
   /** 결과 카드: 행 = 열기, 체크 = 완료 + XP(13 §4·21) + 캐릭터 깡충 */
   const cardH = (msgId: string) => ({ onOpen, species: me.species, stage: me.stage, onComplete: (id: string) => { setBump((b) => ({ id: msgId, move: 'hop', n: (b?.n ?? 0) + 1, xp: canXp })); void complete([id]) } })
   const seenIds = useRef<Set<string> | null>(null)
@@ -309,7 +330,7 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
                         ? <ConfirmView key={c.key} card={c} busy={a.busy} onOpen={onOpen}
                             onSave={(picked) => void a.saveConfirm(m.id, c, picked).then((saved) => { if (saved) setBump((b) => ({ id: m.id, move: 'hop', n: (b?.n ?? 0) + 1, xp: saved.op === 'complete' && canXp })) })}
                             onCancel={() => a.cancelConfirm(m.id, c)}
-                            onEdit={() => { a.cancelConfirm(m.id, c); onDraft(editSentence(c)); input.current?.focus() }}
+                            onEdit={(el) => startEdit(m.id, c, el)}
                             onUndo={() => void a.undoConfirm(m.id, c)} />
                         : <AgentCard key={k} card={c} h={cardH(m.id)} />)}
                       <Bands bands={v.bands} />
@@ -416,6 +437,15 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
             : <button className="assistant-send" aria-label="보내기" title="보내기" disabled={!a.model || !draft.trim() || a.connecting} onClick={() => void submit()}><ArrowUp /></button>}
         </div>
       </div>
+      {editing && (() => {
+        const c = editing.card
+        const inbox = lists.find((l) => l.kind === 'inbox')?.id ?? ''
+        return <QuickCreate key={c.key} draft={{ start_at: c.start || null, due_at: c.due || null }} rect={editing.rect} lists={lists} defaultListId={c.listId || inbox}
+          initial={{ kind: c.kind === 'event' ? 'event' : 'task', title: c.title, repeat: c.repeat || null }}
+          onClose={() => setEditing(null)}
+          onCreated={(id) => void a.editedConfirm(editing.msgId, c, id, 'task')}
+          onCreatedEvent={(id) => void a.editedConfirm(editing.msgId, c, id, 'event')} />
+      })()}
       {variant === 'full' && <p className="assistant-footnote">{a.agent ? '꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요' : '등록 결과는 카드에서 확인하고 되돌릴 수 있어요'}</p>}
     </div>
   )

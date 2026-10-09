@@ -33,3 +33,12 @@ export async function convertNote(id: string, input: {title: string; listId: str
   await run(stmt, update('notes', id, {task_id:taskId}))
   return taskId
 }
+
+// 47 §19.1 AI 비서 메모 카드 → 그 메모 바로 열기: 수집함 보기가 (지금 또는 그려질 때) 받아 그 행을 고르고 상세를 연다
+export const OPEN_NOTE = 'sprout:open-note'
+let pendingNote: string | undefined
+export function requestOpenNote(id: string) {
+  pendingNote = id
+  window.dispatchEvent(new CustomEvent(OPEN_NOTE))
+}
+export function takeOpenNote(): string | undefined { const id = pendingNote; pendingNote = undefined; return id }

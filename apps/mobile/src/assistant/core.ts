@@ -248,12 +248,9 @@ export const ASSISTANT_DIARY_LABEL = 'AI 비서가 일기도 볼 수 있게'
 export const ASSISTANT_DIARY_HINT = '켜면 AI 비서가 질문에 답할 때 일기 글을 찾아볼 수 있어요. 나만 보기 날과 일기 대화 원문은 보내지 않아요.'
 export const ASSISTANT_DIARY_NEEDS = '일기에서 캐릭터와 나누기를 먼저 켜 주세요'
 
-/** 확인 카드 [고치기] → 빠른 입력에 넘길 글(인식기가 다시 읽는다) */
-export function editText(c: { title: string; start: string; due: string }): string {
-  const at = c.start || c.due
-  if (!at) return c.title
-  const d = `${Number(at.slice(5, 7))}월 ${Number(at.slice(8, 10))}일`
-  const t = at.includes('T') ? ` ${Number(at.slice(11, 13)) < 12 ? '오전' : '오후'} ${Number(at.slice(11, 13)) % 12 || 12}시${at.slice(14, 16) !== '00' ? ` ${Number(at.slice(14, 16))}분` : ''}` : ''
-  return `${c.title} ${d}${t}`
+/** 확인 카드 [고치기](47 §19.2) → 빠른 입력 경로 인자(문자열만): 제목 그대로(인식기가 다시 읽지 않음)·날짜(시트에서 고른 값처럼 시작·끝·반복)·리스트·할 일/일정.
+ *  예전(v1.0)엔 제목 + 날짜 말을 한 줄 글로 넘겨 인식기가 다시 읽었다 — 끝 시각·리스트·반복·일정이 빠졌다 */
+export function editParams(c: { title: string; start: string; due: string; listId?: string; repeat?: string; kind?: 'task' | 'event' }): Record<string, string> {
+  return { edit: '1', title: c.title, kind: c.kind === 'event' ? 'event' : 'task', ...(c.due ? { due: c.due } : {}), ...(c.start && c.due ? { start: c.start } : {}), ...(c.listId ? { list: c.listId } : {}), ...(c.repeat && c.due ? { repeat: c.repeat } : {}) }
 }
 

@@ -16,7 +16,7 @@ export type Route =
   | { kind: 'confirm'; key: string }
   | { kind: 'cancel'; key: string }
   | { kind: 'fixed'; text: string; hint?: string; action?: 'diary' | 'settings' }
-  | { kind: 'create'; title: string; start: string; due: string; repeat: string; said: string; durationMin?: number; assumedPm?: boolean; basis?: string; list?: string }
+  | { kind: 'create'; title: string; start: string; due: string; repeat: string; said: string; durationMin?: number; assumedPm?: boolean; basis?: string; list?: string; event?: boolean }
   | { kind: 'update'; op: Exclude<ConfirmOp, 'create'>; query: string; moveTo?: string; said?: string }
   | { kind: 'prefetch'; calls: Prefetch[] }
   | { kind: 'model' }
@@ -29,6 +29,19 @@ const CREATE_VERB = /\s*(을|를)?\s*(일정으로|할\s*일로)?\s*(잡아|넣�
 const COMPLETE_VERB = /\s*(을|를)?\s*(끝냈어|끝났어|다\s*했어|했어|완료했어)?\s*[,.]?\s*(완료로|완료\s*처리|체크)\s*(해|해\s*줘|해줘|해\s*주라|해\s*줄래|좀\s*해\s*줘)?\s*[.!?~]*$|\s*(을|를)?\s*(끝냈어|다\s*했어)\s*[.!?~]*$/
 const MOVE_VERB = /\s*(을|를)?\s*(\S+로|\S+으로)?\s*(옮겨|미뤄|연기해|넘겨)\s*(줘|주라|줄래|주세요)?\s*[.!?~]*$/
 const DELETE_VERB = /\s*(을|를)?\s*(지워|삭제해|없애)\s*(줘|주라|줄래|주세요|버려)?\s*[.!?~]*$/
+/** 47 §19.3 넣을 곳: '할 일로'면 할 일, '일정' 말·시간 범위·약속 낱말 + 시각이면 꿈틀 일정 */
+const AS_TASK = /할\s*일\s*(로|으로)/
+const EVENT_SAID = /일정/
+const MEETING = /(회의|미팅|약속|모임|면담|상담|진료|예약|세미나|데이트|수업|강의)/
+/** 제목에서 종류 말 떼기('스터디 일정' → '스터디', '보고서 할 일로' → '보고서'). 그것뿐이면 그대로 */
+const dropKindWords = (title: string) => { const t = title.replace(/\s*(할\s*일|일정)\s*(로|으로)?(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim(); return t || title }
+export function wantsEvent(text: string, o: { title: string; start: string; due: string; durationMin?: number }): boolean {
+  if (AS_TASK.test(text)) return false
+  if (EVENT_SAID.test(text)) return true
+  const timed = o.due.includes('T')
+  if (timed && (o.start || o.durationMin)) return true
+  return timed && MEETING.test(o.title)
+}
 const LEAD = /^(그럼|그러면|그리고|그럼\s*이제|음+|아+|혹시|그냥)\s+/
 const GENERIC = /^(예약|일정|약속|그거|그것|그\s*일|이거|그걸|거기)$/
 const NOWEB = /(가격|시세|주가|환율|날씨|뉴스|속보|경기\s*결과|비트코인|이더리움|실시간|지금\s*몇\s*도)/
@@ -111,7 +124,12 @@ export function route(text: string, ctx: { now: Date; pending?: ConfirmCard | nu
     if ((!title || GENERIC.test(title)) && subject) { basis = `이전 대화의 “${subject}”을 이어 받음`; title = `${subject} ${title}`.trim() }
     if (title && !GENERIC.test(title)) {
       const listWord = /(\S+)\s*리스트(에|로)?/.exec(body)?.[1]
-      return r({ kind: 'create', title: title.replace(/\s*\S+\s*리스트(에|로)?\s*/, ' ').trim(), start: rec.start_at ?? '', due: rec.due_at ?? '', repeat: rec.repeat_rule ?? '', said: rec.recognized.join(' ').replace(/(에|로|으로|부터|까지|쯤에?|경에?)(?=\s|$)/g, ''), ...(rec.duration_min ? { durationMin: rec.duration_min } : {}), ...(rec.assumed_pm ? { assumedPm: true } : {}), ...(basis ? { basis } : {}), ...(listWord ? { list: listWord } : {}) })
+      const base = title.replace(/\s*\S+\s*리스트(에|로)?\s*/, ' ').trim()
+      const start = rec.start_at ?? '', due = rec.due_at ?? ''
+      const event = wantsEvent(t, { title: base, start, due, durationMin: rec.duration_min ?? undefined })
+      // 원말: '3시부터 5시까지' → '3시~5시'(조사 떼기)
+      const said = rec.recognized.join(' ').replace(/부터\s*/g, '~').replace(/(에|로|으로|까지|쯤에?|경에?)(?=\s|$)/g, '').replace(/\s*~\s*/g, '~')
+      return r({ kind: 'create', title: dropKindWords(base), start, due, repeat: rec.repeat_rule ?? '', said, ...(rec.duration_min ? { durationMin: rec.duration_min } : {}), ...(rec.assumed_pm ? { assumedPm: true } : {}), ...(basis ? { basis } : {}), ...(!event && listWord ? { list: listWord } : {}), ...(event ? { event: true } : {}) })
     }
   }
   // ④ 쓰기: 완료·옮기기·지우기 → 후보를 찾아 확인 카드

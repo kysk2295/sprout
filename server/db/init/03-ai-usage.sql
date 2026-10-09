@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS ai_usage (
   prompt_tokens bigint NOT NULL DEFAULT 0,
   output_tokens bigint NOT NULL DEFAULT 0,
   duration_ms bigint NOT NULL DEFAULT 0,  -- Ollama 처리 시간 합
+  ground_hits integer NOT NULL DEFAULT 0, -- 47 §19.4 AI 비서 근거 검사가 뺀 문장 수(숫자만, migrations/20261015-ai-ground.sql)
   updated_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, endpoint, day)
 );

@@ -24,7 +24,7 @@ import { usePalette } from '../theme/ThemeProvider'
 import { Checkbox } from '../ui/Checkbox'
 import { OFFLINE, type AssistantProgress, type AssistantResult } from './core'
 import { cancel, cancelAgentCard, refresh, saveAgentCard, send, setAgentLine, setBuddyName, setDraft, toggleTarget, undo, undoAgentCard, type AssistantState, type Message } from './store'
-import { AgentCards, Bands, editText, LiveText, ToolChips } from './AgentParts'
+import { AgentCards, Bands, editParams, LiveText, ToolChips } from './AgentParts'
 import { leftLine } from './core'
 import { isConfirm, type ConfirmCard } from '@sprout/schema/assistantExec'
 
@@ -131,7 +131,8 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
     onCancel: (key: string) => { cancelAgentCard(m.id, key); setAgentLine(m.id, '알겠어, 그대로 둘게.', 'smile') },
     onUndo: async (key: string) => { try { await undoAgentCard(m.id, key); setAgentLine(m.id, '알겠어, 되돌렸어.', 'smile'); setNotice('되돌렸어요') } catch (e) { setNotice(e instanceof Error ? e.message : '되돌리지 못했어요.') } },
     onToggle: (key: string, id: string) => toggleTarget(m.id, key, id),
-    onEdit: (c: ConfirmCard) => { cancelAgentCard(m.id, c.key); router.push({ pathname: '/quick-add', params: { text: editText(c) } }) }
+    // 47 §19.2 빠른 입력을 카드 값(제목·날짜·리스트·반복·할 일/일정)으로
+    onEdit: (c: ConfirmCard) => { cancelAgentCard(m.id, c.key); router.push({ pathname: '/quick-add', params: editParams(c) }) }
   })
   const left = leftLine(a.daily)
   const cooling = a.cooldownUntil > now

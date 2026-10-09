@@ -34,24 +34,26 @@ function draftLabel(d: Draft): string {
 /** 일정은 시각 하나 = 1시간(06 §14.4.2) — 머리 날짜 글자도 그 길이로 */
 const eventDraft = (d: Schedule): Draft => { const s = eventSpan(d.start_at, d.due_at!); return { start_at: s.start_at === s.end_at ? null : s.start_at, due_at: s.end_at } }
 
-type Props = { draft: Draft; rect: Rect; lists: ListRow[]; defaultListId: string; myColor?: string | null; onClose: () => void; onCreated: (id: string) => void; onCreatedEvent?: (id: string) => void }
+/** 47 §19.2 AI 비서 확인 카드 [고치기]: 카드 값으로 채워 연다(종류·제목·반복). 이때 고른 종류·캘린더는 이 기기에 기억하지 않고, 캘린더는 내 일정 */
+export type QuickCreateInitial = { kind: CreateKind; title: string; repeat?: string | null }
+type Props = { draft: Draft; rect: Rect; lists: ListRow[]; defaultListId: string; myColor?: string | null; onClose: () => void; onCreated: (id: string) => void; onCreatedEvent?: (id: string) => void; initial?: QuickCreateInitial }
 // 06 §14.4.2: 할 일 · 일정 — 이 기기에서 마지막으로 고른 쪽을 기억한다
 export type CreateKind = 'task' | 'event'
 const KIND_KEY = 'sprout.cal.qc.kind'
 const loadKind = (): CreateKind => { try { return localStorage.getItem(KIND_KEY) === 'event' ? 'event' : 'task' } catch { return 'task' } }
 const saveKind = (k: CreateKind) => { try { localStorage.setItem(KIND_KEY, k) } catch { /* 기억만 못 함 */ } }
 
-export function QuickCreate({ draft, rect, lists, defaultListId, myColor, onClose, onCreated, onCreatedEvent }: Props) {
-  const [kind, setKindState] = useState<CreateKind>(loadKind)
-  const setKind = (k: CreateKind) => { setKindState(k); saveKind(k); input.current?.focus() }
+export function QuickCreate({ draft, rect, lists, defaultListId, myColor, onClose, onCreated, onCreatedEvent, initial }: Props) {
+  const [kind, setKindState] = useState<CreateKind>(() => initial?.kind ?? loadKind())
+  const setKind = (k: CreateKind) => { setKindState(k); if (!initial) saveKind(k); input.current?.focus() }
   const [place, setPlace] = useState('')
   const input = useRef<HTMLInputElement>(null)
   const dateBtn = useRef<HTMLButtonElement>(null)
-  const [title,setTitle] = useState('')
+  const [title,setTitle] = useState(initial?.title ?? '')
   const [content,setContent] = useState('')
   const [error,setError] = useState('')
   const [busy,setBusy] = useState(false)
-  const [schedule,setSchedule] = useState<Schedule>(()=>({...EMPTY_SCHEDULE,...draft,is_all_day:draft.due_at?.includes('T')?0:1,reminders:draft.due_at?.includes('T')?['-PT0M']:[]}))
+  const [schedule,setSchedule] = useState<Schedule>(()=>({...EMPTY_SCHEDULE,...draft,is_all_day:draft.due_at?.includes('T')?0:1,reminders:draft.due_at?.includes('T')?['-PT0M']:[],...(initial?.repeat&&draft.due_at?{repeat_rule:initial.repeat,repeat_from:'due' as const}:{})}))
   const listBtn = useRef<HTMLButtonElement>(null)
   const flagBtn = useRef<HTMLButtonElement>(null)
   const [listId, setListId] = useState(defaultListId)
@@ -59,7 +61,7 @@ export function QuickCreate({ draft, rect, lists, defaultListId, myColor, onClos
   const [menu, setMenu] = useState<'list' | 'priority' | 'date' | 'target'>()
   // 16 §12.4.1 일정을 저장할 캘린더: 내 일정 / 구글 / Apple — 이 기기에서 마지막으로 고른 것
   const targets = useCalendarTargets()
-  const [targetKey, setTargetKey] = useState(loadTarget)
+  const [targetKey, setTargetKey] = useState(() => (initial ? '' : loadTarget()))
   const target = targets.find((t) => t.key === targetKey)
   const targetBtn = useRef<HTMLButtonElement>(null)
   const asking = useRef(false)
@@ -70,7 +72,7 @@ export function QuickCreate({ draft, rect, lists, defaultListId, myColor, onClos
       const ok = await askGrant(t.accountId, t.accountLabel).finally(() => { asking.current = false })
       if (!ok) { setMenu(undefined); input.current?.focus(); return }
     }
-    setTargetKey(key); saveTarget(key); setMenu(undefined); input.current?.focus()
+    setTargetKey(key); if (!initial) saveTarget(key); setMenu(undefined); input.current?.focus()
   }
   const done = useRef(false)
   const list = lists.find((l) => l.id === listId)
@@ -82,10 +84,11 @@ export function QuickCreate({ draft, rect, lists, defaultListId, myColor, onClos
     try {
       if (kind === 'event') {
         const link = target ? { provider: target.provider, account: target.accountId, calendar: target.calendarHash, color: target.color } : null
-        const id = await createEvent({ title, start_at: schedule.start_at, due_at: schedule.due_at!, repeat_rule: schedule.repeat_rule, reminders: schedule.reminders, notes: content, location: place, link })
+        // 날짜 없는 일정 = 오늘 종일(06 §14.4.6) — [고치기]로 날짜 없는 할 일 카드를 일정으로 바꾼 경우
+        const id = await createEvent({ title, start_at: schedule.start_at, due_at: schedule.due_at ?? dayKey(), repeat_rule: schedule.repeat_rule, reminders: schedule.reminders, notes: content, location: place, link })
         onCreatedEvent?.(id)
       } else {
-        const id=await createCalendarTask(title,listId,priority,schedule,content)
+        const id=await createCalendarTask(title,listId,priority,schedule,content,{undated:!!initial})
         onCreated(id)
       }
       onClose()

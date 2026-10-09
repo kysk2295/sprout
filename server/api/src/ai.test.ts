@@ -539,6 +539,52 @@ assert.deepEqual(localModelNames({ models: [{ name: 'a' }, { name: 'b' }] }, ['b
   assert.ok(seen.every((s) => s.params.every((p) => typeof p === 'number' || /^[\w-]+$/.test(String(p)))))
 }
 
+// 47 §19.4 근거 검사 횟수(POST /ai/ground {hits}): 숫자만 · 범위 · 인증 · 상한에 안 셈 · 칸 없는 DB에서도 204
+{
+  const seen: { sql: string; params: unknown[] }[] = []
+  const pg = pgUsageStore(async (sql, params) => { seen.push({ sql, params }); return { rows: [] } })
+  assert.equal(await pg.addGround!('u1', '2026-10-07', 3), true)
+  assert.deepEqual(seen[0].params, ['u1', '2026-10-07', 3])
+  assert.match(seen[0].sql, /ground_hits = ai_usage\.ground_hits \+ EXCLUDED\.ground_hits/)
+  assert.match(seen[0].sql, /'assistant'/)
+  const missing = pgUsageStore(async () => { throw Object.assign(new Error('column "ground_hits" does not exist'), { code: '42703' }) })
+  assert.equal(await missing.addGround!('u1', '2026-10-07', 1), false, '마이그레이션 전이면 건너뜀')
+  const broken = pgUsageStore(async () => { throw Object.assign(new Error('down'), { code: '57P01' }) })
+  await assert.rejects(broken.addGround!('u1', '2026-10-07', 1))
+
+  const { base, store, logs } = await proxy()
+  const g = (body: unknown, user: string | null = 'user-g') => call(base, '/ai/ground', body, user)
+  assert.equal((await g({ hits: 2 }, null)).status, 401)
+  assert.equal((await g({ hits: 2 })).status, 204)
+  assert.equal((await g({ hits: 1 })).status, 204)
+  const day = dayKey(clock, 540)
+  assert.equal(store.ground.get(`user-g|${day}`), 3)
+  for (const bad of [{ hits: 0 }, { hits: 21 }, { hits: 1.5 }, { hits: '2' }, {}, { hits: 1, text: '원문' }, [1], 'x']) assert.equal((await g(bad)).status, 400, JSON.stringify(bad))
+  assert.equal(store.ground.get(`user-g|${day}`), 3, '거절한 것은 안 쌓임')
+  // 상한(분·일·턴)에 세지 않는다 — requests 행이 없다
+  assert.ok(![...store.rows.values()].some((r) => r.userId === 'user-g'))
+  const st = await (await fetch(base + '/ai/status', { headers: { authorization: 'Bearer user-g' } })).json()
+  assert.deepEqual([st.usage.today, st.features.includes('ground'), st.features.includes('agent')], [0, true, true])
+  // 1분 30번 넘으면 조용히 버림(204)
+  for (let i = 0; i < 40; i++) assert.equal((await g({ hits: 1 })).status, 204)
+  assert.equal(store.ground.get(`user-g|${day}`), 3 + 28)
+  clock += 61_000
+  assert.equal((await g({ hits: 5 })).status, 204)
+  assert.equal(store.ground.get(`user-g|${day}`), 36)
+  assert.equal((await fetch(base + '/ai/ground', { headers: { authorization: 'Bearer user-g' } })).status, 404, 'GET은 없음')
+  assert.ok(!logs.some((l) => /원문/.test(l)))
+  // 칸 없는 DB: 204 + 로그 한 번
+  const c2 = { ...aiConfigFromEnv({}), perMinute: 1000, perDay: 1000 }
+  const logs2: string[] = []
+  const ai2 = createAi({ config: c2, store: { ...memoryUsageStore(), addGround: async () => false }, backend: directBackend(ollamaUrl), now: () => clock, log: (l) => logs2.push(l), auth: async () => 'user-h' })
+  const s2 = createServer(async (req, res) => { if (!(await ai2.handle(req, res, (req.url ?? '/').split('?')[0]))) { res.writeHead(404); res.end() } })
+  servers.push(s2)
+  const b2 = await listen(s2)
+  assert.equal((await call(b2, '/ai/ground', { hits: 1 })).status, 204)
+  assert.equal((await call(b2, '/ai/ground', { hits: 1 })).status, 204)
+  assert.equal(logs2.filter((l) => /20261015-ai-ground/.test(l)).length, 1)
+}
+
 // 대기열 단위 시험
 {
   const q = new AiQueue(1, 5)
@@ -998,7 +1044,7 @@ const take = (q: AiQueue, label: string, user: string, priority: 'interactive' |
   assert.deepEqual([b.tools, b.options.num_ctx, b.options.num_predict], [undefined, 6144, 700])
   // 상태: features
   const st = await (await fetch(base + '/ai/status', { headers: { authorization: 'Bearer user-g' } })).json()
-  assert.deepEqual(st.features, ['agent'])
+  assert.deepEqual(st.features, ['agent', 'ground'])
   assert.equal(st.usage.daily.assistant.limit, 40)
 }
 {

@@ -18,7 +18,8 @@ import { Checkbox } from '../ui/Checkbox'
 import { StaticFace } from '../ui/CompanionFace'
 import { useBuddy } from '../diary/data'
 import { liveText } from './store'
-export { editText } from './core'
+import { requestItem } from '../collect/events'
+export { editParams } from './core'
 
 const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
 
@@ -208,7 +209,7 @@ function NotesCard({ c }: { c: Extract<Card, { type: 'notes' }> }) {
   return (
     <Shell icon={<FileText size={14} color={p.textSecondary} />} head={c.head} n={`${c.total}개`}>
       {c.total ? c.notes.slice(0, 5).map((n) => (
-        <Pressable key={n.id} accessibilityRole="button" accessibilityLabel={`${n.title} 메모 열기`} onPress={() => router.push('/collect')} style={({ pressed }) => [s.row, pressed && { backgroundColor: p.bgSelected }]}>
+        <Pressable key={n.id} accessibilityRole="button" accessibilityLabel={`${n.title} 메모 열기`} onPress={() => { router.push('/collect'); requestItem(n.id) }} style={({ pressed }) => [s.row, pressed && { backgroundColor: p.bgSelected }]}>
           <FileText size={17} color={p.textTertiary} />
           <Text style={[FONT.body, { flex: 1, fontSize: 15, color: p.textPrimary }]} numberOfLines={1}>{n.title}</Text>
           {n.modified ? <Text style={[FONT.meta, { color: p.textTertiary, fontSize: 13 }]}>{md(n.modified)}</Text> : null}
@@ -292,6 +293,7 @@ function ConfirmView({ c, actions }: { c: ConfirmCard; actions: CardActions }) {
   const picked = c.targets?.filter((t) => t.picked).length ?? 0
   const danger = c.op === 'delete'
   const at = c.start || c.due
+  const isEvent = c.op === 'create' && c.kind === 'event'
   if (c.state !== 'pending') {
     const ids = c.saved?.ids ?? []
     const rows = c.op === 'create' ? ids.map((id) => ({ id, title: c.title, start_at: c.start || null, due_at: c.due || null, priority: 0 })) : (c.targets ?? []).filter((t) => ids.includes(t.id)).map((t) => ({ ...t, priority: 0 }))
@@ -300,7 +302,7 @@ function ConfirmView({ c, actions }: { c: ConfirmCard; actions: CardActions }) {
         head={c.state === 'saved' ? DONE[c.op] : c.state === 'undone' ? '되돌렸어요' : c.op === 'create' ? '넣지 않았어요' : '바꾸지 않았어요'}>
         {c.state === 'cancelled' ? <Text style={[FONT.sub, s.emptyRow, { color: p.textTertiary, fontWeight: '600' }]}>{c.title}</Text> : c.op === 'delete' || c.state === 'undone' ? (
           rows.map((r) => <View key={r.id} style={s.row}><Text style={[FONT.body, { flex: 1, color: p.textTertiary, textDecorationLine: c.state === 'undone' && c.op === 'create' ? 'line-through' : 'none' }]} numberOfLines={1}>{r.title}</Text></View>)
-        ) : <TaskRows tasks={rows} />}
+        ) : isEvent ? <EventRows ids={ids} title={c.title} at={at} /> : <TaskRows tasks={rows} />}
         {c.state === 'saved' ? (
           <Pressable accessibilityRole="button" onPress={() => actions.onUndo(c.key)} style={s.undo} hitSlop={6}>
             <RotateCcw size={15} color={p.accent} /><Text style={[FONT.sub, { color: p.accentInk, fontWeight: '600' }]}>되돌리기</Text>
@@ -309,7 +311,8 @@ function ConfirmView({ c, actions }: { c: ConfirmCard; actions: CardActions }) {
       </Shell>
     )
   }
-  const kind = c.due.includes('T') ? '일정' : '할 일'
+  // 47 §19.3 머리 말 = 실제 넣을 곳
+  const kind = isEvent ? '일정' : '할 일'
   return (
     <Shell accent={!danger} danger={danger} icon={c.op === 'create' ? <CalendarDays size={14} color={p.accentInk} /> : danger ? <X size={14} color={p.textDanger} /> : <Check size={14} color={p.accentInk} />}
       head={c.op === 'create' ? `새 ${kind} · 확인해 줘` : HEAD[c.op]}>
@@ -319,7 +322,7 @@ function ConfirmView({ c, actions }: { c: ConfirmCard; actions: CardActions }) {
           <>
             <Def k="언제" v={whenLine(at, now)} extra={c.said ? `(“${c.said}”)` : undefined} hl />
             {c.length ? <Def k="길이" v={c.length} /> : null}
-            <Def k="리스트" v={c.listName || '기본함'} />
+            {isEvent ? <Def k="캘린더" v="내 일정" /> : <Def k="리스트" v={c.listName || '기본함'} />}
             {c.repeat ? <Def k="반복" v={c.repeat.replace('FREQ=DAILY', '매일').replace(/FREQ=WEEKLY;BYDAY=(\w\w)/, (_m, d: string) => `매주 ${'일월화수목금토'['SUMOTUWETHFRSA'.indexOf(d) / 2]}요일`)} /> : null}
             {c.assumed ? <Def k="참고" v={c.assumed} /> : null}
             {c.basis ? <Def k="근거" v={c.basis} /> : null}
@@ -344,6 +347,27 @@ function ConfirmView({ c, actions }: { c: ConfirmCard; actions: CardActions }) {
       </View>
       <Text style={[FONT.meta, s.foot, { color: p.textTertiary }]}>{danger ? '지우기는 단추로만 할 수 있어요 · 휴지통에서 되살릴 수 있어요' : `‘${SAVE[c.op]}’를 누르기 전엔 저장되지 않아요 · “응”이라고 답해도 돼요`}</Text>
     </Shell>
+  )
+}
+/** 넣은 일정 행(47 §19.3): 누름 = 일정 상세. 되돌리거나 지웠으면 흐림 */
+function EventRows({ ids, title, at }: { ids: string[]; title: string; at: string }) {
+  const p = usePalette()
+  const router = useRouter()
+  const live = useLiveQuery<{ id: string; title: string; start_at: string; deleted_at: string | null }>(ids.length ? `SELECT id, title, start_at, deleted_at FROM events WHERE id IN (${ids.map(() => '?').join(',')})` : 'SELECT NULL AS id WHERE 0', ids).data
+  return (
+    <>
+      {ids.map((id) => {
+        const cur = live.find((e) => e.id === id)
+        const gone = live.length > 0 && (!cur || !!cur.deleted_at)
+        return (
+          <Pressable key={id} accessibilityRole="button" accessibilityLabel={`${cur?.title ?? title} 일정 열기`} disabled={gone} onPress={() => router.push(`/event/${id}`)} style={({ pressed }) => [s.row, pressed && { backgroundColor: p.bgSelected }]}>
+            <View style={[s.bar, { height: 18, backgroundColor: p.accent }]} />
+            <Text style={[FONT.body, { flex: 1, fontSize: 15, color: gone ? p.textTertiary : p.textPrimary }, gone && { textDecorationLine: 'line-through' }]} numberOfLines={1}>{cur?.title ?? title}</Text>
+            <Text style={[FONT.meta, { color: gone ? p.textTertiary : p.accent, fontSize: 13 }]}>{gone ? '삭제됨' : whenLine(cur?.start_at ?? at, new Date())}</Text>
+          </Pressable>
+        )
+      })}
+    </>
   )
 }
 function Def({ k, v, extra, hl }: { k: string; v: string; extra?: string; hl?: boolean }) {

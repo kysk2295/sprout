@@ -24,7 +24,7 @@ import {
   type CollectItem, type WikiTopic
 } from './core'
 import { deleteItem, registerSuggestion, saveItem, setKind, setSeen } from './data'
-import { openItem } from './events'
+import { openItem, takeItem } from './events'
 import { ItemSheet } from './ItemSheet'
 import { ChipView, CollectEmpty, ItemRow, Segmented, SiteMark } from './parts'
 import { seedSeen, useSeen } from './wikiSeen'
@@ -59,7 +59,12 @@ export default function CollectScreen() {
   const [menu, setMenu] = useState<{ item: CollectItem; rect: Rect; kinds?: boolean } | null>(null)
   const more = useAnchor()
 
-  useEffect(() => openItem.on((id) => { setSection('notes'); setSearch(null); setSheet({ id }) }), [])
+  useEffect(() => {
+    const open = (id: string) => { setSection('notes'); setSearch(null); setSheet({ id }) }
+    const first = takeItem() // 47 §19.1 탭이 그려지기 전에 온 요청
+    if (first) open(first)
+    return openItem.on(open)
+  }, [])
 
   const scrollRef = useRef<ScrollView>(null)
   useScrollToTop(scrollRef)
