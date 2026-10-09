@@ -1,38 +1,39 @@
-// 성장 탭(23 · 43 §18.2 v0.2/v0.3, 시안 character-raising-v2 A): 장면이 화면 위 끝까지 + 큰 제목·유리 칩 + 받침 위 캐릭터 + 유리 HUD →
-// 흰 시트(위 모서리 26): 옷장 · 도감 · 트로피 + 이번 주 목표 · 진화 길 · 이번 주 XP · 점검 · 리포트.
+// 성장 탭(49 §6 성장 홈, 시안 character-v3 B): 첫 화면 = 3D 정원 장면이 상태 막대 뒤까지 끝까지 + 유리 머리·주 달력 띠 + 받침 위 캐릭터 + 유리 카드
+// (Lv · 큰 % · 꼬리 칩 · 막대 · 옷장·도감·이번 주). 아래로 밀면 시트(위 모서리 26): 이번 주 목표 · 진화 길 · 이번 주 XP · 점검 · 리포트(`이번 주`가 여기로 내린다).
 // 레벨업(무대에서 1.3초) · 진화(전체 화면 2.5초, 꼬마 → 친구 고르기)는 앱이 앞으로 올 때·이 탭을 열 때 확인한다(23 §4) → 0.7초 뒤 새 옷 카드.
 // 하루 장면(43 §4.2)은 이 탭을 그날 처음 볼 때 한 번. 연속 칩은 없다(한 날 누적 칩만). 휴대폰은 AI·주간 마감을 하지 않는다(M-G2).
 import { ReviewEntry } from '../../src/map/v2/ReviewEntry'
 import { useStatus } from '@powersync/react-native'
 import { loadProjectDeadlineToday } from '@sprout/schema/raiseCore'
+import { sceneDark, sceneKeyFor } from '@sprout/schema/characterArt'
 import { SPECIES, type Species } from '@sprout/schema/growth'
-import { dayJustDone, equipItem, isBusy, isNight, ITEM_BY_ID, momentLine, pickDayMoment, tapLines, TOUCH_LINES, trophyLine, type CharacterItemRow, type DayMoment } from '@sprout/schema/wardrobe'
+import { activeDayList, dayJustDone, equipItem, isBusy, isNight, ITEM_BY_ID, momentLine, pickDayMoment, tapLines, TOUCH_LINES, trophyLine, type CharacterItemRow, type DayMoment } from '@sprout/schema/wardrobe'
 import { addDays } from '@sprout/schema/time'
 import { useIsFocused, useRouter } from 'expo-router'
 import { MoreHorizontal } from 'lucide-react-native'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { StatusBar } from 'expo-status-bar'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { currentUserId, syncNow } from '../../src/data/auth'
 import { coreDb } from '../../src/data/db'
-import { taskDone, xpGained } from '../../src/data/events'
+import { taskDone } from '../../src/data/events'
 import { useLiveQuery } from '../../src/data/rows'
-import { CharacterArt } from '../../src/growth/art/CharacterArt'
 import { EvolutionRoad, GoalsCard, ReportsCard, TodayCard, XpCard } from '../../src/growth/Cards'
 import { useGrowthData } from '../../src/growth/data'
 import { EvolutionMoment, type Evolution } from '../../src/growth/EvolutionMoment'
-import { levelChange, minutesToday } from '../../src/growth/logic'
+import { dexCount } from '../../src/growth/home/dex'
+import { glassTone } from '../../src/growth/home/glass'
+import { levelChange, minutesToday, weekStartOf, WEEKDAY_KO } from '../../src/growth/logic'
 import { useMotionReduced, writeMotionPref } from '../../src/growth/motion'
 import { NewItemToast } from '../../src/growth/NewItemToast'
 import { onFresh, saveLook, takeFresh, useRaise } from '../../src/growth/raise'
 import { RenameModal } from '../../src/growth/RenameModal'
-import { RaiseStage, type StageHandle } from '../../src/growth/Stage'
+import { RaiseStage, type StageHandle, type WeekCell } from '../../src/growth/Stage'
 import { KEY, keysFor, preload, read, write } from '../../src/growth/store'
 import { dayKey } from '../../src/lib/dates'
 import { usePalette } from '../../src/theme/ThemeProvider'
-import { GlassButton } from '../../src/ui/Glass'
 import { PopMenu, useAnchor } from '../../src/ui/Menu'
-import { SoftIcon } from '../../src/ui/SoftIcon'
 import { useTabBarSpace } from '../../src/ui/tabBarSpace'
 import { useToast } from '../../src/ui/Toast'
 
@@ -63,6 +64,8 @@ export default function Growth() {
 
   const g = useGrowthData(today)
   const raise = useRaise()
+  const night = isNight(hour)
+  const sceneKey = sceneKeyFor(raise.worn.bg, p.dark || night)
   const species: Species | null = raise.species
   const cid = raise.character?.id
   const lv = g.progress.level
@@ -118,14 +121,13 @@ export default function Growth() {
     if (ch.kind === 'baseline') stamp()
     else if (ch.kind === 'evolve' && species) {
       stamp(); evoOn.current = true
-      setEvo({ species, from: ch.prevStage, to: ch.stage, path: raise.look.path, eq: raise.worn, choose: ch.prevStage < 3 && ch.stage >= 3 })
+      setEvo({ species, from: ch.prevStage, to: ch.stage, path: raise.look.path, eq: raise.worn, seed: raise.look.seed ?? 0, scene: sceneKey, choose: ch.prevStage < 3 && ch.stage >= 3 })
     } else if (ch.kind === 'levelup' || ch.kind === 'evolve') { stamp(); stage.current?.levelUp(lv) }
   }, [ready, focused, active, status.hasSynced, lv, cid, species, evo]) // eslint-disable-line react-hooks/exhaustive-deps
   const evoDone = () => { setEvo(null); evoOn.current = false; stage.current?.levelUp(lv); showFresh() }
 
   // ── 하루 장면(43 §4.2): 그날 처음 이 탭을 볼 때 한 번 ──
   const [calm, setCalm] = useState(false)
-  const night = isNight(hour)
   const playMoment = (m: DayMoment) => {
     const st = stage.current
     if (!st) return
@@ -157,12 +159,18 @@ export default function Growth() {
     if (dayJustDone(before, { dueOpen })) { write(KEY.dayDone(today, cid), '1'); setTimeout(() => playMoment('dayDone'), 900) }
   }, [dueOpen, dueTotal]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 보는 중에 들어온 XP · 할 일 완료 → 캐릭터 반응
+  // 들어온 XP → 머리 위 +N · 막대가 0.8초 동안 찬다(49 §6). 다른 탭에서 할 일을 끝내고 돌아와도(본 총 XP와 비교) 보인다
+  const seenTotal = useRef<number | null>(null)
+  useEffect(() => {
+    if (!focused || !ready || !status.hasSynced) return
+    const total = g.progress.total
+    const before = seenTotal.current
+    seenTotal.current = total
+    if (before !== null && total > before) { const n = total - before; setTimeout(() => stage.current?.xp(n), 350) }
+  }, [focused, ready, status.hasSynced, g.progress.total])
   useEffect(() => {
     if (!focused) return
-    const offXp = xpGained.on((n) => stage.current?.xp(n))
-    const offDone = taskDone.on(() => { stage.current?.feel('happy', 2200); stage.current?.hop() })
-    return () => { offXp(); offDone() }
+    return taskDone.on(() => { stage.current?.feel('happy', 2200); stage.current?.hop() })
   }, [focused])
 
   // 누르기 말풍선(43 §3.2 · 10 §3.2.4)
@@ -173,7 +181,6 @@ export default function Growth() {
   }, [lv, dueOpen, g.progress, calm])
 
   // 첫 실행: 캐릭터가 없으면 성향 조사를 한 번 권한다(B5)
-  const [laterCard, setLaterCard] = useState(false)
   useEffect(() => {
     if (!ready || !uid || !focused || !status.hasSynced || species || read(KEY.surveyOffered(uid)) === '1') return
     write(KEY.surveyOffered(uid), '1')
@@ -187,8 +194,33 @@ export default function Growth() {
   const onRefresh = async () => { setRefreshing(true); try { await syncNow() } finally { setRefreshing(false) } }
   const freshDot = raise.fresh.size > 0
 
+  // 장면(49 §6): 입은 배경 + 밤(다크 테마 또는 늦은 밤). 상태 막대 글자색은 장면 밝기에 따라, 시트까지 내리면 테마 그대로
+  const win = useWindowDimensions()
+  const H = win.height
+  const scroll = useRef<ScrollView>(null)
+  const [below, setBelow] = useState(false)
+  const darkTop = below ? p.dark : sceneDark(sceneKey) || p.dark
+  const tone = glassTone(p.dark)
+
+  // 주 달력 띠: 이번 주(월~일) · 한 날(할 일 XP가 1 이상인 날 — 43 누적과 같은 계산)
+  const week: WeekCell[] = useMemo(() => {
+    const did = new Set(activeDayList(g.events))
+    const start = weekStartOf(today)
+    return Array.from({ length: 7 }, (_, i) => { const d = addDays(start, i); return { day: d, label: WEEKDAY_KO[new Date(`${d}T12:00`).getDay()], num: Number(d.slice(8)), did: did.has(d), today: d === today } })
+  }, [g.events, today])
+
+  const menuBtn = (
+    <View ref={menu.ref} collapsable={false}>
+      <Pressable onPress={menu.open} hitSlop={8} accessibilityRole="button" accessibilityLabel="성장 메뉴"
+        style={({ pressed }) => [s.menuBtn, { backgroundColor: tone.bg, borderColor: tone.line }, pressed && { transform: [{ scale: 0.94 }] }]}>
+        <MoreHorizontal size={18} color={tone.ink} />
+      </Pressable>
+    </View>
+  )
+
   return (
     <View style={{ flex: 1, backgroundColor: p.cardBg }}>
+      {focused ? <StatusBar style={darkTop ? 'light' : 'dark'} /> : null}
       <PopMenu anchor={menu.rect} onClose={menu.close} items={[
         { key: 'rename', label: '캐릭터 이름 바꾸기', disabled: !species, onPress: () => setTimeout(() => setRename(true), 350) },
         { key: 'decorate', label: '꾸미기', disabled: !species, onPress: () => router.push('/growth/decorate') },
@@ -198,34 +230,22 @@ export default function Growth() {
         { key: 'motion', label: '움직임 줄이기', checked: reduced, onPress: () => writeMotionPref(!reduced) }
       ]} />
       <ScrollView
+        ref={scroll}
         style={{ backgroundColor: p.cardBg }}
+        contentInsetAdjustmentBehavior="never"
         onScrollBeginDrag={() => setRoad(null)}
+        scrollEventThrottle={64}
+        onScroll={(e) => { const b = e.nativeEvent.contentOffset.y > H - ins.top - 20; if (b !== below) setBelow(b) }}
         contentContainerStyle={{ paddingBottom: space.pad }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" progressViewOffset={ins.top} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={sceneDark(sceneKey) || p.dark ? '#fff' : '#13211B'} progressViewOffset={ins.top} />}
       >
-        <RaiseStage ref={stage} p={p} raise={raise} name={name} topInset={ins.top} reduced={reduced} live={live && !evo}
-          night={night} calm={calm} todayDone={dueTotal - dueOpen} todayTotal={dueTotal} lines={lines} onEgg={() => router.push('/growth/survey')} />
+        <RaiseStage ref={stage} p={p} raise={raise} name={name} width={win.width} height={H} topInset={ins.top} bottomClear={space.clear} sceneKey={sceneKey}
+          reduced={reduced} live={live && !evo} night={night} calm={calm} lines={lines} onEgg={() => router.push('/growth/survey')}
+          week={week} dexN={dexCount(species, g.progress.stage)} freshDot={freshDot} menu={menuBtn}
+          onWard={() => router.push('/growth/decorate')}
+          onDex={() => router.push({ pathname: '/growth/decorate', params: { tab: 'dex' } })}
+          onWeek={() => scroll.current?.scrollTo({ y: H - ins.top - 8, animated: !reduced })} />
         <View style={[s.sheet, { backgroundColor: p.cardBg }]}>
-          {species ? (
-            <View style={s.quick}>
-              {([['ward', '옷장', 'growth'], ['dex', '도감', 'book'], ['tro', '트로피', 'trophy']] as const).map(([k, label, icon]) => (
-                <Pressable key={k} style={({ pressed }) => [s.qb, { backgroundColor: p.bgSelected }, pressed && { transform: [{ scale: 0.96 }] }]} accessibilityRole="button" accessibilityLabel={label}
-                  onPress={() => router.push(k === 'ward' ? '/growth/decorate' : { pathname: '/growth/decorate', params: k === 'dex' ? { tab: 'dex' } : { tab: 'dex', focus: 'trophy' } })}>
-                  <SoftIcon name={icon} size={30} />
-                  <Text style={[s.qbT, { color: p.textPrimary }]}>{label}</Text>
-                  {k === 'ward' && freshDot ? <View style={[s.qbDot, { backgroundColor: p.accent }]} /> : null}
-                </Pressable>
-              ))}
-            </View>
-          ) : !laterCard ? (
-            <View style={[s.surveyCard, { backgroundColor: p.bgSelected }]}>
-              <View style={s.sils}>{(['snail', 'bee', 'worm', 'frog'] as Species[]).map((sp) => <CharacterArt key={sp} species={sp} stage={2} size={40} silhouette={p.dark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.14)'} />)}</View>
-              <Text style={[s.surveyTitle, { color: p.textPrimary }]}>나와 닮은 친구를 찾아볼까요?</Text>
-              <Text style={[s.surveySub, { color: p.textSecondary }]}>할 일을 다루는 방식을 8가지만 물어볼게요. 조사 전에도 XP는 그대로 쌓여요.</Text>
-              <Pressable style={[s.surveyBtn, { backgroundColor: p.accent }]} onPress={() => router.push('/growth/survey')} accessibilityRole="button"><Text style={s.surveyBtnText}>시작하기</Text></Pressable>
-              <Pressable onPress={() => setLaterCard(true)} hitSlop={8} accessibilityRole="button"><Text style={[s.later, { color: p.textTertiary }]}>나중에</Text></Pressable>
-            </View>
-          ) : null}
           {ready ? (
             <>
               {species ? <TodayCard p={p} today={today} /> : null}
@@ -238,9 +258,6 @@ export default function Growth() {
           ) : null}
         </View>
       </ScrollView>
-      <View ref={menu.ref} collapsable={false} style={[s.menuBtn, { top: ins.top + 6 }]}>
-        <GlassButton label="성장 메뉴" onPress={menu.open}><MoreHorizontal size={20} color={p.textPrimary} /></GlassButton>
-      </View>
       {toast ? <NewItemToast rows={toast} level={lv} bottom={space.clear + 12} reduced={reduced} onWear={wear} onClose={() => setToast(null)} /> : null}
       <EvolutionMoment evo={evo} reduced={reduced} onPick={(path) => { if (cid) void saveLook(cid, { ...raise.look, path }) }} onDone={evoDone} />
       <RenameModal p={p} visible={rename} initial={name} today={today} onClose={() => setRename(false)} />
@@ -249,17 +266,6 @@ export default function Growth() {
 }
 
 const s = StyleSheet.create({
-  sheet: { marginTop: -12, borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingTop: 16 },
-  menuBtn: { position: 'absolute', right: 14 },
-  quick: { flexDirection: 'row', gap: 8, marginHorizontal: 16, marginBottom: 4 },
-  qb: { flex: 1, borderRadius: 16, paddingTop: 10, paddingBottom: 9, alignItems: 'center', gap: 5 },
-  qbT: { fontSize: 12.5, fontWeight: '600' },
-  qbDot: { position: 'absolute', top: 8, right: 14, width: 7, height: 7, borderRadius: 4 },
-  surveyCard: { marginHorizontal: 12, borderRadius: 14, padding: 16, alignItems: 'center', gap: 6 },
-  sils: { flexDirection: 'row', gap: 10, marginBottom: 4 },
-  surveyTitle: { fontSize: 17, fontWeight: '700' },
-  surveySub: { fontSize: 13, lineHeight: 19, textAlign: 'center' },
-  surveyBtn: { alignSelf: 'stretch', height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  surveyBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  later: { fontSize: 14, paddingVertical: 6 }
+  sheet: { marginTop: -26, borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingTop: 16 },
+  menuBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth }
 })

@@ -21,6 +21,7 @@ import { checkboxColor } from '../lib/priority'
 import type { TaskActions } from '../lib/taskActions'
 import { childrenMap, flattenTree, MAX_DEPTH, type FlatRow } from '../lib/tree'
 import { EmptyState } from './EmptyState'
+import { ListSceneBand } from './ListSceneBand'
 import { AllDoneEmpty, OfflineBand, TodayEmpty } from './companion/CompanionStates'
 import { MenuItem, Popover, SubMenu } from './Popover'
 import { PriorityRow } from './Pickers'
@@ -598,7 +599,8 @@ export function TaskListView(props: Props) {
 
   return (
     <LinkIndexProvider tags={tags} lists={lists}>
-    <main ref={mainRef} tabIndex={-1} onPointerDownCapture={(e)=>{if(!(e.target as HTMLElement).closest('input,textarea,select,[contenteditable],button'))mainRef.current?.focus({preventScroll:true})}} className="list" data-list-target={view.startsWith('list:')?view.slice(5):undefined}>
+    <main ref={mainRef} tabIndex={-1} onPointerDownCapture={(e)=>{if(!(e.target as HTMLElement).closest('input,textarea,select,[contenteditable],button'))mainRef.current?.focus({preventScroll:true})}} className={`list${archive ? '' : ' has-band'}`} data-list-target={view.startsWith('list:')?view.slice(5):undefined}>
+      {!archive && <ListSceneBand scrollRef={scrollRef} />}{/* 49 §8.2 은은하게: 큰 제목 뒤 장면 띠(자리 없음) */}
       <header className="pane-header">
         <button className="icon-btn" onClick={onToggleSidebar} aria-label="사이드바 접기 (⌘\)"><PanelLeft /></button>
         <h1 className="pane-header__title">
@@ -708,7 +710,7 @@ export function TaskListView(props: Props) {
           view === 'smart:today' ? <TodayEmpty />
             : archive ? <EmptyState icon={view === 'smart:trash' ? 'trash' : view === 'smart:wontdo' ? 'cancel' : 'done'} title={view === 'smart:trash' ? '휴지통이 비어 있어요' : '태스크가 없어요'} />
               : view.startsWith('tag:') && !tagFilter.length ? (() => { const n = tags.find((t) => t.id === view.slice(4))?.name ?? ''; return <EmptyState icon="tag" title="아직 이 태그가 붙은 할 일이 없어요" hint={`#${n} 이나 [[${n}]] 을 써 보세요`} /> })()
-              : <EmptyState title="할 일이 없어요" hint="입력창을 눌러 추가하세요" />
+              : <EmptyState character title="할 일이 없어요" hint="입력창을 눌러 추가하세요" />
         )}
         {allDone && <AllDoneEmpty />}
         {groups.map((g) => (

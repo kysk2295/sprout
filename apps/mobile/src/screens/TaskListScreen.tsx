@@ -5,8 +5,9 @@
 import { useRouter, useScrollToTop } from 'expo-router'
 import { Calendar, Check, Ellipsis, FolderInput, Menu, Pin, Plus, RotateCcw, Search, Trash2, Undo2 } from 'lucide-react-native'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native'
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native'
+import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
+import { SceneBand } from '../growth/art/Scene3D'
 import { AssistantButton } from '../assistant/AssistantSheet'
 import { syncNow } from '../data/auth'
 import { useFolders, useLists, useSections } from '../data/lists'
@@ -129,6 +130,13 @@ export default function TaskListScreen() {
 
   const scrollRef = useRef<Animated.ScrollView>(null)
   const collapse = useCollapsingTitle()
+  // 49 §8.2 은은하게: 큰 제목 뒤 장면 띠 200(다크 = 밤 띠). 자리를 차지하지 않는 뒤 배경 — 스크롤하면 위로 밀리며 옅어지고 틱틱 머리만 남는다
+  const { width: winW } = useWindowDimensions()
+  const scrollY = collapse.y // 워크릿이 collapse 통째(onScroll 이벤트 처리기 포함)를 잡으면 복사할 수 없어 앱이 죽는다 — 값만 꺼낸다
+  const bandSt = useAnimatedStyle(() => {
+    const y = Math.max(0, scrollY.value)
+    return { opacity: interpolate(y, [0, BAND_H * 0.6], [1, 0], Extrapolation.CLAMP), transform: [{ translateY: -Math.min(y, BAND_H) }] }
+  })
   useScrollToTop(scrollRef)
   useEffect(() => { scrollRef.current?.scrollTo({ y: 0, animated: false }) }, [view])
   const [refreshing, setRefreshing] = useState(false)
@@ -297,6 +305,7 @@ export default function TaskListScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
+      <Animated.View pointerEvents="none" style={[s.band, bandSt]}><SceneBand dark={p.dark} width={winW} height={BAND_H} bg={p.pageBg} fade={0.65} /></Animated.View>
       <NavRow
         left={<GlassButton label="리스트 서랍" onPress={() => v.setDrawerOpen(true)}><Menu size={22} color={p.textPrimary} /></GlassButton>}
         smallTitle={title}
@@ -328,7 +337,7 @@ export default function TaskListScreen() {
         {!firstLoad && openCount === 0 && !archive && !evByGroup.size ? (
           isToday && doneCount > 0 ? <CompanionEmpty animate={!!motion.entering} kind="done" todayDone={doneCount} />
             : isToday ? <CompanionEmpty animate={!!motion.entering} kind="today" todayDone={0} />
-            : <EmptyState animate={!!motion.entering} icon={view === 'smart:inbox' ? 'inbox' : view === 'smart:tomorrow' ? 'tomorrow' : view === 'smart:next7' ? 'week' : view === 'smart:all' ? 'all' : 'list'} title="할 일이 없어요" sub="+를 눌러 추가하세요" />
+            : <EmptyState animate={!!motion.entering} icon={view === 'smart:inbox' ? 'inbox' : view === 'smart:tomorrow' ? 'tomorrow' : view === 'smart:next7' ? 'week' : view === 'smart:all' ? 'all' : 'list'} title="할 일이 없어요" sub="+를 눌러 추가하세요" character />
         ) : null}
         {!firstLoad && archive && openCount === 0 ? <EmptyState icon={view === 'smart:trash' ? 'trash' : view === 'smart:wontdo' ? 'cancel' : 'done'} title={view === 'smart:trash' ? '휴지통이 비어 있어요' : view === 'smart:wontdo' ? '계획 취소한 할 일이 없어요' : '완료한 할 일이 없어요'} /> : null}
         <View style={openCount === 0 && doneCount > 0 ? { marginTop: 28 } : undefined}>
@@ -546,7 +555,10 @@ function Skeleton() {
 }
 const motionExit = rowExit
 
+/** 장면 띠 높이(49 §8.2) */
+const BAND_H = 200
 const s = StyleSheet.create({
+  band: { position: 'absolute', left: 0, right: 0, top: 0, height: BAND_H },
   status: { fontSize: 13, lineHeight: 18, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   skel: { marginHorizontal: M.cardInset, borderRadius: M.radiusCard, paddingVertical: 8 },
   skelRow: { height: M.rowH, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14 },

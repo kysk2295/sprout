@@ -59,13 +59,13 @@ function SpeciesBit({ x, y, rot, svg, size, delay, ms }: { x: number; y: number;
   return <Animated.View style={[{ position: 'absolute', width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2 }, st]}><SvgString svg={svg} size={size} /></Animated.View>
 }
 
-/** 떠오르는 칩(`+1 XP` · `Lv 9` · `Z`) */
+/** 떠오르는 칩(`+10` · `Lv 9` · `Z`) */
 export function FloatChip({ text, kind, dx = 0, reduced }: { text: string; kind: 'xp' | 'lv' | 'z'; dx?: number; reduced?: boolean }) {
   const t = useSharedValue(0)
-  useEffect(() => { t.value = withTiming(1, { duration: kind === 'xp' ? 900 : 1600, easing: Easing.out(Easing.quad) }) }, [t, kind])
+  useEffect(() => { t.value = withTiming(1, { duration: kind === 'xp' ? 1000 : 1600, easing: Easing.out(Easing.quad) }) }, [t, kind])
   const st = useAnimatedStyle(() => ({
     opacity: t.value < 0.2 ? t.value * 5 : t.value > 0.7 ? 1 - (t.value - 0.7) / 0.3 : 1,
-    transform: [{ translateX: dx }, { translateY: reduced ? 0 : -30 * t.value }]
+    transform: [{ translateX: dx }, { translateY: reduced ? 0 : -34 * t.value }]
   }))
   const box = kind === 'xp' ? s.xp : kind === 'lv' ? s.lv : s.z
   const txt = kind === 'xp' ? s.xpT : kind === 'lv' ? s.lvT : s.zT
@@ -75,8 +75,9 @@ export function FloatChip({ text, kind, dx = 0, reduced }: { text: string; kind:
 const s = StyleSheet.create({
   center: { position: 'absolute', left: '50%', top: '45%', width: 0, height: 0, alignItems: 'center', justifyContent: 'center' },
   heart: { position: 'absolute', marginLeft: -9 },
-  xp: { position: 'absolute', backgroundColor: '#22A45D', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5, shadowColor: '#22A45D', shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
-  xpT: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  // 49 §6 · 시안 .xp: 꿀색 큰 숫자가 머리 위로 떠오른다
+  xp: { position: 'absolute' },
+  xpT: { color: '#F2B84B', fontSize: 22, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.25)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 2 } },
   lv: { position: 'absolute', backgroundColor: '#FFD45C', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   lvT: { color: '#16201A', fontSize: 14, fontWeight: '800' },
   z: { position: 'absolute' },

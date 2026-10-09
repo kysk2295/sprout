@@ -1,17 +1,23 @@
-// 43 §18.2 휴대폰 성장 탭 무대(시안 character-raising-v2 A): 장면이 화면 위 끝까지 + 큰 제목·유리 칩 + 받침 위 캐릭터 + 유리 HUD
-// (큰 % · 다음 선물 칩 · 굵은 막대 · 태그). 만지기(43 §4.1): 누르기 · 길게 = 쓰다듬기 · 빠르게 4번 = 간지럼 · 끌었다 놓기 · 이름 = 부르기.
+// 49 §6 휴대폰 성장 홈(시안 character-v3 B): 3D 정원 장면이 상태 막대 뒤까지 화면 끝까지 + 위 `꿈틀`·유리 알약 `한 날 N일`·⋯ +
+// 유리 주 달력 띠(오늘 = 강조색 원, 한 날 = 옅은 원) + 받침(perch) 위 캐릭터(숨쉬기) + 아래 유리 카드(Lv 배지 · 큰 % · 꼬리 칩 · 14px 막대 · 옷장·도감·이번 주).
+// 만지기(43 §4.1 그대로): 누르기 = 웃음 + 깡충 + 유리 말풍선 한 줄 · 길게 = 쓰다듬기 · 빠르게 4번 = 간지럼 · 끌었다 놓기 · 이름 = 부르기.
 // 만지기는 아무것도 주지 않는다(XP·아이템 없음). 움직임은 감싸개의 transform·opacity만, UI 스레드(39 §11). 반복 움직임 캐릭터는 이 무대 하나.
-import { artScale, artTop, itemIcon, scene, sceneGround, sceneIsDark, SHELF_BOX, shelfSpot, shelfSvg, standBottom, titleOf, art } from '@sprout/schema/characterArt'
-import { stageOf, type Species } from '@sprout/schema/growth'
-import { decorOn, evolutionHint, giftsAt, growthTags, stageBoxSize, TOUCH, TOUCH_LINES, trophyLine, trophyShape, type Equip } from '@sprout/schema/wardrobe'
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native'
+// 트로피 선반은 장면에서 뺐다(49 §6) — 트로피는 도감 화면 목록에 있다.
+import { FOOT, headTop3d, sceneDark, sceneLayout, standOnPerch, titleOf } from '@sprout/schema/characterArt'
+import { XP, type Species } from '@sprout/schema/growth'
+import { decorOn, ITEMS, TOUCH, TOUCH_LINES, type Equip } from '@sprout/schema/wardrobe'
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { cancelAnimation, Easing, FadeIn, FadeOut, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 import { hx } from '../ui/haptics'
 import type { Palette } from '../theme/palette'
-import { CharacterArt, SvgString } from './art/CharacterArt'
+import { CharacterArt } from './art/CharacterArt'
+import { SceneBackdrop } from './art/Scene3D'
 import { FloatChip, Heart, SpeciesBurst } from './Bits'
+import { DEX_TOTAL } from './home/dex'
+import { AccThumb, fitScene, Glass, glassTone } from './home/glass'
 import type { Raise } from './raise'
 
 export type StageHandle = {
@@ -26,29 +32,43 @@ export type StageHandle = {
   holdFor: (hand: string, ms: number) => void
 }
 type StageMood = 'default' | 'smile' | 'happy' | 'pet' | 'giggle' | 'wow' | 'sleepy' | 'eat'
+/** 주 달력 띠 한 칸 */
+export type WeekCell = { day: string; label: string; num: number; did: boolean; today: boolean }
 
-export const stageHeight = (topInset: number) => Math.max(470, topInset + 450)
+/** 옷장 칸 썸네일: 입은 옷 → 받은 옷 → 첫 옷 */
+const wardIconOf = (worn: Partial<Equip>, owned: Set<string>) =>
+  worn.hat ?? worn.neck ?? worn.hand ?? worn.back ?? ITEMS.find((i) => i.slot !== 'bg' && owned.has(i.id))?.id ?? 'acorn-cap'
 
 export const RaiseStage = forwardRef<StageHandle, {
-  p: Palette; raise: Raise; name: string; topInset: number; reduced: boolean; live: boolean
-  night: boolean; calm: boolean; todayDone: number; todayTotal: number; lines: () => string; onEgg?: () => void
-}>(function RaiseStage({ p, raise, name, topInset, reduced, live, night, calm, todayDone, todayTotal, lines, onEgg }, ref) {
-  const { species, progress, look, worn, state } = raise
+  p: Palette; raise: Raise; name: string; width: number; height: number; topInset: number
+  /** 화면 바닥 ~ 탭 막대 윗변(유리 카드는 그 위 12) */
+  bottomClear: number
+  sceneKey: string; reduced: boolean; live: boolean
+  night: boolean; calm: boolean; lines: () => string; onEgg?: () => void
+  week: WeekCell[]; dexN: number; freshDot?: boolean
+  onWard?: () => void; onDex?: () => void; onWeek?: () => void
+  /** 머리 오른쪽(⋯ 메뉴) */
+  menu?: ReactNode
+}>(function RaiseStage({ p, raise, name, width, height, topInset, bottomClear, sceneKey, reduced, live, night, calm, lines, onEgg, week, dexN, freshDot, onWard, onDex, onWeek, menu }, ref) {
+  const { species, progress, look, worn, state, owned } = raise
   const lv = progress.level
   const st = progress.stage
-  const H = stageHeight(topInset)
-  const sceneH = H - 108
-  const [w, setW] = useState(0)
-  const onLayout = (e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)
-  // 무대 상자 × 0.8(43 §18.2). 좁은 휴대폰에서 전설이 제목·칩을 덮지 않게 머리 위를 제목 아래로 막는다
-  const feetY = w ? sceneH - 120 * Math.max(w / 600, sceneH / 420) : sceneH - 112
-  // 그려진 머리(새싹) 꼭대기 — 단계마다 같은 상자를 채우므로 거의 같은 높이(characterArt FILL)
-  // 모자를 쓰면 머리 위로 더 올라온다(물방울 알처럼 껍질 위에 얹힐 때도) — 그만큼 위를 비워 제목·칩을 덮지 않게
-  const headFrac = species ? (artTop(species, st) - 2 - (worn.hat ? 16 * artScale(species, st) : 0)) / 120 : 0.12
-  const box = Math.round(Math.min(stageBoxSize(lv) * 0.8, (feetY - topInset - 44) / (11 / 12 - headFrac)))
-  const bottom = w ? H - sceneH + standBottom(w, sceneH, box) : 140
-  // 말풍선은 머리(새싹) 바로 위: 그림 안 단계 배율 때문에 상자 위가 비어 있다
-  const headTop = box * headFrac
+  const seed = look.seed ?? 0
+  const t = glassTone(p.dark)
+
+  // ── 자리: 유리 카드 위에 받침이 오게 장면을 깐다 ──
+  const hudBottom = bottomClear + 12
+  const [hudH, setHudH] = useState(236)
+  const T = Math.round(height - hudBottom - hudH - 6)
+  const fit = useMemo(() => fitScene(sceneKey, width, height, T), [sceneKey, width, height, T])
+  const L = useMemo(() => sceneLayout(sceneKey, width, fit.height, 'bottom'), [sceneKey, width, fit.height])
+  const perchX = L.perchX, perchY = fit.top + L.perchY
+  const weekBottom = topInset + 50 + 66
+  const headFrac = species ? headTop3d(species, st, look.path, seed).y - (worn.hat ? 0.07 : 0) : 0.22
+  const box = Math.round(Math.max(120, Math.min(250, (perchY - weekBottom - 10) / (FOOT.y - headFrac))))
+  const size = species ? box : Math.round(Math.min(box, 190))
+  const pos = standOnPerch(perchX, perchY, size)
+  const headY = pos.top + size * headFrac
 
   // ── 얼굴 · 말 · 하트 · 칩 ──
   const [mood, setMood] = useState<{ m: StageMood; id: number } | null>(null)
@@ -56,16 +76,15 @@ export const RaiseStage = forwardRef<StageHandle, {
   const [hearts, setHearts] = useState<{ id: number; dx: number }[]>([])
   const [chips, setChips] = useState<{ id: number; text: string; kind: 'xp' | 'lv' | 'z'; dx: number }[]>([])
   const [bursts, setBursts] = useState<{ id: number; n: number; dist: number }[]>([])
-  const [waving, setWaving] = useState(false)
   const [hold, setHold] = useState<string | null>(null)
   const [woke, setWoke] = useState(false)
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
-  const later = useCallback((fn: () => void, ms: number) => { const t = setTimeout(() => { timers.current.delete(t); fn() }, ms); timers.current.add(t) }, [])
+  const later = useCallback((fn: () => void, ms: number) => { const tm = setTimeout(() => { timers.current.delete(tm); fn() }, ms); timers.current.add(tm) }, [])
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
   const feel = useCallback((m: StageMood, ms?: number) => { const id = Math.random(); setMood({ m, id }); if (ms) later(() => setMood((x) => (x?.id === id ? null : x)), ms) }, [later])
   const say = useCallback((text: string, ms: number = TOUCH.sayMs) => { const id = Math.random(); setBubble({ text, id }); later(() => setBubble((b) => (b?.id === id ? null : b)), ms) }, [later])
   const heart = useCallback((dx = 0) => { if (reduced) return; const id = Math.random(); setHearts((h) => [...h.slice(-6), { id, dx }]); later(() => setHearts((h) => h.filter((x) => x.id !== id)), 1100) }, [reduced, later])
-  const chip = useCallback((text: string, kind: 'xp' | 'lv' | 'z', dx = 0) => { const id = Math.random(); setChips((c) => [...c, { id, text, kind, dx }]); later(() => setChips((c) => c.filter((x) => x.id !== id)), kind === 'xp' ? 900 : 1600) }, [later])
+  const chip = useCallback((text: string, kind: 'xp' | 'lv' | 'z', dx = 0) => { const id = Math.random(); setChips((c) => [...c, { id, text, kind, dx }]); later(() => setChips((c) => c.filter((x) => x.id !== id)), kind === 'xp' ? 1000 : 1600) }, [later])
   const burst = useCallback((n: number, dist: number) => { if (reduced) return; const id = Math.random(); setBursts((b) => [...b, { id, n, dist }]); later(() => setBursts((b) => b.filter((x) => x.id !== id)), 1200) }, [reduced, later])
 
   // ── 감싸개 움직임(UI 스레드) ──
@@ -81,8 +100,8 @@ export const RaiseStage = forwardRef<StageHandle, {
   // 4·5단계: 7초·6초마다 제자리 깡충(42 §4.1, 바쁜 날 끔)
   useEffect(() => {
     if (reduced || !live || st < 4 || calm || sleepy) return
-    const t = setInterval(() => { hopY.value = withSequence(withTiming(-7, { duration: 160 }), withTiming(0, { duration: 260, easing: Easing.bounce })) }, st === 4 ? 7000 : 6000)
-    return () => clearInterval(t)
+    const tm = setInterval(() => { hopY.value = withSequence(withTiming(-7, { duration: 160 }), withTiming(0, { duration: 260, easing: Easing.bounce })) }, st === 4 ? 7000 : 6000)
+    return () => clearInterval(tm)
   }, [reduced, live, st, calm, sleepy, hopY])
   const wrap = useAnimatedStyle(() => ({
     transformOrigin: 'bottom',
@@ -102,15 +121,15 @@ export const RaiseStage = forwardRef<StageHandle, {
   }, [reduced, hopY, sx, sy])
 
   const wave = useCallback((line: string = TOUCH_LINES.call) => {
-    setWaving(true); feel('smile')
+    feel('smile')
     if (!reduced) rot.value = withSequence(withTiming(-5, { duration: 300 }), withDelay(800, withTiming(0, { duration: 300 })))
     say(line)
-    later(() => { setWaving(false); setMood(null) }, TOUCH.callMs)
+    later(() => setMood(null), TOUCH.callMs)
   }, [reduced, rot, say, feel, later])
 
   useImperativeHandle(ref, () => ({
     hop, say, feel, burst, wave,
-    xp: (n) => { chip(`+${n} XP`, 'xp'); feel('happy', 2200); hop() },
+    xp: (n) => { chip(`+${n}`, 'xp'); feel('happy', 2200); hop() },
     levelUp: (level) => {
       if (!reduced) {
         sx.value = withSequence(withTiming(0.94, { duration: 120 }), withTiming(1.12, { duration: 190 }), withTiming(0.98, { duration: 190 }), withTiming(1, { duration: 120 }))
@@ -125,14 +144,13 @@ export const RaiseStage = forwardRef<StageHandle, {
   // ── 만지기 ──
   const taps = useRef<number[]>([])
   const tickleUntil = useRef(0)
-  const lineN = useRef(0)
   const pet = useRef<{ on: boolean; t?: ReturnType<typeof setInterval> }>({ on: false })
   const onTap = useCallback(() => {
     hx.tick()
-    if (!species) { onEgg?.(); return }
+    if (!species) { if (!reduced) { hopY.value = withSequence(withTiming(-8, { duration: 140 }), withTiming(0, { duration: 220 })) } onEgg?.(); return }
     if (sleepy) { setWoke(true); feel('default', TOUCH.wakeMs); hop(1, 8); say(TOUCH_LINES.wake); later(() => setWoke(false), TOUCH.wakeMs); return }
     const now = Date.now()
-    taps.current = [...taps.current.filter((t) => now - t < TOUCH.tickleWindowMs), now]
+    taps.current = [...taps.current.filter((x) => now - x < TOUCH.tickleWindowMs), now]
     if (taps.current.length >= TOUCH.tickleTaps && now > tickleUntil.current) {
       tickleUntil.current = now + TOUCH.tickleCooldownMs; taps.current = []
       feel('giggle', 1800)
@@ -140,9 +158,8 @@ export const RaiseStage = forwardRef<StageHandle, {
       say(TOUCH_LINES.tickle); return
     }
     hop(); heart(); feel('happy', 1500)
-    lineN.current++
     say(lines())
-  }, [species, sleepy, feel, hop, say, heart, reduced, rot, lines, later, onEgg])
+  }, [species, sleepy, feel, hop, say, heart, reduced, rot, hopY, lines, later, onEgg])
   const petStart = useCallback(() => {
     if (!species) return
     hx.tap(); pet.current.on = true; feel('pet')
@@ -191,141 +208,181 @@ export const RaiseStage = forwardRef<StageHandle, {
   useEffect(() => {
     if (!sleepy || reduced || !live) return
     let i = 0
-    const t = setInterval(() => { chip('Z', 'z', 10 + (i % 3) * 6); i++ }, 1700)
-    return () => clearInterval(t)
+    const tm = setInterval(() => { chip('Z', 'z', 10 + (i % 3) * 6); i++ }, 1700)
+    return () => clearInterval(tm)
   }, [sleepy, reduced, live, chip])
 
-  // ── 장면 ──
-  const decor = useMemo(() => decorOn(lv, look), [lv, look])
-  // 선반(43 §7): 장면이 양옆으로 잘려도 보이게 장면 밖에 따로 그려 화면 오른쪽 안에 둔다. 트로피를 누르면 그 이야기(§4.1)
-  const shelfRows = useMemo(() => raise.trophies.slice(-6), [raise.trophies])
-  const shelfImg = useMemo(() => (shelfRows.length ? shelfSvg(shelfRows.map((t) => trophyShape(t)), { rn: true }) : ''), [shelfRows])
-  const sceneSvg = useMemo(() => scene({ bg: worn.bg, night, decor, rn: true }), [worn.bg, night, decor])
-  // 장면 배율(xMidYMax slice) → 선반은 0.8배로 줄여 오른쪽 끝 안에 붙이고(Lv 6 공 장식과 겹치지 않게) 받침 윗면(y 300) 높이에 세운다
-  const scale = w ? Math.max(w / 600, sceneH / 420) : 1
-  const sk = scale * 0.8
-  const shelfW = SHELF_BOX.w * sk, shelfH = SHELF_BOX.h * sk
-  const shelfLeft = Math.min(SHELF_BOX.x * scale - (600 * scale - w) / 2, w - shelfW - 4)
-  const shelfTop = sceneH - 120 * scale - (300 - SHELF_BOX.y) * sk
-  const onTrophy = useCallback((i: number) => {
-    const t = shelfRows[i]
-    if (!t) return
-    hx.tick(); feel('smile', TOUCH.sayMs); hop(1, 8); say(trophyLine(t))
-  }, [shelfRows, feel, hop, say])
-  const darkScene = sceneIsDark(worn.bg, night)
-  const faceMood = mood?.m ?? (sleepy ? 'sleepy' : 'smile')
+  const decor = useMemo(() => (species ? decorOn(lv, look) : []), [species, lv, look])
+  const faceMood = mood?.m ?? (sleepy ? 'sleepy' : 'default')
   const eq: Partial<Equip> = hold ? { ...worn, hand: hold } : worn
 
-  // ── HUD ──
-  const pct = Math.floor(Math.min(100, (progress.into / progress.toNext) * 100))
-  const nx = giftsAt(lv + 1)[0]
-  const giftIco = useMemo(() => nx ? itemIcon(nx.id, { rn: true }) : species ? art(species, stageOf(lv + 1), { lv: lv + 1, path: look.path, crop: 'bust', detail: 'small', rn: true }) : null, [nx, species, lv, look.path])
-  const tags = species ? growthTags(lv + 1, species) : []
-  const ink = p.dark ? '#fff' : '#16201A'
-  const glass = p.dark ? 'rgba(18,24,20,0.72)' : 'rgba(255,255,255,0.80)'
+  // ── 카드 ──
+  const pct = Math.floor(Math.min(100, (progress.into / Math.max(1, progress.toNext)) * 100))
+  const left = Math.max(1, Math.ceil((progress.toNext - progress.into) / XP.task))
   const title = species ? titleOf(species, st, look.path) : '아직 모르는 씨앗'
+  const tailBg = p.dark ? '#EEF3F0' : '#13211B', tailInk = p.dark ? '#13211B' : '#FFFFFF'
+  const wardIcon = wardIconOf(worn, owned)
+  const doneDays = week.filter((c) => c.did).length
 
   return (
-    <View style={[s.stage, { height: H, backgroundColor: sceneGround(worn.bg, night) }]} onLayout={onLayout}>
-      {w > 0 ? <View style={[s.scene, { height: sceneH }]} pointerEvents="none"><SvgString svg={sceneSvg} width={w} height={sceneH} preserveAspectRatio="xMidYMax slice" /></View> : null}
-      {p.dark ? <View style={[s.scene, { height: sceneH, backgroundColor: 'rgba(0,0,0,0.14)' }]} pointerEvents="none" /> : null}
-      {w > 0 && shelfImg ? (
-        <View style={{ position: 'absolute', left: shelfLeft, top: shelfTop, width: shelfW, height: shelfH }}>
-          <SvgString svg={shelfImg} width={shelfW} height={shelfH} />
-          {shelfRows.map((t, i) => {
-            const at = shelfSpot(i)
-            return (
-              <Pressable key={t.id} onPress={() => onTrophy(i)} hitSlop={4} accessibilityRole="button" accessibilityLabel={`트로피 ${t.title}`}
-                style={{ position: 'absolute', left: (at.x - 15 - SHELF_BOX.x) * sk, top: (at.y - 30 - SHELF_BOX.y) * sk, width: 30 * sk, height: 32 * sk }} />
-            )
-          })}
+    <View style={{ width, height, overflow: 'hidden' }}>
+      <SceneBackdrop sceneKey={sceneKey} width={width} height={fit.height} decor={decor} style={{ position: 'absolute', left: 0, top: fit.top }} />
+
+      {/* 위: 꿈틀 · 한 날 · ⋯ */}
+      <View style={[s.head, { top: topInset + 6 }]} pointerEvents="box-none">
+        <Text style={[s.logo, { color: sceneDark(sceneKey) || p.dark ? '#FFFFFF' : '#13211B' }]} accessibilityRole="header" accessibilityLabel="성장">꿈틀</Text>
+        <View style={{ flex: 1 }} />
+        <Glass dark={p.dark} radius={16} style={s.pill}>
+          <Text style={[s.pillT, { color: t.ink }]}>한 날 <Text style={s.pillB}>{state.days}</Text>일</Text>
+        </Glass>
+        {menu}
+      </View>
+
+      {/* 주 달력 띠(43 누적: 한 날 = 옅은 원) */}
+      <Glass dark={p.dark} radius={22} style={[s.week, { top: topInset + 50 }]}>
+        <View style={s.weekRow} accessible accessibilityLabel={`이번 주 한 날 ${doneDays}일`}>
+          {week.map((c) => (
+            <View key={c.day} style={s.wcol}>
+              <Text style={[s.wd, { color: t.ink }]}>{c.label}</Text>
+              <View style={[s.wn, c.today ? { backgroundColor: p.accent } : c.did ? { backgroundColor: t.did } : null]}>
+                <Text style={[s.wnT, { color: c.today ? '#fff' : t.ink }]}>{c.num}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </Glass>
+
+      {/* 받침 위 캐릭터 */}
+      <GestureDetector gesture={gesture}>
+        <Animated.View style={[{ position: 'absolute', left: pos.left, top: pos.top, width: size, height: size }, wrap]} accessible accessibilityRole="button"
+          accessibilityLabel={species ? `${name}, Lv ${lv} ${title}. 눌러서 말 걸기` : '아직 모르는 씨앗. 눌러서 깨우기'}
+          accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={() => onTap()}>
+          {species
+            ? <CharacterArt species={species} stage={st} size={size} mood={faceMood} wear={{ lv, path: look.path, eq, seed }} />
+            : <CharacterArt species={null} size={size} seed={seed} />}
+        </Animated.View>
+      </GestureDetector>
+      {bubble ? (
+        <View style={[s.sayBox, { left: perchX - 150, top: headY }]} pointerEvents="none">
+          <Animated.View key={bubble.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(180)} style={[s.say, { backgroundColor: t.bubble, borderColor: t.line }]}>
+            <Text style={[s.sayT, { color: t.ink }]} numberOfLines={2} accessibilityLiveRegion="polite">{bubble.text}</Text>
+            <View style={[s.sayTail, { backgroundColor: t.bubble }]} />
+          </Animated.View>
         </View>
       ) : null}
-
-      <View style={[s.hdr, { top: topInset + 8 }]} pointerEvents="box-none">
-        <Text style={[s.h1, { color: darkScene || p.dark ? '#fff' : '#10301C' }]} accessibilityRole="header">성장</Text>
-        <View style={s.chips}>
-          <View style={[s.chip, { backgroundColor: glass }]}><Text style={[s.chipT, { color: ink }]}>한 날 {state.days}일</Text></View>
-          <View style={[s.chip, { backgroundColor: glass }]}><Text style={[s.chipT, { color: ink }]}>오늘 {todayDone}/{todayTotal}</Text></View>
-        </View>
+      <View style={[s.fx, { left: perchX, top: headY + 6 }]} pointerEvents="none">
+        {hearts.map((h) => <Heart key={h.id} dx={h.dx} />)}
+        {chips.map((c) => <FloatChip key={c.id} text={c.text} kind={c.kind} dx={c.kind === 'xp' ? 34 : c.dx} reduced={reduced} />)}
       </View>
+      {species ? <View style={[s.fx, { left: perchX, top: pos.top + size * 0.55 }]} pointerEvents="none">{bursts.map((b) => <SpeciesBurst key={b.id} species={species as Species} count={b.n} dist={b.dist} />)}</View> : null}
 
-      <View style={[s.charPos, { bottom }]} pointerEvents="box-none">
-        {bubble ? (
-          <Animated.View key={bubble.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(180)} style={[s.say, { bottom: box - headTop + 4 }]} pointerEvents="none">
-            <Text style={s.sayT} numberOfLines={2} accessibilityLiveRegion="polite">{bubble.text}</Text>
-            <View style={s.sayTail} />
-          </Animated.View>
-        ) : null}
-        <GestureDetector gesture={gesture}>
-          <Animated.View style={[{ width: box, height: box }, wrap]} accessible accessibilityRole="button"
-            accessibilityLabel={species ? `${name}, Lv ${lv} ${title}. 눌러서 말 걸기` : '아직 모르는 씨앗. 눌러서 성향 조사'}
-            accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={() => onTap()}>
-            <CharacterArt species={species} stage={st} size={box} fit={false} mood={faceMood} wave={waving} calm={calm} wear={{ lv, path: look.path, eq }} />
-          </Animated.View>
-        </GestureDetector>
-        <View style={[s.fx, { top: headTop + 10 }]} pointerEvents="none">
-          {hearts.map((h) => <Heart key={h.id} dx={h.dx} />)}
-          {chips.map((c) => <FloatChip key={c.id} text={c.text} kind={c.kind} dx={c.dx} reduced={reduced} />)}
-        </View>
-        {species ? <View style={[s.fx, { top: box * 0.5 }]} pointerEvents="none">{bursts.map((b) => <SpeciesBurst key={b.id} species={species as Species} count={b.n} dist={b.dist} />)}</View> : null}
-      </View>
-
-      <View style={[s.hud, { backgroundColor: glass, borderColor: p.dark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.9)' }]}>
-        <View style={s.who}>
-          <Pressable onPress={() => species && wave()} hitSlop={8} accessibilityRole="button" accessibilityLabel={`${name} 부르기`}><Text style={[s.nm, { color: ink }]}>{name}</Text></Pressable>
-          <View style={[s.lvb, { backgroundColor: p.accent }]}><Text style={s.lvbT}>Lv {lv}</Text></View>
-          <Text style={[s.ttl, { color: ink }]} numberOfLines={1}>{title}</Text>
-        </View>
-        <View style={s.mid}>
-          <View style={{ flex: 1 }}>
-            <Text style={[s.num, { color: ink }]} accessibilityLabel={`다음 레벨까지 ${pct}퍼센트`}>{pct}<Text style={s.numPct}>%</Text></Text>
-            <Text style={[s.lbl, { color: p.accentInk }]} numberOfLines={1}>Lv {lv + 1}까지 · {evolutionHint(lv)}</Text>
+      {/* 아래 유리 카드 */}
+      <View style={[s.hud, { bottom: hudBottom }]} onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (Math.abs(h - hudH) > 1) setHudH(h) }}>
+        <Glass dark={p.dark} radius={26} style={s.hudIn}>
+          <View style={s.lvRow}>
+            <View style={[s.lvb, { backgroundColor: p.accent }]}><Text style={s.lvbT}>Lv {lv}</Text></View>
+            <Pressable onPress={() => species && wave()} hitSlop={8} disabled={!species} accessibilityRole="button" accessibilityLabel={species ? `${name} 부르기` : title} style={{ flexShrink: 1 }}>
+              <Text style={[s.who, { color: t.ink }]} numberOfLines={1}>{species ? `${name} · ${title}` : title}</Text>
+            </Pressable>
           </View>
-          <View style={s.gift}>
-            <View style={[s.tip, { backgroundColor: p.accent }]}><Text style={s.tipT} numberOfLines={1}>{nx ? `Lv ${lv + 1}에 ${nx.name}` : `Lv ${lv + 1} 모습`}</Text></View>
-            {giftIco ? <View style={[s.ico, { backgroundColor: p.dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.7)' }]}><SvgString svg={giftIco} size={30} /></View> : null}
+          <View style={s.row2}>
+            <Text style={[s.big, { color: t.ink }]} accessibilityLabel={`다음 레벨까지 ${pct}퍼센트`}>{pct}<Text style={s.bigPct}>%</Text></Text>
+            <View style={[s.tail, { backgroundColor: tailBg }]}>
+              <Text style={[s.tailT, { color: tailInk }]} numberOfLines={1}>할 일 {left}개 더 하면 Lv {lv + 1}</Text>
+              <View style={[s.tailTip, { backgroundColor: tailBg }]} />
+            </View>
           </View>
-        </View>
-        <View style={[s.bar, { backgroundColor: p.dark ? 'rgba(255,255,255,0.12)' : 'rgba(16,48,28,0.10)' }]} accessible accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: progress.toNext, now: progress.into }}>
-          <View style={[s.fill, { width: `${pct}%`, backgroundColor: p.accent }]} />
-        </View>
-        <View style={s.tags}>{tags.map((t) => <View key={t} style={[s.tag, { backgroundColor: p.dark ? 'rgba(34,164,93,0.22)' : 'rgba(34,164,93,0.12)' }]}><Text style={[s.tagT, { color: p.accentInk }]}>{t}</Text></View>)}</View>
+          <Text style={[s.lbl, { color: t.ink }]}>다음 레벨까지</Text>
+          <XpBar pct={pct} live={live} reduced={reduced} track={t.track} from={p.accentHi} to={p.accent} into={progress.into} toNext={progress.toNext} />
+          {species ? (
+            <View style={s.quick}>
+              <Quick label="옷장" bg={t.soft} ink={t.ink} dot={freshDot ? p.accent : undefined} onPress={onWard}><AccThumb id={wardIcon} size={34} /></Quick>
+              <Quick label={`도감 ${dexN}/${DEX_TOTAL}`} bg={t.soft} ink={t.ink} onPress={onDex}><CharacterArt species={species} stage={st} size={34} crop="bust" /></Quick>
+              <Quick label="이번 주" bg={t.soft} ink={t.ink} onPress={onWeek}><CharacterArt species={null} size={34} seed={seed} /></Quick>
+            </View>
+          ) : (
+            <Pressable onPress={onEgg} style={({ pressed }) => [s.eggBtn, { backgroundColor: p.accent }, pressed && { transform: [{ scale: 0.97 }] }]} accessibilityRole="button">
+              <Text style={s.eggBtnT}>씨앗 깨우기</Text>
+            </Pressable>
+          )}
+        </Glass>
       </View>
     </View>
   )
 })
 
+/** 14px 막대(강조색 그라데이션, 둥근 끝). 돌아오면(live) 0.8초 동안 찬다 — transform만(39 §11) */
+const XpBar = memo(function XpBar({ pct, live, reduced, track, from, to, into, toNext }: { pct: number; live: boolean; reduced: boolean; track: string; from: string; to: string; into: number; toNext: number }) {
+  const [w, setW] = useState(0)
+  const v = useSharedValue(pct)
+  const shown = useRef(false)
+  useEffect(() => {
+    if (!live) return
+    if (!shown.current || reduced) { shown.current = true; cancelAnimation(v); v.value = pct; return }
+    v.value = withDelay(250, withTiming(pct, { duration: 800, easing: Easing.bezier(0.2, 0.8, 0.2, 1) }))
+  }, [pct, live, reduced, v])
+  const st = useAnimatedStyle(() => ({ transform: [{ translateX: -w * (1 - Math.max(0, Math.min(100, v.value)) / 100) }] }))
+  return (
+    <View style={[s.bar, { backgroundColor: track }]} onLayout={(e) => setW(e.nativeEvent.layout.width)}
+      accessible accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: toNext, now: into }}>
+      {w ? (
+        <Animated.View style={[s.fill, { width: w }, st]}>
+          <Svg width={w} height={14}>
+            <Defs><LinearGradient id="xpFill" x1="0" y1="0" x2="1" y2="0"><Stop offset="0" stopColor={from} /><Stop offset="1" stopColor={to} /></LinearGradient></Defs>
+            <Rect x={0} y={0} width={w} height={14} rx={7} fill="url(#xpFill)" />
+          </Svg>
+        </Animated.View>
+      ) : null}
+    </View>
+  )
+})
+
+function Quick({ label, bg, ink, dot, onPress, children }: { label: string; bg: string; ink: string; dot?: string; onPress?: () => void; children: ReactNode }) {
+  return (
+    <Pressable onPress={() => { hx.tick(); onPress?.() }} style={({ pressed }) => [s.qb, { backgroundColor: bg }, pressed && { transform: [{ scale: 0.96 }] }]} accessibilityRole="button" accessibilityLabel={label}>
+      {children}
+      <Text style={[s.qbT, { color: ink }]} numberOfLines={1}>{label}</Text>
+      {dot ? <View style={[s.qbDot, { backgroundColor: dot }]} /> : null}
+    </Pressable>
+  )
+}
+
 const s = StyleSheet.create({
-  stage: { overflow: 'hidden' },
-  scene: { position: 'absolute', left: 0, right: 0, top: 0 },
-  hdr: { position: 'absolute', left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  h1: { fontSize: 28, lineHeight: 34, fontWeight: '800', letterSpacing: -0.8 },
-  chips: { flexDirection: 'row', gap: 6, marginTop: 4, marginRight: 50 },
-  chip: { borderRadius: 999, paddingHorizontal: 10, height: 28, justifyContent: 'center' },
-  chipT: { fontSize: 12.5, fontWeight: '700' },
-  charPos: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
-  fx: { position: 'absolute', left: '50%', width: 0, height: 0, alignItems: 'center' },
-  say: { position: 'absolute', backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 13, paddingVertical: 9, maxWidth: 260, shadowColor: '#0F2316', shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 6 }, zIndex: 6 },
-  sayT: { color: '#16201A', fontSize: 13, lineHeight: 18, fontWeight: '600', textAlign: 'center' },
-  sayTail: { position: 'absolute', bottom: -5, left: '50%', marginLeft: -5, width: 10, height: 10, backgroundColor: '#fff', transform: [{ rotate: '45deg' }], borderRadius: 2 },
-  hud: { position: 'absolute', left: 12, right: 12, bottom: 26, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 12, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#0A2814', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
-  who: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  nm: { fontSize: 15, fontWeight: '700' },
-  lvb: { borderRadius: 7, paddingHorizontal: 7, paddingVertical: 3 },
-  lvbT: { color: '#fff', fontSize: 11, fontWeight: '800' },
-  ttl: { flex: 1, fontSize: 12.5, opacity: 0.72 },
-  mid: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
-  num: { fontSize: 38, lineHeight: 42, fontWeight: '800', letterSpacing: -1.2 },
-  numPct: { fontSize: 17, letterSpacing: 0 },
-  lbl: { fontSize: 12, fontWeight: '600', marginTop: 2 },
-  gift: { alignItems: 'flex-end', gap: 6 },
-  tip: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4, maxWidth: 170 },
-  tipT: { color: '#fff', fontSize: 11.5, fontWeight: '700' },
-  ico: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  bar: { height: 10, borderRadius: 5, overflow: 'hidden' },
-  fill: { height: 10, borderRadius: 5 },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 7 },
-  tag: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
-  tagT: { fontSize: 11, fontWeight: '600' }
+  head: { position: 'absolute', left: 18, right: 18, height: 32, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logo: { fontSize: 21, fontWeight: '800', letterSpacing: -0.85 },
+  pill: { height: 32, paddingHorizontal: 12, justifyContent: 'center' },
+  pillT: { fontSize: 13, fontWeight: '700' },
+  pillB: { fontWeight: '800' },
+  week: { position: 'absolute', left: 14, right: 14 },
+  weekRow: { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 6 },
+  wcol: { flex: 1, alignItems: 'center' },
+  wd: { fontSize: 11, fontWeight: '600', opacity: 0.6, marginBottom: 6 },
+  wn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  wnT: { fontSize: 14.5, fontWeight: '700' },
+  fx: { position: 'absolute', width: 0, height: 0, alignItems: 'center' },
+  sayBox: { position: 'absolute', width: 300, height: 0, alignItems: 'center' },
+  say: { position: 'absolute', bottom: 8, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 10, maxWidth: 230, shadowColor: '#0F2316', shadowOpacity: 0.14, shadowRadius: 10, shadowOffset: { width: 0, height: 6 } },
+  sayT: { fontSize: 14, lineHeight: 19, fontWeight: '600', textAlign: 'center' },
+  sayTail: { position: 'absolute', bottom: -6, left: '50%', marginLeft: -7, width: 14, height: 14, transform: [{ rotate: '45deg' }], borderRadius: 3 },
+  hud: { position: 'absolute', left: 14, right: 14 },
+  hudIn: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 14 },
+  lvRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  lvb: { borderRadius: 7, paddingHorizontal: 7, paddingVertical: 2 },
+  lvbT: { color: '#fff', fontSize: 11.5, fontWeight: '800' },
+  who: { fontSize: 13, fontWeight: '700', opacity: 0.82 },
+  row2: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 },
+  big: { fontSize: 54, lineHeight: 58, fontWeight: '800', letterSpacing: -2.7, marginTop: 6, includeFontPadding: false },
+  bigPct: { fontSize: 28, letterSpacing: -0.5 },
+  tail: { borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7, marginBottom: 12, flexShrink: 1 },
+  tailT: { fontSize: 12.5, fontWeight: '700' },
+  tailTip: { position: 'absolute', left: 22, bottom: -5, width: 10, height: 10, borderRadius: 2, transform: [{ rotate: '45deg' }] },
+  lbl: { fontSize: 12.5, fontWeight: '600', opacity: 0.6, marginTop: 2 },
+  bar: { height: 14, borderRadius: 7, overflow: 'hidden', marginTop: 12 },
+  fill: { height: 14 },
+  quick: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  qb: { flex: 1, borderRadius: 16, paddingTop: 4, paddingBottom: 7, paddingHorizontal: 6, alignItems: 'center', gap: 2 },
+  qbT: { fontSize: 12.5, fontWeight: '700' },
+  qbDot: { position: 'absolute', top: 7, right: 10, width: 7, height: 7, borderRadius: 4 },
+  eggBtn: { height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
+  eggBtnT: { color: '#fff', fontSize: 16, fontWeight: '700' }
 })

@@ -52,7 +52,7 @@ export default function Report() {
       ) : (
         <ScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: insets.bottom + 30 }}>
           <View style={s.say}>
-            <CharacterArt species={species} stage={stage} size={64} mood="happy" />
+            <CharacterArt species={species} stage={stage} size={64} mood="happy" crop="bust" />
             <View style={[s.bubble, { backgroundColor: p.cardBg }]} accessibilityLabel={`${name}의 한마디`}>
               <Text style={[s.bubbleText, { color: p.textPrimary }]}>{reportHeadline(row.text_json, stats)}</Text>
             </View>

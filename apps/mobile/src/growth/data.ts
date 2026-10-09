@@ -3,6 +3,8 @@
 import { useLiveQuery } from '../data/rows'
 import { progressFromEvents, readTextJson, reviewXpEvent, tidyXpEvent, type XpEventRow } from '@sprout/schema/growth'
 import { insertStmt } from '@sprout/schema/taskCore'
+import { planSaveLook } from '@sprout/schema/raiseCore'
+import { parseLook, setSeed } from '@sprout/schema/wardrobe'
 import { addDays } from '@sprout/schema/time'
 import { useMemo } from 'react'
 import { currentUserId } from '../data/auth'
@@ -86,9 +88,15 @@ export async function dismissDraft(today: string, reportWeek: string, title: str
   await run(await planDismissDraft(coreDb, env(today), reportWeek, title))
 }
 export const markReportSeen = (today: string, id: string) => run(planMarkSeen(env(today), id))
-export async function assignCharacter(today: string, a: Parameters<typeof planAssignCharacter>[2]) {
-  await run(await planAssignCharacter(coreDb, env(today), a))
+/** 조사 결과 쓰기. seed(49 §5.2 만들기 흐름에서 고른 씨앗 0~3)가 있으면 look_json에 병합한다(입힌 옷·갈래·장식은 그대로) — 데스크톱과 같은 칸 */
+export async function assignCharacter(today: string, a: Parameters<typeof planAssignCharacter>[2] & { seed?: number }) {
+  const { seed, ...rest } = a
+  await run(await planAssignCharacter(coreDb, env(today), rest))
+  if (seed === undefined) return
+  const row = await coreDb.get<{ id: string; look_json: string | null }>(LOOK_SQL)
+  if (row) await run(planSaveLook(row.id, setSeed(parseLook(row.look_json), seed), { owner: currentUserId() }))
 }
+const LOOK_SQL = 'SELECT id, look_json FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1'
 export async function renameCharacter(today: string, name: string) {
   await run(await planRename(coreDb, env(today), name))
 }

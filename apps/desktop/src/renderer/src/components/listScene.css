@@ -1,0 +1,19 @@
+/* 49 §8.2 할 일 화면 "은은하게" — 큰 제목 뒤 장면 띠(배경, 자리 없음) + 그림 빈 상태(캐릭터 170).
+   띠는 .list(position: relative)의 첫 아이 · absolute · z-index 없음. 머리·페이지 정보·입력창·목록을 position: relative(z-index 없음)로 두면
+   같은 층에서 문서 순서대로 그려져 띠 위에 온다 — 새 쌓임 맥락을 만들지 않아 끌기 그림자·팝오버의 z-index는 그대로다. */
+.lband { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; will-change: transform, opacity; }
+.lband .s3-band { position: absolute; inset: 0; }
+.lband__night { display: none; }
+[data-theme="dark"] .lband__day { display: none; }
+[data-theme="dark"] .lband__night { display: block; }
+.list.has-band > :is(.pane-header, .wiki-ph, .addbar, .section-input, .companion-band, .list__scroll) { position: relative; }
+
+/* 그림 빈 상태: 캐릭터 170 + 한 줄(문구는 그대로) */
+.empty.is-character { padding-top: 6vh; gap: 2px; }
+.empty.is-character .empty__title { margin-top: 4px; }
+
+/* 캘린더 머리: 같은 띠를 머리 높이만큼 얕게(49 §8.2 캘린더) */
+.cal__header.has-band { position: relative; }
+.cal__header.has-band > :not(.lband) { position: relative; }
+.lband--head { bottom: 0; }
+.lband--head .s3-band { height: auto !important; background-position: center 38%; }

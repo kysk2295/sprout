@@ -26,8 +26,12 @@ export default function Survey() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const reduced = useMotionReduced()
-  const current = useLiveQuery<CharacterRow>(CHARACTER_SQL).data[0]
+  const q = useLiveQuery<CharacterRow>(CHARACTER_SQL)
+  const current = q.data[0]
   const again = !!current?.species
+  // 49 §5: 아직 캐릭터가 없으면(씨앗) 새 만들기 흐름으로. 이미 있으면 "성향 다시 조사하기" = 아래 조사 그대로
+  const toMake = !q.isLoading && !again
+  useEffect(() => { if (toMake) router.replace('/growth/make') }, [toMake, router])
   const [step, setStep] = useState<'intro' | 'quiz' | 'result'>('intro')
   const [answers, setAnswers] = useState<Record<string, Pick2>>({})
   const [i, setI] = useState(0)
@@ -55,6 +59,7 @@ export default function Survey() {
     }, reduced ? 120 : 250)
   }
 
+  if (q.isLoading || !again) return <View style={[s.screen, { backgroundColor: p.bgApp }]} />
   return (
     <View style={[s.screen, { backgroundColor: p.bgApp, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       {step === 'intro' && (

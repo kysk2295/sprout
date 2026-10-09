@@ -99,7 +99,7 @@ function GrowthHome({ onSurvey, onReview }: { onSurvey: () => void; onReview: ()
             <MenuItem label="꾸미기" disabled={!species} onClick={() => { setMenu(false); window.dispatchEvent(new CustomEvent(RAISE_PANEL, { detail: 'ward' })) }} />
             <MenuItem label="도감" disabled={!species} onClick={() => { setMenu(false); window.dispatchEvent(new CustomEvent(RAISE_PANEL, { detail: 'dex' })) }} />
             <MenuItem label="캐릭터 이름 바꾸기" disabled={!species} onClick={() => { setMenu(false); window.setTimeout(() => window.dispatchEvent(new Event('sprout:growth-rename')), 0) }} />
-            <MenuItem label={species ? '성향 다시 조사하기' : '성향 조사하기'} onClick={() => { setMenu(false); onSurvey() }} />
+            <MenuItem label={species ? '성향 다시 조사하기' : '씨앗 깨우기'} onClick={() => { setMenu(false); onSurvey() }} />
             {/* 10 §3.2.11 결정: 기기별 스위치. OS 설정이 켜져 있으면 늘 줄인다 */}
             <MenuItem label="움직임 줄이기" active={reduced} trail={reduced ? <Check className="menu__check" /> : undefined} onClick={() => { writeMotionPref(!reduced); setMenu(false) }} />
           </Popover>

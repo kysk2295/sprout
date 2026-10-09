@@ -84,6 +84,8 @@ function Screens({ signedIn }: { signedIn: boolean }) {
           <Stack.Screen name="tags" options={{ ...sheet([0.7, 1]), contentStyle: { backgroundColor: p.pageBg } }} />
           <Stack.Screen name="date" options={sheet([0.85, 1])} />
           {/* 39 §4.6: 화면 전환 움직임 없이 — 덮개는 화면 안에서 옅어지고 카드는 키보드에 붙어 오른다 */}
+          {/* 49 §5 캐릭터 만들기 흐름: 장면 끝까지 · 페이드로 들어오고 나간다(중간에 밀어서 닫히지 않게) */}
+          <Stack.Screen name="growth/make" options={{ animation: 'fade', gestureEnabled: false }} />
           <Stack.Screen name="quick-add" options={{ presentation: 'transparentModal', animation: 'none', contentStyle: { backgroundColor: 'transparent' } }} />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>

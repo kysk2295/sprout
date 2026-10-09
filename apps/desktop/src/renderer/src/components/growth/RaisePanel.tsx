@@ -1,14 +1,18 @@
 // 43 §5.4 옷장 · §8 도감 — 무대 오른쪽에서 밀려 나오는 떠 있는 카드(폭 300). 같은 패널에 `옷장 · 도감` 두 칸.
 // 칸 상태: 기본 · 입은 것(강조 테두리) · 새로 받음(점 — 탭을 보면 지운다) · 잠김(한 색 실루엣 + 조건, 누르면 흔들기만).
+// 49 §7: 칸 그림 = 미리 구운 3D(옷 = accIcon 자른 그림, 방 = 장면 가운데 자르기, 장식 = decor 그림). 잠김 = 같은 그림을 한 색으로(mask, 필터 없음).
 import { X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { art, decorIcon, itemIcon, PATHS, titleOf, trophyIcon } from '@sprout/schema/characterArt'
+import { useEffect, useState } from 'react'
+import { accIcon, DECOR3D, decorKey, PATHS, SCENE_OF_BG, SCENE_PX, SCENES3D, titleOf, trophyIcon, type Box } from '@sprout/schema/characterArt'
 import { STAGES } from '@sprout/schema/growth'
 import {
   babyHidesSlot, baseName, conditionText, DECOR, equipItem, ITEMS, itemsOfTab, setPath, SLOTS, toggleDecor, trophyShape, trophySub, unequipSlot,
   type Item, type Path, type Slot, type WardTab
 } from '@sprout/schema/wardrobe'
 import { markItemsSeen, saveLook, type Raise } from '../../data/raise'
+import { artUrl } from './art3dUrls'
+import { ArtImage, CharacterArt } from './CharacterArt'
+import { useDocDark } from './MakeFlow'
 
 const ls = { get: (k: string) => { try { return localStorage.getItem(k) } catch { return null } }, set: (k: string, v: string) => { try { localStorage.setItem(k, v) } catch { /* */ } } }
 const Svg = ({ html, className }: { html: string; className?: string }) => <span className={`rp-ic${className ? ` ${className}` : ''}`} dangerouslySetInnerHTML={{ __html: html }} />
@@ -52,7 +56,7 @@ function Wardrobe({ raise, onWorn }: { raise: Raise; onWorn: () => void }) {
         title={own ? (on ? '다시 누르면 벗기' : '눌러서 입기') : conditionText(it, state)}
         onClick={(e) => (own ? wear(it) : shake(e.currentTarget))}>
         {(shownFresh.has(it.id) || fresh.has(it.id)) && own ? <i className="rp-dot" aria-label="새로 받음" /> : !own ? <LockIcon /> : null}
-        <Svg html={itemIcon(it.id, { locked: !own })} />
+        <span className="rp-ic"><ItemPic id={it.id} size={52} locked={!own} /></span>
         <span className="n">{it.name}</span>
         {!own && <span className="c">{conditionText(it, state)}</span>}
       </button>
@@ -75,7 +79,7 @@ function Wardrobe({ raise, onWorn }: { raise: Raise; onWorn: () => void }) {
                 const own = raise.level >= d.lv, on = own && !look.decorOff.includes(d.id)
                 return (
                   <button key={d.id} className={`rp-cell${own ? '' : ' is-locked'}${on ? ' is-on' : ''}`} aria-pressed={on} onClick={(e) => (own ? void saveLook(toggleDecor(look, d.id)) : shake(e.currentTarget))}>
-                    {!own && <LockIcon />}<Svg html={decorIcon(d.id, { locked: !own })} /><span className="n">{d.name}</span>{!own && <span className="c">Lv {d.lv}</span>}
+                    {!own && <LockIcon />}<span className="rp-ic"><DecorPic id={d.id} size={52} locked={!own} /></span><span className="n">{d.name}</span>{!own && <span className="c">Lv {d.lv}</span>}
                   </button>
                 )
               })}
@@ -98,31 +102,32 @@ function Wardrobe({ raise, onWorn }: { raise: Raise; onWorn: () => void }) {
   )
 }
 
-const LOOKS: [number, Path][] = [[1, 'a'], [2, 'a'], [3, 'a'], [3, 'b'], [4, 'a'], [4, 'b'], [5, 'a'], [5, 'b']]
+/** 도감 모습 8칸(아기 · 꼬마 · 친구~전설 × 갈래) */
+export const LOOKS: [number, Path][] = [[1, 'a'], [2, 'a'], [3, 'a'], [3, 'b'], [4, 'a'], [4, 'b'], [5, 'a'], [5, 'b']]
 function Dex({ raise }: { raise: Raise }) {
   const { species, stage, look, owned, state, trophies } = raise
   const ownCount = ITEMS.filter((i) => owned.has(i.id)).length
   const lookOwn = LOOKS.filter(([s]) => s <= stage).length
-  const looks = useMemo(() => (species ? LOOKS.map(([s, p]) => ({ s, p, html: art(species, s, { path: p, size: 64, detail: 'full', noAura: true, fit: false, lock: s > stage, mood: 'smile' }) })) : []), [species, stage])
   return (
     <div className="rp-body">
       <div className="rp-sum">
         <div><b>{ownCount}<small>/{ITEMS.length}</small></b><span>옷</span><i className="rp-bar"><em style={{ width: `${(ownCount / ITEMS.length) * 100}%` }} /></i></div>
-        <div><b>{lookOwn}<small>/8</small></b><span>모습</span><i className="rp-bar"><em style={{ width: `${(lookOwn / 8) * 100}%` }} /></i></div>
+        <div><b>{lookOwn}<small>/{LOOKS.length}</small></b><span>모습</span><i className="rp-bar"><em style={{ width: `${(lookOwn / LOOKS.length) * 100}%` }} /></i></div>
         <div><b>{trophies.length}</b><span>트로피</span><i className="rp-bar"><em style={{ width: `${Math.min(100, trophies.length * 12)}%` }} /></i></div>
       </div>
       {species && (
         <>
           <div className="rp-subh">모습<span>다른 길은 언제든 바꿀 수 있어</span></div>
-          <div className="rp-grid">
-            {looks.map(({ s, p, html }) => {
+          <div className="rp-grid rp-dex">
+            {LOOKS.map(([s, p]) => {
               const ok = s <= stage, cur = s === stage && (s < 3 || p === look.path), swap = ok && s === stage && s >= 3 && p !== look.path
               const sub = ok ? (s >= 3 && p !== look.path ? (s === stage ? '눌러서 바꾸기' : '다른 길') : s >= 3 ? PATHS[species][p].name : '') : `Lv ${STAGES[s - 1].from}`
               return (
-                <button key={`${s}${p}`} className={`rp-cell${cur ? ' is-on' : ''}${ok ? '' : ' is-locked'}`} disabled={!swap && !cur} aria-label={`${titleOf(species, s, p)} ${sub}`}
+                <button key={`${s}${p}`} className={`rp-cell${cur ? ' is-on' : ''}${ok ? '' : ' is-locked'}`} disabled={!swap && !cur} aria-label={`${ok ? titleOf(species, s, p) : '아직 못 본 모습'} ${sub}${cur ? ' · 지금 내 모습' : ''}`}
                   onClick={() => swap && void saveLook(setPath(look, p))}>
-                  <Svg html={html} className="is-look" />
-                  <span className="n">{titleOf(species, s, p)}</span>
+                  {cur && <span className="rp-me">나</span>}
+                  <span className="rp-ic is-look"><CharacterArt species={species} stage={s} size={64} crop="full" mood="smile" lock={!ok} wear={{ path: p, seed: look.seed, ...(cur ? { eq: raise.worn } : {}) }} /></span>
+                  <span className="n">{ok ? titleOf(species, s, p) : '?'}</span>
                   <span className="c">{sub}</span>
                 </button>
               )
@@ -136,7 +141,7 @@ function Dex({ raise }: { raise: Raise }) {
           <div key={k}>
             <div className="rp-subh">{k === 'room' ? '배경' : n}<span>{list.filter((i) => owned.has(i.id)).length}/{list.length}</span></div>
             <div className="rp-grid is-4">
-              {list.map((it) => { const o = owned.has(it.id); return <div key={it.id} className={`rp-cell is-static${o ? '' : ' is-locked'}`}><Svg html={itemIcon(it.id, { locked: !o })} /><span className="n">{it.name}</span>{!o && <span className="c">{conditionText(it, state)}</span>}</div> })}
+              {list.map((it) => { const o = owned.has(it.id); return <div key={it.id} className={`rp-cell is-static${o ? '' : ' is-locked'}`}><span className="rp-ic"><ItemPic id={it.id} size={40} locked={!o} /></span><span className="n">{it.name}</span>{!o && <span className="c">{conditionText(it, state)}</span>}</div> })}
             </div>
           </div>
         )
@@ -150,3 +155,39 @@ function Dex({ raise }: { raise: Raise }) {
 }
 
 const LockIcon = () => <svg className="rp-lk" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><rect x="5" y="10" width="14" height="10" rx="3" /><path d="M8 10V7.5a4 4 0 0 1 8 0V10" /></svg>
+
+/* ───── 칸 그림(49 §7) ───── */
+const LOCK_LIGHT = '#C9D0CB', LOCK_DARK = '#3A423D'
+const useLockTint = () => (useDocDark() ? LOCK_DARK : LOCK_LIGHT)
+const squareOf = ([x0, y0, x1, y1]: number[], pad = 0.06): Box => {
+  const side = Math.min(1, Math.max(x1 - x0, y1 - y0) + pad * 2), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2
+  return { x: Math.min(1 - side, Math.max(0, cx - side / 2)), y: Math.min(1 - side, Math.max(0, cy - side / 2)), w: side, h: side }
+}
+/** 장면 아이콘: 세로 장면(780×1560)의 받침 둘레를 정사각형으로 가운데 자른다 */
+export function SceneIcon({ sceneKey, size, locked }: { sceneKey: string; size: number; locked?: boolean }) {
+  const tint = useLockTint()
+  const m = SCENES3D[sceneKey]
+  const url = artUrl(sceneKey, SCENE_PX)
+  if (locked || !url || !m) return <span className="rp-scene is-lock" style={{ width: size, height: size, background: tint }} aria-hidden />
+  const w = size / 0.62, h = w * m.aspect
+  return (
+    <span className="rp-scene" style={{ width: size, height: size }} aria-hidden>
+      <img src={url} alt="" draggable={false} style={{ width: w, height: h, left: -(m.perch[0] * w - size / 2), top: -(m.perch[1] * h - size * 0.62) }} />
+    </span>
+  )
+}
+/** 옷·배경 칸 그림 — 옷은 꿀벌 친구 몸에 입힌 옷 층을 옷 자리로 확대해 자른 것(accIcon) */
+export function ItemPic({ id, size, locked }: { id: string; size: number; locked?: boolean }) {
+  const tint = useLockTint()
+  if (SCENE_OF_BG[id]) return <SceneIcon sceneKey={SCENE_OF_BG[id]} size={size} locked={locked} />
+  const ic = accIcon(id)
+  if (!ic) return <span className="rp-blob" style={{ width: size * 0.62, height: size * 0.48, background: tint }} aria-hidden />
+  return <ArtImage artKey={ic.key} size={size} box={ic.box} tint={locked ? tint : null} />
+}
+/** 방 장식 칸 그림 */
+export function DecorPic({ id, size, locked }: { id: string; size: number; locked?: boolean }) {
+  const tint = useLockTint()
+  const bb = DECOR3D[decorKey(id)]
+  if (!bb) return <span className="rp-blob" style={{ width: size * 0.62, height: size * 0.48, background: tint }} aria-hidden />
+  return <ArtImage artKey={decorKey(id)} size={size} box={squareOf(bb)} px={256} tint={locked ? tint : null} />
+}

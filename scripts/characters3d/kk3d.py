@@ -1292,13 +1292,21 @@ def do_scene(it, out, samples):
         for (x, y) in ((-1.25, -0.7), (1.35, -0.55), (-1.5, 0.2)):
             sphere('pebble', (x, y, 0.06), (0.16, 0.13, 0.09), stone, seg=24)
     if night:
-        for i in range(60):
-            x = random.uniform(-16, 16); z = random.uniform(7, 22)
-            sphere('star', (x, 27, z), (0.05, 0.05, 0.05), mat('star', '#FFF6D8', emis=('#FFF2C8', 8.0)), seg=8)
+        # 별 = 하늘 판 무늬(Voronoi 점). 공으로 두면 먼 거리라 피사계 심도로 큰 흰 원이 된다
+        vo = nt.nodes.new('ShaderNodeTexVoronoi'); vo.inputs['Scale'].default_value = 90
+        mr_ = nt.nodes.new('ShaderNodeMapRange'); mr_.inputs['From Min'].default_value = 0.0; mr_.inputs['From Max'].default_value = 0.06; mr_.inputs['To Min'].default_value = 1.0; mr_.inputs['To Max'].default_value = 0.0
+        mx = nt.nodes.new('ShaderNodeMix'); mx.data_type = 'RGBA'; mx.inputs['B'].default_value = lin('#FFF2C8')
+        hi = nt.nodes.new('ShaderNodeMath'); hi.operation = 'MULTIPLY'; hi.inputs[1].default_value = 1.0
+        nt.links.new(tc.outputs['Generated'], vo.inputs['Vector']); nt.links.new(vo.outputs['Distance'], mr_.inputs['Value'])
+        nt.links.new(sep.outputs['Y'], hi.inputs[0]); mk = nt.nodes.new('ShaderNodeMath'); mk.operation = 'MULTIPLY'
+        nt.links.new(mr_.outputs['Result'], mk.inputs[0]); nt.links.new(hi.outputs[0], mk.inputs[1])
+        nt.links.new(ramp.outputs['Color'], mx.inputs['A']); nt.links.new(mk.outputs[0], mx.inputs['Factor']); nt.links.new(mx.outputs['Result'], em.inputs['Color'])
         mr = 1.6 if t == 'moon' else 0.9
         sphere('moon', (6, 27, 15), (mr,) * 3, mat('moon', '#FFF4DC', emis=('#FFF1D2', 3.0 if t == 'dusk' else 4.0)))
         for i in range(12):
-            sphere('fly', (random.uniform(-4, 4), random.uniform(-1, 4), random.uniform(0.6, 2.4)), (0.035,) * 3, mat('fly', '#F7F0B0', emis=('#F5EE9A', 12.0)), seg=8)
+            # 반딧불: 받침 둘레 초점 거리 근처에만(카메라 가까이 두면 피사계 심도로 큰 흰 원이 된다)
+            a = random.uniform(0, 2 * math.pi); rr = random.uniform(1.8, 4.2)
+            sphere('fly', (math.cos(a) * rr * 1.3, 0.6 + math.sin(a) * rr * 0.6, random.uniform(0.5, 2.0)), (0.028,) * 3, mat('fly', '#F7F0B0', emis=('#F5EE9A', 7.0)), seg=8)
     elif t == 'sunset':
         sphere('sun', (-5, 27, 7), (2.2,) * 3, mat('sunb', '#FFE3A3', emis=('#FFD58A', 3.5)))
     elif t == 'day':
@@ -1386,7 +1394,10 @@ def do_decor(it, out, size, samples):
     elif d == 'firefly':
         random.seed(3)
         for i in range(6):
-            objs.append(sphere('ff', (random.uniform(-0.5, 0.5), random.uniform(-0.2, 0.2), random.uniform(0.2, 0.9)), (0.04,) * 3, mat('ff', '#F7F0B0', emis=('#F5EE9A', 10.0)), seg=10))
+            # 작은 노란 불빛 + 옅은 날개(낮 장면에서 흰 공처럼 보이지 않게)
+            c = (random.uniform(-0.5, 0.5), random.uniform(-0.2, 0.2), random.uniform(0.2, 0.9))
+            objs.append(sphere('ff', c, (0.022,) * 3, mat('ff', '#F2C94C', rough=0.3, sss=0.2, emis=('#F5D76E', 2.5)), seg=10))
+            objs.append(sphere('ffb', (c[0] + 0.03, c[1], c[2]), (0.02, 0.012, 0.012), vinyl('#5E4B45', 0.5, 0.1), seg=8))
     elif d == 'arch':
         am = vinyl('#7FB066', 0.6, 0.15)
         pts = [Vector((-0.6, 0, 0)), Vector((-0.6, 0, 0.7)), Vector((0, 0, 1.15)), Vector((0.6, 0, 0.7)), Vector((0.6, 0, 0))]

@@ -39,6 +39,7 @@ import { EventRowView } from '../ui/EventRow'
 import { afterMenu } from '../ui/Drawer'
 import { SoftIcon } from '../ui/SoftIcon'
 import { EmptyState } from '../ui/EmptyState'
+import { SceneBand } from '../growth/art/Scene3D'
 import { GlassButton } from '../ui/Glass'
 import { SheetHead } from '../ui/SheetHead'
 import { GroupCard } from '../ui/GroupCard'
@@ -108,6 +109,7 @@ function useToday() {
 export default function CalendarScreen() {
   const p = usePalette()
   const insets = useSafeAreaInsets()
+  const { width: winW } = useWindowDimensions()
   const space = useTabBarSpace()
   const router = useRouter()
   const toast = useToast()
@@ -223,6 +225,8 @@ export default function CalendarScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: view === 'month' ? p.pageBg : p.cardBg }}>
+      {/* 49 §8.2 은은하게: 월 이름 뒤 얕은 장면 띠(머리 + 요일 줄까지, 아래로 바탕에 녹음). 달 보기만 — 자리를 차지하지 않는다 */}
+      {view === 'month' ? <SceneBand dark={p.dark} width={winW} height={insets.top + M.navH + 30} bg={p.pageBg} fade={0.7} style={s.band} /> : null}
       <View style={[s.head, { marginTop: insets.top }]}>
         <View ref={viewMenu.ref} collapsable={false}>
           <GlassButton label="보기 전환" onPress={viewMenu.open}><ViewIcon size={20} color={p.textPrimary} /></GlassButton>
@@ -1156,6 +1160,7 @@ const s = StyleSheet.create({
   year: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingTop: 8, alignContent: 'flex-start' },
   ym: { width: '33.33%', paddingHorizontal: 7, paddingVertical: 8 },
   yc: { alignItems: 'center', justifyContent: 'center', borderRadius: 3 },
+  band: { position: 'absolute', left: 0, top: 0 },
   head: { height: M.navH, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 },
   headTitle: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   wd: { flexDirection: 'row', height: 26, alignItems: 'center' },

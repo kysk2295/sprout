@@ -67,7 +67,7 @@
 /* 끝 화면 */
 .od-end__sum { margin: 4px 0 0; line-height: 1.6; }
 .od-end__char { display: flex; align-items: center; gap: 12px; margin: 18px 0 4px; padding: 12px 14px; border-radius: var(--radius-lg); background: var(--color-accent-subtle); }
-.od-end__char svg { flex: none; }
+.od-end__char .character { flex: none; }
 .od-end__line { margin: 0; line-height: 1.5; }
 .od-end__line b { margin-right: 6px; }
 

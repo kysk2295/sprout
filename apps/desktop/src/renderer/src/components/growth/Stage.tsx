@@ -1,32 +1,50 @@
-import { Shirt } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { art, bitSvg, HEART_SVG, itemIcon, scene, sceneGround, sceneIsDark, standBottom, titleOf } from '@sprout/schema/characterArt'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { bitSvg, HEART_SVG, headTop3d, SCENES3D, sceneDark, sceneKeyFor, titleOf } from '@sprout/schema/characterArt'
 import { SPECIES, STAGES, stageOf, XP, type Species } from '@sprout/schema/growth'
+import { addDays } from '@sprout/schema/time'
 import {
-  dayJustDone, decorOn, equipItem, evolutionHint, giftsAt, growthTags, isBusy, isNight, ITEM_BY_ID, momentLine, pickDayMoment, stageBoxSize, tapLines,
-  TOUCH, TOUCH_LINES, trophyLine, trophyShape, type CharacterItemRow, type DayMoment, type Item, type Path
+  dayJustDone, decorOn, equipItem, giftsAt, isBusy, isNight, ITEM_BY_ID, momentLine, pickDayMoment, tapLines,
+  TOUCH, TOUCH_LINES, type CharacterItemRow, type DayMoment, type Item, type Path
 } from '@sprout/schema/wardrobe'
-import { catchUpOf, isSleepy, levelOfTotal, readSeenAt, renameCharacter, setGrowthStageActive, stageLines, writeSeenAt, type CharacterRow, type StageStats, type XpRow } from '../../data/growth'
+import { catchUpOf, isSleepy, levelOfTotal, readSeenAt, renameCharacter, setGrowthStageActive, stageLines, thisWeek, writeSeenAt, type CharacterRow, type StageStats, type XpRow } from '../../data/growth'
 import { isProjectDeadlineToday, RAISE_FRESH, RAISE_PANEL, saveLook, useRaise } from '../../data/raise'
 import { dayKey } from '../../lib/dates'
 import { CharacterArt, type CharacterMood } from './CharacterArt'
 import { EvolutionMoment } from './EvolutionMoment'
-import { RaisePanel } from './RaisePanel'
+import { SeedPic, useDocDark } from './MakeFlow'
+import { ItemPic, LOOKS, RaisePanel } from './RaisePanel'
+import { SceneBackdrop } from './Scene3D'
 import './raise.css'
 
-// 10 §3.2 무대(캐릭터 방) + 43 키우기(v0.3): 장면이 끝까지 · 왼쪽 위 유리 HUD(큰 % · 다음 선물 · 막대 · 태그) · 레벨마다 자라는 상자 ·
-// 만지기(누르기·쓰다듬기·간지럼·끌기·부르기·트로피) · 하루 장면 5 · 레벨업 → 선물 카드 → 입혀 보기 · 진화 순간(+두 갈래) · 옷장·도감 패널.
-// 움직임은 transform · opacity만(WAAPI). 만지기는 아무것도 주지 않는다(43 §1).
+// 10 §3.2 무대(캐릭터 방) + 43 키우기 + 49 §6 v3: 3D 정원 장면이 끝까지(입은 배경 · 다크/늦은 밤 = 밤) · 이끼 돌 받침 위 캐릭터(숨쉬기) ·
+// 유리 주 달력 띠 · 유리 HUD(Lv 배지 · 이름 · 단계 이름 · 큰 % · 꼬리 칩 · 막대 14px · 옷장/도감/이번 주) · 방 장식 = 장면 위 3D 소품.
+// 만지기(누르기·쓰다듬기·간지럼·끌기·부르기) · 하루 장면 5 · 레벨업 → 선물 카드 → 입혀 보기 · 진화 순간(+두 갈래) · 옷장·도감 패널.
+// 트로피 선반은 장면에서 빼고 도감 트로피 목록에 남긴다. 움직임은 transform · opacity만(WAAPI). 만지기는 아무것도 주지 않는다(43 §1).
 type Progress = { total: number; level: number; into: number; toNext: number; stage: number }
 type Pt = { x: number; y: number }
 type Evo = { from: number; to: number; level: number; prev: number }
 
-const EGG_LINES = ['톡톡… 누가 날 깨워 줄래?', '성향 조사를 하면 내가 깨어나!']
+const EGG_LINES = ['톡톡… 누가 날 깨워 줄래?', '씨앗 깨우기를 누르면 내가 깨어나!']
+const HUD_W = 340, PANEL_W = 312
+/** 무대 배치: 장면 그림을 칸보다 넓게 깔고(가로로 밀 여유) 받침이 캐릭터 발밑 자리에 오게 한다.
+ *  넓은 칸 = 캐릭터가 HUD 오른쪽 빈 곳 가운데, 좁은 칸 = 가운데(HUD는 아래 전체), 옷장·도감이 열리면 패널 왼쪽 가운데 */
+function stageGeo(w: number, h: number, sceneKey: string, panel: boolean) {
+  const m = SCENES3D[sceneKey] ?? { perch: [0.5, 0.6], aspect: 2 }
+  const narrow = w < 720
+  const box = narrow ? 200 : 260
+  const xClosed = narrow ? w / 2 : Math.max(w / 2, (18 + HUD_W + w) / 2)
+  const xOpen = Math.max(box / 2 + 8, (w - PANEL_W) / 2)
+  const footY = narrow ? Math.max(box * 0.95, h - 238) : Math.round(h * 0.76)
+  const maxShift = Math.max(Math.abs(xClosed - w / 2), Math.abs(xOpen - w / 2))
+  const imgW = Math.max(w + 2 * maxShift, 420), imgH = imgW * m.aspect
+  const shift = (panel ? xOpen : xClosed) - w / 2
+  return { narrow, box, footY, shift, img: { left: w / 2 - m.perch[0] * imgW, top: footY - m.perch[1] * imgH, width: imgW, height: imgH } }
+}
 const ls = { get: (k: string) => { try { return localStorage.getItem(k) } catch { return null } }, set: (k: string, v: string) => { try { localStorage.setItem(k, v) } catch { /* */ } } }
 const f = (n: number) => +n.toFixed(2)
 const rowsToItems = (rows: CharacterItemRow[]) => rows.map((r) => ITEM_BY_ID[r.item_id]).filter((x): x is Item => !!x)
 
-export function GrowthStage({ character, events, progress, ready, stats, reduced, onSurvey, onDiary }: {
+export function GrowthStage({ character, events, progress, ready, stats, reduced, onSurvey, onQuests, onDiary }: {
   character?: CharacterRow; events: XpRow[]; progress: Progress; ready: boolean; stats: StageStats; reduced: boolean
   onSurvey: () => void; onQuests?: () => void; onDiary: () => void
 }) {
@@ -48,7 +66,6 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
-  const narrow = dims.w < 720
 
   // ── 표시용 XP(방울이 닿을 때마다 찬다) ──
   const [shownTotal, setShownTotal] = useState<number | null>(null)
@@ -58,8 +75,6 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
   const shown = shownTotal === null ? progress : { ...levelOfTotal(shownTotal), total: shownTotal, stage: progress.stage }
   const stage = progress.stage
   const level = progress.level
-  const box = Math.round(stageBoxSize(level) * (narrow ? 0.8 : 1))
-  const bottom = standBottom(dims.w, dims.h, box)
 
   // ── 반응 상태 ──
   const [mood, setMood] = useState<{ m: CharacterMood; id: number }>()
@@ -71,7 +86,6 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
   const [evo, setEvo] = useState<Evo>()
   const [toast, setToast] = useState<{ items: Item[]; why: string; id: number }>()
   const [panel, setPanel] = useState<'ward' | 'dex' | null>(null)
-  const [look, setLookEye] = useState<{ x: number; y: number }>()
   const [calm, setCalm] = useState(false)
   const [live, setLive] = useState('')
 
@@ -125,22 +139,7 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
     return all[lineIdx.current++ % all.length]
   }
 
-  // ── 시선(마우스) — 반 칸씩 끊어 다시 그리기를 줄인다 ──
   const drag = useRef({ on: false, down: false, sx: 0, sy: 0, x: 0, y: 0, pet: false, petT: 0, heartT: 0 })
-  const raf = useRef(0)
-  const onMove = (e: React.PointerEvent) => {
-    if (reduced || drag.current.on) return
-    const p = { x: e.clientX, y: e.clientY }
-    if (raf.current) return
-    raf.current = requestAnimationFrame(() => {
-      raf.current = 0
-      const r = charEl.current?.getBoundingClientRect()
-      if (!r) return
-      const q = (v: number) => Math.round(Math.max(-1, Math.min(1, v)) * 2) / 2
-      const n = { x: q((p.x - (r.left + r.width / 2)) / 300), y: q((p.y - (r.top + r.height * 0.45)) / 200) }
-      setLookEye((o) => (o && o.x === n.x && o.y === n.y ? o : n))
-    })
-  }
 
   // ── 먹이: XP 방울 ──
   const mouth = (): Pt => { const r = charEl.current?.getBoundingClientRect(); return r ? { x: r.left + r.width / 2, y: r.top + r.height * 0.5 } : { x: 0, y: 0 } }
@@ -378,93 +377,113 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
     say(TOUCH_LINES.call)
     later(() => setWave(false), TOUCH.callMs)
   }
-  const onSceneClick = (e: React.MouseEvent) => {
-    const t = (e.target as Element).closest('.trophy') as SVGGElement | null
-    if (!t) return
-    const tr = raise.trophies.slice(-6)[Number(t.dataset.i)]
-    if (tr) { hop(8); say(trophyLine(tr)) }
-  }
-
   const wearNow = (it: Item) => {
     void saveLook(equipItem(raise.look, it.id))
     setToast(undefined)
     feel('happy', 2000); hop(); say(it.slot === 'bg' ? TOUCH_LINES.bg : TOUCH_LINES.wear)
   }
 
-  // ── 장면 ──
+  // ── 장면(49 §6) ──
+  const docDark = useDocDark()
   const bg = raise.worn.bg
-  const sceneHtml = useMemo(() => scene({ bg, night, decor: species ? decorOn(level, raise.look) : [], trophies: raise.trophies.map(trophyShape), uid: 'gstage' }), [bg, night, species, level, raise.look, raise.trophies])
-  const dark = sceneIsDark(bg, night)
+  const sceneKey = sceneKeyFor(bg, docDark || night)
+  const dark = sceneDark(sceneKey)
+  const geo = stageGeo(dims.w, dims.h, sceneKey, !!panel)
+  const box = geo.box
+  const footX = dims.w / 2 + geo.shift
   const eq = tempHand ? { ...raise.worn, hand: tempHand } : raise.worn
+  const seed = raise.look.seed ?? 0
+  const head = species ? headTop3d(species, stage, raise.look.path, seed) : { x: 0.5, y: 0.2 }
 
   // HUD
   const toNext = shown.toNext
   const pct = Math.floor(Math.min(100, (shown.into / toNext) * 100))
-  const nx = giftsAt(level + 1)[0]
-  const giftHtml = useMemo(() => (nx ? itemIcon(nx.id) : species ? art(species, stageOf(level + 1), { lv: level + 1, path: raise.look.path, crop: 'bust', detail: 'small' }) : ''), [nx, species, level, raise.look.path])
+  const tasksLeft = Math.max(1, Math.ceil((toNext - shown.into) / XP.task))
   const stName = STAGES[stage - 1].name
   const t0 = toast?.items[0]
+  const looksSeen = LOOKS.filter(([s]) => s <= stage).length
+  // 주 달력 띠: 오늘 = 강조색 원, 할 일을 한 날 = 옅은 원(43 누적 그대로)
+  const today = dayKey()
+  const week = thisWeek()
+  const didDays = new Set(events.filter((e) => e.kind === 'task' && e.amount > 0).map((e) => e.day))
+  const days = Array.from({ length: 7 }, (_, i) => addDays(week, i))
+  const shiftStyle = { transform: `translateX(${Math.round(geo.shift)}px)` }
 
   return (
-    <div ref={stageEl} className={`gs2-stage${dark ? ' is-dark' : ''}${reduced ? ' is-still' : ''}`} style={{ background: sceneGround(bg, night) } as CSSProperties} onPointerMove={onMove} onPointerLeave={() => setLookEye(undefined)}>
-      <div className="gs2-scene" onClick={onSceneClick} dangerouslySetInnerHTML={{ __html: sceneHtml }} />
-
-      {/* 유리 HUD(43 §18.2) */}
-      <div className="gs2-hud">
-        <div className="who">
-          <HudName name={name} editable={!!species} onCall={callName} />
-          <span className="lvb">Lv {shown.level}</span>
-          <span className="ttl">{species ? titleOf(species, stage, raise.look.path) : '나와 닮은 친구를 찾으면 깨어나요'}</span>
-        </div>
-        <div className="mid">
-          <div>
-            <div className="num">{pct}<small>%</small></div>
-            <div className="lbl">Lv {level + 1}까지 · {evolutionHint(level)}</div>
-          </div>
-          {species && (
-            <div className="gift">
-              <span className="tip">{nx ? `Lv ${level + 1}에 ${nx.name}` : `Lv ${level + 1} 모습`}</span>
-              <span className="ico" dangerouslySetInnerHTML={{ __html: giftHtml }} />
-            </div>
-          )}
-        </div>
-        <div className="bar" role="progressbar" aria-label="다음 레벨까지" aria-valuenow={shown.into} aria-valuemax={toNext}><i style={{ width: `${pct}%` }} /></div>
-        <div className="xpline"><span>{shown.into} / {toNext} XP</span><span>레벨업까지 {toNext - shown.into}</span></div>
-        {species ? <div className="tags">{growthTags(level + 1, species).map((t) => <span key={t}>{t}</span>)}</div>
-          : <button className="gs2-btn pri" onClick={onSurvey}>나와 닮은 친구 찾기</button>}
+    <div ref={stageEl} className={`gs2-stage gs3${dark ? ' is-dark' : ''}${reduced ? ' is-still' : ''}${geo.narrow ? ' is-narrow' : ''}${panel ? ' is-panel' : ''}`}>
+      <div className="gs3-scene" style={shiftStyle}>
+        {dims.w > 0 && <SceneBackdrop sceneKey={sceneKey} decor={species ? decorOn(level, raise.look) : []} style={{ position: 'absolute', ...geo.img }} />}
       </div>
-      <div className="gs2-chips">
-        <span className="gs2-chip" title="할 일을 한 날 누적(끊겨도 줄지 않아요)">한 날 <b>{stats.activeDays ?? raise.state.days}</b>일</span>
-        <span className="gs2-chip" title={`할 일 XP는 하루 ${XP.taskDailyCap}까지`}>오늘 <b>{stats.todayDone}</b>/{stats.todayDone + stats.todayOpen}</span>
+
+      {/* 유리 주 달력 띠 */}
+      <div className="gs3-week gs3-glass" aria-label="이번 주">
+        {days.map((d) => {
+          const x = new Date(`${d}T00:00`)
+          return (
+            <div key={d}><b>{'일월화수목금토'[x.getDay()]}</b><span className={d === today ? 'is-today' : didDays.has(d) ? 'is-did' : d > today ? 'is-future' : ''} aria-label={`${x.getMonth() + 1}월 ${x.getDate()}일${d === today ? ' 오늘' : didDays.has(d) ? ' 할 일 한 날' : ''}`}>{x.getDate()}</span></div>
+          )
+        })}
+      </div>
+      <div className="gs3-chips">
+        <span className="gs3-pill gs3-glass" title="할 일을 한 날 누적(끊겨도 줄지 않아요)">한 날 <b>{stats.activeDays ?? raise.state.days}</b>일</span>
+        <span className="gs3-pill gs3-glass" title={`할 일 XP는 하루 ${XP.taskDailyCap}까지`}>오늘 <b>{stats.todayDone}</b>/{stats.todayDone + stats.todayOpen}</span>
       </div>
       {banner && <div className="gs2-banner" role="status">{banner}</div>}
 
-      {/* 캐릭터 */}
-      <div className="gs2-pos" style={{ bottom, width: box, height: box, marginLeft: -box / 2, visibility: evo ? 'hidden' : undefined }}>
+      {/* 유리 HUD(49 §6) */}
+      <div className="gs3-hud gs3-glass" aria-hidden={!!panel}>
+        <div className="lv"><em>Lv {shown.level}</em><HudName name={name} editable={!!species} onCall={callName} /><span className="ttl">{species ? `· ${titleOf(species, stage, raise.look.path)}` : '· 아직 씨앗이에요'}</span></div>
+        {species ? (
+          <>
+            <div className="row2">
+              <div className="big">{pct}<small>%</small></div>
+              <div className="tail">할 일 {tasksLeft}개 더 하면 Lv {shown.level + 1}</div>
+            </div>
+            <div className="cap"><span>다음 레벨까지</span><span>{shown.into} / {toNext} XP</span></div>
+            <div className="bar" role="progressbar" aria-label="다음 레벨까지" aria-valuenow={shown.into} aria-valuemin={0} aria-valuemax={toNext}><i style={{ width: `${pct}%` }} /></div>
+            <div className="quick">
+              <button onClick={() => setPanel('ward')} tabIndex={panel ? -1 : 0}><CharacterArt species={species} stage={stage} size={34} crop="bust" wear={{ path: raise.look.path, eq: raise.worn, seed }} />옷장</button>
+              <button onClick={() => setPanel('dex')} tabIndex={panel ? -1 : 0}><CharacterArt species={species} stage={Math.min(5, stage + 1)} size={34} crop="bust" lock wear={{ path: raise.look.path, seed }} />도감 {looksSeen}/{LOOKS.length}</button>
+              <button onClick={() => onQuests?.()} tabIndex={panel ? -1 : 0}><SeedPic seed={seed} size={34} />이번 주</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="egg">씨앗을 깨우면 나와 닮은 친구가 태어나요. 할 일을 끝낼 때마다 함께 자라요.</p>
+            <button className="gs2-btn pri gs3-wake" onClick={onSurvey}>씨앗 깨우기</button>
+          </>
+        )}
+      </div>
+
+      {/* 캐릭터(받침 위) */}
+      <div className="gs2-pos" style={{ left: dims.w / 2 - box / 2, top: geo.footY - box * 0.9, width: box, height: box, visibility: evo ? 'hidden' : undefined, ...shiftStyle }}>
         <button
           ref={charEl}
           className="gs2-char"
+          style={{ ['--head' as string]: `${Math.round((1 - head.y) * 100)}%` }}
           aria-label={species ? `${name}, Lv ${level} ${stName}. 눌러서 말 걸기` : '아직 모르는 씨앗. 눌러서 두드리기'}
           onPointerDown={onDown} onPointerMove={onPMove} onPointerUp={onUp} onPointerCancel={onUp}
           onClick={(e) => { if (e.detail === 0) tap() }}
         >
           <span ref={inEl} className="gs2-char__in">
-            <CharacterArt species={species} stage={stage} size={box} mood={curMood} look={look} cracks={cracks} fit={false} motion="idle" calm={calm} wave={wave}
-              wear={{ lv: level, path: raise.look.path, eq }} label={species ? `${name} ${stName}` : undefined} />
+            {species
+              ? <CharacterArt species={species} stage={stage} size={box} mood={curMood} motion="idle" calm={calm} wave={wave}
+                wear={{ lv: level, path: raise.look.path, eq, seed }} label={`${name} ${stName}`} />
+              : <span className="gs3-egg"><SeedPic seed={seed} cracks={Math.min(2, cracks)} size={box * 0.78} /></span>}
           </span>
         </button>
       </div>
       <div className="gs-live" aria-live="polite">{live}</div>
 
       {evo && species && (
-        <EvolutionMoment species={species} from={evo.from} to={evo.to} path={raise.look.path} eq={raise.worn} reduced={reduced} size={Math.min(270, box)}
+        <EvolutionMoment species={species} from={evo.from} to={evo.to} path={raise.look.path} eq={raise.worn} seed={seed} reduced={reduced} size={box} foot={{ x: footX, y: geo.footY }}
           onPath={(p: Path) => void saveLook({ ...raise.look, path: p })}
           onDone={() => { const e = evo; setEvo(undefined); later(() => afterReveal(e.prev, e.level), 50) }} />
       )}
 
       {toast && t0 && (
         <div className="gs2-toast" role="status" key={toast.id}>
-          <span className="ico" dangerouslySetInnerHTML={{ __html: itemIcon(t0.id) }} />
+          <span className="ico"><ItemPic id={t0.id} size={40} /></span>
           <div className="tx"><b>{t0.name}{toast.items.length > 1 ? ` 외 ${toast.items.length - 1}개` : ''}</b>{toast.why}</div>
           <div className="bt">
             <button className="gs2-btn pri sm" onClick={() => wearNow(t0)}>{t0.slot === 'bg' ? '깔아 보기' : '입혀 보기'}</button>
@@ -473,7 +492,6 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
         </div>
       )}
 
-      {species && <button className="gs2-btn glass gs2-deco" onClick={() => setPanel(panel ? null : 'ward')} aria-expanded={!!panel}><Shirt aria-hidden />꾸미기</button>}
       {species && <RaisePanel raise={raise} open={!!panel} tab={panel ?? 'ward'} onTab={(t) => setPanel(t)} onClose={() => setPanel(null)} onWorn={() => hop(8)} />}
     </div>
   )

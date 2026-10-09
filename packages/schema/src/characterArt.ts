@@ -91,19 +91,20 @@ export const artScale = (sp: Species | string, st: number) => FILL[artSpecies(sp
 export const artTop = (sp: Species | string, st: number) => FILL[artSpecies(sp)][Math.min(5, Math.max(1, Math.round(st) || 1))][1]
 export const PATHS: Record<Species, Record<Path, { name: string; line: string; t: [string, string, string] }>> = withLegacyKeys({
   snail: { a: { name: '이끼 정원', line: '흰 꽃 껍데기 → 이끼 집 → 나무 집', t: ['꽃 달팽이', '이끼집 달팽이', '나무집 달팽이'] }, b: { name: '꽃 정원', line: '분홍 꽃 껍데기 → 꽃 오두막 → 유리 온실', t: ['분홍꽃 달팽이', '꽃집 달팽이', '온실 달팽이'] } },
-  bee: { a: { name: '해바라기 길', line: '꿀단지 → 해바라기 관 → 꿀 등불', t: ['꿀단지 꿀벌', '해바라기 여왕벌', '꿀등불 꿀벌'] }, b: { name: '들꽃 길', line: '꽃바구니 → 데이지 관 → 꽃 등불', t: ['꽃바구니 꿀벌', '데이지 여왕벌', '꽃등불 꿀벌'] } },
+  bee: { a: { name: '해바라기 길', line: '꿀단지 → 해바라기 관 → 꿀 등불', t: ['꿀단지 꿀벌', '해바라기 꿀벌', '꿀등불 꿀벌'] }, b: { name: '들꽃 길', line: '꽃바구니 → 데이지 관 → 꽃 등불', t: ['꽃바구니 꿀벌', '데이지 꿀벌', '꽃등불 꿀벌'] } },
   worm: { a: { name: '밤하늘 날개', line: '잎 가방 → 남색 고치 → 별무늬 나비', t: ['잎가방 애벌레', '밤빛 고치', '별날개 나비'] }, b: { name: '노을 날개', line: '꽃잎 가방 → 주황 고치 → 노을 띠 나비', t: ['꽃잎가방 애벌레', '노을빛 고치', '노을날개 나비'] } },
-  frog: { a: { name: '연꽃 길', line: '물방울 목걸이 → 연잎 → 연잎 양산 · 연꽃 관', t: ['물방울 올챙이', '연잎 개구리', '연잎 왕자 개구리'] }, b: { name: '산딸기 길', line: '산딸기 목걸이 → 산딸기 → 꽃잎 양산 · 산딸기 관', t: ['산딸기 올챙이', '산딸기 개구리', '산딸기 공주 개구리'] } }
+  frog: { a: { name: '연꽃 길', line: '물방울 → 연꽃 봉오리 → 연잎 양산 · 연꽃 관', t: ['물방울 개구리', '연꽃봉오리 개구리', '연잎 왕자 개구리'] }, b: { name: '산딸기 길', line: '산딸기 → 산딸기 덤불 → 꽃잎 양산 · 산딸기 관', t: ['산딸기 개구리', '산딸기덤불 개구리', '산딸기 공주 개구리'] } }
 })
-const TITLE12: Record<Species, [string, string]> = withLegacyKeys({ snail: ['씨앗알 달팽이', '아기 달팽이'], bee: ['벌집 아기', '솜털 꿀벌'], worm: ['잎 위의 알', '아기 애벌레'], frog: ['물방울 알', '아기 올챙이'] })
+// v3(49 §3): 아기는 모두 씨앗 껍질에서(개구리는 물방울 알)
+const TITLE12: Record<Species, [string, string]> = withLegacyKeys({ snail: ['씨앗 달팽이', '아기 달팽이'], bee: ['씨앗 꿀벌', '솜털 꿀벌'], worm: ['씨앗 애벌레', '아기 애벌레'], frog: ['물방울 알', '아기 올챙이'] })
 /** 종·단계 이름(진화 카드·HUD 둘째 줄 — 42 결정 ②) */
 export const titleOf = (sp: Species, st: number, path: Path = 'a') => (st <= 2 ? TITLE12[sp][Math.max(1, st) - 1] : PATHS[sp][path].t[Math.min(5, st) - 3])
 /** 단계마다 새로 생기는 것(진화 카드 한 줄) */
 export const NEWPART: Record<Species, string[]> = {
-  snail: ['', '씨앗알에서 눈 더듬이가 쏙', '배발 · 하트 나선 껍데기', '껍데기에 꽃이 피었어', '껍데기가 창문 달린 집이 됐어', '등에 작은 집이 생겼어'],
-  bee: ['', '벌집 칸에서 꼼지락', '솜털 목도리 · 작은 날개', '꽃가루 주머니 · 들 것', '큰 날개 넷 · 꽃 관', '수정 날개 · 등불'],
-  worm: ['', '잎 위의 알에 얼굴이', '마디 몸 · 방울 더듬이', '길어진 몸 · 잎 가방', '고치 속에서 날개 준비', '나비가 됐어'],
-  frog: ['', '물방울 속 알', '꼬리 · 잎 모자', '작은 다리가 났어', '꼬리가 사라지고 개구리!', '연잎 양산 · 관']
+  snail: ['', '씨앗 껍질에서 더듬이가 쏙', '배발 · 나선 껍데기', '껍데기에 꽃이 피었어', '껍데기가 창문 달린 집이 됐어', '등에 작은 집이 생겼어'],
+  bee: ['', '씨앗 껍질에서 꼼지락', '줄무늬 · 작은 날개 싹', '꽃가루 주머니 · 들 것', '큰 날개 넷 · 꽃 관', '수정 날개 · 등불'],
+  worm: ['', '씨앗 껍질에서 얼굴이 쏙', '마디 몸 · 방울 더듬이', '길어진 몸 · 잎 가방', '고치 속에서 날개 준비', '나비가 됐어'],
+  frog: ['', '물방울 속 알', '꼬리 달린 올챙이', '작은 다리가 났어', '꼬리가 사라지고 개구리!', '연잎 양산 · 관']
 }
 /** 진화 카드 셋째 줄의 새로 생긴 것 */
 export const newPartOf = (sp: Species, st: number, path: Path = 'a') => (st >= 3 ? PATHS[sp][path].line.split(' → ')[Math.min(st - 3, 2)].replace(/ · .*/, '') : NEWPART[sp][st])

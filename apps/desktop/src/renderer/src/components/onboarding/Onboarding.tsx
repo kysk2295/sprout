@@ -9,7 +9,7 @@ import { ensureCharacter, useGrowth } from '../../data/growth'
 import { createTask, taskListId } from '../../data/mutations'
 import { dayKey } from '../../lib/dates'
 import { COMPANION_SIZE, LONG_LOADING_HINT } from '@sprout/schema/companion'
-import { CharacterArt } from '../growth/CharacterArt'
+import { SeedPic } from '../growth/MakeFlow'
 import { CompanionFace } from '../companion/CompanionFace'
 import { SurveyDialog } from '../growth/SurveyDialog'
 import './onboarding.css'
@@ -21,6 +21,9 @@ export function Onboarding({ state, ready, onChange, onHide, onOpenCalendar }: P
   const { character } = useGrowth()
   const hasSpecies = !!character?.species
   const [survey, setSurvey] = useState(false)
+  // 49 §5: 만들기 흐름 안에서 첫 할 일까지 끝냈으면 4단계(첫 할 일)도 '함'
+  const [madeFirst, setMadeFirst] = useState(false)
+  useEffect(() => { if (madeFirst && state.step === 'first-task' && !state.done) { setMadeFirst(false); onChange(advance(state, 'done')) } }, [madeFirst, state, onChange])
   const [busy, setBusy] = useState(false) // 브라우저 연결처럼 기다리는 중에는 Esc·건너뛰기를 막는다
 
   // 이미 한 단계(성향 조사 끝남)는 들어서는 순간 넘긴다
@@ -60,7 +63,7 @@ export function Onboarding({ state, ready, onChange, onHide, onOpenCalendar }: P
         )}
         {step === 'first-task' && <FirstTaskStep ready={ready} onFinish={(made) => go(made ? 'done' : 'skip')} />}
       </div>
-      {survey && <SurveyDialog onClose={() => setSurvey(false)} />}
+      {survey && <SurveyDialog onClose={(r) => { setSurvey(false); if (r?.firstTask) setMadeFirst(true) }} />}
     </div>,
     document.body
   )
@@ -144,14 +147,14 @@ function CalendarStep({ onNext, onSkip, onBusy, onOpenCalendar }: { onNext: (any
   )
 }
 
-// ── 3. 성향 조사 (10 §2.2 — 조사 창은 성장 화면과 같은 것) ──
+// ── 3. 성향 조사 (10 §2.2 → 49 §5 만들기 흐름: 씨앗 → 성향 카드 → 부화 → 이름 → 첫 할 일. 성장 화면과 같은 창) ──
 function SurveyStep({ ready, onStart, onSkip }: { ready: boolean; onStart: () => void; onSkip: () => void }) {
   // 조사를 마치면(캐릭터 생김) 위 autoSkip이 이 단계를 '함'으로 넘긴다 — 결과 축하는 조사 창의 결과 화면이 맡는다
   return (
     <section className="onb__body onb__body--center">
-      <div className="onb__lineup">{(['snail', 'bee', 'worm', 'frog'] as const).map((s) => <CharacterArt key={s} species={s} size={64} />)}</div>
+      <div className="onb__lineup">{[0, 1, 2, 3].map((s) => <SeedPic key={s} seed={s} size={64} />)}</div>
       <h2 className="onb__title">나와 닮은 친구를 찾아볼까요?</h2>
-      <p className="onb__lead">할 일을 다루는 방식을 8가지만 물어요(1분).<br />결과에 맞는 친구를 키우게 돼요.</p>
+      <p className="onb__lead">씨앗 하나를 고르고, 할 일을 다루는 방식을 8가지만 물어요(1분).<br />답에 맞는 친구가 씨앗에서 깨어나요.</p>
       <Foot>
         <button className="onb__primary" disabled={!ready} onClick={onStart}>{ready ? '시작하기' : '계정 준비 중…'}</button>
         {!ready && <p className="onb__note">{LONG_LOADING_HINT}</p>}

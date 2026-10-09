@@ -1,4 +1,4 @@
-// 40 §2.2 · §4 캐릭터가 한 번씩 나오는 상태 화면: 오늘 비어 있음 · 모두 완료(M 64) · 오프라인 띠(S 24) · 앱 전체 오류(M 64).
+// 40 §2.2 · §4 캐릭터가 한 번씩 나오는 상태 화면: 오늘 비어 있음 · 모두 완료(49 §8.2: 3D 170) · 오프라인 띠(S 24) · 앱 전체 오류(M 64).
 // 제목은 기존 해요체 문구, 둘째 줄만 캐릭터 말(반말, 실제 숫자). 평범한 빈 리스트·태그·필터는 EmptyState 선화 그대로(결정 ③).
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
 import { allDoneLine, COMPANION_SIZE, OFFLINE_BANNER_AFTER_MS, OFFLINE_BANNER_TEXT, todayEmptyLines } from '@sprout/schema/companion'
@@ -14,6 +14,9 @@ function useTodayDone() {
   return row?.[0]?.n ?? 0
 }
 
+/** 49 §8.2 은은하게: 할 일 화면 빈 상태 그림은 3D 캐릭터 170 */
+const EMPTY_ART = 170
+
 /** 오늘 비어 있음: smile · 누를 때마다 깡충 + 다음 문장 */
 export function TodayEmpty() {
   const me = useCompanion()
@@ -21,8 +24,8 @@ export function TodayEmpty() {
   const [i, setI] = useState(0)
   const lines = todayEmptyLines({ todayDone: done, hour: new Date().getHours(), egg: me.egg })
   return (
-    <div className="empty companion-state">
-      <CompanionFace species={me.species} stage={me.stage} size={COMPANION_SIZE.m} mood="smile" loop={me.egg ? 'wiggle' : null} play={i ? { move: 'hop', n: i } : null} onPress={() => setI((n) => n + 1)} label={me.label} />
+    <div className="empty companion-state is-character">
+      <CompanionFace species={me.species} stage={me.stage} size={EMPTY_ART} mood="smile" loop={me.egg ? 'wiggle' : null} play={i ? { move: 'hop', n: i } : null} onPress={() => setI((n) => n + 1)} label={me.label} />
       <p className="companion-state__title">오늘 할 일이 없어요</p>
       <p className="companion-state__line" aria-live="polite">{lines[i % lines.length]}</p>
     </div>
@@ -35,8 +38,8 @@ export function AllDoneEmpty() {
   const done = useTodayDone()
   const [n, setN] = useState(0)
   return (
-    <div className="empty companion-state">
-      <CompanionFace species={me.species} stage={me.stage} size={COMPANION_SIZE.m} mood="content" play={n ? { move: 'hop', n } : null} onPress={() => setN((x) => x + 1)} label={me.label} />
+    <div className="empty companion-state is-character">
+      <CompanionFace species={me.species} stage={me.stage} size={EMPTY_ART} mood="content" play={n ? { move: 'hop', n } : null} onPress={() => setN((x) => x + 1)} label={me.label} />
       <p className="companion-state__title">모두 완료했어요</p>
       <p className="companion-state__line">{allDoneLine(done, me.egg)}</p>
     </div>

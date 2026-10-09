@@ -43,7 +43,7 @@ export function useBuddy(): { buddy: Buddy; stage: number } {
 export function BuddyAvatar({ buddy, stage, size = 30, mood = 'smile', busy }: { buddy: Buddy; stage: number; size?: number; mood?: CharacterMood; busy?: boolean }) {
   return (
     <span className={`pc-av${busy ? ' is-busy' : ''}`} style={{ '--ring': STAGE_RING[Math.max(0, stage - 1)], width: size, height: size } as CSSProperties} aria-hidden="true">
-      <CharacterArt species={buddy.species} stage={stage} size={size} mood={mood} />
+      <CharacterArt species={buddy.species} stage={stage} size={size} mood={mood} crop="bust" />
     </span>
   )
 }

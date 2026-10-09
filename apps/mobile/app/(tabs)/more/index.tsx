@@ -6,12 +6,11 @@ import { progressFromEvents, SPECIES, STAGES, type Species } from '@sprout/schem
 import { useRouter, type Href } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { CharacterArt } from '../../../src/growth/art/CharacterArt'
+import { CharacterArt, Egg } from '../../../src/growth/art/CharacterArt'
 import { dayKey } from '../../../src/lib/dates'
 import { FONT, M } from '../../../src/theme/palette'
 import { usePalette } from '../../../src/theme/ThemeProvider'
 import { Cell, Cells } from '../../../src/ui/Cells'
-import { SproutPot } from '../../../src/ui/EmptyState'
 import { BigTitle, NavRow } from '../../../src/ui/Header'
 import { useTabBarSpace } from '../../../src/ui/tabBarSpace'
 
@@ -31,7 +30,7 @@ export default function More() {
       <BigTitle title="더보기" />
       <ScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: space.pad }}>
         <Pressable accessibilityRole="button" accessibilityLabel="성장 보기" onPress={() => router.navigate('/growth')} style={({ pressed }) => [s.card, { backgroundColor: pressed ? p.bgSelected : p.cardBg }]}>
-          {ch?.species ? <CharacterArt species={ch.species} stage={prog.stage} size={46} mood="happy" /> : <SproutPot size={46} />}
+          {ch?.species ? <CharacterArt species={ch.species} stage={prog.stage} size={46} mood="happy" /> : <Egg size={46} />}
           <View style={{ flex: 1 }}>
             <Text style={[FONT.bodyStrong, { color: p.textPrimary }]} numberOfLines={1}>
               {ch?.name || (ch?.species ? SPECIES[ch.species].name : '나와 닮은 친구')}

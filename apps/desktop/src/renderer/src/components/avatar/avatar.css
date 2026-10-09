@@ -3,7 +3,8 @@
 .avatar--letter { background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 55%, #fff), var(--color-accent)); color: #fff; font-weight: 600; font-family: var(--font-family); line-height: 1; }
 .avatar svg { display: block; }
 .avatar__char { display: block; pointer-events: none; }
-.avatar__char .character { overflow: visible; }
+/* 49 §8.1 머리 쪽 자르기(bust) — 원 밖으로 이어지는 몸은 원(.avatar overflow hidden)이 자른다 */
+.avatar__char .character.c3 { overflow: visible; }
 
 /* 고르기 팝오버(35 §3.2) */
 .avatar-picker { width: 320px; max-height: calc(100vh - 16px); overflow-y: auto; padding: 12px 12px 10px; box-sizing: border-box; }

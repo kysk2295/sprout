@@ -25,8 +25,11 @@ function useActive() {
   return focused && app
 }
 
-export function CompanionFace({ species, stage, size, mood = 'smile', loop = null, play, dim, onPress, label, style }: {
-  species: Species | null; stage: number; size: number; mood?: Mood; loop?: CompanionLoop
+/** 49 §8.1: 원 안 작은 얼굴(30·36·72)은 crop='bust'(머리 쪽 자르기) — 40pt 이하는 CharacterArt가 저절로 bust */
+type FaceCrop = 'bust' | 'full'
+
+export function CompanionFace({ species, stage, size, mood = 'smile', loop = null, play, dim, onPress, label, crop, style }: {
+  species: Species | null; stage: number; size: number; mood?: Mood; loop?: CompanionLoop; crop?: FaceCrop
   /** n이 바뀔 때마다 한 번 움직임 */
   play?: { move: CompanionMove; n: number }
   dim?: boolean; onPress?: () => void; label?: string; style?: StyleProp<ViewStyle>
@@ -59,7 +62,7 @@ export function CompanionFace({ species, stage, size, mood = 'smile', loop = nul
   const st = useAnimatedStyle(() => ({ transform: [{ translateY: ty.value }, { rotate: `${rotLoop.value + rotOnce.value}deg` }, { scaleY: sy.value }] }))
   const art = (
     <Animated.View style={[{ width: size, height: size, transformOrigin: ORIGIN }, dim && { opacity: 0.55 }, st]}>
-      <CharacterArt species={species} stage={stage} size={size} mood={mood} tight={size <= 30} />
+      <CharacterArt species={species} stage={stage} size={size} mood={mood} crop={crop} />
     </Animated.View>
   )
   if (!onPress) return <View style={style} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{art}</View>
@@ -67,10 +70,10 @@ export function CompanionFace({ species, stage, size, mood = 'smile', loop = nul
 }
 
 /** 지난 답의 얼굴 — 그 답의 얼굴로 멈춘 그림(움직임·공유 값 없음) */
-export const StaticFace = memo(function StaticFace({ species, stage, size, mood = 'smile', dim }: { species: Species | null; stage: number; size: number; mood?: Mood; dim?: boolean }) {
+export const StaticFace = memo(function StaticFace({ species, stage, size, mood = 'smile', dim, crop }: { species: Species | null; stage: number; size: number; mood?: Mood; dim?: boolean; crop?: FaceCrop }) {
   return (
     <View style={[{ width: size, height: size }, dim && { opacity: 0.55 }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <CharacterArt species={species} stage={stage} size={size} mood={mood} tight={size <= 30} />
+      <CharacterArt species={species} stage={stage} size={size} mood={mood} crop={crop} />
     </View>
   )
 })

@@ -114,11 +114,11 @@ assert.equal(art('otter', 3), art('frog', 3))
 assert.equal(art('turtle', 2, { size: 30 }), art('snail', 2, { size: 30 }))
 
 // ── 이름 ──
-assert.equal(titleOf('snail', 1), '씨앗알 달팽이')
+assert.equal(titleOf('snail', 1), '씨앗 달팽이')
 assert.equal(titleOf('worm', 5, 'b'), '노을날개 나비')
 assert.equal(titleOf('frog', 3, 'a'), PATHS.frog.a.t[0])
 assert.equal(newPartOf('bee', 4, 'b'), '데이지 관')
-assert.equal(newPartOf('snail', 2), '배발 · 하트 나선 껍데기')
+assert.equal(newPartOf('snail', 2), '배발 · 나선 껍데기')
 for (const sp of SPECIES_IDS) for (let i = 0; i < 16; i++) assert.ok(bitSvg(sp, i).startsWith('<svg'))
 
 // ── 무대에 세우기: 장면 아래 120이 보이는 칸에서 상자 bottom ──

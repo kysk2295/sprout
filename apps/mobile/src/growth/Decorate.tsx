@@ -1,57 +1,128 @@
-// 43 §5.4 옷장 · §8 도감(휴대폰 꾸미기 화면 부품, 시안 character-raising-v2 A 오른쪽). 데이터·규칙은 공용 wardrobe — 화면은 그리기만.
-// 칸 상태: 기본 · 입은 것(강조 옅은 면 + 2px) · 새로 받음(점) · 잠김(한 색 실루엣 + 자물쇠 + 조건, 누르면 좌우 3px만).
-import { art, artScale, artTop, decorIcon, itemIcon, PATHS, scene, sceneGround, standBottom, titleOf, trophyIcon } from '@sprout/schema/characterArt'
-import { STAGES, type Species } from '@sprout/schema/growth'
+// 49 §7 옷장 · 도감(휴대폰, 시안 character-v3 C · D). 데이터·규칙은 공용 wardrobe(43 §5.4 · §8) — 화면은 그리기만.
+// 옷장: 위 절반 = 성장 홈과 같은 장면 + 받침 위 캐릭터 220(옷이 보이게), 아래 = 반투명 시트(모서리 30): `옷장 · 도감` 분절 + 탭 `모자 · 목 · 손 · 등 · 방` + 4열 칸.
+//   칸 상태(43 §5.4): 입음 = 강조 테 · 새로 받음 = 점 · 잠김 = 회색 덩어리(같은 그림 한 색) + 조건. 칸 그림 = 옷 층을 옷 자리로 자른 3D(accIcon).
+//   누르면 옷 층이 0.25초 페이드로 겹치고 깡충 — 새 모습을 아래에 깔고 옛 모습을 위에서 opacity 1 → 0(몸은 늘 불투명, 39 §11).
+// 도감: 장면을 위 46%만 흐리게 깔고 바탕색에 녹임 + 큰 제목 `도감` + `모은 모습 N / 20` + 3열 칸(160 그림), 내 지금 모습 = `나`, 못 본 모습 = 어두운 한 색.
+import { PATHS, sceneDark, sceneLayout, standOnPerch, titleOf, trophyIcon, FOOT, headTop3d } from '@sprout/schema/characterArt'
+import { type Species } from '@sprout/schema/growth'
 import {
-  babyHidesSlot, baseName, conditionText, DECOR, ITEMS, itemsOfTab, SLOTS, stageBoxSize, trophyShape, trophySub, decorOn, type Item, type Path, type WardTab
+  babyHidesSlot, baseName, conditionText, DECOR, ITEMS, itemsOfTab, SLOTS, trophyShape, trophySub, decorOn, type Item, type Path, type WardTab
 } from '@sprout/schema/wardrobe'
-import { Lock } from 'lucide-react-native'
-import { memo, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native'
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated'
+import { BlurView } from 'expo-blur'
+import { ChevronLeft } from 'lucide-react-native'
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native'
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated'
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 import type { Palette } from '../theme/palette'
 import { hx } from '../ui/haptics'
-import { CharacterArt, SvgString } from './art/CharacterArt'
+import { Segmented } from '../ui/Segmented'
+import { CharacterArt, SvgString, type CharacterWear } from './art/CharacterArt'
+import { SceneBackdrop } from './art/Scene3D'
+import { DEX_TOTAL, dexCells, dexCount, dexSeen } from './home/dex'
+import { AccThumb, DecorThumb, DexFigure, fitScene, glassTone, SceneThumb } from './home/glass'
 import type { Raise } from './raise'
 
-/** 미리보기 무대(높이 230, 모서리 24) + 왼쪽 위 유리 칩 */
-export function PreviewStage({ p, raise, hopKey }: { p: Palette; raise: Raise; hopKey: number }) {
-  const { species, progress, look, worn } = raise
-  const [w, setW] = useState(0)
-  const H = 230
-  // 머리(새싹·모자) 꼭대기가 미리보기 위쪽 8 안에 들게 상자를 줄인다 — 그림이 단계마다 같은 상자를 채워서 위가 비지 않는다
-  const sk = w ? Math.max(w / 600, H / 420) : 0.6
-  const headFrac = species ? (artTop(species, progress.stage) - 2 - (worn.hat ? 16 * artScale(species, progress.stage) : 0)) / 120 : 0.1
-  const box = Math.round(Math.min(stageBoxSize() * 0.74, (H - 120 * sk - 8) / (11 / 12 - headFrac)))
-  const svg = useMemo(() => scene({ bg: worn.bg, decor: decorOn(progress.level, look), preview: true, rn: true }), [worn.bg, progress.level, look])
-  const hop = useSharedValue(0)
-  useEffect(() => { if (hopKey) hop.value = withSequence(withTiming(-8, { duration: 140 }), withTiming(0, { duration: 200 })) }, [hopKey, hop])
-  const st = useAnimatedStyle(() => ({ transform: [{ translateY: hop.value }] }))
+export type DecorSeg = 'ward' | 'dex'
+type Frame = { p: Palette; raise: Raise; width: number; height: number; topInset: number; bottomInset: number; sceneKey: string; seg: DecorSeg; onSeg: (s: DecorSeg) => void; onBack: () => void }
+
+/* ───────── 머리(‹ 뒤로 · 제목) ───────── */
+function GlassBack({ p, onBack, ink }: { p: Palette; onBack: () => void; ink: string }) {
+  const t = glassTone(p.dark)
   return (
-    <View style={[s.pv, { backgroundColor: sceneGround(worn.bg) }]} onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
-      {w ? <SvgString svg={svg} width={w} height={H} preserveAspectRatio="xMidYMax slice" /> : null}
-      <View style={[s.badge, { backgroundColor: p.dark ? 'rgba(18,24,20,0.72)' : 'rgba(255,255,255,0.82)' }]}>
-        <Text style={{ fontSize: 12, fontWeight: '700', color: p.textPrimary }}>Lv {progress.level} · {species ? titleOf(species, progress.stage, look.path) : '씨앗'}</Text>
+    <Pressable onPress={onBack} hitSlop={8} accessibilityRole="button" accessibilityLabel="뒤로"
+      style={({ pressed }) => [s.back, { backgroundColor: t.bg, borderColor: t.line }, pressed && { transform: [{ scale: 0.94 }] }]}>
+      <ChevronLeft size={22} color={ink} />
+    </Pressable>
+  )
+}
+
+/* ───────── 옷 층 겹치기(0.25초 페이드) ───────── */
+const wearKey = (w: CharacterWear) => JSON.stringify([w.path, w.seed, w.eq?.hat, w.eq?.neck, w.eq?.hand, w.eq?.back])
+/** 새 모습은 아래(불투명), 옛 모습은 위에서 사라진다 — 옷이 생기든 없어지든 몸은 그대로 */
+export const FadeWear = memo(function FadeWear({ species, stage, size, wear, mood, hopKey, reduced }: { species: Species; stage: number; size: number; wear: CharacterWear; mood?: string; hopKey: number; reduced?: boolean }) {
+  const key = wearKey(wear)
+  const [prev, setPrev] = useState<CharacterWear | null>(null)
+  const last = useRef<{ key: string; wear: CharacterWear }>({ key, wear })
+  const o = useSharedValue(0)
+  const hop = useSharedValue(0)
+  useEffect(() => {
+    if (last.current.key === key) return
+    const old = last.current.wear
+    last.current = { key, wear }
+    if (reduced) { setPrev(null); return }
+    setPrev(old)
+    o.value = 1
+    o.value = withTiming(0, { duration: 250 }, (done) => { if (done) runOnJS(setPrev)(null) })
+  }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (hopKey && !reduced) hop.value = withSequence(withTiming(-14, { duration: 150 }), withTiming(0, { duration: 210 }), withTiming(-4, { duration: 90 }), withTiming(0, { duration: 90 })) }, [hopKey, hop, reduced])
+  const top = useAnimatedStyle(() => ({ opacity: o.value }))
+  const jump = useAnimatedStyle(() => ({ transform: [{ translateY: hop.value }] }))
+  return (
+    <Animated.View style={[{ width: size, height: size }, jump]}>
+      <CharacterArt species={species} stage={stage} size={size} mood={mood} wear={wear} />
+      {prev ? <Animated.View style={[StyleSheet.absoluteFill, top]}><CharacterArt species={species} stage={stage} size={size} mood={mood} wear={prev} /></Animated.View> : null}
+    </Animated.View>
+  )
+})
+
+/* ───────── 옷장(시안 C) ───────── */
+export function WardScreen({ p, raise, width: W, height: H, topInset, bottomInset, sceneKey, seg, onSeg, onBack, tab, onTab, hopKey, reduced, onEquip, onBase, onDecor }: Frame & {
+  tab: WardTab; onTab: (t: WardTab) => void; hopKey: number; reduced?: boolean
+  onEquip: (id: string) => void; onBase: (slot: Exclude<WardTab, 'room'>) => void; onDecor: (id: string) => void
+}) {
+  const { species, progress, look, worn } = raise
+  const st = progress.stage
+  const seed = look.seed ?? 0
+  const sheetTop = Math.round(H * 0.51)
+  const T = sheetTop - 14
+  const fit = useMemo(() => fitScene(sceneKey, W, H, T), [sceneKey, W, H, T])
+  const perchX = useMemo(() => sceneLayout(sceneKey, W, fit.height, 'bottom').perchX, [sceneKey, W, fit.height])
+  const headFrac = species ? headTop3d(species, st, look.path, seed).y - (worn.hat ? 0.07 : 0) : 0.22
+  const box = Math.round(Math.max(120, Math.min(220, (T - topInset - 58) / (FOOT.y - headFrac))))
+  const pos = standOnPerch(perchX, T, box)
+  const ink = sceneDark(sceneKey) || p.dark ? '#FFFFFF' : '#13211B'
+  const sheetBg = p.dark ? 'rgba(18,24,22,0.9)' : 'rgba(250,252,249,0.9)'
+  return (
+    <View style={{ width: W, height: H, overflow: 'hidden' }}>
+      <SceneBackdrop sceneKey={sceneKey} width={W} height={fit.height} decor={species ? decorOn(progress.level, look) : []} style={{ position: 'absolute', left: 0, top: fit.top }} />
+      <View style={[s.nav, { top: topInset + 6 }]}>
+        <GlassBack p={p} onBack={onBack} ink={glassTone(p.dark).ink} />
+        <Text style={[s.navT, { color: ink }]} accessibilityRole="header">꾸미기</Text>
+        <View style={{ width: 40 }} />
       </View>
-      {w ? (
-        <Animated.View style={[s.pvChar, { bottom: standBottom(w, H, box), width: box, height: box }, st]} pointerEvents="none">
-          <CharacterArt species={species} stage={progress.stage} size={box} fit={false} mood="smile" noAura />
-        </Animated.View>
+      {species ? (
+        <View style={{ position: 'absolute', left: pos.left, top: pos.top }} accessible accessibilityLabel={`Lv ${progress.level} ${titleOf(species, st, look.path)} 미리보기`}>
+          <FadeWear species={species} stage={st} size={box} mood="default" hopKey={hopKey} reduced={reduced} wear={{ lv: progress.level, path: look.path, eq: worn, seed }} />
+        </View>
       ) : null}
+      <View style={[s.sheet, { top: sheetTop, backgroundColor: Platform.OS === 'ios' ? 'transparent' : sheetBg }]}>
+        {Platform.OS === 'ios' ? <BlurView intensity={24} tint={p.dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} /> : null}
+        {Platform.OS === 'ios' ? <View style={[StyleSheet.absoluteFill, { backgroundColor: sheetBg }]} /> : null}
+        <View style={[s.grab, { backgroundColor: p.textTertiary }]} />
+        <View style={{ paddingHorizontal: 18 }}>
+          <Segmented items={[{ key: 'ward', label: '옷장' }, { key: 'dex', label: '도감' }]} value={seg} onChange={onSeg} style={{ marginBottom: 12 }} small />
+          <WardTabs p={p} tab={tab} onTab={onTab} fresh={raise.fresh} />
+        </View>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: bottomInset + 30 }}>
+          <WardGrid p={p} raise={raise} tab={tab} width={W - 36} onEquip={onEquip} onBase={onBase} onDecor={onDecor} />
+        </ScrollView>
+      </View>
     </View>
   )
 }
 
-/** 탭 알약(고른 탭 = 진한 글자 색 채움) + 새로 받음 점 */
+/** 탭(밑줄 — 시안 .tabs) + 새로 받음 점 */
 export function WardTabs({ p, tab, onTab, fresh }: { p: Palette; tab: WardTab; onTab: (t: WardTab) => void; fresh: Set<string> }) {
   return (
-    <View style={s.tabs} accessibilityRole="tablist">
+    <View style={[s.tabs, { borderBottomColor: p.borderDivider }]} accessibilityRole="tablist">
       {SLOTS.map(([k, n]) => {
         const on = k === tab
         const dot = itemsOfTab(k).some((i) => fresh.has(i.id))
         return (
-          <Pressable key={k} onPress={() => { hx.tick(); onTab(k) }} style={[s.tab, { backgroundColor: on ? p.textPrimary : p.bgSelected }]} accessibilityRole="tab" accessibilityState={{ selected: on }}>
-            <Text style={[s.tabT, { color: on ? p.cardBg : p.textSecondary }]}>{n}</Text>
+          <Pressable key={k} onPress={() => { hx.tick(); onTab(k) }} hitSlop={6} style={s.tab} accessibilityRole="tab" accessibilityState={{ selected: on }}>
+            <Text style={[s.tabT, { color: on ? p.textPrimary : p.textTertiary }]}>{n}</Text>
+            {on ? <View style={[s.tabLine, { backgroundColor: p.accent }]} /> : null}
             {dot ? <View style={[s.tabDot, { backgroundColor: p.accent }]} /> : null}
           </Pressable>
         )
@@ -60,9 +131,9 @@ export function WardTabs({ p, tab, onTab, fresh }: { p: Palette; tab: WardTab; o
   )
 }
 
-/** 칸 하나(옷·배경·장식·기본) */
-const Cell = memo(function Cell({ p, icon, name, sub, on, locked, fresh, onPress, label, cols }: {
-  p: Palette; icon: ReactNode; name: string; sub?: string; on?: boolean; locked?: boolean; fresh?: boolean; onPress: () => void; label: string; cols: number
+/** 칸 하나(옷·배경·장식·기본) — 시안 .cell */
+const Cell = memo(function Cell({ p, icon, name, sub, on, locked, fresh, onPress, label, w }: {
+  p: Palette; icon: ReactNode; name: string; sub?: string; on?: boolean; locked?: boolean; fresh?: boolean; onPress: () => void; label: string; w: number
 }) {
   const x = useSharedValue(0)
   const st = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }))
@@ -71,41 +142,50 @@ const Cell = memo(function Cell({ p, icon, name, sub, on, locked, fresh, onPress
     hx.tick(); onPress()
   }
   return (
-    <Animated.View style={[{ width: `${100 / cols}%`, padding: 4 }, st]}>
+    <Animated.View style={[{ width: w }, st]}>
       <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: !!on, disabled: !!locked }}
-        style={({ pressed }) => [s.cell, { backgroundColor: on ? (p.dark ? 'rgba(34,164,93,0.22)' : 'rgba(34,164,93,0.12)') : p.bgSelected, borderColor: on ? p.accent : 'transparent' }, pressed && !locked && { transform: [{ scale: 0.95 }] }]}>
-        {icon}
-        <Text style={[s.cellN, { color: locked ? p.textTertiary : p.textPrimary }]} numberOfLines={1}>{name}</Text>
+        style={({ pressed }) => [s.cell, { minHeight: w / 0.86, backgroundColor: on ? p.accentSubtle : cellBg(p), borderColor: on ? p.accent : 'transparent' }, pressed && !locked && { transform: [{ scale: 0.95 }] }]}>
+        <View style={s.ico}>{icon}</View>
+        <Text style={[s.cellN, { color: on ? p.textPrimary : locked ? p.textTertiary : p.textSecondary }]} numberOfLines={1}>{name}</Text>
         {sub ? <Text style={[s.cellC, { color: p.textTertiary }]} numberOfLines={2}>{sub}</Text> : null}
-        {fresh ? <View style={[s.ndot, { backgroundColor: p.accent }]} /> : locked ? <View style={s.lk}><Lock size={13} color={p.textTertiary} /></View> : null}
+        {fresh ? <View style={[s.ndot, { backgroundColor: p.accent }]} /> : null}
       </Pressable>
     </Animated.View>
   )
 })
-const Ico = ({ svg }: { svg: string }) => <SvgString svg={svg} size={50} />
+const cellBg = (p: Palette) => (p.dark ? 'rgba(255,255,255,0.06)' : '#F5F7F4')
+/** 잠긴 덩어리 색 — 다크에서 빛나 보이지 않게(43 §16) 같은 그림을 회색 한 색으로, 옅게 */
+const LockTint = ({ p, children }: { p: Palette; children: ReactNode }) => <View style={{ opacity: p.dark ? 0.35 : 0.28 }}>{children}</View>
+function ItemIco({ p, it, locked, size = 50 }: { p: Palette; it: Item; locked: boolean; size?: number }) {
+  const tint = locked ? p.textTertiary : undefined
+  const pic = it.slot === 'bg' ? <SceneThumb bg={it.id} size={size - 4} tint={tint} /> : <AccThumb id={it.id} size={size} tint={tint} />
+  return locked ? <LockTint p={p}>{pic}</LockTint> : pic
+}
 
 /** 옷장 격자(43 §5.4): 맨 앞 `기본`(진화 소품) + 옷. 방 탭 = 배경 + 장식 */
-export function WardGrid({ p, raise, tab, cols, onEquip, onBase, onDecor }: {
-  p: Palette; raise: Raise; tab: WardTab; cols: number; onEquip: (id: string) => void; onBase: (slot: Exclude<WardTab, 'room'>) => void; onDecor: (id: string) => void
+export function WardGrid({ p, raise, tab, width, onEquip, onBase, onDecor }: {
+  p: Palette; raise: Raise; tab: WardTab; width: number; onEquip: (id: string) => void; onBase: (slot: Exclude<WardTab, 'room'>) => void; onDecor: (id: string) => void
 }) {
   const { species, progress, worn, owned, fresh, state, look } = raise
   const st = progress.stage
+  const w = Math.floor((width - 30) / 4)
   const cell = (it: Item) => {
     const own = owned.has(it.id)
     const on = (it.slot === 'bg' ? worn.bg : worn[it.slot]) === it.id
-    return <Cell key={it.id} p={p} cols={cols} icon={<IconMemo id={it.id} locked={!own} lc={lockOf(p)} />} name={it.name} sub={own ? undefined : conditionText(it, state)} on={on} locked={!own} fresh={fresh.has(it.id)}
+    return <Cell key={it.id} p={p} w={w} icon={<ItemIco p={p} it={it} locked={!own} />} name={it.name} sub={own ? undefined : conditionText(it, state)} on={on} locked={!own} fresh={fresh.has(it.id)}
       label={`${it.name}${own ? (on ? ', 입은 것' : '') : `, 잠김 ${conditionText(it, state)}`}`} onPress={() => onEquip(it.id)} />
   }
   if (tab === 'room') {
     return (
       <View>
-        <Text style={[s.subh, { color: p.textPrimary }]}>배경</Text>
+        <Text style={[s.subh, { color: p.textPrimary, marginTop: 0 }]}>배경</Text>
         <View style={s.grid}>{itemsOfTab('room').map(cell)}</View>
         <View style={s.subhRow}><Text style={[s.subh, { color: p.textPrimary }]}>장식</Text><Text style={[s.subhS, { color: p.textTertiary }]}>눌러서 놓기·치우기</Text></View>
         <View style={s.grid}>
           {DECOR.map((d) => {
             const own = progress.level >= d.lv, on = own && !look.decorOff.includes(d.id)
-            return <Cell key={d.id} p={p} cols={cols} icon={<DecorIco id={d.id} locked={!own} lc={lockOf(p)} />} name={d.name} sub={own ? undefined : `Lv ${d.lv}`} on={on} locked={!own}
+            const pic = <DecorThumb id={d.id} size={50} tint={own ? undefined : p.textTertiary} />
+            return <Cell key={d.id} p={p} w={w} icon={own ? pic : <LockTint p={p}>{pic}</LockTint>} name={d.name} sub={own ? undefined : `Lv ${d.lv}`} on={on} locked={!own}
               label={`${d.name}${own ? (on ? ', 놓음' : ', 치움') : `, 잠김 Lv ${d.lv}`}`} onPress={() => onDecor(d.id)} />
           })}
         </View>
@@ -115,115 +195,148 @@ export function WardGrid({ p, raise, tab, cols, onEquip, onBase, onDecor }: {
   const slot = tab
   return (
     <View>
-      <View style={[s.grid, { marginTop: 2 }]}>
-        <Cell p={p} cols={cols} icon={<View style={[s.base, { borderColor: p.textTertiary }]} />} name="기본" sub={species ? baseName(slot, species, st) : '없음'} on={!worn[slot]} onPress={() => onBase(slot)} label="기본, 진화 소품" />
+      <View style={s.grid}>
+        <Cell p={p} w={w} icon={<View style={[s.base, { borderColor: p.textTertiary }]} />} name="기본" sub={species ? baseName(slot, species, st) : '없음'} on={!worn[slot]} onPress={() => onBase(slot)} label="기본, 진화 소품" />
         {itemsOfTab(slot).map(cell)}
       </View>
       {babyHidesSlot(slot, st) ? <Text style={[s.note, { color: p.textTertiary }]}>아기 때는 씨앗 껍질 안이라 목·등 옷은 꼬마부터 보인다.</Text> : null}
     </View>
   )
 }
-/** 잠긴 실루엣 색: 다크에서는 밝은 회색이 빛나 보여서(43 §16 "다크에서 빛나 보이지 않게") 어두운 회녹색 */
-const lockOf = (p: Palette) => (p.dark ? '#46544B' : true)
-const IconMemo = memo(function IconMemo({ id, locked, lc = true }: { id: string; locked: boolean; lc?: string | true }) {
-  const svg = useMemo(() => itemIcon(id, { locked: locked ? lc : false, rn: true }), [id, locked, lc])
-  return <Ico svg={svg} />
-})
-const DecorIco = memo(function DecorIco({ id, locked, lc = true }: { id: string; locked: boolean; lc?: string | true }) {
-  const svg = useMemo(() => decorIcon(id, { locked: locked ? lc : false, rn: true }), [id, locked, lc])
-  return <Ico svg={svg} />
-})
 
-/** 도감(43 §8 · §18.2): 요약 3칸 + 모습 8칸 + 옷(칸별) + 트로피 */
-export function DexView({ p, raise, onPath, onTrophyLayout }: { p: Palette; raise: Raise; onPath: (path: Path) => void; onTrophyLayout?: (y: number) => void }) {
+/* ───────── 도감(시안 D) ───────── */
+export function DexScreen({ p, raise, width: W, height: H, topInset, bottomInset, sceneKey, seg, onSeg, onBack, onPath, onTrophyLayout, scrollRef }: Frame & {
+  onPath: (path: Path) => void; onTrophyLayout?: (y: number) => void; scrollRef?: React.RefObject<ScrollView | null>
+}) {
   const { species, progress, look, owned, state, trophies } = raise
   const st = progress.stage
-  const looks: [number, Path][] = [[1, 'a'], [2, 'a'], [3, 'a'], [3, 'b'], [4, 'a'], [4, 'b'], [5, 'a'], [5, 'b']]
-  const ownN = ITEMS.filter((i) => owned.has(i.id)).length
-  const lookN = looks.filter(([x]) => x <= st).length
-  const Sum = ({ n, of, label, ratio }: { n: number; of?: number; label: string; ratio: number }) => (
-    <View style={[s.sum, { backgroundColor: p.bgSelected }]}>
-      <Text style={[s.sumB, { color: p.textPrimary }]}>{n}{of ? <Text style={{ fontSize: 13, color: p.textTertiary }}>/{of}</Text> : null}</Text>
-      <Text style={[s.sumS, { color: p.textTertiary }]}>{label}</Text>
-      <View style={[s.sumBar, { backgroundColor: p.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}><View style={{ width: `${Math.min(100, ratio * 100)}%`, height: 5, borderRadius: 3, backgroundColor: p.accent }} /></View>
-    </View>
-  )
+  const seed = look.seed ?? 0
+  const sceneH = Math.round(H * 0.46)
+  const bg = p.pageBg
+  const n = dexCount(species, st)
+  const cells = useMemo(() => dexCells(species), [species])
+  const cw = Math.floor((W - 32 - 20) / 3)
+  const ink = p.textPrimary
+  const cellFill = p.dark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.66)'
+  const cellLine = p.dark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.9)'
   return (
-    <View>
-      <View style={s.sumRow}>
-        <Sum n={ownN} of={ITEMS.length} label="옷" ratio={ownN / ITEMS.length} />
-        <Sum n={lookN} of={8} label="모습" ratio={lookN / 8} />
-        <Sum n={trophies.length} label="트로피" ratio={trophies.length * 0.12} />
-      </View>
-      {species ? (
-        <>
-          <View style={s.subhRow}><Text style={[s.subh, { color: p.textPrimary }]}>모습</Text><Text style={[s.subhS, { color: p.textTertiary }]}>다른 길은 언제든 바꿀 수 있어</Text></View>
-          <View style={s.grid}>
-            {looks.map(([x, path]) => {
-              const ok = x <= st, cur = x === st && (x < 3 || path === look.path), swap = ok && x === st && x >= 3 && path !== look.path
-              const sub = ok ? (x >= 3 && path !== look.path ? (x === st ? '눌러서 바꾸기' : '다른 길') : x >= 3 ? PATHS[species][path].name : '') : `Lv ${STAGES[x - 1].from}`
-              return <Cell key={`${x}${path}`} p={p} cols={3} icon={<LookIco species={species} stage={x} path={path} locked={!ok} lc={lockOf(p)} />} name={titleOf(species, x, path)} sub={sub} on={cur} locked={!ok && !swap}
-                label={`${titleOf(species, x, path)}${ok ? '' : `, Lv ${STAGES[x - 1].from}`}${swap ? ', 눌러서 이 길로 바꾸기' : ''}`} onPress={() => { if (swap) onPath(path) }} />
-            })}
-          </View>
-        </>
-      ) : null}
-      {SLOTS.map(([k, n]) => {
-        const list = itemsOfTab(k)
-        return (
-          <View key={k}>
-            <View style={s.subhRow}><Text style={[s.subh, { color: p.textPrimary }]}>{k === 'room' ? '배경' : n}</Text><Text style={[s.subhS, { color: p.textTertiary }]}>{list.filter((i) => owned.has(i.id)).length}/{list.length}</Text></View>
-            <View style={s.grid}>{list.map((it) => { const o = owned.has(it.id); return <Cell key={it.id} p={p} cols={4} icon={<IconMemo id={it.id} locked={!o} lc={lockOf(p)} />} name={it.name} sub={o ? undefined : conditionText(it, state)} locked={!o} onPress={() => {}} label={`${it.name}${o ? '' : `, ${conditionText(it, state)}`}`} /> })}</View>
-          </View>
-        )
-      })}
-      <View onLayout={(e) => onTrophyLayout?.(e.nativeEvent.layout.y)}>
-        <Text style={[s.subh, { color: p.textPrimary }]}>트로피 선반</Text>
-        {trophies.length ? trophies.map((t, i) => (
-          <View key={t.id} style={[s.trow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderRow }]}>
-            <TrophyIco t={trophyShape(t)} />
-            <Text style={[s.trowT, { color: p.textPrimary }]} numberOfLines={1}>{t.title}</Text>
-            <Text style={[s.trowS, { color: p.textTertiary }]}>{trophySub(t)}</Text>
-          </View>
-        )) : <Text style={[s.note, { color: p.textTertiary }]}>프로젝트를 끝내거나 한 날이 7일이 되면 선반에 올라가요.</Text>}
+    <View style={{ width: W, height: H, backgroundColor: bg, overflow: 'hidden' }}>
+      <SceneBackdrop sceneKey={sceneKey} width={W} height={sceneH} align="center" style={{ position: 'absolute', left: 0, top: 0 }} />
+      {Platform.OS === 'ios' ? <BlurView intensity={10} tint={p.dark ? 'dark' : 'light'} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: sceneH }} /> : null}
+      <Svg style={{ position: 'absolute', left: 0, top: 0 }} width={W} height={sceneH + 2} pointerEvents="none">
+        <Defs><LinearGradient id="dexFade" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={bg} stopOpacity={0} /><Stop offset="0.35" stopColor={bg} stopOpacity={0.15} /><Stop offset="0.87" stopColor={bg} stopOpacity={1} />
+        </LinearGradient></Defs>
+        <Rect x={0} y={0} width={W} height={sceneH + 2} fill="url(#dexFade)" />
+      </Svg>
+      <ScrollView ref={scrollRef} contentContainerStyle={{ paddingTop: topInset + 56, paddingHorizontal: 16, paddingBottom: bottomInset + 40 }}>
+        <Text style={[s.dexH, { color: sceneDark(sceneKey) && !p.dark ? '#FFFFFF' : ink }]} accessibilityRole="header">도감</Text>
+        <Text style={[s.dexN, { color: sceneDark(sceneKey) && !p.dark ? '#FFFFFF' : ink }]}>모은 모습 <Text style={{ fontWeight: '800' }}>{n}</Text> / {DEX_TOTAL}</Text>
+        <View style={[s.grid, { gap: 10, marginTop: 18 }]}>
+          {cells.map(({ sp, st: x }) => {
+            const ok = dexSeen(species, st, sp, x)
+            const me = sp === species && x === st
+            const nm = ok ? titleOf(sp, x, look.path) : '?'
+            return (
+              <View key={`${sp}${x}`} style={[s.dexCell, { width: cw, height: cw, backgroundColor: cellFill, borderColor: cellLine }]} accessible accessibilityLabel={ok ? `${nm}${me ? ', 지금 내 모습' : ''}` : '아직 못 본 모습'}>
+                <View style={{ marginTop: -cw * 0.12 }}>
+                  <DexFigure species={sp} stage={x} path={sp === species ? look.path : 'a'} seed={sp === species ? seed : 0} size={Math.round(cw * 0.78)}
+                    tint={ok ? undefined : p.dark ? '#FFFFFF' : '#000000'} tintOpacity={p.dark ? 0.1 : 0.16} />
+                </View>
+                {me ? <View style={[s.me, { backgroundColor: p.accent }]}><Text style={s.meT}>나</Text></View> : null}
+                <Text style={[s.dexNm, { color: ink }]} numberOfLines={1}>{nm}</Text>
+              </View>
+            )
+          })}
+        </View>
+
+        {species && st >= 3 ? (
+          <>
+            <View style={s.subhRow}><Text style={[s.subh, { color: p.textPrimary }]}>갈래</Text><Text style={[s.subhS, { color: p.textTertiary }]}>다른 길은 언제든 바꿀 수 있어</Text></View>
+            <View style={[s.grid, { gap: 10 }]}>
+              {(['a', 'b'] as Path[]).map((v) => {
+                const on = v === look.path
+                return (
+                  <Pressable key={v} onPress={() => { if (!on) { hx.tick(); onPath(v) } }} accessibilityRole="button" accessibilityState={{ selected: on }}
+                    accessibilityLabel={`${PATHS[species][v].name}, ${titleOf(species, st, v)}${on ? ', 지금 길' : ', 눌러서 이 길로 바꾸기'}`}
+                    style={[s.pathCell, { width: (W - 42) / 2, backgroundColor: on ? p.accentSubtle : cellFill, borderColor: on ? p.accent : cellLine }]}>
+                    <DexFigure species={species} stage={st} path={v} seed={seed} size={64} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.pathN, { color: p.textPrimary }]} numberOfLines={1}>{PATHS[species][v].name}</Text>
+                      <Text style={[s.cellC, { color: p.textTertiary, textAlign: 'left' }]} numberOfLines={1}>{on ? '지금 길' : '눌러서 바꾸기'}</Text>
+                    </View>
+                  </Pressable>
+                )
+              })}
+            </View>
+          </>
+        ) : null}
+
+        {SLOTS.map(([k, nm]) => {
+          const list = itemsOfTab(k)
+          const w = Math.floor((W - 32 - 30) / 4)
+          return (
+            <View key={k}>
+              <View style={s.subhRow}><Text style={[s.subh, { color: p.textPrimary }]}>{k === 'room' ? '배경' : nm}</Text><Text style={[s.subhS, { color: p.textTertiary }]}>{list.filter((i) => owned.has(i.id)).length}/{list.length}</Text></View>
+              <View style={s.grid}>{list.map((it) => { const o = owned.has(it.id); return <Cell key={it.id} p={p} w={w} icon={<ItemIco p={p} it={it} locked={!o} />} name={it.name} sub={o ? undefined : conditionText(it, state)} locked={!o} onPress={() => {}} label={`${it.name}${o ? '' : `, ${conditionText(it, state)}`}`} /> })}</View>
+            </View>
+          )
+        })}
+        <View onLayout={(e: LayoutChangeEvent) => onTrophyLayout?.(e.nativeEvent.layout.y)}>
+          <Text style={[s.subh, { color: p.textPrimary }]}>트로피 선반</Text>
+          {trophies.length ? trophies.map((t, i) => (
+            <View key={t.id} style={[s.trow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderRow }]}>
+              <TrophyIco t={trophyShape(t)} />
+              <Text style={[s.trowT, { color: p.textPrimary }]} numberOfLines={1}>{t.title}</Text>
+              <Text style={[s.trowS, { color: p.textTertiary }]}>{trophySub(t)}</Text>
+            </View>
+          )) : <Text style={[s.note, { color: p.textTertiary }]}>프로젝트를 끝내거나 한 날이 7일이 되면 선반에 올라가요.</Text>}
+          <Text style={[s.note, { color: p.textTertiary }]}>옷 {ITEMS.filter((i) => owned.has(i.id)).length}/{ITEMS.length}</Text>
+        </View>
+      </ScrollView>
+      <View style={[s.nav, { top: topInset + 6 }]}>
+        <GlassBack p={p} onBack={onBack} ink={glassTone(p.dark).ink} />
+        <View style={{ flex: 1 }} />
+        <Segmented items={[{ key: 'ward', label: '옷장' }, { key: 'dex', label: '도감' }]} value={seg} onChange={onSeg} style={{ width: 150 }} small />
       </View>
     </View>
   )
 }
-const LookIco = memo(function LookIco({ species, stage, path, locked, lc = true }: { species: Species; stage: number; path: Path; locked: boolean; lc?: string | true }) {
-  // 도감은 실제 비율(43 결정 ⑨): 아기는 작게, 전설은 칸을 채운다
-  const svg = useMemo(() => art(species, stage, { path, size: 64, detail: 'full', crop: 'full', noAura: true, lock: locked ? lc : false, mood: 'smile', rn: true, lv: STAGES[stage - 1].from }), [species, stage, path, locked, lc])
-  return <SvgString svg={svg} size={64} />
-})
 const TrophyIco = memo(function TrophyIco({ t }: { t: ReturnType<typeof trophyShape> }) {
   const svg = useMemo(() => trophyIcon(t, { rn: true }), [t.k, t.n]) // eslint-disable-line react-hooks/exhaustive-deps
   return <SvgString svg={svg} size={28} />
 })
 
 const s = StyleSheet.create({
-  pv: { height: 230, borderRadius: 24, overflow: 'hidden' },
-  pvChar: { position: 'absolute', alignSelf: 'center' },
-  badge: { position: 'absolute', left: 12, top: 12, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, zIndex: 3 },
-  tabs: { flexDirection: 'row', gap: 6, paddingVertical: 12 },
-  tab: { height: 34, paddingHorizontal: 14, borderRadius: 999, justifyContent: 'center' },
-  tabT: { fontSize: 13, fontWeight: '600' },
-  tabDot: { position: 'absolute', top: 5, right: 6, width: 6, height: 6, borderRadius: 3 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
-  cell: { minHeight: 92, borderRadius: 18, alignItems: 'center', paddingTop: 8, paddingBottom: 8, paddingHorizontal: 4, gap: 3, borderWidth: 2 },
+  nav: { position: 'absolute', left: 14, right: 14, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  navT: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800' },
+  back: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopLeftRadius: 30, borderTopRightRadius: 30, overflow: 'hidden', paddingTop: 10 },
+  grab: { width: 38, height: 5, borderRadius: 3, opacity: 0.45, alignSelf: 'center', marginBottom: 12 },
+  tabs: { flexDirection: 'row', gap: 18, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: 14 },
+  tab: { paddingTop: 8, paddingBottom: 10 },
+  tabT: { fontSize: 14.5, fontWeight: '700' },
+  tabLine: { position: 'absolute', left: 0, right: 0, bottom: -1, height: 2.5, borderRadius: 2 },
+  tabDot: { position: 'absolute', top: 6, right: -7, width: 6, height: 6, borderRadius: 3 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  cell: { borderRadius: 18, borderWidth: 2, alignItems: 'center', justifyContent: 'center', gap: 4, padding: 6 },
+  ico: { width: 56, height: 52, alignItems: 'center', justifyContent: 'center' },
   cellN: { fontSize: 11.5, fontWeight: '600', textAlign: 'center' },
-  cellC: { fontSize: 10, lineHeight: 12.5, textAlign: 'center' },
-  ndot: { position: 'absolute', top: 7, right: 8, width: 7, height: 7, borderRadius: 4 },
-  lk: { position: 'absolute', top: 6, right: 7 },
-  base: { width: 40, height: 40, borderRadius: 20, borderWidth: 3, borderStyle: 'dashed', margin: 5 },
-  subh: { fontSize: 13.5, fontWeight: '700', marginTop: 14, marginBottom: 8, marginHorizontal: 2 },
+  cellC: { fontSize: 10.5, lineHeight: 13, fontWeight: '600', textAlign: 'center' },
+  ndot: { position: 'absolute', top: 8, right: 8, width: 7, height: 7, borderRadius: 4 },
+  base: { width: 40, height: 40, borderRadius: 20, borderWidth: 3, borderStyle: 'dashed' },
+  subh: { fontSize: 13.5, fontWeight: '700', marginTop: 18, marginBottom: 8, marginHorizontal: 2 },
   subhRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   subhS: { fontSize: 11.5, marginHorizontal: 2 },
   note: { fontSize: 12.5, lineHeight: 18, marginTop: 8 },
-  sumRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  sum: { flex: 1, borderRadius: 16, padding: 12, paddingBottom: 10 },
-  sumB: { fontSize: 22, fontWeight: '800', letterSpacing: -0.6 },
-  sumS: { fontSize: 11.5, fontWeight: '600' },
-  sumBar: { height: 5, borderRadius: 3, marginTop: 8, overflow: 'hidden' },
+  dexH: { fontSize: 32, fontWeight: '800', letterSpacing: -1.1 },
+  dexN: { fontSize: 14, fontWeight: '600', opacity: 0.7, marginTop: 2 },
+  dexCell: { borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  me: { position: 'absolute', top: 8, right: 8, borderRadius: 7, paddingHorizontal: 6, paddingVertical: 2 },
+  meT: { color: '#fff', fontSize: 10.5, fontWeight: '800' },
+  dexNm: { position: 'absolute', left: 4, right: 4, bottom: 7, textAlign: 'center', fontSize: 11, fontWeight: '700', opacity: 0.8 },
+  pathCell: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 18, borderWidth: 1.5, padding: 8 },
+  pathN: { fontSize: 13.5, fontWeight: '700' },
   trow: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 46 },
   trowT: { flex: 1, fontSize: 14.5, fontWeight: '500' },
   trowS: { fontSize: 12 }

@@ -1,5 +1,5 @@
-// 빈 상태(21 §3, 20 M7): 새싹 화분 그림 — 시안 B-3을 그대로 옮긴 직접 그린 그림(틱틱 그림 아님). 정식 캐릭터 그림이 오면 바꾼다.
-import { allDoneLine, COMPANION_SIZE, companionLabel, todayEmptyLines } from '@sprout/schema/companion'
+// 빈 상태(21 §3, 20 M7 · 49 §8.2): 할 일 목록 = 내 캐릭터 3D 170 + 틱틱 문구, 그 밖 = 말랑 아이콘. SproutPot(새싹 화분)은 검색 빈 상태에만 남는다.
+import { allDoneLine, companionLabel, todayEmptyLines } from '@sprout/schema/companion'
 import { useState } from 'react'
 import { StyleSheet, Text } from 'react-native'
 import Animated from 'react-native-reanimated'
@@ -32,18 +32,26 @@ export function SproutPot({ size = 150 }: { size?: number }) {
 
 // 39 §4.1-5·§4.8: 나타날 때 옅게 + 0.96 → 1(250ms). 첫 화면에서는 animate=false로 바로
 const appear = popIn(0.96)
-// 44 §4: 말랑 아이콘 88 + 제목 17/650 + 회색 한 줄(배치 그대로)
-export function EmptyState({ title, sub, animate = true, icon = 'list' }: { title: string; sub?: string; animate?: boolean; icon?: SoftIconName }) {
+/** 49 §8.2 은은하게: 할 일 목록 빈 상태 = 내 캐릭터 3D 170(없으면 씨앗) — 누르면 깡충 */
+export const EMPTY_ART = 170
+function BuddyEmptyArt({ mood = 'smile' }: { mood?: 'smile' | 'content' }) {
+  const buddy = useBuddy()
+  const [n, setN] = useState(0)
+  return <CompanionFace species={buddy.species} stage={buddy.stage} size={EMPTY_ART} mood={mood} play={{ move: 'hop', n }} onPress={() => setN((x) => x + 1)} label={companionLabel(buddy.species, buddy.name, buddy.level, buddy.stage)} />
+}
+
+// 44 §4: 말랑 아이콘 88 + 제목 17/650 + 회색 한 줄(배치 그대로). character = 49 §8.2 캐릭터 170(문구는 그대로)
+export function EmptyState({ title, sub, animate = true, icon = 'list', character }: { title: string; sub?: string; animate?: boolean; icon?: SoftIconName; character?: boolean }) {
   const p = usePalette()
   return (
-    <Animated.View entering={animate ? appear : undefined} style={s.wrap}>
-      <SoftIcon name={icon} size={88} day={icon === 'today' ? new Date().getDate() : undefined} />
-      <Text style={[FONT.emptyTitle, s.title, { color: p.textPrimary }]}>{title}</Text>
+    <Animated.View entering={animate ? appear : undefined} style={[s.wrap, character && s.wrapArt]}>
+      {character ? <BuddyEmptyArt /> : <SoftIcon name={icon} size={88} day={icon === 'today' ? new Date().getDate() : undefined} />}
+      <Text style={[FONT.emptyTitle, s.title, character && s.titleArt, { color: p.textPrimary }]}>{title}</Text>
       {sub ? <Text style={[s.sub, { color: p.textTertiary }]}>{sub}</Text> : null}
     </Animated.View>
   )
 }
-/** 40 §2.2·§4: "오늘 비어 있음"·"모두 완료"만 캐릭터 M 64(숨쉬기 없음, 누르면 깡충). 제목은 틱틱 문구(해요체), 둘째 줄은 캐릭터 말(실제 숫자).
+/** 40 §2.2·§4: "오늘 비어 있음"·"모두 완료" — 캐릭터(49 §8.2: 3D 170, 숨쉬기 없음, 누르면 깡충). 제목은 틱틱 문구(해요체), 둘째 줄은 캐릭터 말(실제 숫자).
  *  오늘 비어 있음은 누를 때마다 다음 후보 문장으로. 평범한 빈 목록은 위 EmptyState(새싹 화분) 그대로 */
 export function CompanionEmpty({ kind, todayDone, animate = true }: { kind: 'today' | 'done'; todayDone: number; animate?: boolean }) {
   const p = usePalette()
@@ -52,9 +60,9 @@ export function CompanionEmpty({ kind, todayDone, animate = true }: { kind: 'tod
   const [n, setN] = useState(0)
   const lines = kind === 'today' ? todayEmptyLines({ todayDone, hour: new Date().getHours(), egg }) : [allDoneLine(todayDone, egg)]
   return (
-    <Animated.View entering={animate ? appear : undefined} style={s.wrap}>
-      <CompanionFace species={buddy.species} stage={buddy.stage} size={COMPANION_SIZE.m} mood={kind === 'done' ? 'content' : 'smile'} play={{ move: 'hop', n }} onPress={() => setN((x) => x + 1)} label={companionLabel(buddy.species, buddy.name, buddy.level, buddy.stage)} />
-      <Text style={[FONT.emptyTitle, s.title, { color: p.textPrimary }]}>{kind === 'done' ? '모두 완료했어요' : '오늘 할 일이 없어요'}</Text>
+    <Animated.View entering={animate ? appear : undefined} style={[s.wrap, s.wrapArt]}>
+      <CompanionFace species={buddy.species} stage={buddy.stage} size={EMPTY_ART} mood={kind === 'done' ? 'content' : 'smile'} play={{ move: 'hop', n }} onPress={() => setN((x) => x + 1)} label={companionLabel(buddy.species, buddy.name, buddy.level, buddy.stage)} />
+      <Text style={[FONT.emptyTitle, s.title, s.titleArt, { color: p.textPrimary }]}>{kind === 'done' ? '모두 완료했어요' : '오늘 할 일이 없어요'}</Text>
       <Text accessibilityLiveRegion="polite" style={[s.sub, { color: p.textTertiary }]}>{lines[n % lines.length]}</Text>
     </Animated.View>
   )
@@ -62,6 +70,9 @@ export function CompanionEmpty({ kind, todayDone, animate = true }: { kind: 'tod
 
 const s = StyleSheet.create({
   wrap: { alignItems: 'center', gap: 6, paddingTop: 70, paddingHorizontal: 40 },
+  // 캐릭터 170은 발밑 여백(아래 10%)이 있어 제목과 붙여 둔다 — 시안 G .empty(위 40)
+  wrapArt: { paddingTop: 40, gap: 4 },
   title: { marginTop: 10, textAlign: 'center' },
+  titleArt: { marginTop: 0 },
   sub: { fontSize: 13, lineHeight: 18, fontWeight: '500', textAlign: 'center' }
 })

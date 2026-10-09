@@ -29,10 +29,10 @@ export function ProfileAvatar({ avatar, size, letter }: { avatar: ResolvedAvatar
       </View>
     )
   }
-  // 42 §5.3 아바타 = 머리 쪽 자르기(bust): 단계마다 다른 새싹·관·모자가 원 안에 보인다. 입힌 모자는 CharacterWearProvider(따라가기 = 지금 단계)
+  // 42 §5.3 · 49 §8.1 아바타 = 3D 그림을 머리 쪽으로 확대해 원 안에 자름(bust, 공용 cropBox): 단계마다 다른 새싹·관·모자가 원 안에 보인다. 입힌 모자는 CharacterWearProvider(따라가기 = 지금 단계)
   return (
     <View style={[s.base, round, { backgroundColor: avatar.bg }]}>
-      <CharacterArt species={avatar.type === 'char' ? avatar.species : null} stage={avatar.type === 'char' ? avatar.stage : 1} size={size} crop="bust" detail={size > 40 ? 'full' : 'small'} mood="smile" />
+      <CharacterArt species={avatar.type === 'char' ? avatar.species : null} stage={avatar.type === 'char' ? avatar.stage : 1} size={size} crop="bust" mood="smile" />
     </View>
   )
 }

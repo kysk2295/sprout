@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cumulativeXp, normalizeSpecies, SPECIES, STAGES } from '@sprout/schema/growth'
-import { itemIcon } from '@sprout/schema/characterArt'
 import { equipItem, giftsAt, type Item } from '@sprout/schema/wardrobe'
 import { saveLook, useRaise } from '../../data/raise'
 import { EvolutionMoment } from './EvolutionMoment'
+import { ItemPic } from './RaisePanel'
 import { isGrowthStageActive, motionReduced, useGrowth, useWeeklyClose, type XpRow } from '../../data/growth'
 const motionReducedNow = motionReduced
 import { CharacterArt } from './CharacterArt'
@@ -88,7 +88,7 @@ export function LevelUpWatcher() {
       <div className="levelup" role="dialog" aria-label="레벨업">
         <div className={evolved && species ? 'levelup__evo' : 'levelup__art'}>
           {evolved && species
-            ? <EvolutionMoment species={species} from={shown.prevStage} to={shown.stage} path={raise.look.path} eq={raise.worn} size={150} reduced={motionReducedNow()} speed={0.55}
+            ? <EvolutionMoment species={species} from={shown.prevStage} to={shown.stage} path={raise.look.path} eq={raise.worn} seed={raise.look.seed} size={150} reduced={motionReducedNow()} speed={0.55}
               onPath={(p) => void saveLook({ ...raise.look, path: p })} onDone={() => undefined} />
             : <CharacterArt species={species} stage={shown.stage} size={150} mood="happy" />}
         </div>
@@ -107,7 +107,7 @@ export function LevelUpWatcher() {
           if (!g) return null
           return (
             <div className="levelup__gift">
-              <span className="levelup__gift-ico" dangerouslySetInnerHTML={{ __html: itemIcon(g.id) }} />
+              <span className="levelup__gift-ico"><ItemPic id={g.id} size={40} /></span>
               <span><b>{g.name}{gifts.length > 1 ? ` 외 ${gifts.length - 1}개` : ''}</b> Lv {shown.level} 선물이야</span>
               <button className="gs2-btn pri sm" disabled={worn === g.id} onClick={() => { void saveLook(equipItem(raise.look, g.id)); setWorn(g.id) }}>{worn === g.id ? '입었어요' : g.slot === 'bg' ? '깔아 보기' : '입혀 보기'}</button>
             </div>

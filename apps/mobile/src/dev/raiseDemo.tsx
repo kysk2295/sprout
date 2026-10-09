@@ -4,16 +4,18 @@ import { progressFromEvents, cumulativeXp, normalizeSpecies, type Species } from
 import { DEFAULT_LOOK, ITEMS, ownedItems, parseLook, raiseStateFrom, wornEquip, ITEM_BY_ID, type CharacterItemRow, type Look } from '@sprout/schema/wardrobe'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { File, Paths } from 'expo-file-system'
-import { Linking, ScrollView, Text, View } from 'react-native'
+import { Linking, ScrollView, Text, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ProfileAvatar } from '../avatar/ProfileAvatar'
 import { CharacterArt, CharacterWearProvider } from '../growth/art/CharacterArt'
-import { DexView, PreviewStage, WardGrid, WardTabs } from '../growth/Decorate'
+import { DexScreen, WardScreen } from '../growth/Decorate'
 import { EvolutionMoment } from '../growth/EvolutionMoment'
 import { NewItemToast } from '../growth/NewItemToast'
 import type { Raise } from '../growth/raise'
 import { RaiseStage, type StageHandle } from '../growth/Stage'
 import { usePalette } from '../theme/ThemeProvider'
+import { tabBarSpace } from '../ui/tabBarSpace'
+import { sceneKeyFor } from '@sprout/schema/characterArt'
 import { CompanionFace } from '../ui/CompanionFace'
 
 export const RAISE_DEMO = process.env.EXPO_PUBLIC_SPROUT_RAISE_DEMO === '1'
@@ -41,6 +43,7 @@ function fakeRaise(q: Q): Raise {
 export function RaiseDemo() {
   const p = usePalette()
   const ins = useSafeAreaInsets()
+  const win = useWindowDimensions()
   const [q, setQ] = useState<Q>({})
   useEffect(() => { void Linking.getInitialURL().then((u) => setQ(parse(u))); const sub = Linking.addEventListener('url', (e) => setQ(parse(e.url))); return () => sub.remove() }, [])
   // 캡처 스크립트는 열기 확인 창 없이 바꾸려고 Documents/raise-demo.txt(질의 글)를 쓴다 — 1초마다 읽는다
@@ -64,26 +67,23 @@ export function RaiseDemo() {
   }, [q, raise])
   const wear = { species: raise.species, level: raise.progress.level, wear: { path: raise.look.path, eq: raise.worn } }
   const name = q.name ?? '꿈틀'
+  const sceneKey = sceneKeyFor(raise.worn.bg, p.dark || q.night === '1')
+  const frame = { p, raise, width: win.width, height: win.height, topInset: ins.top, bottomInset: ins.bottom, sceneKey, seg: (v === 'dex' ? 'dex' : 'ward') as 'ward' | 'dex', onSeg: () => {}, onBack: () => {} }
+  const week = Array.from({ length: 7 }, (_, i) => ({ day: `2026-10-${String(5 + i).padStart(2, '0')}`, label: ['월', '화', '수', '목', '금', '토', '일'][i], num: 5 + i, did: i < 3, today: i === 3 }))
   return (
     <CharacterWearProvider value={wear}>
       <View key={JSON.stringify(q)} style={{ flex: 1, backgroundColor: p.cardBg }}>
         {v === 'stage' || v === 'toast' ? (
           <ScrollView>
-            <RaiseStage ref={stage} p={p} raise={raise} name={name} topInset={ins.top} reduced={q.reduced === '1'} live night={q.night === '1'} calm={false} todayDone={1} todayTotal={4} lines={() => '오늘 3개 남았어. 하나만 같이 할까?'} />
-            <View style={{ marginTop: -12, borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: p.cardBg, height: 300 }} />
+            <RaiseStage ref={stage} p={p} raise={raise} name={name} width={win.width} height={win.height} topInset={ins.top} bottomClear={tabBarSpace(ins.bottom).clear} sceneKey={sceneKey}
+              reduced={q.reduced === '1'} live night={q.night === '1'} calm={false} lines={() => '오늘 3개 남았어. 하나만 같이 할까?'} week={week} dexN={raise.progress.stage} freshDot />
           </ScrollView>
         ) : null}
         {v === 'toast' ? <NewItemToast rows={[{ id: 'x', character_id: 'c', item_id: 'backpack', kind: 'item', source: 'level', ref_id: null, title: '' } as CharacterItemRow]} level={9} bottom={110} reduced={false} onWear={() => {}} onClose={() => {}} /> : null}
-        {v === 'ward' ? (
-          <View style={{ flex: 1, paddingTop: ins.top + 10, paddingHorizontal: 14 }}>
-            <PreviewStage p={p} raise={raise} hopKey={0} />
-            <WardTabs p={p} tab={(q.tab as never) ?? 'hat'} onTab={() => {}} fresh={raise.fresh} />
-            <ScrollView><WardGrid p={p} raise={raise} tab={(q.tab as never) ?? 'hat'} cols={4} onEquip={() => {}} onBase={() => {}} onDecor={() => {}} /></ScrollView>
-          </View>
-        ) : null}
-        {v === 'dex' ? <ScrollView contentContainerStyle={{ paddingTop: ins.top + 10, paddingHorizontal: 14, paddingBottom: 40 }}><DexView p={p} raise={raise} onPath={() => {}} /></ScrollView> : null}
+        {v === 'ward' ? <WardScreen {...frame} tab={(q.tab as never) ?? 'hat'} onTab={() => {}} hopKey={0} onEquip={() => {}} onBase={() => {}} onDecor={() => {}} /> : null}
+        {v === 'dex' ? <DexScreen {...frame} onPath={() => {}} /> : null}
         {v === 'evo' || v === 'choice' || v === 'hatch' ? (
-          <EvolutionMoment reduced={q.reduced === '1'} onDone={() => {}} evo={{ species: raise.species!, from: v === 'hatch' ? 0 : Number(q.from ?? 2), to: v === 'hatch' ? 1 : Number(q.from ?? 2) + 1, path: raise.look.path, eq: raise.worn, choose: v === 'choice' }} />
+          <EvolutionMoment reduced={q.reduced === '1'} onDone={() => {}} evo={{ species: raise.species!, from: v === 'hatch' ? 0 : Number(q.from ?? 2), to: v === 'hatch' ? 1 : Number(q.from ?? 2) + 1, path: raise.look.path, eq: raise.worn, seed: raise.look.seed ?? 0, scene: sceneKey, choose: v === 'choice' }} />
         ) : null}
         {v === 'avatar' ? (
           <View style={{ paddingTop: ins.top + 30, alignItems: 'center', gap: 20 }}>

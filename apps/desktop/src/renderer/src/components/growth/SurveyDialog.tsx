@@ -4,8 +4,10 @@ import { createPortal } from 'react-dom'
 import { QUESTIONS, scoreSurvey, SPECIES, speciesFrom, type Pick2, type Species } from '@sprout/schema/growth'
 import { assignCharacter, useGrowth } from '../../data/growth'
 import { CharacterArt } from './CharacterArt'
+import { MakeFlow, type MakeResult } from './MakeFlow'
 
-// 10 §2.2 일하는 스타일 조사: 시작 → 8문항(+동점 문항) → 결과·이름 짓기
+// 10 §2.2 일하는 스타일 조사. 49 §5: 아직 종이 없으면 새 만들기 흐름(MakeFlow — 씨앗 → 성향 카드 → 부화 → 이름 → 첫 할 일),
+// 이미 캐릭터가 있으면 "다시 조사"(시작 → 8문항(+동점 문항) → 결과). 어느 쪽인지는 처음 열 때 한 번 정한다(흐름 도중 종이 생겨도 바꾸지 않는다).
 const MAIN = QUESTIONS.filter((q) => !q.tiebreak)
 const DESC: Record<Species, string[]> = {
   snail: ['정한 일을 끝까지 해내는 힘이 있어요.', '큰 일도 차근차근 나누면 반드시 끝내요.', '꿈틀이 큰 목표를 작은 단계로 나눠 드릴게요.'],
@@ -14,7 +16,16 @@ const DESC: Record<Species, string[]> = {
   frog: ['아이디어가 많고 손이 빨라요.', '작은 완료를 자주 쌓을 때 신나요.', '꿈틀이 작은 성공을 자주 모을 수 있게 도울게요.']
 }
 
-export function SurveyDialog({ onClose }: { onClose: () => void }) {
+export function SurveyDialog({ onClose }: { onClose: (r?: MakeResult) => void }) {
+  const { character, loaded } = useGrowth()
+  const [mode, setMode] = useState<'make' | 'again' | null>(null)
+  useEffect(() => { if (mode === null && loaded) setMode(character?.species ? 'again' : 'make') }, [mode, loaded, character?.species])
+  if (mode === 'make') return <MakeFlow onClose={onClose} />
+  if (mode === 'again') return <ReSurvey onClose={() => onClose()} />
+  return null
+}
+
+function ReSurvey({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState<'intro' | 'quiz' | 'result'>('intro')
   const [answers, setAnswers] = useState<Record<string, Pick2>>({})
   const [i, setI] = useState(0)
