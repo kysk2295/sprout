@@ -2,6 +2,13 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-09 AI 비서 B안 "자유 대화 + 도구" (47 초안 · 사용자 확인 대기, 코드 없음)
+- 사용자 "B안": 캐릭터와 ChatGPT처럼 자유롭게 이야기 + 내 데이터가 필요하면 앱 도구(할 일·꿈틀 일정·메모·마지막으로 한 날·날짜 계산·프로젝트·성장·동의한 일기)로 찾아 답함. 모델은 Mac mini qwen3.5:9b 그대로, 밖으로 나가는 것 없음.
+- 실측 [research 39](docs/ticktick-research/39-assistant-tools-eval.md)(합성 데이터 22문항 × 88턴): 지시 v3(날짜표·label·재촉 1번)로 사람 채점 17/22, 데이터 질문 8/8, **쓰기 도구는 0/15**(모델이 말로만 묻는다) → 쓰기·확인·상대 날짜·일기 꺼짐은 앱 길잡이가 먼저 푼다. 지연: 호출 1번 중앙 ~11초, 도구 턴 중앙 ~30초(p90 37초).
+- 명세 [47](docs/screens/47-assistant-free-chat.md): 도구 10개 JSON 스키마, 루프(호출 최대 4·시간), 도구 칩·결과 카드·확인 카드(넣기·고치기·취소 → 되돌리기), 근거 검사, 상한 = 턴 단위 하루 40 [임시], num_ctx 6144, 일기 대화와 따로. 결정 필요 4개(§15). 개인정보 문구 필수 변경 없음(외부 캘린더는 도구에서 뺌), 권장 2곳(§13).
+- 시안 [assistant-free-chat.html](docs/screens/mockups/assistant-free-chat.html): 데스크톱 + 휴대폰 반 시트, 장면 ⓐ~ⓖ, 라이트·다크, `?demo=a&at=end`.
+- 서버(2단계): `/ai/assistant` `mode:'agent'` — tools·`role:tool` 통과(지금 validateInput이 버림), 턴 id 셈. 다른 세션의 since-last 의도는 도구 `when_last`로 감싼다.
+
 ## ★ 2026-10-09 만료 2주 지난 할 일 자동 정리 (48, 사용자 요청 "만료됨 2주 지난 거는 자동으로 휴지통으로" — 기본 켬)
 - **규칙(공용 `packages/schema/src/autoTrash.ts`, 시험):** 열린 할 일 중 `마감 날짜 < 오늘 − 14일`(사용자 시간대, 날짜만) → 휴지통(`deleted_at`). 빼는 것: 반복·고정·보관 리스트·진행 중 프로젝트(⚑ 마감 또는 가장 늦은 구성원 마감 ≥ 오늘)·마감 없음·완료/하지 않음·**자동으로 옮겼다가 되살린 일(같은 마감인 동안)**. 하위: 열린 하위와 함께, 열린 하위 중 지켜야 할 것(반복·고정·프로젝트·2주 안 된 마감)이 있으면 부모 건너뜀, 완료한 하위는 그대로. XP·완료 행 안 건드림. 외부 캘린더 일정(events)은 대상 아님.
 - **어디서:** 서버 API 프로세스 `server/api/src/autoTrash.ts`(10분마다, 사용자마다 그 시간대 날짜가 바뀐 뒤 한 번, advisory lock, 한 사용자 = 한 트랜잭션). Postgres에 바로 써서 PowerSync가 모든 기기로. 시간대 = 설정 행 `tz` → 최근 휴대폰 `device_tokens.timezone` → `Asia/Seoul`. `AUTO_TRASH=0`이면 끔.
