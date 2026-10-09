@@ -1,6 +1,11 @@
-// 28 §8 오늘 일기 = 캐릭터와 대화로 쓰기. 정해진 말(talk.ts, AI 없음) → 초안 카드(내 말 그대로) → 저장 → 정해진 한 줄 → (동의) AI 첫 답 → 이어서 이야기.
-// 아래 덩어리(빠른 답·입력창)는 키보드 바로 위(keyboard.ts, transform만). 캐릭터는 마지막 말의 얼굴 하나만 움직인다. 39 §11: 쿼리는 data/rows, 행 수가 적어 ScrollView.
-import { Check, Pencil, Plus, RotateCcw } from 'lucide-react-native'
+// 28 §8.10 오늘 일기 = 캐릭터와 이야기하고, 그 이야기를 일기로 옮긴다(사용자 스킬 conversational-journal-to-wiki를 따름).
+// 시작은 쉽게: 정해진 인사(시간대 + 그날 할 일) → 기분 빠른 답. 그다음은
+//   · AI와 이야기(동의 + 나만 보기 아님): 친구에게 메신저 하듯 자유롭게. 캐릭터는 들은 말을 짚어 알아주고, 묻지 않으면 조언하지 않는다(서버·schema 지시).
+//     머뭇거리면(20초) 정해진 질문 하나를 살짝. `일기로 정리해 줘` → 1인칭 일기 + 제목 + 감정/사건/영역 태그 초안(캐릭터 말은 빠짐).
+//   · 혼자 쓰기·나만 보기·동의 전 거절: 정해진 질문 3개 → 내 말 그대로 초안(AI 0).
+// 저장 = 그날 글 끝에 `## 21:40 — 제목` 편으로 이어 붙임(앞 편 그대로). 저장 한 줄("잘 남겼어.")이 편의 끝 — 뒤에서 더 이야기하면 새 편.
+// 아래 덩어리(빠른 답·입력창)는 키보드 바로 위(keyboard.ts, transform만). 캐릭터는 마지막 말의 얼굴 하나만 움직인다. 39 §11: 쿼리는 data/rows.
+import { Check, Plus, RotateCcw, X } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler'
@@ -8,21 +13,22 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ART_SPECIES } from '@sprout/schema/characterArt'
 import { normalizeSpecies, STAGES } from '@sprout/schema/growth'
+import { normalizeTag, parseSections, transcriptOf, wantsTranscript, type Section } from '@sprout/schema/diaryPrompts'
 import { alpha } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { hx } from '../ui/haptics'
 import { useToast } from '../ui/Toast'
 import { MoodFace } from './art'
-import { AiUnavailable, polishQuota, type PolishQuota } from './ai'
+import { AiUnavailable, distillQuota, type Quota } from './ai'
 import { BuddyRow, ChipRow, Composer, MeRow, MoodRow, TypingDots, moodFaceArt, type Chip } from './chatParts'
-import { addScripted, buddyReply, polishDraft, saveEntry, sendMessage, taskFromChip, touchEntry, useDayStats, useExistingTitles, useMessages } from './data'
+import { addScripted, chatTurn, distillSession, replaceSection, saveSection, taskFromChip, useDayStats, useExistingTitles, useMessages } from './data'
 import { useKeyboardHeight, useKeyboardLift } from './keyboard'
-import { dayTitle, isWritten, josa, mayCallAi, moodOf, parseBuddyReply, type Buddy, type DiaryEntry } from './logic'
+import { dayTitle, josa, mayCallAi, moodOf, parseBuddyReply, type Buddy, type DiaryEntry } from './logic'
 import { BuddyArt } from './parts'
 import { setConsent, setMet, useDiaryPrefs } from './prefs'
 import {
-  BYE_BUDDY, BYE_ME, composeDraft, DRAFT_LINE, DRAFT_LINE_EMPTY, greetingOf, introLine, isSkip, nextLines, questionOf, replay, SCRIPTED, SKIP, SOLO_LINE,
-  TIME_LABEL, timeOfDay, warmLineOf
+  asksDistill, BYE_BUDDY, BYE_ME, clock, composeDraft, greetingOf, introLine, isSkip, isWarm, MORE_LINE, nextLines, nudgeOf, OPEN_LINE, ownWords,
+  questionOf, replay, SCRIPTED, sessionOf, SKIP, SOLO_LINE, TIME_LABEL, timeOfDay, warmLineOf
 } from './talk'
 
 type Props = {
@@ -32,19 +38,19 @@ type Props = {
   buddy: Buddy & { stage: number; level: number }
   reduced: boolean
   swipe: GestureType
-  /** 그냥 쓸래요: 지금까지 답으로 만든 글·기분을 넘긴다 */
+  /** 그냥 쓸래요: 지금까지 한 말로 만든 글·기분을 넘긴다 */
   onFree: (prefill: { text: string; mood: number | null }) => void
-  /** 다듬어 줘를 동의 전에 처음 누름 → 아래 시트(나누고 다듬기면 then) */
-  askPolishConsent: (then: () => void) => void
 }
 
-const DRAFT_LINES = new Set([DRAFT_LINE, DRAFT_LINE_EMPTY])
-/** 저장 전 초안을 고친 글·다듬기 전 글(앱 실행 동안만 — 다시 열면 대화에서 다시 만든다, §8.6) */
-const drafts = new Map<string, { text: string; orig?: string }>()
+type Draft = Section & { source: 'ai' | 'own' | 'transcript' }
+/** 저장 전 초안(앱 실행 동안만 — 다시 열면 대화에서 다시 만든다, §8.6) */
+const drafts = new Map<string, Draft>()
 export const forgetDraft = (date: string) => drafts.delete(date)
-type Ai = { kind: 'idle' } | { kind: 'wait' } | { kind: 'reading'; text: string; queue?: number } | { kind: 'error'; message: string }
+type Ai = { kind: 'idle' } | { kind: 'reading'; text: string; queue?: number } | { kind: 'error'; message: string }
+const STALL_MS = 20_000
+const CHAT_LIMIT_LINE = '오늘은 이야기를 많이 나눴네. 지금까지 이야기로 일기를 정리해 둘까?'
 
-export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree, askPolishConsent }: Props) {
+export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree }: Props) {
   const p = usePalette()
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -55,55 +61,55 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
   const name = buddy.name
   const sp = normalizeSpecies(buddy.species)
 
-  // ── 대화 상태(저장된 행에서 다시 만든다) ──
-  const scripted = useMemo(() => messages.filter((m) => m.safety === SCRIPTED), [messages])
-  const mine = useMemo(() => scripted.filter((m) => m.role === 'me' && m.content !== BYE_ME).map((m) => m.content), [scripted])
-  const r = useMemo(() => replay(mine), [mine])
-  const saved = !!entry && isWritten(entry)
+  // ── 지금 편(마지막 저장 한 줄 뒤) ──
+  const all = useMemo(() => messages.filter((m) => m.safety !== 1), [messages])
+  const session = useMemo(() => sessionOf(all), [all])
+  const S = session.rows
+  const sections = useMemo(() => parseSections(entry?.content), [entry?.content])
   const solo = prefs.isSolo(date)
-  const allowed = mayCallAi({ consent: prefs.consent, private: entry?.private, solo })
-  const aiMsgs = useMemo(() => messages.filter((m) => !m.safety), [messages])
-  const lastAiAt = aiMsgs.at(-1)?.created_at ?? ''
-  const bye = scripted.some((m) => m.role === 'buddy' && m.content === BYE_BUDDY && m.created_at > lastAiAt)
+  const aiFlow = mayCallAi({ consent: prefs.consent, private: entry?.private, solo })
+  const scriptedMine = S.filter((m) => m.safety === SCRIPTED && m.role === 'me' && m.content !== BYE_ME).map((m) => m.content)
+  const r = useMemo(() => replay(scriptedMine), [scriptedMine.join('\u0001')]) // eslint-disable-line react-hooks/exhaustive-deps
+  const myTalk = S.filter((m) => m.role === 'me' && !m.safety)
+  const started = scriptedMine.length > 0 || S.some((m) => m.role === 'buddy' && m.content === MORE_LINE) || myTalk.length > 0
+  const bye = S.some((m) => m.role === 'buddy' && m.content === BYE_BUDDY)
+  const asked = S.filter((m) => m.role === 'buddy' && m.safety === SCRIPTED).map((m) => m.content)
+  const consentPending = prefs.consent === null && !entry?.private && !solo
+  const scriptedFlow = !aiFlow && !consentPending
+  const sessionMood = r.answers.mood ?? null
 
+  const [again, setAgain] = useState(false) // 혼자 쓰기: 하나 더 남기기(기분부터)
   const [hidden, setHidden] = useState<Set<string>>(() => new Set())
   const typing = hidden.size > 0
   const [ai, setAi] = useState<Ai>({ kind: 'idle' })
-  const [talk, setTalk] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [draftText, setDraftText] = useState<string | null>(() => drafts.get(date)?.text ?? null)
-  const [orig, setOrig] = useState<string | undefined>(() => drafts.get(date)?.orig)
-  const [polishing, setPolishing] = useState(false)
-  const [quota, setQuota] = useState<PolishQuota>(null)
+  const [draft, setDraftState] = useState<Draft | null>(() => drafts.get(date) ?? null)
+  const [distilling, setDistilling] = useState(false)
+  const [quota, setQuota] = useState<Quota>(null)
+  const [chatCapped, setChatCapped] = useState(false)
+  const [editAt, setEditAt] = useState<number | null>(null) // 저장한 편 고치기
   const abort = useRef<AbortController | null>(null)
   useEffect(() => () => abort.current?.abort(), [])
+  const setDraft = (d: Draft | null) => { setDraftState(d); if (d) drafts.set(date, d); else drafts.delete(date) }
 
-  // 초안 = 내 답 그대로(고치기 전). 고친 글이 있으면 그것
-  const composed = useMemo(() => composeDraft(r.answers, { past }), [r.answers, past])
-  const draft = draftText ?? (saved ? entry?.content ?? '' : composed)
-  const keepDraft = (text: string, o?: string) => { setDraftText(text); setOrig(o); drafts.set(date, { text, orig: o }) }
-
-  // 다듬기 한도(서버 /ai/status — 배포 전 서버면 null → 다듬기 버튼 없음)
-  const polishable = prefs.consent !== false && !entry?.private && !solo
+  // 혼자 쓰기: 질문 3개를 다 답하면 내 말 그대로 초안(자동)
   useEffect(() => {
-    if (!polishable || (saved && !editing) || (r.step !== 'draft' && !editing)) return
+    if (scriptedFlow && r.step === 'draft' && !draft) setDraft({ time: null, title: '', tags: [], body: composeDraft(r.answers, { past }), source: 'own' })
+  }, [scriptedFlow, r.step]) // eslint-disable-line react-hooks/exhaustive-deps
+  // 옮기기 남은 횟수(배포 전 서버면 모름)
+  useEffect(() => {
+    if (!aiFlow) return
     const ctrl = new AbortController()
-    void polishQuota(ctrl.signal).then(setQuota)
+    void distillQuota(ctrl.signal).then(setQuota)
     return () => ctrl.abort()
-  }, [polishable, saved, editing, r.step])
+  }, [aiFlow])
 
   // ── 단계 ──
-  type Phase = 'mood' | 'q1' | 'q2' | 'q3' | 'draft' | 'private' | 'consent' | 'solo' | 'reading' | 'error' | 'ask' | 'after' | 'more' | 'end'
-  const phase: Phase = !saved ? r.step
-    : entry!.private ? 'private'
-    : prefs.consent === null ? 'consent'
-    : !allowed ? 'solo'
-    : ai.kind === 'reading' || ai.kind === 'wait' ? 'reading'
-    : ai.kind === 'error' ? 'error'
-    : !aiMsgs.length ? 'ask'
-    : bye ? 'end'
-    : talk || aiMsgs.some((m) => m.role === 'me') ? 'more'
-    : 'after'
+  type Phase = 'mood' | 'consent' | 'talk' | 'q1' | 'q2' | 'q3' | 'draft' | 'after' | 'end'
+  const phase: Phase = draft ? 'draft'
+    : !started ? (bye ? 'end' : (session.boundaries || sections.length) && !again ? 'after' : 'mood')
+    : consentPending ? 'consent'
+    : aiFlow ? 'talk'
+    : r.step === 'draft' ? 'draft' : r.step === 'mood' ? 'q1' : r.step
 
   // ── 동작 ──
   const reveal = useCallback((ids: string[]) => {
@@ -112,18 +118,27 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
     setTimeout(() => setHidden(new Set()), reduced ? 150 : 650)
   }, [reduced])
   const busy = useRef(false)
-  const answer = async (a: { mood?: number; text?: string }) => {
-    if (busy.current || typing || r.step === 'draft' || saved) return
-    busy.current = true
-    setTimeout(() => { busy.current = false }, 300)
+  const guard = () => { if (busy.current || typing) return false; busy.current = true; setTimeout(() => { busy.current = false }, 300); return true }
+  const firstSession = !session.boundaries && !sections.length
+  /** 기분(또는 글로 한 첫 답) */
+  const answerMood = async (a: { mood?: number; text?: string }) => {
+    if (!guard()) return
     hx.tick()
-    const lines = nextLines({ mine, answer: a, date, today, hour: new Date().getHours(), stats, name, intro: !prefs.met })
+    setAgain(false)
+    const follow = aiFlow ? 'open' : consentPending ? 'none' : 'q1'
+    const lines = nextLines({ mine: [], answer: a, date, today, hour: new Date().getHours(), stats, name, intro: !prefs.met && firstSession, follow, greet: firstSession })
     if (!lines.length) return
-    // 첫 답이면 인사·소개도 이때 같이 남긴다(열기만 한 날은 빈 행을 만들지 않게)
     const firstMe = lines.findIndex((l) => l.role === 'me')
-    const ids = await addScripted(date, lines)
-    reveal(ids.slice(firstMe + 1))
+    reveal((await addScripted(date, lines)).slice(firstMe + 1))
     if (!prefs.met) setMet()
+  }
+  /** 혼자 쓰기의 질문 답 */
+  const answerScripted = async (text: string) => {
+    if (!guard()) return
+    hx.tick()
+    const lines = nextLines({ mine: scriptedMine, answer: { text }, date, today, hour: new Date().getHours(), stats, name, intro: false })
+    if (!lines.length) return
+    reveal((await addScripted(date, lines)).slice(1))
   }
   const opts = (signal: AbortSignal) => ({
     buddy, signal,
@@ -136,56 +151,90 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
     abort.current = ctrl
     setAi({ kind: 'reading', text: '' })
     try { await fn(ctrl.signal); if (!ctrl.signal.aborted) setAi({ kind: 'idle' }) }
-    catch (e) { if (!ctrl.signal.aborted) setAi({ kind: 'error', message: e instanceof Error ? e.message : String(e) }) }
+    catch (e) {
+      if (ctrl.signal.aborted) return
+      if (e instanceof AiUnavailable && e.code === 'daily') { setAi({ kind: 'idle' }); setChatCapped(true); reveal(await addScripted(date, [{ role: 'buddy', content: CHAT_LIMIT_LINE }])); return }
+      setAi({ kind: 'error', message: e instanceof Error ? e.message : String(e) })
+    }
   }
-  const firstReply = () => void runAi((signal) => buddyReply(date, opts(signal)))
-  const save = async () => {
-    const wasSaved = saved
-    const text = draft.trim()
-    const mood = r.answers.mood ?? entry?.mood ?? null
-    if (!text && !mood) return
+  /** AI와 이야기: 보내기 = 내 말 + 캐릭터 한 턴. "일기로 정리해 줘"·"대화 그대로 저장"은 바로 초안 */
+  const say = (t: string) => {
+    if (ai.kind === 'reading') return
     hx.tap()
-    await saveEntry(date, wasSaved ? { content: text } : { content: text, mood })
-    touchEntry(date)
-    setEditing(false)
-    setDraftText(null); setOrig(undefined); drafts.delete(date)
-    if (wasSaved) { toast.show('고쳐서 저장했어요'); return }
-    const ids = await addScripted(date, [{ role: 'buddy', content: warmLineOf({ mood, past, done: stats.done }) }])
-    reveal(ids)
-    // 동의했고 나만 보기·혼자 쓰기가 아니면 바로 첫 답(§8.3 8). 동의 전이면 대화 안 카드(아래)
-    if (mayCallAi({ consent: prefs.consent, private: entry?.private, solo })) { setAi({ kind: 'wait' }); setTimeout(firstReply, reduced ? 200 : 750) }
+    if (wantsTranscript(t)) { makeTranscript(); return }
+    if (asksDistill(t) && myTalk.length) { void distill(); return }
+    if (chatCapped) { void addScripted(date, [{ role: 'me', content: t }]); return }
+    void runAi((signal) => chatTurn(date, t, opts(signal)))
   }
-  const doPolish = async () => {
-    const text = draft.trim()
-    if (!text || polishing) return
+  const retry = () => void runAi((signal) => chatTurn(date, null, opts(signal)))
+  const nudge = async () => {
+    const q = nudgeOf(asked, { mood: sessionMood, past, stats })
+    if (!q) return
+    reveal(await addScripted(date, [{ role: 'buddy', content: q.q }]))
+  }
+  // 머뭇거리면(마지막이 캐릭터 말이고 20초 동안 아무것도 안 씀) 질문 하나 — 편마다 3번까지
+  const [typed, setTyped] = useState(0)
+  const lastRow = S.at(-1)
+  useEffect(() => {
+    if (phase !== 'talk' || ai.kind !== 'idle' || typing || distilling || !lastRow || lastRow.role !== 'buddy') return
+    const t = setTimeout(() => { void nudge() }, STALL_MS)
+    return () => clearTimeout(t)
+  }, [phase, ai.kind, typing, distilling, lastRow?.id, typed]) // eslint-disable-line react-hooks/exhaustive-deps
+  const sessionLines = () => S.filter((m) => m.content !== BYE_ME).map((m) => ({ who: (m.role === 'me' ? 'me' : 'buddy') as 'me' | 'buddy', text: parseBuddyReply(m.content).text }))
+  const ownDraft = (): Draft => ({ time: null, title: '', tags: [], body: ownWords(S.filter((m) => m.role === 'me').map((m) => m.content)), source: 'own' })
+  /** 일기로 옮기기(서버 distill). 실패·한도면 내 말 그대로 */
+  const distill = async (redo?: boolean) => {
+    if (distilling) return
+    const left = quota ? quota.limit - quota.used : 1
+    if (left <= 0) { setDraft(ownDraft()); toast.show('오늘 정리는 다 썼어요. 내 말 그대로 묶었어요'); return }
+    hx.tap()
     const ctrl = new AbortController()
     abort.current?.abort()
     abort.current = ctrl
-    setPolishing(true)
+    setDistilling(true)
+    if (!redo) setDraft(null)
     try {
-      const out = await polishDraft(text, ctrl.signal)
+      const d = await distillSession(date, sessionLines(), sessionMood ?? entry?.mood ?? null, ctrl.signal)
       if (ctrl.signal.aborted) return
-      keepDraft(out, orig ?? text)
+      setDraft({ time: null, title: d.title, tags: d.tags, body: d.entry, source: 'ai' })
       setQuota((q) => (q ? { ...q, used: q.used + 1 } : q))
     } catch (e) {
       if (ctrl.signal.aborted) return
-      if (e instanceof AiUnavailable && e.code === 'daily') setQuota((q) => (q ? { ...q, used: q.limit } : { used: 3, limit: 3 }))
-      else toast.show(e instanceof Error ? e.message : '다듬지 못했어요', { error: true })
-    } finally { if (abort.current === ctrl) setPolishing(false) }
+      const capped = e instanceof AiUnavailable && e.code === 'daily'
+      if (capped) setQuota((q) => (q ? { ...q, used: q.limit } : { used: 5, limit: 5 }))
+      if (!redo) setDraft(ownDraft())
+      toast.show(capped ? '오늘 정리는 다 썼어요. 내 말 그대로 묶었어요' : '지금은 정리하지 못했어요. 내 말 그대로 묶었어요', { error: true })
+    } finally { if (abort.current === ctrl) setDistilling(false) }
   }
-  const polish = () => {
-    if (prefs.consent === true) void doPolish()
-    else askPolishConsent(() => { void doPolish() })
+  const makeTranscript = () => setDraft({ time: null, title: draft?.title ?? '', tags: draft?.tags ?? [], body: transcriptOf(sessionLines(), name), source: 'transcript' })
+  const save = async () => {
+    if (!draft) return
+    const body = draft.body.trim()
+    const mood = sessionMood ?? entry?.mood ?? null
+    if (!body && !mood) return
+    hx.tap()
+    await saveSection(date, { time: clock(), title: draft.title.trim(), tags: draft.tags, body: body || '(기분만 남겼어요)' }, mood)
+    setDraft(null)
+    reveal(await addScripted(date, [{ role: 'buddy', content: warmLineOf({ mood, past, done: stats.done }) }]))
   }
-  const unpolish = () => { if (orig !== undefined) keepDraft(orig, undefined) }
-  const consentYes = () => { hx.tap(); setConsent(true); if (!entry?.private && !solo) setTimeout(firstReply, 50) }
-  const consentNo = async () => { hx.tap(); setConsent(false); reveal(await addScripted(date, [{ role: 'buddy', content: SOLO_LINE }])) }
-  const sayBye = async () => { hx.tap(); setTalk(false); const ids = await addScripted(date, [{ role: 'me', content: BYE_ME }, { role: 'buddy', content: BYE_BUDDY }]); reveal(ids.slice(1)) }
-  const sendTalk = (t: string) => { if (ai.kind === 'reading') return; hx.tap(); void runAi((signal) => sendMessage(date, t, opts(signal))) }
+  const consentYes = async () => { hx.tap(); setConsent(true); reveal(await addScripted(date, [{ role: 'buddy', content: OPEN_LINE }])) }
+  const consentNo = async () => {
+    hx.tap()
+    setConsent(false)
+    reveal(await addScripted(date, [{ role: 'buddy', content: SOLO_LINE }, { role: 'buddy', content: questionOf('q1', { mood: sessionMood, past, stats }).q }]))
+  }
+  const sayBye = async () => { hx.tap(); const ids = await addScripted(date, [{ role: 'me', content: BYE_ME }, { role: 'buddy', content: BYE_BUDDY }]); reveal(ids.slice(1)) }
+  const composerRef = useRef<TextInput>(null)
+  const more = async () => {
+    hx.tap()
+    if (aiFlow) reveal(await addScripted(date, [{ role: 'buddy', content: MORE_LINE }]))
+    else setAgain(true)
+    setTimeout(() => composerRef.current?.focus(), 120)
+  }
   const addTask = async (title: string) => {
     try { await taskFromChip(title); toast.show('할 일에 넣었어요') } catch (e) { toast.show(e instanceof Error ? e.message : '할 일을 만들지 못했어요', { error: true }) }
   }
-  const goFree = () => onFree({ text: saved ? entry?.content ?? '' : draft, mood: r.answers.mood ?? entry?.mood ?? null })
+  const goFree = () => onFree({ text: draft?.body ?? (scriptedFlow ? composeDraft(r.answers, { past }) : ownWords(S.filter((m) => m.role === 'me').map((m) => m.content))), mood: sessionMood ?? entry?.mood ?? null })
 
   // ── 그리기 ──
   const scroll = useRef<ScrollView>(null)
@@ -195,59 +244,45 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
   const onDock = (e: LayoutChangeEvent) => setDockH(Math.round(e.nativeEvent.layout.height))
   const toEnd = useCallback(() => scroll.current?.scrollToEnd({ animated: !reduced }), [reduced])
   useEffect(() => { if (kbH) setTimeout(toEnd, 60) }, [kbH, toEnd])
-  const composerRef = useRef<TextInput>(null)
-  // 열 때 이미 있던 말은 그대로, 이번에 새로 생긴 말만 들어오는 움직임(39 §11 규칙 8)
   const openedAt = useRef(new Date().toISOString()).current
   const enter = (createdAt: string) => (createdAt < openedAt ? undefined : reduced ? FadeIn.duration(150) : FadeInDown.duration(220))
-  const chips = useMemo(() => aiMsgs.filter((m) => m.role === 'buddy').map((m) => parseBuddyReply(m.content).task).filter((t): t is string => !!t), [aiMsgs])
-  const made = useExistingTitles(chips)
+  const taskChips = useMemo(() => all.filter((m) => m.role === 'buddy' && !m.safety).map((m) => parseBuddyReply(m.content).task).filter((t): t is string => !!t), [all])
+  const made = useExistingTitles(taskChips)
 
-  const visible = messages.filter((m) => !hidden.has(m.id) && m.safety !== 1)
+  const visible = all.filter((m) => !hidden.has(m.id))
   const lastBuddyId = [...visible].reverse().find((m) => m.role === 'buddy')?.id
-  const face = moodFaceArt(r.answers.mood ?? entry?.mood)
-  const virtualStart = !scripted.length && !saved
-  const showHero = virtualStart && !typing
+  const face = moodFaceArt(sessionMood ?? entry?.mood)
+  const virtualStart = !all.length && !sections.length
   const greet = virtualStart ? greetingOf({ date, today, hour: new Date().getHours(), stats }) : null
-  const draftAt = visible.findIndex((m) => m.safety === SCRIPTED && m.role === 'buddy' && DRAFT_LINES.has(m.content))
-  const cardAtTop = saved && draftAt < 0
-  const moodLabel = moodOf(r.answers.mood ?? entry?.mood)?.label
 
-  const card = (r.step === 'draft' || saved) ? (
-    <DraftCard
-      key="draft"
-      saved={saved && !editing}
-      editing={editing}
-      text={draft}
-      mood={r.answers.mood ?? entry?.mood ?? null}
-      date={date}
-      past={past}
-      name={name}
-      polished={orig !== undefined}
-      polishing={polishing}
-      quota={polishable ? quota : null}
-      onEdit={() => { setEditing(true); if (draftText === null) keepDraft(draft, orig) }}
-      onChange={(t) => keepDraft(t, orig)}
-      onPolish={polish}
-      onUnpolish={unpolish}
-      onSave={() => void save()}
-      onCancelEdit={saved ? () => { setEditing(false); setDraftText(null); setOrig(undefined); drafts.delete(date) } : undefined}
-    />
-  ) : null
-
+  // 저장한 편 카드: k번째 저장 한 줄 앞에 k번째 편(대화 없이 쓴 편이 더 많으면 맨 위에)
+  const warmCount = visible.filter((m) => m.safety === SCRIPTED && m.role === 'buddy' && isWarm(m.content)).length
+  const extra = Math.max(0, sections.length - warmCount)
+  const savedCard = (k: number) => {
+    const sec = sections[k]
+    if (!sec) return null
+    return (
+      <SavedCard key={`sec-${k}`} section={sec} date={date} past={past} mood={entry?.mood ?? null} editing={editAt === k}
+        onEdit={() => setEditAt(k)} onCancel={() => setEditAt(null)}
+        onSave={(s) => { void replaceSection(date, k, s).then(() => { setEditAt(null); toast.show('고쳐서 저장했어요') }) }} />
+    )
+  }
   const rows: React.ReactNode[] = []
-  if (cardAtTop) rows.push(card)
+  for (let k = 0; k < extra; k++) rows.push(savedCard(k))
+  let warmK = 0
   visible.forEach((m, i) => {
     const prev = visible[i - 1]
     const isAi = !m.safety
+    const warm = m.safety === SCRIPTED && m.role === 'buddy' && isWarm(m.content)
+    if (warm) { rows.push(savedCard(extra + warmK)); warmK++ }
     if (m.role === 'me') {
-      const first = m.safety === SCRIPTED && m.id === scripted.find((x) => x.role === 'me')?.id
-      const mood = first ? replay([m.content]).answers.mood : null
+      const mood = m.safety === SCRIPTED ? replay([m.content]).answers.mood : null
       rows.push(<Animated.View key={m.id} entering={enter(m.created_at)}><MeRow text={m.content} mood={mood} skip={m.safety === SCRIPTED && isSkip(m.content)} /></Animated.View>)
     } else {
       const parsed = isAi ? parseBuddyReply(m.content) : { text: m.content, task: undefined }
       rows.push(
         <Animated.View key={m.id} entering={isAi ? undefined : enter(m.created_at)}>
-          <BuddyRow buddy={buddy} avatar={!prev || prev.role !== 'buddy' || i - 1 === draftAt} live={m.id === lastBuddyId && !typing && ai.kind !== 'reading'} still={reduced} face={m.id === lastBuddyId ? face : 'smile'} ai={isAi}>
+          <BuddyRow buddy={buddy} avatar={!prev || prev.role !== 'buddy' || warm} live={m.id === lastBuddyId && !typing && ai.kind !== 'reading'} still={reduced} face={m.id === lastBuddyId ? face : 'smile'} ai={isAi}>
             <Text style={[st.msg, { color: p.textPrimary }]}>{parsed.text}</Text>
             {parsed.task ? (
               <Pressable accessibilityRole="button" disabled={made.has(parsed.task)} onPress={() => void addTask(parsed.task!)} hitSlop={6} style={[st.taskChip, { borderColor: p.accent }]}>
@@ -259,26 +294,30 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
         </Animated.View>
       )
     }
-    if (i === draftAt) rows.push(card)
   })
 
   // 아래 덩어리
-  const qChips: Chip[] = (phase === 'q1' || phase === 'q2' || phase === 'q3')
-    ? [...questionOf(phase, { mood: r.answers.mood, past, stats }).chips.map((c) => ({ key: c, label: c, onPress: () => void answer({ text: c }) })), { key: SKIP, label: SKIP, tone: 'mute' as const, onPress: () => void answer({ text: SKIP }) }]
-    : phase === 'ask' ? [{ key: 'ask', label: `${josa(name, '가', '이')} 읽고 답해 주기`, tone: 'acc' as const, onPress: () => { hx.tap(); firstReply() } }]
-    : phase === 'after' ? [
-      { key: 'more', label: '이어서 이야기할래', tone: 'acc' as const, onPress: () => { hx.tap(); setTalk(true); setTimeout(() => composerRef.current?.focus(), 80) } },
-      { key: 'bye', label: BYE_ME, tone: 'mute' as const, onPress: () => void sayBye() }
+  const qo = { mood: sessionMood, past, stats }
+  const nudgeNow = phase === 'talk' && lastRow?.role === 'buddy' && lastRow.safety === SCRIPTED ? (['q1', 'q2', 'q3'] as const).map((s) => questionOf(s, qo)).find((q) => q.q === lastRow.content) : undefined
+  const leftDistill = quota ? Math.max(0, quota.limit - quota.used) : null
+  const chips: Chip[] = phase === 'mood'
+    ? [{ key: 'free', label: '그냥 쓸래요', tone: 'mute', onPress: goFree }]
+    : phase === 'talk' ? [
+      ...(nudgeNow ? nudgeNow.chips.map((c) => ({ key: c, label: c, onPress: () => say(c) })) : []),
+      ...(myTalk.length ? [{ key: 'distill', label: distilling ? '정리하는 중…' : '일기로 정리해 줘', tone: 'acc' as const, onPress: () => void distill() }] : []),
+      ...(!nudgeNow && nudgeOf(asked, qo) ? [{ key: 'nudge', label: '뭘 말할지 모르겠어', tone: 'mute' as const, onPress: () => void nudge() }] : []),
+      ...(myTalk.length ? [] : [{ key: 'free', label: '그냥 쓸래요', tone: 'mute' as const, onPress: goFree }])
     ]
-    : phase === 'more' ? [{ key: 'bye', label: BYE_ME, tone: 'mute' as const, onPress: () => void sayBye() }]
-    : phase === 'mood' ? [{ key: 'free', label: '그냥 쓸래요', tone: 'mute' as const, icon: <Pencil size={14} color={p.textSecondary} />, onPress: goFree }]
+    : (phase === 'q1' || phase === 'q2' || phase === 'q3') ? [...questionOf(phase, qo).chips.map((c) => ({ key: c, label: c, onPress: () => void answerScripted(c) })), { key: SKIP, label: SKIP, tone: 'mute' as const, onPress: () => void answerScripted(SKIP) }]
+    : phase === 'after' ? [{ key: 'more', label: aiFlow ? '더 이야기하기' : '하나 더 남기기', tone: 'acc' as const, onPress: () => void more() }, { key: 'bye', label: BYE_ME, tone: 'mute' as const, onPress: () => void sayBye() }]
     : []
   const line = phase === 'draft' ? '카드를 눌러 고치고, 다 되면 저장'
-    : phase === 'private' ? `🔒 나만 보기 — ${josa(name, '는', '은')} 정해진 말만 하고, 일기는 어디로도 보내지 않아요`
-    : phase === 'solo' ? (solo ? '오늘은 혼자 쓰는 날이에요 · ⋯에서 다시 켤 수 있어요' : `혼자 쓰는 중이에요 · ⋯에서 ${josa(name, '와', '과')} 나누기를 켤 수 있어요`)
     : phase === 'end' ? (past ? '그날 일기를 저장했어요' : '오늘 일기를 저장했어요')
+    : (phase === 'after' || phase === 'q1' || phase === 'q2' || phase === 'q3') && entry?.private ? `🔒 나만 보기 — ${josa(name, '는', '은')} 정해진 말만 하고, 일기는 어디로도 보내지 않아요`
+    : (phase === 'q1' || phase === 'q2' || phase === 'q3') && prefs.consent === false ? `혼자 쓰는 중이에요 · ⋯에서 ${josa(name, '와', '과')} 나누기를 켤 수 있어요`
     : null
-  const showComposer = phase === 'mood' || phase === 'q1' || phase === 'q2' || phase === 'q3' || phase === 'more'
+  const showComposer = phase === 'mood' || phase === 'talk' || phase === 'q1' || phase === 'q2' || phase === 'q3'
+  const placeholder = phase === 'talk' ? `${name}에게 편하게 이야기하기…` : phase === 'mood' ? '직접 써도 돼' : '직접 써도 돼 — 한 줄이면 충분해'
 
   return (
     <View style={{ flex: 1 }}>
@@ -290,7 +329,7 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
           onContentSizeChange={toEnd}
           contentContainerStyle={[st.chat, { paddingBottom: dockH + Math.max(0, kbH - insets.bottom) + 12 }]}
         >
-          {showHero ? (
+          {virtualStart && !typing ? (
             <View style={st.intro}>
               <BuddyArt buddy={buddy} stage={buddy.stage} size={96} mood="smile" still={reduced} />
               <Text style={[st.introName, { color: p.textPrimary }]}>{name}</Text>
@@ -304,13 +343,14 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
           {typing ? <BuddyRow buddy={buddy} avatar live still={reduced}><TypingDots still={reduced} /></BuddyRow> : null}
           {phase === 'consent' && !typing ? (
             <Animated.View entering={reduced ? FadeIn.duration(150) : FadeInDown.duration(220)} style={[st.card, { backgroundColor: p.cardBg, borderColor: p.borderDivider }]}>
-              <Text style={[st.cardTitle, { color: p.textPrimary }]}>{josa(name, '가', '이')} 일기를 읽고 답해 줄까?</Text>
-              {['저장한 일기를 읽고 한마디 해 줘요', '나만 보기로 둔 날은 보내지 않아요', '꿈틀 서버에서 처리하고 원문은 남기지 않아요'].map((f) => (
+              <Text style={[st.cardTitle, { color: p.textPrimary }]}>{josa(name, '와', '과')} 편하게 이야기하고 일기로 정리할까?</Text>
+              <Text style={[st.fact, { color: p.textSecondary }]}>대화를 일기로 정리하려면 꿈틀 AI가 읽어야 해요.</Text>
+              {['꿈틀 서버(우리 Mac mini)에서만 처리하고, 원문은 남기지 않아요', '나만 보기로 둔 날은 보내지 않아요', `혼자 쓰면 ${josa(name, '가', '이')} 정해진 질문만 하고, 일기는 내 말 그대로 남아요`].map((f) => (
                 <Text key={f} style={[st.fact, { color: p.textSecondary }]}>· {f}</Text>
               ))}
               <View style={st.btns}>
                 <Pressable accessibilityRole="button" onPress={() => void consentNo()} style={[st.btn, { backgroundColor: p.bgSelected }]}><Text style={[st.btnText, { color: p.textPrimary }]}>혼자 쓸게요</Text></Pressable>
-                <Pressable accessibilityRole="button" onPress={consentYes} style={[st.btn, { backgroundColor: p.accent }]}><Text style={[st.btnText, { color: p.onAccent }]}>나누기</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => void consentYes()} style={[st.btn, { backgroundColor: p.accent }]}><Text style={[st.btnText, { color: p.onAccent }]}>나누기</Text></Pressable>
               </View>
               <Text style={[st.small, { color: p.textTertiary }]}>{josa(name, '는', '은')} 친구처럼 들어 주지만 전문 상담은 아니에요 · ⋯에서 언제든 바꿔요</Text>
             </Animated.View>
@@ -318,29 +358,46 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
           {ai.kind === 'reading' ? (
             <BuddyRow buddy={buddy} avatar live still={reduced} ai>
               {ai.text ? <Text style={[st.msg, { color: p.textPrimary }]}>{parseBuddyReply(ai.text).text}</Text>
-                : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><TypingDots still={reduced} /><Text style={{ color: p.textTertiary, fontSize: 13 }}>{ai.queue ? `차례를 기다리는 중… (앞에 ${ai.queue}명)` : `${josa(name, '가', '이')} 읽는 중`}</Text></View>}
+                : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><TypingDots still={reduced} /><Text style={{ color: p.textTertiary, fontSize: 13 }}>{ai.queue ? `차례를 기다리는 중… (앞에 ${ai.queue}명)` : `${josa(name, '가', '이')} 듣는 중`}</Text></View>}
             </BuddyRow>
           ) : null}
           {ai.kind === 'error' ? (
             <View style={[st.card, { backgroundColor: p.cardBg, borderColor: p.borderDivider }]}>
-              <Text style={{ color: p.textSecondary, fontSize: 14, lineHeight: 20 }}>지금은 {josa(name, '가', '이')} 쉬고 있어요. 일기는 그대로 저장돼요</Text>
-              <Pressable onPress={firstReply} accessibilityRole="button" hitSlop={8} style={st.retry}><RotateCcw size={14} color={p.accentInk} /><Text style={{ color: p.accentInk, fontWeight: '600', fontSize: 14 }}>다시 시도</Text></Pressable>
+              <Text style={{ color: p.textSecondary, fontSize: 14, lineHeight: 20 }}>지금은 {josa(name, '가', '이')} 쉬고 있어요. 한 말은 그대로 남아 있어요</Text>
+              <Pressable onPress={retry} accessibilityRole="button" hitSlop={8} style={st.retry}><RotateCcw size={14} color={p.accentInk} /><Text style={{ color: p.accentInk, fontWeight: '600', fontSize: 14 }}>다시 시도</Text></Pressable>
             </View>
+          ) : null}
+          {distilling && !draft ? (
+            <BuddyRow buddy={buddy} avatar live still={reduced} ai>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><TypingDots still={reduced} /><Text style={{ color: p.textTertiary, fontSize: 13 }}>네 말로 일기를 정리하는 중</Text></View>
+            </BuddyRow>
+          ) : null}
+          {draft && !typing ? (
+            <DraftCard
+              draft={draft} date={date} past={past} name={name} mood={sessionMood ?? entry?.mood ?? null}
+              aiFlow={aiFlow} distilling={distilling} left={leftDistill} canTranscript={aiFlow && S.some((m) => m.role === 'me')}
+              onChange={(d) => setDraft({ ...draft, ...d })}
+              onRedo={() => void distill(true)}
+              onTranscript={makeTranscript}
+              onSave={() => void save()}
+              onBack={aiFlow ? () => setDraft(null) : undefined}
+            />
           ) : null}
         </ScrollView>
       </GestureDetector>
 
       <Animated.View onLayout={onDock} style={[st.dock, { paddingBottom: insets.bottom + 8, backgroundColor: p.pageBg }, lift]}>
-        {phase === 'mood' ? <MoodRow onPick={(v) => void answer({ mood: v })} disabled={typing} /> : null}
-        <ChipRow chips={qChips} disabled={typing || ai.kind === 'reading'} />
+        {phase === 'mood' ? <MoodRow onPick={(v) => void answerMood({ mood: v })} disabled={typing} /> : null}
+        <ChipRow chips={chips} disabled={typing || ai.kind === 'reading' || distilling} />
         {line ? <Text style={[st.dockline, { color: p.textTertiary }]}>{line}</Text> : null}
         {showComposer ? (
           <Composer
             ref={composerRef}
-            ai={phase === 'more'}
-            disabled={typing || ai.kind === 'reading'}
-            placeholder={phase === 'more' ? `${name}에게 이야기하기…` : phase === 'mood' ? '직접 써도 돼' : '직접 써도 돼 — 한 줄이면 충분해'}
-            onSend={(t) => (phase === 'more' ? sendTalk(t) : void answer({ text: t }))}
+            ai={phase === 'talk'}
+            disabled={typing || ai.kind === 'reading' || distilling}
+            placeholder={placeholder}
+            onTyping={() => setTyped((n) => n + 1)}
+            onSend={(t) => (phase === 'talk' ? say(t) : phase === 'mood' ? void answerMood({ text: t }) : void answerScripted(t))}
           />
         ) : null}
       </Animated.View>
@@ -348,64 +405,113 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
   )
 }
 
-/** 초안 카드(28 §8.4): 기분 얼굴 + `오늘 일기` + 날짜·기분 → 글(누르면 고침) → 작은 줄 → [고치기] [다듬어 줘] … [저장]. 저장 뒤 = 글 3줄 + ✓ 저장했어요 · 고치기 */
+/** 태그 줄: 칩(✕로 빼기) + `＋ 태그`(감정/사건/영역 꼴) */
+function TagEditor({ tags, onChange, editable }: { tags: string[]; onChange?: (t: string[]) => void; editable: boolean }) {
+  const p = usePalette()
+  const [adding, setAdding] = useState(false)
+  const [v, setV] = useState('')
+  const add = () => {
+    const t = v.trim() ? normalizeTag(v.includes('/') ? v : `감정/${v}`) : null
+    if (t && !tags.includes(t)) onChange?.([...tags, t])
+    setV(''); setAdding(false)
+  }
+  if (!tags.length && !editable) return null
+  return (
+    <View style={st.tags}>
+      {tags.map((t) => (
+        <Pressable key={t} accessibilityRole="button" accessibilityLabel={editable ? `${t} 빼기` : t} disabled={!editable} onPress={() => onChange?.(tags.filter((x) => x !== t))} hitSlop={6}
+          style={[st.tag, { backgroundColor: alpha(p.accent, 0.1) }]}>
+          <Text style={{ color: p.accentInk, fontSize: 12.5, fontWeight: '600' }}>{t}</Text>
+          {editable ? <X size={12} color={p.accentInk} /> : null}
+        </Pressable>
+      ))}
+      {editable ? (adding ? (
+        <TextInput autoFocus value={v} onChangeText={setV} onSubmitEditing={add} onBlur={add} placeholder="감정/설렘" placeholderTextColor={p.textTertiary}
+          accessibilityLabel="태그 더하기" style={[st.tag, st.tagInput, { color: p.textPrimary, borderColor: p.borderStrong }]} />
+      ) : (
+        <Pressable accessibilityRole="button" accessibilityLabel="태그 더하기" onPress={() => setAdding(true)} hitSlop={8} style={[st.tag, { borderWidth: 1, borderColor: p.borderStrong }]}>
+          <Plus size={12} color={p.textSecondary} /><Text style={{ color: p.textSecondary, fontSize: 12.5, fontWeight: '600' }}>태그</Text>
+        </Pressable>
+      )) : null}
+    </View>
+  )
+}
+
+/** 초안 카드: 제목(고칠 수 있음) · 태그 칩 · 본문(눌러서 고침) · 작은 줄 · [다시 정리] [대화 그대로] [더 이야기] … [저장] */
 function DraftCard(props: {
-  saved: boolean; editing: boolean; text: string; mood: number | null; date: string; past: boolean; name: string
-  polished: boolean; polishing: boolean; quota: PolishQuota
-  onEdit: () => void; onChange: (t: string) => void; onPolish: () => void; onUnpolish: () => void; onSave: () => void; onCancelEdit?: () => void
+  draft: Draft; date: string; past: boolean; name: string; mood: number | null; aiFlow: boolean; distilling: boolean; left: number | null; canTranscript: boolean
+  onChange: (d: Partial<Draft>) => void; onRedo: () => void; onTranscript: () => void; onSave: () => void; onBack?: () => void
 }) {
   const p = usePalette()
+  const { draft } = props
   const m = moodOf(props.mood)
-  const left = props.quota ? Math.max(0, props.quota.limit - props.quota.used) : 0
-  const canSave = !!props.text.trim() || !!props.mood
+  const [editing, setEditing] = useState(false)
+  const canSave = !!draft.body.trim() || !!props.mood
+  const note = draft.source === 'ai' ? `내가 한 말로 정리했어요. ${props.name}의 말과 조언은 넣지 않았어요.`
+    : draft.source === 'transcript' ? `대화를 그대로 남겨요(나 · ${props.name}).`
+    : '내가 한 말 그대로예요.'
   return (
-    <View style={[st.draft, { backgroundColor: p.cardBg, borderColor: p.borderDivider, shadowOpacity: p.dark ? 0 : props.saved ? 0.05 : 0.1 }]}>
+    <Animated.View entering={FadeIn.duration(180)} style={[st.draft, { backgroundColor: p.cardBg, borderColor: p.borderDivider, shadowOpacity: p.dark ? 0 : 0.1 }]}>
       <View style={st.dh}>
         {m ? <MoodFace mood={m.value} size={28} /> : null}
-        <Text style={[st.dhTitle, { color: p.textPrimary }]}>{props.past ? '그날 일기' : '오늘 일기'}</Text>
-        <Text style={{ color: p.textTertiary, fontSize: 12, flex: 1 }} numberOfLines={1}>{Number(props.date.slice(5, 7))}월 {Number(props.date.slice(8))}일{m ? ` · ${m.label}` : ''}</Text>
+        <Text style={{ color: p.textTertiary, fontSize: 12, flex: 1 }} numberOfLines={1}>{props.past ? '그날 일기' : '오늘 일기'} · {Number(props.date.slice(5, 7))}월 {Number(props.date.slice(8))}일{m ? ` · ${m.label}` : ''}</Text>
       </View>
-      {props.editing ? (
-        <TextInput
-          value={props.text}
-          onChangeText={props.onChange}
-          multiline
-          autoFocus
-          accessibilityLabel="일기 고치기"
-          style={[st.dtEdit, { color: p.textPrimary, backgroundColor: p.bgSelected, borderColor: p.accent }]}
-        />
+      <TextInput value={draft.title} onChangeText={(t) => props.onChange({ title: t })} placeholder="제목(없어도 돼요)" placeholderTextColor={p.textTertiary}
+        accessibilityLabel="일기 제목" maxLength={40} style={[st.title, { color: p.textPrimary }]} />
+      <TagEditor tags={draft.tags} editable onChange={(tags) => props.onChange({ tags })} />
+      {editing ? (
+        <TextInput value={draft.body} onChangeText={(t) => props.onChange({ body: t })} multiline autoFocus accessibilityLabel="일기 고치기"
+          style={[st.dtEdit, { color: p.textPrimary, backgroundColor: p.bgSelected, borderColor: p.accent }]} />
       ) : (
-        <Pressable disabled={props.saved} onPress={props.onEdit} accessibilityRole="button" accessibilityLabel="초안 고치기" accessibilityHint="눌러서 그 자리에서 고쳐요">
-          <Text style={[st.dt, { color: props.saved ? p.textSecondary : p.textPrimary }]} numberOfLines={props.saved ? 3 : undefined}>{props.text.trim() || '(기분만 남겼어요)'}</Text>
+        <Pressable onPress={() => setEditing(true)} accessibilityRole="button" accessibilityLabel="일기 본문 고치기" accessibilityHint="눌러서 그 자리에서 고쳐요">
+          <Text style={[st.dt, { color: p.textPrimary }]}>{draft.body.trim() || '(기분만 남겼어요)'}</Text>
         </Pressable>
       )}
-      {!props.saved ? (
-        <Text style={[st.dn, { color: p.textTertiary }]}>
-          {props.polished ? <>{josa(props.name, '가', '이')} 문장만 다듬었어요 · <Text onPress={props.onUnpolish} style={{ color: p.accentInk, fontWeight: '700' }} accessibilityRole="button">원래대로</Text></> : '내가 한 말 그대로예요.'}
-          {props.quota && !props.polished ? ` 다듬기는 AI가 문장만 고쳐요 · 오늘 ${left}번 남음` : ''}
-        </Text>
-      ) : null}
-      {props.saved ? (
+      <Text style={[st.dn, { color: p.textTertiary }]}>{note}{props.aiFlow && props.left !== null ? ` · 오늘 정리 ${props.left}번 남음` : ''}</Text>
+      <View style={st.da}>
+        {props.aiFlow && draft.source !== 'transcript' ? (
+          props.left === 0 ? <View style={[st.dbtn, { backgroundColor: p.bgSelected, opacity: 0.6 }]}><Text style={{ color: p.textTertiary, fontSize: 14, fontWeight: '600' }}>오늘은 다 썼어요</Text></View>
+            : <Pressable accessibilityRole="button" disabled={props.distilling} onPress={props.onRedo} style={[st.dbtn, { backgroundColor: alpha(p.accent, 0.12) }]}><Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '700' }}>{props.distilling ? '정리하는 중…' : draft.source === 'ai' ? '다시 정리' : '다듬어 줘'}</Text></Pressable>
+        ) : null}
+        {props.canTranscript && draft.source !== 'transcript' ? <Pressable accessibilityRole="button" onPress={props.onTranscript} style={[st.dbtn, st.ghost, { borderColor: p.borderStrong }]}><Text style={{ color: p.textSecondary, fontSize: 13.5, fontWeight: '600' }}>대화 그대로</Text></Pressable> : null}
+        {props.onBack ? <Pressable accessibilityRole="button" onPress={props.onBack} style={[st.dbtn, st.ghost, { borderColor: p.borderStrong }]}><Text style={{ color: p.textSecondary, fontSize: 13.5, fontWeight: '600' }}>더 이야기</Text></Pressable> : null}
+        <Pressable accessibilityRole="button" disabled={!canSave || props.distilling} onPress={props.onSave} style={[st.dbtn, { marginLeft: 'auto', backgroundColor: p.accent, opacity: canSave && !props.distilling ? 1 : 0.4 }]}>
+          <Text style={{ color: p.onAccent, fontSize: 14, fontWeight: '700' }}>저장</Text>
+        </Pressable>
+      </View>
+    </Animated.View>
+  )
+}
+
+/** 저장한 편: 시각 · 제목 · 태그 · 본문 3줄 · ✓ 저장했어요 · 고치기(그 편만) */
+function SavedCard({ section, date, past, mood, editing, onEdit, onCancel, onSave }: { section: Section; date: string; past: boolean; mood: number | null; editing: boolean; onEdit: () => void; onCancel: () => void; onSave: (s: Section) => void }) {
+  const p = usePalette()
+  const [d, setD] = useState(section)
+  useEffect(() => { if (editing) setD(section) }, [editing]) // eslint-disable-line react-hooks/exhaustive-deps
+  const m = moodOf(mood)
+  return (
+    <View style={[st.draft, { backgroundColor: p.cardBg, borderColor: p.borderDivider, shadowOpacity: p.dark ? 0 : 0.05 }]}>
+      <View style={st.dh}>
+        {m ? <MoodFace mood={m.value} size={24} /> : null}
+        <Text style={{ color: p.textTertiary, fontSize: 12, flex: 1 }} numberOfLines={1}>{section.time ?? (past ? '그날' : '오늘')} · {Number(date.slice(5, 7))}월 {Number(date.slice(8))}일</Text>
+      </View>
+      {editing ? <>
+        <TextInput value={d.title} onChangeText={(t) => setD({ ...d, title: t })} placeholder="제목" placeholderTextColor={p.textTertiary} accessibilityLabel="일기 제목" style={[st.title, { color: p.textPrimary }]} />
+        <TagEditor tags={d.tags} editable onChange={(tags) => setD({ ...d, tags })} />
+        <TextInput value={d.body} onChangeText={(t) => setD({ ...d, body: t })} multiline autoFocus accessibilityLabel="일기 고치기" style={[st.dtEdit, { color: p.textPrimary, backgroundColor: p.bgSelected, borderColor: p.accent }]} />
+        <View style={st.da}>
+          <Pressable accessibilityRole="button" onPress={onCancel} style={[st.dbtn, st.ghost, { borderColor: p.borderStrong }]}><Text style={{ color: p.textPrimary, fontSize: 14, fontWeight: '600' }}>취소</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => onSave(d)} style={[st.dbtn, { marginLeft: 'auto', backgroundColor: p.accent }]}><Text style={{ color: p.onAccent, fontSize: 14, fontWeight: '700' }}>저장</Text></Pressable>
+        </View>
+      </> : <>
+        {section.title ? <Text style={[st.title, { color: p.textPrimary }]}>{section.title}</Text> : null}
+        <TagEditor tags={section.tags} editable={false} />
+        <Text style={[st.dt, { color: p.textSecondary }]} numberOfLines={3}>{section.body}</Text>
         <View style={st.da}>
           <Check size={14} color={p.accentInk} /><Text style={{ color: p.accentInk, fontSize: 12.5, fontWeight: '700' }}>저장했어요</Text>
-          <Pressable accessibilityRole="button" onPress={props.onEdit} style={[st.dbtn, st.ghost, { marginLeft: 'auto', borderColor: p.borderStrong }]}><Text style={{ color: p.textPrimary, fontSize: 14, fontWeight: '600' }}>고치기</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={onEdit} style={[st.dbtn, st.ghost, { marginLeft: 'auto', borderColor: p.borderStrong }]}><Text style={{ color: p.textPrimary, fontSize: 14, fontWeight: '600' }}>고치기</Text></Pressable>
         </View>
-      ) : (
-        <View style={st.da}>
-          {props.editing && props.onCancelEdit ? <Pressable accessibilityRole="button" onPress={props.onCancelEdit} style={[st.dbtn, st.ghost, { borderColor: p.borderStrong }]}><Text style={{ color: p.textPrimary, fontSize: 14, fontWeight: '600' }}>취소</Text></Pressable> : null}
-          {!props.editing ? <Pressable accessibilityRole="button" onPress={props.onEdit} style={[st.dbtn, st.ghost, { borderColor: p.borderStrong }]}><Pencil size={14} color={p.textPrimary} /><Text style={{ color: p.textPrimary, fontSize: 14, fontWeight: '600' }}>고치기</Text></Pressable> : null}
-          {props.quota && props.text.trim() ? (
-            left > 0 ? (
-              <Pressable accessibilityRole="button" disabled={props.polishing || props.polished} onPress={props.onPolish} style={[st.dbtn, { backgroundColor: alpha(p.accent, 0.12), opacity: props.polished ? 0.4 : 1 }]}>
-                <Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '700' }}>{props.polishing ? '다듬는 중…' : '다듬어 줘'}</Text>
-              </Pressable>
-            ) : <View style={[st.dbtn, { backgroundColor: p.bgSelected, opacity: 0.6 }]}><Text style={{ color: p.textTertiary, fontSize: 14, fontWeight: '600' }}>오늘은 다 썼어요</Text></View>
-          ) : null}
-          <Pressable accessibilityRole="button" disabled={!canSave || props.polishing} onPress={props.onSave} style={[st.dbtn, { marginLeft: 'auto', backgroundColor: p.accent, opacity: canSave && !props.polishing ? 1 : 0.4 }]}>
-            <Text style={{ color: p.onAccent, fontSize: 14, fontWeight: '700' }}>저장</Text>
-          </Pressable>
-        </View>
-      )}
+      </>}
     </View>
   )
 }
@@ -426,13 +532,16 @@ const st = StyleSheet.create({
   btnText: { fontSize: 15, fontWeight: '700' },
   small: { fontSize: 11.5, lineHeight: 16, textAlign: 'center', marginTop: 4 },
   retry: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', minHeight: 32 },
-  draft: { marginLeft: 38, marginVertical: 4, borderRadius: 20, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#0B2A22', shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
-  dh: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  dhTitle: { fontSize: 15, fontWeight: '800' },
+  draft: { marginLeft: 38, marginVertical: 4, borderRadius: 20, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#0B2A22', shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, gap: 6 },
+  dh: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  title: { fontSize: 17, fontWeight: '800', paddingVertical: 2, minHeight: 30 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tag: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 12, paddingHorizontal: 9, minHeight: 28 },
+  tagInput: { borderWidth: 1, minWidth: 100, fontSize: 12.5, paddingVertical: 0 },
   dt: { fontSize: 15.5, lineHeight: 25 },
   dtEdit: { fontSize: 15.5, lineHeight: 25, minHeight: 120, borderRadius: 12, borderWidth: 2, padding: 10, textAlignVertical: 'top' },
-  dn: { fontSize: 11.5, lineHeight: 16, marginTop: 8 },
-  da: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, flexWrap: 'wrap' },
+  dn: { fontSize: 11.5, lineHeight: 16, marginTop: 2 },
+  da: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' },
   dbtn: { height: 44, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 },
   ghost: { borderWidth: 1, backgroundColor: 'transparent' },
   dock: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 6 },

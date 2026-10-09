@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { buildBuddyMessages, josa } from './logic.ts'
 import {
   composeDraft, DRAFT_LINE, DRAFT_LINE_EMPTY, endLine, greetingOf, introLine, isSkip, moodShort, NOTHING, nextLines, questionOf, REACT, REACT_TEXT,
-  replay, SCRIPTED, SKIP, timeOfDay, warmLineOf, weekLineOf, type DayStats
+  replay, SCRIPTED, SKIP, timeOfDay, warmLineOf, weekLineOf, type DayStats,
+  asksDistill, BYE_ME, chatTurns, clock, isWarm, MORE_LINE, nudgeOf, OPEN_LINE, ownWords, sessionOf
 } from './talk.ts'
 
 const stats: DayStats = { total: 5, done: 4, doneTitles: ['기획서 초안 1~3장', '디자인 리뷰 답장', '택배 반품'], nextTitles: ['면담 자료 한 장 정리', '치과 예약 전화'] }
@@ -24,7 +25,7 @@ assert.equal(greetingOf({ date: T, today: T, hour: 23, stats }).startsWith('늦�
 assert.equal(greetingOf({ date: '2026-10-04', today: T, hour: 21, stats: { ...stats, total: 1, done: 1 } }), '10월 4일 이야기구나. 그날 할 일 1개 중 1개 끝냈더라. 그날은 어땠어?')
 assert.equal(greetingOf({ date: '2026-10-03', today: T, hour: 21, stats: { ...stats, total: 0 } }), '10월 3일 이야기구나. 그날은 어땠어?')
 // 정원 친구 4종 이름·조사(40 §3.5, 28 §8.8)
-assert.equal(introLine('느리'), '안녕, 나는 느리야. 오늘 하루를 같이 정리해 줄게. 몇 가지만 물어볼게.')
+assert.equal(introLine('느리'), '안녕, 나는 느리야. 오늘 하루를 편하게 이야기해 줘. 같이 일기로 남겨 줄게.')
 assert.ok(introLine('퐁').includes('나는 퐁이야.'))
 assert.ok(introLine('꿈틀').includes('나는 꿈틀이야.'))
 assert.ok(introLine('모아').includes('나는 모아야.'))
@@ -138,5 +139,29 @@ const wk = [
 ]
 assert.equal(weekLineOf(wk), '이번 주는 4일 남겼고, 좋았던 날이 2번, 힘들었던 날이 1번이었어. 할 일을 많이 끝낸 날 기분이 좋았네.')
 assert.ok(!/연속|XP/.test(weekLineOf(wk)), '연속·XP 숫자 없음')
+
+// ── 28 §8.10 대화로 쓰기(스킬) ──
+// 기분 뒤: AI와 이야기면 편하게 말해 달라는 한 줄, 동의 전이면 카드부터(질문 없음), 다음 편은 인사 없이
+assert.equal(nextLines({ ...base, mine: [], answer: { mood: 4 }, follow: 'open' }).at(-1)!.content, OPEN_LINE)
+assert.equal(nextLines({ ...base, mine: [], answer: { mood: 4 }, follow: 'none' }).at(-1)!.content, REACT[4])
+assert.deepEqual(nextLines({ ...base, intro: true, mine: [], answer: { mood: 2 }, greet: false }).map((l) => l.role), ['me', 'buddy', 'buddy'])
+// 편 나누기: 저장 한 줄(잘 남겼어.) 뒤가 이번 편
+assert.ok(isWarm(warmLineOf({ mood: 1, past: true, done: 0 })) && isWarm(warmLineOf({ mood: 4, past: false, done: 3 })) && isWarm(warmLineOf({ mood: 4, past: false, done: 0 })))
+const row = (role: string, content: string, safety = 0) => ({ role, content, safety, created_at: '' })
+const rows = [row('buddy', '저녁이네.', SCRIPTED), row('me', '시험이 코앞이야'), row('buddy', '잘 남겼어. 오늘은 푹 쉬자.', SCRIPTED), row('buddy', MORE_LINE, SCRIPTED), row('me', '사실 하나 더')]
+assert.deepEqual(sessionOf(rows), { rows: rows.slice(3), boundaries: 1 })
+assert.deepEqual(sessionOf(rows.slice(0, 2)), { rows: rows.slice(0, 2), boundaries: 0 })
+// 머뭇거릴 때 질문: 이미 물은 건 건너뜀, 다 물었으면 null
+const o = { mood: 4, past: false, stats }
+assert.equal(nudgeOf([], o)!.q, '제일 좋았던 순간은 뭐였어?')
+assert.equal(nudgeOf(['제일 좋았던 순간은 뭐였어?'], o)!.q, '힘들었던 건 없었어?')
+assert.equal(nudgeOf(['제일 좋았던 순간은 뭐였어?', '힘들었던 건 없었어?', '내일 하나만 정한다면 뭐 할래?'], o), null)
+// AI 없이 옮기기: 내 말만(기분 이름·건너뜀·정리 부탁·마침 인사 빠짐)
+assert.equal(ownWords(['좋았어요', '시험이 코앞인데 손에 안 잡혀', SKIP, '일기로 정리해 줘', BYE_ME, '그래도 밥은 먹었다']), '시험이 코앞인데 손에 안 잡혀.\n그래도 밥은 먹었다')
+assert.ok(asksDistill('이제 일기로 정리해 줘') && asksDistill('저장해줘') && asksDistill('일기로 써 줘') && !asksDistill('정리가 안 돼'))
+// 이야기 입력: 같은 쪽 합침, 마지막은 사용자, 아니면 null
+assert.deepEqual(chatTurns('S', [row('buddy', 'a'), row('buddy', 'b'), row('me', 'c')]), [{ role: 'system', content: 'S' }, { role: 'assistant', content: 'a\nb' }, { role: 'user', content: 'c' }])
+assert.equal(chatTurns('S', [row('me', 'c'), row('buddy', 'd')]), null)
+assert.equal(clock(new Date(2026, 9, 9, 9, 5)), '09:05')
 
 console.log('diary talk: ok')

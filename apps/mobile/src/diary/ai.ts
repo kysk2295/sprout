@@ -11,16 +11,16 @@ export class AiUnavailable extends Error {
   constructor(message: string, code?: string) { super(message); this.code = code }
 }
 
-/** 다듬기 하루 상한(28 §8.7 ④) — 서버 /ai/status의 usage.daily['diary-polish']. 서버에 아직 없으면(배포 전) null = 다듬기 감춤 */
-export type PolishQuota = { used: number; limit: number } | null
-export async function polishQuota(signal?: AbortSignal): Promise<PolishQuota> {
+/** 일기로 옮기기 하루 상한(28 §8.10) — 서버 /ai/status의 usage.daily['diary-distill']. 배포 전 서버면 null(남은 횟수를 모름 — 그래도 옮기기는 된다) */
+export type Quota = { used: number; limit: number } | null
+export async function distillQuota(signal?: AbortSignal): Promise<Quota> {
   const { url, token } = await serverAccess()
   if (!token) return null
   try {
     const res = await globalThis.fetch(`${url}/ai/status`, { headers: { authorization: `Bearer ${token}` }, signal })
     if (!res.ok) return null
     const j = (await res.json()) as { available?: boolean; usage?: { daily?: Record<string, { used?: number; limit?: number }> } }
-    const q = j.usage?.daily?.['diary-polish']
+    const q = j.usage?.daily?.['diary-distill']
     if (!j.available || !q || typeof q.limit !== 'number') return null
     return { used: Number(q.used) || 0, limit: q.limit }
   } catch { return null }
@@ -52,7 +52,7 @@ function utf8(bytes: Uint8Array): string {
 }
 
 /** 한 번 묻고 전체 답을 받는다. onDelta = 받는 중 조각. 연결·503·429·로그인 문제는 AiUnavailable */
-export async function diaryChat(messages: ChatMessage[], signal: AbortSignal, onDelta?: (delta: string) => void, onQueue?: (position: number) => void, opts: { mode?: 'polish' } = {}): Promise<string> {
+export async function diaryChat(messages: ChatMessage[], signal: AbortSignal, onDelta?: (delta: string) => void, onQueue?: (position: number) => void, opts: { mode?: 'chat' | 'distill'; format?: unknown } = {}): Promise<string> {
   const { url, token } = await serverAccess()
   if (!token) throw new AiUnavailable('로그인하면 AI를 쓸 수 있어요')
   let res: Awaited<ReturnType<typeof streamFetch>>
@@ -60,7 +60,8 @@ export async function diaryChat(messages: ChatMessage[], signal: AbortSignal, on
     res = await streamFetch(`${url}/ai/diary`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      body: JSON.stringify({ messages, stream: true, ...(opts.mode ? { mode: opts.mode, options: { temperature: 0.2 } } : {}) }),
+      // mode를 모르는 예전 서버는 그냥 답(reply)으로 처리한다 — 앱이 지시문을 다 담아 보내므로 그대로 동작(상한만 배포 뒤부터)
+      body: JSON.stringify({ messages, stream: true, ...(opts.mode ? { mode: opts.mode } : {}), ...(opts.format ? { format: opts.format } : {}), ...(opts.mode === 'distill' ? { options: { temperature: 0.2 } } : {}) }),
       signal
     })
   } catch (e) {

@@ -12,11 +12,12 @@ import type { CharacterRow } from '../growth/logic'
 import { levelOfTotal } from '../growth/logic'
 import { diaryChat } from './ai'
 import {
-  buddyOf, buildBuddyMessages, buildSummaryMessages, chipTitle, cleanSummary, dayRange, DONE_SQL, entryId,
+  buddyOf, toneOf, moodOf, buildSummaryMessages, chipTitle, cleanSummary, dayRange, DONE_SQL, entryId,
   MEMORY_SQL, mayCallAi, parseBuddyReply, XP_SQL, type Buddy, type DiaryEntry, type DiaryMessage
 } from './logic'
 import { getConsent, getMemory, isSolo } from './prefs'
-import { SCRIPTED, type DayStats, type Line } from './talk'
+import { chatTurns, sessionOf, SCRIPTED, type DayStats, type Line } from './talk'
+import { appendSection, chatSystem, DISTILL_SCHEMA, distillMessages, parseDistill, parseSections, formatSection, type Distilled, type Section } from '@sprout/schema/diaryPrompts'
 import { IN_SMART } from '../data/views'
 
 const uuid = () => crypto.randomUUID()
@@ -141,49 +142,10 @@ export async function clearScripted(date: string) {
   const msgs = await db.getAll<{ id: string }>('SELECT id FROM diary_messages WHERE entry_id = ? AND safety = ?', [id, SCRIPTED])
   await run(msgs.map((m) => ({ sql: 'DELETE FROM diary_messages WHERE id = ?', params: [m.id] })))
 }
-/** 다듬기(28 §8.5): 서버가 지시문을 정한다. 답에서 따옴표·머리말만 걷어 낸다 */
-export async function polishDraft(text: string, signal: AbortSignal, onQueue?: (position: number) => void): Promise<string> {
-  const raw = await diaryChat([{ role: 'user', content: text.slice(0, 4000) }], signal, undefined, onQueue, { mode: 'polish' })
-  const out = cleanPolished(raw)
-  if (!out) throw new Error('답이 비어 있어요')
-  return out
-}
-export function cleanPolished(raw: string): string {
-  return raw.trim().replace(/^```[a-z]*\n?|```$/g, '').replace(/^(다듬은 (일기|글)\s*[:：]\s*)/, '').replace(/^["“'‘]|["”'’]$/g, '').trim()
-}
-
 // ── 대화 ──
 export type ReplyResult = 'reply' | 'blocked'
 export type ReplyOpts = { buddy: Buddy; signal: AbortSignal; onDelta?: (visible: string) => void; onQueue?: (position: number) => void }
 
-/** 캐릭터가 한 번 답한다 */
-export async function buddyReply(date: string, opts: ReplyOpts): Promise<ReplyResult> {
-  const entry = await findEntry(date)
-  if (!entry || !mayCallAi({ consent: getConsent(), private: entry.private, solo: isSolo(date) })) return 'blocked'
-  const messages = await db.getAll<DiaryMessage>('SELECT * FROM diary_messages WHERE entry_id = ? ORDER BY created_at, id', [entry.id])
-  const memory = getMemory() ? await db.getAll<{ date: string; summary: string }>(MEMORY_SQL, [addDays(date, -7), date]) : []
-  const chat = buildBuddyMessages({ buddy: opts.buddy, entry, messages, memory })
-  if (!chat) return 'blocked'
-  let raw = ''
-  raw = await diaryChat(chat, opts.signal, (d) => {
-    raw += d
-    opts.onDelta?.(parseBuddyReply(raw).text)
-  }, opts.onQueue)
-  const parsed = parseBuddyReply(raw)
-  if (!parsed.text) throw new Error('답이 비어 있어요')
-  // 그 사이 나만 보기로 바뀌었으면 남기지 않는다
-  const again = await findEntry(date)
-  if (again?.private) return 'blocked'
-  await addMessage(date, 'buddy', parsed.task ? `${parsed.text}\n할 일: ${parsed.task}` : parsed.text)
-  return 'reply'
-}
-/** 내 말을 남기고 캐릭터 답을 받는다 */
-export async function sendMessage(date: string, text: string, opts: ReplyOpts): Promise<ReplyResult> {
-  const t = text.trim()
-  if (!t) return 'blocked'
-  await addMessage(date, 'me', t.slice(0, 2000))
-  return buddyReply(date, opts)
-}
 /** 이번 실행에서 쓰거나 고친 날 — 화면을 떠날 때 기억하기 요약(켜 둔 사람만) */
 const touched = new Set<string>()
 export const touchEntry = (date: string) => { touched.add(date) }
@@ -201,6 +163,53 @@ export async function summarizeEntry(date: string, signal: AbortSignal) {
   const summary = cleanSummary(await diaryChat(msgs, signal))
   const again = await findEntry(date)
   if (summary && again && !again.private) await saveEntry(date, { summary })
+}
+// ── 28 §8.10 대화로 쓰기(스킬): 이야기 한 턴 · 일기로 옮기기 · 편 저장 ──
+/** 내 말을 남기고(safety 0) 캐릭터가 한 번 답한다 — 이번 편 행만 보낸다(정해진 말도 대화 맥락으로) */
+export async function chatTurn(date: string, text: string | null, opts: ReplyOpts): Promise<ReplyResult> {
+  if (text?.trim()) await addMessage(date, 'me', text.trim().slice(0, 2000))
+  const entry = await findEntry(date)
+  if (!entry || !mayCallAi({ consent: getConsent(), private: entry.private, solo: isSolo(date) })) return 'blocked'
+  const rows = await db.getAll<DiaryMessage>('SELECT * FROM diary_messages WHERE entry_id = ? AND COALESCE(safety, 0) != 1 ORDER BY created_at, id', [entry.id])
+  const system = chatSystem({ name: opts.buddy.name, tone: toneOf(opts.buddy.species), date, diary: entry.content })
+  const msgs = chatTurns(system, sessionOf(rows).rows)
+  if (!msgs) return 'blocked'
+  let raw = ''
+  raw = await diaryChat(msgs, opts.signal, (d) => { raw += d; opts.onDelta?.(parseBuddyReply(raw).text) }, opts.onQueue, { mode: 'chat' })
+  const parsed = parseBuddyReply(raw)
+  if (!parsed.text) throw new Error('답이 비어 있어요')
+  const again = await findEntry(date)
+  if (again?.private) return 'blocked'
+  await addMessage(date, 'buddy', parsed.task ? `${parsed.text}\n할 일: ${parsed.task}` : parsed.text)
+  return 'reply'
+}
+/** 이번 편 대화 → 1인칭 일기 + 제목 + 태그(서버 옮기기). 모양이 틀리면 던진다(앱은 내 말 그대로로) */
+export async function distillSession(date: string, lines: Line[] | { who: 'me' | 'buddy'; text: string }[], mood: number | null, signal: AbortSignal): Promise<Distilled> {
+  const entry = await findEntry(date)
+  if (entry?.private || getConsent() !== true) throw new Error('나만 보기 날은 옮기지 않아요')
+  const ls = (lines as { who?: string; role?: string; text?: string; content?: string }[]).map((l) => ({ who: (l.who ?? (l.role === 'me' ? 'me' : 'buddy')) as 'me' | 'buddy', text: l.text ?? l.content ?? '' }))
+  const ask = () => diaryChat(distillMessages(ls, { date, mood: moodOf(mood)?.label ?? null }), signal, undefined, undefined, { mode: 'distill', format: DISTILL_SCHEMA })
+  // 한 번은 다시: Mac mini가 잠깐 바쁘거나(503) 모양이 틀린 답(작은 모델) — 한도(429)는 다시 하지 않는다
+  let d: Distilled | null = null
+  try { d = parseDistill(await ask()) } catch (e) { if ((e as { code?: string })?.code === 'daily' || signal.aborted) throw e }
+  if (!d && !signal.aborted) d = parseDistill(await ask())
+  if (!d) throw new Error('일기로 옮기지 못했어요')
+  return d
+}
+/** 한 편 저장: 그날 글 끝에 이어 붙인다(앞 편을 덮지 않음, 스킬 규칙) */
+export async function saveSection(date: string, s: Section, mood: number | null) {
+  const entry = await findEntry(date)
+  await saveEntry(date, { content: appendSection(entry?.content, s), ...(mood ? { mood } : {}) })
+  touchEntry(date)
+}
+/** 저장한 편 고치기: 그 편만 바꾼다 */
+export async function replaceSection(date: string, index: number, s: Section) {
+  const entry = await findEntry(date)
+  const ss = parseSections(entry?.content)
+  if (index < 0 || index >= ss.length) return
+  ss[index] = s
+  await saveEntry(date, { content: ss.map(formatSection).join('\n\n') })
+  touchEntry(date)
 }
 /** 할 일로 칩 → 기본함 */
 export async function taskFromChip(title: string): Promise<string> {

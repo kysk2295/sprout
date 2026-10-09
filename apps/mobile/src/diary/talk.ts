@@ -17,7 +17,7 @@ export const EMPTY_STATS: DayStats = { total: 0, done: 0, doneTitles: [], nextTi
 const md = (date: string) => `${Number(date.slice(5, 7))}월 ${Number(date.slice(8, 10))}일`
 
 /** 처음 쓰는 사람에게만(그 기기에서 대화 일기를 한 번도 저장하지 않았을 때) */
-export const introLine = (name: string) => `안녕, 나는 ${josa(name, '야', '이야')}. 오늘 하루를 같이 정리해 줄게. 몇 가지만 물어볼게.`
+export const introLine = (name: string) => `안녕, 나는 ${josa(name, '야', '이야')}. 오늘 하루를 편하게 이야기해 줘. 같이 일기로 남겨 줄게.`
 
 /** 1 인사: 시간대 머리말 + 그날 데이터. 지난 날은 `10월 4일 이야기구나. …` */
 export function greetingOf(o: { date: string; today: string; hour: number; stats: DayStats }): string {
@@ -110,20 +110,26 @@ export const BYE_BUDDY = '응, 잘 자. 내일 또 와.'
 
 /** 대화 다음 단계에서 남길 정해진 행(내 답 + 캐릭터 말). 저장은 한 번에, 화면은 캐릭터 말을 잠깐 뒤에 보인다 */
 export type Line = { role: 'me' | 'buddy'; content: string }
-export function nextLines(o: { mine: string[]; answer: { mood?: number; text?: string }; date: string; today: string; hour: number; stats: DayStats; name: string; intro: boolean }): Line[] {
+/** 기분 뒤 이어지는 말: q1 = 정해진 질문(혼자 쓰기·나만 보기), open = 편하게 말해 달라는 한 줄(AI와 이야기), none = 동의 카드를 먼저 */
+export type Follow = 'q1' | 'open' | 'none'
+export const OPEN_LINE = '무슨 일 있었어? 편하게 말해 줘. 한 줄도 괜찮아.'
+export const MORE_LINE = '응, 더 들려줘.'
+export function nextLines(o: { mine: string[]; answer: { mood?: number; text?: string }; date: string; today: string; hour: number; stats: DayStats; name: string; intro: boolean; follow?: Follow; greet?: boolean }): Line[] {
   const r = replay(o.mine)
   const past = o.date !== o.today
   const out: Line[] = []
   if (r.step === 'draft') return out
   if (r.step === 'mood') {
-    if (o.intro) out.push({ role: 'buddy', content: introLine(o.name) })
-    out.push({ role: 'buddy', content: greetingOf(o) })
+    if (o.intro && o.greet !== false) out.push({ role: 'buddy', content: introLine(o.name) })
+    if (o.greet !== false) out.push({ role: 'buddy', content: greetingOf(o) })
     const mood = o.answer.mood && moodOf(o.answer.mood) ? o.answer.mood : null
     const text = (o.answer.text ?? '').trim()
     if (!mood && !text) return []
     out.push({ role: 'me', content: mood ? moodOf(mood)!.label : text })
     out.push({ role: 'buddy', content: mood ? REACT[mood] : REACT_TEXT })
-    out.push({ role: 'buddy', content: questionOf('q1', { mood, past, stats: o.stats }).q })
+    const follow = o.follow ?? 'q1'
+    if (follow === 'q1') out.push({ role: 'buddy', content: questionOf('q1', { mood, past, stats: o.stats }).q })
+    else if (follow === 'open') out.push({ role: 'buddy', content: OPEN_LINE })
     return out
   }
   const text = (o.answer.text ?? '').trim()
@@ -155,3 +161,44 @@ export function weekLineOf(week: { date: string; mood: number | null; written: b
   }
   return `이번 주는 ${n}일 남겼고, 좋았던 날이 ${good}번${low ? `, 힘들었던 날이 ${low}번` : ''}이었어.${tail}`
 }
+
+// ── 28 §8.10 대화로 쓰기(사용자 스킬 conversational-journal-to-wiki): 자유 대화 → 일기로 옮기기 ──
+/** 저장 뒤 정해진 한 줄(= 한 편의 끝). 모두 "잘 남겼어."로 시작한다 */
+export const isWarm = (content: string) => content.startsWith('잘 남겼어.')
+type Row = { role: string; content: string; safety: number | null; created_at: string }
+/** 이번 편 = 마지막 저장 한 줄 뒤의 행들. boundaries = 저장 한 줄 개수(저장한 편 수) */
+export function sessionOf<T extends Row>(rows: T[]): { rows: T[]; boundaries: number } {
+  let last = -1
+  let n = 0
+  rows.forEach((r, i) => { if (r.safety === SCRIPTED && r.role === 'buddy' && isWarm(r.content)) { last = i; n++ } })
+  return { rows: rows.slice(last + 1), boundaries: n }
+}
+/** 머뭇거릴 때만 꺼내는 질문(정해진 질문 3개 = 살짝 미는 말). 이미 물은 것은 건너뛰고, 다 물었으면 null */
+export function nudgeOf(asked: string[], o: { mood: number | null; past: boolean; stats: DayStats }): { q: string; chips: string[] } | null {
+  for (const step of ['q1', 'q2', 'q3'] as const) {
+    const q = questionOf(step, o)
+    if (!asked.includes(q.q)) return q
+  }
+  return null
+}
+/** AI 없이 옮길 때(옮기기 실패·한도): 내가 한 말만 줄마다(기분 이름·건너뛴 답·정리해 달라는 말은 빠짐) */
+export function ownWords(texts: string[]): string {
+  return texts.map((t) => t.trim()).filter((t) => t && !isSkip(t) && !MOODS.some((m) => m.label === t) && !asksDistill(t) && t !== BYE_ME).map(endLine).join('\n')
+}
+/** 직접 "일기로 정리해 줘·저장해 줘"라고 쓰면 옮기기 */
+export const asksDistill = (t: string) => /(일기로?\s*(정리|써|만들|남겨)|정리해\s*(줘|주라|줄래)|저장해\s*(줘|주라|줄래))/.test(t.replace(/\s+/g, ' '))
+/** 이야기 한 턴의 AI 입력: system + 이번 편 행(나 = user, 캐릭터 = assistant, 같은 쪽은 합침). 마지막은 꼭 사용자 말 */
+export function chatTurns(system: string, rows: { role: string; content: string }[], max = 16): { role: 'system' | 'user' | 'assistant'; content: string }[] | null {
+  const out: { role: 'user' | 'assistant'; content: string }[] = []
+  for (const r of rows.slice(-max)) {
+    const role = r.role === 'me' ? 'user' : 'assistant'
+    const text = r.content.length > 1500 ? `${r.content.slice(0, 1500)}…` : r.content
+    const last = out[out.length - 1]
+    if (last && last.role === role) last.content += `\n${text}`
+    else out.push({ role, content: text })
+  }
+  if (out.at(-1)?.role !== 'user') return null
+  return [{ role: 'system', content: system }, ...out]
+}
+/** 시각 머리 HH:MM(기기 시각) */
+export const clock = (d = new Date()) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`

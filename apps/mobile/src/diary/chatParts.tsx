@@ -88,7 +88,7 @@ export const MoodRow = memo(function MoodRow({ onPick, disabled, selected }: { o
 })
 
 /** 입력창(높이 48, 모서리 24) + 보내기 원 40. 한 줄 보내기(⏎ = 보내기) */
-export const Composer = forwardRef<TextInput, { placeholder: string; onSend: (t: string) => void; disabled?: boolean; ai?: boolean }>(function Composer({ placeholder, onSend, disabled, ai }, ref) {
+export const Composer = forwardRef<TextInput, { placeholder: string; onSend: (t: string) => void; disabled?: boolean; ai?: boolean; onTyping?: () => void }>(function Composer({ placeholder, onSend, disabled, ai, onTyping }, ref) {
   const p = usePalette()
   const [v, setV] = useState('')
   const ok = !!v.trim() && !disabled
@@ -98,7 +98,7 @@ export const Composer = forwardRef<TextInput, { placeholder: string; onSend: (t:
       <TextInput
         ref={ref}
         value={v}
-        onChangeText={setV}
+        onChangeText={(t) => { setV(t); onTyping?.() }}
         placeholder={placeholder}
         placeholderTextColor={p.textTertiary}
         accessibilityLabel="답 쓰기"

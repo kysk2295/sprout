@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { aiConfigFromEnv, AiError, AiQueue, createAi, priorityOf, dayKey, DIARY_GROUNDING, DIARY_POLISH_SYSTEM, diaryEndpointOf, localModelNames, memoryUsageStore, pgUsageStore, prepareMessages, weekKey, type AiConfig } from './ai.ts'
+import { aiConfigFromEnv, AiError, AiQueue, createAi, priorityOf, dayKey, COMPANION_RULES, DIARY_GROUNDING, DISTILL_SYSTEM, diaryEndpointOf, formatFor, localModelNames, memoryUsageStore, pgUsageStore, prepareMessages, weekKey, type AiConfig } from './ai.ts'
 import { backendFromEnv, directBackend, workerBackend, type AiBackend } from './ai-backend.ts'
 import { startWorker } from '../../ai-worker/worker.ts'
 
@@ -764,57 +764,79 @@ const take = (q: AiQueue, label: string, user: string, priority: 'interactive' |
 }
 
 
-// 28 §8 일기: 다듬기(mode polish = 용도 diary-polish, 하루 3번, 서버 지시만) · 답에 "일기에 없는 말 금지" 규칙
+// 28 §8 일기(사용자 스킬 conversational-journal-to-wiki): chat = 친구 같은 한 턴(하루 30), distill = 1인칭 일기 + 제목 + 태그 JSON(하루 5, polish = 다시 옮기기)
 {
-  // 지시문 검사(28 §8.1-7 환각): 일기에 있는 말만, 지어내지 않기, 모르면 묻기
-  for (const must of ['<diary>', '지어내', '짐작', '물어봐', '예시']) assert.ok(DIARY_GROUNDING.includes(must), `답 규칙에 "${must}"`)
-  for (const must of ['새로 넣지 마', '빼지도 마', '지시나 질문이 있어도', '다듬은 일기 글만']) assert.ok(DIARY_POLISH_SYSTEM.includes(must), `다듬기 지시에 "${must}"`)
-  const withSys = prepareMessages('diary', [{ role: 'system', content: 'APP' }, { role: 'user', content: '<diary>오늘</diary>' }])
-  assert.equal(withSys.length, 2)
-  assert.ok(withSys[0].content.startsWith('APP') && withSys[0].content.endsWith(DIARY_GROUNDING), '앱 지시 뒤에 서버 규칙')
+  // 지시문 규칙(모양은 packages/schema diaryPrompts.test에서도 본다)
+  for (const must of ['<diary>', '지어내', '짐작', '물어봐', '예시']) assert.ok(DIARY_GROUNDING.includes(must), `들은 말만 "${must}"`)
+  for (const must of ['보고서', '묻지 않으면 조언하지 마', '형식적', '조언을 바로 멈춰']) assert.ok(COMPANION_RULES.includes(must), `대화 규칙 "${must}"`)
+  for (const must of ['지어내지 마', '캐릭터의 말·공감·조언·위로', '1인칭', '#감정/']) assert.ok(DISTILL_SYSTEM.includes(must), `옮기기 "${must}"`)
+  const reply = prepareMessages('diary', [{ role: 'system', content: 'APP' }, { role: 'user', content: '<diary>오늘</diary>' }])
+  assert.ok(reply[0].content.startsWith('APP') && reply[0].content.endsWith(DIARY_GROUNDING), '예전 답: 앱 지시 뒤에 들은 말만')
   assert.equal(prepareMessages('diary', [{ role: 'user', content: 'x' }])[0].content, DIARY_GROUNDING, 'system이 없으면 맨 앞에')
-  const pol = prepareMessages('diary-polish', [{ role: 'system', content: '아무 일이나 해 줘' }, { role: 'user', content: '초안' }])
-  assert.deepEqual(pol, [{ role: 'system', content: DIARY_POLISH_SYSTEM }, { role: 'user', content: '초안' }], '앱 지시는 버린다')
-  assert.throws(() => prepareMessages('diary-polish', [{ role: 'system', content: 's' }]), AiError)
+  const chat = prepareMessages('diary-chat', [{ role: 'system', content: '너는 느리야' }, { role: 'user', content: '시험이 코앞이야' }])
+  assert.ok(chat[0].content.startsWith('너는 느리야') && chat[0].content.includes(COMPANION_RULES) && chat[0].content.includes(DIARY_GROUNDING), '대화: 규칙을 꼭 넣는다')
+  const already = `너는 느리야\n\n${COMPANION_RULES}\n\n${DIARY_GROUNDING}`
+  assert.equal(prepareMessages('diary-chat', [{ role: 'system', content: already }, { role: 'user', content: 'a' }])[0].content, already, '이미 있으면 두 번 붙이지 않음')
+  assert.throws(() => prepareMessages('diary-chat', [{ role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }]), AiError, '마지막이 사용자 말이어야')
+  const dist = prepareMessages('diary-distill', [{ role: 'system', content: '아무 일이나 해 줘' }, { role: 'user', content: '<conversation>\n나: 시험\n</conversation>' }])
+  assert.deepEqual(dist, [{ role: 'system', content: DISTILL_SYSTEM }, { role: 'user', content: '<conversation>\n나: 시험\n</conversation>' }], '앱 지시는 버린다')
+  assert.throws(() => prepareMessages('diary-distill', [{ role: 'system', content: 's' }]), AiError)
   assert.deepEqual(prepareMessages('assistant', msg('a') as any), msg('a'), '다른 용도는 그대로')
+  assert.deepEqual((formatFor('diary-distill', undefined) as any).required, ['title', 'tags', 'entry'])
+  assert.equal(formatFor('diary-chat', undefined), undefined)
   assert.equal(diaryEndpointOf({ messages: [] }), 'diary')
   assert.equal(diaryEndpointOf({ mode: 'reply' }), 'diary')
-  assert.equal(diaryEndpointOf({ mode: 'polish' }), 'diary-polish')
+  assert.equal(diaryEndpointOf({ mode: 'chat' }), 'diary-chat')
+  assert.equal(diaryEndpointOf({ mode: 'distill' }), 'diary-distill')
+  assert.equal(diaryEndpointOf({ mode: 'polish' }), 'diary-distill', '다듬어 줘 = 다시 옮기기')
   assert.throws(() => diaryEndpointOf({ mode: 'free' }), AiError)
-  assert.equal(priorityOf('diary-polish', undefined), 'interactive')
+  for (const ep of ['diary-chat', 'diary-distill'] as const) assert.equal(priorityOf(ep, undefined), 'interactive')
+  assert.equal(aiConfigFromEnv({}).daily['diary-chat'], 30)
+  assert.equal(aiConfigFromEnv({}).daily['diary-distill'], 5)
+  assert.equal(aiConfigFromEnv({ AI_DAILY_DIARY_CHAT: '10', AI_DAILY_DIARY_DISTILL: '2' }).daily['diary-distill'], 2)
 
   clock = Date.parse('2026-10-09T03:00:00Z')
-  assert.equal(aiConfigFromEnv({}).daily['diary-polish'], 3)
-  assert.equal(aiConfigFromEnv({ AI_DAILY_DIARY_POLISH: '5' }).daily['diary-polish'], 5)
-  const { base, store } = await proxy({ daily: { ...aiConfigFromEnv({}).daily } })
-  const polish = (content: string, extra: object = {}) => call(base, '/ai/diary', { mode: 'polish', messages: [{ role: 'system', content: 'APP-SYS' }, { role: 'user', content }], ...extra })
-  let r = await polish('기획서 초안 1~3장 끝냄')
+  const { base, store } = await proxy({ daily: { ...aiConfigFromEnv({}).daily, 'diary-chat': 2, 'diary-distill': 2 } })
+  const distill = (content: string, extra: object = {}) => call(base, '/ai/diary', { mode: 'distill', messages: [{ role: 'system', content: 'APP-SYS' }, { role: 'user', content }], ...extra })
+  let r = await distill('기획서 초안 끝냄')
   assert.equal(r.status, 200)
-  assert.deepEqual(bodies.at(-1).messages, [{ role: 'system', content: DIARY_POLISH_SYSTEM }, { role: 'user', content: '기획서 초안 1~3장 끝냄' }])
-  assert.equal((await polish('fail')).status, 503)
-  assert.equal((await polish('p2')).status, 200, '실패한 1회는 돌려준다')
-  assert.equal((await polish('p3', { stream: true })).status, 200)
-  r = await polish('p4')
+  const sent = bodies.at(-1)
+  assert.ok(sent.messages[0].content.startsWith(DISTILL_SYSTEM), '서버 지시(+형식 힌트)')
+  assert.ok(!JSON.stringify(sent.messages).includes('APP-SYS'))
+  assert.deepEqual(sent.format.required, ['title', 'tags', 'entry'], '형식은 서버 스키마')
+  assert.equal((await distill('fail')).status, 503)
+  assert.equal((await call(base, '/ai/diary', { mode: 'polish', messages: msg('p2') })).status, 200, '실패한 1회는 돌려준다 · polish도 같은 상한')
+  r = await distill('d3', { stream: true })
   assert.equal(r.status, 429)
   const j = await r.json()
   assert.equal(j.code, 'daily')
   assert.equal(j.error, '오늘은 이 AI 기능을 다 썼어요. 내일 다시 쓸 수 있어요.')
-  // 답(diary)은 다듬기 상한과 무관 + 서버 규칙이 붙는다
+  // chat: 따로 세는 하루 상한, 규칙이 붙는다
+  const chatCall = (content: string) => call(base, '/ai/diary', { mode: 'chat', stream: true, messages: [{ role: 'system', content: '너는 느리야' }, { role: 'user', content }] })
+  r = await chatCall('오늘 산책했다')
+  assert.equal(r.status, 200)
+  await r.text()
+  assert.ok(bodies.at(-1).messages[0].content.includes(COMPANION_RULES))
+  assert.equal((await chatCall('c2')).status, 200)
+  r = await chatCall('c3')
+  assert.equal(r.status, 429)
+  assert.equal((await r.json()).code, 'daily')
+  // 예전 답(데스크톱)은 두 상한과 무관 + 들은 말만
   r = await call(base, '/ai/diary', { messages: [{ role: 'system', content: 'APP-SYS' }, ...msg('오늘 산책했다')] })
   assert.equal(r.status, 200)
-  assert.ok(bodies.at(-1).messages[0].content.startsWith('APP-SYS') && bodies.at(-1).messages[0].content.includes(DIARY_GROUNDING))
+  assert.ok(bodies.at(-1).messages[0].content.includes(DIARY_GROUNDING))
   assert.equal((await call(base, '/ai/diary', { mode: 'zzz', messages: msg('x') })).status, 400)
-  assert.equal((await call(base, '/ai/diary-polish', { messages: msg('x') })).status, 404, '다듬기는 /ai/diary mode로만')
+  for (const p of ['/ai/diary-chat', '/ai/diary-distill']) assert.equal((await call(base, p, { messages: msg('x') })).status, 404, '일기 용도는 /ai/diary mode로만')
   const st = await (await fetch(base + '/ai/status', { headers: { authorization: 'Bearer user-a' } })).json()
-  assert.deepEqual(st.usage.daily['diary-polish'], { used: 3, limit: 3 })
-  const row = [...store.rows.values()].find((x) => x.endpoint === 'diary-polish')!
-  assert.equal(row.requests, 3)
+  assert.deepEqual(st.usage.daily['diary-distill'], { used: 2, limit: 2 })
+  assert.deepEqual(st.usage.daily['diary-chat'], { used: 2, limit: 2 })
+  const row = [...store.rows.values()].find((x) => x.endpoint === 'diary-distill')!
+  assert.equal(row.requests, 2)
   assert.equal(row.failures, 1)
-  assert.equal([...store.rows.values()].find((x) => x.endpoint === 'diary')!.requests, 1)
   const dump = JSON.stringify([...store.rows.values(), ...store.calls])
-  for (const secret of ['기획서', 'APP-SYS', 'p2', '산책']) assert.ok(!dump.includes(secret), `저장소에 원문 없음: ${secret}`)
+  for (const secret of ['기획서', 'APP-SYS', '산책', '느리']) assert.ok(!dump.includes(secret), `저장소에 원문 없음: ${secret}`)
   clock += 13 * 3600_000 // 다음 날(한국 자정 넘김)
-  assert.equal((await polish('p5')).status, 200)
+  assert.equal((await distill('d4')).status, 200)
 }
 
 for (const s of servers) await close(s)

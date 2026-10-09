@@ -1,6 +1,6 @@
 // 28 §8 일기 v2: 머리 한 줄(‹ · 가운데 날짜 + 상태 → 기분 달력 · [오늘][📅][⋯]) + 그날 본문.
 // 오늘 = 캐릭터와 대화(기본, Conversation) 또는 그냥 쓰기(FreeWrite — 이 기기에서 고르면 다음에도). 지난 날 = 저장 카드 + 접힌 대화(PastDay).
-// 화면을 좌우로 밀면 전날·다음 날(오른쪽 = 전날, 오늘 다음은 막힘). 동의는 열 때 묻지 않는다(§8.7 ②) — 첫 저장 뒤 대화 안 카드, 다듬기 처음 누를 때 시트.
+// 화면을 좌우로 밀면 전날·다음 날(오른쪽 = 전날, 오늘 다음은 막힘). 동의는 열 때 묻지 않는다 — 기분을 고른 뒤 대화 안 카드(§8.10).
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { CalendarDays, ChevronLeft, Lock, MoreHorizontal } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -14,7 +14,6 @@ import { Conversation, forgetDraft } from '../../src/diary/Conversation'
 import { clearScripted, deleteEntry, flushSummaries, saveEntry, setPrivate, useBuddy, useEntry, useMessages } from '../../src/diary/data'
 import { FreeWrite, type FreeStatus } from '../../src/diary/FreeWrite'
 import { dayTitle, isWritten, josa } from '../../src/diary/logic'
-import { BuddyArt } from '../../src/diary/parts'
 import { PastDay } from '../../src/diary/PastDay'
 import { setConsent, setMemory, setSolo, setWriteMode, useDiaryPrefs } from '../../src/diary/prefs'
 import { clearWant, openDay, useDiaryState } from '../../src/diary/state'
@@ -104,9 +103,6 @@ export default function Diary() {
   // ── 시트 ──
   const [menu, setMenu] = useState(false)
   const [askDelete, setAskDelete] = useState(false)
-  const polishThen = useRef<(() => void) | null>(null)
-  const [polishSheet, setPolishSheet] = useState(false)
-  const askPolishConsent = useCallback((then: () => void) => { polishThen.current = then; setPolishSheet(true) }, [])
   const priv = !!entry?.private
   const solo = prefs.isSolo(date)
   const act = (fn: () => void) => () => { setMenu(false); setTimeout(fn, 200) }
@@ -142,12 +138,20 @@ export default function Diary() {
           ? <FreeWrite date={date} entry={entry} name={name} onChat={toChat} onStatus={setFreeStatus} />
           : view === 'card'
             ? <PastDay date={date} entry={entry} buddy={buddy} reduced={reduced} swipe={swipe} onChat={() => choose('chat')} onFree={() => void toFree()} />
-            : <Conversation date={date} today={today} entry={entry} buddy={buddy} reduced={reduced} swipe={swipe} onFree={(x) => void toFree(x)} askPolishConsent={askPolishConsent} />}
+            : <Conversation date={date} today={today} entry={entry} buddy={buddy} reduced={reduced} swipe={swipe} onFree={(x) => void toFree(x)} />}
       </Animated.View>
 
       {/* ⋯ 아래 동작 시트(§8.2 확인 = 아래 시트) */}
-      <SlideSheet visible={menu} onClose={() => setMenu(false)} label="일기 메뉴" style={[s.sheet, { backgroundColor: p.sheetBg, paddingBottom: insets.bottom + 12 }]}>
+      <SlideSheet visible={menu} onClose={() => { setMenu(false); setAskDelete(false) }} label="일기 메뉴" style={[s.sheet, { backgroundColor: p.sheetBg, paddingBottom: insets.bottom + 12 }]}>
         <View style={[s.grab, { backgroundColor: p.borderStrong }]} />
+        {askDelete ? <>
+          <Text style={[s.sheetTitle, { color: p.textPrimary }]}>이 날 일기를 지울까요?</Text>
+          <Text style={[s.sheetBody, { color: p.textSecondary }]}>글·기분·대화가 모든 기기에서 지워져요.</Text>
+          <Pressable accessibilityRole="button" onPress={() => { setMenu(false); setAskDelete(false); forgetDraft(date); void deleteEntry(date).then(() => toast.show('일기를 지웠어요')) }} style={[s.cancel, { backgroundColor: p.cardBg }]}>
+            <Text style={{ color: p.danger, fontSize: 16, fontWeight: '700' }}>지우기</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => { setMenu(false); setAskDelete(false) }} style={[s.cancel, { backgroundColor: p.cardBg }]}><Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600' }}>취소</Text></Pressable>
+        </> : <>
         <View style={[s.group, { backgroundColor: p.cardBg }]}>
           <Item label={priv ? '나만 보기 끄기' : '나만 보기'} note={priv ? '켜짐' : undefined} onPress={act(() => void setPrivate(date, !priv).then(() => toast.show(!priv ? `이 날은 나만 봐요. ${josa(name, '가', '이')} 읽지 않아요` : `${josa(name, '와', '과')} 같이 읽어요`)))} />
           {view === 'free'
@@ -158,33 +162,13 @@ export default function Diary() {
           {prefs.consent ? <Item label="기억하기" note={prefs.memory ? '켜짐' : undefined} onPress={act(() => { setMemory(!prefs.memory); toast.show(prefs.memory ? '이 날 일기만 보고 이야기해요' : '최근 7일 일기 요약도 같이 봐요') })} /> : null}
           {view === 'chat' && hasScripted && !written ? <Item label="처음부터 다시 묻기" onPress={act(() => { forgetDraft(date); void clearScripted(date) })} /> : null}
           <Item label="일기 검색" onPress={act(() => router.push('/diary/search'))} />
-          <Item label="이 날 일기 지우기" danger last onPress={act(() => { hx.warn(); setAskDelete(true) })} />
+          <Item label="이 날 일기 지우기" danger last onPress={() => { hx.warn(); setAskDelete(true) }} />
         </View>
         <Pressable accessibilityRole="button" onPress={() => setMenu(false)} style={[s.cancel, { backgroundColor: p.cardBg }]}><Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600' }}>취소</Text></Pressable>
+        </>}
       </SlideSheet>
 
-      <SlideSheet visible={askDelete} onClose={() => setAskDelete(false)} label="일기 지우기" style={[s.sheet, { backgroundColor: p.sheetBg, paddingBottom: insets.bottom + 12 }]}>
-        <View style={[s.grab, { backgroundColor: p.borderStrong }]} />
-        <Text style={[s.sheetTitle, { color: p.textPrimary }]}>이 날 일기를 지울까요?</Text>
-        <Text style={[s.sheetBody, { color: p.textSecondary }]}>글·기분·대화가 모든 기기에서 지워져요.</Text>
-        <Pressable accessibilityRole="button" onPress={() => { setAskDelete(false); forgetDraft(date); void deleteEntry(date).then(() => toast.show('일기를 지웠어요')) }} style={[s.cancel, { backgroundColor: p.cardBg }]}>
-          <Text style={{ color: p.danger, fontSize: 16, fontWeight: '700' }}>지우기</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => setAskDelete(false)} style={[s.cancel, { backgroundColor: p.cardBg }]}><Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600' }}>취소</Text></Pressable>
-      </SlideSheet>
 
-      {/* 다듬어 줘를 동의 전에 처음 누를 때(§8.3) */}
-      <SlideSheet visible={polishSheet} onClose={() => setPolishSheet(false)} label="다듬기 동의" style={[s.sheet, { backgroundColor: p.sheetBg, paddingBottom: insets.bottom + 16, alignItems: 'stretch' }]}>
-        <View style={[s.grab, { backgroundColor: p.borderStrong }]} />
-        <View style={{ alignItems: 'center' }}><BuddyArt buddy={buddy} stage={buddy.stage} size={88} mood="smile" still={reduced} /></View>
-        <Text style={[s.sheetTitle, { color: p.textPrimary }]}>다듬기는 {josa(name, '가', '이')} 도와줘요</Text>
-        <Text style={[s.sheetBody, { color: p.textSecondary }]}>초안을 AI가 읽고 문장만 고쳐요.{'\n'}나만 보기로 둔 날은 보내지 않아요.{'\n'}꿈틀 서버에서 처리하고 원문은 남기지 않아요.</Text>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <Pressable accessibilityRole="button" onPress={() => setPolishSheet(false)} style={[s.half, { backgroundColor: p.bgSelected }]}><Text style={{ color: p.textPrimary, fontSize: 15, fontWeight: '700' }}>그대로 둘게요</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={() => { setPolishSheet(false); setConsent(true); const f = polishThen.current; polishThen.current = null; f?.() }} style={[s.half, { backgroundColor: p.accent }]}><Text style={{ color: p.onAccent, fontSize: 15, fontWeight: '700' }}>나누고 다듬기</Text></Pressable>
-        </View>
-        <Text style={{ color: p.textTertiary, fontSize: 12, textAlign: 'center' }}>⋯ 메뉴에서 언제든 끌 수 있어요 · {josa(name, '는', '은')} 전문 상담은 아니에요</Text>
-      </SlideSheet>
     </View>
   )
 }

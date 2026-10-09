@@ -1,4 +1,4 @@
-// 28 §8.2 지난 날: 저장한 일기 카드 + `느리와 나눈 이야기 N개`(접힘) + `그날 끝낸 할 일 N개`(접힘).
+// 28 §8.2·§8.10 지난 날: 저장한 일기 카드(편마다 시각·제목·태그) + `느리와 나눈 이야기 N개`(접힘) + `그날 끝낸 할 일 N개`(접힘).
 // 빈 날 = `그날 이야기 하기`(그날 기준 질문으로 대화) · `그냥 쓸래요`. 좌우로 밀면 앞뒤 날(밀기는 화면이 준다).
 import { CheckSquare, ChevronDown, ChevronRight, Lock, MessageCircle } from 'lucide-react-native'
 import { useState } from 'react'
@@ -6,6 +6,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { usePalette } from '../theme/ThemeProvider'
+import { alpha } from '../theme/palette'
+import { parseSections } from '@sprout/schema/diaryPrompts'
 import { MoodFace } from './art'
 import { useDayStats, useMessages } from './data'
 import { isWritten, josa, mayCallAi, moodOf, parseBuddyReply, type Buddy, type DiaryEntry } from './logic'
@@ -25,6 +27,7 @@ export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onFree }: 
   const name = buddy.name
   const written = !!entry && isWritten(entry)
   const m = moodOf(entry?.mood)
+  const sections = parseSections(entry?.content)
   const talk = messages.filter((x) => x.safety !== 1)
   const canTalk = written && !entry?.private && prefs.consent !== false
   return (
@@ -49,7 +52,13 @@ export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onFree }: 
             ) : null}
             <View style={[s.card, { backgroundColor: p.cardBg, borderColor: p.borderDivider }]}>
               {m ? <View style={s.pm}><MoodFace mood={m.value} size={34} /><Text style={{ color: p.textPrimary, fontSize: 14, fontWeight: '700' }}>{m.label}</Text></View> : null}
-              <Text style={[s.pt, { color: p.textPrimary }]} selectable>{(entry?.content ?? '').trim() || '(기분만 남겼어요)'}</Text>
+              {sections.length ? sections.map((sec, i) => (
+                <View key={i} style={[i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider, paddingTop: 12, marginTop: 12 }, { gap: 6 }]}>
+                  {sec.time || sec.title ? <Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '800' }}>{sec.time ? <Text style={{ color: p.textTertiary, fontWeight: '600', fontSize: 13 }}>{sec.time}  </Text> : null}{sec.title}</Text> : null}
+                  {sec.tags.length ? <View style={s.tags}>{sec.tags.map((t) => <View key={t} style={[s.tag, { backgroundColor: alpha(p.accent, 0.1) }]}><Text style={{ color: p.accentInk, fontSize: 12, fontWeight: '600' }}>{t}</Text></View>)}</View> : null}
+                  <Text style={[s.pt, { color: p.textPrimary }]} selectable>{sec.body}</Text>
+                </View>
+              )) : <Text style={[s.pt, { color: p.textPrimary }]}>(기분만 남겼어요)</Text>}
             </View>
             {talk.length && !entry?.private ? (
               <>
@@ -111,5 +120,7 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 14, borderRadius: 16 },
   rowText: { flex: 1, fontSize: 14.5, fontWeight: '600' },
   talk: { paddingHorizontal: 6, gap: 6 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tag: { borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4 },
   hint: { textAlign: 'center', fontSize: 11.5, marginTop: 16 }
 })

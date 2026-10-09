@@ -4,6 +4,7 @@
 //   monthGrid·weekOf·longestStreak·moodTrend·averageMood·highlightsOf·skyOf·buddyLine·moodFaceOf·josa·buddyOf·memoryOf·DONE_SQL·XP_SQL)는
 //   두 앱이 똑같이 쓰므로 packages/schema/src/diary.ts로 옮긴다(이 작업은 packages/를 고치지 않는 범위).
 import { addDays } from '@sprout/schema/time'
+import { firstLineOf } from '@sprout/schema/diaryPrompts'
 import { SPECIES, type Species } from '@sprout/schema/growth'
 import { monthGrid42, weekCol, weekDays, weekHead, type WeekStart } from '@sprout/schema/weekStart'
 
@@ -36,6 +37,7 @@ const TONE: Record<Species, string> = {
   worm: '담백하고 군더더기 없이, 그래도 다정한 말투',
   frog: '다정하고 포근하게, 마음을 먼저 살피는 말투'
 }
+export const toneOf = (species: Species | null) => (species ? TONE[species] : '다정하고 짧은 말투')
 export function buddyOf(c: { name: string | null; species: Species | null } | undefined): Buddy {
   const species = c?.species ?? null
   const fallback = species ? SPECIES[species].name.split(' ').at(-1)! : '새싹'
@@ -244,7 +246,7 @@ export function yearMosaic(year: number, entries: Pick<DiaryEntry, 'date' | 'moo
 /** 목록·검색에 보이는 첫 줄. 나만 보기 날은 숨김(15 §9.12 ⑥), 검색 결과는 내가 찾은 글이라 보인다 */
 export function previewOf(e: Pick<DiaryEntry, 'content' | 'private'>, opts: { search?: boolean } = {}): string {
   if (e.private && !opts.search) return '🔒 나만 보기'
-  return (e.content ?? '').split('\n').map((l) => l.trim()).find(Boolean) ?? ''
+  return firstLineOf(e.content)
 }
 /** 일기 검색(15 §4 ⌘F): 글 부분 일치, 최근 날부터 */
 export function searchEntries<T extends Pick<DiaryEntry, 'date' | 'content'>>(entries: T[], q: string): T[] {
