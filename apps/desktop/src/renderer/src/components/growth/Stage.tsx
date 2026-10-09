@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { art, bitSvg, HEART_SVG, itemIcon, scene, sceneGround, sceneIsDark, standBottom, titleOf } from '@sprout/schema/characterArt'
 import { SPECIES, STAGES, stageOf, XP, type Species } from '@sprout/schema/growth'
 import {
-  cmOf, dayJustDone, decorOn, equipItem, evolutionHint, giftsAt, growthTags, isBusy, isNight, ITEM_BY_ID, momentLine, pickDayMoment, stageBoxSize, tapLines,
+  dayJustDone, decorOn, equipItem, evolutionHint, giftsAt, growthTags, isBusy, isNight, ITEM_BY_ID, momentLine, pickDayMoment, stageBoxSize, tapLines,
   TOUCH, TOUCH_LINES, trophyLine, trophyShape, type CharacterItemRow, type DayMoment, type Item, type Path
 } from '@sprout/schema/wardrobe'
 import { catchUpOf, isSleepy, levelOfTotal, readSeenAt, renameCharacter, setGrowthStageActive, stageLines, writeSeenAt, type CharacterRow, type StageStats, type XpRow } from '../../data/growth'
@@ -414,7 +414,7 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
         <div className="who">
           <HudName name={name} editable={!!species} onCall={callName} />
           <span className="lvb">Lv {shown.level}</span>
-          <span className="ttl">{species ? `${titleOf(species, stage, raise.look.path)} · 키 ${cmOf(level)}cm` : '나와 닮은 친구를 찾으면 깨어나요'}</span>
+          <span className="ttl">{species ? titleOf(species, stage, raise.look.path) : '나와 닮은 친구를 찾으면 깨어나요'}</span>
         </div>
         <div className="mid">
           <div>

@@ -1,6 +1,7 @@
 // 23 §2 ③~⑦: 요약 칩 · 진화 길 · 이번 주 목표 · 이번 주 XP · 주간 리포트 목록 (시안 B1·B2, 공용 키트 묶음 카드)
 import { COMPANION_SIZE, QUEST_LIMIT_LINE, QUEST_LIMIT_NOTE } from '@sprout/schema/companion'
 import { STAGES, weekLabel, XP, type GoalDraft, type Species } from '@sprout/schema/growth'
+import { DECOR, ITEMS } from '@sprout/schema/wardrobe'
 import { addDays } from '@sprout/schema/time'
 import { useRouter } from 'expo-router'
 import { BarChart3, Check, ChevronRight, Lock, Plus, Sparkles, Target, X } from 'lucide-react-native'
@@ -9,6 +10,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
 import { Checkbox } from '../ui/Checkbox'
 import { useToast } from '../ui/Toast'
+import { completeTasks } from '../data/tasks'
+import { useLiveQuery } from '../data/rows'
 import type { Palette } from '../theme/palette'
 import { CharacterArt } from './art/CharacterArt'
 import { useBuddy } from '../diary/data'
@@ -16,11 +19,16 @@ import { StaticFace } from '../ui/CompanionFace'
 import { Confetti } from './Bits'
 import { addGoal, dismissDraft, setGoalProgress, useRefTitles } from './data'
 import {
-  checkTarget, dotTarget, goalBadge, newlyUnlocked, signed, weekBars, weekRange, xpDayGroups, xpLabel, weekTotal,
+  checkTarget, dotTarget, goalBadge, signed, weekBars, weekRange, xpDayGroups, xpLabel, weekTotal,
   type GoalRow, type ReportRow, type XpRow
 } from './logic'
 
 const card = (p: Palette) => ({ backgroundColor: p.cardBg })
+/** 진화 길 미리보기: 그 단계 레벨(from~to)에 열리는 옷·장식 이름(43 §6 해금표 — 옛 10 §3.2.7 장식 표가 아니라 wardrobe) */
+const opensIn = (from: number, to: number) => [
+  ...ITEMS.filter((i) => 'lv' in i.rule && i.rule.lv >= from && i.rule.lv <= to).map((i) => i.name),
+  ...DECOR.filter((d) => d.lv >= from && d.lv <= to).map((d) => d.name)
+].join(' · ')
 
 export function EvolutionRoad({ p, species, level, stage, open, onOpen }: { p: Palette; species: Species | null; level: number; stage: number; open: number | null; onOpen: (n: number | null) => void }) {
   const sel = open !== null ? STAGES.find((x) => x.stage === open) : undefined
@@ -54,11 +62,44 @@ export function EvolutionRoad({ p, species, level, stage, open, onOpen }: { p: P
               {sel.stage > stage ? `Lv ${sel.from}에 만나요 · ${sel.from - level}레벨 남음` : sel.stage === stage ? '지금 단계' : '지나온 단계'}
             </Text>
             <Text style={[s.pvSub, { color: p.textTertiary }]} numberOfLines={2}>
-              열리는 장식: {newlyUnlocked(sel.from - 1, (STAGES.find((x) => x.stage === sel.stage + 1)?.from ?? 99) - 1).map((d) => d.name).join(' · ') || '—'}
+              열리는 것: {opensIn(sel.from, (STAGES.find((x) => x.stage === sel.stage + 1)?.from ?? 99) - 1) || '—'}
             </Text>
           </View>
         </Animated.View>
       ) : null}
+    </View>
+  )
+}
+
+/** 43 §18.2 시트의 오늘 할 일(체크 22): 오늘 마감 미완료 할 일을 여기서 바로 끝낸다 → 무대 캐릭터가 XP·기뻐하기로 바로 반응(완료 = 공용 completeTasks, 되돌리기 토스트) */
+export function TodayCard({ p, today }: { p: Palette; today: string }) {
+  const toast = useToast()
+  const router = useRouter()
+  const rows = useLiveQuery<{ id: string; title: string; priority: number; status: number }>(
+    'SELECT id, title, priority, status FROM tasks WHERE deleted_at IS NULL AND status = 0 AND parent_id IS NULL AND due_at >= ? AND due_at < ? ORDER BY priority DESC, sort_order, created_at LIMIT 6',
+    [today, addDays(today, 1)]
+  ).data
+  const [gone, setGone] = useState<Set<string>>(new Set())
+  const open = rows.filter((r) => !gone.has(r.id))
+  if (!open.length) return null
+  const done = (id: string) => {
+    setGone((g) => new Set(g).add(id))
+    void completeTasks([id]).then((u) => { if (u) toast.show('작업이 완료되었습니다.', { undo: async () => { await u(); setGone((g) => { const n = new Set(g); n.delete(id); return n }) } }) })
+  }
+  return (
+    <View style={[s.card, card(p)]}>
+      <View style={s.head}>
+        <Text style={[s.headTitle, { color: p.textPrimary }]}>오늘 할 일</Text>
+        <Text style={[s.headRight, { color: p.textSecondary }]}>{open.length}</Text>
+      </View>
+      {open.map((t, i) => (
+        <View key={t.id} style={[s.row, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderRow }]}>
+          <Checkbox priority={t.priority} done={false} size={22} label={`${t.title} 완료`} onPress={() => done(t.id)} />
+          <Pressable style={s.rowText} onPress={() => router.push(`/task/${t.id}`)} accessibilityRole="button">
+            <Text style={[s.rowTitle, { color: p.textPrimary }]} numberOfLines={1}>{t.title}</Text>
+          </Pressable>
+        </View>
+      ))}
     </View>
   )
 }

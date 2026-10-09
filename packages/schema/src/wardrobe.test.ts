@@ -1,7 +1,7 @@
 // 43 옷장 · 해금 · 트로피 · 하루 장면 — 순수 함수 시험
 import assert from 'node:assert/strict'
 import {
-  activeDayList, babyHidesSlot, baseName, cmOf, conditionText, dayJustDone, decorOn, DEFAULT_LOOK, equipItem, evolutionGift, evolutionHint, giftsAt, growthTags,
+  activeDayList, babyHidesSlot, baseName, conditionText, dayJustDone, decorOn, DEFAULT_LOOK, equipItem, evolutionGift, evolutionHint, giftsAt, growthTags,
   ITEMS, ITEM_BY_ID, itemRowId, lookKey, newUnlocks, ownedItems, parseLook, pickDayMoment, projectFinished, raiseStateFrom, reviewCount, seasonsOn, seasonWindow,
   serializeLook, setPath, stageBoxSize, tapLines, toggleDecor, trophyLine, trophyRowId, trophyShape, unequipSlot, unlocksFor, wornEquip, budsOf, marksOf, type RaiseState
 } from './wardrobe.ts'
@@ -123,21 +123,18 @@ assert.equal(lookKey(l1), lookKey({ ...DEFAULT_LOOK, eq: { ...DEFAULT_LOOK.eq, h
 assert.notEqual(lookKey(l1), lookKey(DEFAULT_LOOK))
 
 // ── 레벨 안 성장(43 §3 · §18.5) ──
-assert.equal(cmOf(8), 44)
-assert.equal(stageBoxSize(1), 236)
-assert.equal(stageBoxSize(20), 293)
-assert.equal(stageBoxSize(30), 293) // Lv 20에서 멈춘다
+assert.equal(stageBoxSize(1), stageBoxSize(20)) // 크기는 늘 같다(2026-10-09 사용자 결정)
 assert.deepEqual([6, 7, 8, 9, 10].map(budsOf), [0, 1, 2, 3, 0]) // 진화하면 다시 0
 assert.deepEqual([1, 2, 3, 12, 13, 20].map(marksOf), [0, 1, 1, 6, 6, 6])
-assert.deepEqual(growthTags(9, 'worm'), ['키 +3cm', '새싹 잎 +1'])
-assert.deepEqual(growthTags(8, 'snail'), ['키 +3cm', '새싹 잎 +1', '주근깨 +1'])
-assert.deepEqual(growthTags(10, 'frog'), ['키 +3cm', '단짝으로 진화'])
-assert.deepEqual(growthTags(6, 'bee'), ['키 +3cm', '친구로 진화'])
+assert.deepEqual(growthTags(9, 'worm'), ['새싹 잎 +1'])
+assert.deepEqual(growthTags(8, 'snail'), ['새싹 잎 +1', '주근깨 +1'])
+assert.deepEqual(growthTags(10, 'frog'), ['단짝으로 진화'])
+assert.deepEqual(growthTags(6, 'bee'), ['친구로 진화'])
 assert.equal(evolutionHint(8), '단짝까지 2레벨')
 assert.equal(evolutionHint(9), '다음 레벨에 진화!')
 assert.equal(evolutionHint(16), '전설')
-// 레벨마다 키(6px 상자 → v0.3에서 3px) 또는 잎·점 하나가 바뀐다(43 §16)
-for (let lv = 2; lv <= 20; lv++) assert.ok(growthTags(lv, 'snail').length >= 1)
+// Lv 2~13은 레벨마다 잎·점·진화 중 하나가 바뀐다(키는 자라지 않음 — 2026-10-09)
+for (let lv = 2; lv <= 13; lv++) assert.ok(growthTags(lv, 'snail').length >= 1, `Lv ${lv}`)
 
 // ── 옷장 기본 칸 · 아기 ──
 assert.equal(baseName('hat', 'bee', 4), '진화 관')

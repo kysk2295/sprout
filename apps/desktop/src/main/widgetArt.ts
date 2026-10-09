@@ -1,5 +1,5 @@
 // 25 §8.4 캐릭터 그림 굽기: 공용 그림 데이터(@sprout/schema/characterArt — 앱 CharacterArt와 같은 글)를 보이지 않는(offscreen) 창에서 그려 PNG로 저장한다.
-// 위젯은 PNG만 읽는다. 조합(종·단계·갈래·입은 옷·기분)마다 한 번만 굽고 파일 이름(widgetArtPath, 그림 판 v3 + 모습 열쇠)을 캐시로 쓴다.
+// 위젯은 PNG만 읽는다. 조합(종·단계·갈래·입은 옷·기분)마다 한 번만 굽고 파일 이름(widgetArtPath, 그림 판 v4(2026-10-09 단계마다 같은 크기) + 모습 열쇠)을 캐시로 쓴다.
 // 크기(43 결정 ⑨): 위젯은 상자를 채운다(fit), 전설 배경은 끈다(42 결정 ③).
 import { BrowserWindow } from 'electron'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'

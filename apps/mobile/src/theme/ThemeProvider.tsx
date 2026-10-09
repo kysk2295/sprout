@@ -14,8 +14,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemDark = useColorScheme() === 'dark'
   const value = useMemo(() => {
     const stored = row?.theme ?? null
-    // 행이 없으면(새 계정) 시스템 다크 따르기를 켠 것으로 본다(20 §3 "시스템 다크 따라가기 기본")
-    const followDark = row ? !!row.follow_system_dark : true
+    // 행이 없거나 칸이 비었으면(새 계정 · 아바타처럼 다른 칸만 저장해 행이 먼저 생긴 경우) 시스템 다크 따르기를 켠 것으로 본다(20 §3 "시스템 다크 따라가기 기본").
+    // 끈 것은 0으로만 저장된다(설정 › 테마)
+    const followDark = row?.follow_system_dark == null ? true : !!row.follow_system_dark
     const { main, dark } = parseTheme(stored)
     return { p: paletteOf(effectiveTheme(stored, followDark, systemDark)), themeId: main, darkThemeId: dark, followDark, stored }
   }, [row, systemDark])

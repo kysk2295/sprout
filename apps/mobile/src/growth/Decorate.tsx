@@ -1,6 +1,6 @@
 // 43 §5.4 옷장 · §8 도감(휴대폰 꾸미기 화면 부품, 시안 character-raising-v2 A 오른쪽). 데이터·규칙은 공용 wardrobe — 화면은 그리기만.
 // 칸 상태: 기본 · 입은 것(강조 옅은 면 + 2px) · 새로 받음(점) · 잠김(한 색 실루엣 + 자물쇠 + 조건, 누르면 좌우 3px만).
-import { art, decorIcon, itemIcon, PATHS, scene, sceneGround, standBottom, titleOf, trophyIcon } from '@sprout/schema/characterArt'
+import { art, artScale, artTop, decorIcon, itemIcon, PATHS, scene, sceneGround, standBottom, titleOf, trophyIcon } from '@sprout/schema/characterArt'
 import { STAGES, type Species } from '@sprout/schema/growth'
 import {
   babyHidesSlot, baseName, conditionText, DECOR, ITEMS, itemsOfTab, SLOTS, stageBoxSize, trophyShape, trophySub, decorOn, type Item, type Path, type WardTab
@@ -19,7 +19,10 @@ export function PreviewStage({ p, raise, hopKey }: { p: Palette; raise: Raise; h
   const { species, progress, look, worn } = raise
   const [w, setW] = useState(0)
   const H = 230
-  const box = Math.round(stageBoxSize(progress.level) * 0.74)
+  // 머리(새싹·모자) 꼭대기가 미리보기 위쪽 8 안에 들게 상자를 줄인다 — 그림이 단계마다 같은 상자를 채워서 위가 비지 않는다
+  const sk = w ? Math.max(w / 600, H / 420) : 0.6
+  const headFrac = species ? (artTop(species, progress.stage) - 2 - (worn.hat ? 16 * artScale(species, progress.stage) : 0)) / 120 : 0.1
+  const box = Math.round(Math.min(stageBoxSize() * 0.74, (H - 120 * sk - 8) / (11 / 12 - headFrac)))
   const svg = useMemo(() => scene({ bg: worn.bg, decor: decorOn(progress.level, look), preview: true, rn: true }), [worn.bg, progress.level, look])
   const hop = useSharedValue(0)
   useEffect(() => { if (hopKey) hop.value = withSequence(withTiming(-8, { duration: 140 }), withTiming(0, { duration: 200 })) }, [hopKey, hop])
@@ -90,7 +93,7 @@ export function WardGrid({ p, raise, tab, cols, onEquip, onBase, onDecor }: {
   const cell = (it: Item) => {
     const own = owned.has(it.id)
     const on = (it.slot === 'bg' ? worn.bg : worn[it.slot]) === it.id
-    return <Cell key={it.id} p={p} cols={cols} icon={<IconMemo id={it.id} locked={!own} />} name={it.name} sub={own ? undefined : conditionText(it, state)} on={on} locked={!own} fresh={fresh.has(it.id)}
+    return <Cell key={it.id} p={p} cols={cols} icon={<IconMemo id={it.id} locked={!own} lc={lockOf(p)} />} name={it.name} sub={own ? undefined : conditionText(it, state)} on={on} locked={!own} fresh={fresh.has(it.id)}
       label={`${it.name}${own ? (on ? ', 입은 것' : '') : `, 잠김 ${conditionText(it, state)}`}`} onPress={() => onEquip(it.id)} />
   }
   if (tab === 'room') {
@@ -102,7 +105,7 @@ export function WardGrid({ p, raise, tab, cols, onEquip, onBase, onDecor }: {
         <View style={s.grid}>
           {DECOR.map((d) => {
             const own = progress.level >= d.lv, on = own && !look.decorOff.includes(d.id)
-            return <Cell key={d.id} p={p} cols={cols} icon={<DecorIco id={d.id} locked={!own} />} name={d.name} sub={own ? undefined : `Lv ${d.lv}`} on={on} locked={!own}
+            return <Cell key={d.id} p={p} cols={cols} icon={<DecorIco id={d.id} locked={!own} lc={lockOf(p)} />} name={d.name} sub={own ? undefined : `Lv ${d.lv}`} on={on} locked={!own}
               label={`${d.name}${own ? (on ? ', 놓음' : ', 치움') : `, 잠김 Lv ${d.lv}`}`} onPress={() => onDecor(d.id)} />
           })}
         </View>
@@ -120,12 +123,14 @@ export function WardGrid({ p, raise, tab, cols, onEquip, onBase, onDecor }: {
     </View>
   )
 }
-const IconMemo = memo(function IconMemo({ id, locked }: { id: string; locked: boolean }) {
-  const svg = useMemo(() => itemIcon(id, { locked, rn: true }), [id, locked])
+/** 잠긴 실루엣 색: 다크에서는 밝은 회색이 빛나 보여서(43 §16 "다크에서 빛나 보이지 않게") 어두운 회녹색 */
+const lockOf = (p: Palette) => (p.dark ? '#46544B' : true)
+const IconMemo = memo(function IconMemo({ id, locked, lc = true }: { id: string; locked: boolean; lc?: string | true }) {
+  const svg = useMemo(() => itemIcon(id, { locked: locked ? lc : false, rn: true }), [id, locked, lc])
   return <Ico svg={svg} />
 })
-const DecorIco = memo(function DecorIco({ id, locked }: { id: string; locked: boolean }) {
-  const svg = useMemo(() => decorIcon(id, { locked, rn: true }), [id, locked])
+const DecorIco = memo(function DecorIco({ id, locked, lc = true }: { id: string; locked: boolean; lc?: string | true }) {
+  const svg = useMemo(() => decorIcon(id, { locked: locked ? lc : false, rn: true }), [id, locked, lc])
   return <Ico svg={svg} />
 })
 
@@ -157,7 +162,7 @@ export function DexView({ p, raise, onPath, onTrophyLayout }: { p: Palette; rais
             {looks.map(([x, path]) => {
               const ok = x <= st, cur = x === st && (x < 3 || path === look.path), swap = ok && x === st && x >= 3 && path !== look.path
               const sub = ok ? (x >= 3 && path !== look.path ? (x === st ? '눌러서 바꾸기' : '다른 길') : x >= 3 ? PATHS[species][path].name : '') : `Lv ${STAGES[x - 1].from}`
-              return <Cell key={`${x}${path}`} p={p} cols={3} icon={<LookIco species={species} stage={x} path={path} locked={!ok} />} name={titleOf(species, x, path)} sub={sub} on={cur} locked={!ok && !swap}
+              return <Cell key={`${x}${path}`} p={p} cols={3} icon={<LookIco species={species} stage={x} path={path} locked={!ok} lc={lockOf(p)} />} name={titleOf(species, x, path)} sub={sub} on={cur} locked={!ok && !swap}
                 label={`${titleOf(species, x, path)}${ok ? '' : `, Lv ${STAGES[x - 1].from}`}${swap ? ', 눌러서 이 길로 바꾸기' : ''}`} onPress={() => { if (swap) onPath(path) }} />
             })}
           </View>
@@ -168,7 +173,7 @@ export function DexView({ p, raise, onPath, onTrophyLayout }: { p: Palette; rais
         return (
           <View key={k}>
             <View style={s.subhRow}><Text style={[s.subh, { color: p.textPrimary }]}>{k === 'room' ? '배경' : n}</Text><Text style={[s.subhS, { color: p.textTertiary }]}>{list.filter((i) => owned.has(i.id)).length}/{list.length}</Text></View>
-            <View style={s.grid}>{list.map((it) => { const o = owned.has(it.id); return <Cell key={it.id} p={p} cols={4} icon={<IconMemo id={it.id} locked={!o} />} name={it.name} sub={o ? undefined : conditionText(it, state)} locked={!o} onPress={() => {}} label={`${it.name}${o ? '' : `, ${conditionText(it, state)}`}`} /> })}</View>
+            <View style={s.grid}>{list.map((it) => { const o = owned.has(it.id); return <Cell key={it.id} p={p} cols={4} icon={<IconMemo id={it.id} locked={!o} lc={lockOf(p)} />} name={it.name} sub={o ? undefined : conditionText(it, state)} locked={!o} onPress={() => {}} label={`${it.name}${o ? '' : `, ${conditionText(it, state)}`}`} /> })}</View>
           </View>
         )
       })}
@@ -185,9 +190,9 @@ export function DexView({ p, raise, onPath, onTrophyLayout }: { p: Palette; rais
     </View>
   )
 }
-const LookIco = memo(function LookIco({ species, stage, path, locked }: { species: Species; stage: number; path: Path; locked: boolean }) {
+const LookIco = memo(function LookIco({ species, stage, path, locked, lc = true }: { species: Species; stage: number; path: Path; locked: boolean; lc?: string | true }) {
   // 도감은 실제 비율(43 결정 ⑨): 아기는 작게, 전설은 칸을 채운다
-  const svg = useMemo(() => art(species, stage, { path, size: 64, detail: 'full', crop: 'full', noAura: true, lock: locked, mood: 'smile', rn: true, lv: STAGES[stage - 1].from }), [species, stage, path, locked])
+  const svg = useMemo(() => art(species, stage, { path, size: 64, detail: 'full', crop: 'full', noAura: true, lock: locked ? lc : false, mood: 'smile', rn: true, lv: STAGES[stage - 1].from }), [species, stage, path, locked, lc])
   return <SvgString svg={svg} size={64} />
 })
 const TrophyIco = memo(function TrophyIco({ t }: { t: ReturnType<typeof trophyShape> }) {

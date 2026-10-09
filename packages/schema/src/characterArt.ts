@@ -2,7 +2,7 @@
 // 시안 docs/screens/mockups/kkumteul-art.js v3(커밋 d244b0b)를 그대로 옮긴 것: 좌표·색·부품이 같다.
 // 데스크톱(SVG 글 그대로)·휴대폰(react-native-svg SvgXml)·맥 위젯 PNG·사이트 정적 SVG가 모두 이 글을 그린다 — 같은 그림이 두 곳에 따로 있지 않다.
 // 화풍: 면마다 빛이 왼쪽 위에서 오는 둥근 음영(radialGradient) + 같은 색 얇은 선 + 흰 하이라이트 + 바닥 그림자(43 결정 ⑦: 캐릭터 자리에서만).
-// 좌표: viewBox 0 0 120 120, 발밑 y 108. 그림은 전설 크기로 그리고 단계마다 발밑(60,108)을 중심으로 줄인다(SCALE). 장면: 0 0 600 420, 받침 윗면 y 300.
+// 좌표: viewBox 0 0 120 120, 발밑 y 108. 단계마다 발밑(60,108)을 중심으로 같은 상자를 채우게 늘이거나 줄인다(FILL). 장면: 0 0 600 420, 받침 윗면 y 300.
 // 움직이는 부품에는 이름(class)이 붙는다(c-breath·c-hop·c-sway·c-eyes·c-ear-l/r·c-sprout·c-flap·c-tail·c-seg·c-tree·c-swing·c-bob·c-float·c-twinkle·c-rise…) —
 // 데스크톱 CSS 키프레임이 이 이름에 붙는다. 휴대폰은 rn: true로 class·style을 빼고 감싸개 전체만 움직인다(39 §11 싸게).
 import type { Species } from './growth.ts'
@@ -73,9 +73,20 @@ export const ART_SPECIES: Record<Species, { name: string; full: string; pet: str
   worm: { name: '애벌레', full: '몰두하는 애벌레', pet: '꿈틀', old: 'cat', why: '한 잎에 푹 빠져 먹다 고치를 짓고 나비가 된다 — 몰입이 날개가 된다' },
   frog: { name: '개구리', full: '재주 많은 개구리', pet: '퐁', old: 'otter', why: '여기저기 뛰며 물방울을 모은다 — 물방울 알 → 올챙이 → 연잎 양산 개구리' }
 })
-/** 단계마다 그림 크기(기준 상자 대비) 0.7 → 1.0 → 1.15 → 1.3 → 1.45. 그림은 전설(1.45)이 상자를 꽉 채우게 그리고 단계마다 줄인다(42 §10.6) */
-export const SCALE_X = [0, 0.7, 1, 1.15, 1.3, 1.45]
-export const SCALE = SCALE_X.map((x) => +(x / 1.45).toFixed(3))
+/** 단계마다 화면 크기는 **항상 같다**(2026-10-09 사용자 결정 "캐릭터 크기는 동일하게 항상" — 42 §10.6 결정 ⑨ 바꿈).
+ *  그림마다 실제로 그려진 테두리(옷 없이, 빛 원판·그림자 빼고 두 갈래 합)를 재서, 발밑(60,108)을 기준으로 같은 상자를 채우게 늘이거나 줄인다:
+ *  위로는 발밑에서 96(y 12까지), 옆으로는 가운데에서 58(x 2–118) 안. 성장은 크기가 아니라 모양·소품·무늬로 보인다.
+ *  [배율, 그린 뒤 꼭대기 y] — 값은 docs/screens/42 §10.6.1의 재는 방법(헤드리스 Chrome getBBox)으로 뽑았다. 그림을 고치면 다시 잰다(시험이 상자 밖을 잡는다) */
+export const FILL: Record<Species, [number, number][]> = {
+  snail: [[1, 12], [1.255, 12.0], [1.058, 14.6], [1.003, 13.8], [0.954, 15.3], [0.846, 12.0]],
+  bee: [[1, 12], [1.105, 22.4], [1.019, 12.0], [0.981, 12.0], [0.917, 12.0], [0.92, 12.0]],
+  worm: [[1, 12], [1.094, 20.9], [1.036, 14.6], [0.921, 19.7], [0.958, 12.0], [0.913, 13.6]],
+  frog: [[1, 12], [1.401, 12.7], [1.058, 17.8], [1.022, 12.0], [0.988, 12.0], [0.912, 12.0]]
+}
+/** 이 종·단계 그림의 배율(발밑 기준) */
+export const artScale = (sp: Species | string, st: number) => FILL[artSpecies(sp)][Math.min(5, Math.max(1, Math.round(st) || 1))][0]
+/** 그린 뒤 머리(새싹) 꼭대기 y(0~120 상자, 옷 없이) — 말풍선·효과를 머리 위에 둘 때 */
+export const artTop = (sp: Species | string, st: number) => FILL[artSpecies(sp)][Math.min(5, Math.max(1, Math.round(st) || 1))][1]
 export const PATHS: Record<Species, Record<Path, { name: string; line: string; t: [string, string, string] }>> = withLegacyKeys({
   snail: { a: { name: '이끼 정원', line: '흰 꽃 껍데기 → 이끼 집 → 나무 집', t: ['꽃 달팽이', '이끼집 달팽이', '나무집 달팽이'] }, b: { name: '꽃 정원', line: '분홍 꽃 껍데기 → 꽃 오두막 → 유리 온실', t: ['분홍꽃 달팽이', '꽃집 달팽이', '온실 달팽이'] } },
   bee: { a: { name: '해바라기 길', line: '꿀단지 → 해바라기 관 → 꿀 등불', t: ['꿀단지 꿀벌', '해바라기 여왕벌', '꿀등불 꿀벌'] }, b: { name: '들꽃 길', line: '꽃바구니 → 데이지 관 → 꽃 등불', t: ['꽃바구니 꿀벌', '데이지 여왕벌', '꽃등불 꿀벌'] } },
@@ -490,7 +501,8 @@ const SP: Record<Species, (st: number, p: Pal, path: Path) => Layers> = {
         gloss(px - 10, py - 4, 4, 1.6, 0.8, -20) + '</g>'
     }
     L.F = { cx: 60, ey: ey + 1, dx: 16, e: 6.4, my: hy + 7, chx: 24, chy: hy + 4 }
-    L.A = { top: ey - 11, hy, hr: 28, ny: hy + ry - 2, hx: 60, hy2: by + 4, by, brx: 22, bry: 16 }
+    // top = 모자 자리: 눈 언덕(ey ± 11) 위로 5 더 — 모자 챙이 눈을 덮지 않게(2026-10-09 시뮬레이터 확인)
+    L.A = { top: ey - 16, hy, hr: 28, ny: hy + ry - 2, hx: 60, hy2: by + 4, by, brx: 22, bry: 16 }
     return L
   }
 }
@@ -620,8 +632,12 @@ export function compose(sp: Species, st: number, o: ArtOptions = {}) {
   const eq = o.eq || {}, lv = o.lv || STAGES[st - 1].from
   const L = SP[sp](st, p, path), A: Anchors = { cx: 60, st, dx: 0, ...L.A } as Anchors
   const T = (x: string) => (A.dx && x ? `<g transform="translate(${A.dx} 0)">${x}</g>` : x)
-  const k = o.fit ? 1 : SCALE[st]
   const hat = eq.hat && HAT[eq.hat] ? HAT[eq.hat](A) : null
+  // 항상 같은 크기(FILL) — fit은 예전 인자로만 남는다. 모자가 그림 꼭대기보다 높이 올라가면(물방울 알 위 모자 등)
+  // 모자 끝 + 새싹(16)까지 같은 상자 안에 들게 그만큼만 줄인다
+  const k0 = artScale(sp, st), top0 = 108 - (108 - artTop(sp, st)) / k0
+  const hatTop = hat ? Math.min(top0, hat.tip - 16) : top0
+  const k = hatTop < top0 ? +Math.min(k0, 96 / (108 - hatTop)).toFixed(3) : k0
   const sproutY = hat ? hat.tip : L.sy ?? A.top + 2
   const wy = st === 1 ? A.hy + 6 : A.hy + A.hr * 0.5
   const wave = o.wave ? `<g class="c-wave"${org(60 + A.hr - 2, wy + 10)}>${E(60 + A.hr + 4, wy, 5, 7.5, p.skin, rot(-30, 60 + A.hr + 4, wy))}</g>` : ''
@@ -664,7 +680,7 @@ export function art(spIn: Species | string, st: number, o: ArtOptions = {}): str
 /** 부화 전 씨앗(종을 모를 때 · 성향 조사 전 "아직 모르는 알"). cracks 0~3 = 금 */
 export function seedArt(o: { size?: number; cracks?: number; fit?: boolean; crop?: Crop; uid?: string; rn?: boolean; live?: boolean; mood?: ArtMood; label?: string } = {}): string {
   const prev = begin(o.uid)
-  const k = o.fit === false ? SCALE[1] : 1
+  const k = 1 // 씨앗도 다른 단계와 같은 크기
   const cr = o.cracks ?? 0
   const crack = (d: string) => `<path d="${d}" stroke="${drk(HUSK, 0.35)}" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
   const seed = huskTop() + huskBottom() + (cr > 0 ? crack('M48 40 l5 7 l-3 6 l5 6') : '') + (cr > 1 ? crack('M74 46 l-4 7 l4 5') : '') + (cr > 2 ? crack('M66 92 l-3 -6 l5 -4') : '') + sprout(1, 60, 28)
@@ -681,7 +697,7 @@ export function seedArt(o: { size?: number; cracks?: number; fit?: boolean; crop
 export function hatchTop(spIn: Species | string, o: { fit?: boolean; uid?: string; rn?: boolean; size?: number } = {}): string {
   const sp = artSpecies(spIn)
   const prev = begin(o.uid)
-  const k = o.fit ? 1 : SCALE[1]
+  const k = artScale(sp, 1) // 아기 그림과 같은 배율이라 그대로 덮는다
   let s: string
   if (sp === 'bee') s = hexC(60, 64, 27.5, '#F7CB62') + `<path d="${hexD(60, 64, 20)}" fill="none" stroke="${lit('#F7CB62', 0.5)}" stroke-width="2" opacity=".8"/>` + gloss(48, 52, 5, 9, 0.7, 20) + heart(60, 66, 4, '#E7A93A', 'opacity=".6"')
   else if (sp === 'worm') s = `<path d="M33 62 C33 34 46 24 60 24 C74 24 87 34 87 62 L82 58 L77 62 L72 58 L67 62 L62 58 L57 62 L52 58 L47 62 L42 58 L37 62 Z" fill="${V('#FFF6E4')}"${line('#FFF6E4', 1.1, 0.7)} stroke-linejoin="round"/>` + C(46, 44, 3, '#C9EBA8') + C(72, 38, 2.4, '#C9EBA8') + gloss(47, 38, 5, 8, 0.7, 20)
@@ -810,7 +826,8 @@ export function sceneIcon(id: string, o: { locked?: boolean | string; uid?: stri
 export function decorIcon(id: string, o: { locked?: boolean | string; uid?: string; rn?: boolean; size?: number } = {}): string {
   const vb = ({ pot: '96 250 48 60', fence: '30 255 85 60', mushlamp: '120 290 60 50', butterfly: '150 175 40 32', ball: '384 276 32 32', bunting: '150 130 300 60', tent: '430 266 80 66', firefly: '140 160 300 110', arch: '190 180 220 130' } as Record<string, string>)[id] ?? '0 0 600 420'
   const prev = begin(o.uid)
-  const body = decorSvg(id)
+  // 잠긴 칸은 한 색 실루엣 — 빛 원(버섯 등·반딧불)까지 칠하면 큰 회색 원이 되므로 뺀다
+  const body = o.locked ? decorSvg(id).replace(/<circle[^>]*glow\)"[^>]*\/>/g, '') : decorSvg(id)
   const defs = end(prev)
   const sz = o.size ? ` width="${o.size}" height="${o.size}"` : ''
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}"${sz} class="item${o.locked ? ' lock' : ''}" aria-hidden="true">${defs}${body}</svg>`
@@ -824,6 +841,16 @@ export function trophyIcon(t: ShelfTrophy, o: { uid?: string; rn?: boolean; size
   const defs = end(prev)
   const sz = o.size ? ` width="${o.size}" height="${o.size}"` : ''
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="440 204 36 36"${sz} aria-hidden="true">${defs}${inner}</svg>`
+  return o.rn ? forNative(svg) : svg
+}
+/** 선반만 따로 그린 <svg>(장면 좌표 그대로, viewBox = SHELF_BOX). 휴대폰처럼 좁은 무대는 장면이 양옆으로 잘려
+ *  선반(x 436–540)이 반쯤 사라진다 → 장면에는 선반을 빼고(trophies 없이) 이 그림을 화면 안쪽 오른쪽에 따로 놓는다 */
+export const SHELF_BOX = { x: 430, y: 202, w: 116, h: 102 } as const
+export function shelfSvg(trophies: ShelfTrophy[], o: { uid?: string; rn?: boolean } = {}): string {
+  const prev = begin(o.uid)
+  const body = shelf(trophies)
+  const defs = end(prev)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${SHELF_BOX.x} ${SHELF_BOX.y} ${SHELF_BOX.w} ${SHELF_BOX.h}" aria-hidden="true">${defs}${body}</svg>`
   return o.rn ? forNative(svg) : svg
 }
 /** 진화·레벨업 조각(종마다): 달팽이 꽃잎 · 꿀벌 꿀방울(+육각) · 애벌레 잎 · 올챙이 물방울 — viewBox 0 0 10 10 */

@@ -1,6 +1,6 @@
 // 42 §8 · 43 §16 그림 데이터 시험: 단계마다 다른 실루엣·크기, 작은 그림에서 빠지는 것, bust 칸, 옷 기준점, 실루엣·잠김, 휴대폰용 글
 import assert from 'node:assert/strict'
-import { anchors, art, BACK, compose, forNative, HAND, HAT, hatchTop, itemIcon, NECK, newPartOf, PATHS, SCALE, SCALE_X, scene, seedArt, standBottom, titleOf, wearable, ART_MOODS, decorIcon, trophyIcon, bitSvg } from './characterArt.ts'
+import { anchors, art, BACK, compose, forNative, HAND, HAT, hatchTop, itemIcon, NECK, newPartOf, PATHS, FILL, artScale, artTop, scene, seedArt, standBottom, titleOf, wearable, ART_MOODS, decorIcon, trophyIcon, bitSvg } from './characterArt.ts'
 import { ITEMS, DECOR } from './wardrobe.ts'
 import { SPECIES_IDS } from './growth.ts'
 import { parseSvg, rnProps } from './svgTree.ts'
@@ -25,12 +25,17 @@ for (const sp of SPECIES_IDS) {
   for (const st of [3, 4, 5]) assert.notEqual(compose(sp, st, { path: 'a' }).inner, compose(sp, st, { path: 'b' }).inner, `${sp} ${st}`)
 }
 
-// ── 크기 배율: 0.7 → 1.45, 그림 안 scale(k = 배율 ÷ 1.45). fit이면 1 ──
-assert.deepEqual(SCALE_X, [0, 0.7, 1, 1.15, 1.3, 1.45])
-assert.equal(SCALE[5], 1)
-assert.ok(art('bee', 1).includes(`scale(${SCALE[1]})`))
-assert.ok(art('bee', 1, { fit: true }).includes('scale(1)'))
-assert.ok(SCALE[1] < SCALE[2] && SCALE[2] < SCALE[3] && SCALE[3] < SCALE[4] && SCALE[4] < SCALE[5])
+// ── 크기: 단계마다 같은 상자를 채운다(2026-10-09 사용자 결정 "항상 같은 크기"). fit 인자와 상관없이 같은 배율 ──
+for (const sp of ['snail', 'bee', 'worm', 'frog'] as const) for (let st = 1; st <= 5; st++) {
+  const k = artScale(sp, st)
+  assert.ok(k > 0.8 && k < 1.45, `${sp} ${st} 배율 ${k}`)
+  assert.ok(art(sp, st).includes(`scale(${k})`) && art(sp, st, { fit: false }).includes(`scale(${k})`), `${sp} ${st} fit 무관`)
+  assert.ok(artTop(sp, st) >= 11.9 && artTop(sp, st) <= 24, `${sp} ${st} 꼭대기 ${artTop(sp, st)}`)
+}
+assert.equal(FILL.bee.length, 6)
+assert.equal(artScale('squirrel', 1), artScale('bee', 1)) // 옛 종 id도 같은 표
+assert.ok(seedArt().includes('scale(1)') && seedArt({ fit: false }).includes('scale(1)'))
+assert.ok(hatchTop('frog').includes(`scale(${artScale('frog', 1)})`))
 
 // ── 작은 그림(≤ 40): bust 자르기 · 무늬 점 빠짐 · 목·손·등 옷 안 그림, 모자는 보임 ──
 const eqAll = { hat: 'straw', neck: 'bowtie', hand: 'mug', back: 'backpack' }

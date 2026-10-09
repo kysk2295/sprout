@@ -22,7 +22,7 @@ import { useTabBarSpace } from './tabBarSpace'
 
 type ToastOpts = { undo?: () => Promise<void> | void; error?: boolean; duration?: number; icon?: boolean; /** 되돌리기 대신 다른 이름의 버튼(예: "열기") */ action?: { label: string; onPress: () => void } }
 type Toast = ToastOpts & { id: number; message: string }
-const Ctx = createContext<{ show: (message: string, opts?: ToastOpts) => void }>({ show: () => {} })
+const Ctx = createContext<{ show: (message: string, opts?: ToastOpts) => void; hide: () => void }>({ show: () => {}, hide: () => {} })
 export const useToast = () => useContext(Ctx)
 
 export { tabBarBottom } from './tabBarSpace'
@@ -37,8 +37,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToast({ id, message, ...opts })
     timer.current = setTimeout(() => setToast((t) => (t?.id === id ? null : t)), opts.duration ?? (opts.undo || opts.action ? 3000 : 2000))
   }, [])
+  /** 같은 자리에 더 중요한 카드가 뜰 때(성장 탭 새 옷 카드 — 43 §5.5) 지금 토스트를 바로 치운다 */
+  const hide = useCallback(() => { clearTimeout(timer.current); setToast(null) }, [])
   useEffect(() => () => clearTimeout(timer.current), [])
-  const value = useMemo(() => ({ show }), [show])
+  const value = useMemo(() => ({ show, hide }), [show, hide])
   return (
     <Ctx.Provider value={value}>
       {children}

@@ -29,14 +29,15 @@ export const KEY = {
   room: (cid: string) => `sprout.room.${cid}`,
   greeted: 'sprout.greetedDay',
   motion: 'sprout.growthMotion',
-  surveyOffered: 'sprout.surveyOffered',
-  /** 43 §4.2 하루 장면(하루 한 번) · 하루 다 함 */
-  dayMoment: (day: string) => `sprout.dayMoment.${day}`,
-  dayDone: (day: string) => `sprout.dayDone.${day}`,
+  /** 첫 실행 조사 권하기 — 계정마다(같은 휴대폰에 새 계정이 들어와도 한 번 권한다) */
+  surveyOffered: (uid: string) => `sprout.surveyOffered.${uid}`,
+  /** 43 §4.2 하루 장면(하루 한 번) · 하루 다 함 — 캐릭터마다 */
+  dayMoment: (day: string, cid = '') => `sprout.dayMoment.${cid ? `${cid}.` : ''}${day}`,
+  dayDone: (day: string, cid = '') => `sprout.dayDone.${cid ? `${cid}.` : ''}${day}`,
   /** 43 §10 옷장 마지막 탭 */
   wardTab: 'sprout.wardTab'
 }
-export const keysFor = (cid: string | undefined, day?: string) => [KEY.greeted, KEY.motion, KEY.surveyOffered, KEY.wardTab, ...(day ? [KEY.dayMoment(day), KEY.dayDone(day)] : []), ...(cid ? [KEY.seenLevel(cid), KEY.seenLevelAt(cid), KEY.seenAt(cid), KEY.room(cid)] : [])]
+export const keysFor = (cid: string | undefined, day?: string, uid?: string | null) => [KEY.greeted, KEY.motion, KEY.wardTab, ...(uid ? [KEY.surveyOffered(uid)] : []), ...(day ? [KEY.dayMoment(day, cid), KEY.dayDone(day, cid)] : []), ...(cid ? [KEY.seenLevel(cid), KEY.seenLevelAt(cid), KEY.seenAt(cid), KEY.room(cid)] : [])]
 
 export function readRoomOff(cid: string): Set<string> {
   try { return new Set(JSON.parse(read(KEY.room(cid)) ?? '[]') as string[]) } catch { return new Set() }

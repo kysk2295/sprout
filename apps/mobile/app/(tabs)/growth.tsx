@@ -13,12 +13,12 @@ import { MoreHorizontal } from 'lucide-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { syncNow } from '../../src/data/auth'
+import { currentUserId, syncNow } from '../../src/data/auth'
 import { coreDb } from '../../src/data/db'
 import { taskDone, xpGained } from '../../src/data/events'
 import { useLiveQuery } from '../../src/data/rows'
 import { CharacterArt } from '../../src/growth/art/CharacterArt'
-import { EvolutionRoad, GoalsCard, ReportsCard, XpCard } from '../../src/growth/Cards'
+import { EvolutionRoad, GoalsCard, ReportsCard, TodayCard, XpCard } from '../../src/growth/Cards'
 import { useGrowthData } from '../../src/growth/data'
 import { EvolutionMoment, type Evolution } from '../../src/growth/EvolutionMoment'
 import { levelChange, minutesToday } from '../../src/growth/logic'
@@ -34,6 +34,11 @@ import { GlassButton } from '../../src/ui/Glass'
 import { PopMenu, useAnchor } from '../../src/ui/Menu'
 import { SoftIcon } from '../../src/ui/SoftIcon'
 import { useTabBarSpace } from '../../src/ui/tabBarSpace'
+import { useToast } from '../../src/ui/Toast'
+
+/** 새 옷 카드 순서: 레벨 선물 먼저, 그중 높은 레벨(방금 오른 레벨 · 진화 선물)부터 — 나머지(한 날·계절…)는 `외 N개` */
+const giftLv = (r: CharacterItemRow) => { const rule = ITEM_BY_ID[r.item_id]?.rule; return rule && 'lv' in rule ? rule.lv : 0 }
+const giftOrder = (a: CharacterItemRow, b: CharacterItemRow) => giftLv(b) - giftLv(a)
 
 export default function Growth() {
   const p = usePalette()
@@ -43,6 +48,7 @@ export default function Growth() {
   const focused = useIsFocused()
   const status = useStatus()
   const reduced = useMotionReduced()
+  const appToast = useToast()
 
   // 오늘·지금 시(자정·앞으로 올 때 다시)
   const [today, setToday] = useState(dayKey)
@@ -70,8 +76,9 @@ export default function Growth() {
 
   // 기기에 둔 값(본 레벨·하루 장면·움직임)을 먼저 읽는다
   const [storeReady, setStoreReady] = useState<string | null>(null)
-  const readyKey = `${cid ?? ''}|${today}`
-  useEffect(() => { let alive = true; void preload(keysFor(cid, today)).then(() => { if (alive) setStoreReady(readyKey) }); return () => { alive = false } }, [cid, today, readyKey])
+  const uid = currentUserId()
+  const readyKey = `${uid ?? ''}|${cid ?? ''}|${today}`
+  useEffect(() => { let alive = true; void preload(keysFor(cid, today, uid)).then(() => { if (alive) setStoreReady(readyKey) }); return () => { alive = false } }, [cid, today, uid, readyKey])
   const ready = storeReady === readyKey && g.loaded
   const live = focused && active
   const stage = useRef<StageHandle>(null)
@@ -86,10 +93,12 @@ export default function Growth() {
     if (!rows.length) return
     const trophy = rows.find((r) => r.kind === 'trophy')
     if (trophy) { stage.current?.say(TOUCH_LINES.trophy); stage.current?.hop() }
-    const items = rows.filter((r) => r.kind === 'item')
-    if (items.length) setTimeout(() => setToast(items), 700)
+    // 레벨 선물이 먼저(레벨업 바로 뒤 카드가 그 레벨 옷이게), 나머지(한 날·계절…)는 `외 N개`
+    const items = rows.filter((r) => r.kind === 'item').sort(giftOrder)
+    // 카드가 떠 있는 중에 또 열리면(한 날 7일 → 곧 레벨업) 합쳐서 `외 N개`로, 같은 자리의 완료 토스트는 치운다
+    if (items.length) setTimeout(() => { appToast.hide(); setToast((prev) => { const all = [...items, ...(prev ?? []).filter((r) => !items.some((x) => x.id === r.id))]; return all.sort(giftOrder) }) }, 700)
     else if (trophy) setTimeout(() => stage.current?.say(trophyLine(trophy)), 2700)
-  }, [])
+  }, [appToast])
   useEffect(() => { if (!live) return; showFresh(); return onFresh(() => showFresh()) }, [live, showFresh])
   const wear = (itemId: string) => {
     setToast(null)
@@ -128,13 +137,13 @@ export default function Growth() {
   }
   useEffect(() => {
     if (!ready || !live || !species || evo) return
-    if (read(KEY.dayMoment(today))) { setCalm(isBusy({ dueTotal, eventMinutes })); return }
+    if (read(KEY.dayMoment(today, cid))) { setCalm(isBusy({ dueTotal, eventMinutes })); return }
     let alive = true
     void loadProjectDeadlineToday(coreDb, today).catch(() => false).then((projectDeadline) => {
       if (!alive) return
-      const m = pickDayMoment({ hour, dueOpen, dueTotal, eventMinutes, projectDeadline, shownToday: !!read(KEY.dayMoment(today)) })
+      const m = pickDayMoment({ hour, dueOpen, dueTotal, eventMinutes, projectDeadline, shownToday: !!read(KEY.dayMoment(today, cid)) })
       if (!m) return
-      write(KEY.dayMoment(today), m)
+      write(KEY.dayMoment(today, cid), m)
       setTimeout(() => playMoment(m), 700)
     })
     return () => { alive = false }
@@ -144,8 +153,8 @@ export default function Growth() {
   useEffect(() => {
     const before = prevDue.current
     prevDue.current = { dueOpen, dueTotal }
-    if (!ready || !live || !species || read(KEY.dayDone(today))) return
-    if (dayJustDone(before, { dueOpen })) { write(KEY.dayDone(today), '1'); setTimeout(() => playMoment('dayDone'), 900) }
+    if (!ready || !live || !species || read(KEY.dayDone(today, cid))) return
+    if (dayJustDone(before, { dueOpen })) { write(KEY.dayDone(today, cid), '1'); setTimeout(() => playMoment('dayDone'), 900) }
   }, [dueOpen, dueTotal]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 보는 중에 들어온 XP · 할 일 완료 → 캐릭터 반응
@@ -166,10 +175,10 @@ export default function Growth() {
   // 첫 실행: 캐릭터가 없으면 성향 조사를 한 번 권한다(B5)
   const [laterCard, setLaterCard] = useState(false)
   useEffect(() => {
-    if (!ready || !focused || !status.hasSynced || species || read(KEY.surveyOffered) === '1') return
-    write(KEY.surveyOffered, '1')
+    if (!ready || !uid || !focused || !status.hasSynced || species || read(KEY.surveyOffered(uid)) === '1') return
+    write(KEY.surveyOffered(uid), '1')
     router.push('/growth/survey')
-  }, [ready, focused, status.hasSynced, species, router])
+  }, [ready, uid, focused, status.hasSynced, species, router])
 
   const menu = useAnchor()
   const [rename, setRename] = useState(false)
@@ -219,6 +228,7 @@ export default function Growth() {
           ) : null}
           {ready ? (
             <>
+              {species ? <TodayCard p={p} today={today} /> : null}
               <GoalsCard p={p} today={today} week={g.week} goals={g.goals} xpIds={g.xpIds} drafts={g.drafts} draftUsed={g.draftUsed} reduced={reduced} />
               <EvolutionRoad p={p} species={species} level={lv} stage={g.progress.stage} open={road} onOpen={setRoad} />
               <XpCard p={p} events={g.events} week={g.week} today={today} />

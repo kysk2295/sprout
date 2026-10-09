@@ -74,7 +74,8 @@ function Moment({ evo, reduced, onPick, onDone }: { evo: Evolution; reduced: boo
     end(1340)
   }, [reduced, bsO, bX, bY, bO, oO, oS, r1O, r1S, r2O, r2S, showCard, end])
 
-  const ask = useCallback(() => { setPhase('choose') }, [])
+  // 고르는 동안 빛 방울은 숨긴다(어두운 덮개 아래에서 회색 원으로 남지 않게) — 고르면 pop()이 다시 켠다
+  const ask = useCallback(() => { cancelAnimation(oO); oO.value = withTiming(0, { duration: 160 }); setPhase('choose') }, [oO])
   const pick = (p: Path) => { hx.tick(); setPath(p); onPick?.(p); setPhase('play'); pop() }
 
   useEffect(() => {
@@ -126,7 +127,7 @@ function Moment({ evo, reduced, onPick, onDone }: { evo: Evolution; reduced: boo
   const title = titleOf(sp, to, path)
   const P = PATHS[sp]
   return (
-    <Pressable style={s.root} onPress={skip} accessibilityLabel="진화 장면. 누르면 건너뛰기" accessibilityViewIsModal>
+    <Pressable style={s.root} onPress={skip} accessible={phase !== 'choose'} accessibilityLabel="진화 장면. 누르면 건너뛰기" accessibilityViewIsModal>
       <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs><RadialGradient id="evbg" cx="50%" cy="42%" r="75%"><Stop offset="0" stopColor="#2C6A43" /><Stop offset="0.55" stopColor="#12301E" /><Stop offset="1" stopColor="#08150D" /></RadialGradient>
           <RadialGradient id="evglow" cx="50%" cy="50%" r="50%"><Stop offset="0" stopColor="#8CF0AA" stopOpacity="0.42" /><Stop offset="0.65" stopColor="#8CF0AA" stopOpacity="0" /></RadialGradient></Defs>
@@ -168,7 +169,8 @@ function Moment({ evo, reduced, onPick, onDone }: { evo: Evolution; reduced: boo
               <Pressable key={p} style={({ pressed }) => [s.opt, pressed && { transform: [{ scale: 0.97 }], borderColor: '#8FF0B5' }]} onPress={() => pick(p)} accessibilityRole="button" accessibilityLabel={`${P[p].name}. ${P[p].line}`}>
                 <CharacterArt species={sp} stage={3} size={116} mood="smile" wear={{ lv: 6, path: p, eq: {} }} />
                 <Text style={s.optB}>{P[p].name}</Text>
-                <Text style={s.optS}>{P[p].line}{'\n'}→ {P[p].t[2]}</Text>
+                <Text style={s.optS} lineBreakStrategyIOS="hangul-word">{P[p].line}</Text>
+                <Text style={s.optT} numberOfLines={1}>→ {P[p].t[2]}</Text>
               </Pressable>
             ))}
           </View>
@@ -205,5 +207,6 @@ const s = StyleSheet.create({
   opt: { flex: 1, maxWidth: 170, borderRadius: 24, padding: 12, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' },
   optB: { color: '#fff', fontSize: 16, fontWeight: '700', marginTop: 6, marginBottom: 4 },
   optS: { color: 'rgba(255,255,255,0.72)', fontSize: 12, lineHeight: 17, textAlign: 'center' },
+  optT: { color: '#8FF0B5', fontSize: 12, lineHeight: 17, fontWeight: '600', textAlign: 'center', marginTop: 4 },
   later: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600' }
 })

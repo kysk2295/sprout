@@ -833,7 +833,7 @@ function renderWhere() {
 }
 function renderLineup() {
   const lp = S.linePath
-  let h = '<div class="lhd"><div class="seg" id="segLine"><button data-v="a">갈래 A</button><button data-v="b">갈래 B</button></div></div>' + [1, 2, 3, 4, 5].map((s) => `<div class="hd">${STAGES[s].name} · Lv ${STAGES[s].from}<small>${OLD() ? '' : '×' + KK.SCALE_X[s]}</small></div>`).join('')
+  let h = '<div class="lhd"><div class="seg" id="segLine"><button data-v="a">갈래 A</button><button data-v="b">갈래 B</button></div></div>' + [1, 2, 3, 4, 5].map((s) => `<div class="hd">${STAGES[s].name} · Lv ${STAGES[s].from}<small>${OLD() ? '' : '같은 크기'}</small></div>`).join('')
   for (const sp of Object.keys(SPECIES)) {
     h += `<div class="sp"><b>${SPECIES[sp].full}</b><span>${SPECIES[sp].why}</span><em>${{ turtle: '거북이', squirrel: '다람쥐', cat: '고양이', otter: '수달' }[SPECIES[sp].old]} 자리 · ${PATHS[sp][lp].name}</em></div>` + [1, 2, 3, 4, 5].map((s) => `<div class="lc" data-sp="${sp}" data-lv="${STAGES[s].from}">${art(sp, s, { path: lp, lv: STAGES[s].from, mood: 'smile' })}<b>${titleOf(sp, s, lp)}</b><span>${OLD() ? '' : s >= 3 ? PATHS[sp][lp].line.split(' → ')[s - 3] : KK.NEWPART[sp][s]}</span></div>`).join('')
   }

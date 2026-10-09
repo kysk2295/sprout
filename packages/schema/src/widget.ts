@@ -186,7 +186,7 @@ export function widgetLookKey(raw: string | null | undefined): string {
   return l.path === 'a' && !l.eq.hat && !l.eq.neck && !l.eq.hand && !l.eq.back ? '' : lookKey(l)
 }
 /** 저장 칸 안 캐릭터 그림 경로(25 §8.4) — 조합마다 한 장. 그림 판 v3(42 §10.3 꿈틀 정원 친구들) + 입은 모습 열쇠(43 §17 6 — wardrobe.lookKey) */
-export const widgetArtPath = (species: string | null, stage: number, mood: WidgetMood, look = '') => (species ? `art/v3-${species}-${stage}${look ? `-${look}` : ''}-${mood}@2x.png` : 'art/v3-egg@2x.png')
+export const widgetArtPath = (species: string | null, stage: number, mood: WidgetMood, look = '') => (species ? `art/v4-${species}-${stage}${look ? `-${look}` : ''}-${mood}@2x.png` : 'art/v4-egg@2x.png')
 
 /** "2026-10-04T09:12:03+09:00" — 로컬 시각 + 오프셋 */
 export function isoLocal(d: Date): string {

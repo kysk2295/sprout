@@ -1,7 +1,7 @@
 // 42 §5.2 · 43 §5 캐릭터 그림 — 공용 그림 데이터(@sprout/schema/characterArt, 시안 kkumteul-art.js v3)를 그대로 그린다.
 // 휴대폰(src/growth/art/CharacterArt.tsx)·맥 위젯 PNG(main/widgetArt.ts)·사이트 SVG가 같은 글을 그린다.
 // 입힌 옷: wear를 넘기지 않으면 CharacterWearProvider(내 캐릭터의 모습·레벨)를 쓴다 — 같은 종·같은 단계일 때만(진화 길의 다른 단계엔 안 입힌다).
-// 크기(43 결정 ⑨): 기본은 상자를 꽉 채운다(fit — 아바타·AI 비서·위젯·빈 상태). 성장 무대·도감·진화는 fit={false}로 단계 배율(0.7→1.45)을 그대로.
+// 크기: 단계와 상관없이 늘 같은 크기로 상자를 채운다(2026-10-09 사용자 결정 "항상 같은 크기" — characterArt FILL). fit 인자는 이제 결과가 같다.
 import { createContext, memo, useContext, useId, useMemo, type ReactNode } from 'react'
 import { art, seedArt, type ArtMood, type Crop, type Detail } from '@sprout/schema/characterArt'
 import { normalizeSpecies, stageOf, type Species } from '@sprout/schema/growth'

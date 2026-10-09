@@ -1,9 +1,9 @@
 // 43 §18.2 휴대폰 성장 탭 무대(시안 character-raising-v2 A): 장면이 화면 위 끝까지 + 큰 제목·유리 칩 + 받침 위 캐릭터 + 유리 HUD
 // (큰 % · 다음 선물 칩 · 굵은 막대 · 태그). 만지기(43 §4.1): 누르기 · 길게 = 쓰다듬기 · 빠르게 4번 = 간지럼 · 끌었다 놓기 · 이름 = 부르기.
 // 만지기는 아무것도 주지 않는다(XP·아이템 없음). 움직임은 감싸개의 transform·opacity만, UI 스레드(39 §11). 반복 움직임 캐릭터는 이 무대 하나.
-import { anchors, itemIcon, scene, sceneGround, sceneIsDark, SCALE, standBottom, titleOf, art } from '@sprout/schema/characterArt'
+import { artScale, artTop, itemIcon, scene, sceneGround, sceneIsDark, SHELF_BOX, shelfSpot, shelfSvg, standBottom, titleOf, art } from '@sprout/schema/characterArt'
 import { stageOf, type Species } from '@sprout/schema/growth'
-import { cmOf, decorOn, evolutionHint, giftsAt, growthTags, stageBoxSize, TOUCH, TOUCH_LINES, trophyShape, type Equip } from '@sprout/schema/wardrobe'
+import { decorOn, evolutionHint, giftsAt, growthTags, stageBoxSize, TOUCH, TOUCH_LINES, trophyLine, trophyShape, type Equip } from '@sprout/schema/wardrobe'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
@@ -42,8 +42,9 @@ export const RaiseStage = forwardRef<StageHandle, {
   const onLayout = (e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)
   // 무대 상자 × 0.8(43 §18.2). 좁은 휴대폰에서 전설이 제목·칩을 덮지 않게 머리 위를 제목 아래로 막는다
   const feetY = w ? sceneH - 120 * Math.max(w / 600, sceneH / 420) : sceneH - 112
-  // 상자 위쪽은 단계 배율 때문에 비어 있다 — 그려진 머리(새싹) 꼭대기만 본다
-  const headFrac = species ? (108 - (108 - (anchors(st, species, look.path).top - 14)) * SCALE[st]) / 120 : 0.2
+  // 그려진 머리(새싹) 꼭대기 — 단계마다 같은 상자를 채우므로 거의 같은 높이(characterArt FILL)
+  // 모자를 쓰면 머리 위로 더 올라온다(물방울 알처럼 껍질 위에 얹힐 때도) — 그만큼 위를 비워 제목·칩을 덮지 않게
+  const headFrac = species ? (artTop(species, st) - 2 - (worn.hat ? 16 * artScale(species, st) : 0)) / 120 : 0.12
   const box = Math.round(Math.min(stageBoxSize(lv) * 0.8, (feetY - topInset - 44) / (11 / 12 - headFrac)))
   const bottom = w ? H - sceneH + standBottom(w, sceneH, box) : 140
   // 말풍선은 머리(새싹) 바로 위: 그림 안 단계 배율 때문에 상자 위가 비어 있다
@@ -196,8 +197,21 @@ export const RaiseStage = forwardRef<StageHandle, {
 
   // ── 장면 ──
   const decor = useMemo(() => decorOn(lv, look), [lv, look])
-  const shelf = useMemo(() => raise.trophies.map((t) => trophyShape(t)), [raise.trophies])
-  const sceneSvg = useMemo(() => scene({ bg: worn.bg, night, decor, trophies: shelf, rn: true }), [worn.bg, night, decor, shelf])
+  // 선반(43 §7): 장면이 양옆으로 잘려도 보이게 장면 밖에 따로 그려 화면 오른쪽 안에 둔다. 트로피를 누르면 그 이야기(§4.1)
+  const shelfRows = useMemo(() => raise.trophies.slice(-6), [raise.trophies])
+  const shelfImg = useMemo(() => (shelfRows.length ? shelfSvg(shelfRows.map((t) => trophyShape(t)), { rn: true }) : ''), [shelfRows])
+  const sceneSvg = useMemo(() => scene({ bg: worn.bg, night, decor, rn: true }), [worn.bg, night, decor])
+  // 장면 배율(xMidYMax slice) → 선반은 0.8배로 줄여 오른쪽 끝 안에 붙이고(Lv 6 공 장식과 겹치지 않게) 받침 윗면(y 300) 높이에 세운다
+  const scale = w ? Math.max(w / 600, sceneH / 420) : 1
+  const sk = scale * 0.8
+  const shelfW = SHELF_BOX.w * sk, shelfH = SHELF_BOX.h * sk
+  const shelfLeft = Math.min(SHELF_BOX.x * scale - (600 * scale - w) / 2, w - shelfW - 4)
+  const shelfTop = sceneH - 120 * scale - (300 - SHELF_BOX.y) * sk
+  const onTrophy = useCallback((i: number) => {
+    const t = shelfRows[i]
+    if (!t) return
+    hx.tick(); feel('smile', TOUCH.sayMs); hop(1, 8); say(trophyLine(t))
+  }, [shelfRows, feel, hop, say])
   const darkScene = sceneIsDark(worn.bg, night)
   const faceMood = mood?.m ?? (sleepy ? 'sleepy' : 'smile')
   const eq: Partial<Equip> = hold ? { ...worn, hand: hold } : worn
@@ -215,6 +229,18 @@ export const RaiseStage = forwardRef<StageHandle, {
     <View style={[s.stage, { height: H, backgroundColor: sceneGround(worn.bg, night) }]} onLayout={onLayout}>
       {w > 0 ? <View style={[s.scene, { height: sceneH }]} pointerEvents="none"><SvgString svg={sceneSvg} width={w} height={sceneH} preserveAspectRatio="xMidYMax slice" /></View> : null}
       {p.dark ? <View style={[s.scene, { height: sceneH, backgroundColor: 'rgba(0,0,0,0.14)' }]} pointerEvents="none" /> : null}
+      {w > 0 && shelfImg ? (
+        <View style={{ position: 'absolute', left: shelfLeft, top: shelfTop, width: shelfW, height: shelfH }}>
+          <SvgString svg={shelfImg} width={shelfW} height={shelfH} />
+          {shelfRows.map((t, i) => {
+            const at = shelfSpot(i)
+            return (
+              <Pressable key={t.id} onPress={() => onTrophy(i)} hitSlop={4} accessibilityRole="button" accessibilityLabel={`트로피 ${t.title}`}
+                style={{ position: 'absolute', left: (at.x - 15 - SHELF_BOX.x) * sk, top: (at.y - 30 - SHELF_BOX.y) * sk, width: 30 * sk, height: 32 * sk }} />
+            )
+          })}
+        </View>
+      ) : null}
 
       <View style={[s.hdr, { top: topInset + 8 }]} pointerEvents="box-none">
         <Text style={[s.h1, { color: darkScene || p.dark ? '#fff' : '#10301C' }]} accessibilityRole="header">성장</Text>
@@ -249,7 +275,7 @@ export const RaiseStage = forwardRef<StageHandle, {
         <View style={s.who}>
           <Pressable onPress={() => species && wave()} hitSlop={8} accessibilityRole="button" accessibilityLabel={`${name} 부르기`}><Text style={[s.nm, { color: ink }]}>{name}</Text></Pressable>
           <View style={[s.lvb, { backgroundColor: p.accent }]}><Text style={s.lvbT}>Lv {lv}</Text></View>
-          <Text style={[s.ttl, { color: ink }]} numberOfLines={1}>{title} · 키 {cmOf(lv)}cm</Text>
+          <Text style={[s.ttl, { color: ink }]} numberOfLines={1}>{title}</Text>
         </View>
         <View style={s.mid}>
           <View style={{ flex: 1 }}>

@@ -243,10 +243,10 @@ export function lookKey(l: Pick<Look, 'path' | 'eq'>): string {
 }
 
 // ── 성장 막대 · 레벨 안 성장(43 §3 · §18.5) ────────────────────────
-/** 재미 숫자 키(cm) */
-export const cmOf = (level: number) => 20 + 3 * level
-/** 무대 상자 크기(px): 236 + 3 × (Lv − 1), Lv 20에서 멈춘다. 단계 배율(0.7→1.45)은 그림 안에 있다 */
-export const stageBoxSize = (level: number) => 236 + 3 * (Math.min(Math.max(level, 1), 20) - 1)
+/** 무대 상자 크기(px) — 레벨·단계와 상관없이 늘 같다(2026-10-09 사용자 결정 "캐릭터 크기는 동일하게 항상").
+ *  그림이 단계마다 같은 상자를 채우므로(characterArt FILL) 화면 크기도 같다. 성장은 모양·소품·새싹 잎·무늬로 보인다 */
+export const STAGE_BOX = 260
+export const stageBoxSize = (_level?: number) => STAGE_BOX
 /** 단계 안에서 레벨마다 새싹 잎눈(0~3) */
 export const budsOf = (level: number) => Math.min(3, level - STAGES[stageOf(level) - 1].from)
 /** 짝수 레벨마다 무늬 한 점(최대 6) */
@@ -254,7 +254,8 @@ export const marksOf = (level: number) => Math.min(6, Math.floor(level / 2))
 export const MARK_NAME: Record<Species, string> = { snail: '주근깨', bee: '주근깨', worm: '노란 점', frog: '물방울 점' }
 /** 이 레벨이 되면 바뀌는 것(막대 태그·레벨 줄) */
 export function growthTags(level: number, sp: Species): string[] {
-  const out = ['키 +3cm']
+  // 키(크기)는 자라지 않는다 — 새싹 잎·무늬·진화만(같은 단계 안 Lv 14·19·20처럼 바뀌는 게 없으면 빈 줄)
+  const out: string[] = []
   if (stageOf(level) !== stageOf(level - 1)) out.push(`${STAGES[stageOf(level) - 1].name}${stageOf(level) === 4 ? '으로' : '로'} 진화`)
   else {
     if (budsOf(level) > budsOf(level - 1)) out.push('새싹 잎 +1')
@@ -327,7 +328,7 @@ export function tapLines(c: { level: number; dueOpen: number; xpLeft: number; bu
   const out: string[] = []
   if (c.dueOpen && !c.busy) out.push(`오늘 ${c.dueOpen}개 남았어. 하나만 같이 할까?`)
   else if (!c.dueOpen) out.push('네가 끝낸 만큼 자라')
-  out.push(c.xpLeft <= 10 ? `레벨업까지 ${c.xpLeft} XP!` : `나 키 ${cmOf(c.level)}cm 됐어`)
+  out.push(c.xpLeft <= 10 ? `레벨업까지 ${c.xpLeft} XP!` : `벌써 Lv ${c.level}이야!`)
   if (nx) out.push(`Lv ${c.level + 1}엔 ${nx.name} 받아`)
   out.push('천천히 가도 괜찮아')
   return out

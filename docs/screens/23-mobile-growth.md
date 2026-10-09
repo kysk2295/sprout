@@ -118,7 +118,7 @@
 - **데스크톱 v3와 맞춘 것**(10 §3.2): 시간대 장면 · 숨쉬기·깜빡임·12~20초 대기 동작 · 누르면 깡충+하트+실제 숫자 말풍선(바로 전 문장 안 고름) · 길게 누르면 쓰다듬기 · 2초 안 5번 = 어지러움 · 졸림(밤 23–6시·이틀 XP 없음, 누르면 "으음… 안 잤어!") · **밥그릇**(왼쪽 아래, 오늘 할 일 XP 10칸, 누르면 "오늘 할 일로 3 XP 먹었어…") · **XP 방울**(성장 탭에 들어올 때 "자리 비운 사이" 띠 + 왼쪽 → 밥그릇 → 입, 보는 중 목표 XP는 위에서 큰 방울) · 장식 10개는 레벨대로 놓임(기기 저장 `sprout.room.<id>` — 꾸미기 패널은 휴대폰 v1에 없음 [다음]) · 단계마다 장면이 풍성해짐.
 - **기기에만**(10 §3.2.12와 같은 키 이름): `expo-secure-store`에 `sprout.seenLevel.<id>`(+`.at`) · `sprout.growthSeenAt.<id>` · `sprout.greetedDay` · `sprout.room.<id>` · `sprout.growthMotion` · `sprout.surveyOffered`. 새 네이티브 의존성 없음.
 - **레벨업 감지**: 성장 탭이 보이고 앱이 앞에 있을 때, 첫 동기화가 끝난 뒤에만(내려받는 XP를 레벨업으로 착각하지 않게). 처음 보는 기기는 기준만 잡는다. 여러 단계를 한 번에 넘어도 한 번(가장 높은 레벨).
-- **첫 실행**: 캐릭터(species)가 없으면 성장 탭을 처음 열 때 조사 화면을 한 번 띄운다(`sprout.surveyOffered`). 앱 시작 직후 띄우는 것은 뿌리 `_layout`(이 작업 범위 밖)을 고쳐야 해서 성장 탭에서 한다.
+- **첫 실행**: 캐릭터(species)가 없으면 성장 탭을 처음 열 때 조사 화면을 계정마다 한 번 띄운다(`sprout.surveyOffered.<사용자 id>` — 같은 휴대폰에 새 계정이 들어와도 한 번). 앱 시작 직후 띄우는 것은 뿌리 `_layout`(이 작업 범위 밖)을 고쳐야 해서 성장 탭에서 한다.
 - **⋯ 메뉴**: 이름 바꾸기 · XP 규칙 보기 · 성향 (다시) 조사하기 + **움직임 줄이기**(데스크톱 10 §3.2.11 결정과 같은 기기별 스위치, OS 동작 줄이기가 켜져 있으면 늘 줄임).
 - **이 명세와 다르게/덜 한 것**: 목표 행 `⋯`(다음 주로 넘기기·삭제)는 없음(휴대폰은 체크·초안 받기만, D7). 진화 길 미리보기는 길 아래 카드로 뜬다(말풍선 대신). 리포트 화면 캐릭터 한마디는 AI 문장 첫 문장 그대로(이미 캐릭터 1인칭 일기체 — 10 §3.2.9).
 - **packages/schema로 옮길 것(TODO)**: `goalCore.ts` 전체(데스크톱 `setGoalProgress`·`addGoalRow`·`dismissDraft`·`assignCharacter`도 이것을 부르게), `logic.ts`의 `DECOR`·`stageLines`·`greetingLine`·`catchUpOf`·`levelOfTotal`·`streakOf`·`gainedSince`·`SURVEY_DESC`·`surveyQueue`·`typeCodeOf`·주 시작(월요일) `weekStartOf`.

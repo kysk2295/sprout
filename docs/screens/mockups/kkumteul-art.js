@@ -2,7 +2,7 @@
    character-raising-v2.html · visual-refresh.html 이 같은 그림을 쓴다(그림은 이 파일 하나). 이전 그림(v2.0)은 kkumteul-art-v1.js(KK1)에 그대로 둔다.
    화풍: 말랑한 비닐 인형 — 면마다 빛이 왼쪽 위에서 오는 둥근 음영(radialGradient) + 같은 색 계열의 얇은 선 + 흰 하이라이트 + 바닥 그림자.
    귀엽게: 아기 비율(머리가 몸보다 크다), 큰 눈 + 빛점 둘 + 아래 푸른 반사, 볼 번짐, 작은 입(ω·웃음·벌린 입), 짧고 통통한 팔다리, 파스텔이지만 채도 있게.
-   캐릭터 = "꿈틀 정원 친구들" 4종 × 5단계. 단계마다 실루엣 자체가 바뀌고(알·칸·물방울 → 몸 → 탈바꿈), 크기가 0.7 → 1.0 → 1.15 → 1.3 → 1.45배로 자란다(SCALE).
+   캐릭터 = "꿈틀 정원 친구들" 4종 × 5단계. 단계마다 실루엣 자체가 바뀌고(알·칸·물방울 → 몸 → 탈바꿈), 크기는 단계와 상관없이 늘 같다(FILL — 2026-10-09 사용자 결정, 42 §10.6.1).
    종 표시: 달팽이 하트 나선 · 꿀벌 솜털 목도리 · 애벌레 방울 더듬이 · 올챙이 잎 모자. 머리 새싹은 모든 종에 같다(브랜드 실).
    좌표: viewBox 0 0 120 120, 발밑 y 108. 그림은 전설 크기로 그리고 단계마다 발밑(60,108)을 중심으로 줄인다. 장면: 0 0 600 420, 받침 윗면 y 300. */
 (function () {
@@ -73,7 +73,9 @@ const stageOf = (lv) => lv >= 15 ? 5 : lv >= 10 ? 4 : lv >= 6 ? 3 : lv >= 3 ? 2 
 const need = (lv) => 40 + 20 * (lv - 1)
 /** 단계마다 그림 크기(기준 상자에 대한 배율) 0.7 → 1.0 → 1.15 → 1.3 → 1.45. 그림은 전설(1.45)이 상자를 꽉 채우게 그리고 단계마다 줄인다 */
 const SCALE_X = [0, .7, 1, 1.15, 1.3, 1.45]
-const SCALE = SCALE_X.map((x) => +(x / 1.45).toFixed(3))
+const SCALE = SCALE_X.map((x) => +(x / 1.45).toFixed(3)) // 예전 판(참고용) — 그림은 FILL을 쓴다
+/** 2026-10-09 "항상 같은 크기": 종·단계마다 같은 상자를 채우는 배율(packages/schema characterArt.ts FILL과 같은 값) */
+const FILL = { snail: [1, 1.255, 1.058, 1.003, 0.954, 0.846], bee: [1, 1.105, 1.019, 0.981, 0.917, 0.92], worm: [1, 1.094, 1.036, 0.921, 0.958, 0.913], frog: [1, 1.401, 1.058, 1.022, 0.988, 0.912] }
 const PATHS = {
   snail: { a: { name: '이끼 정원', line: '흰 꽃 껍데기 → 이끼 집 → 나무 집', t: ['꽃 달팽이', '이끼집 달팽이', '나무집 달팽이'] }, b: { name: '꽃 정원', line: '분홍 꽃 껍데기 → 꽃 오두막 → 유리 온실', t: ['분홍꽃 달팽이', '꽃집 달팽이', '온실 달팽이'] } },
   bee:   { a: { name: '해바라기 길', line: '꿀단지 → 해바라기 관 → 꿀 등불', t: ['꿀단지 꿀벌', '해바라기 여왕벌', '꿀등불 꿀벌'] }, b: { name: '들꽃 길', line: '꽃바구니 → 데이지 관 → 꽃 등불', t: ['꽃바구니 꿀벌', '데이지 여왕벌', '꽃등불 꿀벌'] } },
@@ -585,7 +587,7 @@ function art(sp, st, o = {}) {
   const eq = o.eq || {}, lv = o.lv || STAGES[st].from
   const L = SP[sp](st, p, path), A = { cx: 60, st, dx: 0, ...L.A }
   const T = (x) => A.dx && x ? `<g transform="translate(${A.dx} 0)">${x}</g>` : x   // 달팽이처럼 머리가 가운데에서 비켜난 종: 머리 쪽 층만 옮긴다(옷 기준점은 그대로)
-  const k = o.fit ? 1 : SCALE[st]
+  const k = (FILL[sp] || FILL.worm)[st]
   const hat = eq.hat && HAT[eq.hat] ? HAT[eq.hat](A) : null
   const sproutY = hat ? hat.tip : (L.sy ?? A.top + 2)
   const wy = st === 1 ? A.hy + 6 : A.hy + A.hr * .5
@@ -610,7 +612,7 @@ function art(sp, st, o = {}) {
 }
 /** 아기 단계를 덮는 뚜껑(부화 전 모습): 달팽이 씨앗 윗껍질 · 꿀벌 밀랍 뚜껑 · 애벌레 알 윗부분 · 올챙이 물방울 막 */
 function hatchTop(sp = 'snail', fit = false) {
-  const k = fit ? 1 : SCALE[1]
+  const k = (FILL[sp] || FILL.worm)[1]
   let s
   if (sp === 'bee') s = hexC(60, 64, 27.5, '#F7CB62') + `<path d="${hexD(60, 64, 20)}" fill="none" stroke="${lit('#F7CB62', .5)}" stroke-width="2" opacity=".8"/>` + gloss(48, 52, 5, 9, .7, 20) + heart(60, 66, 4, '#E7A93A', 'opacity=".6"')
   else if (sp === 'worm') s = `<path d="M33 62 C33 34 46 24 60 24 C74 24 87 34 87 62 L82 58 L77 62 L72 58 L67 62 L62 58 L57 62 L52 58 L47 62 L42 58 L37 62 Z" fill="${V('#FFF6E4')}"${line('#FFF6E4', 1.1, .7)} stroke-linejoin="round"/>` + C(46, 44, 3, '#C9EBA8') + C(72, 38, 2.4, '#C9EBA8') + gloss(47, 38, 5, 8, .7, 20)
