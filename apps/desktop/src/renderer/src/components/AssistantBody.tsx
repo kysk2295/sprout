@@ -1,6 +1,6 @@
 import { SoftIcon } from './SoftIcon'
 import type { SoftIconName } from '@sprout/tokens/softIcons'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { ArrowDown, ArrowUp, ArrowUpRight, BarChart3, CalendarDays, Check, Cpu, History, List, MoreHorizontal, Plus, RefreshCw, RotateCcw, Square, Trash2 } from 'lucide-react'
 import { answerFace, answerKindOf, COMPANION_SIZE, EGG_TAP_LINE, errorFace, pickLine, quickReplies, TAP_LINES, tapSpeaks } from '@sprout/schema/companion'
 import { canGrantTaskXp } from '@sprout/schema/growth'
@@ -8,18 +8,43 @@ import { daysBetween, dayWord, ymdOf, type RecallHit, type RecallResult } from '
 import { useGrowth } from '../data/growth'
 import { CompanionFace, CompanionSay, CompanionXp, StillFace, useCompanion } from './companion/CompanionFace'
 import { localModels, type AssistantProgress } from '../../../shared/assistant'
-import { askAssistant, undoAssistant, type AssistantResult } from '../data/assistant'
+import { agentFeatures, agentWrites, askAgent, askAssistant, assistantDiaryOn, undoAssistant, type AgentFeatures, type AssistantResult } from '../data/assistant'
+import { AgentUnsupportedError, pendingCard, saveCard, undoCard, type TurnEvent } from '@sprout/schema/assistantAgent'
+import { savedLine, type Card, type Chip, type ConfirmCard } from '@sprout/schema/assistantExec'
+import { emptyMemory, type AgentMemory } from '@sprout/schema/assistantRouter'
+import { createTextStream } from '@sprout/schema/diaryTalk'
+import { useMotionReduced } from '../data/growth'
+import { StreamText } from './diary/Stream'
+import { AgentCard, Bands, ConfirmView, editSentence, ToolChips, type AgentView } from './AssistantAgent'
 import { useQuery } from '../data/useQuery'
 import { dayKey, rowDateLabel } from '../lib/dates'
 import { useTaskActions } from '../lib/taskActions'
 import { Dialog } from './Dialog'
 import { MenuItem, Popover, SubMenu } from './Popover'
 
-/** request = 그 답을 받은 말(빠른 답 칩이면 합친 말), undone = 등록을 되돌림(40 §3.2 — 카드는 남기고 행이 삭제됨) */
-type Message = { id: string; role: 'user' | 'assistant'; text: string; result?: AssistantResult; request?: string; undone?: boolean }
+/** request = 그 답을 받은 말(빠른 답 칩이면 합친 말), undone = 등록을 되돌림(40 §3.2 — 카드는 남기고 행이 삭제됨), agent = 47 B안 답(칩·카드·띠) */
+type Message = { id: string; role: 'user' | 'assistant'; text: string; result?: AssistantResult; request?: string; undone?: boolean; agent?: AgentView }
+/** 받는 중(47): 칩·카드는 턴 안에서 바로 보이고, 글은 저장소(createTextStream)로만 흘려 받는 말풍선만 다시 그린다 */
+type LiveTurn = { chips: Chip[]; running: number[]; cards: Card[] }
+/** 모델에게 보낼 최근 대화: 내 말 + 캐릭터 답 쌍(47 §10 — 6턴, 600자는 공용이 자른다) */
+function pairsOf(messages: Message[]) {
+  const out: { user: string; assistant: string }[] = []
+  messages.forEach((m, i) => { const prev = messages[i - 1]; if (m.role === 'assistant' && prev?.role === 'user' && (m.agent?.line ?? m.text)) out.push({ user: prev.text, assistant: m.agent?.line ?? m.text }) })
+  return out.slice(-6)
+}
 export function useAssistant(account: string) {
   const key = `sprout.assistant.history.${account}`
+  const memKey = `sprout.assistant.memory.${account}`
   const [messages, setMessages] = useState<Message[]>(() => { try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] } })
+  const latestMessages = useRef(messages)
+  latestMessages.current = messages
+  const [memory, setMemory] = useState<AgentMemory>(() => { try { return JSON.parse(localStorage.getItem(memKey) || 'null') ?? emptyMemory() } catch { return emptyMemory() } })
+  const [features, setFeatures] = useState<AgentFeatures>({ agent: false, daily: null })
+  const [live, setLive] = useState<LiveTurn | null>(null)
+  const stream = useRef(createTextStream()).current
+  const me = useCompanion()
+  const actions = useTaskActions()
+  const writes = useMemo(() => agentWrites({ complete: (ids) => actions.complete(ids), uncomplete: (ids) => actions.reopen(ids) }), [actions])
   const [models, setModels] = useState<string[]>([]), [model, setModel] = useState(localStorage.getItem('sprout.assistant.model') || '')
   const [busy, setBusy] = useState(false), [connecting, setConnecting] = useState(false), [error, setError] = useState('')
   const [progress, setProgress] = useState<AssistantProgress>({ phase: 'connecting' }), [started, setStarted] = useState(0), [lastRequest, setLastRequest] = useState('')
@@ -27,6 +52,7 @@ export function useAssistant(account: string) {
   useEffect(() => { if (cooldown <= Date.now()) return; const t = setTimeout(() => setCooldown(0), cooldown - Date.now()); return () => clearTimeout(t) }, [cooldown])
   const request = useRef<AbortController | null>(null)
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify(messages.slice(-100))) } catch { setError('대화 기록을 보관할 공간이 부족해요.') } }, [messages, key])
+  useEffect(() => { try { localStorage.setItem(memKey, JSON.stringify(memory)) } catch { /* 이번 실행만 */ } }, [memory, memKey])
   useEffect(() => { localStorage.setItem('sprout.assistant.model', model) }, [model])
   const refresh = async () => {
     setConnecting(true); setError('')
@@ -35,11 +61,50 @@ export function useAssistant(account: string) {
       setModels(found)
       setModel((old) => (found.includes(old) ? old : found.find((m) => m === 'qwen3.5:9b') || found[0] || ''))
       if (!found.length) setError('지금은 AI를 쓸 수 없어요. 할 일·캘린더는 그대로 쓸 수 있어요.')
+      void agentFeatures().then(setFeatures)
     } catch (e) { setModels([]); setModel(''); setError(humanize(e)) } finally { setConnecting(false) }
   }
   useEffect(() => { void refresh(); return () => request.current?.abort() }, [])
   // 13 §6: 쓸 수 없으면 1분 뒤 저절로 다시 확인
   useEffect(() => { if (connecting || busy || models.length) return; const t = setTimeout(() => void refresh(), 60000); return () => clearTimeout(t) }, [connecting, busy, models.length])
+  /** 확인 카드 바꾸기(그 답 안에서) + 캐릭터 한 줄 */
+  const putCard = (msgId: string, card: ConfirmCard, line?: string) => setMessages((old) => old.map((m) => (m.id === msgId && m.agent ? { ...m, agent: { ...m.agent, cards: m.agent.cards.map((c) => (c.type === 'confirm' && c.key === card.key ? card : c)), ...(line !== undefined ? { line } : {}) } } : m)))
+  const cardOf = (key: string) => { for (const m of latestMessages.current) for (const c of m.agent?.cards ?? []) if (c.type === 'confirm' && c.key === key) return { msgId: m.id, card: c }; return null }
+  /** 넣기·완료·옮기기·지우기(§5.3) */
+  const saveConfirm = async (msgId: string, card: ConfirmCard, picked?: string[]) => {
+    try { const saved = await saveCard(card, writes, picked); putCard(msgId, saved, savedLine(saved, new Date())); return saved }
+    catch (e) { setError(e instanceof Error ? e.message : '저장하지 못했어요.'); return null }
+  }
+  const cancelConfirm = (msgId: string, card: ConfirmCard) => putCard(msgId, { ...card, state: 'cancelled' }, card.op === 'create' ? '알겠어, 안 넣을게.' : '알겠어, 그대로 둘게.')
+  const undoConfirm = async (msgId: string, card: ConfirmCard) => {
+    try { putCard(msgId, await undoCard(card, writes), '알겠어, 되돌렸어.') } catch (e) { setError(e instanceof Error ? e.message : '되돌리지 못했어요.') }
+  }
+  /** 47 B안 한 턴 */
+  const sendAgent = async (prompt: string, signal: AbortSignal) => {
+    stream.reset()
+    setLive({ chips: [], running: [], cards: [] })
+    const onEvent = (e: TurnEvent) => {
+      if (e.type === 'chip') setLive((l) => l && { ...l, chips: Object.assign([...l.chips], { [e.index]: e.chip }), running: e.state === 'running' ? [...l.running, e.index] : l.running.filter((x) => x !== e.index) })
+      else if (e.type === 'card') setLive((l) => l && { ...l, cards: [...l.cards, e.card] })
+      else if (e.type === 'delta') { stream.set(stream.get().text + e.text); setProgress((p) => (p.phase === 'generating' ? p : { phase: 'generating' })) }
+      else if (e.type === 'reset') stream.reset()
+      else if (e.type === 'queue') setProgress({ phase: 'connecting', queue: e.position })
+      else if (e.type === 'phase') setProgress({ phase: e.phase === 'tools' ? 'querying' : 'connecting' })
+    }
+    const msgs = latestMessages.current
+    const r = await askAgent({ text: prompt, model, history: pairsOf(msgs), memory, pending: pendingCard(msgs.map((m) => m.agent?.cards ?? [])), diary: assistantDiaryOn(account), name: me.name, signal, onEvent })
+    await stream.whenShown(600)
+    setMemory(r.memory)
+    let line: string | undefined
+    if (r.confirm) {
+      const found = cardOf(r.confirm.key)
+      if (found && r.confirm.action === 'save') { const saved = await saveConfirm(found.msgId, found.card); line = saved ? savedLine(saved, new Date()) : undefined }
+      else if (found) cancelConfirm(found.msgId, found.card)
+    }
+    const view: AgentView = { chips: r.chips, cards: r.cards, bands: r.bands, route: r.route, calls: r.calls, ms: r.ms, ...(r.hint ? { hint: r.hint } : {}), ...(r.action ? { action: r.action } : {}), ...(r.error ? { error: r.error } : {}), ...(r.busyFallback ? { busyFallback: true } : {}), ...(line ? { line } : {}) }
+    setMessages((old) => [...old, { id: crypto.randomUUID(), role: 'assistant', text: r.text || (line ?? ''), request: prompt, agent: view }])
+    void agentFeatures().then(setFeatures)
+  }
   /** prompt: 빠른 답 칩(40 §3.3) — 말풍선은 칩 글(text), 모델에는 앞 요청과 합친 말(prompt) */
   const send = async (text: string, prompt = text) => {
     if (request.current || !text.trim() || !model) return false
@@ -49,15 +114,28 @@ export function useAssistant(account: string) {
     const timer = setTimeout(() => { timedOut = true; abort.abort() }, 330000)
     // 다시 시도: 답을 못 받은 같은 말은 말풍선을 또 쌓지 않는다
     setMessages((old) => (old.at(-1)?.role === 'user' && old.at(-1)?.text === text ? old : [...old, { id: id + 'user', role: 'user', text }]))
-    try { const result = await askAssistant(prompt, model, id, abort.signal, messages.slice(-8).map((m) => ({ role: m.role, content: m.text })), setProgress); setMessages((old) => [...old, { id, role: 'assistant', text: result.text, result, request: prompt }]); return true }
+    try {
+      if (features.agent) {
+        try { await sendAgent(prompt, abort.signal); return true }
+        catch (e) { if (!(e instanceof AgentUnsupportedError)) throw e; setFeatures((f) => ({ ...f, agent: false })); setLive(null) } // 배포 전 서버 → 13 의도 경로
+      }
+      const result = await askAssistant(prompt, model, id, abort.signal, latestMessages.current.slice(-8).map((m) => ({ role: m.role, content: m.text })), setProgress); setMessages((old) => [...old, { id, role: 'assistant', text: result.text, result, request: prompt }]); return true
+    }
     catch (e) { setError(timedOut ? 'AI 응답이 너무 오래 걸려요. 다시 시도해 주세요.' : abort.signal.aborted ? '요청을 멈췄어요. 내용을 확인한 뒤 다시 보내 주세요.' : humanize(e)); if (isLimit(e)) setCooldown(Date.now() + 30000); return false }
-    finally { clearTimeout(timer); request.current = null; setBusy(false) }
+    finally { clearTimeout(timer); request.current = null; setBusy(false); setLive(null) }
   }
   const undo = async (message: Message) => {
     if (!message.result?.created) return
     try { await undoAssistant(message.result.created); setMessages((old) => old.map((m) => (m.id === message.id ? { ...m, undone: true } : m))) } catch (e) { setError(e instanceof Error ? e.message : '되돌리지 못했어요.') }
   }
-  return { cooldown: cooldown > Date.now(), progress, started, lastRequest, messages, models, model, setModel, busy, connecting, error, refresh, send, undo, cancel: () => request.current?.abort(), clear: () => { if (!request.current) { setMessages([]); setError('') } } }
+  const left = features.daily ? Math.max(0, features.daily.limit - features.daily.used) : null
+  return {
+    cooldown: cooldown > Date.now(), progress, started, lastRequest, messages, models, model, setModel, busy, connecting, error, refresh, send, undo, agent: features.agent, left, live, stream,
+    saveConfirm, cancelConfirm, undoConfirm, setError,
+    cancel: () => request.current?.abort(),
+    // 새 대화면 이어 받을 것도 비운다(47 §10) — 저장 안 된 확인 카드도 같이 사라진다
+    clear: () => { if (!request.current) { setMessages([]); setMemory(emptyMemory()); setError('') } }
+  }
 }
 export type AssistantController = ReturnType<typeof useAssistant>
 
@@ -118,6 +196,9 @@ export function AssistantHeaderActions({ assistant: a, help }: { assistant: Assi
 }
 
 const SUGGESTIONS = ['내일 오후 3시에 기획 회의 한 시간 잡아줘', '이번 주 남은 할 일 보여줘', '이번 주에 완료한 거 몇 개야?']
+/** 47 §5.4 B안 빈 대화 예시(바로 보냄) */
+const AGENT_SUGGESTIONS = ['미용실 간 지 얼마나 지났지', '이번 주 뭐가 제일 급해?', '내일 3시에 교수님 면담 잡아줘']
+const AGENT_ICONS: SoftIconName[] = ['done', 'week', 'calendar']
 /** 44 §6.7 빈 대화 제안 = 말랑 아이콘 카드(제안 문장은 그대로) */
 const SUGGESTION_ICONS: SoftIconName[] = ['calendar', 'week', 'done']
 const STEPS: { key: AssistantProgress['phase'][]; label: string }[] = [{ key: ['connecting'], label: '연결' }, { key: ['generating'], label: '해석' }, { key: ['validating', 'saving', 'querying'], label: '확인' }]
@@ -132,6 +213,10 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
   const me = useCompanion()
   const { events } = useGrowth()
   const recentLists = useQuery<{ name: string }>(RECENT_LISTS_SQL)
+  const reduced = useMotionReduced()
+  const { complete } = useTaskActions()
+  /** 결과 카드: 행 = 열기, 체크 = 완료 + XP(13 §4·21) + 캐릭터 깡충 */
+  const cardH = (msgId: string) => ({ onOpen, species: me.species, stage: me.stage, onComplete: (id: string) => { setBump((b) => ({ id: msgId, move: 'hop', n: (b?.n ?? 0) + 1, xp: canXp })); void complete([id]) } })
   const seenIds = useRef<Set<string> | null>(null)
   if (!seenIds.current) seenIds.current = new Set(a.messages.map((m) => m.id)) // 열 때 이미 있던 답은 다시 깡충하지 않는다
   const [bump, setBump] = useState<{ id: string; move: 'hop' | 'tilt'; n: number; xp?: boolean } | null>(null)
@@ -177,7 +262,7 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
   const lastAi = tail ? -1 : a.messages.map((m) => m.role).lastIndexOf('assistant')
   const lastMsg = a.messages.at(-1)
   const nameLine = variant === 'full' && <span className="assistant-name">{me.name}</span>
-  const chips = !tail && lastMsg?.role === 'assistant' && answerKindOf(lastMsg.result) === 'reply' && !draft.trim()
+  const chips = !tail && lastMsg?.role === 'assistant' && !lastMsg.agent && answerKindOf(lastMsg.result) === 'reply' && !draft.trim()
     ? quickReplies({ request: lastMsg.request ?? a.messages.at(-2)?.text ?? '', question: lastMsg.text, lists: (recentLists ?? []).map((l) => l.name) })
     : []
   return (
@@ -192,14 +277,46 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
                 </CompanionFace>
                 <strong className="assistant-empty__name">{me.name}</strong>
                 <span className="assistant-empty__lv">{me.levelLine}</span>
-                <p className="assistant-empty__one">할 일을 말로 등록하거나, 내 일정과 완료 기록을 물어보세요.</p>
+                {a.agent ? <><p className="assistant-empty__one">뭐든 물어봐. 내 할 일도, 그냥 수다도.</p><p className="aa-empty__fact">할 일·일정은 찾아보고 답해요 · 인터넷은 못 봐요</p></> : <p className="assistant-empty__one">할 일을 말로 등록하거나, 내 일정과 완료 기록을 물어보세요.</p>}
                 <div className="assistant-sugs">
-                  {SUGGESTIONS.map((text, i) => <button key={text} className="assistant-sug" disabled={a.busy || !a.model} onClick={() => void submit(text)}><SoftIcon name={SUGGESTION_ICONS[i] ?? 'ai'} size={28} /><span>{text}</span></button>)}
+                  {(a.agent ? AGENT_SUGGESTIONS : SUGGESTIONS).map((text, i) => <button key={text} className="assistant-sug" disabled={a.busy || !a.model} onClick={() => void submit(text)}><SoftIcon name={(a.agent ? AGENT_ICONS : SUGGESTION_ICONS)[i] ?? 'ai'} size={28} /><span>{text}</span></button>)}
                 </div>
               </div>
             )}
             {a.messages.map((m, i) => {
               if (m.role === 'user') return <p key={m.id} className="assistant-me">{m.text}</p>
+              if (m.agent) {
+                const v = m.agent
+                const face = agentFace(v, me.egg)
+                const mine = bump?.id === m.id ? bump : null
+                const live = i === lastAi || !!mine?.xp
+                const play = mine ?? (!seenIds.current!.has(m.id) && face.move ? { move: face.move, n: 0 } : null)
+                const mood = mine?.xp || mine?.move === 'hop' ? 'happy' : face.mood
+                const text = v.line ?? m.text
+                return (
+                  <div key={m.id} className="assistant-ai">
+                    {live
+                      ? <CompanionFace species={me.species} stage={me.stage} size={size} mood={mood} dim={face.dim} play={play} className="assistant-face" onPress={() => setBump((b) => ({ id: m.id, move: 'hop', n: (b?.n ?? 0) + 1 }))} label={me.label}>{mine?.xp && <CompanionXp key={mine.n} />}</CompanionFace>
+                      : <StillFace species={me.species} stage={me.stage} size={size} mood={face.mood} dim={face.dim} />}
+                    <div className="assistant-ai__body">
+                      {nameLine}
+                      <ToolChips chips={v.chips} />
+                      {text && <p className="assistant-text">{text}</p>}
+                      {v.cards.map((c, k) => c.type === 'confirm'
+                        ? <ConfirmView key={c.key} card={c} busy={a.busy} onOpen={onOpen}
+                            onSave={(picked) => void a.saveConfirm(m.id, c, picked).then((saved) => { if (saved) setBump((b) => ({ id: m.id, move: 'hop', n: (b?.n ?? 0) + 1, xp: saved.op === 'complete' && canXp })) })}
+                            onCancel={() => a.cancelConfirm(m.id, c)}
+                            onEdit={() => { a.cancelConfirm(m.id, c); onDraft(editSentence(c)); input.current?.focus() }}
+                            onUndo={() => void a.undoConfirm(m.id, c)} />
+                        : <AgentCard key={k} card={c} h={cardH(m.id)} />)}
+                      <Bands bands={v.bands} />
+                      {v.hint && <p className="aa-hint">{v.hint}</p>}
+                      {v.action && <div className="aa-actions"><button className="aa-btn" onClick={() => onOpen(v.action === 'diary' ? 'view:diary' : 'view:settings')}>{v.action === 'diary' ? '일기로 가기' : '설정 열기'}</button></div>}
+                      {v.error && <div className="assistant-error" role="alert"><p>{v.error}</p></div>}
+                    </div>
+                  </div>
+                )
+              }
               const kind = answerKindOf(m.result)
               const face = answerFace({ kind, count: m.result?.total ?? m.result?.tasks?.length, first: m.result?.tasks?.[0], status: m.result?.status, request: m.request ?? a.messages[i - 1]?.text, text: m.text, undone: m.undone, egg: me.egg })
               const mine = bump?.id === m.id ? bump : null
@@ -227,7 +344,20 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
                 </div>
               )
             })}
-            {a.busy && (
+            {a.busy && a.live && (
+              <div className="assistant-ai">
+                <AgentLiveFace me={me} size={size} stream={a.stream} running={a.live.running.length > 0} />
+                <div className="assistant-ai__body">
+                  {nameLine}
+                  {(a.progress.queue ?? 0) > 0 && <p className="assistant-muted">순서를 기다리는 중… (앞에 {a.progress.queue}명)</p>}
+                  <ToolChips chips={a.live.chips} running={new Set(a.live.running)} />
+                  <AgentLiveText stream={a.stream} reduced={reduced} fallback={!a.live.chips.length && !(a.progress.queue ?? 0) ? '생각하는 중…' : ''} />
+                  {a.live.cards.filter((c) => c.type !== 'confirm').map((c, k) => <AgentCard key={k} card={c} h={cardH('live')} />)}
+                  <div className="assistant-steps" role="status"><span>{elapsed}초</span></div>
+                </div>
+              </div>
+            )}
+            {a.busy && !a.live && (
               <div className="assistant-ai">
                 <CompanionFace species={me.species} stage={me.stage} size={size} mood="think" loop="think" className="assistant-face" />
                 <div className="assistant-ai__body">
@@ -277,13 +407,13 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (!a.busy) void submit() } }}
         />
         <div className="assistant-composer__bar">
-          <span>{a.busy ? '답을 받는 중에는 보내지 않아요' : variant === 'quick' ? 'Enter 보내기' : 'Enter 보내기 · Shift+Enter 줄바꿈'}</span>
+          <span>{a.busy ? '답을 받는 중에는 보내지 않아요' : variant === 'quick' ? 'Enter 보내기' : 'Enter 보내기 · Shift+Enter 줄바꿈'}{a.agent && a.left !== null && a.left <= 10 && <em className="aa-left"> · 오늘 남은 이야기 {a.left}번</em>}</span>
           {a.busy
             ? <button className="assistant-send" aria-label="멈추기" title="멈추기" onClick={a.cancel}><Square fill="currentColor" /></button>
             : <button className="assistant-send" aria-label="보내기" title="보내기" disabled={!a.model || !draft.trim() || a.connecting} onClick={() => void submit()}><ArrowUp /></button>}
         </div>
       </div>
-      {variant === 'full' && <p className="assistant-footnote">등록 결과는 카드에서 확인하고 되돌릴 수 있어요</p>}
+      {variant === 'full' && <p className="assistant-footnote">{a.agent ? '꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요' : '등록 결과는 카드에서 확인하고 되돌릴 수 있어요'}</p>}
     </div>
   )
 }
@@ -369,4 +499,22 @@ function RecallCard({ recall: r, onOpen }: { recall: RecallResult; onOpen: (id: 
       {r.mode === 'count' && !more && rows.length > 5 && <button className="assistant-card__more" onClick={() => setMore(true)}>더 보기 {rows.length - 5}</button>}
     </div>
   )
+}
+
+/** 47 답 얼굴: 오류 = 40 errorFace, 넣기 성공 = happy 깡충, 확인 카드 = smile, 인터넷 없음·모름 = 기본 얼굴 */
+function agentFace(v: AgentView, egg?: boolean): { mood: 'smile' | 'happy' | 'content' | 'think' | 'puzzled' | 'sleepy'; move: 'hop' | 'tilt' | null; dim?: boolean } {
+  if (v.error) { const f = errorFace(v.error, egg); return { mood: f.mood, move: f.move, dim: f.dim } }
+  if (v.cards.some((c) => c.type === 'confirm' && c.state === 'saved') || (v.line && /^넣어 뒀어|^완료로 바꿨어|옮겼어\.$/.test(v.line))) return { mood: 'happy', move: 'hop' }
+  return { mood: 'smile', move: null }
+}
+/** 받는 중 얼굴: 글이 오기 전·도구 부르는 중 = think + 3° 흔들림 → 글이 흐르면 smile(말하는 얼굴) */
+function AgentLiveFace({ me, size, stream, running }: { me: ReturnType<typeof useCompanion>; size: number; stream: ReturnType<typeof createTextStream>; running: boolean }) {
+  const talking = useSyncExternalStore(stream.subscribe, () => stream.get().text.length > 0)
+  return <CompanionFace species={me.species} stage={me.stage} size={size} mood={talking && !running ? 'smile' : 'think'} loop={talking && !running ? null : 'think'} className="assistant-face" />
+}
+/** 받는 글(마지막 답만 스트림, 47 §4): 프레임마다 드러내기(28 §8.11 revealNext) */
+function AgentLiveText({ stream, reduced, fallback }: { stream: ReturnType<typeof createTextStream>; reduced: boolean; fallback: string }) {
+  const has = useSyncExternalStore(stream.subscribe, () => stream.get().text.length > 0)
+  if (!has) return fallback ? <p className="assistant-muted">{fallback}</p> : null
+  return <p className="assistant-text"><StreamText stream={stream} reduced={reduced} /><span className="assistant-caret" /></p>
 }

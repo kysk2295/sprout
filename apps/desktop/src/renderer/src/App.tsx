@@ -119,9 +119,11 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   const lists = useQuery<ListRow>('SELECT id, name, emoji, color, kind, sort_order FROM lists WHERE archived_at IS NULL ORDER BY sort_order, created_at, id') ?? []
   // 기본함은 사이드바에서 스마트 목록으로 보이므로 list:<기본함 id> 대신 smart:inbox로(선택 표시가 맞게)
   const listView = (listId: string) => (listId === inboxId ? 'smart:inbox' : `list:${listId}`)
+  const settingsRef = useRef<() => void>(() => {})
   const openTask = (id: string) => { setView('tasks'); setSelected('smart:all'); setSelection([id]) }
   // 13 §3.1 AI 비서 카드: 할 일 · 꿈틀 일정('ev:') · 연결된 캘린더 일정('day:<날짜>' = 그날 캘린더)
-  const openAssistantItem = (id: string) => { if (isEventKey(id)) { setView('calendar'); void openEventById(id) } else if (id.startsWith('day:')) { setView('calendar'); requestCalendarDate(id.slice(4)) } else openTask(id) }
+  // 47: view:diary(일기로 가기) · view:settings(설정 열기) · note:<id>(메모 — 수집함 화면으로)
+  const openAssistantItem = (id: string) => { if (id === 'view:diary') { setView('diary'); return } if (id === 'view:settings') { settingsRef.current(); return } if (id.startsWith('note:')) { setView('notes'); return } if (isEventKey(id)) { setView('calendar'); void openEventById(id) } else if (id.startsWith('day:')) { setView('calendar'); requestCalendarDate(id.slice(4)) } else openTask(id) }
   // 뒤에서 도는 정리: 수집함 AI 분류·링크 제목(11 v3-3), 새 할 일 영역 분류(14 §0.3)
   useCollector(lists)
   useLinkSync() // 33 §6.4 [[링크]] 글 ↔ 관계
@@ -195,6 +197,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   }, [actions])
 
   const settings = () => window.sprout?.desktop ? window.sprout.desktop.openSettings() : setOverlay('settings')
+  settingsRef.current = settings
   useEffect(() => {
     let prefix = 0
     const keys: Record<string,string> = {a:'all',t:'today',r:'tomorrow',n:'next7',i:'inbox',c:'completed',w:'wontdo',g:'trash'}

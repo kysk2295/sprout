@@ -2,6 +2,11 @@ import { intentSchema, localChat, parseIntent, replyPreview, type AssistantProgr
 import { getDb } from './db'
 import { insert, run, now, taskListId } from './mutations'
 import type { ListRow, TaskRow } from './types'
+import { AgentUnsupportedError, runTurn, type AgentWrites, type ChatFn, type TurnEvent, type TurnResult } from '@sprout/schema/assistantAgent'
+import type { AgentMemory } from '@sprout/schema/assistantRouter'
+import type { ConfirmCard } from '@sprout/schema/assistantExec'
+import { getConsent } from './diary'
+import { AGENT_UNSUPPORTED } from '../../../shared/assistant'
 import { externalRange, recallAsk, recallFromModel, recallLine, recallResult, recallSql, RECALL_RULE, type RecallAsk, type RecallResult, type RecallRow } from '@sprout/schema/recall'
 export type AssistantStats={count:number;hours:number;untimed:number;range:string}
 export type AssistantResult={kind?:'create'|'query'|'stats'|'reply'|'chat'|'recall';recall?:RecallResult;status?:Intent['status'];text:string;tasks?:Pick<TaskRow,'id'|'title'|'start_at'|'due_at'>[];created?:{id:string;stamp:string};stats?:AssistantStats;total?:number}
@@ -117,3 +122,70 @@ export async function askAssistant(text:string,model:string,id:string,signal:Abo
  onProgress?.({phase:intent.action==='create'?'saving':intent.action==='reply'?'validating':'querying'})
  return executeIntent(intent,id,signal)
 }
+
+// ── 47 B안: 자유 대화 + 앱 도구(runTurn — 공용 @sprout/schema/assistantAgent) ──
+// 서버가 agent를 알면(/ai/status features) 이 길, 모르거나(배포 전) SSH 직결이면 위 askAssistant(13 의도) 그대로.
+export type AgentFeatures = { agent: boolean; daily: { used: number; limit: number } | null }
+export async function agentFeatures(): Promise<AgentFeatures> {
+  const api = window.sprout?.assistant
+  if (!api?.features) return { agent: false, daily: null }
+  try { return await api.features() } catch { return { agent: false, daily: null } }
+}
+/** 턴 id(X-Sprout-Turn) — 같은 턴의 모델 호출은 서버가 한 번으로 센다 */
+export const newTurnId = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
+/** 모델 한 번 = 메인 IPC assistant:agent. 글 조각·대기열은 assistant:delta 통로 */
+export function agentChat(model: string): ChatFn {
+  return async (req, h) => {
+    const api = window.sprout?.assistant
+    if (!api?.agent) throw new AgentUnsupportedError()
+    const id = crypto.randomUUID()
+    const off = api.onDelta?.((event) => {
+      if (event.id !== id) return
+      const queue = (event as { queue?: unknown }).queue
+      if (typeof queue === 'number') h.onQueue(queue)
+      else if (event.text) h.onDelta(event.text)
+    })
+    const cancel = () => api.cancel(id)
+    h.signal.addEventListener('abort', cancel, { once: true })
+    try {
+      return await api.agent(id, { messages: req.messages, tools: req.tools, turn: req.turn, call: req.call, ...(model ? { model } : {}) })
+    } catch (e) {
+      if (h.signal.aborted) throw Object.assign(new Error('aborted'), { name: 'AbortError' })
+      const msg = e instanceof Error ? e.message : String(e)
+      if (msg.includes(AGENT_UNSUPPORTED)) throw new AgentUnsupportedError()
+      throw new Error(msg.replace(/^Error invoking remote method '[^']*':\s*/, '').replace(/^(\w*Error):\s*/, ''))
+    } finally { off?.(); h.signal.removeEventListener('abort', cancel) }
+  }
+}
+/** 확인 카드 넣기 — 만들기는 executeIntent create와 같은 행, 완료·완료 취소는 앱의 완료(21, XP 포함) */
+export function agentWrites(o: { complete: (ids: string[]) => Promise<void>; uncomplete?: (ids: string[]) => Promise<void> }): AgentWrites {
+  return {
+    newId: () => crypto.randomUUID(),
+    stamp: now,
+    async create(card, id, stamp) {
+      const listId = await taskListId(card.listId || null)
+      await run(insert('tasks', { id, title: card.title.trim(), list_id: listId, content: '', content_mode: 'text', status: 0, priority: 0, sort_order: -Date.now(), start_at: card.start || null, due_at: card.due || null, is_all_day: card.due.includes('T') ? 0 : 1, time_zone: 'floating', repeat_rule: card.repeat || null, repeat_from: 'due', modified_at: stamp }))
+    },
+    complete: o.complete,
+    ...(o.uncomplete ? { uncomplete: o.uncomplete } : {}),
+    run: (stmts) => run(...stmts),
+    async read(ids) {
+      if (!ids.length) return []
+      return (await getDb()).getAll(`SELECT id, modified_at, status, deleted_at, start_at, due_at FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`, ids)
+    }
+  }
+}
+export type AgentAsk = { text: string; model: string; history: { user: string; assistant: string }[]; memory: AgentMemory; pending: ConfirmCard | null; diary: boolean; name: string; signal: AbortSignal; onEvent?: (e: TurnEvent) => void; chat?: ChatFn }
+export async function askAgent(a: AgentAsk): Promise<TurnResult> {
+  const db = await getDb()
+  return runTurn({
+    text: a.text, history: a.history, memory: a.memory, pending: a.pending, diary: a.diary, name: a.name,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, db: { getAll: (sql, args) => db.getAll(sql, args) },
+    chat: a.chat ?? agentChat(a.model), turn: newTurnId(), signal: a.signal, onEvent: a.onEvent
+  })
+}
+/** 47 §8.4: AI 비서가 일기도 볼 수 있게(기본 꺼짐, 이 기기·계정). 일기 AI 동의(28 §5)가 있어야 켜진다 */
+const diaryKey = (account: string) => `sprout.assistant.diary.${account}`
+export const getAssistantDiary = (account: string) => { try { return localStorage.getItem(diaryKey(account)) === 'on' } catch { return false } }
+export const setAssistantDiary = (account: string, on: boolean) => { try { localStorage.setItem(diaryKey(account), on ? 'on' : 'off') } catch { /* 이번 실행만 */ } }
+export const assistantDiaryOn = (account: string) => getAssistantDiary(account) && getConsent() === true

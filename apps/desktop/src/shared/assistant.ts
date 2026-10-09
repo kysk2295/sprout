@@ -77,3 +77,44 @@ export function replyPreview(raw:string){
  if(!match)return ''
  try{return JSON.parse('"'+match[1]+'"') as string}catch{return ''}
 }
+
+/** 47 agent: 도구 호출 줄까지 모은다. 글 조각은 onDelta, 대기열은 onQueue. arguments가 글이면 JSON으로 읽는다 */
+export type AgentToolCall={name:string;args:Record<string,unknown>}
+export function parseToolCalls(raw:unknown):AgentToolCall[]{
+ if(!Array.isArray(raw))return []
+ const out:AgentToolCall[]=[]
+ for(const c of raw){
+  const f=(c as {function?:{name?:unknown;arguments?:unknown}})?.function
+  if(!f||typeof f.name!=='string')continue
+  let args:unknown=f.arguments
+  if(typeof args==='string'){try{args=JSON.parse(args)}catch{args={}}}
+  out.push({name:f.name,args:args&&typeof args==='object'&&!Array.isArray(args)?args as Record<string,unknown>:{}})
+ }
+ return out
+}
+export async function readAgentStream(response:Response,onDelta:(text:string)=>void,signal?:AbortSignal,onQueue?:(queue:{position:number;waiting:number})=>void):Promise<{content:string;tool_calls:AgentToolCall[];prompt_tokens?:number}>{
+ const reader=response.body?.getReader()
+ if(!reader)throw new Error('응답 스트림이 비어 있어요.')
+ const decoder=new TextDecoder();let buffer='',content='',done=false,prompt:number|undefined
+ const calls:AgentToolCall[]=[]
+ const line=(value:string)=>{
+  if(!value.trim())return
+  const item=JSON.parse(value)
+  if(item.error)throw Object.assign(new Error(String(item.error)),{code:item.code})
+  if(item.queue&&typeof item.queue.position==='number'){onQueue?.({position:item.queue.position,waiting:Number(item.queue.waiting)||0});return}
+  const delta=item.message?.content
+  if(typeof delta==='string'&&delta){content+=delta;onDelta(delta)}
+  calls.push(...parseToolCalls(item.message?.tool_calls))
+  if(item.done){done=true;if(typeof item.prompt_eval_count==='number')prompt=item.prompt_eval_count}
+ }
+ try{
+  while(!done){signal?.throwIfAborted();const chunk=await reader.read();if(chunk.done){buffer+=decoder.decode();if(buffer.trim())line(buffer);break}buffer+=decoder.decode(chunk.value,{stream:true});let end:number;while((end=buffer.indexOf('\n'))>=0){line(buffer.slice(0,end));buffer=buffer.slice(end+1)}}
+  signal?.throwIfAborted()
+  if(!done)throw new Error('응답 연결이 끊겼어요. 다시 시도해 주세요.')
+  return {content,tool_calls:calls,...(prompt!==undefined?{prompt_tokens:prompt}:{})}
+ }finally{await reader.cancel().catch(()=>{});reader.releaseLock()}
+}
+/** 47 agent 요청(메인 IPC assistant:agent) */
+export interface AgentInput{messages:unknown[];tools:string[];turn:string}
+/** 서버가 agent를 모른다(배포 전) — 렌더러가 13 의도 경로로 바꾼다 */
+export const AGENT_UNSUPPORTED='AGENT_UNSUPPORTED'

@@ -16,6 +16,8 @@ import { ProfileAvatar } from './avatar/ProfileAvatar'
 import { ThemePicker } from './ThemePicker'
 import { IntegrationsPane } from './calendars/IntegrationsPane'
 import { SETTINGS_TAB_KEY } from '../data/calendars'
+import { getAssistantDiary, setAssistantDiary } from '../data/assistant'
+import { getConsent } from '../data/diary'
 /** 16: 다른 창(캘린더 `...` › 캘린더 구독)이 고른 탭 — 한 번 읽고 지운다 */
 const takeTab = () => { try { const t = localStorage.getItem(SETTINGS_TAB_KEY); if (t) localStorage.removeItem(SETTINGS_TAB_KEY); return t } catch { return null } }
 export const SHORTCUTS = [
@@ -36,7 +38,7 @@ export function DesktopSettings({ onClose, initial = authApi() ? 'account' : 'sm
   return <Dialog label="설정" className="settings-dialog" onClose={onClose}>
     <nav className="settings-nav" aria-label="설정 항목">
       <button className="icon-btn" aria-label="설정 닫기" onClick={onClose}><X /></button><h2>설정</h2>
-      {([...(authApi() ? [['account','계정','person']] as const : []),['smart','스마트 목록','filter'],['tasks','할 일','list'],['datetime','날짜 & 시간','calendar'],['appearance','외관','palette'],['integrations','연동','sync'],['notify','알림','bell'],['general','일반','settings'],['shortcuts','단축키','note']] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><SoftIcon name={Icon} size={20} />{label}</button>)}
+      {([...(authApi() ? [['account','계정','person']] as const : []),['smart','스마트 목록','filter'],['tasks','할 일','list'],['datetime','날짜 & 시간','calendar'],['appearance','외관','palette'],['integrations','연동','sync'],['notify','알림','bell'],['ai','AI 비서','ai'],['general','일반','settings'],['shortcuts','단축키','note']] as const).map(([id,label,Icon]) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}><SoftIcon name={Icon} size={20} />{label}</button>)}
     </nav>
     <section className="settings-content">
       {error && <p role="alert" className="form-error">{error}</p>}
@@ -47,6 +49,7 @@ export function DesktopSettings({ onClose, initial = authApi() ? 'account' : 'sm
       {tab === 'appearance' && <><h2>테마</h2><ThemePicker save={save} /></>}
       {tab === 'integrations' && <IntegrationsPane />}
       {tab === 'notify' && <NotifySettings />}
+      {tab === 'ai' && <AiPane />}
       {tab === 'general' && <GeneralPane />}
       {tab === 'shortcuts' && <><h2>단축키</h2><div className="settings-card">{SHORTCUTS.map(([label,key]) => <div className="settings-row" key={label}><span>{label}</span><kbd>{window.sprout?.platform === 'win32' ? key.replaceAll('⌘','Ctrl+') : key}</kbd></div>)}</div></>}
     </section>
@@ -233,5 +236,23 @@ function LoginMethods({ email }: { email: string }) {
     </div>
     {error && <p role="alert" className="account-delete__error" style={{ margin: '-12px 0 16px' }}>{error}{!info && <> <button type="button" className="account-delete__link" style={{ padding: '2px 6px' }} onClick={() => void load()}>다시 시도</button></>}</p>}
     {toast && <div className="toast" role="status"><span>{toast}</span></div>}
+  </>
+}
+
+/** 설정 › AI 비서(47 §8.4, 결정 ③): 일기도 볼 수 있게 — 기본 꺼짐, 이 기기·계정만. 일기 AI 대화 동의(28 §5)가 있어야 켤 수 있다. 나만 보기 날은 늘 빠진다 */
+function AiPane() {
+  const { state } = useAuth()
+  const account = state?.user?.email ?? 'preview'
+  const consent = getConsent() === true
+  const [on, setOn] = useState(() => getAssistantDiary(account))
+  useEffect(() => setOn(getAssistantDiary(account)), [account])
+  const active = on && consent
+  return <>
+    <h2>AI 비서</h2>
+    <div className="settings-card">
+      <div className="settings-row"><span>AI 비서가 일기도 볼 수 있게<small className="od-set__hint">{consent ? '켜면 일기를 물을 때 일기 글을 찾아봐요 · 나만 보기 날은 보지 않아요 · 일기 대화 원문은 보내지 않아요' : '일기에서 AI 대화를 먼저 켜 주세요'}</small></span>
+        <button className={`dp__switch${active ? ' is-on' : ''}`} role="switch" aria-checked={active} aria-label="AI 비서가 일기도 볼 수 있게" disabled={!consent} onClick={() => { setAssistantDiary(account, !on); setOn(!on) }}><span /></button></div>
+    </div>
+    <p className="od-set__hint">꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요</p>
   </>
 }
