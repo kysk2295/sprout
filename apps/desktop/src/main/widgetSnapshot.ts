@@ -81,10 +81,10 @@ export type WidgetSnapshot = {
 
 // 00 §5 테마 강조색(packages/tokens/tokens.css의 --color-accent). sky는 기본 강조색을 그대로 쓴다.
 export const THEME_ACCENT: Record<string, string> = {
-  default: '#4E75F2', sky: '#4E75F2', turquoise: '#117B58', teal: '#237973', matcha: '#55793D', sunshine: '#AB5C00',
-  peach: '#C4286A', lilac: '#775DBE', ebony: '#87634A', navy: '#2B3455', gray: '#363B41', dark: '#545DFA', black: '#5A62FA'
+  default: '#12715E', sky: '#4E75F2', turquoise: '#117B58', teal: '#237973', matcha: '#55793D', sunshine: '#AB5C00',
+  peach: '#C4286A', lilac: '#775DBE', ebony: '#87634A', navy: '#2B3455', gray: '#363B41', dark: '#19856B', black: '#5A62FA'
 }
-/** §5.2: 밝게 = 기본 테마가 라이트 계열이면 그 강조색(아니면 #4E75F2), 어둡게 = 다크일 때 테마의 강조색 */
+/** §5.2: 밝게 = 기본 테마가 라이트 계열이면 그 강조색(아니면 기본 #12715E), 어둡게 = 다크일 때 테마의 강조색 */
 export function widgetAccents(stored: string | null | undefined): { accentLight: string; accentDark: string } {
   const { main, dark } = parseTheme(stored)
   const light = findTheme(main)?.family === 'light' ? THEME_ACCENT[main] : THEME_ACCENT.default

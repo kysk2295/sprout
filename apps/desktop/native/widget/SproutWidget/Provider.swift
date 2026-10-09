@@ -67,7 +67,7 @@ struct SproutProvider: TimelineProvider {
 enum Sample {
     static let json = """
     {"schema":1,"generatedAt":"2026-10-04T09:12:03+09:00","day":"__TODAY__","account":{"signedIn":true},"prefs":{"clock24h":false},
-     "theme":{"accentLight":"#4E75F2","accentDark":"#545DFA"},
+     "theme":{"accentLight":"#12715E","accentDark":"#19856B"},
      "today":{"count":7,"tasks":[
       {"id":"s1","title":"아침 스트레칭","priority":1,"depth":0,"label":"오전 8:00","labelTone":"accent","overdueAt":null,"repeat":true},
       {"id":"s2","title":"기획서 초안 쓰기","priority":3,"depth":0,"label":"오전 9:30","labelTone":"accent","overdueAt":null,"repeat":false},

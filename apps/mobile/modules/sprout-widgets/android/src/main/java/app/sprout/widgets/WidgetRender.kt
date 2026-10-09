@@ -48,7 +48,7 @@ object WidgetRender {
 
   private fun accent(snap: JSONObject?): Pair<Int, Int> {
     val t = snap?.optJSONObject("theme")
-    return parse(t?.optString("accentLight"), 0xFF4E75F2.toInt()) to parse(t?.optString("accentDark"), 0xFF545DFA.toInt())
+    return parse(t?.optString("accentLight"), 0xFF12715E.toInt()) to parse(t?.optString("accentDark"), 0xFF19856B.toInt())
   }
 
   /** 밝게·어둡게 색 넘기기 — API 31+는 시스템이 테마 바뀔 때 다시 고른다 */

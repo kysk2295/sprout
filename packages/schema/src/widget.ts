@@ -166,10 +166,10 @@ export function buildWidgetCalendar(input: {
   }
 }
 
-// ── 테마 강조색(25 §5.2) — packages/tokens의 --color-accent ──
+// ── 테마 강조색(25 §5.2) — packages/tokens의 --color-accent (기본·다크 = 45 브랜드 청록) ──
 export const WIDGET_THEME_ACCENT: Record<string, string> = {
-  default: '#4E75F2', sky: '#4E75F2', turquoise: '#117B58', teal: '#237973', matcha: '#55793D', sunshine: '#AB5C00',
-  peach: '#C4286A', lilac: '#775DBE', ebony: '#87634A', navy: '#2B3455', gray: '#363B41', dark: '#545DFA', black: '#5A62FA'
+  default: '#12715E', sky: '#4E75F2', turquoise: '#117B58', teal: '#237973', matcha: '#55793D', sunshine: '#AB5C00',
+  peach: '#C4286A', lilac: '#775DBE', ebony: '#87634A', navy: '#2B3455', gray: '#363B41', dark: '#19856B', black: '#5A62FA'
 }
 const DARK_IDS = new Set(['dark', 'black'])
 /** user_prefs.theme("<테마>" 또는 "<테마>|<다크일 때 테마>") → 밝게·어둡게 강조색 */

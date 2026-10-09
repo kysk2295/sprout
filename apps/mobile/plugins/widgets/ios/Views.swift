@@ -18,7 +18,7 @@ struct Palette {
     let dark: Bool
     let theme: Snapshot.Theme?
     init(_ scheme: ColorScheme, _ theme: Snapshot.Theme?) { dark = scheme == .dark; self.theme = theme }
-    var accent: Color { Color(hex: dark ? (theme?.accentDark ?? "#545DFA") : (theme?.accentLight ?? "#4E75F2")) }
+    var accent: Color { Color(hex: dark ? (theme?.accentDark ?? "#19856B") : (theme?.accentLight ?? "#12715E")) }
     var bg: Color { Color(hex: dark ? "#1A1A1A" : "#FFFFFF") }
     var primary: Color { Color(hex: dark ? "#F2F2F2" : "#191919") }
     var secondary: Color { Color(hex: dark ? "#CDCDCD" : "#7D7D7D") }

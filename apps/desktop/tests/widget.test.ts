@@ -64,8 +64,8 @@ assert.deepEqual(snap.appliedActions, ['A1'])
 
 // 테마 강조색(§5.2): 라이트 = 기본 테마(말차), 다크 = 다크일 때 테마(트루 블랙)
 assert.deepEqual(snap.theme, { accentLight: '#55793D', accentDark: '#5A62FA' })
-assert.deepEqual(widgetAccents('dark'), { accentLight: '#4E75F2', accentDark: '#545DFA' })
-assert.deepEqual(widgetAccents(null), { accentLight: '#4E75F2', accentDark: '#545DFA' })
+assert.deepEqual(widgetAccents('dark'), { accentLight: '#12715E', accentDark: '#19856B' })
+assert.deepEqual(widgetAccents(null), { accentLight: '#12715E', accentDark: '#19856B' })
 
 // 캐릭터: 61 XP → Lv 2(40) + 21/60, 오늘 할 일 XP 1 → 기쁨
 const g = snap.growth!

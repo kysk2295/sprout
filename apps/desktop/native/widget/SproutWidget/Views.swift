@@ -25,7 +25,7 @@ struct Palette {
     /// 단색 단계(§16.2): 1 · 0.62 · 0.4 / 막대 면 0.2 · 지난 막대 0.08 · 구분선 0.16
     static func white(_ a: Double) -> Color { Color.white.opacity(a) }
     /// §5.2: 밝게 = 내 테마 강조색, 어둡게 = 다크일 때 테마 강조색(앱이 계산해 넘긴다)
-    var accent: Color { mono ? .white : Color(hex: dark ? (theme?.accentDark ?? "#545DFA") : (theme?.accentLight ?? "#4E75F2")) }
+    var accent: Color { mono ? .white : Color(hex: dark ? (theme?.accentDark ?? "#19856B") : (theme?.accentLight ?? "#12715E")) }
     var bg: Color { Color(hex: dark ? "#1A1A1A" : "#FFFFFF") }
     var primary: Color { mono ? .white : Color(hex: dark ? "#F2F2F2" : "#191919") }
     var secondary: Color { mono ? Self.white(0.62) : Color(hex: dark ? "#CDCDCD" : "#7D7D7D") }

@@ -75,10 +75,10 @@ const dec = buildWidgetCalendar({ today: '2026-12-20', dayItems: () => [], showH
 assert.deepEqual(dec.months.map((x) => x.title), ['11월', '12월', '2027년 1월', '2027년 2월'])
 
 // 강조색(25 §5.2)
-assert.deepEqual(widgetAccents(null), { accentLight: '#4E75F2', accentDark: '#545DFA' })
+assert.deepEqual(widgetAccents(null), { accentLight: '#12715E', accentDark: '#19856B' })
 assert.deepEqual(widgetAccents('teal|black'), { accentLight: '#237973', accentDark: '#5A62FA' })
-assert.deepEqual(widgetAccents('dark'), { accentLight: '#4E75F2', accentDark: '#545DFA' })
-assert.deepEqual(widgetAccents('모름|이상'), { accentLight: '#4E75F2', accentDark: '#545DFA' })
+assert.deepEqual(widgetAccents('dark'), { accentLight: '#12715E', accentDark: '#19856B' })
+assert.deepEqual(widgetAccents('모름|이상'), { accentLight: '#12715E', accentDark: '#19856B' })
 assert.equal(widgetArtPath('worm', 2, 'happy'), 'art/v3-worm-2-happy@2x.png')
 assert.equal(widgetArtPath('worm', 2, 'happy', 'abc'), 'art/v3-worm-2-abc-happy@2x.png')
 assert.equal(widgetArtPath(null, 1, 'default'), 'art/v3-egg@2x.png')

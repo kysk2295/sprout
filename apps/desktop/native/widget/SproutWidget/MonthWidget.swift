@@ -268,7 +268,7 @@ extension Color {
 }
 
 extension Palette {
-    var accentHex: String { dark ? (theme?.accentDark ?? "#545DFA") : (theme?.accentLight ?? "#4E75F2") }
+    var accentHex: String { dark ? (theme?.accentDark ?? "#19856B") : (theme?.accentLight ?? "#12715E") }
     var bgHex: String { dark ? "#1A1A1A" : "#FFFFFF" }
     var primaryHex: String { dark ? "#F2F2F2" : "#191919" }
     var holidayHex: String { dark ? "#F2555A" : "#E5484D" }
