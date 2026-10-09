@@ -206,6 +206,27 @@ export function colorOf(t: TaskRow, by: ColorBy, tagColor: (id: string) => strin
   return t.list_color || FALLBACK_COLOR
 }
 
+/** 06 §14.2(2026-10-09): 안 한 할 일 막대 = 리스트 색 그대로 채움. 그 위 글자는 흰색이 기본이고,
+ * 흰 글자 대비가 3:1에 못 미치는 밝은 색(노랑·연두·파스텔)만 진한 글자(#1a1a1a) — 틱틱이 노랑에 검은 글자를 쓰는 것과 같다.
+ * hex가 아닌 색(테마 강조색 `var(--color-accent)` 등)은 흰 글자(13개 테마 강조색은 모두 진하다) */
+export const INK_LIGHT = '#ffffff'
+export const INK_DARK = '#1a1a1a'
+function luminance(hex: string): number | null {
+  let h = hex.trim().replace(/^#/, '')
+  if (/^[0-9a-f]{3,4}$/i.test(h)) h = h.slice(0, 3).split('').map((c) => c + c).join('')
+  if (!/^[0-9a-f]{6}([0-9a-f]{2})?$/i.test(h)) return null
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+const contrast = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+export function inkOn(color: string): string {
+  const l = luminance(color)
+  if (l == null) return INK_LIGHT
+  // 흰 글자가 3:1(굵은 글자·UI 기준)을 넘으면 흰색 그대로(틱틱 파랑·빨강), 못 넘으면 더 잘 읽히는 쪽
+  if (contrast(l, 1) >= 3) return INK_LIGHT
+  return contrast(l, 1) >= contrast(l, luminance(INK_DARK)!) ? INK_LIGHT : INK_DARK
+}
+
 // ── 시간 표기(06 §4.1) ──
 /** 06 §4.1 실측: 틱틱 한국어 UI도 "0 AM" … "11 AM", "12 PM", "1 PM" … */
 export function hourLabel(h: number): string {

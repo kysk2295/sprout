@@ -1,6 +1,6 @@
 // 06 캘린더 계산 · 13 AI 비서 서버 경로(대기열 줄·느슨한 JSON) — 2026-10-04 E2E 점검에서 고친 것 포함
 import assert from 'node:assert/strict'
-import { CAL_WEEK_HEAD, calWeekHead, colorOf, DEFAULT_OPTIONS, FALLBACK_COLOR, hourLabel, itemsOf, layoutDay, rangeOf, shiftCursor, shortRange, titleOf, weekendClass, weekHeadClass, weekStart } from '../src/renderer/src/lib/calendar'
+import { CAL_WEEK_HEAD, calWeekHead, colorOf, DEFAULT_OPTIONS, FALLBACK_COLOR, hourLabel, inkOn, INK_DARK, INK_LIGHT, itemsOf, layoutDay, rangeOf, shiftCursor, shortRange, titleOf, weekendClass, weekHeadClass, weekStart } from '../src/renderer/src/lib/calendar'
 import { timeSelection } from '../src/renderer/src/lib/calendarSelection'
 import { scheduledDrop } from '../src/renderer/src/lib/calendarDrop'
 import { parseIntent, readChatStream } from '../src/shared/assistant'
@@ -109,5 +109,13 @@ assert.throws(() => parseIntent('{"action":"delete"}'), /형식/)
   assert.equal(rowDateLabel(extSpan({ start: '2026-10-05', end: '2026-10-05' }), today)?.label, '오늘')
   assert.equal(rowDateLabel(extSpan({ start: '2026-10-06', end: '2026-10-06' }), today)?.label, '내일')
 }
+
+// ── 06 §14.2(2026-10-09) 안 한 할 일 막대 글자색: 흰색 기본, 밝은 색은 진한 글자 ──
+assert.equal(inkOn('#4e75f2'), INK_LIGHT, '테마 파랑 = 흰 글자')
+assert.equal(inkOn('#C53C31'), INK_LIGHT)
+assert.equal(inkOn('#ffd54f'), INK_DARK, '노랑 = 진한 글자')
+assert.equal(inkOn('#4ade80'), INK_DARK, '연두 = 진한 글자')
+assert.equal(inkOn('#fff'), INK_DARK)
+assert.equal(inkOn(FALLBACK_COLOR), INK_LIGHT, 'hex가 아닌 테마 강조색 = 흰 글자')
 
 console.log('calendar tests ok')

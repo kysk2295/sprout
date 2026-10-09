@@ -582,12 +582,22 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .tg__bars .cal-item-wrap, .mv__bars .cal-item-wrap { height: 16px; }
 
 /* 막대·블록: 스타일 "간결한" */
-.cal-item { border-left-width: 2px; border-radius: 3px; background: color-mix(in srgb, var(--c) var(--cal-fill), var(--color-bg-app)); color: color-mix(in srgb, var(--c) 45%, var(--color-text-primary)); font: 500 12px/16px var(--font-family); }
+/* 06 §14.2(2026-10-09, 휴대폰 20 §7과 같은 규칙): 안 한 할 일 = 리스트 색 그대로 채움 + 흰 굵은 글자(밝은 색은 진한 글자 --item-ink).
+   지난 날이어도 옅게 하지 않는다. 한 할 일·지난 일정·반복 미래 회차 = .is-faded 옅은 면 + 흐린 글자. 일정 = 제 색 섞은 면 */
+.cal-item { --ink: var(--item-ink, #ffffff); border-left-width: 2px; border-radius: 3px; background: var(--c); color: var(--ink); border-left-color: color-mix(in srgb, var(--c) 82%, #000000); font: 600 12px/16px var(--font-family); }
 .cal-item.is-bar { height: 16px; padding: 0 4px 0 4px; }
 .cal-item.is-block { padding: 2px 5px 2px 5px; gap: 0; }
-.cal-item.is-past, .cal-item.is-done { opacity: 1; background: color-mix(in srgb, var(--c) var(--cal-fill-past), var(--color-bg-app)); color: var(--color-text-tertiary); border-left-color: color-mix(in srgb, var(--c) 45%, var(--color-bg-app)); }
+.cal-item.is-past, .cal-item.is-done { opacity: 1; }
+.cal-item.is-event, .cal-item.is-ext { background: color-mix(in srgb, var(--c) 25%, var(--color-bg-app)); color: color-mix(in srgb, var(--c) 45%, var(--color-text-primary)); border-left-color: var(--c); }
+[data-theme="dark"] .cal-item.is-event, [data-theme="dark"] .cal-item.is-ext { background: color-mix(in srgb, var(--c) 50%, var(--color-bg-app)); color: #ffffff; }
+.cal-item.is-faded { --dim: color-mix(in srgb, var(--color-text-primary) 42%, transparent); background: color-mix(in srgb, var(--c) 22%, var(--color-bg-app)); color: var(--dim); border-left-color: color-mix(in srgb, var(--c) 45%, var(--color-bg-app)); font-weight: 500; }
+[data-theme="dark"] .cal-item.is-faded { --dim: rgba(255, 255, 255, 0.48); background: color-mix(in srgb, var(--c) 32%, var(--color-bg-app)); color: var(--dim); border-left-color: color-mix(in srgb, var(--c) 55%, var(--color-bg-app)); }
 .cal-item.is-virtual { border-left-style: solid; box-shadow: none; }
-.cal-item.is-selected:not(.is-virtual) { box-shadow: none; background: color-mix(in srgb, var(--c) 38%, var(--color-bg-app)); }
+.cal-item.is-selected:not(.is-virtual) { box-shadow: none; background: color-mix(in srgb, var(--c) 86%, #000000); }
+.cal-item.is-event.is-selected:not(.is-virtual), .cal-item.is-ext.is-selected:not(.is-virtual) { background: color-mix(in srgb, var(--c) 38%, var(--color-bg-app)); }
+[data-theme="dark"] .cal-item.is-event.is-selected:not(.is-virtual), [data-theme="dark"] .cal-item.is-ext.is-selected:not(.is-virtual) { background: color-mix(in srgb, var(--c) 62%, var(--color-bg-app)); }
+.cal-item.is-faded.is-selected:not(.is-virtual) { background: color-mix(in srgb, var(--c) 34%, var(--color-bg-app)); }
+[data-theme="dark"] .cal-item.is-faded.is-selected:not(.is-virtual) { background: color-mix(in srgb, var(--c) 44%, var(--color-bg-app)); }
 .cal-item__row { gap: 3px; }
 .cal-item__icon { width: 10px; height: 10px; flex-shrink: 0; stroke-width: 2.4; }
 .cal-item__check { width: 11px; height: 11px; }
@@ -803,8 +813,7 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 /* 다크 테마: 실제 틱틱 다크 픽셀값(research 18) */
 [data-theme="dark"] .pane-header__title, [data-theme="dark"] .cal__title { color: #ffffff; }
 [data-theme="dark"] .group__name, [data-theme="dark"] .sidebar__label, [data-theme="dark"] .cal-side__group { color: var(--color-text-secondary); }
-[data-theme="dark"] .cal-item { color: var(--cal-text); border-left-color: color-mix(in srgb, var(--c) 85%, #ffffff); }
-[data-theme="dark"] .cal-item.is-past, [data-theme="dark"] .cal-item.is-done { color: #8a8a8a; border-left-color: color-mix(in srgb, var(--c) 40%, var(--color-bg-app)); }
+/* 다크 막대·블록 색은 위 "막대·블록" 규칙(06 §14.2 2026-10-09)이 다크까지 정한다 — 안 한 할 일 글자 = --item-ink, 지난 날로 흐리게 하지 않음 */
 [data-theme="dark"] .tg__num.is-today, [data-theme="dark"] .mv__num.is-today { background: var(--color-accent); }
 .qc__date {border:0;background:transparent;cursor:pointer;text-align:left;padding:4px 0;}
 .qc__date:hover {text-decoration:underline;}

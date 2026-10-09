@@ -2,7 +2,7 @@ import { CalendarDays, Check, Repeat } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent as RPointerEvent } from 'react'
 import { datePart, daysBetween } from '@sprout/schema/time'
 import { weekendClass } from '../../lib/calendar'
-import { hourLabel, isBarItem, layoutDay, minutesOfDay, packBars, shortRange, type CalItem, type ItemStyle } from '../../lib/calendar'
+import { hourLabel, inkOn, isBarItem, layoutDay, minutesOfDay, packBars, shortRange, type CalItem, type ItemStyle } from '../../lib/calendar'
 import { timeSelection } from '../../lib/calendarSelection'
 import { extOf } from '../../lib/calendarExt'
 import { evtOf } from '../../lib/calendarEvents'
@@ -385,12 +385,17 @@ export function Item({ item, kind, contLeft, contRight, edges, onDown, ...p }: C
   // 06 §7.2 가장자리 끌기: 시간 칸 블록 = 위·아래(한 점 막대는 아래만 — 늘리면 기간), 막대 = 왼쪽·오른쪽(여러 날)
   const vEdges = editable && edges === 'vertical'
   const hEdges = editable && edges === 'horizontal' && kind === 'bar'
-  const cls = ['cal-item', `is-${kind}`, done && 'is-done', !done && (past || (item.virtual && !evt) || ext?.stale) && 'is-past', item.virtual && !evt && 'is-virtual', ext && 'is-ext', evt && 'is-event', p.selection.includes(t.id) && 'is-selected', contLeft && 'cont-left', contRight && 'cont-right']
+  // 06 §14.2(2026-10-09): 안 한 할 일 = 리스트 색 채운 막대(지난 날이어도 그대로), 한 할 일·지난 일정·반복 미래 회차 = 옅은 면(is-faded)
+  const isEvt = !!ext || !!evt
+  const pastLike = past || (item.virtual && !evt) || !!ext?.stale
+  const faded = done || (item.virtual && !evt) || (isEvt && pastLike)
+  const color = p.colorOf(item)
+  const cls = ['cal-item', `is-${kind}`, done && 'is-done', !done && pastLike && 'is-past', faded && 'is-faded', item.virtual && !evt && 'is-virtual', ext && 'is-ext', evt && 'is-event', p.selection.includes(t.id) && 'is-selected', contLeft && 'cont-left', contRight && 'cont-right']
   const extDown = (e: RPointerEvent) => { e.stopPropagation(); if (e.button !== 0) return; e.preventDefault() }
   return (
     <div
       className={cls.filter(Boolean).join(' ')}
-      style={{ ['--item-color' as string]: p.colorOf(item) }}
+      style={{ ['--item-color' as string]: color, ['--item-ink' as string]: inkOn(color) }}
       onPointerDown={lockedExt ? extDown : onDown}
       onClick={lockedExt ? (e) => { e.stopPropagation(); p.onOpen(item, e.currentTarget.getBoundingClientRect()) } : undefined}
       onDoubleClick={lockedExt ? (e) => e.stopPropagation() : undefined}
