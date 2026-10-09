@@ -1,0 +1,191 @@
+/* 꿈틀 시각 개편 v2 — 44 §3 토큰 제안 (시안용). 정본이 되면 packages/tokens/tokens.css 로 옮긴다(44 §9).
+   배치·인터랙션·정보 구조는 틱틱 그대로, 껍데기(색·글자 크기·면·아이콘·그림·캐릭터·움직임)만 바꾼다. */
+:root {
+  color-scheme: light;
+  /* 면 */
+  --k-ground: #F4F6F3;          /* 앱 바닥(아주 옅은 초록 회색) */
+  --k-surface: #FFFFFF;         /* 카드·목록 면 */
+  --k-surface-2: #EEF2EE;       /* 입력·세그먼트 트랙·칩 */
+  --k-surface-3: #E4EAE5;       /* 눌림 */
+  --k-raised: #FFFFFF;          /* 떠 있는 것(시트·팝오버) */
+  --k-line: #E5EAE6;
+  --k-line-strong: #D3DBD5;
+  --k-scrim: rgba(12, 24, 16, .32);
+  /* 글자 */
+  --k-ink: #16201A;
+  --k-ink-2: #59665E;
+  --k-ink-3: #8F9B93;
+  --k-ink-4: #B6C0B9;
+  /* 브랜드 · 강조 (틱틱 파랑 → 꿈틀 초록, 결정 ⓒ) */
+  --k-accent: #22A45D;          /* 채움·체크·선택 */
+  --k-accent-ink: #138548;      /* 흰 바탕 위 글자 4.5:1 */
+  --k-accent-soft: #E2F5E9;
+  --k-accent-hi: #5CD08F;       /* 막대·빛 끝 */
+  --k-on-accent: #FFFFFF;
+  /* 꿈틀 5색(리스트·카테고리·캐릭터 소품) — 색 + 옅은 면 */
+  --k-sprout: #4FBF6A; --k-sprout-soft: #E3F5E6;
+  --k-sun: #FFB927;    --k-sun-soft: #FFF3D6;
+  --k-petal: #FF7FA6;  --k-petal-soft: #FFE6EE;
+  --k-sky: #5AB4F0;    --k-sky-soft: #E3F2FD;
+  --k-deep: #4E75F2;   --k-deep-soft: #E8EDFD;
+  --k-danger: #E5484D;
+  --k-pri-high: #E5484D; --k-pri-mid: #FFB927; --k-pri-low: #4E75F2;
+  /* 캐릭터 자리(성장 무대·빈 상태·AI) */
+  --k-stage-sky1: #A9DFFF; --k-stage-sky2: #E6F7EC;
+  --k-glass: rgba(255, 255, 255, .74);
+  --k-glass-line: rgba(255, 255, 255, .9);
+  --k-glass-ink: #16201A;
+  --k-lockc: #D9E0DB;
+  --sil: #FFFFFF;
+  /* 글자 */
+  --k-font: "Pretendard", "Pretendard Variable", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --k-num: "SF Pro Rounded", "Pretendard", -apple-system, sans-serif;
+  /* 모서리 */
+  --k-r-xs: 6px; --k-r-sm: 10px; --k-r-md: 14px; --k-r-lg: 20px; --k-r-xl: 28px; --k-r-full: 999px;
+  /* 그림자 (라이트만, 다크는 선) */
+  --k-sh-1: 0 1px 2px rgba(18, 40, 26, .04), 0 2px 8px rgba(18, 40, 26, .04);
+  --k-sh-2: 0 2px 6px rgba(18, 40, 26, .05), 0 10px 28px rgba(18, 40, 26, .08);
+  --k-sh-3: 0 8px 24px rgba(18, 40, 26, .12), 0 24px 60px rgba(18, 40, 26, .14);
+  --k-sh-accent: 0 6px 18px rgba(34, 164, 93, .32);
+  /* 움직임 */
+  --k-ease: cubic-bezier(.2, .8, .2, 1);
+  --k-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --k-fast: 140ms; --k-base: 220ms; --k-slow: 360ms;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --k-ground: #0C0F0D; --k-surface: #161A17; --k-surface-2: #1F2420; --k-surface-3: #282E29; --k-raised: #1C211D;
+  --k-line: #232925; --k-line-strong: #313833; --k-scrim: rgba(0, 0, 0, .55);
+  --k-ink: #EEF3EF; --k-ink-2: #A2ADA5; --k-ink-3: #6E7A72; --k-ink-4: #4A544D;
+  --k-accent: #3FC27A; --k-accent-ink: #6FE09F; --k-accent-soft: rgba(63, 194, 122, .16); --k-accent-hi: #7BE8A8; --k-on-accent: #06210F;
+  --k-sprout-soft: rgba(79, 191, 106, .16); --k-sun-soft: rgba(255, 185, 39, .14); --k-petal-soft: rgba(255, 127, 166, .15); --k-sky-soft: rgba(90, 180, 240, .15); --k-deep-soft: rgba(78, 117, 242, .18);
+  --k-glass: rgba(18, 24, 20, .66); --k-glass-line: rgba(255, 255, 255, .08); --k-glass-ink: #EEF3EF;
+  --k-lockc: #2C332E; --sil: #EAF7EE;
+  --k-sh-1: 0 0 0 1px rgba(255, 255, 255, .035); --k-sh-2: 0 0 0 1px rgba(255, 255, 255, .05); --k-sh-3: 0 0 0 1px rgba(255, 255, 255, .06), 0 20px 50px rgba(0, 0, 0, .5);
+  --k-sh-accent: 0 6px 18px rgba(63, 194, 122, .22);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --k-ground: #0C0F0D; --k-surface: #161A17; --k-surface-2: #1F2420; --k-surface-3: #282E29; --k-raised: #1C211D;
+    --k-line: #232925; --k-line-strong: #313833; --k-scrim: rgba(0, 0, 0, .55);
+    --k-ink: #EEF3EF; --k-ink-2: #A2ADA5; --k-ink-3: #6E7A72; --k-ink-4: #4A544D;
+    --k-accent: #3FC27A; --k-accent-ink: #6FE09F; --k-accent-soft: rgba(63, 194, 122, .16); --k-accent-hi: #7BE8A8; --k-on-accent: #06210F;
+    --k-sprout-soft: rgba(79, 191, 106, .16); --k-sun-soft: rgba(255, 185, 39, .14); --k-petal-soft: rgba(255, 127, 166, .15); --k-sky-soft: rgba(90, 180, 240, .15); --k-deep-soft: rgba(78, 117, 242, .18);
+    --k-glass: rgba(18, 24, 20, .66); --k-glass-line: rgba(255, 255, 255, .08); --k-glass-ink: #EEF3EF;
+    --k-lockc: #2C332E; --sil: #EAF7EE;
+    --k-sh-1: 0 0 0 1px rgba(255, 255, 255, .035); --k-sh-2: 0 0 0 1px rgba(255, 255, 255, .05); --k-sh-3: 0 0 0 1px rgba(255, 255, 255, .06), 0 20px 50px rgba(0, 0, 0, .5);
+    --k-sh-accent: 0 6px 18px rgba(63, 194, 122, .22);
+  }
+}
+
+/* ───────── 글자 크기 (44 §3.2) ───────── */
+.t-display { font: 800 34px/40px var(--k-font); letter-spacing: -.035em }
+.t-h1 { font: 750 26px/32px var(--k-font); letter-spacing: -.025em }
+.t-h2 { font: 700 20px/26px var(--k-font); letter-spacing: -.018em }
+.t-title { font: 650 17px/24px var(--k-font); letter-spacing: -.012em }
+.t-body { font: 400 15px/22px var(--k-font); letter-spacing: -.005em }
+.t-label { font: 500 13px/18px var(--k-font) }
+.t-cap { font: 500 12px/16px var(--k-font) }
+.t-micro { font: 650 11px/14px var(--k-font); letter-spacing: .01em }
+.t-num { font: 800 46px/1 var(--k-num); letter-spacing: -.045em; font-variant-numeric: tabular-nums }
+
+/* ───────── 바탕 ───────── */
+* { box-sizing: border-box }
+body.k { margin: 0; font-family: var(--k-font); color: var(--k-ink); background: var(--k-ground); -webkit-font-smoothing: antialiased }
+.k button { font: inherit; color: inherit }
+.k .muted { color: var(--k-ink-2) } .k .faint { color: var(--k-ink-3) }
+
+/* ───────── 휴대폰 틀 ───────── */
+.phone { width: 360px; height: 760px; border-radius: 48px; padding: 9px; background: #101311; box-shadow: 0 0 0 1.5px #2B302C, 0 30px 70px rgba(15, 30, 20, .22); flex: none; position: relative }
+.phone > .scr { position: relative; width: 100%; height: 100%; border-radius: 40px; overflow: hidden; background: var(--k-ground); display: flex; flex-direction: column; isolation: isolate }
+.phone .island { position: absolute; top: 9px; left: 50%; transform: translateX(-50%); width: 98px; height: 28px; border-radius: 20px; background: #000; z-index: 50 }
+.sbar { height: 46px; flex: none; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 28px 6px; font: 650 14px/1 var(--k-num); position: relative; z-index: 40 }
+.sbar i { font-style: normal; letter-spacing: 1px; font-size: 11px }
+.homebar { position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%); width: 120px; height: 4.5px; border-radius: 3px; background: var(--k-ink); opacity: .35; z-index: 60 }
+
+/* ───────── 부품 ───────── */
+.card { background: var(--k-surface); border-radius: var(--k-r-lg); box-shadow: var(--k-sh-1) }
+.card.flat { box-shadow: none }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 44px; padding: 0 18px; border-radius: var(--k-r-md); border: 0; cursor: pointer; font: 650 15px/1 var(--k-font); background: var(--k-surface-2); color: var(--k-ink); transition: transform var(--k-fast) var(--k-ease), background var(--k-fast) }
+.btn:active { transform: scale(.97) }
+.btn.pri { background: var(--k-accent); color: var(--k-on-accent); box-shadow: var(--k-sh-accent) }
+.btn.sm { height: 34px; padding: 0 12px; font-size: 13px; border-radius: var(--k-r-sm) }
+.btn.block { width: 100% }
+.btn.ghost { background: transparent }
+.chip { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px; border-radius: var(--k-r-full); background: var(--k-surface-2); font: 600 12.5px/1 var(--k-font); color: var(--k-ink-2); border: 0; white-space: nowrap }
+.chip.on { background: var(--k-accent-soft); color: var(--k-accent-ink) }
+.chip.dark { background: rgba(16, 22, 18, .78); color: #fff }
+.seg { display: flex; padding: 3px; border-radius: 12px; background: var(--k-surface-2); gap: 2px }
+.seg button { flex: 1; height: 30px; border: 0; border-radius: 9px; background: transparent; font: 600 13px/1 var(--k-font); color: var(--k-ink-2); cursor: pointer }
+.seg button.on { background: var(--k-surface); color: var(--k-ink); box-shadow: var(--k-sh-1) }
+:root[data-theme="dark"] .seg button.on { background: var(--k-surface-3) }
+.glass { background: var(--k-glass); -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); border: 1px solid var(--k-glass-line); color: var(--k-glass-ink) }
+.bar { height: 10px; border-radius: 6px; background: var(--k-surface-3); overflow: hidden; position: relative }
+.bar > i { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: linear-gradient(90deg, var(--k-accent), var(--k-accent-hi)); transition: width .5s var(--k-ease) }
+.glass .bar { background: rgba(20, 50, 30, .12) }
+:root[data-theme="dark"] .glass .bar { background: rgba(255, 255, 255, .1) }
+.tip { position: relative; display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 8px; background: #16201A; color: #fff; font: 650 11.5px/1 var(--k-font); white-space: nowrap }
+.tip::after { content: ""; position: absolute; left: 50%; bottom: -4px; width: 8px; height: 8px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 1.5px }
+.toast { position: absolute; left: 14px; right: 14px; bottom: 96px; padding: 12px 14px; border-radius: 18px; background: #16201A; color: #fff; display: flex; align-items: center; gap: 12px; box-shadow: var(--k-sh-3); transform: translateY(20px) scale(.96); opacity: 0; pointer-events: none; transition: transform var(--k-slow) var(--k-spring), opacity var(--k-base); z-index: 70 }
+.toast.show { transform: none; opacity: 1; pointer-events: auto }
+:root[data-theme="dark"] .toast { background: #26302A }
+.check { width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--k-line-strong); background: transparent; flex: none; display: grid; place-items: center; cursor: pointer; transition: background var(--k-fast), border-color var(--k-fast), transform var(--k-fast) var(--k-spring) }
+.check.p3 { border-color: var(--k-pri-high) } .check.p2 { border-color: var(--k-pri-mid) } .check.p1 { border-color: var(--k-pri-low) }
+.check.on { background: var(--k-accent); border-color: var(--k-accent); transform: scale(1.04) }
+.check.on::after { content: ""; width: 10px; height: 6px; border: 2.4px solid #fff; border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg) }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none }
+.ic-line { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
+.tabbar { flex: none; height: 84px; padding: 8px 10px 26px; display: flex; justify-content: space-around; align-items: flex-start; background: var(--k-surface); border-top: 1px solid var(--k-line); position: relative; z-index: 30 }
+.tabbar button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--k-ink-4); font: 600 10px/1 var(--k-font); width: 56px; cursor: pointer }
+.tabbar button.on { color: var(--k-accent) }
+.tabbar.glassy { background: var(--k-glass); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border-top-color: var(--k-glass-line); position: absolute; left: 0; right: 0; bottom: 0 }
+
+/* ───────── 캐릭터 그림 공통 ───────── */
+.chr { display: block; overflow: visible }
+.chr.sil * { fill: var(--sil) !important; stroke: none !important }
+.chr.sil .c-gl, .chr.sil .c-shadow, .chr.sil .c-aura, .chr.sil .c-mat { display: none }
+.lock * { fill: var(--k-lockc) !important; stroke: none !important; opacity: 1 !important }
+.lock .c-gl { display: none }
+
+/* 대기 동작(42 §4.1) — .live 일 때만, transform · opacity 만 */
+.chr.live .c-breath { animation: kBreath 3.2s ease-in-out infinite; transform-origin: 60px 108px }
+.chr.live.st-1 .c-breath { animation-duration: 2.4s }
+.chr.live .c-eyes { animation: kBlink 4.6s infinite }
+.chr.live .c-sprout { animation: kSway 3.4s ease-in-out infinite }
+.chr.live .c-ear-l { animation: kEarL 3.8s ease-in-out infinite } .chr.live .c-ear-r { animation: kEarR 3.8s ease-in-out infinite .4s }
+.chr.live .c-flap { animation: kFlap .9s ease-in-out infinite } .chr.live.sp-worm .c-flap { animation-duration: 2.6s }
+.chr.live .c-tail { animation: kTail 1.6s ease-in-out infinite }
+.chr.live .c-seg { animation: kSeg 1.8s ease-in-out infinite } .chr.live .c-seg.s1 { animation-delay: .2s } .chr.live .c-seg.s2 { animation-delay: .4s }
+.chr.live .c-tree { animation: kSway 4s ease-in-out infinite }
+.chr.live .c-scarf { animation: kSway 2.2s ease-in-out infinite }
+.chr.live .c-swing, .chr.live .c-bob { animation: kSway 2.6s ease-in-out infinite }
+.chr.live .c-pb1 { animation: kJug 1.5s ease-in-out infinite } .chr.live .c-pb2 { animation: kJug 1.5s ease-in-out infinite -.5s } .chr.live .c-pb3 { animation: kJug 1.5s ease-in-out infinite -1s }
+.chr.live.st-4 .c-hop { animation: kIdleHop 7s ease-in-out infinite } .chr.live.st-5 .c-hop { animation: kIdleHop 6s ease-in-out infinite }
+.chr.live.calm .c-breath { animation-duration: 5s } .chr.live.calm .c-hop { animation: none }
+.chr.live .c-float { animation: kFloat 5s ease-in-out infinite } .chr.live .c-float.d2 { animation-delay: -1.6s } .chr.live .c-float.d3 { animation-delay: -3.2s }
+.chr.live .c-twinkle, .scene-svg .c-twinkle { animation: kTw 3s ease-in-out infinite } .c-twinkle.d2 { animation-delay: -1s !important } .c-twinkle.d3 { animation-delay: -2s !important }
+.chr.live .c-rise { animation: kRise 4.5s ease-in infinite } .chr.live .c-rise.d2 { animation-delay: -1.5s } .chr.live .c-rise.d3 { animation-delay: -3s }
+.scene-svg .c-snow { animation: kSnow 7s linear infinite } .scene-svg .c-snow.d1 { animation-delay: -2s } .scene-svg .c-snow.d2 { animation-delay: -4s } .scene-svg .c-snow.d3 { animation-delay: -5.5s }
+.scene-svg .c-float { animation: kFloat 5s ease-in-out infinite }
+@keyframes kBreath { 0%, 100% { transform: scale(1, 1) } 50% { transform: scale(1.018, .972) } }
+@keyframes kBlink { 0%, 95%, 100% { transform: scaleY(1) } 97% { transform: scaleY(.1) } }
+@keyframes kSway { 0%, 100% { transform: rotate(-3.5deg) } 50% { transform: rotate(3.5deg) } }
+@keyframes kEarL { 0%, 100% { transform: rotate(0) } 50% { transform: rotate(-7deg) } }
+@keyframes kEarR { 0%, 100% { transform: rotate(0) } 50% { transform: rotate(7deg) } }
+@keyframes kFlap { 0%, 100% { transform: rotate(0) } 50% { transform: rotate(var(--fl, 8deg)) } }
+@keyframes kTail { 0%, 100% { transform: rotate(-9deg) } 50% { transform: rotate(9deg) } }
+@keyframes kSeg { 0%, 100% { transform: translateX(0) } 50% { transform: translateX(2.2px) } }
+@keyframes kJug { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-12px) } }
+@keyframes kIdleHop { 0%, 88%, 100% { transform: none } 92% { transform: translateY(-7px) scale(.98, 1.03) } 96% { transform: scale(1.03, .97) } }
+@keyframes kFloat { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+@keyframes kTw { 0%, 100% { opacity: .25 } 50% { opacity: 1 } }
+@keyframes kRise { 0% { transform: translateY(10px); opacity: 0 } 20% { opacity: 1 } 100% { transform: translateY(-40px); opacity: 0 } }
+@keyframes kSnow { 0% { transform: translateY(-30px) } 100% { transform: translateY(380px) } }
+:root[data-theme="dark"] .chr .c-disc { opacity: .4 }
+:root[data-theme="dark"] .chr .c-mat { opacity: .45 }
+.reduce .chr *, .reduce .scene-svg * { animation: none !important }
+@media (prefers-reduced-motion: reduce) { .chr *, .scene-svg * { animation: none !important } }
+
+/* 말랑 아이콘 */
+.soft-ic { display: block; flex: none }

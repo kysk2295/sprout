@@ -2,6 +2,12 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-09 시각 개편 시안 (44 초안 · 사용자 확인 대기, 코드 없음)
+- 사용자 "럭키즈(Behance) 레퍼런스 수준으로 UI 변경" → "캐릭터도 바꿔도 돼. 전체 UI를 수정해줘". 분석 [research 36](docs/ticktick-research/36-ref-luckkids.md)(이미지는 저장소에 안 넣음), 명세 [44](docs/screens/44-visual-refresh.md), 42 §10·43 §18 추가.
+- 시안: [visual-refresh.html](docs/screens/mockups/visual-refresh.html)(로그인·온보딩·오늘·빠른 입력·캘린더·프로젝트·성장·AI·설정 + 데스크톱 오늘·성장), [character-raising-v2.html](docs/screens/mockups/character-raising-v2.html)(v1 인터랙션 그대로). 공용 그림 `mockups/kkumteul-art.js` · 토큰 `mockups/kkumteul-skin.css`. 헤드리스 스크린샷은 `?only=<섹션>` 사용(해시 스크롤하면 빈 화면).
+- 원칙: 틱틱 배치·인터랙션·IA 그대로, 껍데기만(꿈틀 초록 #22A45D·Pretendard 큰 제목·바닥+둥근 카드·다크 면 3단계·말랑 아이콘). 캐릭터 = 꿈틀 정원 친구들(달팽이·꿀벌·애벌레→나비·올챙이→개구리, 씨앗 껍질에서), 둥근 음영 화풍.
+- 결정 필요 3개(44 ⓐ캐릭터 세트 ⓑ40 §0.1을 캐릭터 자리에서만 완화 ⓒ기본 테마 강조색 초록) = 43 §14 ⑥~⑧. packages/tokens 바뀔 목록은 44 §9.
+
 ## ★ 2026-10-09 캐릭터 키우기 시안 (43 초안 · 사용자 확인 대기, 코드 없음)
 - 사용자 "좀 더 인터랙티브하게… 캐릭터 키우는 재미가 있게, 확실히 성장하고 꾸미고". [43](docs/screens/43-character-raising.md) + 시안 [character-raising.html](docs/screens/mockups/character-raising.html). 42(진화 그림) 위에 얹는다.
 - 레벨 안 성장(키 6px·새싹 잎눈·무늬 점) + 성장 막대 다음 미리 보기 · 만지기 3종 추가(간지럼·끌었다 놓기·이름 부르기) · 하루 장면 5 · 옷장 5칸(모자·목·손·등·방) 옷 23개(레벨·한 날 누적·주간 점검·끝낸 프로젝트·계절) · 트로피 선반 · 도감 · 친구 단계 두 갈래 고르기. 재화·유료 없음, 연속 대신 누적.

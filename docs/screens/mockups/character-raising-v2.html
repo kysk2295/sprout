@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>꿈틀 · 캐릭터 키우기 v2 (42·43·44 시안)</title>
+<link rel="stylesheet" href="kkumteul-skin.css">
+<style>
+/* 이 문서 전용 배치. 색·글자·부품은 kkumteul-skin.css(44 §3) */
+body.k { padding: 0 0 80px }
+.top { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 28px; background: color-mix(in srgb, var(--k-ground) 86%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom: 1px solid var(--k-line) }
+.top h1 { margin: 0; font: 750 18px/1.2 var(--k-font); letter-spacing: -.02em; display: flex; align-items: center; gap: 10px }
+.top h1 small { font: 500 12.5px/1 var(--k-font); color: var(--k-ink-3); letter-spacing: 0 }
+.top .sp { flex: 1 }
+.top .seg { min-width: 0 }
+.top .seg button { padding: 0 12px; flex: none }
+.top a { color: var(--k-accent-ink); font: 600 13px/1 var(--k-font); text-decoration: none }
+nav.toc { display: flex; gap: 6px; flex-wrap: wrap; padding: 14px 28px 0 }
+nav.toc a { text-decoration: none }
+section.s { padding: 36px 28px 8px; max-width: 1480px }
+section.s > h2 { margin: 0 0 6px; font: 750 24px/1.25 var(--k-font); letter-spacing: -.025em }
+section.s > p.lead { margin: 0 0 20px; color: var(--k-ink-2); font: 400 14.5px/1.6 var(--k-font); max-width: 900px }
+.note { color: var(--k-ink-3); font: 500 12.5px/1.55 var(--k-font) }
+.row { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start }
+.panel { background: var(--k-surface); border-radius: var(--k-r-lg); box-shadow: var(--k-sh-1); padding: 18px 20px; flex: 1; min-width: 280px }
+.panel h3 { margin: 0 0 10px; font: 700 15px/1.3 var(--k-font) }
+.panel .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px }
+.panel ul { margin: 0; padding-left: 18px; color: var(--k-ink-2); font: 400 13px/1.7 var(--k-font) }
+.cap { margin-top: 10px; text-align: center; color: var(--k-ink-3); font: 600 12px/1.4 var(--k-font) }
+
+/* ── 캐릭터 무대 공통 ── */
+.stage { position: relative; overflow: hidden; isolation: isolate }
+.stage .sceneHost, .stage .sceneHost svg { position: absolute; inset: 0; width: 100%; height: 100% }
+:root[data-theme="dark"] .scene-svg { filter: brightness(.86) saturate(.95) }
+.stage .pos { position: absolute; left: 50%; transform: translateX(-50%); z-index: 3 }
+.stage .ch { position: relative; touch-action: none; cursor: grab; outline: none }
+.stage .ch:focus-visible { outline: 2px solid var(--k-accent); outline-offset: 4px; border-radius: 20px }
+.stage .ch:active { cursor: grabbing }
+.stage .chi { position: relative }
+.stage .chi .chr { width: 100%; height: 100% }
+.say { position: absolute; left: 50%; bottom: calc(100% - 6px); transform: translateX(-50%); background: #fff; color: #16201A; padding: 9px 13px; border-radius: 16px; font: 650 13px/1.35 var(--k-font); white-space: nowrap; box-shadow: 0 6px 20px rgba(15, 35, 22, .16); pointer-events: none; z-index: 6 }
+.say::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; background: #fff; transform: translateX(-50%) rotate(45deg); border-radius: 2px }
+.heart, .xp, .chip-lv, .zz { position: absolute; left: 50%; top: 18%; pointer-events: none; z-index: 7 }
+.heart svg { width: 18px; height: 18px; margin-left: -9px }
+.xp { font: 800 15px/1 var(--k-num); color: #fff; background: var(--k-accent); padding: 5px 9px; border-radius: 999px; margin-left: -20px; box-shadow: var(--k-sh-accent) }
+.chip-lv { font: 800 14px/1 var(--k-num); color: #16201A; background: #FFD45C; padding: 6px 10px; border-radius: 999px; margin-left: -28px; top: -2% }
+.zz { font: 800 16px/1 var(--k-num); color: #fff; opacity: .9 }
+.bit { position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px; pointer-events: none; z-index: 7 }
+.bit svg { width: 100%; height: 100% }
+
+/* ── 성장 HUD(유리 카드) — 레퍼런스: 큰 숫자 + 말풍선 칩 + 굵은 막대 ── */
+.hud { border-radius: 22px; padding: 14px 16px 14px; box-shadow: 0 8px 28px rgba(10, 40, 20, .12) }
+.hud .who { display: flex; align-items: center; gap: 8px; margin-bottom: 8px }
+.hud .who .nm { border: 0; background: none; padding: 0; font: 750 15px/1 var(--k-font); cursor: pointer; letter-spacing: -.01em }
+.hud .who .lvb { font: 800 11px/1 var(--k-num); padding: 4px 7px; border-radius: 7px; background: var(--k-accent); color: #fff }
+.hud .who .ttl { font: 500 12.5px/1 var(--k-font); opacity: .72 }
+.hud .mid { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin-bottom: 10px }
+.hud .t-num small { font-size: .45em; letter-spacing: 0; margin-left: 2px }
+.hud .lbl { font: 600 12px/1.2 var(--k-font); color: var(--k-accent-ink); margin-top: 4px }
+.hud .gift { display: flex; flex-direction: column; align-items: flex-end; gap: 6px }
+.hud .gift .ico { width: 44px; height: 44px; border-radius: 14px; background: rgba(255, 255, 255, .7); display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .9) }
+:root[data-theme="dark"] .hud .gift .ico { background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06) }
+.hud .gift .ico svg { width: 36px; height: 36px }
+.hud .tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 9px }
+.hud .tags span { font: 600 11px/1 var(--k-font); padding: 5px 8px; border-radius: 999px; background: rgba(34, 164, 93, .12); color: var(--k-accent-ink) }
+.hud .xpline { display: flex; justify-content: space-between; font: 600 11.5px/1 var(--k-font); opacity: .7; margin-top: 7px }
+
+/* ── 휴대폰: 성장 탭 ── */
+.gstage { position: absolute; left: 0; right: 0; top: 0; height: 500px }
+.gstage .sceneHost { bottom: auto !important; height: 392px !important }
+.gstage .hdr { position: absolute; top: 50px; left: 18px; right: 18px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 4 }
+.gstage .hdr h3 { margin: 0; font: 800 28px/1 var(--k-font); letter-spacing: -.03em; color: #10301C }
+:root[data-theme="dark"] .gstage .hdr h3 { color: #fff }
+.gstage .hdr .chips { display: flex; gap: 6px }
+.gstage .hdr .chip { background: var(--k-glass); color: var(--k-glass-ink); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px) }
+.gstage .hud { position: absolute; left: 12px; right: 12px; bottom: 26px; z-index: 5; padding: 12px 14px 12px; border-radius: 20px }
+.gstage .hud .t-num { font-size: 38px }
+.gstage .hud .who { margin-bottom: 4px }
+.gstage .hud .mid { margin-bottom: 8px }
+.gstage .hud .gift .ico { width: 38px; height: 38px; border-radius: 12px }
+.gstage .hud .gift .ico svg { width: 30px; height: 30px }
+.gstage .hud .tags { margin-top: 7px }
+.gstage .hud .xpline { display: none }
+.gsheet { position: absolute; left: 0; right: 0; top: 488px; bottom: 0; background: var(--k-surface); border-radius: 26px 26px 0 0; padding: 16px 16px 100px; z-index: 6; overflow: auto; scrollbar-width: none }
+.gsheet::-webkit-scrollbar { display: none }
+.quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px }
+.quick button { border: 0; border-radius: 16px; background: var(--k-surface-2); padding: 10px 0 9px; display: flex; flex-direction: column; align-items: center; gap: 5px; font: 650 12.5px/1 var(--k-font); cursor: pointer; position: relative; transition: transform var(--k-fast) var(--k-ease) }
+.quick button:active { transform: scale(.96) }
+.quick button i { position: absolute; top: 8px; right: 14px; width: 7px; height: 7px; border-radius: 50%; background: var(--k-accent) }
+.sh { display: flex; justify-content: space-between; align-items: baseline; margin: 2px 2px 8px; font: 700 15px/1 var(--k-font) }
+.sh small { font: 500 12px/1 var(--k-font); color: var(--k-ink-3) }
+.trow { display: flex; align-items: center; gap: 11px; min-height: 46px; padding: 0 2px; border-bottom: 1px solid var(--k-line); font: 500 14.5px/1.3 var(--k-font); cursor: pointer }
+.trow:last-child { border-bottom: 0 }
+.trow small { margin-left: auto; color: var(--k-ink-3); font: 500 12px/1 var(--k-font) }
+.trow small.red { color: var(--k-danger) }
+.trow.done .tx { color: var(--k-ink-3) }
+.pill { position: absolute; left: 16px; right: 16px; bottom: 22px; height: 58px; border-radius: 29px; display: flex; justify-content: space-around; align-items: center; z-index: 30; box-shadow: 0 8px 24px rgba(10, 30, 18, .12) }
+.pill b { width: 44px; height: 44px; display: grid; place-items: center; color: var(--k-ink-3); position: relative }
+.pill b.on { color: var(--k-accent) }
+.pill b svg { width: 25px; height: 25px }
+.pill b em { position: absolute; font: 800 8.5px/1 var(--k-num); font-style: normal; top: 19px; left: 0; right: 0; text-align: center }
+#mToast { bottom: 96px }
+.toast .ico { width: 46px; height: 46px; flex: none; border-radius: 14px; background: rgba(255, 255, 255, .1); display: grid; place-items: center }
+.toast .ico svg { width: 38px; height: 38px }
+.toast .tx { flex: 1; font: 500 12px/1.4 var(--k-font); color: rgba(255, 255, 255, .72) }
+.toast .tx b { display: block; font: 750 14.5px/1.3 var(--k-font); color: #fff; margin-bottom: 1px }
+.toast .bt { display: flex; flex-direction: column; gap: 6px }
+.toast .btn.sm { height: 30px; font-size: 12.5px }
+.toast .btn:not(.pri) { background: rgba(255, 255, 255, .12); color: #fff }
+
+/* 휴대폰 진화(전체 화면) */
+.mevo { position: absolute; inset: 0; z-index: 90; background: radial-gradient(120% 70% at 50% 42%, #2C6A43 0%, #12301E 55%, #08150D 100%); opacity: 0; pointer-events: none; transition: opacity .25s }
+.mevo.show { opacity: 1; pointer-events: auto }
+.mevo .glow { position: absolute; left: 50%; top: 40%; width: 320px; height: 320px; margin: -160px; border-radius: 50%; background: radial-gradient(circle, rgba(140, 240, 170, .42), rgba(140, 240, 170, 0) 65%) }
+.mevo .box { position: absolute; left: 50%; top: 40%; width: 0; height: 0 }
+.evl { position: absolute; top: 0; left: 0 }
+.evl .chr { width: 100%; height: 100% }
+.mevo .box .evl { top: -115px }
+.ecard { position: absolute; left: 50%; bottom: 120px; transform: translate(-50%, 10px); opacity: 0; text-align: center; color: #fff; width: 280px }
+.ecard .k { font: 650 13px/1 var(--k-font); color: #8FF0B5; margin-bottom: 10px }
+.ecard .n { font: 800 30px/1.1 var(--k-font); letter-spacing: -.03em }
+.ecard .f { margin-top: 12px; display: inline-block; font: 600 12.5px/1.4 var(--k-font); padding: 8px 12px; border-radius: 12px; background: rgba(255, 255, 255, .1) }
+.mevo .skip { position: absolute; top: 56px; right: 18px; color: rgba(255, 255, 255, .7); background: rgba(255, 255, 255, .1); border: 0; border-radius: 999px; height: 30px; padding: 0 12px; font: 600 12.5px/1 var(--k-font) }
+
+/* ── 휴대폰: 꾸미기 ── */
+.dhdr { display: flex; align-items: center; gap: 8px; padding: 6px 16px 10px }
+.dhdr b { font: 750 20px/1 var(--k-font); letter-spacing: -.02em }
+.dhdr .back { font: 400 26px/1 var(--k-font); color: var(--k-ink-2); margin-right: 2px }
+.pv { position: relative; height: 230px; margin: 0 14px; border-radius: 24px; overflow: hidden }
+.pv .sceneHost svg { position: absolute; inset: 0; width: 100%; height: 100% }
+.pv .who { position: absolute; left: 50%; transform: translateX(-50%); z-index: 2 }
+.pv .badge { position: absolute; left: 12px; top: 12px; z-index: 3 }
+.wtabs { display: flex; gap: 6px; padding: 14px 14px 10px; overflow-x: auto; scrollbar-width: none }
+.wtabs button { flex: none; height: 34px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--k-surface-2); color: var(--k-ink-2); font: 650 13px/1 var(--k-font); cursor: pointer; position: relative }
+.wtabs button.on { background: var(--k-ink); color: var(--k-surface) }
+.wtabs button i { position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--k-accent) }
+.wscroll { position: absolute; left: 0; right: 0; bottom: 0; overflow: auto; padding: 0 14px 30px; scrollbar-width: none }
+.wscroll::-webkit-scrollbar { display: none }
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px }
+.grid.c3 { grid-template-columns: repeat(3, 1fr) }
+.cell { position: relative; min-height: 92px; border-radius: 18px; background: var(--k-surface-2); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 8px 4px 8px; gap: 3px; cursor: pointer; transition: transform var(--k-fast) var(--k-ease), box-shadow var(--k-fast) }
+.cell:active { transform: scale(.95) }
+.cell > svg { width: 52px; height: 52px; flex: none }
+.cell .n { font: 650 11.5px/1.25 var(--k-font); text-align: center }
+.cell .c { font: 500 10px/1.25 var(--k-font); color: var(--k-ink-3); text-align: center }
+.cell.on { background: var(--k-accent-soft); box-shadow: inset 0 0 0 2px var(--k-accent) }
+.cell.locked .n { color: var(--k-ink-3) }
+.cell .ndot { position: absolute; top: 7px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--k-accent) }
+.cell .lk { position: absolute; top: 7px; right: 8px; width: 14px; height: 14px; color: var(--k-ink-4) }
+.subh { display: flex; justify-content: space-between; align-items: baseline; margin: 14px 2px 8px; font: 700 13.5px/1 var(--k-font) }
+.subh span { font: 500 11.5px/1 var(--k-font); color: var(--k-ink-3) }
+.dexsum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 4px 0 4px }
+.dexsum div { border-radius: 16px; padding: 12px 12px 10px; background: var(--k-surface-2) }
+.dexsum b { display: block; font: 800 22px/1 var(--k-num); letter-spacing: -.03em }
+.dexsum span { font: 600 11.5px/1 var(--k-font); color: var(--k-ink-3) }
+.dexsum .bar { height: 5px; margin-top: 8px }
+
+/* ── 데스크톱 ── */
+.desk { width: 1200px; height: 740px; border-radius: 14px; overflow: hidden; background: var(--k-ground); box-shadow: 0 0 0 1px var(--k-line-strong), 0 30px 70px rgba(15, 30, 20, .14); display: flex; flex: none }
+.rail { width: 55px; flex: none; background: var(--k-surface-2); display: flex; flex-direction: column; align-items: center; padding-top: 34px; gap: 8px }
+:root[data-theme="dark"] .rail { background: #111512 }
+.rail .av { width: 34px; height: 34px; border-radius: 50%; overflow: hidden; background: var(--k-accent-soft); margin-bottom: 18px }
+.rail .av .chr { width: 34px; height: 34px }
+.rail b { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--k-ink-3) }
+.rail b.on { color: var(--k-accent); background: var(--k-accent-soft) }
+.rail b svg { width: 21px; height: 21px }
+.dmain { flex: 1; display: flex; flex-direction: column; min-width: 0 }
+.dhead { height: 64px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 24px }
+.dhead h3 { margin: 0; font: 800 24px/1 var(--k-font); letter-spacing: -.03em }
+.dhead .sub { color: var(--k-ink-3); font: 500 13px/1 var(--k-font) }
+.dhead .sp { flex: 1 }
+.dbody { flex: 1; display: grid; grid-template-columns: 1fr 312px; gap: 16px; padding: 0 20px 20px; min-height: 0 }
+#dStage { border-radius: 24px; height: 100% }
+#dStage .hud { position: absolute; left: 18px; top: 18px; width: 308px; z-index: 5 }
+#dStage .deco-btn { position: absolute; right: 16px; bottom: 16px; z-index: 6 }
+#dStage .toast { left: 50%; right: auto; width: 400px; margin-left: -200px; bottom: 18px }
+.wpanel { position: absolute; top: 12px; right: 12px; bottom: 12px; width: 300px; border-radius: 22px; background: var(--k-raised); box-shadow: var(--k-sh-3); z-index: 8; transform: translateX(calc(100% + 24px)); transition: transform var(--k-base) var(--k-ease); display: flex; flex-direction: column; overflow: hidden }
+.wpanel.open { transform: none }
+.wpanel .hd { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 0; font: 750 17px/1 var(--k-font) }
+.wpanel .hd button { border: 0; background: var(--k-surface-2); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 17px; color: var(--k-ink-2) }
+.wpanel .wtabs { padding: 12px 14px 8px }
+.wpanel .wbody { flex: 1; overflow: auto; padding: 0 14px 16px; scrollbar-width: thin }
+.dside { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: hidden }
+.dside .card { padding: 14px 16px }
+.dside .card .sh { margin-bottom: 4px }
+.road { display: flex; justify-content: space-between; padding-top: 6px }
+.road .rd { display: flex; flex-direction: column; align-items: center; gap: 4px; font: 650 11px/1 var(--k-font); color: var(--k-ink-2); width: 52px }
+.road .rd i { width: 44px; height: 44px; border-radius: 50%; background: var(--k-surface-2); display: grid; place-items: center; overflow: hidden }
+.road .rd.now i { box-shadow: 0 0 0 2px var(--k-accent); background: var(--k-accent-soft) }
+.road .rd span { color: var(--k-ink-4); font-weight: 600 }
+.qrow { display: flex; align-items: center; gap: 10px; min-height: 40px; font: 500 13.5px/1.3 var(--k-font); border-bottom: 1px solid var(--k-line) }
+.qrow:last-child { border-bottom: 0 }
+.qrow small { margin-left: auto; color: var(--k-accent-ink); font: 700 12px/1 var(--k-num) }
+.qrow.done { color: var(--k-ink-3) }
+
+/* ── C 레벨 줄 ── */
+.lvrow { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; align-items: stretch }
+.lvrow .c { flex: none; width: 168px; border-radius: 22px; background: var(--k-surface); box-shadow: var(--k-sh-1); padding: 12px 12px 14px; display: flex; flex-direction: column; align-items: center; gap: 6px }
+.lvrow .c .art { height: 200px; display: flex; align-items: flex-end; justify-content: center; width: 100% }
+.lvrow .c b { font: 750 13.5px/1.2 var(--k-font) }
+.lvrow .c span { font: 500 11.5px/1.45 var(--k-font); color: var(--k-ink-3); text-align: center }
+.lvrow .c .gift { color: var(--k-accent-ink); font-weight: 700 }
+.ruler { height: 2px; width: 100%; background: repeating-linear-gradient(90deg, var(--k-line-strong) 0 6px, transparent 6px 10px) }
+
+/* ── D 진화 무대 ── */
+#evo { height: 520px; border-radius: 28px; cursor: pointer }
+#evoDim { position: absolute; inset: 0; background: radial-gradient(90% 80% at 50% 45%, rgba(18, 52, 32, .55), rgba(6, 16, 10, .88)); opacity: 0; z-index: 2; pointer-events: none }
+#evoBox { position: absolute; left: 50%; top: 46%; width: 0; height: 0; z-index: 3 }
+#evoBox .evl { top: -130px }
+#evo .ecard { bottom: 34px; z-index: 4 }
+#evo .ecard .n { color: #fff; text-shadow: 0 2px 16px rgba(0, 0, 0, .3) }
+#evoChoice { position: absolute; inset: 0; z-index: 6; background: radial-gradient(80% 80% at 50% 50%, rgba(10, 30, 18, .78), rgba(4, 12, 8, .92)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; opacity: 0; pointer-events: none; transition: opacity .2s }
+#evoChoice.show { opacity: 1; pointer-events: auto }
+#evoChoice .q { font: 800 26px/1 var(--k-font); color: #fff; letter-spacing: -.03em }
+#evoChoice .opts { display: flex; gap: 16px }
+.opt { width: 200px; border-radius: 24px; padding: 14px 14px 16px; text-align: center; cursor: pointer; color: #fff; background: rgba(255, 255, 255, .12); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16); transition: transform var(--k-fast) var(--k-spring), box-shadow var(--k-fast) }
+.opt:hover { transform: translateY(-3px); box-shadow: inset 0 0 0 2px #8FF0B5 }
+.opt .chr { margin: 0 auto 6px }
+.opt b { display: block; font: 750 16px/1.2 var(--k-font); margin-bottom: 4px }
+.opt span { font: 500 12px/1.45 var(--k-font); color: rgba(255, 255, 255, .72) }
+#evoChoice .later { border: 0; background: none; color: rgba(255, 255, 255, .7); font: 600 13px/1 var(--k-font); cursor: pointer }
+#evoSkip { position: absolute; top: 16px; right: 16px; z-index: 7 }
+.evo-ctrl { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 0 }
+
+/* ── E 보이는 곳 ── */
+.where { display: flex; gap: 14px; flex-wrap: wrap }
+.where .w { background: var(--k-surface); border-radius: 20px; box-shadow: var(--k-sh-1); padding: 14px; font: 650 12px/1.3 var(--k-font); color: var(--k-ink-3); display: flex; flex-direction: column; gap: 10px; min-width: 170px }
+.sidecard { display: flex; align-items: center; gap: 10px; color: var(--k-ink); width: 220px; padding: 8px 10px; border-radius: 14px; background: var(--k-surface-2) }
+.sidecard .bar { height: 6px; margin-top: 6px }
+.avc { border-radius: 50%; overflow: hidden; background: var(--k-accent-soft); display: grid; place-items: center }
+.ansrow { display: flex; gap: 8px; align-items: flex-start; color: var(--k-ink) }
+.ansrow .bub { background: var(--k-surface-2); padding: 9px 12px; border-radius: 4px 16px 16px 16px; font: 500 13px/1.4 var(--k-font) }
+.ansrow .who { font: 650 11px/1 var(--k-font); color: var(--k-ink-3); margin-bottom: 4px }
+.widget { width: 158px; height: 158px; border-radius: 26px; padding: 12px; display: flex; flex-direction: column; color: var(--k-ink); background: linear-gradient(180deg, #DDF4FF, #EAF8EE); box-shadow: var(--k-sh-2) }
+:root[data-theme="dark"] .widget { background: linear-gradient(180deg, #17283B, #13241A); color: #fff }
+.widget .wtop { display: flex; justify-content: space-between; font: 750 12px/1 var(--k-font) }
+.widget .bar { height: 6px }
+
+/* ── F 해금표 · 0 라인업 · G 색 ── */
+table.ut { border-collapse: collapse; width: 100%; max-width: 960px; background: var(--k-surface); border-radius: 20px; overflow: hidden; box-shadow: var(--k-sh-1); font: 500 13px/1.35 var(--k-font) }
+table.ut th { text-align: left; padding: 10px 12px; font: 700 12px/1 var(--k-font); color: var(--k-ink-3); background: var(--k-surface-2) }
+table.ut td { padding: 6px 12px; border-top: 1px solid var(--k-line) }
+.lineup { display: grid; grid-template-columns: 150px repeat(5, 1fr); gap: 10px; align-items: stretch }
+.lineup .sp { border-radius: 22px; padding: 14px; background: var(--k-surface); box-shadow: var(--k-sh-1); display: flex; flex-direction: column; justify-content: center; gap: 6px }
+.lineup .sp b { font: 800 18px/1.15 var(--k-font); letter-spacing: -.02em }
+.lineup .sp span { font: 500 11.5px/1.45 var(--k-font); color: var(--k-ink-3) }
+.lineup .sp em { font-style: normal; font: 650 11px/1 var(--k-font); color: var(--k-ink-2); background: var(--k-surface-2); border-radius: 6px; padding: 4px 6px; align-self: flex-start }
+.lineup .lc { border-radius: 22px; background: var(--k-surface); box-shadow: var(--k-sh-1); padding: 8px 8px 12px; text-align: center; cursor: pointer; transition: transform var(--k-fast) var(--k-ease) }
+.lineup .lc:hover { transform: translateY(-2px) }
+.lineup .lc .chr { width: 100%; height: auto; aspect-ratio: 1 }
+.lineup .lc b { display: block; font: 700 12.5px/1.2 var(--k-font) }
+.lineup .lc span { font: 500 11px/1 var(--k-font); color: var(--k-ink-3) }
+.lineup .hd { font: 700 12px/1 var(--k-font); color: var(--k-ink-3); text-align: center; padding-top: 4px }
+.dirs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px }
+.dir { border-radius: 24px; padding: 18px 20px; background: var(--k-surface); box-shadow: var(--k-sh-1); position: relative }
+.dir.rec { box-shadow: inset 0 0 0 2px var(--k-accent), var(--k-sh-1) }
+.dir h3 { margin: 0 0 6px; font: 750 17px/1.3 var(--k-font) }
+.dir .tag { position: absolute; top: 16px; right: 16px }
+.dir p { margin: 0; font: 400 13px/1.6 var(--k-font); color: var(--k-ink-2) }
+.dir .mini { display: flex; gap: 6px; margin-top: 10px; align-items: flex-end }
+.sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; max-width: 1100px }
+.sw div { border-radius: 16px; background: var(--k-surface); box-shadow: var(--k-sh-1); overflow: hidden; font: 600 11.5px/1.35 var(--k-font) }
+.sw i { display: block; height: 54px }
+.sw span { display: block; padding: 8px 10px; color: var(--k-ink-2) }
+.sw code { font: 500 10.5px/1 ui-monospace, Menlo, monospace; color: var(--k-ink-3) }
+.vs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 900px }
+.vs > div { border-radius: 22px; background: var(--k-surface); box-shadow: var(--k-sh-1); padding: 14px; text-align: center; font: 600 12px/1.4 var(--k-font); color: var(--k-ink-3) }
+.vs iframe { width: 100%; height: 300px; border: 0; border-radius: 14px; background: #fff }
+</style>
+</head>
+<body class="k">
+<header class="top">
+  <h1><span id="logoH"></span>캐릭터 키우기 v2 <small>42·43 + 44 시각 개편 · 레퍼런스 research 36</small></h1>
+  <span class="sp"></span>
+  <div class="seg" id="segSp"></div>
+  <div class="seg" id="segTh"><button data-v="light">라이트</button><button data-v="dark">다크</button></div>
+  <div class="seg" id="segMo"><button data-v="full">움직임</button><button data-v="reduce">줄이기</button></div>
+  <a href="character-raising.html">v1 보기 ›</a>
+  <a href="visual-refresh.html">앱 전체 시안 ›</a>
+</header>
+<nav class="toc">
+  <a class="chip" href="#sec0">0 새 캐릭터</a><a class="chip" href="#secA">A 휴대폰</a><a class="chip" href="#secB">B 데스크톱</a><a class="chip" href="#secC">C 레벨마다</a><a class="chip" href="#secD">D 진화·고르기</a><a class="chip" href="#secE">E 보이는 곳</a><a class="chip" href="#secF">F 해금표</a><a class="chip" href="#secG">G 색 토큰</a><a class="chip" href="#secV">v1 ↔ v2</a>
+</nav>
+
+<section class="s" id="sec0">
+  <h2>0. 새 캐릭터 — 꿈틀 정원 친구들</h2>
+  <p class="lead">씨앗 껍질에서 나와 머리 새싹과 함께 자란다. 성향 4칸(10 §2.1)은 그대로 두고 동물만 정원 친구로 바꾼다. 애벌레는 나비, 올챙이는 개구리가 되어서 단계마다 모습이 확 달라진다(42 원칙 1). 칸을 누르면 위 시안 전체가 그 종으로 바뀐다.</p>
+  <div class="dirs">
+    <div class="dir"><span class="chip tag">A</span><h3>A. 말랑 동물 — 거북·다람쥐·고양이·수달을 새 화풍으로</h3><p>종·소품·두 갈래(42·43)는 그대로 두고 화풍만 바꾼다: 둥근 음영, 하이라이트, 얇은 같은 색 선, 큰 눈. 데이터와 명세가 거의 그대로 간다. 다만 "꿈틀"이라는 이름과 관계가 약하고, 단계 차이는 소품에만 기댄다(그림은 v1 시안의 동물과 같은 구성).</p></div>
+    <div class="dir rec"><span class="chip on tag">추천 B</span><h3>B. 꿈틀 정원 친구들 — 달팽이·꿀벌·애벌레·올챙이</h3><p>꿈틀(꿈틀거리며 자람)과 새싹 로고에 바로 이어진다. 탈바꿈(애벌레 → 나비, 올챙이 → 개구리)이 있어서 "확 다른 단계"가 소품 없이도 몸 모양으로 보인다. 성향 칸은 같고 종 id만 바뀐다: 거북 → 달팽이, 다람쥐 → 꿀벌, 고양이 → 애벌레, 수달 → 개구리. 이미 고른 사용자의 종도 이 표대로 옮긴다(결정 ⓐ).</p><div class="mini" id="dirMini"></div></div>
+  </div>
+  <div class="lineup" id="lineup"></div>
+  <p class="note" style="margin-top:10px">화풍: 빛은 왼쪽 위 한 곳. 면마다 둥근 음영(밝은 쪽 46% 흰색, 그늘 쪽 30% 남회색), 같은 색 계열의 얇은 선(0.9px, 45% 진하게, 투명도 50%), 흰 하이라이트 타원 하나, 바닥 접촉 그림자. 눈은 진한 보라 검정에 빛점 두 개. 그림자 색에 검정 대신 남회색을 섞어서 노랑·하늘색이 탁해지지 않는다.</p>
+</section>
+
+<section class="s" id="secA">
+  <h2>A. 휴대폰 — 성장 탭 · 꾸미기 · 진화</h2>
+  <p class="lead">레퍼런스처럼 위 2/3은 장면이 화면 끝까지 꽉 차고, 그 위에 유리 카드가 얹힌다: 큰 숫자(다음 레벨까지 %), 다음 선물 말풍선 칩, 굵은 막대. 아래 흰 시트는 틱틱 목록 그대로 차분하다. 캐릭터 누르기(깡충) · 길게 누르기(쓰다듬기) · 빠르게 4번(간지럼) · 끌었다 놓기(통통) · 카드의 이름 누르기(부르기) · 할 일 체크 → XP → 레벨업 → 선물 카드 → 입혀 보기가 모두 된다.</p>
+  <div class="row">
+    <div>
+      <div class="phone"><div class="scr" id="mScr">
+        <div class="island"></div>
+        <div class="sbar" style="position:absolute;left:0;right:0;top:0"><span>9:41</span><i>●●● ◔ ▮</i></div>
+        <div class="gstage stage" id="mStage"></div>
+        <div class="gsheet">
+          <div class="quick"><button id="mOpenWard"><span id="qi1"></span>옷장<i id="mFreshDot" hidden></i></button><button id="mOpenDex"><span id="qi2"></span>도감</button><button id="mOpenTro"><span id="qi3"></span>트로피</button></div>
+          <div class="sh">오늘 할 일 <small>체크하면 +1 XP</small></div>
+          <div id="mTasks"></div>
+        </div>
+        <div class="pill glass" id="mPill"></div>
+        <div class="toast" id="mToast"></div>
+        <div class="mevo" id="mEvo"><div class="glow"></div><div class="box" id="mEvoBox"></div><button class="skip">건너뛰기</button><div class="ecard" id="mEvoCard"><div class="k"></div><div class="n"></div><div class="f"></div></div></div>
+        <div class="homebar"></div>
+      </div></div>
+      <div class="cap">성장 탭 · 할 일을 체크해 보세요</div>
+    </div>
+    <div>
+      <div class="phone"><div class="scr" id="bScr">
+        <div class="island"></div>
+        <div class="sbar"><span>9:41</span><i>●●● ◔ ▮</i></div>
+        <div class="dhdr"><span class="back">‹</span><b>꾸미기</b><span style="flex:1"></span><div class="seg" id="bSeg" style="width:150px"><button data-v="ward" class="on">옷장</button><button data-v="dex">도감</button></div></div>
+        <div id="bWard" style="position:absolute;left:0;right:0;top:104px;bottom:0">
+          <div class="pv stage" id="bPreview"></div>
+          <div class="wtabs" id="bTabs"></div>
+          <div class="wscroll" id="bGrid" style="top:300px"></div>
+        </div>
+        <div id="bDex" hidden style="position:absolute;left:0;right:0;top:104px;bottom:0"><div class="wscroll" id="bDexIn" style="top:0"></div></div>
+        <div class="homebar"></div>
+      </div></div>
+      <div class="cap">꾸미기 · 옷장 / 도감 (같은 상태)</div>
+    </div>
+    <div class="panel" style="max-width:420px">
+      <h3>하루 장면 (43 §4.2)</h3>
+      <div class="btns"><button class="btn sm" data-moment="morning">아침 인사</button><button class="btn sm" data-moment="busy">바쁜 날</button><button class="btn sm" data-moment="deadline">마감 날</button><button class="btn sm" data-moment="dayDone">하루 다 함</button><button class="btn sm" data-moment="night">늦은 밤</button></div>
+      <p class="note" id="momentNote">장면 하나를 눌러 보세요. 하루에 한 번만 나온다.</p>
+      <h3 style="margin-top:16px">빨리 보기</h3>
+      <div class="btns"><button class="btn sm pri" id="bNextLv">다음 레벨로</button><button class="btn sm" id="bQuest">퀘스트 끝내기 +30</button><button class="btn sm" id="bProject">프로젝트 끝내기</button><button class="btn sm" id="bSeason">크리스마스 기간</button><button class="btn sm" id="bReset">처음으로</button></div>
+      <h3 style="margin-top:16px">만지기 (보상 없음)</h3>
+      <ul>
+        <li>누르기 = 깡충 + 하트 + 한 줄</li>
+        <li>0.6초 길게 = 쓰다듬기, 하트가 계속</li>
+        <li>1.2초 안에 4번 = 간지럼(8초에 한 번)</li>
+        <li>끌었다 놓기 = 반지름 90 안에서 따라오다 통통 착지</li>
+        <li>유리 카드의 이름 누르기 = 손 흔들기</li>
+        <li>선반 트로피 누르기 = 그 이야기 (B 데스크톱)</li>
+      </ul>
+      <p class="note" style="margin-top:10px">움직이는 캐릭터는 화면마다 하나다. 꾸미기 미리보기는 같은 캐릭터를 다른 화면에서 보여 주는 것이라 따로 센다.</p>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="secB">
+  <h2>B. 데스크톱 성장 화면 — 무대(방) + 트로피 선반 + 옷장 패널</h2>
+  <p class="lead">레일·머리·오른쪽 칸 배치는 10 §3.2 그대로다. 무대만 둥근 장면 카드(24)가 되고, 왼쪽 위 유리 카드에 큰 숫자를 둔다. 오른쪽 칸(할 일·퀘스트·진화 길)은 차분한 흰 카드다. "꾸미기"를 누르면 오른쪽에서 패널이 밀려 나온다.</p>
+  <div style="overflow-x:auto;padding:4px 2px 20px"><div class="desk">
+    <div class="rail"><div class="av" id="dAvatar"></div><b id="rIc1"></b><b id="rIc2"></b><b id="rIc3"></b><b class="on" id="rIc4"></b><b id="rIc5"></b></div>
+    <div class="dmain">
+      <div class="dhead"><h3>성장</h3><span class="sub" id="dSub"></span><span class="sp"></span><span class="chip" id="dChip1"></span><span class="chip" id="dChip2"></span><button class="btn sm ghost" aria-label="더보기">⋯</button></div>
+      <div class="dbody">
+        <div class="stage" id="dStage"></div>
+        <div class="dside">
+          <div class="card"><div class="sh">오늘 할 일 <small id="dTaskSum"></small></div><div id="dTasks"></div></div>
+          <div class="card"><div class="sh">이번 주 퀘스트 <small id="dQuestSum"></small></div><div id="dQuests"></div></div>
+          <div class="card"><div class="sh">진화 길 <small>Lv 1 · 3 · 6 · 10 · 15</small></div><div class="road" id="dRoad"></div></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<section class="s" id="secC">
+  <h2>C. 레벨마다 자라는 게 보이게 — 키 · 새싹 잎 · 무늬 한 점 + 그 레벨의 선물</h2>
+  <p class="lead">43 §3.1 그대로(무대 크기 180 + 6 × (Lv − 1)). 같은 단계 안에서도 레벨마다 키 6px, 새싹 잎눈이나 무늬 점 하나가 바뀐다. 진화 레벨에서는 모습이 바뀐다.</p>
+  <div class="lvrow" id="lvRow"></div>
+</section>
+
+<section class="s" id="secD">
+  <h2>D. 진화 + 고르는 순간 — 친구가 될 때 두 갈래 중 하나</h2>
+  <p class="lead">42 §4.3 순서: 어두워짐 → 실루엣 세 번 교체 → 톡 → 조각 8개 → 이름 카드(2.3초, 누르면 끝 장면). 새 화풍은 어두워질 때 뒤에 부드러운 초록 빛 원을 깔고(진화 순간에만), 이름 카드를 크게 쓴다. 꼬마 → 친구에서는 1.32초에 멈추고 두 갈래 카드를 보여 준다.</p>
+  <div class="stage" id="evo"><div id="evoDim"></div><div id="evoBox"></div><div class="ecard" id="evoCard"><div class="k"></div><div class="n"></div><div class="f"></div></div><div id="evoChoice"></div><button class="btn sm" id="evoSkip">건너뛰기</button></div>
+  <div class="evo-ctrl"><button class="btn sm" data-evo="0">씨앗 → 아기</button><button class="btn sm" data-evo="1">아기 → 꼬마</button><button class="btn sm pri" data-evo="2">꼬마 → 친구 (고르기)</button><button class="btn sm" data-evo="3">친구 → 단짝</button><button class="btn sm" data-evo="4">단짝 → 전설</button></div>
+</section>
+
+<section class="s" id="secE">
+  <h2>E. 입힌 옷이 보이는 곳</h2>
+  <p class="lead">40 §2.1 크기 칸 그대로. 40px 이하는 머리 쪽만 잘라(bust) 모자만 보인다.</p>
+  <div class="where" id="where"></div>
+</section>
+
+<section class="s" id="secF">
+  <h2>F. 처음 옷 23개 — 무엇이 언제 열리나 (43 §6 그대로)</h2>
+  <table class="ut" id="unlockTable"></table>
+</section>
+
+<section class="s" id="secG">
+  <h2>G. 캐릭터 자리 색 토큰 (44 §5)</h2>
+  <p class="lead">캐릭터 자리(성장 무대·빈 상태·AI 비서·온보딩)에서만 쓰는 색이다. 할 일 화면에는 쓰지 않는다.</p>
+  <div class="sw" id="swatches"></div>
+</section>
+
+<section class="s" id="secV">
+  <h2>v1 ↔ v2</h2>
+  <p class="lead">같은 자리를 나란히 놓았다. v1은 납작한 단색 면·진한 선 #3A3A3A·흰 카드 HUD이고, v2는 음영 있는 말랑한 몸·꽉 찬 장면·유리 카드다.</p>
+  <div class="vs"><div><b style="color:var(--k-ink)">v1</b><br>납작한 단색 면 · 진한 선 #3A3A3A · 흰 카드 HUD(작은 글자) · 동물 4종이 알에서 · 그라데이션·빛 금지<br><a href="character-raising.html">character-raising.html 열기 ›</a></div><div><b style="color:var(--k-ink)">v2</b><br>둥근 음영 · 같은 색 얇은 선 · 큰 눈 빛점 · 장면이 화면 끝까지 · 유리 카드 + 큰 숫자 · 정원 친구 4종이 씨앗에서 · 빛은 캐릭터 자리에만</div></div>
+</section>
+
+<script src="kkumteul-art.js"></script>
+<script>
+'use strict'
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)]
+const { f, SPECIES, STAGES, stageOf, need, PATHS, titleOf, MARK, SLOTS, ITEMS, DECOR, SEASON, byId, budsOf, marksOf, art, itemIcon, scene, decorIcon, sceneIcon, GOLD, LEAF, PINK, star5 } = KK
+
+/* ───────── 상태 (v1 그대로, 종만 새 id) ───────── */
+const START = () => ({
+  sp: 'worm', path: 'a', lv: 8, xp: 178, days: 23, reviews: 3, projects: 1, seasons: { chuseok: true },
+  eq: { hat: null, neck: null, hand: null, back: null, bg: 'grass' }, decorOff: [], fresh: new Set(),
+  tasks: [{ t: '기획서 초안 보내기', d: '오늘', red: true, done: false, p: 3 }, { t: '운동 30분', d: '오후 7:00', done: false, p: 2 }, { t: '토익 단어 20개', d: '오늘', done: false, p: 0 }, { t: '장보기', d: '오늘', done: true, p: 0 }],
+  quests: [{ t: '운동 3번', n: '2/3', done: false }, { t: '공모전 제출', n: '', done: true }, { t: '책 한 권 끝내기', n: '', done: false }],
+  trophies: [{ k: 'cup', t: '공모전', s: '10/10에 끝낸 프로젝트' }, { k: 'medal', t: '한 날 7일', s: '9월에 7번째 날', n: 7 }, { k: 'stamp', t: '주간 점검 3번', s: '지난주 점검' }],
+  dayDone: false, theme: null, motion: 'full', night: false, calm: false, wardTab: 'hat', dTab: 'hat'
+})
+let S = START()
+const reduced = () => S.motion === 'reduce' || matchMedia('(prefers-reduced-motion: reduce)').matches
+const stage = () => stageOf(S.lv)
+const sizeOf = (lv) => 180 + 6 * (Math.min(lv, 20) - 1)
+const cmOf = (lv) => 20 + 3 * lv
+const decorOn = () => DECOR.filter((d) => S.lv >= d.lv && !S.decorOff.includes(d.id)).map((d) => d.id)
+function has(it) { const r = it.rule; if (r.lv) return S.lv >= r.lv; if (r.days) return S.days >= r.days; if (r.reviews) return S.reviews >= r.reviews; if (r.projects) return S.projects >= r.projects; if (r.season) return !!S.seasons[r.season]; return false }
+function condText(it) { const r = it.rule; if (r.lv) return `Lv ${r.lv}`; if (r.days) return `한 날 ${r.days}일 · 지금 ${S.days}일`; if (r.reviews) return `주간 점검 ${r.reviews}번 · 지금 ${S.reviews}번`; if (r.projects) return '프로젝트 하나 끝내기'; if (r.season) return `${SEASON[r.season]}에 할 일 하나` }
+function growthDiff(lv) {
+  const out = ['키 +3cm']
+  if (stageOf(lv) !== stageOf(lv - 1)) out.push(`${STAGES[stageOf(lv)].name}로 진화`)
+  else { if (budsOf(lv) > budsOf(lv - 1)) out.push('새싹 잎 +1'); if (marksOf(lv) > marksOf(lv - 1)) out.push(`${MARK[S.sp]} +1`) }
+  return out
+}
+const nextItems = (lv) => ITEMS.filter((i) => i.rule.lv === lv)
+
+/* 선 아이콘(틱틱처럼 가는 선) */
+const LI = {
+  check: '<svg class="ic-line" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4.5"/><path d="M8.5 12.2l2.4 2.4 4.6-5"/></svg>',
+  cal: (d) => `<svg class="ic-line" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="4"/><path d="M8 3.5v3M16 3.5v3"/><text x="12" y="17.4" text-anchor="middle" font-size="8" font-weight="800" fill="currentColor" stroke="none" font-family="-apple-system,sans-serif">${d}</text></svg>`,
+  inbox: '<svg class="ic-line" viewBox="0 0 24 24"><path d="M4 13l2.6-7.2c.2-.5.7-.8 1.2-.8h8.4c.5 0 1 .3 1.2.8L20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M4 13h4.5l1 2h5l1-2H20"/></svg>',
+  sprout: (on) => `<svg class="ic-line" viewBox="0 0 24 24"${on ? ' style="fill:currentColor;stroke:currentColor"' : ''}><path d="M12 20v-7" fill="none"/><path d="M12 13c0-4-3-6.5-7-6.5 0 4 3 6.5 7 6.5z"/><path d="M12 11c0-3.4 2.6-5.8 6.5-5.8 0 3.6-2.6 5.8-6.5 5.8z"/></svg>`,
+  more: '<svg class="ic-line" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="3"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10"/></svg>',
+  map: '<svg class="ic-line" viewBox="0 0 24 24"><path d="M4 6.5l5-2 6 2 5-2v13l-5 2-6-2-5 2z"/><path d="M9 4.5v13M15 6.5v13"/></svg>',
+  ai: '<svg class="ic-line" viewBox="0 0 24 24"><path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4 3.5V16h0.5A2.5 2.5 0 0 1 5 13.5z"/></svg>'
+}
+
+/* ───────── 메인 캐릭터(휴대폰·데스크톱 무대) ───────── */
+const mains = []
+function placeChar(m, sz) {
+  const host = m.stageEl.querySelector('.sceneHost'), SH = m.stageEl.clientHeight || 500
+  const W = host.clientWidth || 342, H = host.clientHeight || 400
+  const s = Math.max(W / 600, H / 420), top = host.offsetTop + H - 120 * s
+  m.pos.style.bottom = f(SH - top - sz * 10 / 120) + 'px'
+}
+function makeMain(stageEl, scale, kind) {
+  const m = { stageEl, scale, kind, mood: null, wave: false }
+  stageEl.innerHTML = `<div class="sceneHost"></div>${kind === 'm' ? '<div class="hdr"><h3>성장</h3><div class="chips"></div></div>' : ''}<div class="hud glass"></div><div class="pos"><div class="ch" tabindex="0" role="button"><div class="chi"></div></div></div>`
+  m.pos = stageEl.querySelector('.pos'); m.ch = stageEl.querySelector('.ch'); m.chi = stageEl.querySelector('.chi')
+  m.render = () => {
+    const mood = m.mood || (S.night ? 'sleepy' : 'smile')
+    const sz = Math.round(sizeOf(S.lv) * scale)
+    m.ch.style.width = m.ch.style.height = m.chi.style.width = m.chi.style.height = sz + 'px'
+    m.chi.innerHTML = art(S.sp, stage(), { lv: S.lv, path: S.path, eq: S.eq, mood, live: true, wave: m.wave, calm: S.calm, noAura: false })
+    m.ch.setAttribute('aria-label', `${SPECIES[S.sp].pet}, Lv ${S.lv} ${STAGES[stage()].name}. 눌러서 말 걸기`)
+    placeChar(m, sz)
+  }
+  m.paint = () => {
+    stageEl.querySelector('.sceneHost').innerHTML = scene({ bg: S.eq.bg, night: S.night, decor: decorOn(), trophies: kind === 'd' ? S.trophies : null })
+    const B = KK.BG[S.eq.bg] || KK.BG.grass, nightG = S.night && !B.stars
+    stageEl.style.background = KK.drk(nightG ? '#204234' : B.hills[2], .08)
+    stageEl.querySelectorAll('.trophy').forEach((t) => t.addEventListener('click', (e) => { e.stopPropagation(); const tr = S.trophies[+t.dataset.i]; say(m, tr.k === 'cup' ? `${tr.t} 끝낸 기념이야!` : tr.k === 'medal' ? `${tr.t}! 같이 쌓았지` : `${tr.t}. 꼼꼼했어`) }))
+    stageEl.querySelector('.hud').innerHTML = hudHtml()
+    stageEl.querySelector('.hud .nm').onclick = () => callName(m)
+    const done = S.tasks.filter((t) => t.done).length
+    const chips = stageEl.querySelector('.hdr .chips')
+    if (chips) chips.innerHTML = `<span class="chip">한 날 ${S.days}일</span><span class="chip">오늘 ${done}/${S.tasks.length}</span>`
+    m.render()
+  }
+  attachTouch(m); mains.push(m)
+  return m
+}
+function hudHtml() {
+  const n = need(S.lv), pct = Math.floor(Math.min(100, (S.xp / n) * 100)), nx = nextItems(S.lv + 1)[0], diff = growthDiff(S.lv + 1), st = stage()
+  const ico = nx ? itemIcon(nx.id) : art(S.sp, stageOf(S.lv + 1), { lv: S.lv + 1, path: S.path, crop: 'bust', detail: 'small' })
+  const evoIn = st < 5 && stageOf(S.lv + 1) === st ? `${STAGES[st + 1].name}까지 ${STAGES[st + 1].from - S.lv}레벨` : st < 5 ? '다음 레벨에 진화!' : '전설'
+  return `<div class="who"><button class="nm" title="눌러서 부르기">${SPECIES[S.sp].pet}</button><span class="lvb">Lv ${S.lv}</span><span class="ttl">${titleOf(S.sp, st, S.path)} · 키 ${cmOf(S.lv)}cm</span></div>
+    <div class="mid"><div><div class="t-num">${pct}<small>%</small></div><div class="lbl">Lv ${S.lv + 1}까지 · ${evoIn}</div></div>
+    <div class="gift"><span class="tip">${nx ? `Lv ${S.lv + 1}에 ${nx.name}` : `Lv ${S.lv + 1} 모습`}</span><span class="ico">${ico}</span></div></div>
+    <div class="bar"><i style="width:${pct}%"></i></div><div class="xpline"><span>${S.xp} / ${n} XP</span><span>레벨업까지 ${n - S.xp}</span></div>
+    <div class="tags">${diff.map((x) => `<span>${x}</span>`).join('')}</div>`
+}
+
+/* ───────── 만지기 (v1 동작 그대로) ───────── */
+function hop(el, h = 14) { if (reduced()) return; el.animate([{ transform: 'none' }, { transform: 'scale(1.06,.93)', offset: .15 }, { transform: `translateY(-${h}px) scale(.96,1.05)`, offset: .45 }, { transform: 'scale(1.05,.95)', offset: .75 }, { transform: 'none' }], { duration: 440, easing: 'cubic-bezier(.3,.7,.4,1)' }) }
+function floatEl(host, html, cls, ms = 900, dx = 0) {
+  const d = document.createElement('div'); d.className = cls; d.innerHTML = html; if (dx) d.style.marginLeft = dx + 'px'; host.appendChild(d)
+  const a = reduced() ? d.animate([{ opacity: 1 }, { opacity: 1, offset: .7 }, { opacity: 0 }], { duration: ms }) : d.animate([{ opacity: 0, transform: 'translateY(6px) scale(.8)' }, { opacity: 1, transform: 'translateY(0) scale(1)', offset: .2 }, { opacity: 0, transform: 'translateY(-30px) scale(1)' }], { duration: ms, easing: 'ease-out' })
+  a.onfinish = () => d.remove()
+}
+const HEART = `<svg viewBox="0 0 14 14"><path d="M7 12.5 C2 9 .5 6.5 .5 4.3 C.5 2.3 2 1 3.8 1 C5.2 1 6.3 1.8 7 3 C7.7 1.8 8.8 1 10.2 1 C12 1 13.5 2.3 13.5 4.3 C13.5 6.5 12 9 7 12.5Z" fill="#FF7FA6"/></svg>`
+function say(m, text, ms = 2600) {
+  m.ch.querySelectorAll('.say').forEach((s) => s.remove())
+  const b = document.createElement('div'); b.className = 'say'; b.textContent = text; b.setAttribute('aria-live', 'polite'); m.ch.appendChild(b)
+  b.animate(reduced() ? [{ opacity: 0 }, { opacity: 1, offset: .08 }, { opacity: 1, offset: .88 }, { opacity: 0 }] : [{ opacity: 0, transform: 'translateX(-50%) translateY(6px) scale(.9)' }, { opacity: 1, transform: 'translateX(-50%) scale(1)', offset: .08 }, { opacity: 1, transform: 'translateX(-50%) scale(1)', offset: .88 }, { opacity: 0, transform: 'translateX(-50%) scale(1)' }], { duration: ms, easing: 'cubic-bezier(.34,1.56,.64,1)' }).onfinish = () => b.remove()
+}
+function moodFor(m, mood, ms) { m.mood = mood; m.render(); clearTimeout(m._mt); if (ms) m._mt = setTimeout(() => { m.mood = null; m.render() }, ms) }
+const TAP_LINES = () => {
+  const left = S.tasks.filter((t) => !t.done).length, n = need(S.lv) - S.xp, nx = nextItems(S.lv + 1)[0]
+  return [left ? `오늘 ${left}개 남았어. 하나만 같이 할까?` : '오늘 다 했어! 최고야', n <= 10 ? `레벨업까지 ${n} XP!` : `나 키 ${cmOf(S.lv)}cm 됐어`, nx ? `Lv ${S.lv + 1}엔 ${nx.name} 받아` : '네가 끝낸 만큼 자라', '천천히 가도 괜찮아']
+}
+let tapLine = 0
+function attachTouch(m) {
+  let sx = 0, sy = 0, down = false, drag = false, pet = false, petT = 0, heartT = 0, taps = [], tickleUntil = 0
+  const el = m.ch
+  el.addEventListener('pointerdown', (e) => {
+    down = true; drag = false; pet = false; sx = e.clientX; sy = e.clientY; try { el.setPointerCapture(e.pointerId) } catch (_) {}
+    petT = setTimeout(() => { if (drag || !down) return; pet = true; moodFor(m, 'pet'); let n = 0; heartT = setInterval(() => { if (n++ >= 6) return; floatEl(m.ch, HEART, 'heart', 1100, (n % 2 ? -1 : 1) * (8 + n * 4)) }, 300) }, 600)
+  })
+  el.addEventListener('pointermove', (e) => {
+    if (!down || pet) return
+    const dx = e.clientX - sx, dy = e.clientY - sy
+    if (!drag && Math.hypot(dx, dy) > 6) { drag = true; clearTimeout(petT); moodFor(m, 'wow') }
+    if (drag) { const r = Math.hypot(dx, dy), k = r > 90 ? 90 / r : 1, x = dx * k, y = Math.min(dy * k, 14); el.style.transform = `translate(${x}px,${y}px) rotate(${f(x / 9)}deg)`; m._x = x; m._y = y }
+  })
+  const up = () => {
+    if (!down) return
+    down = false; clearTimeout(petT); clearInterval(heartT)
+    if (drag) {
+      const x = m._x || 0, y = m._y || 0, far = Math.hypot(x, y) > 50
+      el.style.transform = ''
+      if (reduced()) el.animate([{ transform: `translate(${x}px,${y}px)` }, { transform: 'none' }], { duration: 160 })
+      else el.animate([{ transform: `translate(${x}px,${y}px) rotate(${f(x / 9)}deg)` }, { transform: `translate(${f(x * .35)}px,${f(Math.min(y, 0) - (far ? 34 : 16))}px) rotate(${f(-x / 14)}deg)`, offset: .34 }, { transform: 'translate(0,0) scale(1.08,.89)', offset: .6 }, { transform: 'translateY(-9px) scale(.97,1.04)', offset: .78 }, { transform: 'scale(1.02,.98)', offset: .9 }, { transform: 'none' }], { duration: 680, easing: 'cubic-bezier(.3,.7,.4,1)' })
+      moodFor(m, 'happy', 1600); setTimeout(() => say(m, far ? '와아! 한 번 더!' : '으쌰'), 500)
+    } else if (pet) { say(m, '헤헤, 고마워'); moodFor(m, 'happy', 1500) }
+    else tap()
+  }
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up)
+  el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap() } })
+  function tap() {
+    const now = Date.now(); taps = taps.filter((t) => now - t < 1200); taps.push(now)
+    if (S.night && m.mood !== 'default') { moodFor(m, 'default', 5000); hop(m.chi, 8); say(m, '으음… 안 잤어!'); return }
+    if (taps.length >= 4 && now > tickleUntil) {
+      tickleUntil = now + 8000; taps = []
+      moodFor(m, 'giggle', 1800)
+      if (!reduced()) m.chi.animate([0, -7, 7, -6, 6, -4, 4, 0].map((r, i) => ({ transform: `rotate(${r}deg) ${i % 2 ? 'scale(1.03,.97)' : ''}` })), { duration: 720, easing: 'ease-in-out' })
+      say(m, '히히, 간지러워!'); return
+    }
+    hop(m.chi); floatEl(m.ch, HEART, 'heart', 1000)
+    const L = TAP_LINES(); say(m, L[tapLine++ % L.length])
+  }
+}
+function callName(m) {
+  m.wave = true; moodFor(m, 'smile')
+  if (!reduced()) m.chi.animate([{ transform: 'none' }, { transform: 'rotate(-5deg)', offset: .3 }, { transform: 'rotate(-5deg)', offset: .7 }, { transform: 'none' }], { duration: 1400 })
+  say(m, '응? 불렀어?')
+  clearTimeout(m._wt); m._wt = setTimeout(() => { m.wave = false; m.mood = null; m.render() }, 2100)
+}
+
+/* ───────── 할 일 → XP → 레벨 → 옷 ───────── */
+function tasksHtml() {
+  return S.tasks.map((t, i) => `<div class="trow ${t.done ? 'done' : ''}" data-i="${i}"><span class="check ${t.done ? 'on' : t.p ? 'p' + t.p : ''}"></span><span class="tx">${t.t}</span><small class="${t.red && !t.done ? 'red' : ''}">${t.d}</small></div>`).join('')
+}
+function bindTasks(el) { el.innerHTML = tasksHtml(); el.querySelectorAll('.trow').forEach((r) => r.onclick = () => toggleTask(+r.dataset.i)) }
+function toggleTask(i) {
+  const t = S.tasks[i]; t.done = !t.done
+  if (t.done) addXp(1, 'task'); else { S.xp = Math.max(0, S.xp - 1); paintAll() }
+  if (S.tasks.every((x) => x.done) && !S.dayDone) { S.dayDone = true; setTimeout(() => moment('dayDone'), 900) }
+}
+function addXp(n) {
+  const before = S.lv, beforeSt = stage()
+  S.xp += n
+  const got = []
+  while (S.xp >= need(S.lv)) { S.xp -= need(S.lv); S.lv++; got.push(...nextItems(S.lv)) }
+  got.forEach((g) => S.fresh.add(g.id))
+  paintAll()
+  mains.forEach((m) => { floatEl(m.ch, `+${n} XP`, 'xp'); moodFor(m, 'happy', 2200); hop(m.chi) })
+  if (S.lv > before) {
+    const evolved = stage() !== beforeSt
+    const after = () => { mains.forEach((m) => { burst(m.ch, S.sp, 10, 90); floatEl(m.ch, `Lv ${S.lv}`, 'chip-lv', 1600) }); if (got.length) setTimeout(() => showToast(got), 700) }
+    if (evolved) phoneEvo(beforeSt, stage(), after)
+    else { mains.forEach((m) => { if (!reduced()) m.chi.animate([{ transform: 'none' }, { transform: 'scale(.94,1.05)', offset: .2 }, { transform: 'translateY(-12px) scale(1.12)', offset: .5 }, { transform: 'scale(.98,1.02)', offset: .8 }, { transform: 'none' }], { duration: 620, easing: 'cubic-bezier(.2,1.2,.4,1)' }) }); after() }
+  }
+}
+function showToast(items) {
+  const it = items[0], more = items.length - 1, canWear = it.slot !== 'bg'
+  for (const el of [$('#mToast'), $('#dToast')]) {
+    el.innerHTML = `<span class="ico">${itemIcon(it.id)}</span><div class="tx"><b>${it.name}${more ? ` 외 ${more}개` : ''}</b>Lv ${S.lv} 선물이야. ${it.why || '할 일을 끝내서 받았어'}</div><div class="bt"><button class="btn sm pri" data-wear>${canWear ? '입혀 보기' : '깔아 보기'}</button><button class="btn sm" data-later>나중에</button></div>`
+    el.classList.add('show')
+    el.querySelector('[data-wear]').onclick = () => { equip(it); hideToast(); mains.forEach((m) => { moodFor(m, 'happy', 2000); hop(m.chi); say(m, canWear ? '어때? 잘 어울려?' : '여기 좋다!') }) }
+    el.querySelector('[data-later]').onclick = hideToast
+  }
+  clearTimeout(window._tt); window._tt = setTimeout(hideToast, 9000)
+}
+function hideToast() { $('#mToast').classList.remove('show'); $('#dToast') && $('#dToast').classList.remove('show') }
+function equip(it) { const slot = it.slot; S.eq[slot] = S.eq[slot] === it.id && slot !== 'bg' ? null : it.id; S.fresh.delete(it.id); paintAll() }
+
+/* 종 조각 */
+function bitSvg(sp, i) {
+  if (i % 3 === 0) return `<svg viewBox="0 0 10 10"><rect x="2" y="2" width="6" height="6" rx="2" fill="#5CD08F"/></svg>`
+  if (sp === 'snail') return `<svg viewBox="0 0 10 10"><ellipse cx="5" cy="5" rx="2.6" ry="4.6" fill="${i % 2 ? LEAF : PINK}"/></svg>`
+  if (sp === 'bee') return `<svg viewBox="0 0 10 10"><path d="M5 .8l3.7 2.1v4.2L5 9.2 1.3 7.1V2.9z" fill="${GOLD}"/></svg>`
+  if (sp === 'worm') return `<svg viewBox="0 0 10 10">${star5(5, 5.4, 4.2, '#F7C948')}</svg>`
+  return `<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="3.6" fill="#DFF6FF" stroke="#6CC0E6" stroke-width="1.2"/></svg>`
+}
+function burst(host, sp, n, dist, delay = 0) {
+  if (reduced()) return
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement('div'); b.className = 'bit'; b.innerHTML = bitSvg(sp, i); host.appendChild(b)
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2 + (i % 2 ? .2 : -.1), r = dist * (.75 + (i % 3) * .15)
+    b.animate([{ transform: 'translate(0,0) scale(.4) rotate(0)', opacity: 0 }, { opacity: 1, offset: .15 }, { transform: `translate(${f(Math.cos(a) * r)}px,${f(Math.sin(a) * r + 16)}px) scale(1) rotate(${i * 50}deg)`, opacity: 0 }], { duration: 780, delay, easing: 'cubic-bezier(.2,.8,.4,1)', fill: 'backwards' }).onfinish = () => b.remove()
+  }
+}
+
+/* ───────── 하루 장면 ───────── */
+function moment(k) {
+  S.night = k === 'night'; S.calm = k === 'busy'
+  paintAll()
+  const notes = {
+    morning: '하루 처음 열 때(아침 6–11시) 한 번 — 손을 흔들고 오늘 할 일 수를 말한다.',
+    busy: '오늘 마감 8개 이상 또는 일정 6시간 이상 — 숨을 느리게(5초) 쉬고 깡충을 줄인다. 재촉하지 않는다.',
+    deadline: '오늘 프로젝트 마감이 있는 날 — 깃발을 들고 두 번 깡충, 응원 한 줄.',
+    dayDone: '오늘 할 일을 다 끝낸 순간 — 조각이 터지고 두 번 깡충. 0개인 날에는 아무 말도 하지 않는다.',
+    night: '밤 23–6시에 앱이 열려 있으면 존다. 장면이 밤 색이 된다. 누르면 5초 깼다가 다시 존다.'
+  }
+  $('#momentNote').textContent = notes[k]
+  mains.forEach((m) => {
+    if (k === 'morning') { callName(m); setTimeout(() => say(m, `좋은 아침! 오늘 할 일 ${S.tasks.filter((t) => !t.done).length}개야`), 50) }
+    if (k === 'busy') { moodFor(m, 'smile'); say(m, '많은 날이네. 하나씩 같이 가자', 3200) }
+    if (k === 'deadline') { const old = S.eq.hand; S.eq.hand = 'flag'; m.render(); S.eq.hand = old; hop(m.chi); setTimeout(() => hop(m.chi), 460); say(m, '오늘 제출이야! 끝나면 같이 축하하자', 3200); clearTimeout(m._ft); m._ft = setTimeout(() => m.render(), 3400) }
+    if (k === 'dayDone') { moodFor(m, 'happy', 2600); hop(m.chi); setTimeout(() => hop(m.chi), 460); burst(m.ch, S.sp, 14, 120); say(m, '오늘 할 일 다 했다!', 3000) }
+    if (k === 'night') { m.mood = null; m.render(); if (!reduced()) { let i = 0; const z = setInterval(() => { if (i++ > 2) return clearInterval(z); floatEl(m.ch, 'Z', 'zz', 1600, i * 6) }, 500) } }
+  })
+}
+
+/* ───────── 옷장 · 도감 ───────── */
+function baseName(tab) {
+  const st = stage(), sp = S.sp
+  if (tab === 'hat') return st >= 5 ? '진화 관·핀' : '없음'
+  if (tab === 'neck') return { snail: '없음', bee: st >= 4 ? '털 + 목도리' : st >= 3 ? '목 털' : '없음', worm: st === 3 ? '고치 망토' : '없음', frog: st >= 3 ? '목걸이' : '없음' }[sp]
+  if (tab === 'hand') return st >= 2 ? '진화 소품' : '없음'
+  if (tab === 'back') return { snail: st >= 2 ? '껍데기 정원' : '없음', bee: '날개', worm: st >= 4 ? '날개(같이 보임)' : '없음', frog: '없음' }[sp]
+}
+function wardrobe(gridEl, tabsEl, cols, tabKey) {
+  const tab = S[tabKey] || 'hat'
+  tabsEl.innerHTML = SLOTS.map(([k, n]) => { const fresh = ITEMS.some((i) => (k === 'room' ? i.slot === 'bg' : i.slot === k) && S.fresh.has(i.id)); return `<button data-k="${k}" class="${tab === k ? 'on' : ''}">${n}${fresh ? '<i></i>' : ''}</button>` }).join('')
+  tabsEl.querySelectorAll('button').forEach((b) => b.onclick = () => { S[tabKey] = b.dataset.k; paintAll() })
+  const cell = (it) => {
+    const own = has(it), on = S.eq[it.slot] === it.id
+    return `<div class="cell ${own ? 'can' : 'locked'} ${on ? 'on' : ''}" data-id="${it.id}">${S.fresh.has(it.id) ? '<span class="ndot"></span>' : own ? '' : `<span class="lk">${LI.lock}</span>`}${itemIcon(it.id, !own)}<div class="n">${it.name}</div>${own ? '' : `<div class="c">${condText(it)}</div>`}</div>`
+  }
+  let h = ''
+  if (tab === 'room') {
+    h += `<div class="subh">배경</div><div class="grid ${cols}">${ITEMS.filter((i) => i.slot === 'bg').map(cell).join('')}</div>`
+    h += `<div class="subh">장식<span>눌러서 놓기·치우기</span></div><div class="grid ${cols}">${DECOR.map((d) => { const own = S.lv >= d.lv, on = own && !S.decorOff.includes(d.id); return `<div class="cell ${own ? 'can' : 'locked'} ${on ? 'on' : ''}" data-decor="${d.id}">${own ? '' : `<span class="lk">${LI.lock}</span>`}${decorIcon(d.id, !own)}<div class="n">${d.name}</div>${own ? '' : `<div class="c">Lv ${d.lv}</div>`}</div>` }).join('')}</div>`
+  } else {
+    h += `<div class="grid ${cols}" style="margin-top:2px"><div class="cell can ${S.eq[tab] ? '' : 'on'}" data-base="${tab}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="24" fill="none" stroke="var(--k-ink-4)" stroke-width="4" stroke-dasharray="7 7"/></svg><div class="n">기본</div><div class="c">${baseName(tab)}</div></div>${ITEMS.filter((i) => i.slot === tab).map(cell).join('')}</div>`
+    if (tab !== 'hat' && tab !== 'hand' && stage() === 1) h += `<p class="note" style="margin-top:8px">아기 때는 씨앗 껍질 안이라 목·등 옷은 꼬마부터 보인다.</p>`
+  }
+  gridEl.innerHTML = h
+  gridEl.querySelectorAll('.cell.can[data-id]').forEach((c) => c.onclick = () => { equip(byId[c.dataset.id]); mains.forEach((m) => hop(m.chi, 8)); const pv = $('#bPreview .chi'); if (pv) hop(pv, 8) })
+  gridEl.querySelectorAll('.cell[data-base]').forEach((c) => c.onclick = () => { S.eq[c.dataset.base] = null; paintAll() })
+  gridEl.querySelectorAll('.cell.can[data-decor]').forEach((c) => c.onclick = () => { const id = c.dataset.decor; S.decorOff = S.decorOff.includes(id) ? S.decorOff.filter((x) => x !== id) : [...S.decorOff, id]; paintAll() })
+  gridEl.querySelectorAll('.cell.locked').forEach((c) => c.onclick = () => c.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-3px)' }, { transform: 'translateX(3px)' }, { transform: 'none' }], { duration: 220 }))
+}
+function dex(el) {
+  const st = stage(), own = ITEMS.filter(has).length
+  const looks = [[1, 'a'], [2, 'a'], [3, 'a'], [3, 'b'], [4, 'a'], [4, 'b'], [5, 'a'], [5, 'b']]
+  const lookOwn = looks.filter(([s]) => s <= st).length
+  let h = `<div class="dexsum"><div><b>${own}<small style="font-size:13px;color:var(--k-ink-3)">/${ITEMS.length}</small></b><span>옷</span><div class="bar"><i style="width:${own / ITEMS.length * 100}%"></i></div></div><div><b>${lookOwn}<small style="font-size:13px;color:var(--k-ink-3)">/8</small></b><span>모습</span><div class="bar"><i style="width:${lookOwn / 8 * 100}%"></i></div></div><div><b>${S.trophies.length}</b><span>트로피</span><div class="bar"><i style="width:${Math.min(100, S.trophies.length * 12)}%"></i></div></div></div>`
+  h += `<div class="subh">모습<span>다른 길은 언제든 바꿀 수 있어</span></div><div class="grid c3">` + looks.map(([s, p]) => {
+    const ok = s <= st, cur = s === st && (s < 3 || p === S.path), swap = ok && s === st && s >= 3 && p !== S.path
+    const pic = art(S.sp, s, { path: p, size: 64, detail: 'full', crop: 'full', noAura: true }).replace('class="chr', `class="${ok ? '' : 'lock '}chr`)
+    return `<div class="cell ${swap ? 'can' : ''} ${cur ? 'on' : ''} ${ok ? '' : 'locked'}" ${swap ? `data-path="${p}"` : ''}>${pic}<div class="n">${titleOf(S.sp, s, p)}</div><div class="c">${ok ? (s >= 3 && p !== S.path ? (s === st ? '눌러서 바꾸기' : '다른 길') : s >= 3 ? PATHS[S.sp][p].name : '') : `Lv ${STAGES[s].from}`}</div></div>`
+  }).join('') + '</div>'
+  for (const [k, n] of SLOTS) {
+    const list = ITEMS.filter((i) => (k === 'room' ? i.slot === 'bg' : i.slot === k))
+    h += `<div class="subh">${k === 'room' ? '배경' : n}<span>${list.filter(has).length}/${list.length}</span></div><div class="grid">${list.map((it) => { const o = has(it); return `<div class="cell ${o ? '' : 'locked'}">${itemIcon(it.id, !o)}<div class="n">${it.name}</div>${o ? '' : `<div class="c">${condText(it)}</div>`}</div>` }).join('')}</div>`
+  }
+  h += `<div class="subh" id="dexTro">트로피 선반</div>` + S.trophies.map((t) => `<div class="trow" style="cursor:default"><span style="width:28px;height:28px;display:grid;place-items:center">${KK.icon(t.k === 'cup' ? 'trophy' : t.k === 'medal' ? 'trophy' : 'habit', 26)}</span><span class="tx">${t.t}</span><small>${t.s}</small></div>`).join('')
+  el.innerHTML = h
+  el.querySelectorAll('[data-path]').forEach((c) => c.onclick = () => { S.path = c.dataset.path; paintAll() })
+}
+
+/* ───────── 진화 (42 순서 그대로 + 고르기) ───────── */
+function makeEvo(o) {
+  const E = { ...o, anims: [], done: null }
+  const layer = (html) => { const d = document.createElement('div'); d.className = 'evl'; d.style.cssText = `width:${E.size}px;height:${E.size}px;margin-left:${-E.size / 2}px`; d.innerHTML = html; E.box.appendChild(d); return d }
+  const tl = (el, frames, total, extra = {}) => { const k = frames.map(([t, p]) => ({ ...p, offset: t / total })); const a = el.animate(k, { duration: total, fill: 'forwards', ...extra }); E.anims.push(a); return a }
+  E.finish = () => { E.anims.forEach((a) => { try { a.finish() } catch (e) {} }); E.anims = []; if (E.choicePending) return; if (E.done) { const d = E.done; E.done = null; d() } }
+  E.card = (sp, st, path, at) => {
+    const c = E.cardEl
+    c.querySelector('.k').textContent = st === 1 ? '태어났어요' : `${STAGES[st].name}${st === 4 ? '으로' : '로'} 자랐어요`
+    c.querySelector('.n').textContent = titleOf(sp, st, path)
+    const gift = ITEMS.find((i) => i.rule.lv === STAGES[st].from && st > 1)
+    const NEW = { 1: '새싹 하나와 함께', 2: '머리와 몸이 나뉘었어', 3: '새 길 · ' + PATHS[sp][path].name, 4: '새 모습 · 소품이 하나 더', 5: '새 모습 · 전설의 관' }
+    c.querySelector('.f').textContent = '+ ' + NEW[st] + (gift ? ` · 선물 ${gift.name}` : '')
+    const r = reduced()
+    tl(c, [[0, { opacity: 0, transform: `translate(-50%, ${r ? 0 : 12}px)` }], [at, { opacity: 0, transform: `translate(-50%, ${r ? 0 : 12}px)` }], [at + 280, { opacity: 1, transform: 'translate(-50%, 0)' }], [at + 3300, { opacity: 1, transform: 'translate(-50%, 0)' }], [at + 3600, { opacity: 0, transform: 'translate(-50%, 0)' }]], at + 3600)
+  }
+  E.play = (sp, from, to, opts = {}) => {
+    E.finish(); E.box.innerHTML = ''; E.root.classList.add('playing')
+    const eq = opts.eq || {}, choose = to === 3 && opts.choose !== false
+    let path = opts.path || 'a'
+    const end = () => { E.box.innerHTML = ''; layer(art(sp, to, { live: true, mood: 'smile', path, eq, lv: STAGES[to].from })); E.root.classList.remove('playing'); E.dim.style.opacity = 0; const c = E.cardEl; c.style.opacity = 1; c.style.transform = 'translate(-50%,0)'; clearTimeout(E._ct); E._ct = setTimeout(() => { c.style.opacity = 0; opts.onDone && opts.onDone() }, 2400) }
+    E.done = end
+    const reveal = () => {
+      const B = layer(art(sp, to, { mood: 'happy', path, eq, lv: STAGES[to].from }))
+      if (reduced()) { tl(B, [[0, { opacity: 0 }], [300, { opacity: 1 }]], 300); E.card(sp, to, path, 200); E.anims.at(-1).onfinish = () => { if (E.done) { E.done = null; end() } }; return }
+      tl(B, [[0, { opacity: 0, transform: 'scale(1.14)' }], [40, { opacity: 1 }], [220, { transform: 'scale(.94,1.05)' }], [380, { transform: 'scale(1.03,.97)' }], [530, { transform: 'none', opacity: 1 }]], 530)
+      burst(E.box, sp, 8, 130)
+      E.card(sp, to, path, 130)
+      tl(E.dim, [[0, { opacity: 1 }], [480, { opacity: 1 }], [880, { opacity: E.keepDim ? 1 : 0 }]], 880)
+      setTimeout(() => { if (E.done === end) { E.done = null; end() } }, 940)
+    }
+    if (from === 0) { // 씨앗 깨기: 윗껍질이 날아가고 아기가 아랫껍질째 나온다
+      const B = layer(art(sp, 1, { mood: 'wow', path })), T = layer(`<svg class="chr" viewBox="0 0 120 120">${KK.hatchTop()}</svg>`)
+      if (reduced()) { tl(T, [[0, { opacity: 1 }], [300, { opacity: 0 }]], 300); E.card(sp, 1, path, 200); setTimeout(() => { if (E.done === end) { E.done = null; end() } }, 520); return }
+      tl(E.dim, [[0, { opacity: 0 }], [200, { opacity: 1 }], [1500, { opacity: 1 }], [1900, { opacity: E.keepDim ? 1 : 0 }]], 1900)
+      tl(T, [[0, { transform: 'none' }], [180, { transform: 'rotate(-6deg)' }], [360, { transform: 'rotate(6deg)' }], [540, { transform: 'rotate(-8deg)' }], [720, { transform: 'rotate(8deg)' }], [900, { transform: 'none', opacity: 1 }], [1200, { transform: 'translate(40px,-120px) rotate(40deg)', opacity: 0 }]], 1200)
+      setTimeout(() => burst(E.box, sp, 8, 120), 900); E.card(sp, 1, path, 1000)
+      setTimeout(() => { if (E.done === end) { E.done = null; end() } }, 1700)
+      return
+    }
+    const fromHtml = art(sp, from, { path, eq, lv: STAGES[to].from - 1 })
+    if (reduced()) { const A = layer(fromHtml); tl(A, [[0, { opacity: 1 }], [300, { opacity: 0 }]], 300); if (choose) return E.ask(sp, (p) => { path = p; reveal() }); return reveal() }
+    tl(E.dim, [[0, { opacity: 0 }], [250, { opacity: 1 }], [1320, { opacity: 1 }]], 1320)
+    const A = layer(fromHtml), As = layer(art(sp, from, { sil: true, path, eq })), Bs = layer(art(sp, to, { sil: true, path, eq }))
+    tl(A, [[0, { opacity: 1, transform: 'none' }], [120, { transform: 'scale(1.05,.94)' }], [250, { transform: 'none' }], [540, { opacity: 1 }], [560, { opacity: 0 }]], 560)
+    const sc = (t) => `scale(${f(1 + Math.min(1, Math.max(0, (t - 250) / 1070)) * .08)})`
+    tl(As, [[0, { opacity: 0, transform: 'none' }], [250, { opacity: 0, transform: sc(250) }], [550, { opacity: 1, transform: sc(550) }], [650, { opacity: 1, transform: sc(650) }], [770, { opacity: 0, transform: sc(770) }], [950, { opacity: 0, transform: sc(950) }], [1070, { opacity: 1, transform: sc(1070) }], [1200, { opacity: 1, transform: sc(1200) }], [1320, { opacity: 0, transform: sc(1320) }]], 1320)
+    tl(Bs, [[0, { opacity: 0, transform: 'none' }], [650, { opacity: 0, transform: sc(650) }], [770, { opacity: 1, transform: sc(770) }], [950, { opacity: 1, transform: sc(950) }], [1070, { opacity: 0, transform: sc(1070) }], [1200, { opacity: 0, transform: sc(1200) }], [1320, { opacity: 1, transform: sc(1320) }]], 1320)
+    E._phase = setTimeout(() => {
+      const puff = () => tl(Bs, [[0, { opacity: 1, transform: sc(1320) }], [100, { opacity: 1, transform: 'scale(1.18)' }], [240, { opacity: 0, transform: 'scale(1.02)' }]], 240)
+      if (choose) E.ask(sp, (p) => { path = p; puff(); setTimeout(reveal, 100) })
+      else { puff(); setTimeout(reveal, 100) }
+    }, 1320)
+  }
+  E.ask = (sp, pick) => {
+    E.choicePending = true
+    const P = PATHS[sp]
+    if (!E.choiceEl) { E.choicePending = false; return pick('a') }
+    E.choiceEl.innerHTML = `<div class="q">어떤 친구로 자랄까?</div><div class="opts">${['a', 'b'].map((p) => `<div class="opt" data-p="${p}" role="button" tabindex="0">${art(sp, 3, { path: p, size: 116, mood: 'smile', live: true })}<b>${P[p].name}</b><span>${P[p].line}<br>→ ${P[p].t[2]}</span></div>`).join('')}</div><button class="later">나중에 고를래</button>`
+    E.choiceEl.classList.add('show')
+    const go = (p) => { E.choicePending = false; E.choiceEl.classList.remove('show'); pick(p); E.onPath && E.onPath(p) }
+    E.choiceEl.querySelectorAll('.opt').forEach((b) => b.onclick = (e) => { e.stopPropagation(); go(b.dataset.p) })
+    E.choiceEl.querySelector('.later').onclick = (e) => { e.stopPropagation(); go('a') }
+  }
+  return E
+}
+let mEvo, evoD
+function phoneEvo(from, to, after) {
+  const ov = $('#mEvo'); ov.classList.add('show')
+  mEvo.play(S.sp, from, to, { path: S.path, eq: S.eq, choose: false, onDone: () => { ov.classList.remove('show'); after && after() } })
+}
+
+/* ───────── 그리기 ───────── */
+function paintAll() {
+  mains.forEach((m) => m.paint())
+  bindTasks($('#mTasks')); bindTasks($('#dTasks'))
+  const st = stage(), done = S.tasks.filter((t) => t.done).length
+  $('#mFreshDot').hidden = !ITEMS.some((i) => S.fresh.has(i.id))
+  $('#dSub').textContent = `${SPECIES[S.sp].pet} · ${titleOf(S.sp, st, S.path)}`
+  $('#dChip1').textContent = `한 날 ${S.days}일`; $('#dChip2').textContent = `오늘 ${done}/${S.tasks.length}`
+  $('#dTaskSum').textContent = `${done}/${S.tasks.length}`
+  $('#dRoad').innerHTML = [1, 2, 3, 4, 5].map((s) => `<div class="rd ${s === st ? 'now' : ''}"><i>${art(S.sp, s, { size: 40, path: S.path, eq: s === st ? S.eq : {}, lv: s === st ? S.lv : STAGES[s].from, mood: 'smile' }).replace('class="chr', s > st ? 'class="lock chr' : 'class="chr')}</i>${STAGES[s].name}<span>Lv ${STAGES[s].from}</span></div>`).join('')
+  $('#dQuests').innerHTML = S.quests.map((q) => `<div class="qrow ${q.done ? 'done' : ''}"><span class="check ${q.done ? 'on' : ''}"></span>${q.t}<small>${q.n ? q.n + ' · ' : ''}+30</small></div>`).join('')
+  $('#dQuestSum').textContent = `${S.quests.filter((q) => q.done).length}/${S.quests.length}`
+  $('#dAvatar').innerHTML = art(S.sp, st, { size: 34, path: S.path, eq: S.eq, lv: S.lv, mood: 'smile' })
+  wardrobe($('#dWGrid'), $('#dWTabs'), 'c3', 'dTab')
+  const pv = $('#bPreview'), psz = Math.round(sizeOf(S.lv) * .74)
+  pv.innerHTML = `<div class="sceneHost">${scene({ bg: S.eq.bg, night: S.night, decor: decorOn(), preview: true })}</div><span class="chip glass badge">Lv ${S.lv} · ${titleOf(S.sp, st, S.path)}</span><div class="who"><div class="chi" style="width:${psz}px;height:${psz}px">${art(S.sp, st, { path: S.path, eq: S.eq, lv: S.lv, mood: 'smile', live: true, noAura: true })}</div></div>`
+  const W = 314, H = 230, s = Math.max(W / 600, H / 420); $('#bPreview .who').style.bottom = f(120 * s - psz * 10 / 120) + 'px'
+  wardrobe($('#bGrid'), $('#bTabs'), '', 'wardTab')
+  dex($('#bDexIn'))
+  renderLvRow(); renderWhere(); renderLineup()
+  const es = $('#evo .sceneHost'); if (es) es.innerHTML = scene({ bg: S.eq.bg, decor: ['fence', 'pot'] })
+  if (evoD && !$('#evo').classList.contains('playing') && !evoD.choicePending && !evoD.done) $('#evoBox').innerHTML = `<div class="evl" style="width:260px;height:260px;margin-left:-130px">${art(S.sp, stage(), { live: true, mood: 'smile', path: S.path, eq: S.eq, lv: S.lv })}</div>`
+}
+function renderLvRow() {
+  const from = STAGES[stage()].from, lvs = [...new Set([from, from + 1, from + 2, from + 3, Math.min(from + 4, 19), Math.min(from + 5, 20)])]
+  $('#lvRow').innerHTML = lvs.map((lv) => {
+    const sz = Math.round(sizeOf(lv) * .7), it = nextItems(lv)
+    return `<div class="c"><div class="art">${art(S.sp, stageOf(lv), { size: sz, lv, path: S.path, mood: 'smile', noAura: true })}</div><div class="ruler"></div><b>Lv ${lv} · 키 ${cmOf(lv)}cm</b><span>${growthDiff(lv).join(' · ')}${it.length ? `<br><span class="gift">+ ${it.map((i) => i.name).join(', ')}</span>` : ''}</span></div>`
+  }).join('')
+}
+function renderWhere() {
+  const st = stage(), o = { path: S.path, eq: S.eq, lv: S.lv, mood: 'smile' }, n = need(S.lv)
+  $('#where').innerHTML =
+    `<div class="w">사이드바 카드(36)<div class="sidecard">${art(S.sp, st, { ...o, size: 36 })}<div style="flex:1"><b style="font:700 13px/1 var(--k-font)">${SPECIES[S.sp].pet} · Lv ${S.lv}</b><div class="bar"><i style="width:${(S.xp / n) * 100}%"></i></div></div></div></div>` +
+    `<div class="w">레일 아바타(34) · 설정 아바타(72)<div style="display:flex;gap:12px;align-items:center"><div class="avc" style="width:34px;height:34px">${art(S.sp, st, { ...o, size: 34 })}</div><div class="avc" style="width:72px;height:72px">${art(S.sp, st, { ...o, size: 72, crop: 'bust', detail: 'full' })}</div></div></div>` +
+    `<div class="w">AI 비서 답 얼굴(30)<div class="ansrow">${art(S.sp, st, { ...o, size: 30 })}<div><div class="who">${SPECIES[S.sp].pet}</div><div class="bub">넣어 뒀어. 내일 오후 3시야.</div></div></div></div>` +
+    `<div class="w">AI 비서 빈 대화(96)<div style="width:120px;height:110px;display:flex;align-items:flex-end;justify-content:center">${art(S.sp, st, { ...o, size: 96, noAura: true })}</div></div>` +
+    `<div class="w">휴대폰·맥 위젯<div class="widget"><div class="wtop"><span>오늘 ${S.tasks.filter((t) => t.done).length}/${S.tasks.length}</span><span style="opacity:.6">Lv ${S.lv}</span></div><div style="flex:1;display:flex;align-items:center;justify-content:center">${art(S.sp, st, { ...o, size: 80, noAura: true })}</div><div class="bar"><i style="width:${(S.xp / n) * 100}%"></i></div></div></div>`
+}
+function renderLineup() {
+  let h = '<div></div>' + [1, 2, 3, 4, 5].map((s) => `<div class="hd">${STAGES[s].name} · Lv ${STAGES[s].from}</div>`).join('')
+  for (const sp of Object.keys(SPECIES)) {
+    const p = sp === S.sp ? S.path : 'a'
+    h += `<div class="sp"><b>${SPECIES[sp].full}</b><span>${SPECIES[sp].why}</span><em>${{ turtle: '거북이', squirrel: '다람쥐', cat: '고양이', otter: '수달' }[SPECIES[sp].old]} 자리</em></div>` + [1, 2, 3, 4, 5].map((s) => `<div class="lc" data-sp="${sp}" data-lv="${STAGES[s].from}">${art(sp, s, { path: p, lv: STAGES[s].from, mood: 'smile' })}<b>${titleOf(sp, s, p)}</b><span>${s >= 3 ? PATHS[sp][p].name : ''}</span></div>`).join('')
+  }
+  $('#lineup').innerHTML = h
+  $$('#lineup .lc').forEach((c) => c.onclick = () => { S.sp = c.dataset.sp; S.lv = +c.dataset.lv; S.xp = Math.min(S.xp, need(S.lv) - 1); $('#segSp')._sync(); paintAll() })
+}
+function renderUnlockTable() {
+  const src = (r) => r.lv ? (STAGES.some((s) => s && s.from === r.lv && r.lv > 1) ? '레벨 · 진화' : '레벨') : r.days ? '한 날 누적' : r.reviews ? '주간 점검' : r.projects ? '끝낸 프로젝트' : '계절'
+  const rows = [...ITEMS].sort((a, b) => (a.rule.lv || 99) - (b.rule.lv || 99))
+  $('#unlockTable').innerHTML = `<tr><th></th><th>옷</th><th>칸</th><th>열리는 때</th><th>갈래</th></tr>` + rows.map((it) => `<tr><td style="width:52px"><span style="display:inline-flex;width:40px;height:40px">${itemIcon(it.id)}</span></td><td>${it.name}</td><td>${{ hat: '모자', neck: '목', hand: '손', back: '등', bg: '방 · 배경' }[it.slot]}</td><td>${condText({ rule: it.rule }).replace(/ · 지금.*/, '')}${it.why ? ` <span style="color:var(--k-ink-3)">(${it.why})</span>` : ''}</td><td>${src(it.rule)}</td></tr>`).join('')
+}
+function renderSwatches() {
+  const P = KK.PAL0, rows = [
+    ['--k-stage-sky1', '#A9DFFF', '무대 하늘 위'], ['--k-stage-sky2', '#E6F7EC', '무대 하늘 아래'], ['hills', '#B5E59C · #86D47A · #5BBF66', '언덕 세 겹'], ['mound', '#62C46C / 흙 #B9875A', '받침 풀 둔덕'],
+    ['--k-glass', 'rgba(255,255,255,.74) · blur 18', '유리 카드(라이트)'], ['--k-glass(dark)', 'rgba(18,24,20,.66)', '유리 카드(다크)'], ['--k-accent-hi', '#5CD08F', '막대 끝 · 진화 빛'], ['shade', '#2B3352', '그늘 섞는 색(검정 대신)'],
+    ['snail.skin', P.snail.skin, '달팽이 몸'], ['snail.shell', P.snail.shell, '달팽이 껍데기'], ['bee.skin', P.bee.skin, '꿀벌 몸'], ['bee.stripe', P.bee.stripe, '꿀벌 줄'],
+    ['worm.skin', P.worm.skin, '애벌레 몸'], ['worm.wing', P.worm.wing, '나비 날개 A'], ['frog.skin', P.frog.skin, '개구리 몸'], ['husk', '#D99A5B', '씨앗 껍질'],
+    ['leaf', '#4FBF6A / #2E9E55', '새싹(모든 종)'], ['cheek', '#FF7E9C → 0', '볼(둥근 번짐)'], ['eye', '#25222E', '눈'], ['gold', '#F2B53A', '전설 테두리']
+  ]
+  $('#swatches').innerHTML = rows.map(([k, v, d]) => { const c = v.split(/[ /·]/).find((x) => x.startsWith('#') || x.startsWith('rgba')) || '#ccc'; return `<div><i style="background:${k === 'hills' ? 'linear-gradient(90deg,#B5E59C 33%,#86D47A 33% 66%,#5BBF66 66%)' : k.includes('glass') ? `linear-gradient(135deg,#A9DFFF,#5BBF66)` : c}">${k.includes('glass') ? `<span style="display:block;margin:12px;height:30px;border-radius:10px;background:${c};backdrop-filter:blur(6px)"></span>` : ''}</i><span>${d}<br><code>${k} ${v}</code></span></div>` }).join('')
+}
+
+/* ───────── 시작 ───────── */
+function seg(id, items, key, after) {
+  const el = $(id)
+  if (items) el.innerHTML = items.map(([v, t]) => `<button data-v="${v}">${t}</button>`).join('')
+  const sync = () => el.querySelectorAll('button').forEach((b) => b.classList.toggle('on', String(S[key]) === b.dataset.v))
+  el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; S[key] = b.dataset.v; sync(); after() })
+  el._sync = sync; sync()
+}
+const qs = new URLSearchParams(location.search)
+function boot() {
+  $('#logoH').innerHTML = KK.logo(26)
+  $('#qi1').innerHTML = KK.icon('growth', 30); $('#qi2').innerHTML = KK.icon('book', 30); $('#qi3').innerHTML = KK.icon('trophy', 30)
+  $('#mPill').innerHTML = `<b aria-label="할일">${LI.check}</b><b aria-label="캘린더">${LI.cal(9)}</b><b aria-label="수집함">${LI.inbox}</b><b class="on" aria-label="성장">${LI.sprout(true)}</b><b aria-label="더보기">${LI.more}</b>`
+  ;['check', 'cal', 'map', 'sprout', 'ai'].forEach((k, i) => { $('#rIc' + (i + 1)).innerHTML = typeof LI[k] === 'function' ? LI[k](i === 3 ? true : 9) : LI[k] })
+  makeMain($('#mStage'), .8, 'm')
+  makeMain($('#dStage'), 1, 'd')
+  const ds = $('#dStage')
+  ds.insertAdjacentHTML('beforeend', `<button class="btn sm glass deco-btn" id="dDeco">${KK.icon('growth', 20)}꾸미기</button><div class="toast" id="dToast"></div><div class="wpanel" id="dPanel"><div class="hd">꾸미기<button id="dClose" aria-label="닫기">×</button></div><div class="wtabs" id="dWTabs"></div><div class="wbody" id="dWGrid"></div></div>`)
+  $('#dDeco').onclick = () => $('#dPanel').classList.toggle('open')
+  $('#dClose').onclick = () => $('#dPanel').classList.remove('open')
+  mEvo = makeEvo({ box: $('#mEvoBox'), dim: document.createElement('div'), cardEl: $('#mEvoCard'), root: $('#mEvo'), choiceEl: null, size: 230 })
+  $('#mEvo').onclick = () => mEvo.finish()
+  $('#evo').insertAdjacentHTML('afterbegin', `<div class="sceneHost"></div>`)
+  evoD = makeEvo({ box: $('#evoBox'), dim: $('#evoDim'), cardEl: $('#evoCard'), root: $('#evo'), choiceEl: $('#evoChoice'), size: 260 })
+  evoD.onPath = (p) => { S.path = p; paintAll() }
+  $('#evo').onclick = () => { if ($('#evo').classList.contains('playing')) evoD.finish() }
+  $('#evoSkip').onclick = (e) => { e.stopPropagation(); evoD.finish() }
+  $$('[data-evo]').forEach((b) => b.onclick = () => { const from = +b.dataset.evo; evoD.play(S.sp, from, from + 1, { path: S.path, eq: S.eq }) })
+  $('#bSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; $$('#bSeg button').forEach((x) => x.classList.toggle('on', x === b)); $('#bWard').hidden = b.dataset.v !== 'ward'; $('#bDex').hidden = b.dataset.v !== 'dex' })
+  $('#mOpenWard').onclick = () => $('#bSeg button[data-v=ward]').click()
+  $('#mOpenDex').onclick = () => $('#bSeg button[data-v=dex]').click()
+  $('#mOpenTro').onclick = () => { $('#bSeg button[data-v=dex]').click(); const t = $('#dexTro'); t && t.scrollIntoView({ block: 'start' }) }
+  $$('[data-moment]').forEach((b) => b.onclick = () => moment(b.dataset.moment))
+  $('#bNextLv').onclick = () => addXp(need(S.lv) - S.xp)
+  $('#bQuest').onclick = () => { const q = S.quests.find((x) => !x.done); if (q) q.done = true; addXp(30) }
+  $('#bProject').onclick = () => { S.projects++; S.trophies.push({ k: 'cup', t: '토익 준비', s: '오늘 끝낸 프로젝트' }); paintAll(); mains.forEach((m) => { moodFor(m, 'happy', 2000); hop(m.chi); say(m, '트로피가 선반에 올라갔어!') }) }
+  $('#bSeason').onclick = () => { S.seasons.xmas = true; S.fresh.add('santa'); S.fresh.add('snow'); paintAll(); showToast([byId.santa, byId.snow]) }
+  $('#bReset').onclick = () => { const keep = { theme: S.theme, motion: S.motion, sp: S.sp }; S = Object.assign(START(), keep); hideToast(); paintAll() }
+  seg('#segSp', Object.entries(SPECIES).map(([k, v]) => [k, v.name]), 'sp', paintAll)
+  seg('#segTh', null, 'theme', () => { document.documentElement.dataset.theme = S.theme; paintAll() })
+  seg('#segMo', null, 'motion', () => { document.body.classList.toggle('reduce', S.motion === 'reduce'); paintAll() })
+  document.addEventListener('visibilitychange', () => document.getAnimations().forEach((a) => (document.hidden ? a.pause() : a.play())))
+  $('#dirMini').innerHTML = ['snail', 'bee', 'worm', 'frog'].map((sp) => art(sp, 4, { size: 64, mood: 'smile', noAura: true })).join('')
+  renderUnlockTable(); renderSwatches(); paintAll()
+  addEventListener('resize', () => mains.forEach((m) => m.render()))
+  const demo = qs.get('demo')
+  if (demo === 'toast') { $$('.toast').forEach((t) => t.style.transition = 'none'); toggleTask(0); setTimeout(() => toggleTask(1), 30) }
+  if (demo === 'choice') setTimeout(() => evoD.play(S.sp, 2, 3, { path: 'a', eq: S.eq }), 50)
+  if (demo === 'dex') $('#bSeg button[data-v=dex]').click()
+  if (demo === 'panel') $('#dPanel').classList.add('open')
+  if (demo === 'night') moment('night')
+  if (demo === 'say') setTimeout(() => mains.forEach((m) => say(m, '오늘 3개 남았어. 하나만 같이 할까?', 60000)), 50)
+  if (demo === 'evo') { S.lv = 9; S.xp = need(9) - 1; paintAll(); setTimeout(() => toggleTask(0), 50) }
+  if (demo === 'card') { evoD.keepDim = true; setTimeout(() => evoD.play(S.sp, 3, 4, { path: S.path, eq: S.eq }), 50) }
+  if (qs.get('only')) { const keep = qs.get('only').split(','); $$('section.s').forEach((x) => { x.hidden = !keep.includes(x.id) }); $('.toc').hidden = true; mains.forEach((m) => m.render()) }
+  if (qs.get('embed')) { document.querySelector('.top').hidden = true; document.querySelector('.toc').hidden = true }
+}
+S.theme = qs.get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+document.documentElement.dataset.theme = S.theme
+if (qs.get('sp') && SPECIES[qs.get('sp')]) S.sp = qs.get('sp')
+if (qs.get('motion')) { S.motion = qs.get('motion'); document.body.classList.toggle('reduce', S.motion === 'reduce') }
+if (qs.get('lv')) { S.lv = +qs.get('lv'); S.xp = Math.min(S.xp, need(S.lv) - 1) }
+if (qs.get('path')) S.path = qs.get('path')
+if (qs.get('eq')) for (const id of qs.get('eq').split(',')) if (byId[id]) S.eq[byId[id].slot] = id
+boot()
+</script>
+</body>
+</html>
