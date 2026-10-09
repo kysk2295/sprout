@@ -1,0 +1,19 @@
+/* 49 §7.1 만지기 v3 — 감싸개는 rAF가 style.transform만 쓴다(발밑 50% 90% 기준). 회전 띠는 한 장을 translateX로 넘긴다.
+   CharacterArt(.c3)는 overflow:hidden이라 뛰는 움직임은 그 바깥 감싸개(.ply-move)에 준다. */
+.ply { position: relative; display: block; flex: none; line-height: 0; }
+.ply-btn { padding: 0; border: 0; background: none; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; outline: none; }
+.ply-btn.ply-full { cursor: grab; }
+.ply-btn.ply-full:active { cursor: grabbing; }
+.ply-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 4px; border-radius: 20px; }
+.ply-in, .ply-move, .ply-art { position: absolute; inset: 0; display: block; transform-origin: 50% 90%; }
+.ply-move { will-change: transform; }
+.ply-art > .character { position: absolute; left: 0; top: 0; }
+.ply-spin { position: absolute; inset: 0; overflow: hidden; opacity: 0; pointer-events: none; }
+.ply-spin > img { position: absolute; left: 0; top: 0; display: block; max-width: none; pointer-events: none; user-select: none; will-change: transform; }
+
+/* 조각: 흙·잎(발밑) · 하트·반짝(머리 위) — 캐릭터 자리 안에서만 */
+.ply-fx { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.ply-dust { position: absolute; left: 50%; top: 90%; width: 7px; height: 5px; border-radius: 50%; opacity: 0; }
+.ply-dust.is-leaf { width: 8px; height: 5px; border-radius: 0 70% 0 70%; }
+.ply-pet { position: absolute; left: 50%; top: var(--pc-head, 20%); width: 16px; height: 16px; opacity: 0; }
+.ply-pet svg { display: block; width: 100%; height: 100%; }

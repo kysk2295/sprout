@@ -11,7 +11,7 @@ import { solarOfLunar } from './holidays.ts'
 export type Slot = 'hat' | 'neck' | 'hand' | 'back' | 'bg'
 /** 옷장 탭(방 탭 = 배경 + 장식) */
 export type WardTab = 'hat' | 'neck' | 'hand' | 'back' | 'room'
-export const SLOTS: [WardTab, string][] = [['hat', '모자'], ['neck', '목'], ['hand', '손'], ['back', '등'], ['room', '방']]
+export const SLOTS: [WardTab, string][] = [['hat', '모자'], ['neck', '목'], ['hand', '손'], ['back', '등'], ['room', '배경']]
 export const SLOT_NAME: Record<Slot, string> = { hat: '모자', neck: '목', hand: '손', back: '등', bg: '방 · 배경' }
 
 export type SeasonKey = 'chuseok' | 'xmas' | 'seollal'
@@ -21,7 +21,9 @@ export type Item = { id: string; slot: Slot; name: string; rule: ItemRule; why?:
 
 /** 43 §6 해금표 — 처음 옷 23개 */
 export const ITEMS: Item[] = [
-  { id: 'grass', slot: 'bg', name: '풀밭', rule: { lv: 1 } },
+  { id: 'auto', slot: 'bg', name: '자동 · 시간 따라', rule: { days: 0 }, why: '아침엔 새벽, 낮엔 정원, 저녁엔 노을, 밤엔 별밤' },
+  { id: 'grass', slot: 'bg', name: '정원 낮', rule: { lv: 1 } },
+  { id: 'dawn', slot: 'bg', name: '정원 새벽', rule: { days: 0 } },
   { id: 'acorn-cap', slot: 'hat', name: '도토리 모자', rule: { lv: 2 } },
   { id: 'ribbon', slot: 'neck', name: '빨간 리본', rule: { lv: 3 }, why: '꼬마 진화 선물' },
   { id: 'pencil', slot: 'hand', name: '몽당연필', rule: { lv: 4 } },
@@ -30,7 +32,11 @@ export const ITEMS: Item[] = [
   { id: 'bandana', slot: 'neck', name: '노랑 반다나', rule: { lv: 7 } },
   { id: 'straw', slot: 'hat', name: '밀짚모자', rule: { lv: 8 } },
   { id: 'backpack', slot: 'back', name: '작은 배낭', rule: { lv: 9 } },
-  { id: 'night', slot: 'bg', name: '밤하늘', rule: { lv: 10 }, why: '단짝 진화 선물' },
+  { id: 'night', slot: 'bg', name: '정원 밤', rule: { lv: 10 }, why: '단짝 진화 선물' },
+  { id: 'pond', slot: 'bg', name: '연못', rule: { days: 45 } },
+  { id: 'rain', slot: 'bg', name: '비 오는 정원', rule: { days: 14 } },
+  { id: 'flowers', slot: 'bg', name: '꽃밭', rule: { days: 21 } },
+  { id: 'study', slot: 'bg', name: '서재 · 책상', rule: { reviews: 2 }, why: '공부할 때' },
   { id: 'bowtie', slot: 'neck', name: '나비넥타이', rule: { lv: 11 } },
   { id: 'beanie', slot: 'hat', name: '방울 털모자', rule: { lv: 12 } },
   { id: 'balloon', slot: 'hand', name: '풍선', rule: { lv: 13 } },
@@ -162,7 +168,7 @@ export const newUnlocks = (characterId: string, s: RaiseState, existing: Iterabl
 export function ownedItems(rows: { item_id: string; kind: string }[], s?: RaiseState): Set<string> {
   const own = new Set(rows.filter((r) => r.kind === 'item').map((r) => r.item_id))
   if (s) for (const it of ITEMS) if (ruleMet(it.rule, s)) own.add(it.id)
-  own.add('grass') // 풀밭은 늘 있다(배경 하나는 늘 깔린다)
+  own.add('grass'); own.add('auto') // 정원·자동은 늘 있다(배경 하나는 늘 깔린다)
   return own
 }
 
@@ -199,7 +205,7 @@ export type Path = 'a' | 'b'
 export type Equip = { hat: string | null; neck: string | null; hand: string | null; back: string | null; bg: string }
 /** seed = 만들기 흐름에서 고른 씨앗 껍질(0~3, 49 §5.2 — 아기 단계 그릇 색·도감 첫 칸). 없으면 0 */
 export type Look = { path: Path; eq: Equip; decorOff: string[]; seed?: number }
-export const DEFAULT_LOOK: Look = { path: 'a', eq: { hat: null, neck: null, hand: null, back: null, bg: 'grass' }, decorOff: [] }
+export const DEFAULT_LOOK: Look = { path: 'a', eq: { hat: null, neck: null, hand: null, back: null, bg: 'auto' }, decorOff: [] }
 const slotOk = (id: unknown, slot: Slot) => (typeof id === 'string' && ITEM_BY_ID[id]?.slot === slot ? id : null)
 /** look_json 읽기 — 깨졌거나 모르는 아이템은 기본으로(겉모습뿐이라 막을 것 없음, 43 §10) */
 export function parseLook(raw: string | null | undefined): Look {
@@ -210,7 +216,7 @@ export function parseLook(raw: string | null | undefined): Look {
   const eq = v.eq && typeof v.eq === 'object' ? v.eq : {}
   return {
     path: v.path === 'b' ? 'b' : 'a',
-    eq: { hat: slotOk(eq.hat, 'hat'), neck: slotOk(eq.neck, 'neck'), hand: slotOk(eq.hand, 'hand'), back: slotOk(eq.back, 'back'), bg: slotOk(eq.bg, 'bg') ?? 'grass' },
+    eq: { hat: slotOk(eq.hat, 'hat'), neck: slotOk(eq.neck, 'neck'), hand: slotOk(eq.hand, 'hand'), back: slotOk(eq.back, 'back'), bg: slotOk(eq.bg, 'bg') ?? 'auto' },
     decorOff: Array.isArray(v.decorOff) ? v.decorOff.filter((d: unknown) => typeof d === 'string' && DECOR.some((x) => x.id === d)) : [],
     ...(Number.isInteger(v.seed) && v.seed >= 0 && v.seed <= 3 ? { seed: v.seed as number } : {})
   }
@@ -234,7 +240,7 @@ export const toggleDecor = (l: Look, id: string): Look => ({ ...l, decorOff: l.d
 /** 받지 않은 옷은 입은 것으로 치지 않는다(다른 기기 규칙이 달라도 안전하게) */
 export function wornEquip(l: Look, owned: Set<string>): Equip {
   const ok = (id: string | null) => (id && owned.has(id) ? id : null)
-  return { hat: ok(l.eq.hat), neck: ok(l.eq.neck), hand: ok(l.eq.hand), back: ok(l.eq.back), bg: owned.has(l.eq.bg) ? l.eq.bg : 'grass' }
+  return { hat: ok(l.eq.hat), neck: ok(l.eq.neck), hand: ok(l.eq.hand), back: ok(l.eq.back), bg: owned.has(l.eq.bg) ? l.eq.bg : 'auto' }
 }
 /** 켜진 장식(레벨로 열린 것 − 치운 것) */
 export const decorOn = (level: number, l: Look) => DECOR.filter((d) => level >= d.lv && !l.decorOff.includes(d.id)).map((d) => d.id)

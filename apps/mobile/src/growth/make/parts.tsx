@@ -2,7 +2,7 @@
 // 39 §11: 그림은 Image, 움직임은 reanimated transform·opacity만. 씨앗 회전 = 12컷을 모두 미리 올려 두고 opacity만 바꾼다(소스 교체·디코드 없음).
 // 반복해서 움직이는 것은 한 화면에 하나(씨앗 둥실 · 작은 씨앗 두근 · 아기 숨쉬기 중 하나).
 import { BlurView } from 'expo-blur'
-import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, type ReactNode } from 'react'
+import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef, type ReactNode } from 'react'
 import { Image, Platform, StyleSheet, Text, View, type ImageSourcePropType, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, {
@@ -12,6 +12,7 @@ import Svg, { Defs, Ellipse, RadialGradient, Rect, Stop } from 'react-native-svg
 import { SEED_FRAMES, seedCrackKey, seedTurnKey } from '@sprout/schema/characterArt'
 import type { Species } from '@sprout/schema/growth'
 import { CharacterArt, artSource } from '../art/CharacterArt'
+import { PlayableCharacter, type PlayHandle } from '../art/PlayableCharacter'
 import { PressableScale } from '../../ui/Pressables'
 import type { Palette } from '../../theme/palette'
 import { INTRO_SPIN_MS, turnFromDrag, wrapTurn } from './flow'
@@ -89,7 +90,7 @@ export const Dots = memo(function Dots({ c, on }: { c: MakeColors; on: number })
 })
 
 // ── 씨앗 그림 ──
-const SEED_PX = 320
+const SEED_PX = 512
 /** 씨앗 회전 컷 그림(아직 굽지 않은 컷은 같은 씨앗 0컷 → 흙빛 0컷으로) */
 export const seedSrc = (seed: number, turn: number): ImageSourcePropType | null =>
   artSource(seedTurnKey(seed, turn), SEED_PX) ?? artSource(seedTurnKey(seed, 0), SEED_PX) ?? artSource(seedTurnKey(0, 0), SEED_PX)
@@ -192,8 +193,13 @@ export function WobbleSeed({ seed, size, periodMs, reduced }: { seed: number; si
 
 // ── 아기(숨쉬기 · 깡충) ──
 export type BabyHandle = { hop: () => void }
-/** 이름·첫 할 일 단계의 아기: 숨쉬기(3.4초) + 깡충(0.52초). 발밑(아래 10%) 기준 */
-export const Baby = forwardRef<BabyHandle, { species: Species; seed: number; size: number; mood?: string; reduced: boolean; breathe?: boolean }>(function Baby({ species, seed, size, mood, reduced, breathe = true }, ref) {
+/** 이름·첫 할 일 단계의 아기: 숨쉬기(3.4초) + 깡충(0.52초). 발밑(아래 10%) 기준.
+ *  play면 만지기 v3(49 §7.1 — PlayableCharacter full: 깡충·한 바퀴(1단계 회전 띠)·간지럼·쓰다듬기·끌기·딴짓). 말풍선은 onSay로 부르는 쪽이 */
+export const Baby = forwardRef<BabyHandle, {
+  species: Species; seed: number; size: number; mood?: string; reduced: boolean; breathe?: boolean
+  play?: boolean; active?: boolean; onSay?: (text: string) => void; label?: string
+}>(function Baby({ species, seed, size, mood, reduced, breathe = true, play, active, onSay, label }, ref) {
+  const pc = useRef<PlayHandle>(null)
   const b = useSharedValue(0)
   const hy = useSharedValue(0), hx = useSharedValue(1), hs = useSharedValue(1)
   useEffect(() => {
@@ -203,19 +209,23 @@ export const Baby = forwardRef<BabyHandle, { species: Species; seed: number; siz
   }, [reduced, breathe, b])
   useImperativeHandle(ref, () => ({
     hop: () => {
+      if (play) { pc.current?.play('hop'); return }
       if (reduced) return
       const d = 520, e = Easing.out(Easing.quad)
       hx.value = withSequence(withTiming(1.08, { duration: d * 0.18, easing: e }), withTiming(0.95, { duration: d * 0.27, easing: e }), withTiming(1.06, { duration: d * 0.25, easing: e }), withTiming(1, { duration: d * 0.3, easing: e }))
       hs.value = withSequence(withTiming(0.9, { duration: d * 0.18, easing: e }), withTiming(1.06, { duration: d * 0.27, easing: e }), withTiming(0.94, { duration: d * 0.25, easing: e }), withTiming(1, { duration: d * 0.3, easing: e }))
       hy.value = withSequence(withTiming(0, { duration: d * 0.18 }), withTiming(-22, { duration: d * 0.27, easing: e }), withTiming(0, { duration: d * 0.25, easing: Easing.in(Easing.quad) }), withTiming(0, { duration: d * 0.3 }))
     }
-  }), [reduced, hx, hs, hy])
+  }), [reduced, play, hx, hs, hy])
   const a = useAnimatedStyle(() => ({
     transform: [{ translateY: hy.value }, { scaleX: (1 + 0.012 * b.value) * hx.value }, { scaleY: (1 + 0.028 * b.value) * hs.value }]
   }))
   return (
     <Animated.View style={[{ width: size, height: size, transformOrigin: '50% 90%' }, a]}>
-      <CharacterArt species={species} stage={1} size={size} mood={mood} seed={seed} wear={null} />
+      {play
+        ? <PlayableCharacter ref={pc} species={species} stage={1} size={size} mood={mood} seed={seed} wear={null} level="full" reduced={reduced} active={active} onSay={onSay}
+            accessibilityLabel={label} accessibilityHint="눌러 보세요. 두 번 누르면 한 바퀴 돌아요" />
+        : <CharacterArt species={species} stage={1} size={size} mood={mood} seed={seed} wear={null} />}
     </Animated.View>
   )
 })

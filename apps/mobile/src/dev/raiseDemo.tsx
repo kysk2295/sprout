@@ -1,5 +1,5 @@
 // 43 키우기 화면 캡처용 데모 — EXPO_PUBLIC_SPROUT_RAISE_DEMO=1로 번들할 때만 켜진다(출시 빌드에는 안 들어감, perfProbe와 같은 방식).
-// 로그인·서버 없이 가짜 상태로 성장 무대·꾸미기·도감·진화·새 옷 카드를 그린다. 고르기: sprout://raise?v=stage|ward|dex|evo|choice|toast|hatch|avatar&sp=worm&lv=8&eq=straw,mug&path=b&night=1&t=1330
+// 로그인·서버 없이 가짜 상태로 성장 무대·꾸미기·도감·진화·새 옷 카드를 그린다. 고르기: sprout://raise?v=stage|ward|dex|evo|choice|toast|hatch|avatar&sp=worm&lv=8&eq=straw,mug&path=b&night=1&t=1330&act=spin
 import { progressFromEvents, cumulativeXp, normalizeSpecies, type Species } from '@sprout/schema/growth'
 import { DEFAULT_LOOK, ITEMS, ownedItems, parseLook, raiseStateFrom, wornEquip, ITEM_BY_ID, type CharacterItemRow, type Look } from '@sprout/schema/wardrobe'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -62,6 +62,8 @@ export function RaiseDemo() {
       if (q.say) stage.current?.say(q.say, 60000)
       if (q.act === 'levelup') stage.current?.levelUp(raise.progress.level)
       if (q.act === 'xp') stage.current?.xp(1)
+      // 49 §7.1 만지기 확인: act=hop|spin|giggle|wobble|pet|dizzy (spin은 회전 띠가 없으면 깡충)
+      if (q.act && ['hop', 'spin', 'giggle', 'wobble', 'pet', 'dizzy'].includes(q.act)) stage.current?.play(q.act as 'hop')
     }, 600)
     return () => clearTimeout(t)
   }, [q, raise])

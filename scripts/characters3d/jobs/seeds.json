@@ -1,6 +1,6 @@
 {
 "out": "build/seed",
-"size": 320,
+"size": 560,
 "samples": 48,
 "skip_existing": true,
 "items": [

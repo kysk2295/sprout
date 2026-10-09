@@ -6,6 +6,7 @@ import type { Species } from '@sprout/schema/growth'
 import { useGrowth, useMotionReduced } from '../../data/growth'
 import { buddyOf } from '../../data/diary'
 import { CharacterArt } from '../growth/CharacterArt'
+import { PlayableCharacter, type PlayHandle } from '../growth/PlayableCharacter'
 import './companion.css'
 
 // 창이 가려지면(최소화·다른 데스크톱) 반복 움직임을 멈춘다 — 문서 하나에 한 번만 건다
@@ -40,21 +41,29 @@ export function CompanionFace({ species, stage, size, mood = 'smile', loop = nul
   const reduced = useMotionReduced()
   const [shot, setShot] = useState<{ move: string; n: number } | null>(null)
   const seen = useRef<number | undefined>(undefined) // 처음 붙을 때 받은 움직임도 한 번 한다
+  // 49 §7.1 가벼운 판: 누를 수 있고 큰 자리(≥ 100 — AI 비서 빈 대화 등)면 누르기 = 깡충(공용 HOP, 줄이기면 맥박 + 웃음). 딴짓 없음.
+  // 이때 깡충(play 'hop')은 CSS 한 번 움직임 대신 PlayableCharacter가 한다(겹쳐 두 번 뛰지 않게 — 방금 누른 것이면 건너뜀)
+  const light = !!onPress && size >= 100
+  const pc = useRef<PlayHandle>(null)
+  const tappedAt = useRef(0)
   useEffect(() => {
     if (!play || play.n === seen.current) return
     seen.current = play.n
+    if (light && play.move === 'hop') { if (Date.now() - tappedAt.current > 400) pc.current?.play('hop'); return }
     if (!reduced) setShot({ move: play.move, n: play.n })
-  }, [play, reduced])
+  }, [play, reduced, light])
   const style = { width: size, height: size } as CSSProperties
   const cls = `companion${dim ? ' is-dim' : ''}${reduced ? ' is-still' : ''}${className ? ` ${className}` : ''}`
   const body = (
     <span key={shot?.n ?? 0} className={`companion__shot${shot ? ` is-${shot.move}` : ''}`} onAnimationEnd={() => setShot(null)}>
       <span className={`companion__loop${loop && !reduced ? ` is-${loop}` : ''}`}>
-        <CharacterArt species={species} stage={stage} size={size} mood={mood} tight={size <= 30} />
+        {light
+          ? <PlayableCharacter as="span" level="light" handle={pc} reduced={reduced} species={species} stage={stage} size={size} mood={mood} />
+          : <CharacterArt species={species} stage={stage} size={size} mood={mood} tight={size <= 30} />}
       </span>
     </span>
   )
-  if (onPress) return <button type="button" className={`${cls} is-button`} style={style} aria-label={label} onClick={onPress}>{body}{children}</button>
+  if (onPress) return <button type="button" className={`${cls} is-button`} style={style} aria-label={label} onClick={() => { if (light) { tappedAt.current = Date.now(); pc.current?.tap() } onPress() }}>{body}{children}</button>
   return <span className={cls} style={style} aria-hidden={label ? undefined : true} aria-label={label} role={label ? 'img' : undefined}>{body}{children}</span>
 }
 

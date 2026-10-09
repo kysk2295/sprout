@@ -17,9 +17,9 @@ OUT = os.path.abspath(arg('--out', os.path.join(ROOT, 'packages/schema/art3d')))
 MAN = os.path.join(ROOT, 'packages/schema/src/art3dManifest.ts')
 os.makedirs(OUT, exist_ok=True)
 for f in glob.glob(os.path.join(OUT, '*.webp')): os.remove(f)  # 지난 굽기에서 남은 이름이 섞이지 않게
-Q = {'char': 80, 'small': 78, 'acc': 76, 'scene': 76, 'seed': 80}
+Q = {'char': 84, 'small': 82, 'acc': 74, 'scene': 76, 'seed': 80}
 # 알파는 손실 압축(무손실 알파가 파일의 2/3였다). 가장자리 확인: 60이면 눈으로 차이 없음
-AQ = {'body': 60, 'face': 70, 'acc': 55, 'prop': 55, 'seed': 55, 'decor': 55}
+AQ = {'body': 90, 'face': 95, 'acc': 70, 'prop': 85, 'seed': 80, 'decor': 85}
 total = {'base': 0}
 sizes = {}
 
@@ -58,10 +58,17 @@ def bbox(a, thr=0.06):
     return [round(xs.min() / w, 4), round(ys.min() / h, 4), round((xs.max() + 1) / w, 4), round((ys.max() + 1) / h, 4)]
 
 def save(a, name, px, q, group):
-    im = Image.fromarray((np.clip(a, 0, 1) * 255 + 0.5).astype(np.uint8), 'RGBA')
+    a = np.clip(a, 0, 1)
+    # 줄일 때 가장자리 무리(halo) 방지: 미리 곱한 알파(premultiplied)로 줄이고 다시 나눈다 — 투명 픽셀의 색이 가장자리로 번지지 않게
+    pm = Image.fromarray((np.concatenate([a[..., :3] * a[..., 3:4], a[..., 3:4]], -1) * 255 + 0.5).astype(np.uint8), 'RGBA')
     out = []
     for s in px:
-        im2 = im.resize((s, s) if im.width == im.height else (s, round(im.height * s / im.width)), Image.LANCZOS)
+        size = (s, s) if pm.width == pm.height else (s, round(pm.height * s / pm.width))
+        if size == pm.size: r = np.asarray(pm).astype(np.float32) / 255
+        else: r = np.asarray(Image.merge('RGBA', [c.resize(size, Image.LANCZOS) for c in pm.split()])).astype(np.float32) / 255
+        al = np.clip(r[..., 3:4], 0, 1)
+        rgb = np.where(al > 1 / 255, np.clip(r[..., :3] / np.maximum(al, 1e-4), 0, 1), 0)
+        im2 = Image.fromarray((np.concatenate([rgb, al], -1) * 255 + 0.5).astype(np.uint8), 'RGBA')
         fn = f'{name}@{s}.webp'
         p = os.path.join(OUT, fn)
         if im2.mode == 'RGBA' and a.shape[-1] == 4 and (a[..., 3] < 0.999).any():
@@ -85,7 +92,7 @@ for name, m in sorted(bm.items()):
     if not os.path.exists(p): continue
     raw = load(p); RAW[name] = raw
     a = contact(raw)
-    save(a, name, [512, 160], Q['char'], 'body')
+    save(a, name, [768, 384, 160], Q['char'], 'body')
     BODY[name] = {k: m[k] for k in ('head', 'face', 'top', 'neck', 'hand', 'back') if k in m}
     BODY[name]['props'] = m.get('props', [])
     BODY[name]['box'] = bbox(a)
@@ -97,7 +104,7 @@ for p in sorted(glob.glob(os.path.join(B, 'face', '*.png'))):
     a = load(p)
     a[..., 3] = np.where(a[..., 3] < 10 / 255, 0, a[..., 3])
     FRAW[name] = a
-    save(a, name, [512, 160], Q['small'], 'face')
+    save(a, name, [768, 384, 160], Q['small'], 'face')
     FACES[name] = bbox(a)
 
 def ref_key(sp, st, br='a'):
@@ -136,7 +143,7 @@ for p in sorted(glob.glob(os.path.join(B, 'acc', '*-full.png'))):
     ref = refimg(ref_key(sp, st), f'{sp}-{st}-face-default')
     if ref is None: continue
     a = extract(load(p), load(mp), ref)
-    save(a, name, [512, 160], Q['acc'], 'acc')
+    save(a, name, [768, 160], Q['acc'], 'acc')
     ACC[name] = bbox(a, 0.25)
 
 # ── 칸 소품 ──
@@ -149,7 +156,7 @@ for p in sorted(glob.glob(os.path.join(B, 'prop', '*-prop-full.png'))):
     ref = refimg(f'{sp}-{stbr}', f'{sp}-{stbr[0]}-face-default')
     if ref is None: continue
     a = extract(load(p), load(mp), ref)
-    save(a, name, [512, 160], Q['acc'], 'prop')
+    save(a, name, [768, 384, 160], Q['acc'], 'prop')
     PROP[name] = bbox(a, 0.25)
 
 # ── 한 바퀴 회전 컷(만지기 49 §5.x): 12컷을 가로 띠 한 장으로(앱은 띠를 translateX로 넘긴다 — 컷마다 다시 그리기 없음) ──
@@ -160,7 +167,7 @@ for name, m in sorted(spm.items()):
     n = m.get('frames', 12)
     fr = [os.path.join(B, 'spin', f'{name}-t{k:02d}.png') for k in range(n)]
     if not all(os.path.exists(f) for f in fr): continue
-    ims = [Image.open(f).convert('RGBA') for f in fr]
+    ims = [Image.open(f).convert('RGBA').resize((300, 300), Image.LANCZOS) for f in fr]  # 회전은 0.5초 동안만 보인다 — 300px(100pt @3x)
     w = ims[0].width
     strip = Image.new('RGBA', (w * n, w))
     for k, im in enumerate(ims): strip.paste(im, (k * w, 0))
@@ -168,7 +175,7 @@ for name, m in sorted(spm.items()):
     a[..., 3] = np.where(a[..., 3] < 8 / 255, 0, a[..., 3])
     im2 = Image.fromarray((a * 255 + 0.5).astype(np.uint8), 'RGBA')
     fn = f'{name}@{w}.webp'; pth = os.path.join(OUT, fn)
-    im2.save(pth, 'WEBP', quality=74, method=6, exact=False, alpha_quality=50)
+    im2.save(pth, 'WEBP', quality=72, method=6, exact=False, alpha_quality=70)
     sizes[fn] = os.path.getsize(pth); total['spin'] = total.get('spin', 0) + sizes[fn]
     SPIN[name[:-5]] = [n, w]
 
@@ -176,7 +183,7 @@ for name, m in sorted(spm.items()):
 SEED = []
 for p in sorted(glob.glob(os.path.join(B, 'seed', '*.png'))):
     name = os.path.basename(p)[:-4]
-    save(contact(load(p)), name, [320], Q['seed'], 'seed'); SEED.append(name)
+    save(contact(load(p)), name, [512] if name.endswith(('-t00', '-crack1', '-crack2')) else [384], Q['seed'], 'seed'); SEED.append(name)  # 돌아가는 컷은 384(움직이는 동안 차이 안 보임), 멈춰 보이는 앞모습·금은 512
 
 # ── 장면 · 띠 ──
 SCENE = {}
@@ -185,10 +192,10 @@ for name, m in sm.items():
     p = os.path.join(B, 'scene', name + '.png')
     if not os.path.exists(p): continue
     im = Image.open(p).convert('RGB')
-    w = 780 if name.startswith('scene') else 1170
+    w = 1170
     a = np.asarray(im.resize((w, round(im.height * w / im.width)), Image.LANCZOS)).astype(np.float32) / 255
     a = np.concatenate([a, np.ones_like(a[..., :1])], -1)
-    save(a, name, [w], Q['scene'], 'scene')
+    save(a, name, [w, 390] if name.startswith('scene') else [w], Q['scene'], 'scene')  # 390 = 배경 묶음 받기 전 미리보기
     SCENE[name] = {'perch': m['perch'], 'unit': round(m['unit_px'] / m['w'], 4), 'aspect': round(m['h'] / m['w'], 4)}
 
 # ── 방 장식 ──
@@ -235,12 +242,14 @@ def tier(fn):
     m = re.match(r'^(.+)@(\d+)\.webp$', fn)
     if not m: return 'none'
     key, px = m.group(1), int(m.group(2))
-    if re.match(r'^(seed|scene|band|decor)', key): return 'base'
+    if key.startswith('scene-'): return 'base' if px == 390 or re.match(r'^scene-(day|dawn|dusk|sunset)$', key) else 'bg'
+    if re.match(r'^(seed|band|decor)', key): return 'base'
     if key.endswith('-spin'): return 'pack'
     a = re.match(r'^[a-z]+-\d-acc-(.+)$', key)
-    if a: return 'pack' if px == 512 else ('base' if a.group(1) in HATS else 'none')
-    if px != 512: return 'base'
+    if a: return 'pack' if px == 768 else ('base' if a.group(1) in HATS else 'none')
     st = int(re.match(r'^[a-z]+-(\d)', key).group(1))
+    if px == 160: return 'base'
+    if px == 384: return 'pack'
     return 'base' if st == 1 and not key.endswith('-prop') else 'pack'
 base = [fn for fn in sorted(sizes) if tier(fn) == 'base']
 print('mobile base', round(sum(sizes[f] for f in base) / 1024), 'KB ·', len(base), 'files')

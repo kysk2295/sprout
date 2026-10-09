@@ -2,8 +2,10 @@
 // 옷장: 위 절반 = 성장 홈과 같은 장면 + 받침 위 캐릭터 220(옷이 보이게), 아래 = 반투명 시트(모서리 30): `옷장 · 도감` 분절 + 탭 `모자 · 목 · 손 · 등 · 방` + 4열 칸.
 //   칸 상태(43 §5.4): 입음 = 강조 테 · 새로 받음 = 점 · 잠김 = 회색 덩어리(같은 그림 한 색) + 조건. 칸 그림 = 옷 층을 옷 자리로 자른 3D(accIcon).
 //   누르면 옷 층이 0.25초 페이드로 겹치고 깡충 — 새 모습을 아래에 깔고 옛 모습을 위에서 opacity 1 → 0(몸은 늘 불투명, 39 §11).
+// 배경 탭(49 §6.1): 칸 = 장면 썸네일(맨 앞 `자동 · 시간 따라`), 누르면 위 장면이 0.3초 교차 페이드로 바뀌는 미리 보기 — 아래 `이 배경으로`(적용)·`원래로`.
+//   잠긴 배경도 미리 보기는 되고 버튼 자리에 조건. 장식 켜고 끄기는 배경 칸 아래. 유리·글자 톤은 장면 밝기(sceneDark)를 따른다.
 // 도감: 장면을 위 46%만 흐리게 깔고 바탕색에 녹임 + 큰 제목 `도감` + `모은 모습 N / 20` + 3열 칸(160 그림), 내 지금 모습 = `나`, 못 본 모습 = 어두운 한 색.
-import { PATHS, sceneDark, sceneLayout, standOnPerch, titleOf, trophyIcon, FOOT, headTop3d } from '@sprout/schema/characterArt'
+import { PATHS, sceneLayout, standOnPerch, titleOf, trophyIcon, FOOT, headTop3d } from '@sprout/schema/characterArt'
 import { type Species } from '@sprout/schema/growth'
 import {
   babyHidesSlot, baseName, conditionText, DECOR, ITEMS, itemsOfTab, SLOTS, trophyShape, trophySub, decorOn, type Item, type Path, type WardTab
@@ -12,7 +14,7 @@ import { BlurView } from 'expo-blur'
 import { ChevronLeft } from 'lucide-react-native'
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native'
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated'
+import Animated, { FadeIn, FadeOut, runOnJS, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 import type { Palette } from '../theme/palette'
 import { hx } from '../ui/haptics'
@@ -20,19 +22,19 @@ import { Segmented } from '../ui/Segmented'
 import { CharacterArt, SvgString, type CharacterWear } from './art/CharacterArt'
 import { SceneBackdrop } from './art/Scene3D'
 import { DEX_TOTAL, dexCells, dexCount, dexSeen } from './home/dex'
-import { AccThumb, DecorThumb, DexFigure, fitScene, glassTone, SceneThumb } from './home/glass'
+import { AccThumb, DecorThumb, DexFigure, fitScene, sceneTone, SceneThumb } from './home/glass'
 import type { Raise } from './raise'
 
 export type DecorSeg = 'ward' | 'dex'
 type Frame = { p: Palette; raise: Raise; width: number; height: number; topInset: number; bottomInset: number; sceneKey: string; seg: DecorSeg; onSeg: (s: DecorSeg) => void; onBack: () => void }
 
 /* ───────── 머리(‹ 뒤로 · 제목) ───────── */
-function GlassBack({ p, onBack, ink }: { p: Palette; onBack: () => void; ink: string }) {
-  const t = glassTone(p.dark)
+function GlassBack({ sceneKey, onBack }: { sceneKey: string; onBack: () => void }) {
+  const t = sceneTone(sceneKey)
   return (
     <Pressable onPress={onBack} hitSlop={8} accessibilityRole="button" accessibilityLabel="뒤로"
       style={({ pressed }) => [s.back, { backgroundColor: t.bg, borderColor: t.line }, pressed && { transform: [{ scale: 0.94 }] }]}>
-      <ChevronLeft size={22} color={ink} />
+      <ChevronLeft size={22} color={t.ink} />
     </Pressable>
   )
 }
@@ -67,11 +69,13 @@ export const FadeWear = memo(function FadeWear({ species, stage, size, wear, moo
 })
 
 /* ───────── 옷장(시안 C) ───────── */
-export function WardScreen({ p, raise, width: W, height: H, topInset, bottomInset, sceneKey, seg, onSeg, onBack, tab, onTab, hopKey, reduced, onEquip, onBase, onDecor }: Frame & {
+export function WardScreen({ p, raise, width: W, height: H, topInset, bottomInset, sceneKey, seg, onSeg, onBack, tab, onTab, hopKey, reduced, onEquip, onBase, onDecor, preview, onPreview, onApply, onRevert }: Frame & {
   tab: WardTab; onTab: (t: WardTab) => void; hopKey: number; reduced?: boolean
   onEquip: (id: string) => void; onBase: (slot: Exclude<WardTab, 'room'>) => void; onDecor: (id: string) => void
+  /** 미리 보는 배경 id(아직 적용 아님) — 입은 배경과 같으면 null */
+  preview?: string | null; onPreview?: (id: string) => void; onApply?: () => void; onRevert?: () => void
 }) {
-  const { species, progress, look, worn } = raise
+  const { species, progress, look, worn, state } = raise
   const st = progress.stage
   const seed = look.seed ?? 0
   const sheetTop = Math.round(H * 0.51)
@@ -81,13 +85,15 @@ export function WardScreen({ p, raise, width: W, height: H, topInset, bottomInse
   const headFrac = species ? headTop3d(species, st, look.path, seed).y - (worn.hat ? 0.07 : 0) : 0.22
   const box = Math.round(Math.max(120, Math.min(220, (T - topInset - 58) / (FOOT.y - headFrac))))
   const pos = standOnPerch(perchX, T, box)
-  const ink = sceneDark(sceneKey) || p.dark ? '#FFFFFF' : '#13211B'
+  const ink = sceneTone(sceneKey).ink
+  const pv = preview && onApply ? ITEMS.find((i) => i.id === preview) : undefined
+  const pvOwn = !!pv && raise.owned.has(pv.id)
   const sheetBg = p.dark ? 'rgba(18,24,22,0.9)' : 'rgba(250,252,249,0.9)'
   return (
     <View style={{ width: W, height: H, overflow: 'hidden' }}>
-      <SceneBackdrop sceneKey={sceneKey} width={W} height={fit.height} decor={species ? decorOn(progress.level, look) : []} style={{ position: 'absolute', left: 0, top: fit.top }} />
+      <SceneBackdrop sceneKey={sceneKey} width={W} height={fit.height} fade={300} decor={species ? decorOn(progress.level, look) : []} style={{ position: 'absolute', left: 0, top: fit.top }} />
       <View style={[s.nav, { top: topInset + 6 }]}>
-        <GlassBack p={p} onBack={onBack} ink={glassTone(p.dark).ink} />
+        <GlassBack sceneKey={sceneKey} onBack={onBack} />
         <Text style={[s.navT, { color: ink }]} accessibilityRole="header">꾸미기</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -104,9 +110,28 @@ export function WardScreen({ p, raise, width: W, height: H, topInset, bottomInse
           <Segmented items={[{ key: 'ward', label: '옷장' }, { key: 'dex', label: '도감' }]} value={seg} onChange={onSeg} style={{ marginBottom: 12 }} small />
           <WardTabs p={p} tab={tab} onTab={onTab} fresh={raise.fresh} />
         </View>
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: bottomInset + 30 }}>
-          <WardGrid p={p} raise={raise} tab={tab} width={W - 36} onEquip={onEquip} onBase={onBase} onDecor={onDecor} />
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: bottomInset + (pv ? 96 : 30) }}>
+          <WardGrid p={p} raise={raise} tab={tab} width={W - 36} onEquip={onEquip} onBase={onBase} onDecor={onDecor} preview={preview} onPreview={onPreview} />
         </ScrollView>
+        {pv ? (
+          <Animated.View entering={reduced ? undefined : FadeIn.duration(180)} exiting={reduced ? undefined : FadeOut.duration(150)}
+            style={[s.applyBar, { paddingBottom: bottomInset + 12, backgroundColor: p.dark ? '#141A18' : '#FAFCF9', borderTopColor: p.borderDivider }]}>
+            <Pressable onPress={() => { hx.tick(); onRevert?.() }} hitSlop={6} accessibilityRole="button" accessibilityLabel="원래 배경으로 되돌리기"
+              style={({ pressed }) => [s.applyGhost, { borderColor: p.borderDivider }, pressed && { opacity: 0.6 }]}>
+              <Text style={[s.applyGhostT, { color: p.textSecondary }]}>원래로</Text>
+            </Pressable>
+            {pvOwn ? (
+              <Pressable onPress={() => { hx.tick(); onApply?.() }} accessibilityRole="button" accessibilityLabel={`${pv.name} 배경으로 바꾸기`}
+                style={({ pressed }) => [s.applyBtn, { backgroundColor: p.accent }, pressed && { transform: [{ scale: 0.97 }] }]}>
+                <Text style={s.applyBtnT}>이 배경으로</Text>
+              </Pressable>
+            ) : (
+              <View style={[s.applyBtn, { backgroundColor: cellBg(p) }]} accessible accessibilityLabel={`${pv.name}, 잠김. ${conditionText(pv, state)}`}>
+                <Text style={[s.applyLockT, { color: p.textTertiary }]} numberOfLines={1}>{conditionText(pv, state)}</Text>
+              </View>
+            )}
+          </Animated.View>
+        ) : null}
       </View>
     </View>
   )
@@ -121,7 +146,7 @@ export function WardTabs({ p, tab, onTab, fresh }: { p: Palette; tab: WardTab; o
         const dot = itemsOfTab(k).some((i) => fresh.has(i.id))
         return (
           <Pressable key={k} onPress={() => { hx.tick(); onTab(k) }} hitSlop={6} style={s.tab} accessibilityRole="tab" accessibilityState={{ selected: on }}>
-            <Text style={[s.tabT, { color: on ? p.textPrimary : p.textTertiary }]}>{n}</Text>
+            <Text style={[s.tabT, { color: on ? p.textPrimary : p.textTertiary }]}>{k === 'room' ? '배경' : n}</Text>
             {on ? <View style={[s.tabLine, { backgroundColor: p.accent }]} /> : null}
             {dot ? <View style={[s.tabDot, { backgroundColor: p.accent }]} /> : null}
           </Pressable>
@@ -132,21 +157,24 @@ export function WardTabs({ p, tab, onTab, fresh }: { p: Palette; tab: WardTab; o
 }
 
 /** 칸 하나(옷·배경·장식·기본) — 시안 .cell */
-const Cell = memo(function Cell({ p, icon, name, sub, on, locked, fresh, onPress, label, w }: {
+const Cell = memo(function Cell({ p, icon, name, sub, on, locked, fresh, onPress, label, w, peek }: {
   p: Palette; icon: ReactNode; name: string; sub?: string; on?: boolean; locked?: boolean; fresh?: boolean; onPress: () => void; label: string; w: number
+  /** 잠겨도 눌러서 미리 볼 수 있다(배경 칸) */
+  peek?: boolean
 }) {
   const x = useSharedValue(0)
   const st = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }))
   const press = () => {
+    if (locked && peek) { hx.tick(); onPress(); return }
     if (locked) { x.value = withSequence(withTiming(-3, { duration: 55 }), withTiming(3, { duration: 55 }), withTiming(0, { duration: 55 })); return }
     hx.tick(); onPress()
   }
   return (
     <Animated.View style={[{ width: w }, st]}>
-      <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: !!on, disabled: !!locked }}
+      <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: !!on, disabled: !!locked && !peek }}
         style={({ pressed }) => [s.cell, { minHeight: w / 0.86, backgroundColor: on ? p.accentSubtle : cellBg(p), borderColor: on ? p.accent : 'transparent' }, pressed && !locked && { transform: [{ scale: 0.95 }] }]}>
         <View style={s.ico}>{icon}</View>
-        <Text style={[s.cellN, { color: on ? p.textPrimary : locked ? p.textTertiary : p.textSecondary }]} numberOfLines={1}>{name}</Text>
+        <Text style={[s.cellN, { color: on ? p.textPrimary : locked ? p.textTertiary : p.textSecondary }]} numberOfLines={2}>{name}</Text>
         {sub ? <Text style={[s.cellC, { color: p.textTertiary }]} numberOfLines={2}>{sub}</Text> : null}
         {fresh ? <View style={[s.ndot, { backgroundColor: p.accent }]} /> : null}
       </Pressable>
@@ -163,8 +191,9 @@ function ItemIco({ p, it, locked, size = 50 }: { p: Palette; it: Item; locked: b
 }
 
 /** 옷장 격자(43 §5.4): 맨 앞 `기본`(진화 소품) + 옷. 방 탭 = 배경 + 장식 */
-export function WardGrid({ p, raise, tab, width, onEquip, onBase, onDecor }: {
+export function WardGrid({ p, raise, tab, width, onEquip, onBase, onDecor, preview, onPreview }: {
   p: Palette; raise: Raise; tab: WardTab; width: number; onEquip: (id: string) => void; onBase: (slot: Exclude<WardTab, 'room'>) => void; onDecor: (id: string) => void
+  preview?: string | null; onPreview?: (id: string) => void
 }) {
   const { species, progress, worn, owned, fresh, state, look } = raise
   const st = progress.stage
@@ -176,10 +205,19 @@ export function WardGrid({ p, raise, tab, width, onEquip, onBase, onDecor }: {
       label={`${it.name}${own ? (on ? ', 입은 것' : '') : `, 잠김 ${conditionText(it, state)}`}`} onPress={() => onEquip(it.id)} />
   }
   if (tab === 'room') {
+    const shown = preview ?? worn.bg
+    const bgCell = (it: Item) => {
+      const own = owned.has(it.id)
+      const on = shown === it.id, cur = worn.bg === it.id
+      const sub = !own ? conditionText(it, state) : cur && preview ? '지금 배경' : undefined
+      return <Cell key={it.id} p={p} w={w} icon={<ItemIco p={p} it={it} locked={!own} />} name={it.name} sub={sub} on={on} locked={!own} peek fresh={fresh.has(it.id)}
+        label={`${it.name}${cur ? ', 지금 배경' : on ? ', 미리 보는 중' : ''}${own ? '' : `, 잠김 ${conditionText(it, state)}`}. 눌러서 미리 보기`}
+        onPress={() => (onPreview ? onPreview(it.id) : onEquip(it.id))} />
+    }
     return (
       <View>
         <Text style={[s.subh, { color: p.textPrimary, marginTop: 0 }]}>배경</Text>
-        <View style={s.grid}>{itemsOfTab('room').map(cell)}</View>
+        <View style={s.grid}>{itemsOfTab('room').map(bgCell)}</View>
         <View style={s.subhRow}><Text style={[s.subh, { color: p.textPrimary }]}>장식</Text><Text style={[s.subhS, { color: p.textTertiary }]}>눌러서 놓기·치우기</Text></View>
         <View style={s.grid}>
           {DECOR.map((d) => {
@@ -217,6 +255,7 @@ export function DexScreen({ p, raise, width: W, height: H, topInset, bottomInset
   const cells = useMemo(() => dexCells(species), [species])
   const cw = Math.floor((W - 32 - 20) / 3)
   const ink = p.textPrimary
+  const headInk = sceneTone(sceneKey).ink // 제목은 장면 위(위 46% 안) — 장면 밝기를 따른다
   const cellFill = p.dark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.66)'
   const cellLine = p.dark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.9)'
   return (
@@ -230,8 +269,8 @@ export function DexScreen({ p, raise, width: W, height: H, topInset, bottomInset
         <Rect x={0} y={0} width={W} height={sceneH + 2} fill="url(#dexFade)" />
       </Svg>
       <ScrollView ref={scrollRef} contentContainerStyle={{ paddingTop: topInset + 56, paddingHorizontal: 16, paddingBottom: bottomInset + 40 }}>
-        <Text style={[s.dexH, { color: sceneDark(sceneKey) && !p.dark ? '#FFFFFF' : ink }]} accessibilityRole="header">도감</Text>
-        <Text style={[s.dexN, { color: sceneDark(sceneKey) && !p.dark ? '#FFFFFF' : ink }]}>모은 모습 <Text style={{ fontWeight: '800' }}>{n}</Text> / {DEX_TOTAL}</Text>
+        <Text style={[s.dexH, { color: headInk }]} accessibilityRole="header">도감</Text>
+        <Text style={[s.dexN, { color: headInk }]}>모은 모습 <Text style={{ fontWeight: '800' }}>{n}</Text> / {DEX_TOTAL}</Text>
         <View style={[s.grid, { gap: 10, marginTop: 18 }]}>
           {cells.map(({ sp, st: x }) => {
             const ok = dexSeen(species, st, sp, x)
@@ -295,7 +334,7 @@ export function DexScreen({ p, raise, width: W, height: H, topInset, bottomInset
         </View>
       </ScrollView>
       <View style={[s.nav, { top: topInset + 6 }]}>
-        <GlassBack p={p} onBack={onBack} ink={glassTone(p.dark).ink} />
+        <GlassBack sceneKey={sceneKey} onBack={onBack} />
         <View style={{ flex: 1 }} />
         <Segmented items={[{ key: 'ward', label: '옷장' }, { key: 'dex', label: '도감' }]} value={seg} onChange={onSeg} style={{ width: 150 }} small />
       </View>
@@ -339,5 +378,11 @@ const s = StyleSheet.create({
   pathN: { fontSize: 13.5, fontWeight: '700' },
   trow: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 46 },
   trowT: { flex: 1, fontSize: 14.5, fontWeight: '500' },
-  trowS: { fontSize: 12 }
+  trowS: { fontSize: 12 },
+  applyBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', gap: 10, paddingHorizontal: 18, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  applyGhost: { height: 48, paddingHorizontal: 18, borderRadius: 24, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  applyGhostT: { fontSize: 15, fontWeight: '700' },
+  applyBtn: { flex: 1, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
+  applyBtnT: { color: '#fff', fontSize: 15.5, fontWeight: '800' },
+  applyLockT: { fontSize: 14, fontWeight: '700' }
 })

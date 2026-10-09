@@ -5,7 +5,7 @@
 // 첫 할 일 = 보통 할 일(createTask) + 보통 완료 경로(useTaskActions.complete → XP 10 §6 그대로).
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { headTop3d, SEED_COUNT, SEED_FRAMES, SEED_NAMES, seedCrackKey, seedTurnKey } from '@sprout/schema/characterArt'
+import { headTop3d, SEED_COUNT, SEED_PX, SEED_FRAMES, SEED_NAMES, seedCrackKey, seedTurnKey } from '@sprout/schema/characterArt'
 import { QUESTIONS, scoreSurvey, SPECIES, speciesFrom, XP, type Pick2, type Species } from '@sprout/schema/growth'
 import { iGa } from '@sprout/schema/josa'
 import { setSeed } from '@sprout/schema/wardrobe'
@@ -18,6 +18,7 @@ import { dayKey } from '../../lib/dates'
 import { artUrl } from './art3dUrls'
 import { ArtImage, CharacterArt } from './CharacterArt'
 import { onPerch, SceneBackdrop } from './Scene3D'
+import { PlayableCharacter, type PlayHandle } from './PlayableCharacter'
 import './make.css'
 
 export type MakeResult = { firstTask?: boolean; done?: boolean }
@@ -32,13 +33,13 @@ const wa = (w: string) => `${w}${iGa(w).slice(w.length) === '이' ? '과' : '와
 /** 구운 씨앗 그림 이름 — 아직 없는 컷(굽는 중)은 같은 씨앗의 첫 컷 → 흙빛 씨앗으로 */
 export function seedKeyOf(seed: number, turn = 0, cracks = 0): string {
   const want = cracks > 0 ? seedCrackKey(seed, cracks) : seedTurnKey(seed, turn)
-  if (artUrl(want, 320)) return want
-  if (cracks > 0 && artUrl(seedCrackKey(0, cracks), 320)) return seedCrackKey(0, cracks)
-  if (artUrl(seedTurnKey(seed, 0), 320)) return seedTurnKey(seed, 0)
+  if (artUrl(want, SEED_PX)) return want
+  if (cracks > 0 && artUrl(seedCrackKey(0, cracks), SEED_PX)) return seedCrackKey(0, cracks)
+  if (artUrl(seedTurnKey(seed, 0), SEED_PX)) return seedTurnKey(seed, 0)
   return seedTurnKey(0, 0)
 }
 export function SeedPic({ seed, turn = 0, cracks = 0, size, className }: { seed: number; turn?: number; cracks?: number; size: number; className?: string }) {
-  return <ArtImage artKey={seedKeyOf(seed, turn, cracks)} size={size} px={320} className={className} />
+  return <ArtImage artKey={seedKeyOf(seed, turn, cracks)} size={size} px={SEED_PX} className={className} />
 }
 
 /** 문서 테마가 다크인지(data-theme) */
@@ -90,7 +91,7 @@ export function MakeFlow({ onClose }: { onClose: (r?: MakeResult) => void }) {
   // 씨앗 48컷 미리 올림 — 돌릴 때 끊기지 않게
   useEffect(() => {
     for (let s = 0; s < SEED_COUNT; s++) for (let t = 0; t < SEED_FRAMES; t++) { const u = artUrl(seedTurnKey(s, t), 320); if (u) new Image().src = u }
-    for (const c of [1, 2]) { const u = artUrl(seedCrackKey(seed, c), 320); if (u) new Image().src = u }
+    for (const c of [1, 2]) { const u = artUrl(seedCrackKey(seed, c), SEED_PX); if (u) new Image().src = u }
   }, [seed])
 
   // ── 성향 ──
@@ -104,8 +105,9 @@ export function MakeFlow({ onClose }: { onClose: (r?: MakeResult) => void }) {
 
   // ── 움직임 도우미 ──
   const anim = (el: Element | null | undefined, frames: Keyframe[], o: KeyframeAnimationOptions) => { if (!reduced && el) el.animate(frames, o) }
-  const hopEl = useRef<HTMLDivElement>(null)
-  const hop = () => anim(hopEl.current, [{ transform: 'scale(1,1)' }, { transform: 'scale(1.08,.9)', offset: 0.18 }, { transform: 'translateY(-22px) scale(.95,1.06)', offset: 0.45 }, { transform: 'translateY(0) scale(1.06,.94)', offset: 0.7 }, { transform: 'scale(1,1)' }], { duration: 520, easing: 'ease-out' })
+  // 이름 · 첫 할 일 단계의 아기 = 만지기 v3 전부(49 §7.1) — 깡충은 공용 HOP(줄이기면 맥박)
+  const play = useRef<PlayHandle>(null)
+  const hop = () => play.current?.play('hop')
 
   const go = (n: Step) => { setError(''); setStep(n) }
   const primary = useRef<HTMLElement | null>(null)
@@ -314,7 +316,7 @@ export function MakeFlow({ onClose }: { onClose: (r?: MakeResult) => void }) {
                 {step === 4 && (
                   <div className="mk-scr" key="s4">
                     <div className="mk-copy"><p className="mk-h">이름을 지어 줄까요?</p><p className="mk-sub">나중에 성장 화면에서 바꿀 수 있어요.</p></div>
-                    <div ref={hopEl} className="mk-ch" style={at(220, 70)}><CharacterArt species={species} stage={1} size={220} seed={seed} mood={happy ? 'happy' : 'default'} motion="idle" wear={{ seed }} /></div>
+                    <div className="mk-ch" style={at(220, 70)}><PlayableCharacter level="full" handle={play} reduced={reduced} buttonLabel={`아기 ${SPECIES[species].name}. 눌러서 만져 보기`} species={species} stage={1} size={220} seed={seed} mood={happy ? 'happy' : 'default'} motion="idle" wear={{ seed }} /></div>
                     <div className="mk-bottom">
                       <label className="mk-name mk-glass">
                         <input ref={setPrimary} value={name} maxLength={10} aria-label="이름"
@@ -334,7 +336,7 @@ export function MakeFlow({ onClose }: { onClose: (r?: MakeResult) => void }) {
                   return (
                     <div className="mk-scr" key="s5">
                       <div className="mk-copy"><p className="mk-h">{wa(name.trim() || PET[species])} 함께<br />첫 할 일 하나만</p><p className="mk-sub">끝내면 바로 자라요. 작아도 괜찮아요.</p></div>
-                      <div ref={hopEl} className="mk-ch" style={top}><CharacterArt species={species} stage={1} size={170} seed={seed} mood={happy ? 'happy' : 'default'} motion="idle" wear={{ seed }} /></div>
+                      <div className="mk-ch" style={top}><PlayableCharacter level="full" handle={play} reduced={reduced} buttonLabel={`${name.trim() || PET[species]}. 눌러서 만져 보기`} species={species} stage={1} size={170} seed={seed} mood={happy ? 'happy' : 'default'} motion="idle" wear={{ seed }} /></div>
                       <div className={`mk-say mk-glass${task?.done ? '' : ' is-hide'}`} style={{ top: (top.top as number) + head.y * 170 - 8 }} aria-live="polite">{task?.done ? '하나 끝! 같이 자랐어' : ''}</div>
                       <div ref={xpEl} className="mk-xp" style={{ left: (top.left as number) + 140, top: (top.top as number) + 20 }}>+{XP.task}</div>
                       <div className="mk-bottom">

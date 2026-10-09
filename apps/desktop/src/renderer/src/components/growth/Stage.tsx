@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { bitSvg, HEART_SVG, headTop3d, SCENES3D, sceneDark, sceneKeyFor, titleOf } from '@sprout/schema/characterArt'
+import { bitSvg, headTop3d, SCENES3D, sceneDark, sceneGlass, sceneKeyFor, titleOf } from '@sprout/schema/characterArt'
 import { SPECIES, STAGES, stageOf, XP, type Species } from '@sprout/schema/growth'
 import { addDays } from '@sprout/schema/time'
 import {
@@ -10,6 +10,7 @@ import { catchUpOf, isSleepy, levelOfTotal, readSeenAt, renameCharacter, setGrow
 import { isProjectDeadlineToday, RAISE_FRESH, RAISE_PANEL, saveLook, useRaise } from '../../data/raise'
 import { dayKey } from '../../lib/dates'
 import { CharacterArt, type CharacterMood } from './CharacterArt'
+import { PlayableCharacter, type PlayHandle } from './PlayableCharacter'
 import { EvolutionMoment } from './EvolutionMoment'
 import { SeedPic, useDocDark } from './MakeFlow'
 import { ItemPic, LOOKS, RaisePanel } from './RaisePanel'
@@ -52,8 +53,8 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
   const species: Species | null = raise.species
   const name = species ? (character?.name || SPECIES[species].name) : '아직 모르는 씨앗'
   const stageEl = useRef<HTMLDivElement>(null)
-  const charEl = useRef<HTMLButtonElement>(null)
-  const inEl = useRef<HTMLSpanElement>(null)
+  const charEl = useRef<HTMLElement | null>(null)
+  const pc = useRef<PlayHandle>(null)
 
   // ── 시간 · 크기 ──
   const [hour, setHour] = useState(() => new Date().getHours())
@@ -86,6 +87,9 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
   const [evo, setEvo] = useState<Evo>()
   const [toast, setToast] = useState<{ items: Item[]; why: string; id: number }>()
   const [panel, setPanel] = useState<'ward' | 'dex' | null>(null)
+  /** 옷장 배경 탭에서 미리 보는 배경(49 §6.1) — 적용 전이라 저장하지 않는다. 옷장을 닫거나 도감으로 가면 원래대로 */
+  const [preview, setPreview] = useState<string | null>(null)
+  useEffect(() => { if (panel !== 'ward') setPreview(null) }, [panel])
   const [calm, setCalm] = useState(false)
   const [live, setLive] = useState('')
 
@@ -100,8 +104,9 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
   const curMood = mood?.m ?? baseMood
 
   const feel = useCallback((m: CharacterMood, ms?: number) => { const id = Date.now() + Math.random(); setMood({ m, id }); if (ms) later(() => setMood((r) => (r?.id === id ? undefined : r)), ms) }, [later])
-  const anim = useCallback((frames: Keyframe[], o: KeyframeAnimationOptions) => { if (reduced || !inEl.current) return; inEl.current.animate(frames, o) }, [reduced])
-  const hop = useCallback((h = 14) => anim([{ transform: 'none' }, { transform: 'scale(1.06,.93)', offset: 0.15 }, { transform: `translateY(-${h}px) scale(.96,1.05)`, offset: 0.45 }, { transform: 'scale(1.05,.95)', offset: 0.75 }, { transform: 'none' }], { duration: 440, easing: 'cubic-bezier(.3,.7,.4,1)' }), [anim])
+  const anim = useCallback((frames: Keyframe[], o: KeyframeAnimationOptions) => { const el = pc.current?.inner; if (reduced || !el) return; el.animate(frames, o) }, [reduced])
+  /** 깡충(49 §7.1 HOP — 움직임 줄이기면 맥박) · 작은 깡충 */
+  const hop = useCallback((small?: number) => pc.current?.play(small ? 'minihop' : 'hop'), [])
   const floatEl = useCallback((html: string, cls: string, ms = 900, dx = 0) => {
     const host = charEl.current
     if (!host) return
@@ -138,8 +143,6 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
     const all = [...old.slice(0, 1), ...own, ...old.slice(1)]
     return all[lineIdx.current++ % all.length]
   }
-
-  const drag = useRef({ on: false, down: false, sx: 0, sy: 0, x: 0, y: 0, pet: false, petT: 0, heartT: 0 })
 
   // ── 먹이: XP 방울 ──
   const mouth = (): Pt => { const r = charEl.current?.getBoundingClientRect(); return r ? { x: r.left + r.width / 2, y: r.top + r.height * 0.5 } : { x: 0, y: 0 } }
@@ -305,71 +308,19 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
     return () => window.removeEventListener(RAISE_PANEL, on)
   }, [])
 
-  // ── 만지기(43 §4.1) ──
-  const taps = useRef<number[]>([])
-  const tickleUntil = useRef(0)
-  const tap = () => {
-    if (!species) { setCracks((c) => Math.min(3, c + 1)); anim([0, -6, 6, -4, 0].map((r) => ({ transform: `rotate(${r}deg)` })), { duration: 600 }); say(nextLine()); return }
-    if (sleepy) { setWoke(true); feel('default', TOUCH.wakeMs); hop(8); say(TOUCH_LINES.wake); return }
-    const now = Date.now()
-    taps.current = [...taps.current.filter((t) => now - t < TOUCH.tickleWindowMs), now]
-    if (taps.current.length >= TOUCH.tickleTaps && now > tickleUntil.current) {
-      tickleUntil.current = now + TOUCH.tickleCooldownMs
-      taps.current = []
-      feel('giggle', 1800)
-      anim([0, -7, 7, -6, 6, -4, 4, 0].map((r, i) => ({ transform: `rotate(${r}deg) ${i % 2 ? 'scale(1.03,.97)' : ''}` })), { duration: 720, easing: 'ease-in-out' })
-      say(TOUCH_LINES.tickle)
-      return
-    }
-    hop()
-    if (!reduced) floatEl(HEART_SVG, 'gs2-heart', 1000)
+  // ── 만지기(43 §4.1 · 49 §7.1 v3) — 움직임은 PlayableCharacter(깡충 · 한 바퀴 · 간지럼 · 쓰다듬기 · 끌기 · 딴짓), 여기서는 말풍선 · 씨앗 · 졸음 ──
+  const intercept = () => {
+    if (!species) { setCracks((c) => Math.min(3, c + 1)); anim([0, -6, 6, -4, 0].map((r) => ({ transform: `rotate(${r}deg)` })), { duration: 600 }); say(nextLine()); return true }
+    if (sleepy) { setWoke(true); feel('default', TOUCH.wakeMs); hop(8); say(TOUCH_LINES.wake); return true }
+    return false
+  }
+  const onReact = (kind: string) => {
+    if (kind === 'giggle') { feel('giggle', 1800); say(TOUCH_LINES.tickle); return }
     feel('happy', 1500)
     say(nextLine())
   }
-  const onDown = (e: React.PointerEvent) => {
-    if (evo || e.button !== 0) return
-    const d = drag.current
-    Object.assign(d, { down: true, on: false, pet: false, sx: e.clientX, sy: e.clientY, x: 0, y: 0 })
-    try { charEl.current?.setPointerCapture(e.pointerId) } catch { /* */ }
-    if (!species) return
-    d.petT = window.setTimeout(() => {
-      if (d.on || !d.down) return
-      d.pet = true
-      feel('pet')
-      let n = 0
-      d.heartT = window.setInterval(() => { if (n++ >= 6) return; if (!reduced) floatEl(HEART_SVG, 'gs2-heart', 1100, (n % 2 ? -1 : 1) * (8 + n * 4)) }, 300)
-    }, TOUCH.petMs)
-  }
-  const onPMove = (e: React.PointerEvent) => {
-    const d = drag.current
-    if (!d.down || d.pet || !species) return
-    const dx = e.clientX - d.sx, dy = e.clientY - d.sy
-    if (!d.on && Math.hypot(dx, dy) > TOUCH.dragStartPx) { d.on = true; window.clearTimeout(d.petT); feel('wow') }
-    if (d.on && charEl.current) {
-      const r = Math.hypot(dx, dy), k = r > TOUCH.dragRadius ? TOUCH.dragRadius / r : 1
-      d.x = dx * k; d.y = Math.min(dy * k, TOUCH.dragDown)
-      charEl.current.style.transform = `translate(${d.x}px,${d.y}px)${reduced ? '' : ` rotate(${f(d.x / 9)}deg)`}`
-    }
-  }
-  const onUp = () => {
-    const d = drag.current
-    if (!d.down) return
-    d.down = false
-    window.clearTimeout(d.petT); window.clearInterval(d.heartT)
-    const el = charEl.current
-    if (d.on && el) {
-      const { x, y } = d, far = Math.hypot(x, y) > TOUCH.dropFarPx
-      el.style.transform = ''
-      if (reduced) el.animate([{ transform: `translate(${x}px,${y}px)` }, { transform: 'none' }], { duration: 160 })
-      else el.animate([{ transform: `translate(${x}px,${y}px) rotate(${f(x / 9)}deg)` }, { transform: `translate(${f(x * 0.35)}px,${f(Math.min(y, 0) - (far ? 34 : 16))}px) rotate(${f(-x / 14)}deg)`, offset: 0.34 }, { transform: 'translate(0,0) scale(1.08,.89)', offset: 0.6 }, { transform: 'translateY(-9px) scale(.97,1.04)', offset: 0.78 }, { transform: 'scale(1.02,.98)', offset: 0.9 }, { transform: 'none' }], { duration: 680, easing: 'cubic-bezier(.3,.7,.4,1)' })
-      feel('happy', 1600)
-      later(() => say(far ? TOUCH_LINES.dropFar : TOUCH_LINES.drop), 500)
-      d.on = false
-      return
-    }
-    if (d.pet) { d.pet = false; say(TOUCH_LINES.pet); feel('happy', 1500); return }
-    tap()
-  }
+  const onPetEnd = () => { say(TOUCH_LINES.pet); feel('happy', 1500) }
+  const onDrop = (far: boolean) => { feel('happy', 1600); later(() => say(far ? TOUCH_LINES.dropFar : TOUCH_LINES.drop), 500) }
   const callName = () => {
     if (!species) return
     setWave(true); feel('smile', TOUCH.callMs)
@@ -385,9 +336,19 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
 
   // ── 장면(49 §6) ──
   const docDark = useDocDark()
-  const bg = raise.worn.bg
-  const sceneKey = sceneKeyFor(bg, docDark || night)
+  const bg = preview ?? raise.worn.bg
+  // '자동'은 시각이 장면을 정한다(늦은 밤 = 별밤). 다른 배경은 다크 테마·늦은 밤에 밤 짝
+  const sceneKey = sceneKeyFor(bg, docDark || (bg !== 'auto' && night), hour)
   const dark = sceneDark(sceneKey)
+  const glass = sceneGlass(sceneKey)
+  // 장면이 바뀌면(미리 보기·적용·시각) 0.3초 교차 페이드: 옛 장면을 아래에 잠깐 남긴다
+  const [sc, setSc] = useState<{ cur: string; prev: string | null }>({ cur: sceneKey, prev: null })
+  if (sc.cur !== sceneKey) setSc({ cur: sceneKey, prev: sc.cur })
+  useEffect(() => {
+    if (!sc.prev) return
+    const t = window.setTimeout(() => setSc((x) => ({ ...x, prev: null })), 320)
+    return () => window.clearTimeout(t)
+  }, [sc.prev, sc.cur])
   const geo = stageGeo(dims.w, dims.h, sceneKey, !!panel)
   const box = geo.box
   const footX = dims.w / 2 + geo.shift
@@ -408,11 +369,23 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
   const didDays = new Set(events.filter((e) => e.kind === 'task' && e.amount > 0).map((e) => e.day))
   const days = Array.from({ length: 7 }, (_, i) => addDays(week, i))
   const shiftStyle = { transform: `translateX(${Math.round(geo.shift)}px)` }
+  const decor = species ? decorOn(level, raise.look) : []
+  const prevGeo = sc.prev ? stageGeo(dims.w, dims.h, sc.prev, !!panel) : null
+  // 유리 HUD · 글자 톤을 장면마다(49 §6.1 sceneGlass)
+  const toneStyle = {
+    ['--g-glass' as string]: glass.fill, ['--g-line' as string]: glass.line, ['--g-ink' as string]: glass.ink, ['--g-sub' as string]: glass.sub,
+    ['--glass' as string]: glass.fill, ['--glass-ink' as string]: glass.ink, ['--glass-line' as string]: glass.line
+  }
 
   return (
-    <div ref={stageEl} className={`gs2-stage gs3${dark ? ' is-dark' : ''}${reduced ? ' is-still' : ''}${geo.narrow ? ' is-narrow' : ''}${panel ? ' is-panel' : ''}`}>
-      <div className="gs3-scene" style={shiftStyle}>
-        {dims.w > 0 && <SceneBackdrop sceneKey={sceneKey} decor={species ? decorOn(level, raise.look) : []} style={{ position: 'absolute', ...geo.img }} />}
+    <div ref={stageEl} className={`gs2-stage gs3${dark ? ' is-dark' : ''}${reduced ? ' is-still' : ''}${geo.narrow ? ' is-narrow' : ''}${panel ? ' is-panel' : ''}`} style={toneStyle}>
+      {sc.prev && prevGeo && dims.w > 0 && (
+        <div className="gs3-scene" style={shiftStyle} aria-hidden="true">
+          <SceneBackdrop sceneKey={sc.prev} decor={decor} style={{ position: 'absolute', ...prevGeo.img }} />
+        </div>
+      )}
+      <div key={sceneKey} className={`gs3-scene${sc.prev ? ' is-in' : ''}`} style={shiftStyle}>
+        {dims.w > 0 && <SceneBackdrop sceneKey={sceneKey} decor={decor} style={{ position: 'absolute', ...geo.img }} />}
       </div>
 
       {/* 유리 주 달력 띠 */}
@@ -457,21 +430,16 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
 
       {/* 캐릭터(받침 위) */}
       <div className="gs2-pos" style={{ left: dims.w / 2 - box / 2, top: geo.footY - box * 0.9, width: box, height: box, visibility: evo ? 'hidden' : undefined, ...shiftStyle }}>
-        <button
-          ref={charEl}
-          className="gs2-char"
+        <PlayableCharacter
+          level="full" handle={pc} hostRef={charEl} reduced={reduced} disabled={!!evo}
+          buttonClass="gs2-char" innerClass="gs2-char__in"
           style={{ ['--head' as string]: `${Math.round((1 - head.y) * 100)}%` }}
-          aria-label={species ? `${name}, Lv ${level} ${stName}. 눌러서 말 걸기` : '아직 모르는 씨앗. 눌러서 두드리기'}
-          onPointerDown={onDown} onPointerMove={onPMove} onPointerUp={onUp} onPointerCancel={onUp}
-          onClick={(e) => { if (e.detail === 0) tap() }}
-        >
-          <span ref={inEl} className="gs2-char__in">
-            {species
-              ? <CharacterArt species={species} stage={stage} size={box} mood={curMood} motion="idle" calm={calm} wave={wave}
-                wear={{ lv: level, path: raise.look.path, eq, seed }} label={`${name} ${stName}`} />
-              : <span className="gs3-egg"><SeedPic seed={seed} cracks={Math.min(2, cracks)} size={box * 0.78} /></span>}
-          </span>
-        </button>
+          buttonLabel={species ? `${name}, Lv ${level} ${stName}. 눌러서 말 걸기` : '아직 모르는 씨앗. 눌러서 두드리기'}
+          intercept={intercept} onReact={onReact} onPetEnd={onPetEnd} onDrop={onDrop}
+          species={species} stage={stage} size={box} mood={curMood} motion="idle" calm={calm} wave={wave}
+          wear={{ lv: level, path: raise.look.path, eq, seed }} label={`${name} ${stName}`}
+          custom={species ? undefined : <span className="gs3-egg"><SeedPic seed={seed} cracks={Math.min(2, cracks)} size={box * 0.78} /></span>}
+        />
       </div>
       <div className="gs-live" aria-live="polite">{live}</div>
 
@@ -492,7 +460,7 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
         </div>
       )}
 
-      {species && <RaisePanel raise={raise} open={!!panel} tab={panel ?? 'ward'} onTab={(t) => setPanel(t)} onClose={() => setPanel(null)} onWorn={() => hop(8)} />}
+      {species && <RaisePanel raise={raise} open={!!panel} tab={panel ?? 'ward'} onTab={(t) => setPanel(t)} onClose={() => setPanel(null)} onWorn={() => hop(8)} preview={preview} onPreview={setPreview} />}
     </div>
   )
 }

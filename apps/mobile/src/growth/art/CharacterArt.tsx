@@ -7,11 +7,11 @@ import { createContext, createElement, memo, useContext, useEffect, useMemo, typ
 import { Image, StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native'
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg'
 import { parseSvg, rnProps, type SvgNode } from '@sprout/schema/svgTree'
-import { artFile, cropBox, layers3d, pickPx, seedCrackKey, seedTurnKey, type Box, type Crop, type Detail } from '@sprout/schema/characterArt'
+import { BIG_PX, MID_PX, SCENE_LOW_PX, SCENE_PX, SEED_PX, SMALL_PX, artFile, cropBox, layers3d, pickPx, seedCrackKey, seedTurnKey, type Box, type Crop, type Detail } from '@sprout/schema/characterArt'
 import { normalizeSpecies, stageOf, type Species } from '@sprout/schema/growth'
 import type { Equip, Path as LookPath } from '@sprout/schema/wardrobe'
 import { ART_FILES } from './art3dFiles'
-import { ensurePack, packUri, useArtPackVersion } from './art3dPacks'
+import { ensurePack, ensureScene, packUri, useArtPackVersion } from './art3dPacks'
 
 export type CharacterWear = { lv?: number; path?: LookPath; eq?: Partial<Equip>; seed?: number }
 type WearCtx = { species: Species | null; level: number; wear: CharacterWear } | null
@@ -28,8 +28,10 @@ export const useCharacterWear = () => useContext(WearContext)
 export function artSource(key: string, px: number): number | { uri: string } | null {
   const f = artFile(key, px)
   if (ART_FILES[f]) return ART_FILES[f]
-  if (px === 512 || /-spin$/.test(key)) { const u = packUri(f); if (u) return { uri: u } } // 종 묶음: 512 그림·회전 띠
-  return ART_FILES[artFile(key, 160)] ?? ART_FILES[artFile(key, 512)] ?? null
+  if (px === BIG_PX || px === SCENE_PX || /-spin$/.test(key)) { const u = packUri(f); if (u) return { uri: u } } // 종 묶음(768·회전 띠) · 배경 묶음(장면 1170)
+  if (key.startsWith('scene-')) { if (px === SCENE_PX) void ensureScene(key); return ART_FILES[artFile(key, SCENE_LOW_PX)] ?? null } // 받는 동안 390 미리보기
+  // 아직 없으면 앱 안의 다른 크기로(큰 것부터 — 384가 160보다 덜 흐리다)
+  return ART_FILES[artFile(key, BIG_PX)] ?? ART_FILES[artFile(key, MID_PX)] ?? ART_FILES[artFile(key, SMALL_PX)] ?? null
 }
 export { useArtPackVersion }
 
@@ -114,7 +116,7 @@ export const CharacterArt = memo(function CharacterArt({ species, stage = 1, siz
     return { keys: L.map((l) => l.key), box: cropBox(sp, st, cr, w?.path, seedNo), sleepy: sl }
   }, [sp, st, w?.path, w?.eq?.hat, w?.eq?.neck, w?.eq?.hand, w?.eq?.back, seedNo, mood, size, cracks, turn, cr, blink !== undefined, !!tint]) // eslint-disable-line react-hooks/exhaustive-deps
   const full = size / box.w
-  const px = sp ? pickPx(full) : 320
+  const px = sp ? pickPx(full) : SEED_PX
   const sleepySrc = sleepy ? artSource(sleepy, px) : null
   const img = { position: 'absolute', width: full, height: full, left: -box.x * full, top: -box.y * full, ...(tint ? { tintColor: tint } : null) } as ImageStyle
   return (

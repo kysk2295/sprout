@@ -3,7 +3,7 @@
 // 받은 뒤 그리는 곳을 다시 그리게 판 번호(version)를 올린다 — CharacterArt가 useArtPackVersion으로 구독.
 import { Directory, File, Paths } from 'expo-file-system'
 import { useSyncExternalStore } from 'react'
-import { ART3D_PACK_URL, ART3D_VERSION, packFiles } from '@sprout/schema/characterArt'
+import { ART3D_PACK_URL, ART3D_VERSION, bgPackFile, packFiles } from '@sprout/schema/characterArt'
 import type { Species } from '@sprout/schema/growth'
 
 let version = 0
@@ -65,5 +65,27 @@ export function ensurePack(sp: Species): Promise<void> {
     if (got) bump()
   })().finally(() => running.delete(sp))
   running.set(sp, job)
+  return job
+}
+
+/** 배경 묶음(49 §6.1): 고른·미리 보는 장면의 1170 그림 하나를 받는다(받는 동안 390 미리보기) */
+const sceneJobs = new Map<string, Promise<void>>()
+export function ensureScene(sceneKey: string): Promise<void> {
+  const f = bgPackFile(sceneKey)
+  if (packUri(f)) return Promise.resolve()
+  const prev = sceneJobs.get(f)
+  if (prev) return prev
+  const job = (async () => {
+    const d = packDir()
+    if (!d) return
+    try {
+      const tmp = new File(d, `${f}.part`)
+      if (tmp.exists) tmp.delete()
+      const out = await File.downloadFileAsync(ART3D_PACK_URL + f, tmp)
+      out.move(new File(d, f))
+      bump()
+    } catch { /* 네트워크 — 다음에 다시 */ }
+  })().finally(() => sceneJobs.delete(f))
+  sceneJobs.set(f, job)
   return job
 }

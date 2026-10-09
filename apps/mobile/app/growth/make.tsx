@@ -5,12 +5,14 @@
 // 0·1·2단계 `나중에` = 닫기(성장 화면에 씨앗이 남고 같은 흐름을 다시 연다). 순수 계산은 src/growth/make/flow.ts.
 import { SEED_NAMES } from '@sprout/schema/characterArt'
 import { XP, type Pick2, type Species } from '@sprout/schema/growth'
-import { useRouter } from 'expo-router'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useIsFocused, useRouter } from 'expo-router'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AccessibilityInfo, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native'
 import Animated, { Easing, FadeIn, FadeOut, Keyframe, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { SceneBackdrop } from '../../src/growth/art/Scene3D'
+import { useCharacterWear } from '../../src/growth/art/CharacterArt'
+import { myScene } from '../../src/growth/home/glass'
 import { assignCharacter } from '../../src/growth/data'
 import {
   answerQuiz, backQuiz, canSkip, cleanName, cleanTask, dotOf, FIRST_DONE_LINE, firstTitle, HATCH0, HATCH_T, NAME_MAX, nameChips, nameCount, PET_NAME,
@@ -74,11 +76,13 @@ export default function MakeCharacter() {
     } finally { saving.current = false }
   }
 
-  const sceneKey = p.dark ? 'scene-dusk' : 'scene-dawn'
+  // 만들기 흐름 = 새벽(다크 = 별밤), 6 정원 도착 = 내 배경 장면(49 §6.1, 기본 `자동`) — 0.3초 교차 페이드
+  const myBg = useCharacterWear()?.wear.eq?.bg
+  const sceneKey = step >= 6 ? myScene(myBg, p.dark) : p.dark ? 'scene-dusk' : 'scene-dawn'
   const dot = dotOf(step)
   return (
     <Animated.View style={[{ flex: 1, backgroundColor: p.dark ? '#1F2846' : '#EDC4B1' }, rootStyle]}>
-      <SceneBackdrop sceneKey={sceneKey} width={width} height={height} align="center" style={StyleSheet.absoluteFill} />
+      <SceneBackdrop sceneKey={sceneKey} width={width} height={height} align="center" fade={300} style={StyleSheet.absoluteFill} />
       <View style={[st.head, { paddingTop: insets.top + 10 }]}>
         {dot >= 0 ? <Dots c={c} on={dot} /> : <View />}
         {canSkip(step) ? (
@@ -312,11 +316,36 @@ function StepHatch({ c, seed, species, answers, width, height, size, reduced, on
 }
 
 // ── 4 이름 ──
+/** 만지기 한 줄(49 §7.1 간지럼·쓰다듬기) — 2.6초 */
+function useLine(): [{ text: string; id: number } | null, (text: string) => void] {
+  const [line, setLine] = useState<{ text: string; id: number } | null>(null)
+  const tm = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(tm.current), [])
+  const say = useCallback((text: string) => {
+    const id = Date.now()
+    setLine({ text, id }); clearTimeout(tm.current)
+    tm.current = setTimeout(() => setLine((l) => (l?.id === id ? null : l)), 2600)
+  }, [])
+  return [line, say]
+}
+function LineBubble({ c, line }: { c: MakeColors; line: { text: string; id: number } | null }) {
+  if (!line) return null
+  return (
+    <View style={st.lineBox} pointerEvents="none">
+      <Animated.View key={line.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(180)}>
+        <Glass c={c} blur={false} radius={18} style={st.speech}><Text style={[st.speechText, { color: c.ink }]} accessibilityLiveRegion="polite">{line.text}</Text></Glass>
+      </Animated.View>
+    </View>
+  )
+}
+
 function StepName({ c, seed, species, reduced, onSave }: { c: MakeColors; seed: number; species: Species; reduced: boolean; onSave: (name: string) => void }) {
   const [name, setName] = useState(PET_NAME[species])
   const [typing, setTyping] = useState(false)
   const [box, setBox] = useState(230)
   const baby = useRef<BabyHandle>(null)
+  const focused = useIsFocused()
+  const [line, say] = useLine()
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
   const onType = (v: string) => {
@@ -329,7 +358,10 @@ function StepName({ c, seed, species, reduced, onSave }: { c: MakeColors; seed: 
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <Copy c={c} style={st.copy} title="이름을 지어 줄까요?" sub="나중에 성장 화면에서 바꿀 수 있어요." />
       <Middle onLayout={(e) => setBox(Math.max(90, Math.min(230, Math.floor(e.nativeEvent.layout.height - 12))))}>
-        <Baby ref={baby} species={species} seed={seed} size={box} mood={typing ? 'happy' : 'default'} reduced={reduced} />
+        <View>
+          <Baby ref={baby} species={species} seed={seed} size={box} mood={typing ? 'happy' : 'default'} reduced={reduced} play active={focused} onSay={say} label={`${name || PET_NAME[species]}. 눌러서 만지기`} />
+          <LineBubble c={c} line={line} />
+        </View>
       </Middle>
       <View style={st.bottom}>
         <Glass c={c} radius={20} style={st.nameField}>
@@ -354,6 +386,8 @@ function StepFirst({ c, seed, species, name, reduced, onNext }: { c: MakeColors;
   const [draft, setDraft] = useState('')
   const [done, setDone] = useState(false)
   const baby = useRef<BabyHandle>(null)
+  const focused = useIsFocused()
+  const [line, sayLine] = useLine()
   const busy = useRef(false)
   const xp = useSharedValue(0), say = useSharedValue(0)
   const xpA = useAnimatedStyle(() => ({ opacity: xp.value <= 0 ? 0 : xp.value < 0.25 ? xp.value / 0.25 : 1 - (xp.value - 0.25) / 0.75, transform: [{ translateY: xp.value < 0.25 ? -10 * (xp.value / 0.25) : -10 - 24 * ((xp.value - 0.25) / 0.75) }] }))
@@ -393,7 +427,10 @@ function StepFirst({ c, seed, species, name, reduced, onNext }: { c: MakeColors;
           <Animated.View style={[sayA, { marginBottom: 8 }]} accessibilityElementsHidden={!done}>
             <Glass c={c} blur={false} radius={18} style={st.speech}><Text style={[st.speechText, { color: c.ink }]}>{FIRST_DONE_LINE}</Text></Glass>
           </Animated.View>
-          <Baby ref={baby} species={species} seed={seed} size={170} mood={done ? 'happy' : 'default'} reduced={reduced} />
+          <View>
+            <Baby ref={baby} species={species} seed={seed} size={170} mood={done ? 'happy' : 'default'} reduced={reduced} play active={focused} onSay={sayLine} label={`${name}. 눌러서 만지기`} />
+            <LineBubble c={c} line={line} />
+          </View>
           <Animated.Text style={[st.xp, { color: c.honey }, xpA]} accessibilityElementsHidden>+{XP.task}</Animated.Text>
         </View>
       </Middle>
@@ -464,6 +501,7 @@ const st = StyleSheet.create({
   taskInput: { padding: 0 },
   taskWhen: { fontSize: 12, fontWeight: '600', opacity: 0.6 },
   speech: { paddingHorizontal: 14, paddingVertical: 10, maxWidth: 230 },
+  lineBox: { position: 'absolute', left: -60, right: -60, top: -8, alignItems: 'center' },
   speechText: { fontSize: 14, lineHeight: 19, fontWeight: '600' },
   xp: { position: 'absolute', right: -36, top: 0, fontSize: 22, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.25)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 2 } }
 })

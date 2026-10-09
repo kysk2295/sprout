@@ -50,12 +50,12 @@ extraResources:
   # Windows 트레이(템플릿 이미지가 없어 색 있는 .ico를 쓴다 — mini.ts가 win32에서 읽음)
   - from: resources/tray.ico
     to: tray.ico
-  # 49 §8.1 위젯 캐릭터 그림(main/widgetArt.ts가 resources/art3d에서 읽어 PNG로 굽는다) — 512 층 + 씨앗 앞모습 320만
+  # 49 §8.1 위젯 캐릭터 그림(main/widgetArt.ts가 resources/art3d에서 읽어 PNG로 굽는다) — 384 층 + 씨앗 앞모습 512만
   - from: ../../packages/schema/art3d
     to: art3d
     filter:
-      - "*@512.webp"
-      - "seed*-t00@320.webp"
+      - "*@384.webp"
+      - "seed*-t00@512.webp"
 
 protocols:
   - name: sprout

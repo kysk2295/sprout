@@ -4,7 +4,7 @@
 // 실루엣·잠김 = 같은 층 모양(CSS mask)에 한 색 — 따로 구운 그림·filter 없음(40 §7).
 // 입힌 옷: wear를 넘기지 않으면 CharacterWearProvider(내 캐릭터의 모습·레벨)를 쓴다 — 같은 종·같은 단계일 때만.
 import { createContext, memo, useContext, useMemo, type CSSProperties, type ReactNode } from 'react'
-import { cropBox, layers3d, pickPx, seedCrackKey, seedTurnKey, type Box, type Crop, type Detail } from '@sprout/schema/characterArt'
+import { SEED_PX, cropBox, layers3d, pickPx, seedCrackKey, seedTurnKey, type Box, type Crop, type Detail } from '@sprout/schema/characterArt'
 import { normalizeSpecies, stageOf, type Species } from '@sprout/schema/growth'
 import type { Equip, Path } from '@sprout/schema/wardrobe'
 import { artUrl } from './art3dUrls'
@@ -81,7 +81,7 @@ export const CharacterArt = memo(function CharacterArt({ species, stage = 1, siz
     return { keys: L.map((l) => l.key), box: cropBox(sp, st, cr, w?.path, seedNo), sleepy: tint ? null : face.replace(/-face-[a-z]+$/, '-face-sleepy') }
   }, [sp, st, w?.path, w?.eq?.hat, w?.eq?.neck, w?.eq?.hand, w?.eq?.back, seedNo, mood, size, cracks, turn, cr, tint])
   const full = size / box.w
-  const px = sp ? pickPx(full, 2) : 320
+  const px = sp ? pickPx(full, 2) : SEED_PX
   const pos: CSSProperties = { width: full, height: full, left: -box.x * full, top: -box.y * full }
   const showBlink = !!sleepy && (blink || idle)
   const cls = `character c3${sp ? ` sp-${sp} st-${st}` : ' egg'}${idle ? ' live' : ''}${calm ? ' calm' : ''}${wave ? ' wave' : ''}${blink ? ' blink' : ''}${tint ? ' tinted' : ''}${className ? ` ${className}` : ''}`

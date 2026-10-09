@@ -6,7 +6,7 @@
 <title>꿈틀 · 캐릭터 v3 (49 시안)</title>
 <!-- 49 캐릭터 v3 시안. 그림은 전부 scripts/characters3d(Blender 절차 생성)에서 구운 assets/char3d/*.webp.
      v2 비교만 같은 폴더의 kkumteul-art.js(지금 그림)를 읽는다. 외부 네트워크 없음.
-     주소 인자: ?theme=dark · ?sp=snail|frog|bee|worm · ?only=cmp,make,home,ward,dex,evo,where,calm,budget(한 섹션만, 캡처용)
+     주소 인자: ?theme=dark · ?sp=snail|frog|bee|worm · ?only=cmp,make,home,ward,dex,evo,play,where,calm,budget(한 섹션만, 캡처용)
                 · ?step=0..6(만들기 흐름 시작 단계) · ?calm=subtle|bold -->
 <style>
 :root {
@@ -53,6 +53,22 @@ section.s > p.lead { margin: 0 0 22px; color: var(--ink-2); font: 400 14.5px/1.6
 :root[data-theme="dark"] .chipbtn.on { color: var(--accent-hi) }
 .cap { margin-top: 10px; text-align: center; color: var(--ink-3); font: 600 12px/1.4 var(--font) }
 .rec { display: inline-block; background: var(--accent); color: #fff; border-radius: 6px; padding: 1px 7px; font: 700 11px/18px var(--font); margin-left: 6px }
+
+/* ── E2. 만지기 v3 ── */
+.playbox { position: relative; width: 390px; height: 420px; border-radius: 28px; overflow: hidden; flex: none; user-select: none }
+.playbox .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 62% }
+.pl-pos { position: absolute; left: 75px; top: 110px; width: 240px; height: 240px; cursor: pointer; touch-action: none }
+.pl-move, .pl-art, .pl-spin { position: absolute; inset: 0; transform-origin: 50% 90% }
+.pl-art img { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none }
+.pl-spin { overflow: hidden; opacity: 0 }
+.pl-spin img { position: absolute; left: 0; top: 0; height: 100%; width: 1200%; max-width: none }
+.pl-fx { position: absolute; inset: 0; pointer-events: none }
+.pl-fx i { position: absolute; left: 50%; top: 90%; width: 7px; height: 5px; border-radius: 50% }
+.pl-fx i.leaf { width: 8px; border-radius: 0 70% 0 70% }
+.pl-fx b { position: absolute; left: 50%; top: 22%; width: 16px; height: 16px }
+.pl-fx b svg { display: block; width: 100%; height: 100% }
+#plSay { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); padding: 9px 14px; font: 650 13px var(--font); white-space: nowrap; border-radius: 16px; transition: opacity .2s }
+#plSay.hide { opacity: 0 }
 
 /* ── 휴대폰 틀 ── */
 .phone { position: relative; width: 390px; height: 844px; border-radius: 48px; overflow: hidden; background: #000; box-shadow: 0 0 0 10px #101312, 0 0 0 11px #2A302D, 0 30px 60px rgba(0,0,0,.28); isolation: isolate; flex: none; color: var(--glass-ink) }
@@ -269,7 +285,7 @@ table.t th { color: var(--ink-3); font-weight: 700; font-size: 12px }
   <div class="seg" id="mvSeg"><button data-v="on">움직임</button><button data-v="off">줄이기</button></div>
 </header>
 <nav class="toc">
-  <a href="#cmp">0 v2 ↔ v3</a><a href="#make">A 만들기 흐름</a><a href="#home">B 성장 홈</a><a href="#ward">C 옷장</a><a href="#dex">D 도감</a><a href="#evo">E 진화</a><a href="#where">F 보이는 곳</a><a href="#calm">G 할 일 화면 채움 정도</a><a href="#budget">H 파이프라인·예산</a>
+  <a href="#cmp">0 v2 ↔ v3</a><a href="#make">A 만들기 흐름</a><a href="#home">B 성장 홈</a><a href="#ward">C 옷장</a><a href="#dex">D 도감</a><a href="#evo">E 진화</a><a href="#play">E2 만지기 v3</a><a href="#where">F 보이는 곳</a><a href="#calm">G 할 일 화면 채움 정도</a><a href="#budget">H 파이프라인·예산</a>
 </nav>
 
 <!-- 0. 비교 -->
@@ -439,6 +455,29 @@ table.t th { color: var(--ink-3); font-weight: 700; font-size: 12px }
   <div class="row"><div class="phone" id="evoPhone"></div>
     <div class="panel" style="max-width:420px"><div class="btns"><button class="chipbtn" id="evoPlay">진화 재생 (친구 → 전설)</button><button class="chipbtn" id="evoPlay2">부화 재생 (씨앗 → 아기)</button></div>
     <ul><li>0–0.25초 어두워짐 + 옛 모습 웅크림 · 0.26–0.9초 흰 실루엣 꿀렁 세 번 · 0.9–1.2초 빛 방울로 쪼그라듦 · 1.2초 고리 두 겹 + 새 실루엣 톡 · 1.45초 색 그림이 드러남 · 1.66초 이름 카드.</li><li>쓰는 속성은 transform·opacity뿐(39 §11).</li></ul></div>
+  </div>
+</section>
+
+<!-- E2. 만지기 v3 -->
+<section class="s" id="play">
+  <h2>E2. 만지기 v3 — 깡충 · 한 바퀴 · 간지럼 · 쓰다듬기</h2>
+  <p class="lead">캐릭터를 눌러 보세요. 한 번 = 깡충(착지 때 흙·잎 조각), 두 번 연달아나 3번째마다 = 공중에서 한 바퀴(미리 구운 12컷 회전 띠를 넘김), 빠르게 4번 = 간지럼, 길게 누르기 = 쓰다듬기. 규칙·시간은 49 §7.1(공용 charPlay). 보상은 없어요.</p>
+  <div class="row">
+    <div class="playbox" id="playBox">
+      <img class="bg" id="playBg" alt="">
+      <div class="pl-pos" id="plPos">
+        <div class="pl-move" id="plMove">
+          <div class="pl-art" id="plArt"><img id="plBody" alt=""><img id="plFace" alt=""></div>
+          <div class="pl-spin" id="plSpin"><img id="plStrip" alt=""></div>
+        </div>
+        <div class="pl-fx" id="plFx"></div>
+      </div>
+      <div class="speech glass hide" id="plSay"></div>
+    </div>
+    <div class="panel" style="max-width:420px">
+      <div class="btns"><button class="chipbtn" data-pl="hop">깡충</button><button class="chipbtn" data-pl="spin">한 바퀴</button><button class="chipbtn" data-pl="giggle">간지럼</button><button class="chipbtn" data-pl="pet">쓰다듬기</button></div>
+      <ul><li>깡충 0.52초: 웅크림 1.10×0.88 → 뜸(상자 16%) → 착지 눌림 → 제자리.</li><li>한 바퀴 0.9초: 32%까지 뜨고 22~72% 구간에 띠 12컷(30°씩). 도는 동안 옷 층은 숨긴다.</li><li>간지럼 0.72초: ±7° 일곱 번 + <i>히히, 간지러워!</i> 뒤 4초는 깡충만.</li><li>쓰다듬기: 누르는 동안 ±4° 흔들림 + 하트·반짝(0.35초마다 6개까지), 떼면 <i>헤헤, 고마워</i>.</li><li>움직임 줄이기: 얼굴과 작은 맥박(1.04)만. 띠 파일: <code id="plFile"></code></li></ul>
+    </div>
   </div>
 </section>
 
@@ -817,6 +856,99 @@ function renderBudget() {
   $('#budgetT').innerHTML = /*BUDGET*/"<tr><th>항목<\/th><th>이번 시제품 실측<\/th><\/tr><tr><td>캐릭터 512 (몸+얼굴)<\/td><td>20장 · 평균 20 KB<\/td><\/tr><tr><td>캐릭터 160<\/td><td>27장 · 평균 4 KB<\/td><\/tr><tr><td>얼굴 층 512<\/td><td>평균 2 KB<\/td><\/tr><tr><td>옷 층 512<\/td><td>평균 7 KB<\/td><\/tr><tr><td>씨앗 320 (4 × 회전 12 + 금 2)<\/td><td>56장 · 합 397 KB<\/td><\/tr><tr><td>장면 780×1560 (낮·새벽·밤)<\/td><td>합 38 KB<\/td><\/tr><tr><td>머리 띠 780×280 (낮·밤)<\/td><td>합 9 KB<\/td><\/tr><tr><td>앱 기본 묶음 추정<\/td><td>≈ 0.76 MB (씨앗 + 아기 4종×2 512 + 160 40장 + 장면 + 띠)<\/td><\/tr><tr><td>내 종 내려받기 추정<\/td><td>≈ 0.36 MB (몸 512 ×10 + 얼굴 50 + 160 ×10)<\/td><\/tr><tr><td>굽는 시간(M3 Pro CPU)<\/td><td>768px 캐릭터 30~45초 · 씨앗 320 ≈ 5초 · 장면 780×1560 ≈ 1분<\/td><\/tr>"/*/BUDGET*/
 }
 
+/* ───────── E2. 만지기 v3(49 §7.1 — 키·규칙은 packages/schema/src/charPlay.ts를 그대로 옮김) ───────── */
+const ART = '../../../packages/schema/art3d/'
+const PL = {
+  hop: { ms: 520, keys: [[0, 0, 1, 1], [.16, 0, 1.1, .88], [.42, -.16, .93, 1.09], [.66, 0, 1.12, .86], [.82, 0, .97, 1.03], [1, 0, 1, 1]], land: .66 },
+  spin: { ms: 900, spin: [.22, .72], keys: [[0, 0, 1, 1], [.14, 0, 1.12, .86], [.3, -.26, .94, 1.08], [.5, -.32, 1, 1], [.72, -.06, 1, 1], [.8, 0, 1.13, .85], [.9, 0, .97, 1.04], [1, 0, 1, 1]], land: .8 },
+  giggle: { ms: 720, keys: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => [i / 7, 0, 1, i % 2 ? .97 : 1.02, i === 0 || i === 7 ? 0 : i % 2 ? -7 : 7]) },
+  pet: { ms: 1600, loop: true, keys: [[0, 0, 1.02, .97, 0], [.25, 0, 1.03, .96, -4], [.75, 0, 1.03, .96, 4], [1, 0, 1.02, .97, 0]] },
+  pulse: { ms: 260, keys: [[0, 0, 1, 1], [.5, 0, 1.04, 1.04], [1, 0, 1, 1]] }
+}
+const plS = { run: null, raf: 0, taps: [], count: 0, cool: 0, down: 0, petT: 0, bitT: 0, pet: false, sayT: 0 }
+function plSample(m, t) {
+  const ks = m.keys, out = []
+  for (let f = 1; f <= 4; f++) {
+    const d = f === 1 || f === 4 ? 0 : 1
+    let a = null, b = null
+    for (const k of ks) { if (k[f] === undefined) continue; if (k[0] <= t) a = k; if (k[0] >= t && !b) b = k }
+    if (!a && !b) { out.push(d); continue }
+    if (!a) { out.push(b[f]); continue }
+    if (!b || a === b) { out.push(a[f]); continue }
+    const u = (t - a[0]) / Math.max(1e-6, b[0] - a[0]), s = u * u * (3 - 2 * u)
+    out.push(a[f] + (b[f] - a[f]) * s)
+  }
+  return out
+}
+const plFace = (m) => { $('#plFace').src = `${ART}${S.sp}-3-face-${m}@512.webp` }
+function plSay(t) { const el = $('#plSay'); el.textContent = t; el.classList.remove('hide'); clearTimeout(plS.sayT); plS.sayT = setTimeout(() => el.classList.add('hide'), 2000) }
+function plDust() {
+  const fx = $('#plFx'), C = ['#A67C52', '#8E6A45', '#C49A6C', '#7FA36B', '#97B97E']
+  for (let i = 0; i < 5; i++) {
+    const d = document.createElement('i'); if (i % 3 === 2) d.className = 'leaf'; d.style.background = C[(i * 2) % 5]; fx.appendChild(d)
+    const sd = i % 2 ? 1 : -1, dx = sd * (30 + Math.random() * 36), dy = -(10 + Math.random() * 16)
+    d.animate([{ transform: 'translate(-50%,-50%) scale(.5)', opacity: 0 }, { transform: `translate(calc(-50% + ${dx * .6}px),calc(-50% + ${dy}px)) rotate(${sd * 40}deg)`, opacity: 1, offset: .35 }, { transform: `translate(calc(-50% + ${dx}px),calc(-50% + ${dy * .2}px)) rotate(${sd * 90}deg) scale(.8)`, opacity: 0 }], { duration: 420, easing: 'cubic-bezier(.2,.8,.4,1)', fill: 'both' }).onfinish = () => d.remove()
+  }
+}
+const HEART = '<svg viewBox="0 0 14 14"><path d="M7 12.5 C2 9 .5 6.5 .5 4.3 C.5 2.3 2 1 3.8 1 C5.2 1 6.3 1.8 7 3 C7.7 1.8 8.8 1 10.2 1 C12 1 13.5 2.3 13.5 4.3 C13.5 6.5 12 9 7 12.5Z" fill="#FF7FA6"/></svg>'
+const SPARK = '<svg viewBox="0 0 14 14"><path d="M7 .5 C7.6 4.6 9.4 6.4 13.5 7 C9.4 7.6 7.6 9.4 7 13.5 C6.4 9.4 4.6 7.6 .5 7 C4.6 6.4 6.4 4.6 7 .5Z" fill="#FFD36B"/></svg>'
+function plBit(i) {
+  const b = document.createElement('b'); b.innerHTML = i % 3 === 1 ? SPARK : HEART; b.style.marginLeft = `${(i % 2 ? 1 : -1) * (12 + (i % 3) * 14)}px`; $('#plFx').appendChild(b)
+  b.animate([{ transform: 'translate(-50%,0) scale(.6)', opacity: 0 }, { transform: 'translate(-50%,-6px)', opacity: 1, offset: .25 }, { transform: 'translate(-50%,-38px) scale(.9)', opacity: 0 }], { duration: 1000, easing: 'ease-out', fill: 'both' }).onfinish = () => b.remove()
+}
+let plStripOk = false
+function plPlay(kind) {
+  let m = PL[kind]
+  if (reduce()) m = PL.pulse
+  if (kind === 'spin' && !plStripOk) m = PL.hop // 띠가 아직 없으면 한 바퀴 대신 깡충
+  plFace(kind === 'giggle' || kind === 'pet' || kind === 'hop' || kind === 'spin' ? 'happy' : 'default')
+  plS.run = { m, t0: performance.now(), landed: false }
+  if (!plS.raf) plS.raf = requestAnimationFrame(plTick)
+}
+function plTick(now) {
+  const r = plS.run; if (!r) { plS.raf = 0; return }
+  let t = (now - r.t0) / r.m.ms
+  if (t >= 1) { if (r.m.loop && plS.pet) { r.t0 = now; t = 0 } else { plS.run = null; plS.raf = 0; $('#plMove').style.transform = ''; $('#plSpin').style.opacity = 0; $('#plArt').style.opacity = 1; setTimeout(() => !plS.run && plFace('default'), reduce() ? 700 : 0); return } }
+  const [y, sx, sy, rot] = plSample(r.m, t)
+  $('#plMove').style.transform = `translateY(${y * 240}px) rotate(${rot}deg) scale(${sx},${sy})`
+  if (r.m.spin) {
+    const on = t > r.m.spin[0] && t < r.m.spin[1], k = on ? Math.floor((t - r.m.spin[0]) / (r.m.spin[1] - r.m.spin[0]) * 12) % 12 : 0
+    $('#plSpin').style.opacity = on ? 1 : 0; $('#plArt').style.opacity = on ? 0 : 1
+    $('#plStrip').style.transform = `translateX(${-k * 240}px)`
+  }
+  if (r.m.land && !r.landed && t >= r.m.land) { r.landed = true; plDust() }
+  plS.raf = requestAnimationFrame(plTick)
+}
+function plTap() {
+  const now = Date.now(); plS.taps = [...plS.taps.filter((x) => now - x < 1200), now]; plS.count++
+  const cooling = now < plS.cool
+  let k = 'hop'
+  if (!cooling && plS.taps.length >= 4) { k = 'giggle'; plS.cool = now + 4000; plS.taps = []; plS.count = 0; plSay('히히, 간지러워!') }
+  else if (!cooling && ((plS.taps.length >= 2 && now - plS.taps[plS.taps.length - 2] < 300) || plS.count % 3 === 0)) { k = 'spin'; plS.count = 0 }
+  plPlay(k)
+}
+function plPetStart() { plS.pet = true; plPlay('pet'); if (reduce()) return; let n = 0; plS.bitT = setInterval(() => { if (n < 6) plBit(n++) }, 350) }
+function plPetEnd() { plS.pet = false; clearInterval(plS.bitT); plSay('헤헤, 고마워') }
+function renderPlay() {
+  $('#playBg').src = sceneFor('home')
+  $('#plBody').src = `${ART}${S.sp}-3a@512.webp`; plFace('default')
+  const strip = `${ART}${S.sp}-3a-spin@240.webp`
+  $('#plFile').textContent = strip.replace(ART, 'art3d/')
+  plStripOk = false; $('#plStrip').onload = () => { plStripOk = true }; $('#plStrip').onerror = () => { plStripOk = false }; $('#plStrip').src = strip
+}
+{
+  const pos = $('#plPos')
+  pos.onpointerdown = (e) => { plS.down = 1; plS.pet = false; pos.setPointerCapture(e.pointerId); plS.petT = setTimeout(() => { if (plS.down) plPetStart() }, 500) }
+  pos.onpointerup = () => { if (!plS.down) return; plS.down = 0; clearTimeout(plS.petT); if (plS.pet) plPetEnd(); else plTap() }
+  pos.onpointercancel = () => { plS.down = 0; clearTimeout(plS.petT); if (plS.pet) plPetEnd() }
+  $$('[data-pl]').forEach((b) => b.onclick = () => {
+    const k = b.dataset.pl
+    if (k === 'pet') { plPetStart(); setTimeout(plPetEnd, 2400); return }
+    if (k === 'giggle') plSay('히히, 간지러워!')
+    plPlay(k)
+  })
+}
+
 /* ───────── 공통 ───────── */
 function syncSeg() {
   $$('#spSeg button').forEach((b) => b.classList.toggle('on', b.dataset.v === S.sp))
@@ -827,7 +959,7 @@ function syncSeg() {
 function renderAll() {
   document.documentElement.dataset.theme = S.theme
   $('#makeBg').src = sceneFor('make'); mk.style.color = dark() ? '#fff' : '#13211B'
-  renderCmp(); renderHome(); renderWard(); renderDex(); renderEvo(); renderWhere(); renderCalm(); renderBudget(); drawTurn(); syncSeg()
+  renderCmp(); renderHome(); renderWard(); renderDex(); renderEvo(); renderPlay(); renderWhere(); renderCalm(); renderBudget(); drawTurn(); syncSeg()
   if (S.step) go(S.step)
 }
 $$('#spSeg button').forEach((b) => b.onclick = () => { S.sp = b.dataset.v; renderAll() })

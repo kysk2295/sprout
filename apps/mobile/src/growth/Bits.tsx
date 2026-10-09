@@ -28,15 +28,31 @@ function Bit({ x, y, r, c, w }: { x: number; y: number; r: number; c: string; w:
 }
 
 /** 하트가 떠오르며 사라짐(1.1초) — 43 쓰다듬기·누르기 */
-export function Heart({ dx }: { dx: number; color?: string }) {
+export function Heart({ dx, rise = 70, size = 18, spark }: { dx: number; color?: string; rise?: number; size?: number; spark?: boolean }) {
   const t = useSharedValue(0)
   useEffect(() => { t.value = withTiming(1, { duration: 1100, easing: Easing.out(Easing.quad) }) }, [t])
-  const st = useAnimatedStyle(() => ({ opacity: 1 - t.value, transform: [{ translateX: dx * t.value }, { translateY: -70 * t.value }, { scale: 0.6 + 0.5 * t.value }] }))
+  const st = useAnimatedStyle(() => ({ opacity: 1 - t.value, transform: [{ translateX: dx * t.value }, { translateY: -rise * t.value }, { scale: 0.6 + 0.5 * t.value }, { rotate: spark ? `${40 * t.value}deg` : '0deg' }] }))
   return (
-    <Animated.View pointerEvents="none" style={[s.heart, st]}>
-      <SvgString svg={HEART_SVG} size={18} />
+    <Animated.View pointerEvents="none" style={[s.heart, { marginLeft: -size / 2 }, st]}>
+      <SvgString svg={spark ? SPARK_SVG : HEART_SVG} size={size} />
     </Animated.View>
   )
+}
+/** 반짝 조각(쓰다듬기 — 49 §7.1): 네 갈래 꿀색 별(글자 ✦ 대신 그림) */
+const SPARK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M10 0C10.9 6.6 13.4 9.1 20 10C13.4 10.9 10.9 13.4 10 20C9.1 13.4 6.6 10.9 0 10C6.6 9.1 9.1 6.6 10 0Z" fill="#F2B84B"/></svg>'
+
+/** 착지 흙·잎 조각(49 §7.1): 발밑에서 양옆으로 튀고 0.4초에 사라진다. bits의 dx·dy는 box 비율 */
+export function DustBurst({ bits, box }: { bits: { dx: number; dy: number; rot: number; w: number; h: number; color: string; leaf: boolean }[]; box: number }) {
+  return <View pointerEvents="none" style={s.dust}>{bits.map((b, i) => <DustBit key={i} {...b} box={box} />)}</View>
+}
+function DustBit({ dx, dy, rot, w, h, color, leaf, box }: { dx: number; dy: number; rot: number; w: number; h: number; color: string; leaf: boolean; box: number }) {
+  const t = useSharedValue(0)
+  useEffect(() => { t.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.quad) }) }, [t])
+  const st = useAnimatedStyle(() => ({
+    opacity: t.value < 0.5 ? 1 : 1 - (t.value - 0.5) / 0.5,
+    transform: [{ translateX: dx * box * t.value }, { translateY: dy * box * Math.sin(Math.PI * Math.min(1, t.value * 1.2)) }, { rotate: `${rot * t.value}deg` }]
+  }))
+  return <Animated.View style={[{ position: 'absolute', width: w, height: h, marginLeft: -w / 2, marginTop: -h / 2, borderRadius: leaf ? h : w, backgroundColor: color }, leaf && { borderTopLeftRadius: 1, borderBottomRightRadius: 1 }, st]} />
 }
 
 /** 종 조각이 사방으로(42 §4.2 · §10.6): 달팽이 꽃잎 · 꿀벌 꿀방울 · 애벌레 잎 · 올챙이 물방울(위로 떠오름) */
@@ -75,6 +91,7 @@ export function FloatChip({ text, kind, dx = 0, reduced }: { text: string; kind:
 const s = StyleSheet.create({
   center: { position: 'absolute', left: '50%', top: '45%', width: 0, height: 0, alignItems: 'center', justifyContent: 'center' },
   heart: { position: 'absolute', marginLeft: -9 },
+  dust: { position: 'absolute', width: 0, height: 0 },
   // 49 §6 · 시안 .xp: 꿀색 큰 숫자가 머리 위로 떠오른다
   xp: { position: 'absolute' },
   xpT: { color: '#F2B84B', fontSize: 22, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.25)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 2 } },

@@ -40,6 +40,7 @@ import { afterMenu } from '../ui/Drawer'
 import { SoftIcon } from '../ui/SoftIcon'
 import { EmptyState } from '../ui/EmptyState'
 import { SceneBand } from '../growth/art/Scene3D'
+import { useMyBandScene } from '../growth/home/glass'
 import { GlassButton } from '../ui/Glass'
 import { SheetHead } from '../ui/SheetHead'
 import { GroupCard } from '../ui/GroupCard'
@@ -108,6 +109,7 @@ function useToday() {
 
 export default function CalendarScreen() {
   const p = usePalette()
+  const bandScene = useMyBandScene(p.dark) // 49 §6.1 월 이름 뒤 띠 = 내 배경 장면을 가로로 잘라
   const insets = useSafeAreaInsets()
   const { width: winW } = useWindowDimensions()
   const space = useTabBarSpace()
@@ -226,7 +228,7 @@ export default function CalendarScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: view === 'month' ? p.pageBg : p.cardBg }}>
       {/* 49 §8.2 은은하게: 월 이름 뒤 얕은 장면 띠(머리 + 요일 줄까지, 아래로 바탕에 녹음). 달 보기만 — 자리를 차지하지 않는다 */}
-      {view === 'month' ? <SceneBand dark={p.dark} width={winW} height={insets.top + M.navH + 30} bg={p.pageBg} fade={0.7} style={s.band} /> : null}
+      {view === 'month' ? <SceneBand dark={p.dark} sceneKey={bandScene} width={winW} height={insets.top + M.navH + 30} bg={p.pageBg} fade={0.7} style={s.band} /> : null}
       <View style={[s.head, { marginTop: insets.top }]}>
         <View ref={viewMenu.ref} collapsable={false}>
           <GlassButton label="보기 전환" onPress={viewMenu.open}><ViewIcon size={20} color={p.textPrimary} /></GlassButton>

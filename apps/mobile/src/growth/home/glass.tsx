@@ -4,17 +4,35 @@
 import { BlurView } from 'expo-blur'
 import { memo, type ReactNode } from 'react'
 import { Image, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
-import { accIcon, bodyBox, DECOR3D, decorKey, layers3d, SCENE_OF_BG, SCENE_PX, SCENES3D, type Box } from '@sprout/schema/characterArt'
+import { accIcon, bodyBox, DECOR3D, decorKey, layers3d, SCENE_LOW_PX, SCENE_OF_BG, SCENES3D, sceneDark, sceneGlass, sceneKeyFor, type Box } from '@sprout/schema/characterArt'
+import { isNight } from '@sprout/schema/wardrobe'
 import type { Species } from '@sprout/schema/growth'
 import type { Path } from '@sprout/schema/wardrobe'
-import { ArtImage, artSource } from '../art/CharacterArt'
+import { ArtImage, artSource, useCharacterWear } from '../art/CharacterArt'
 
-/** 유리 색(시안 --glass · --glass-line · --glass-ink). 라이트·다크는 앱 테마를 따른다 */
+/** 유리 색(시안 --glass · --glass-line · --glass-ink). dark = 유리 아래 장면이 어두운가(49 §6.1 sceneDark) — 앱 테마가 아니라 장면을 따른다.
+ *  밝은 장면 = 흰 유리 62% + 짙은 글자, 어두운 장면 = 짙은 유리 58% + 흰 글자(sceneGlass). 흐림이 없는 안드로이드는 더 불투명하게 */
 export function glassTone(dark: boolean) {
   const blur = Platform.OS === 'ios'
+  const g = sceneGlass(dark ? 'scene-dusk' : 'scene-day')
   return dark
-    ? { bg: blur ? 'rgba(16,24,30,0.5)' : 'rgba(16,24,30,0.78)', line: 'rgba(255,255,255,0.12)', ink: '#EEF3F0', soft: 'rgba(255,255,255,0.08)', did: 'rgba(255,255,255,0.14)', track: 'rgba(127,127,127,0.24)', bubble: 'rgba(16,24,30,0.78)' }
-    : { bg: blur ? 'rgba(255,255,255,0.58)' : 'rgba(255,255,255,0.82)', line: 'rgba(255,255,255,0.7)', ink: '#13211B', soft: 'rgba(255,255,255,0.5)', did: 'rgba(255,255,255,0.55)', track: 'rgba(127,127,127,0.24)', bubble: 'rgba(255,255,255,0.86)' }
+    ? { bg: blur ? g.fill : 'rgba(22,28,40,0.8)', line: g.line, ink: g.ink, sub: g.sub, soft: 'rgba(255,255,255,0.08)', did: 'rgba(255,255,255,0.14)', track: 'rgba(127,127,127,0.24)', bubble: 'rgba(22,28,40,0.8)' }
+    : { bg: blur ? g.fill : 'rgba(255,255,255,0.84)', line: g.line, ink: g.ink, sub: g.sub, soft: 'rgba(255,255,255,0.5)', did: 'rgba(255,255,255,0.55)', track: 'rgba(127,127,127,0.24)', bubble: 'rgba(255,255,255,0.86)' }
+}
+/** 장면 위 유리 톤 — sceneKey의 밝기로 */
+export const sceneTone = (sceneKey: string) => glassTone(sceneDark(sceneKey))
+/** 내 배경 → 장면 키(49 §6.1). 다크 테마 = 밤 짝. 늦은 밤(isNight)도 밤 짝 — 단 `자동`은 시각표(5~9 새벽 · 9~18 낮 · 18~20 노을 · 그 밖 별밤)를 그대로 따른다 */
+export const myScene = (bg: string | null | undefined, dark: boolean, hour = new Date().getHours()) =>
+  sceneKeyFor(bg, dark || ((bg ?? 'auto') !== 'auto' && isNight(hour)), hour)
+/** 할 일 화면 장면 띠(49 §6.1 · §8.2)에 깔 내 배경 장면. 다크 = 밤 짝(sceneKeyFor(bg, true)).
+ *  라이트에서 고른 장면이 어두우면(별밤·보름달·자동의 밤) 짙은 큰 제목이 묻히므로 기본 띠(null → band-day)로 둔다. 캐릭터가 없으면 null */
+export function useMyBandScene(dark: boolean): string | null {
+  const w = useCharacterWear()
+  if (!w?.species) return null
+  const bg = w.wear.eq?.bg ?? 'auto'
+  if (dark) return sceneKeyFor(bg, true)
+  const k = sceneKeyFor(bg, false)
+  return sceneDark(k) ? null : k
 }
 export type GlassTone = ReturnType<typeof glassTone>
 
@@ -46,10 +64,10 @@ export const AccThumb = memo(function AccThumb({ id, size, tint }: { id: string;
   return <ArtImage artKey={ic.key} size={size} box={ic.box} px={160} tint={tint} />
 })
 
-/** 방 배경 칸: 그 장면을 받침 근처로 가운데 자른 정사각형 */
+/** 배경 칸(49 §6.1): 그 장면의 390 미리보기를 받침 근처로 가운데 자른 정사각형(1170 배경 묶음은 받지 않는다). 잠김 = 회색 덩어리 */
 export const SceneThumb = memo(function SceneThumb({ bg, size, radius = 12, tint }: { bg: string; size: number; radius?: number; tint?: string }) {
   const key = SCENE_OF_BG[bg] ?? 'scene-day'
-  const src = artSource(key, SCENE_PX)
+  const src = artSource(key, SCENE_LOW_PX)
   const m = SCENES3D[key] ?? { perch: [0.5, 0.6], aspect: 2 }
   const w = size * 1.15, h = w * m.aspect
   return (

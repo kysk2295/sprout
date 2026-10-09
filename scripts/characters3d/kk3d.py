@@ -1242,13 +1242,20 @@ SKY = {'day': ('#86C0E0', '#EEF0E2'), 'dusk': ('#1C2440', '#4B4766'), 'dawn': ('
 HILLS = {'day': ['#9CC98A', '#7DB873', '#64A563', '#5A9A5A', '#6DAE5F'], 'dusk': ['#33485A', '#2C4150', '#283B47', '#22343E', '#2F4A45'],
          'dawn': ['#B4D49A', '#97C684', '#7FB472', '#73A868', '#86BC6E'], 'sunset': ['#C3C98A', '#A3BC74', '#86A863', '#7C9E5C', '#8DAE62'],
          'moon': ['#3A5064', '#324858', '#2C424F', '#263A45', '#33504A'], 'snow': ['#F4F6F8', '#E7EDF2', '#DCE5EC', '#E9EEF2', '#F3F6F8']}
-NIGHT = ('dusk', 'moon')
+# 49 §6.1 배경 고르기(2026-10-10): 비 오는 정원 · 꽃밭 · 연못 · 서재 — 밤 짝(-n)은 다크 테마에서
+SKY.update({'rain': ('#8FA3B4', '#D5DDE3'), 'rain-n': ('#1A2232', '#3A4256'), 'flowers': ('#9FCBE6', '#F5EEDB'), 'flowers-n': ('#1E2644', '#4A4868'),
+            'pond': ('#8CC4E2', '#EEF2E4'), 'pond-n': ('#1B2440', '#45496A'), 'study': ('#BFD8EA', '#F3EBDD'), 'study-n': ('#141C33', '#2E3550')})
+HILLS.update({'rain': ['#8FAF86', '#77A06F', '#65915F', '#5E8A59', '#6A9563'], 'rain-n': ['#2C3E4A', '#263844', '#22323C', '#1E2D36', '#28403C'],
+              'flowers': HILLS['day'], 'flowers-n': HILLS['dusk'], 'pond': HILLS['day'], 'pond-n': HILLS['dusk'], 'study': HILLS['day'], 'study-n': HILLS['dusk']})
+NIGHT = ('dusk', 'moon', 'rain-n', 'flowers-n', 'pond-n', 'study-n')
 
 def do_scene(it, out, samples):
     """정원 장면(배경판): 하늘 + 먼 숲 + 둥근 언덕 + 덤불 + 꽃 + 이끼 낀 돌 받침. 캐릭터는 앱에서 받침 위에 얹는다(perch)."""
+    if it.get('time', 'day').startswith('study'): return do_study(it, out, samples)
     reset(); MATS.clear()
     sc = bpy.context.scene; sc.render.film_transparent = False
     t = it.get('time', 'day'); night = t in NIGHT
+    theme = t.split('-')[0]
     band_ = it.get('band', False)
     sky = SKY[t]
     w = bpy.data.worlds.new('w'); sc.world = w
@@ -1287,17 +1294,46 @@ def do_scene(it, out, samples):
         fl = [vinyl('#E7E2F2', 0.5, 0.2), vinyl('#B9B2D6', 0.5, 0.2), vinyl('#8FA6C8', 0.5, 0.2)]
     else:
         fl = [vinyl('#FBF5EA', 0.5, 0.2), vinyl('#F4C9A8', 0.5, 0.2), vinyl('#F2D27A', 0.5, 0.1)]
-    for i in range(56):
+    if theme == 'flowers':
+        fl += [vinyl('#F2A7BB', 0.5, 0.2), vinyl('#E9826E', 0.5, 0.15), vinyl('#C9B6E8' if not night else '#8E86B8', 0.5, 0.2)]
+    nfl = 320 if theme == 'flowers' else 24 if theme == 'rain' else 56
+    if theme == 'pond':
+        # 연못: 받침 돌이 섬이 되게 앞쪽을 물로(반짝이는 얕은 판) + 연잎·갈대
+        water = mat('water', '#6FA7C4' if not night else '#22364A', rough=0.05, sss=0.0, spec=0.7, coat=0.6)
+        fused('pond', [((0, 0.2, 0.012), (5.2, 3.2, 0.02))], water, voxel=0.06, smooth_it=4)
+        random.seed(11)
+        for i in range(14):
+            a = random.uniform(0, 2 * math.pi); rr = random.uniform(1.9, 3.8)
+            x, y = math.cos(a) * rr * 1.1, 0.6 + math.sin(a) * rr * 0.55
+            fused('pad', [((x, y, 0.03), (0.26, 0.2, 0.02))], vinyl('#7DAF74' if not night else '#3E5E48', 0.6, 0.1), voxel=0.02, smooth_it=3)
+            if i % 4 == 0: sphere('lotusb', (x, y, 0.1), (0.07, 0.07, 0.09), vinyl('#F2BFC6', 0.45, 0.3), seg=16)
+        for i in range(12):
+            x = random.choice([-1, 1]) * random.uniform(3.6, 5.0); y = random.uniform(1.5, 3.5)
+            tube('reed', [Vector((x, y, 0)), Vector((x + 0.05, y, 0.6)), Vector((x + 0.12, y, 1.1))], [0.02, 0.016, 0.01], vinyl('#6E9C62' if not night else '#2F4A3A', 0.6, 0.1), res=6, bres=3)
+            sphere('cat', (x + 0.1, y, 0.95), (0.035, 0.035, 0.12), vinyl('#8A6A4A', 0.6, 0.05), seg=12)
+    if theme == 'rain':
+        # 빗줄기(가늘고 긴 반투명 방울) + 물웅덩이
+        rm = mat('rain', '#E8F0F6', rough=0.1, sss=0.0, spec=0.5, alpha=0.45)
+        random.seed(21)
+        for i in range(260):
+            x = random.uniform(-6, 6); y = random.uniform(-3, 8); z = random.uniform(0.2, 7)
+            sphere('drop', (x, y, z), (0.008, 0.008, 0.14), rm, seg=6)
+        pm = mat('puddle', '#9DB2C2' if not night else '#2A3A4C', rough=0.04, sss=0.0, spec=0.8, coat=0.5)
+        for (x, y, r) in ((-2.4, -0.6, 0.55), (2.2, -0.2, 0.42), (-1.0, 2.6, 0.5), (3.0, 2.0, 0.35)):
+            fused('puddle', [((x, y, 0.006), (r * 1.4, r, 0.01))], pm, voxel=0.03, smooth_it=3)
+    for i in range(nfl):
         x = random.uniform(-5.5, 5.5); y = random.uniform(-1.8, 4.5)
         if abs(x) < 1.8 and -1.4 < y < 1.6 and not band_: continue
+        if theme == 'pond' and abs(x) < 4.4 and -1.8 < y < 3.0: continue
         if t == 'snow' and i % 3 != 2:
             sphere('snowlump', (x, y, 0.05), (0.16, 0.14, 0.08), fl[i % 2], seg=16); continue
-        c = (x, y, 0.13)
+        k_ = 1.8 if theme == 'flowers' else 1.0
+        zz = 0.13 * (1.6 if theme == 'flowers' else 1)
         for k in range(5):
             a = k / 5 * 2 * math.pi
-            sphere('fp', (x + math.cos(a) * 0.06, y + math.sin(a) * 0.06, 0.13), (0.05, 0.05, 0.025), fl[i % 3], seg=12)
-        sphere('fcen', (x, y, 0.15), (0.03,) * 3, vinyl('#F2C35B', 0.4, 0.1), seg=10)
-        tube('fstem', [Vector((x, y, 0)), Vector((x, y, 0.12))], [0.012, 0.01], vinyl(pal[2], 0.6, 0.1), res=2, bres=2)
+            sphere('fp', (x + math.cos(a) * 0.06 * k_, y + math.sin(a) * 0.06 * k_, zz), (0.05 * k_, 0.05 * k_, 0.025 * k_), fl[i % len(fl)], seg=12)
+        sphere('fcen', (x, y, zz + 0.02), (0.03 * k_,) * 3, vinyl('#F2C35B', 0.4, 0.1), seg=10)
+        tube('fstem', [Vector((x, y, 0)), Vector((x, y, zz - 0.01))], [0.012, 0.01], vinyl(pal[2], 0.6, 0.1), res=2, bres=2)
     if not band_:
         stone = stone_mat('#D5CEC2', '#BDB4A6') if not night else stone_mat('#7E7D8C', '#6A6978')
         if t == 'snow': stone = stone_mat('#CFCBC4', '#B8B2A8')
@@ -1318,10 +1354,7 @@ def do_scene(it, out, samples):
         nt.links.new(ramp.outputs['Color'], mx.inputs['A']); nt.links.new(mk.outputs[0], mx.inputs['Factor']); nt.links.new(mx.outputs['Result'], em.inputs['Color'])
         mr = 1.6 if t == 'moon' else 0.9
         sphere('moon', (6, 27, 15), (mr,) * 3, mat('moon', '#FFF4DC', emis=('#FFF1D2', 3.0 if t == 'dusk' else 4.0)))
-        for i in range(12):
-            # 반딧불: 받침 둘레 초점 거리 근처에만(카메라 가까이 두면 피사계 심도로 큰 흰 원이 된다)
-            a = random.uniform(0, 2 * math.pi); rr = random.uniform(1.8, 4.2)
-            sphere('fly', (math.cos(a) * rr * 1.3, 0.6 + math.sin(a) * rr * 0.6, random.uniform(0.5, 2.0)), (0.028,) * 3, mat('fly', '#F7F0B0', emis=('#F5EE9A', 7.0)), seg=8)
+        # 반딧불은 장면에 굽지 않는다 — 피사계 심도로 흰 원이 된다. 방 장식 '반딧불'이 맡는다
     elif t == 'sunset':
         sphere('sun', (-5, 27, 7), (2.2,) * 3, mat('sunb', '#FFE3A3', emis=('#FFD58A', 3.5)))
     elif t == 'day':
@@ -1341,6 +1374,71 @@ def do_scene(it, out, samples):
     W, H = it.get('w', 780), it.get('h', 1560)
     cam = bpy.data.cameras.new('cam'); cam.lens = it.get('lens', 30)
     cam.dof.use_dof = True; cam.dof.focus_distance = 9.6; cam.dof.aperture_fstop = 2.0
+    co = link(bpy.data.objects.new('cam', cam)); sc.camera = co
+    co.location = (0, -9.4, it.get('cz', 2.6)); co.rotation_euler = (Vector((0, 2.0, it.get('tz', 1.2))) - co.location).to_track_quat('-Z', 'Y').to_euler()
+    cam.sensor_fit = 'VERTICAL' if H > W else 'HORIZONTAL'
+    sc.render.resolution_x = W; sc.render.resolution_y = H
+    sc.cycles.samples = samples
+    sc.render.filepath = os.path.join(out, it['name'] + '.png'); sc.render.image_settings.file_format = 'PNG'; sc.render.image_settings.color_mode = 'RGB'
+    bpy.ops.render.render(write_still=True)
+    from bpy_extras.object_utils import world_to_camera_view
+    p = world_to_camera_view(sc, co, Vector((0, 0, 0.66)))
+    q = world_to_camera_view(sc, co, Vector((1.0, 0, 0.66)))
+    return {'name': it['name'], 'perch': [round(p.x, 4), round(1 - p.y, 4)], 'unit_px': round((q.x - p.x) * W, 1), 'w': W, 'h': H}
+
+def do_study(it, out, samples):
+    """서재·책상(공부할 때 — 49 §6.1): 나무 책상 윗면이 받침(perch = 원점 z 0.66), 뒤 벽·창문·책·스탠드·머그·화분. 밤 = 창밖 남색 + 스탠드 불빛"""
+    reset(); MATS.clear()
+    sc = bpy.context.scene; sc.render.film_transparent = False
+    night = it.get('time', 'study').endswith('-n')
+    wall = vinyl('#EFE4D2' if not night else '#4A4558', 0.85, 0.05)
+    bpy.ops.mesh.primitive_plane_add(size=1); w_ = bpy.context.active_object; w_.scale = (30, 20, 1); w_.rotation_euler = (math.radians(90), 0, 0); w_.location = (0, 6, 6); w_.data.materials.append(wall)
+    floor = vinyl('#C9A77E' if not night else '#4C3E3A', 0.7, 0.05)
+    bpy.ops.mesh.primitive_plane_add(size=60); f_ = bpy.context.active_object; f_.location = (0, 0, -1.2); f_.data.materials.append(floor)
+    # 창문: 하늘빛(밤엔 남색 + 별 무늬 없이) 판 + 나무 틀 + 커튼
+    winm = mat('win', '#BFE0F2' if not night else '#1E2A4A', rough=0.5, emis=('#D6ECF8' if not night else '#26345A', 0.45 if not night else 0.5))
+    win = fused('window', [((0.9, 5.95, 3.4), (1.6, 0.02, 1.4))], winm, voxel=0.05, smooth_it=2)
+    wood = vinyl('#B98B5E' if not night else '#7A5B44', 0.6, 0.05)
+    for (x, z, sx, sz) in ((0.9, 2.0, 1.7, 0.07), (0.9, 4.8, 1.7, 0.07), (-0.75, 3.4, 0.07, 1.45), (2.55, 3.4, 0.07, 1.45), (0.9, 3.4, 0.04, 1.4)):
+        fused('frame', [((x, 5.9, z), (sx, 0.06, sz))], wood, voxel=0.03, smooth_it=2)
+    cur = vinyl('#E8B7A6' if not night else '#8A6A78', 0.85, 0.15)
+    for x in (-1.1, 2.9): fused('curtain', [((x, 5.85, 3.3), (0.35, 0.08, 1.8))], cur, voxel=0.05, smooth_it=4)
+    # 책상: 넓은 윗판(윗면 z = 0.62) + 앞 모서리 둥글게
+    desk = vinyl('#C8955F' if not night else '#8E6847', 0.55, 0.06)
+    fused('desk', [((0, 0.6, 0.47), (4.2, 2.4, 0.15))], desk, voxel=0.04, smooth_it=4)
+    mat_ = vinyl('#8DB06C' if not night else '#4E6E58', 0.9, 0.08)
+    fused('deskmat', [((0, -0.1, 0.63), (1.25, 0.9, 0.012))], mat_, voxel=0.02, smooth_it=3)
+    # 책 더미 · 스탠드 · 머그 · 화분 · 연필꽂이
+    for i, (c, h) in enumerate((('#7C8CC8', 0.12), ('#E2775F', 0.1), ('#F2CB6B', 0.11))):
+        fused('book', [((-1.7, 1.3, 0.68 + i * 0.12), (0.6 - i * 0.04, 0.42, h / 2))], vinyl(c, 0.6, 0.05), voxel=0.02, smooth_it=2)
+    for i, c in enumerate(('#5E8A59', '#D27F62', '#7C8CC8', '#E9B949', '#B9876E')):
+        fused('spine', [((-2.3 + i * 0.16, 2.4, 1.05), (0.07, 0.3, 0.42))], vinyl(c, 0.6, 0.05), voxel=0.02, smooth_it=2)
+    lampm = vinyl('#3E5470' if not night else '#2A3550', 0.4, 0.05)
+    cyl('lampbase', (1.9, 1.5, 0.66), 0.28, 0.06, lampm)
+    tube('lamparm', [Vector((1.9, 1.5, 0.66)), Vector((1.85, 1.45, 1.5)), Vector((1.45, 1.2, 2.0))], [0.035, 0.03, 0.03], lampm)
+    sphere('shade', (1.3, 1.1, 1.92), (0.36, 0.36, 0.22), lampm, rot=(0, 0.6, 0))
+    sphere('bulb', (1.2, 1.05, 1.78), (0.12,) * 3, mat('bulb', '#FFF2C8', emis=('#FFE7A8', 18.0 if night else 6.0)))
+    mug = vinyl('#F4F1EA', 0.35, 0.1)
+    cyl('mug', (-1.25, -0.5, 0.79), 0.16, 0.3, mug, bevel=0.15)
+    cyl('cup', (1.45, -0.2, 0.8), 0.13, 0.34, vinyl('#E2775F', 0.5, 0.1), bevel=0.1)
+    for k, c in enumerate(('#F2C14E', '#7C8CC8', '#5E8A59')):
+        tube('pen', [Vector((1.4 + k * 0.05, -0.2, 0.9)), Vector((1.35 + k * 0.1, -0.22, 1.25))], [0.02, 0.02], vinyl(c, 0.5, 0.1), res=4, bres=2)
+    cyl('pot', (-2.1, 0.9, 0.86), 0.3, 0.44, vinyl('#D27F62', 0.6, 0.08), bevel=0.15)
+    for k in range(6):
+        a = k / 6 * 2 * math.pi
+        leaf('pl', Vector((-2.1, 0.9, 1.05)), a, 0.7, 0.22, vinyl('#6FA85A', 0.5, 0.15), tilt=1.2)
+    lights(world='#F3EBDD' if not night else '#1A2036', strength=0.3 if not night else 0.08)
+    if not night:
+        sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 2.4; sun.angle = math.radians(10); sun.color = lin('#FFF1DE')[:3]
+        so = link(bpy.data.objects.new('sun', sun)); so.rotation_euler = (math.radians(60), math.radians(15), math.radians(160))
+    else:
+        L = bpy.data.lights.new('lamp', 'POINT'); L.energy = 260; L.color = lin('#FFD9A0')[:3]; L.shadow_soft_size = 0.3
+        lo = link(bpy.data.objects.new('lamp', L)); lo.location = (1.15, 1.0, 1.6)
+        for o in bpy.data.objects:
+            if o.type == 'LIGHT' and o.name in ('key', 'fill', 'rim'): o.data.energy *= 0.18
+    W, H = it.get('w', 1170), it.get('h', 2340)
+    cam = bpy.data.cameras.new('cam'); cam.lens = it.get('lens', 30)
+    cam.dof.use_dof = True; cam.dof.focus_distance = 9.6; cam.dof.aperture_fstop = 2.8
     co = link(bpy.data.objects.new('cam', cam)); sc.camera = co
     co.location = (0, -9.4, it.get('cz', 2.6)); co.rotation_euler = (Vector((0, 2.0, it.get('tz', 1.2))) - co.location).to_track_quat('-Z', 'Y').to_euler()
     cam.sensor_fit = 'VERTICAL' if H > W else 'HORIZONTAL'

@@ -3,7 +3,7 @@
 // 색 그림 → 유리 이름 카드(전 → 후 작은 그림 둘). 실루엣 = CharacterArt silhouette(같은 층을 흰색 한 색으로, 필터 없음).
 // 부화도 같은 순서: 씨앗 흔들 + 금 한 줄 → 두 줄(미리 올린 금 층의 opacity 교차) → 흰 씨앗 실루엣 꿀렁 → 빛 → 아기.
 // 누르면 끝 장면, 움직임 줄이기 = 페이드 + 카드. Reanimated withSequence·withDelay·withTiming(층의 opacity·transform만, 39 §11).
-import { newPartOf, PATHS, sceneKeyFor, sceneLayout, standOnPerch, titleOf } from '@sprout/schema/characterArt'
+import { newPartOf, PATHS, sceneDark, sceneLayout, standOnPerch, titleOf } from '@sprout/schema/characterArt'
 import { STAGES, type Species } from '@sprout/schema/growth'
 import { evolutionGift, type Equip, type Path } from '@sprout/schema/wardrobe'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -16,7 +16,7 @@ import { hx } from '../ui/haptics'
 import { CharacterArt } from './art/CharacterArt'
 import { SceneBackdrop } from './art/Scene3D'
 import { SpeciesBurst } from './Bits'
-import { fitScene, Glass, glassTone } from './home/glass'
+import { fitScene, Glass, glassTone, myScene } from './home/glass'
 
 export type Evolution = { species: Species; from: number; to: number; path: Path; eq: Partial<Equip>; choose: boolean; seed?: number; scene?: string }
 
@@ -37,7 +37,6 @@ export function EvolutionMoment({ evo, reduced, onPick, onDone }: { evo: Evoluti
 function Moment({ evo, reduced, onPick, onDone }: { evo: Evolution; reduced: boolean; onPick?: (path: Path) => void; onDone: () => void }) {
   const ins = useSafeAreaInsets()
   const p = usePalette()
-  const tone = glassTone(p.dark)
   const win = useWindowDimensions()
   const { species: sp, from, to, eq } = evo
   const seed = evo.seed ?? 0
@@ -50,7 +49,8 @@ function Moment({ evo, reduced, onPick, onDone }: { evo: Evolution; reduced: boo
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
   // ── 자리: 성장 홈과 같은 장면, 받침이 화면 56%에 ──
-  const sceneKey = evo.scene ?? sceneKeyFor(eq.bg, p.dark)
+  const sceneKey = evo.scene ?? myScene(eq.bg, p.dark)
+  const tone = glassTone(sceneDark(sceneKey)) // 유리 톤 = 장면 밝기(49 §6.1)
   const W = win.width, H = win.height
   const T = Math.round(H * 0.56)
   const fit = useMemo(() => fitScene(sceneKey, W, H, T), [sceneKey, W, H, T])
@@ -198,7 +198,7 @@ function Moment({ evo, reduced, onPick, onDone }: { evo: Evolution; reduced: boo
       </Pressable>
 
       <Animated.View style={[s.card, { bottom: ins.bottom + 40 }, Card]} pointerEvents="none">
-        <Glass dark={p.dark} radius={26} style={s.cardIn}>
+        <Glass dark={sceneDark(sceneKey)} radius={26} style={s.cardIn}>
           <Text style={[s.k, { color: tone.ink }]}>{hatch ? '씨앗이 깨어났어요' : `${STAGES[to - 1].name}${to === 4 ? '으로' : '로'} 자랐어요`}</Text>
           <Text style={[s.n, { color: tone.ink }]} accessibilityRole="header">{title}</Text>
           <View style={s.pair}>

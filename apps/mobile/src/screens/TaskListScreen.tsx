@@ -8,6 +8,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native'
 import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
 import { SceneBand } from '../growth/art/Scene3D'
+import { useMyBandScene } from '../growth/home/glass'
 import { AssistantButton } from '../assistant/AssistantSheet'
 import { syncNow } from '../data/auth'
 import { useFolders, useLists, useSections } from '../data/lists'
@@ -67,6 +68,7 @@ function useToday() {
 
 export default function TaskListScreen() {
   const p = usePalette()
+  const bandScene = useMyBandScene(p.dark) // 49 §6.1 큰 제목 뒤 띠 = 내 배경 장면을 가로로 잘라
   const space = useTabBarSpace()
   const router = useRouter()
   const toast = useToast()
@@ -305,7 +307,7 @@ export default function TaskListScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
-      <Animated.View pointerEvents="none" style={[s.band, bandSt]}><SceneBand dark={p.dark} width={winW} height={BAND_H} bg={p.pageBg} fade={0.65} /></Animated.View>
+      <Animated.View pointerEvents="none" style={[s.band, bandSt]}><SceneBand dark={p.dark} sceneKey={bandScene} width={winW} height={BAND_H} bg={p.pageBg} fade={0.65} /></Animated.View>
       <NavRow
         left={<GlassButton label="리스트 서랍" onPress={() => v.setDrawerOpen(true)}><Menu size={22} color={p.textPrimary} /></GlassButton>}
         smallTitle={title}

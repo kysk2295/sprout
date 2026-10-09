@@ -1,14 +1,16 @@
 // 43 §5.4 · §8 · 49 §7 꾸미기(성장 탭 옷장·도감 → 이 화면): 분절 옷장 · 도감.
 // 옷장 = 위 절반 장면 + 캐릭터 220, 아래 반투명 시트(탭 모자·목·손·등·방 + 4열). 입히면 look_json(동기화)에 바로 저장하고 옷 층이 0.25초 페이드로 겹치며 깡충.
+// 배경 탭(49 §6.1): 칸을 누르면 미리 보기(장면 0.3초 교차 페이드, 저장 안 함) → `이 배경으로` = equipItem + 저장, `원래로`·뒤로·다른 탭 = 원래 배경.
 // 새로 받음 점은 그 탭을 보면 지운다(planMarkSeen). 마지막 탭은 기기에 둔다(sprout.wardTab).
-import { sceneDark, sceneKeyFor } from '@sprout/schema/characterArt'
-import { equipItem, isNight, itemsOfTab, setPath, toggleDecor, unequipSlot, type Path, type WardTab } from '@sprout/schema/wardrobe'
+import { sceneDark } from '@sprout/schema/characterArt'
+import { equipItem, itemsOfTab, setPath, toggleDecor, unequipSlot, type Path, type WardTab } from '@sprout/schema/wardrobe'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useRef, useState } from 'react'
 import { ScrollView, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { DexScreen, WardScreen, type DecorSeg } from '../../src/growth/Decorate'
+import { myScene } from '../../src/growth/home/glass'
 import { useMotionReduced } from '../../src/growth/motion'
 import { markSeen, saveLook, useRaise } from '../../src/growth/raise'
 import { KEY, preload, read, write } from '../../src/growth/store'
@@ -28,7 +30,9 @@ export default function Decorate() {
   const [seg, setSeg] = useState<DecorSeg>(params.tab === 'dex' ? 'dex' : 'ward')
   const [tab, setTab] = useState<WardTab>('hat')
   useEffect(() => { void preload([KEY.wardTab]).then(() => { const t = read(KEY.wardTab) as WardTab | null; if (t && TABS.includes(t)) setTab(t) }) }, [])
-  const onTab = (t: WardTab) => { setTab(t); write(KEY.wardTab, t) }
+  const [preview, setPreview] = useState<string | null>(null)
+  const onTab = (t: WardTab) => { setTab(t); write(KEY.wardTab, t); if (t !== 'room') setPreview(null) }
+  const onSeg = (v: DecorSeg) => { setSeg(v); setPreview(null) }
   const [hopKey, setHopKey] = useState(0)
 
   // 이 탭의 새로 받음 점 지우기(한 번 보면 사라짐) — 1.2초 보면
@@ -44,6 +48,12 @@ export default function Decorate() {
   const onEquip = (id: string) => { save(equipItem(raise.look, id)); setHopKey((k) => k + 1) }
   const onBase = (slot: Exclude<WardTab, 'room'>) => { save(unequipSlot(raise.look, slot)); setHopKey((k) => k + 1) }
   const onDecor = (id: string) => save(toggleDecor(raise.look, id))
+  const onPreview = (id: string) => setPreview(id === raise.worn.bg ? null : id)
+  // 적용: 저장이 raise로 돌아올 때까지 미리 보기 장면을 붙들어 둔다(옛 배경으로 잠깐 돌아갔다 오지 않게)
+  const [applying, setApplying] = useState(false)
+  const onApply = () => { if (preview && raise.owned.has(preview)) { setApplying(true); save(equipItem(raise.look, preview)); setHopKey((k) => k + 1) } else setPreview(null) }
+  useEffect(() => { if (applying && (!preview || raise.worn.bg === preview)) { setApplying(false); setPreview(null) } }, [applying, preview, raise.worn.bg])
+  useEffect(() => { if (!applying) return; const t = setTimeout(() => { setApplying(false); setPreview(null) }, 2000); return () => clearTimeout(t) }, [applying])
   const onPath = (path: Path) => save(setPath(raise.look, path))
 
   const scroll = useRef<ScrollView>(null)
@@ -51,13 +61,14 @@ export default function Decorate() {
   useEffect(() => { if (params.focus === 'trophy' && seg === 'dex' && troY !== null) setTimeout(() => scroll.current?.scrollTo({ y: troY, animated: true }), 200) }, [params.focus, seg, troY])
 
   // 성장 홈과 같은 장면(입은 배경 + 다크 테마·늦은 밤 = 밤)
-  const sceneKey = sceneKeyFor(raise.worn.bg, p.dark || isNight(new Date().getHours()))
-  const frame = { p, raise, width: win.width, height: win.height, topInset: ins.top, bottomInset: ins.bottom, sceneKey, seg, onSeg: setSeg, onBack: () => router.back() }
+  // 옷장은 미리 보는 배경을, 도감은 입은 배경을 깐다
+  const sceneKey = myScene(seg === 'ward' && preview ? preview : raise.worn.bg, p.dark)
+  const frame = { p, raise, width: win.width, height: win.height, topInset: ins.top, bottomInset: ins.bottom, sceneKey, seg, onSeg, onBack: () => router.back() }
   return (
     <View style={{ flex: 1, backgroundColor: p.cardBg }}>
-      <StatusBar style={seg === 'ward' ? (sceneDark(sceneKey) || p.dark ? 'light' : 'dark') : p.dark ? 'light' : 'dark'} />
+      <StatusBar style={sceneDark(sceneKey) ? 'light' : 'dark'} />
       {seg === 'ward'
-        ? <WardScreen {...frame} tab={tab} onTab={onTab} hopKey={hopKey} reduced={reduced} onEquip={onEquip} onBase={onBase} onDecor={onDecor} />
+        ? <WardScreen {...frame} tab={tab} onTab={onTab} hopKey={hopKey} reduced={reduced} onEquip={onEquip} onBase={onBase} onDecor={onDecor} preview={applying ? null : preview} onPreview={onPreview} onApply={onApply} onRevert={() => setPreview(null)} />
         : <DexScreen {...frame} onPath={onPath} onTrophyLayout={setTroY} scrollRef={scroll} />}
     </View>
   )

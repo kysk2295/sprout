@@ -242,7 +242,7 @@ console.log('built:', Object.keys(files).join(', '))
   if (existsSync(src)) {
     mkdirSync(dst, { recursive: true })
     let n = 0
-    for (const f of readdirSync(src)) if (f.endsWith('@512.webp') || /-spin@\d+\.webp$/.test(f)) { copyFileSync(join(src, f), join(dst, f)); n++ }
+    for (const f of readdirSync(src)) if (f.endsWith('@768.webp') || /^scene-.*@1170\.webp$/.test(f) || /-spin@\d+\.webp$/.test(f)) { copyFileSync(join(src, f), join(dst, f)); n++ }
     console.log('art3d pack files:', n)
   } else console.warn('! packages/schema/art3d 없음 — 종 묶음을 건너뛴다')
 }

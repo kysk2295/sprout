@@ -5,7 +5,7 @@
 import { ReviewEntry } from '../../src/map/v2/ReviewEntry'
 import { useStatus } from '@powersync/react-native'
 import { loadProjectDeadlineToday } from '@sprout/schema/raiseCore'
-import { sceneDark, sceneKeyFor } from '@sprout/schema/characterArt'
+import { sceneDark } from '@sprout/schema/characterArt'
 import { SPECIES, type Species } from '@sprout/schema/growth'
 import { activeDayList, dayJustDone, equipItem, isBusy, isNight, ITEM_BY_ID, momentLine, pickDayMoment, tapLines, TOUCH_LINES, trophyLine, type CharacterItemRow, type DayMoment } from '@sprout/schema/wardrobe'
 import { addDays } from '@sprout/schema/time'
@@ -23,7 +23,7 @@ import { EvolutionRoad, GoalsCard, ReportsCard, TodayCard, XpCard } from '../../
 import { useGrowthData } from '../../src/growth/data'
 import { EvolutionMoment, type Evolution } from '../../src/growth/EvolutionMoment'
 import { dexCount } from '../../src/growth/home/dex'
-import { glassTone } from '../../src/growth/home/glass'
+import { glassTone, myScene } from '../../src/growth/home/glass'
 import { levelChange, minutesToday, weekStartOf, WEEKDAY_KO } from '../../src/growth/logic'
 import { useMotionReduced, writeMotionPref } from '../../src/growth/motion'
 import { NewItemToast } from '../../src/growth/NewItemToast'
@@ -65,7 +65,7 @@ export default function Growth() {
   const g = useGrowthData(today)
   const raise = useRaise()
   const night = isNight(hour)
-  const sceneKey = sceneKeyFor(raise.worn.bg, p.dark || night)
+  const sceneKey = myScene(raise.worn.bg, p.dark, hour)
   const species: Species | null = raise.species
   const cid = raise.character?.id
   const lv = g.progress.level
@@ -199,8 +199,8 @@ export default function Growth() {
   const H = win.height
   const scroll = useRef<ScrollView>(null)
   const [below, setBelow] = useState(false)
-  const darkTop = below ? p.dark : sceneDark(sceneKey) || p.dark
-  const tone = glassTone(p.dark)
+  const darkTop = below ? p.dark : sceneDark(sceneKey)
+  const tone = glassTone(sceneDark(sceneKey)) // 49 §6.1 유리 톤 = 장면 밝기
 
   // 주 달력 띠: 이번 주(월~일) · 한 날(할 일 XP가 1 이상인 날 — 43 누적과 같은 계산)
   const week: WeekCell[] = useMemo(() => {
@@ -237,7 +237,7 @@ export default function Growth() {
         scrollEventThrottle={64}
         onScroll={(e) => { const b = e.nativeEvent.contentOffset.y > H - ins.top - 20; if (b !== below) setBelow(b) }}
         contentContainerStyle={{ paddingBottom: space.pad }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={sceneDark(sceneKey) || p.dark ? '#fff' : '#13211B'} progressViewOffset={ins.top} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={sceneDark(sceneKey) ? '#fff' : '#13211B'} progressViewOffset={ins.top} />}
       >
         <RaiseStage ref={stage} p={p} raise={raise} name={name} width={win.width} height={H} topInset={ins.top} bottomClear={space.clear} sceneKey={sceneKey}
           reduced={reduced} live={live && !evo} night={night} calm={calm} lines={lines} onEgg={() => router.push('/growth/survey')}

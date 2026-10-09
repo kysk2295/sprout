@@ -9,8 +9,8 @@ const DIR = resolve('packages/schema/art3d')
 
 { // 기본 모습: 몸 + 얼굴, 같은 순서, 512
   const p = widgetArtPlan('snail', 3, 'happy', null)
-  assert.deepEqual(p.files, layers3d('snail', 3, { mood: 'happy', size: 96 }).map((l) => artFile(l.key, 512)))
-  assert.ok(p.files.some((f) => /-face-happy@512/.test(f)))
+  assert.deepEqual(p.files, layers3d('snail', 3, { mood: 'happy', size: 96 }).map((l) => artFile(l.key, 384)))
+  assert.ok(p.files.some((f) => /-face-happy@384/.test(f)))
   assert.ok(p.box.w > 0.3 && p.box.w <= 1 && p.box.x >= 0 && p.box.y >= 0 && p.box.x + p.box.w <= 1.0001 && p.box.y + p.box.h <= 1.0001)
 }
 { // 표정 3개가 mood5 이름으로
@@ -19,13 +19,13 @@ const DIR = resolve('packages/schema/art3d')
 { // 씨앗(종 모름) = 앞모습 한 장 · 없는 껍질은 0번으로
   const p = widgetArtPlan(null, 1, 'default', JSON.stringify({ seed: 3 }))
   assert.equal(p.files.length, 1)
-  assert.match(p.files[0], /^seed\d-t00@320\.webp$/)
+  assert.match(p.files[0], /^seed\d-t00@512\.webp$/)
   assert.ok(existsSync(resolve(DIR, p.files[0])), p.files[0])
 }
 { // 모든 종·단계: 몸 층 파일이 있다(패키지 extraResources 필터 *@512 · seed*-t00@320과 맞는지)
   for (const sp of ['snail', 'frog', 'bee', 'worm'] as const) for (let st = 1; st <= 5; st++) {
     const p = widgetArtPlan(sp, st, 'default')
-    assert.ok(p.files.every((f) => /@512\.webp$/.test(f)))
+    assert.ok(p.files.every((f) => /@384\.webp$/.test(f)))
     if (existsSync(DIR)) assert.ok(existsSync(resolve(DIR, p.files[0])), p.files[0])
   }
 }

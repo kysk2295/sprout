@@ -6,44 +6,100 @@
 {
 "kind": "scene",
 "time": "day",
-"w": 780,
-"h": 1560,
+"w": 1170,
+"h": 2340,
 "name": "scene-day"
 },
 {
 "kind": "scene",
 "time": "dawn",
-"w": 780,
-"h": 1560,
+"w": 1170,
+"h": 2340,
 "name": "scene-dawn"
 },
 {
 "kind": "scene",
 "time": "dusk",
-"w": 780,
-"h": 1560,
+"w": 1170,
+"h": 2340,
 "name": "scene-dusk"
 },
 {
 "kind": "scene",
 "time": "sunset",
-"w": 780,
-"h": 1560,
+"w": 1170,
+"h": 2340,
 "name": "scene-sunset"
 },
 {
 "kind": "scene",
 "time": "moon",
-"w": 780,
-"h": 1560,
+"w": 1170,
+"h": 2340,
 "name": "scene-moon"
 },
 {
 "kind": "scene",
 "time": "snow",
-"w": 780,
-"h": 1560,
+"w": 1170,
+"h": 2340,
 "name": "scene-snow"
+},
+{
+"kind": "scene",
+"time": "rain",
+"w": 1170,
+"h": 2340,
+"name": "scene-rain"
+},
+{
+"kind": "scene",
+"time": "rain-n",
+"w": 1170,
+"h": 2340,
+"name": "scene-rain-n"
+},
+{
+"kind": "scene",
+"time": "flowers",
+"w": 1170,
+"h": 2340,
+"name": "scene-flowers"
+},
+{
+"kind": "scene",
+"time": "flowers-n",
+"w": 1170,
+"h": 2340,
+"name": "scene-flowers-n"
+},
+{
+"kind": "scene",
+"time": "pond",
+"w": 1170,
+"h": 2340,
+"name": "scene-pond"
+},
+{
+"kind": "scene",
+"time": "pond-n",
+"w": 1170,
+"h": 2340,
+"name": "scene-pond-n"
+},
+{
+"kind": "scene",
+"time": "study",
+"w": 1170,
+"h": 2340,
+"name": "scene-study"
+},
+{
+"kind": "scene",
+"time": "study-n",
+"w": 1170,
+"h": 2340,
+"name": "scene-study-n"
 },
 {
 "kind": "scene",

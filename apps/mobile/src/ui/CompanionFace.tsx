@@ -2,13 +2,16 @@
 // 반복: breathe(L만, scaleY 1→1.02 3.2초) · think(rotate ±3° 1.4초) · wiggle(알, 4초마다 ±4·±3·±2°) / 한 번: hop(−6, 340ms) · tilt(−8°, 420ms).
 // 움직임 줄이기(OS · 성장 ⋯)면 transform 없이 얼굴만, 말풍선·+1은 페이드만. 화면이 포커스를 잃거나 앱이 뒤로 가면 반복을 멈춘다.
 // 한 화면에 움직이는 캐릭터는 하나 — 대화의 지난 답은 StaticFace(메모된 정지 그림)를 쓴다. 새 스프링 값 없음(withTiming만).
+// 49 §7.1 가벼운 판: onPress가 있고 100pt 이상(AI 비서 빈 대화·일기 큰 얼굴·빈 상태)이면 PlayableCharacter light — 누르기·play hop이
+// v3 깡충(웅크림·늘임·착지 눌림 + 흙 조각 + 가벼운 진동)이 된다. 딴짓·한 바퀴 없음.
 import type { Species } from '@sprout/schema/growth'
 import type { CompanionMove } from '@sprout/schema/companion'
 import { useIsFocused } from 'expo-router'
-import { memo, useEffect, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { AppState, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 import { CharacterArt } from '../growth/art/CharacterArt'
+import { PlayableCharacter, type PlayHandle } from '../growth/art/PlayableCharacter'
 import type { Mood } from '../growth/logic'
 import { useMotionReduced } from '../growth/motion'
 import { usePalette } from '../theme/ThemeProvider'
@@ -40,6 +43,8 @@ export function CompanionFace({ species, stage, size, mood = 'smile', loop = nul
   const rotLoop = useSharedValue(0)
   const rotOnce = useSharedValue(0)
   const ty = useSharedValue(0)
+  const light = !!onPress && size >= 100
+  const pc = useRef<PlayHandle>(null)
   useEffect(() => {
     const stop = () => { cancelAnimation(sy); cancelAnimation(rotLoop); sy.value = 1; rotLoop.value = 0 }
     stop()
@@ -54,19 +59,24 @@ export function CompanionFace({ species, stage, size, mood = 'smile', loop = nul
     return stop
   }, [loop, reduced, active, sy, rotLoop])
   useEffect(() => {
-    if (!play?.n || reduced || !play.move) return
+    if (!play?.n || !play.move) return
+    if (light && play.move === 'hop') { pc.current?.hop(); return } // 줄이기면 맥박
+    if (reduced) return
     if (play.move === 'hop') ty.value = withSequence(withTiming(-6, { duration: 150, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 190, easing: Easing.in(Easing.quad) }))
     else rotOnce.value = withSequence(withTiming(-8, { duration: 170, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 250, easing: Easing.inOut(Easing.quad) }))
-  }, [play?.n, play?.move, reduced, ty, rotOnce])
+  }, [play?.n, play?.move, reduced, light, ty, rotOnce])
   useEffect(() => () => { cancelAnimation(sy); cancelAnimation(rotLoop); cancelAnimation(rotOnce); cancelAnimation(ty) }, [sy, rotLoop, rotOnce, ty])
   const st = useAnimatedStyle(() => ({ transform: [{ translateY: ty.value }, { rotate: `${rotLoop.value + rotOnce.value}deg` }, { scaleY: sy.value }] }))
   const art = (
     <Animated.View style={[{ width: size, height: size, transformOrigin: ORIGIN }, dim && { opacity: 0.55 }, st]}>
-      <CharacterArt species={species} stage={stage} size={size} mood={mood} crop={crop} />
+      {light
+        ? <PlayableCharacter ref={pc} species={species} stage={stage} size={size} mood={mood} crop={crop} level="light" interactive={false} reduced={reduced} />
+        : <CharacterArt species={species} stage={stage} size={size} mood={mood} crop={crop} />}
     </Animated.View>
   )
   if (!onPress) return <View style={style} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{art}</View>
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} hitSlop={6} onPress={onPress} style={style}>{art}</Pressable>
+  // 가벼운 판: 누르면 바로 깡충(부르는 쪽 play hop은 진행 중이라 겹치지 않고 버려진다)
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} hitSlop={6} onPress={() => { if (light) pc.current?.hop(); onPress() }} style={style}>{art}</Pressable>
 }
 
 /** 지난 답의 얼굴 — 그 답의 얼굴로 멈춘 그림(움직임·공유 값 없음) */

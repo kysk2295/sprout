@@ -36,7 +36,8 @@ def write(name, d):
     json.dump(d, open(os.path.join(HERE, 'jobs', name + '.json'), 'w'), ensure_ascii=False, indent=0)
     print(name, len(d['items']))
 
-size, samples = (320, 16) if PREVIEW else (640, 64)
+# 800px로 구워 768로 줄인다 — 휴대폰 3배 화면의 무대 캐릭터(≈ 250pt = 750px)를 늘리지 않게
+size, samples = (320, 16) if PREVIEW else (800, 64)
 pre = 'preview-' if PREVIEW else ''
 out = lambda d: os.path.join('build', ('preview/' if PREVIEW else '') + d)
 
@@ -53,7 +54,7 @@ for sp in SPECIES:
         acc.append({'kind': 'char', 'species': sp, 'stage': st, 'layer': 'accs', 'ids': ids, 'name': f'{sp}-{st}-acc'})
     write(pre + 'acc-' + sp, {'out': out('acc'), 'size': size, 'samples': samples, 'skip_existing': not PREVIEW, 'items': acc})
 spins = [{'kind': 'char', 'species': sp, 'stage': st, 'branch': br, 'seed': s, 'layer': 'spin', 'frames': 12, 'name': f'{n}-spin'} for sp, st, br, s, n in bodies()]
-write(pre + 'spins', {'out': out('spin'), 'size': 240 if not PREVIEW else 160, 'samples': 32 if not PREVIEW else 12, 'skip_existing': not PREVIEW, 'items': spins})
+write(pre + 'spins', {'out': out('spin'), 'size': 360 if not PREVIEW else 160, 'samples': 32 if not PREVIEW else 12, 'skip_existing': not PREVIEW, 'items': spins})
 seeds = []
 for s in range(4):
     for t in range(12):
@@ -61,8 +62,8 @@ for s in range(4):
     for c in (1, 2):
         seeds.append({'kind': 'seed', 'seed': s, 'turn': 0, 'crack': c, 'name': f'seed{s}-crack{c}'})
 if PREVIEW: seeds = [x for x in seeds if x['name'] in ('seed0-t00', 'seed0-crack1', 'seed0-crack2', 'seed3-t03')]
-write(pre + 'seeds', {'out': out('seed'), 'size': 320, 'samples': 48 if not PREVIEW else 16, 'skip_existing': not PREVIEW, 'items': seeds})
-scenes = [{'kind': 'scene', 'time': t, 'w': 780, 'h': 1560, 'name': f'scene-{t}'} for t in ('day', 'dawn', 'dusk', 'sunset', 'moon', 'snow')]
+write(pre + 'seeds', {'out': out('seed'), 'size': 560, 'samples': 48 if not PREVIEW else 16, 'skip_existing': not PREVIEW, 'items': seeds})
+scenes = [{'kind': 'scene', 'time': t, 'w': 1170, 'h': 2340, 'name': f'scene-{t}'} for t in ('day', 'dawn', 'dusk', 'sunset', 'moon', 'snow', 'rain', 'rain-n', 'flowers', 'flowers-n', 'pond', 'pond-n', 'study', 'study-n')]
 scenes += [{'kind': 'scene', 'time': t, 'w': 1170, 'h': 420, 'band': True, 'cz': 1.4, 'tz': 1.6, 'lens': 40, 'name': f'band-{t}'} for t in ('day', 'dusk')]
 if PREVIEW:
     for s in scenes: s['w'] //= 3; s['h'] //= 3

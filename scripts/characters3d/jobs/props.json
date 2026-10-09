@@ -1,6 +1,6 @@
 {
 "out": "build/prop",
-"size": 640,
+"size": 800,
 "samples": 64,
 "skip_existing": true,
 "items": [

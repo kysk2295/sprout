@@ -2,7 +2,7 @@
 // 칸 크기는 ResizeObserver로 재고, 배치는 공용 sceneLayout(휴대폰과 같은 계산). 방 장식 = 받침 기준 작은 3D 소품(DECOR_SPOTS).
 // SceneBand = 할 일 화면 큰 제목 뒤 띠(49 §8.2 은은하게): 아래로 바탕색에 녹는다(CSS mask).
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { BAND_PX, DECOR3D, DECOR_SPOTS, SCENE_PX, SCENE_TINT, bandKeyFor, decorKey, sceneLayout, standOnPerch } from '@sprout/schema/characterArt'
+import { BAND_CROP, BAND_PX, DECOR3D, DECOR_SPOTS, SCENE_PX, SCENE_TINT, SCENES3D, bandKeyFor, decorKey, sceneLayout, standOnPerch } from '@sprout/schema/characterArt'
 import { artUrl } from './art3dUrls'
 import './scene3d.css'
 
@@ -48,9 +48,26 @@ export const SceneBackdrop = memo(function SceneBackdrop({ sceneKey, align = 'bo
 /** 캐릭터 상자(box)를 받침 위에 세우는 자리 */
 export const onPerch = (L: SceneLayout, box: number) => standOnPerch(L.perchX, L.perchY, box)
 
-/** 큰 제목 뒤 장면 띠(높이 height) — 스크롤하면 부르는 쪽이 함께 밀어 올린다 */
-export function SceneBand({ dark, height = 168, className }: { dark: boolean; height?: number; className?: string }) {
+/** 큰 제목 뒤 장면 띠(높이 height) — 스크롤하면 부르는 쪽이 함께 밀어 올린다.
+ *  sceneKey가 있으면 그 장면(내 배경, 49 §6.1)을 BAND_CROP 구간으로 가로로 잘라 깐다 — 칸 폭을 덮도록 키우고 자른 구간의 가운데를 띠 가운데에.
+ *  그 장면 그림이 아직 없으면 기본 띠(낮/밤) */
+export function SceneBand({ dark, height = 168, className, sceneKey }: { dark: boolean; height?: number; className?: string; sceneKey?: string }) {
+  const m = sceneKey ? SCENES3D[sceneKey] : undefined
+  const sUrl = m && sceneKey ? artUrl(sceneKey, SCENE_PX) : null
+  if (sUrl && m && sceneKey) return <CroppedBand url={sUrl} aspect={m.aspect} height={height} className={className} tint={(SCENE_TINT[sceneKey] ?? SCENE_TINT['scene-day']).top} />
   const url = artUrl(bandKeyFor(dark), BAND_PX)
   if (!url) return null
   return <div className={`s3-band${className ? ` ${className}` : ''}`} style={{ height, backgroundImage: `url("${url}")` }} aria-hidden="true" />
+}
+
+function CroppedBand({ url, aspect, height, className, tint }: { url: string; aspect: number; height: number; className?: string; tint: string }) {
+  const [ref, size] = useBoxSize<HTMLDivElement>()
+  const span = (BAND_CROP.y1 - BAND_CROP.y0) * aspect // 자른 구간 높이 ÷ 그림 폭
+  const iw = Math.max(size.w, size.h / span)
+  const top = size.h / 2 - ((BAND_CROP.y0 + BAND_CROP.y1) / 2) * aspect * iw
+  return (
+    <div ref={ref} className={`s3-band is-crop${className ? ` ${className}` : ''}`} style={{ height, backgroundColor: tint }} aria-hidden="true">
+      {size.w > 0 && <img src={url} alt="" draggable={false} style={{ left: (size.w - iw) / 2, top, width: iw, height: iw * aspect }} />}
+    </div>
+  )
 }

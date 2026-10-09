@@ -6,9 +6,9 @@ import {
   serializeLook, setPath, stageBoxSize, tapLines, toggleDecor, trophyLine, trophyRowId, trophyShape, unequipSlot, unlocksFor, wornEquip, budsOf, marksOf, type RaiseState
 } from './wardrobe.ts'
 
-// ── 옷 23개, id 겹침 없음, 칸 5종 ──
-assert.equal(ITEMS.length, 23)
-assert.equal(new Set(ITEMS.map((i) => i.id)).size, 23)
+// ── 옷 29개(입는 것 18 + 배경 11 — 49 §6.1 배경 고르기), id 겹침 없음, 칸 5종 ──
+assert.equal(ITEMS.length, 29)
+assert.equal(new Set(ITEMS.map((i) => i.id)).size, 29)
 assert.deepEqual([...new Set(ITEMS.map((i) => i.slot))].sort(), ['back', 'bg', 'hand', 'hat', 'neck'])
 // Lv 2~13은 레벨마다 옷 하나(Lv 14 없음, 15 잎 날개)
 for (let lv = 1; lv <= 13; lv++) assert.equal(giftsAt(lv).length, 1, `Lv ${lv}`)
@@ -54,14 +54,14 @@ assert.equal(s0.days, 2)
 assert.deepEqual(s0.seasons, ['chuseok']) // 10/1은 2026 추석 기간
 const rows0 = unlocksFor('c1', s0)
 const ids0 = rows0.filter((r) => r.kind === 'item').map((r) => r.item_id)
-assert.deepEqual(ids0.sort(), ['acorn-cap', 'bandana', 'grass', 'leaf-hat', 'moon', 'pencil', 'ribbon', 'songpyeon', 'straw', 'sunset'].sort())
+assert.deepEqual(ids0.sort(), ['acorn-cap', 'auto', 'bandana', 'dawn', 'grass', 'leaf-hat', 'moon', 'pencil', 'ribbon', 'songpyeon', 'straw', 'study', 'sunset'].sort())
 assert.ok(rows0.every((r) => r.character_id === 'c1'))
 assert.equal(rows0.find((r) => r.item_id === 'straw')!.id, 'item:c1:straw')
 assert.equal(rows0.find((r) => r.item_id === 'moon')!.source, 'season')
 
 const many: RaiseState = { level: 15, days: 31, reviews: 12, projects: [{ id: 'p1', title: '공모전', day: '2026-10-10' }], seasons: ['xmas', 'seollal', 'chuseok'] }
 const all = unlocksFor('c1', many)
-assert.equal(all.filter((r) => r.kind === 'item').length, 23) // 다 열림
+assert.equal(all.filter((r) => r.kind === 'item').length, 28) // 다 열림(연못 = 한 날 45일만 남음)
 const trophies = all.filter((r) => r.kind === 'trophy')
 assert.deepEqual(trophies.map((r) => r.id), [
   trophyRowId.project('c1', 'p1'), trophyRowId.days('c1', 7), trophyRowId.days('c1', 30), trophyRowId.review('c1', 4), trophyRowId.review('c1', 12)
@@ -107,7 +107,7 @@ assert.equal(trophyLine({ title: '한 날 7일', source: 'days' }), '한 날 7�
 // ── look_json ──
 assert.deepEqual(parseLook(null), DEFAULT_LOOK)
 assert.deepEqual(parseLook('{bad'), DEFAULT_LOOK)
-assert.deepEqual(parseLook('{"path":"b","eq":{"hat":"straw","neck":"mug","bg":"dragon"},"decorOff":["tent","x"]}'), { path: 'b', eq: { hat: 'straw', neck: null, hand: null, back: null, bg: 'grass' }, decorOff: ['tent'] })
+assert.deepEqual(parseLook('{"path":"b","eq":{"hat":"straw","neck":"mug","bg":"dragon"},"decorOff":["tent","x"]}'), { path: 'b', eq: { hat: 'straw', neck: null, hand: null, back: null, bg: 'auto' }, decorOff: ['tent'] })
 const l1 = equipItem(DEFAULT_LOOK, 'straw')
 assert.equal(l1.eq.hat, 'straw')
 assert.equal(equipItem(l1, 'straw').eq.hat, null) // 다시 누르면 벗는다
@@ -116,8 +116,8 @@ assert.equal(equipItem(equipItem(l1, 'sunset'), 'sunset').eq.bg, 'sunset') // �
 assert.equal(unequipSlot(l1, 'hat').eq.hat, null)
 assert.equal(setPath(l1, 'b').path, 'b')
 assert.deepEqual(toggleDecor(toggleDecor(l1, 'pot'), 'pot').decorOff, [])
-assert.deepEqual(parseLook(serializeLook(equipItem(setPath(l1, 'b'), 'mug'))), { path: 'b', eq: { hat: 'straw', neck: null, hand: 'mug', back: null, bg: 'grass' }, decorOff: [] })
-assert.deepEqual(wornEquip(equipItem(l1, 'mug'), new Set(['grass', 'straw'])), { hat: 'straw', neck: null, hand: null, back: null, bg: 'grass' })
+assert.deepEqual(parseLook(serializeLook(equipItem(setPath(l1, 'b'), 'mug'))), { path: 'b', eq: { hat: 'straw', neck: null, hand: 'mug', back: null, bg: 'auto' }, decorOff: [] })
+assert.deepEqual(wornEquip(equipItem(l1, 'mug'), new Set(['grass', 'straw'])), { hat: 'straw', neck: null, hand: null, back: null, bg: 'auto' })
 assert.deepEqual(decorOn(5, toggleDecor(DEFAULT_LOOK, 'fence')), ['pot', 'mushlamp', 'butterfly'])
 assert.equal(lookKey(l1), lookKey({ ...DEFAULT_LOOK, eq: { ...DEFAULT_LOOK.eq, hat: 'straw', bg: 'night' } })) // 배경은 열쇠에 안 들어감
 assert.notEqual(lookKey(l1), lookKey(DEFAULT_LOOK))

@@ -136,7 +136,7 @@ function widgetLayers(job: ArtJob): { srcs: ArtSrc[]; box: Box } {
     return { srcs: src ? [src] : [], box: EGG_BOX }
   }
   const L = layers3d(job.species, job.stage, { path: job.look.path, seed, eq: job.look.eq, mood: job.mood, size: 192 })
-  const srcs = L.map((l) => artSource(l.key, 512)).filter((x): x is ArtSrc => x != null)
+  const srcs = L.map((l) => artSource(l.key, 768)).filter((x): x is ArtSrc => x != null)
   return { srcs, box: bodyBox(bodyKey(job.species, job.stage, job.look.path, seed)) }
 }
 

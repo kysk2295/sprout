@@ -38,7 +38,7 @@ const u1 = await planUnlocks(db, 'c1', env)
 run(u1.stmts)
 assert.deepEqual(u1.fresh, [])
 const items1 = all(CHARACTER_ITEMS_SQL, ['c1'])
-assert.deepEqual(items1.map((r) => r.item_id).sort(), ['acorn-cap', 'grass', 'moon', 'ribbon', 'songpyeon'])
+assert.deepEqual(items1.map((r) => r.item_id).sort(), ['acorn-cap', 'auto', 'dawn', 'grass', 'moon', 'ribbon', 'songpyeon'])
 assert.ok(items1.every((r) => r.seen_at && r.owner_id === undefined)) // SELECT 칸에 owner 없음
 assert.equal(all('SELECT owner_id FROM character_items')[0].owner_id, 'user-1')
 // 다시 돌리면 아무것도 넣지 않는다
@@ -60,7 +60,7 @@ run([xp('rv', 'task_revoke', -1, '2026-10-02')])
 const u3 = await planUnlocks(db, 'c1', env)
 assert.equal(u3.stmts.length, 0)
 assert.ok(u3.stmts.every((s) => !/DELETE/i.test(s.sql)))
-assert.equal(all('SELECT count(*) n FROM character_items')[0].n, 6)
+assert.equal(all('SELECT count(*) n FROM character_items')[0].n, 8) // + 자동·새벽 배경(처음부터)
 
 // ── 끝낸 프로젝트 → 깃발 + 트로피(프로젝트 이름은 행에 남긴다) ──
 run([

@@ -8,6 +8,6 @@ for (const [p, url] of Object.entries(FILES)) BY_NAME[p.slice(p.lastIndexOf('/')
 
 /** 파일 이름(그림 이름 + 크기) → 주소. 그 크기가 없으면 다른 크기로 */
 export function artUrl(key: string, px: number): string | null {
-  return BY_NAME[artFile(key, px)] ?? BY_NAME[artFile(key, 512)] ?? BY_NAME[artFile(key, 160)] ?? BY_NAME[artFile(key, 320)] ?? BY_NAME[artFile(key, 780)] ?? BY_NAME[artFile(key, 1170)] ?? BY_NAME[artFile(key, 256)] ?? null
+  return BY_NAME[artFile(key, px)] ?? BY_NAME[artFile(key, 768)] ?? BY_NAME[artFile(key, 384)] ?? BY_NAME[artFile(key, 160)] ?? BY_NAME[artFile(key, 512)] ?? BY_NAME[artFile(key, 1170)] ?? BY_NAME[artFile(key, 256)] ?? null
 }
 export const artFileCount = () => Object.keys(BY_NAME).length

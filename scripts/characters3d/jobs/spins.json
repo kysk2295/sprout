@@ -1,6 +1,6 @@
 {
 "out": "build/spin",
-"size": 240,
+"size": 360,
 "samples": 32,
 "skip_existing": true,
 "items": [

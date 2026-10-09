@@ -27,8 +27,8 @@ const square = ([x0, y0, x1, y1]) => {
   return { x: Math.min(1 - side, Math.max(0, cx - side / 2)), y: Math.min(1 - side, Math.max(0, cy - side / 2)), w: side, h: side }
 }
 const pick = (key) => {
-  for (const px of [512, 320, 160]) { const f = join(art, A.artFile(key, px)); if (existsSync(f)) return f }
-  return join(art, A.artFile(key, 512))
+  for (const px of [768, 512, 384, 160]) { const f = join(art, A.artFile(key, px)); if (existsSync(f)) return f }
+  return join(art, A.artFile(key, 768))
 }
 
 const jobs = []

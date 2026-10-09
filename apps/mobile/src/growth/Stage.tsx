@@ -1,21 +1,23 @@
 // 49 §6 휴대폰 성장 홈(시안 character-v3 B): 3D 정원 장면이 상태 막대 뒤까지 화면 끝까지 + 위 `꿈틀`·유리 알약 `한 날 N일`·⋯ +
 // 유리 주 달력 띠(오늘 = 강조색 원, 한 날 = 옅은 원) + 받침(perch) 위 캐릭터(숨쉬기) + 아래 유리 카드(Lv 배지 · 큰 % · 꼬리 칩 · 14px 막대 · 옷장·도감·이번 주).
-// 만지기(43 §4.1 그대로): 누르기 = 웃음 + 깡충 + 유리 말풍선 한 줄 · 길게 = 쓰다듬기 · 빠르게 4번 = 간지럼 · 끌었다 놓기 · 이름 = 부르기.
+// 만지기 v3(49 §7.1 — PlayableCharacter full): 누르기 = 깡충 + 유리 말풍선 한 줄 · 두 번/3번째 = 공중 한 바퀴 · 빠르게 4번 = 간지럼 · 길게 = 쓰다듬기 ·
+// 끌었다 놓기(받침 반경 안에서 따라옴) · 가만히 두면 8~15초마다 딴짓 · 이름 = 부르기.
 // 만지기는 아무것도 주지 않는다(XP·아이템 없음). 움직임은 감싸개의 transform·opacity만, UI 스레드(39 §11). 반복 움직임 캐릭터는 이 무대 하나.
 // 트로피 선반은 장면에서 뺐다(49 §6) — 트로피는 도감 화면 목록에 있다.
 import { FOOT, headTop3d, sceneDark, sceneLayout, standOnPerch, titleOf } from '@sprout/schema/characterArt'
 import { XP, type Species } from '@sprout/schema/growth'
 import { decorOn, ITEMS, TOUCH, TOUCH_LINES, type Equip } from '@sprout/schema/wardrobe'
+import type { PlayKind } from '@sprout/schema/charPlay'
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import Animated, { cancelAnimation, Easing, FadeIn, FadeOut, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
+import Animated, { cancelAnimation, Easing, FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 import { hx } from '../ui/haptics'
 import type { Palette } from '../theme/palette'
 import { CharacterArt } from './art/CharacterArt'
+import { PlayableCharacter, type PlayHandle } from './art/PlayableCharacter'
 import { SceneBackdrop } from './art/Scene3D'
-import { FloatChip, Heart, SpeciesBurst } from './Bits'
+import { FloatChip, SpeciesBurst } from './Bits'
 import { DEX_TOTAL } from './home/dex'
 import { AccThumb, fitScene, Glass, glassTone } from './home/glass'
 import type { Raise } from './raise'
@@ -30,6 +32,8 @@ export type StageHandle = {
   wave: (line?: string) => void
   /** 잠깐 손에 든 것(마감 날 깃발) */
   holdFor: (hand: string, ms: number) => void
+  /** 만지기 반응 하나(데모·확인용) — 49 §7.1 */
+  play: (kind: 'hop' | 'spin' | 'giggle' | 'wobble' | 'pet' | 'dizzy') => void
 }
 type StageMood = 'default' | 'smile' | 'happy' | 'pet' | 'giggle' | 'wow' | 'sleepy' | 'eat'
 /** 주 달력 띠 한 칸 */
@@ -54,7 +58,8 @@ export const RaiseStage = forwardRef<StageHandle, {
   const lv = progress.level
   const st = progress.stage
   const seed = look.seed ?? 0
-  const t = glassTone(p.dark)
+  const sd = sceneDark(sceneKey) // 유리·글자 톤 = 장면 밝기(49 §6.1). 다크 테마는 밤 짝 장면이라 저절로 어둡다
+  const t = glassTone(sd)
 
   // ── 자리: 유리 카드 위에 받침이 오게 장면을 깐다 ──
   const hudBottom = bottomClear + 12
@@ -73,7 +78,6 @@ export const RaiseStage = forwardRef<StageHandle, {
   // ── 얼굴 · 말 · 하트 · 칩 ──
   const [mood, setMood] = useState<{ m: StageMood; id: number } | null>(null)
   const [bubble, setBubble] = useState<{ text: string; id: number } | null>(null)
-  const [hearts, setHearts] = useState<{ id: number; dx: number }[]>([])
   const [chips, setChips] = useState<{ id: number; text: string; kind: 'xp' | 'lv' | 'z'; dx: number }[]>([])
   const [bursts, setBursts] = useState<{ id: number; n: number; dist: number }[]>([])
   const [hold, setHold] = useState<string | null>(null)
@@ -83,12 +87,11 @@ export const RaiseStage = forwardRef<StageHandle, {
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
   const feel = useCallback((m: StageMood, ms?: number) => { const id = Math.random(); setMood({ m, id }); if (ms) later(() => setMood((x) => (x?.id === id ? null : x)), ms) }, [later])
   const say = useCallback((text: string, ms: number = TOUCH.sayMs) => { const id = Math.random(); setBubble({ text, id }); later(() => setBubble((b) => (b?.id === id ? null : b)), ms) }, [later])
-  const heart = useCallback((dx = 0) => { if (reduced) return; const id = Math.random(); setHearts((h) => [...h.slice(-6), { id, dx }]); later(() => setHearts((h) => h.filter((x) => x.id !== id)), 1100) }, [reduced, later])
   const chip = useCallback((text: string, kind: 'xp' | 'lv' | 'z', dx = 0) => { const id = Math.random(); setChips((c) => [...c, { id, text, kind, dx }]); later(() => setChips((c) => c.filter((x) => x.id !== id)), kind === 'xp' ? 1000 : 1600) }, [later])
   const burst = useCallback((n: number, dist: number) => { if (reduced) return; const id = Math.random(); setBursts((b) => [...b, { id, n, dist }]); later(() => setBursts((b) => b.filter((x) => x.id !== id)), 1200) }, [reduced, later])
 
   // ── 감싸개 움직임(UI 스레드) ──
-  const tx = useSharedValue(0), ty = useSharedValue(0), rot = useSharedValue(0), hopY = useSharedValue(0)
+  const rot = useSharedValue(0), hopY = useSharedValue(0)
   const sx = useSharedValue(1), sy = useSharedValue(1), breath = useSharedValue(0)
   const sleepy = !!species && night && !woke
   useEffect(() => {
@@ -97,16 +100,11 @@ export const RaiseStage = forwardRef<StageHandle, {
     breath.value = withRepeat(withTiming(1, { duration: sleepy || calm ? 2500 : st === 1 ? 1200 : 1600, easing: Easing.inOut(Easing.sin) }), -1, true)
     return () => cancelAnimation(breath)
   }, [reduced, live, sleepy, calm, st, breath])
-  // 4·5단계: 7초·6초마다 제자리 깡충(42 §4.1, 바쁜 날 끔)
-  useEffect(() => {
-    if (reduced || !live || st < 4 || calm || sleepy) return
-    const tm = setInterval(() => { hopY.value = withSequence(withTiming(-7, { duration: 160 }), withTiming(0, { duration: 260, easing: Easing.bounce })) }, st === 4 ? 7000 : 6000)
-    return () => clearInterval(tm)
-  }, [reduced, live, st, calm, sleepy, hopY])
+  // 4·5단계 제자리 깡충(42 §4.1)은 49 §7.1 딴짓(8~15초 · 작은 깡충 포함)이 맡는다 — 반복 움직임 하나
   const wrap = useAnimatedStyle(() => ({
     transformOrigin: 'bottom',
     transform: [
-      { translateX: tx.value }, { translateY: ty.value + hopY.value },
+      { translateY: hopY.value },
       { rotate: `${rot.value}deg` },
       { scaleX: sx.value * (1 + breath.value * 0.018) }, { scaleY: sy.value * (1 - breath.value * 0.028) }
     ]
@@ -138,71 +136,23 @@ export const RaiseStage = forwardRef<StageHandle, {
       }
       burst(10, 90); chip(`Lv ${level}`, 'lv')
     },
-    holdFor: (hand, ms) => { setHold(hand); later(() => setHold(null), ms) }
+    holdFor: (hand, ms) => { setHold(hand); later(() => setHold(null), ms) },
+    play: (kind) => pc.current?.play(kind)
   }), [hop, say, feel, burst, wave, chip, reduced, sx, sy, hopY, later])
 
-  // ── 만지기 ──
-  const taps = useRef<number[]>([])
-  const tickleUntil = useRef(0)
-  const pet = useRef<{ on: boolean; t?: ReturnType<typeof setInterval> }>({ on: false })
-  const onTap = useCallback(() => {
-    hx.tick()
-    if (!species) { if (!reduced) { hopY.value = withSequence(withTiming(-8, { duration: 140 }), withTiming(0, { duration: 220 })) } onEgg?.(); return }
-    if (sleepy) { setWoke(true); feel('default', TOUCH.wakeMs); hop(1, 8); say(TOUCH_LINES.wake); later(() => setWoke(false), TOUCH.wakeMs); return }
-    const now = Date.now()
-    taps.current = [...taps.current.filter((x) => now - x < TOUCH.tickleWindowMs), now]
-    if (taps.current.length >= TOUCH.tickleTaps && now > tickleUntil.current) {
-      tickleUntil.current = now + TOUCH.tickleCooldownMs; taps.current = []
-      feel('giggle', 1800)
-      if (!reduced) rot.value = withSequence(...[-7, 7, -6, 6, -4, 4, 0].map((r) => withTiming(r, { duration: 100 })))
-      say(TOUCH_LINES.tickle); return
-    }
-    hop(); heart(); feel('happy', 1500)
+  // ── 만지기(49 §7.1 — 움직임·조각·진동은 PlayableCharacter, 말·얼굴은 여기) ──
+  const pc = useRef<PlayHandle>(null)
+  const onTap = useCallback((kind: PlayKind) => {
+    if (!species) { onEgg?.(); return }
+    if (sleepy) { setWoke(true); feel('default', TOUCH.wakeMs); say(TOUCH_LINES.wake); later(() => setWoke(false), TOUCH.wakeMs); return }
+    if (kind === 'giggle') { feel('giggle', 1800); return } // 한 줄은 onSay
+    feel('happy', 1500)
     say(lines())
-  }, [species, sleepy, feel, hop, say, heart, reduced, rot, hopY, lines, later, onEgg])
-  const petStart = useCallback(() => {
-    if (!species) return
-    hx.tap(); pet.current.on = true; feel('pet')
-    let n = 0
-    pet.current.t = setInterval(() => { if (n++ < 6) heart((n % 2 ? -1 : 1) * (8 + n * 4)) }, 300)
-  }, [species, feel, heart])
-  const petEnd = useCallback(() => {
-    if (!pet.current.on) return
-    pet.current.on = false; clearInterval(pet.current.t)
-    say(TOUCH_LINES.pet); feel('happy', 1500)
-  }, [say, feel])
+  }, [species, sleepy, feel, say, lines, later, onEgg])
+  const onSay = useCallback((text: string) => { say(text); if (text === TOUCH_LINES.pet) feel('happy', 1500) }, [say, feel])
+  const petStart = useCallback(() => feel('pet'), [feel])
   const dragStart = useCallback(() => { feel('wow') }, [feel])
   const drop = useCallback((far: boolean) => { feel('happy', 1600); later(() => say(far ? TOUCH_LINES.dropFar : TOUCH_LINES.drop), reduced ? 0 : 500) }, [feel, say, later, reduced])
-
-  const gesture = useMemo(() => {
-    const R = TOUCH.dragRadius, DOWN = TOUCH.dragDown
-    const pan = Gesture.Pan().minDistance(TOUCH.dragStartPx).enabled(!!species)
-      .onStart(() => { runOnJS(dragStart)() })
-      .onUpdate((e) => {
-        const r = Math.hypot(e.translationX, e.translationY), k = r > R ? R / r : 1
-        tx.value = e.translationX * k
-        ty.value = Math.min(e.translationY * k, DOWN)
-        rot.value = tx.value / 9
-      })
-      .onEnd(() => {
-        const x = tx.value, y = ty.value, far = Math.hypot(x, y) > TOUCH.dropFarPx
-        if (reduced) {
-          tx.value = withTiming(0, { duration: 160 }); ty.value = withTiming(0, { duration: 160 }); rot.value = withTiming(0, { duration: 160 })
-        } else {
-          tx.value = withSequence(withTiming(x * 0.35, { duration: 230 }), withTiming(0, { duration: 180 }))
-          ty.value = withSequence(withTiming(Math.min(y, 0) - (far ? 34 : 16), { duration: 230, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }), withTiming(-9, { duration: 120 }), withTiming(0, { duration: 150 }))
-          rot.value = withSequence(withTiming(-x / 14, { duration: 230 }), withTiming(0, { duration: 180 }))
-          sx.value = withSequence(withDelay(410, withTiming(1.08, { duration: 60 })), withTiming(0.97, { duration: 120 }), withTiming(1.02, { duration: 90 }), withTiming(1, { duration: 70 }))
-          sy.value = withSequence(withDelay(410, withTiming(0.89, { duration: 60 })), withTiming(1.04, { duration: 120 }), withTiming(0.98, { duration: 90 }), withTiming(1, { duration: 70 }))
-        }
-        runOnJS(drop)(far)
-      })
-    const long = Gesture.LongPress().minDuration(TOUCH.petMs).maxDistance(TOUCH.dragStartPx)
-      .onStart(() => { runOnJS(petStart)() })
-      .onFinalize(() => { runOnJS(petEnd)() })
-    const tap = Gesture.Tap().maxDuration(450).onEnd((_e, ok) => { if (ok) runOnJS(onTap)() })
-    return Gesture.Race(pan, long, tap)
-  }, [species, reduced, tx, ty, rot, sx, sy, dragStart, drop, petStart, petEnd, onTap])
 
   // 늦은 밤 Z 3개(움직임 줄이기면 없음)
   useEffect(() => {
@@ -220,26 +170,26 @@ export const RaiseStage = forwardRef<StageHandle, {
   const pct = Math.floor(Math.min(100, (progress.into / Math.max(1, progress.toNext)) * 100))
   const left = Math.max(1, Math.ceil((progress.toNext - progress.into) / XP.task))
   const title = species ? titleOf(species, st, look.path) : '아직 모르는 씨앗'
-  const tailBg = p.dark ? '#EEF3F0' : '#13211B', tailInk = p.dark ? '#13211B' : '#FFFFFF'
+  const tailBg = sd ? '#EEF3F0' : '#13211B', tailInk = sd ? '#13211B' : '#FFFFFF'
   const wardIcon = wardIconOf(worn, owned)
   const doneDays = week.filter((c) => c.did).length
 
   return (
     <View style={{ width, height, overflow: 'hidden' }}>
-      <SceneBackdrop sceneKey={sceneKey} width={width} height={fit.height} decor={decor} style={{ position: 'absolute', left: 0, top: fit.top }} />
+      <SceneBackdrop sceneKey={sceneKey} width={width} height={fit.height} fade={300} decor={decor} style={{ position: 'absolute', left: 0, top: fit.top }} />
 
       {/* 위: 꿈틀 · 한 날 · ⋯ */}
       <View style={[s.head, { top: topInset + 6 }]} pointerEvents="box-none">
-        <Text style={[s.logo, { color: sceneDark(sceneKey) || p.dark ? '#FFFFFF' : '#13211B' }]} accessibilityRole="header" accessibilityLabel="성장">꿈틀</Text>
+        <Text style={[s.logo, { color: t.ink }]} accessibilityRole="header" accessibilityLabel="성장">꿈틀</Text>
         <View style={{ flex: 1 }} />
-        <Glass dark={p.dark} radius={16} style={s.pill}>
+        <Glass dark={sd} radius={16} style={s.pill}>
           <Text style={[s.pillT, { color: t.ink }]}>한 날 <Text style={s.pillB}>{state.days}</Text>일</Text>
         </Glass>
         {menu}
       </View>
 
       {/* 주 달력 띠(43 누적: 한 날 = 옅은 원) */}
-      <Glass dark={p.dark} radius={22} style={[s.week, { top: topInset + 50 }]}>
+      <Glass dark={sd} radius={22} style={[s.week, { top: topInset + 50 }]}>
         <View style={s.weekRow} accessible accessibilityLabel={`이번 주 한 날 ${doneDays}일`}>
           {week.map((c) => (
             <View key={c.day} style={s.wcol}>
@@ -253,15 +203,12 @@ export const RaiseStage = forwardRef<StageHandle, {
       </Glass>
 
       {/* 받침 위 캐릭터 */}
-      <GestureDetector gesture={gesture}>
-        <Animated.View style={[{ position: 'absolute', left: pos.left, top: pos.top, width: size, height: size }, wrap]} accessible accessibilityRole="button"
-          accessibilityLabel={species ? `${name}, Lv ${lv} ${title}. 눌러서 말 걸기` : '아직 모르는 씨앗. 눌러서 깨우기'}
-          accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={() => onTap()}>
-          {species
-            ? <CharacterArt species={species} stage={st} size={size} mood={faceMood} wear={{ lv, path: look.path, eq, seed }} />
-            : <CharacterArt species={null} size={size} seed={seed} />}
-        </Animated.View>
-      </GestureDetector>
+      <Animated.View style={[{ position: 'absolute', left: pos.left, top: pos.top, width: size, height: size }, wrap]} pointerEvents="box-none">
+        <PlayableCharacter ref={pc} species={species} stage={st} size={size} mood={species ? faceMood : undefined} seed={seed}
+          wear={species ? { lv, path: look.path, eq, seed } : undefined} level="full" reduced={reduced} active={live} idle={!sleepy}
+          onTap={onTap} onSay={onSay} onPetStart={petStart} onDragStart={dragStart} onDrop={drop}
+          accessibilityLabel={species ? `${name}, Lv ${lv} ${title}. 눌러서 말 걸기` : '아직 모르는 씨앗. 눌러서 깨우기'} />
+      </Animated.View>
       {bubble ? (
         <View style={[s.sayBox, { left: perchX - 150, top: headY }]} pointerEvents="none">
           <Animated.View key={bubble.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(180)} style={[s.say, { backgroundColor: t.bubble, borderColor: t.line }]}>
@@ -271,14 +218,13 @@ export const RaiseStage = forwardRef<StageHandle, {
         </View>
       ) : null}
       <View style={[s.fx, { left: perchX, top: headY + 6 }]} pointerEvents="none">
-        {hearts.map((h) => <Heart key={h.id} dx={h.dx} />)}
         {chips.map((c) => <FloatChip key={c.id} text={c.text} kind={c.kind} dx={c.kind === 'xp' ? 34 : c.dx} reduced={reduced} />)}
       </View>
       {species ? <View style={[s.fx, { left: perchX, top: pos.top + size * 0.55 }]} pointerEvents="none">{bursts.map((b) => <SpeciesBurst key={b.id} species={species as Species} count={b.n} dist={b.dist} />)}</View> : null}
 
       {/* 아래 유리 카드 */}
       <View style={[s.hud, { bottom: hudBottom }]} onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (Math.abs(h - hudH) > 1) setHudH(h) }}>
-        <Glass dark={p.dark} radius={26} style={s.hudIn}>
+        <Glass dark={sd} radius={26} style={s.hudIn}>
           <View style={s.lvRow}>
             <View style={[s.lvb, { backgroundColor: p.accent }]}><Text style={s.lvbT}>Lv {lv}</Text></View>
             <Pressable onPress={() => species && wave()} hitSlop={8} disabled={!species} accessibilityRole="button" accessibilityLabel={species ? `${name} 부르기` : title} style={{ flexShrink: 1 }}>
