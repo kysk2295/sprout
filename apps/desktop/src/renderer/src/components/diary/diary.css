@@ -300,3 +300,23 @@
 .diary:not(.is-wide) .dmsg.is-card .ddraft.is-saved { background: var(--color-bg-app); }
 .diary.is-narrow .dtalk, .diary.is-narrow .ddock { padding-left: 12px; padding-right: 12px; }
 .diary.is-narrow .dmsg.is-card, .diary.is-narrow .dcard.is-in { padding-left: 0; margin-left: 0; }
+
+/* 28 §8.11 · 15 §10.11 받는 글 · 생각하는 얼굴 · 옮기는 중 */
+.dmsg__sway { display: grid; place-items: center; transform-origin: 50% 92%; }
+.dmsg__av.is-think .dmsg__sway { animation: dthink 1.4s ease-in-out infinite; }
+@keyframes dthink { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+.diary.is-reduced .dmsg__av.is-think .dmsg__sway { animation: none; }
+.dmsg.is-wait .dmsg__wait { color: var(--color-text-secondary); font-size: 14px; }
+.dmsg.is-partial .dmsg__bb { color: var(--color-text-secondary); opacity: .8; }
+.dretry { margin-left: 38px; display: flex; align-items: center; gap: 8px; font: 500 12.5px/18px var(--font-family); color: var(--color-text-tertiary); }
+.dretry .dchip { display: inline-flex; align-items: center; gap: 4px; }
+.dretry .dchip svg { width: 13px; height: 13px; }
+.ddraft.is-distilling { gap: 10px; }
+.ddistill__head { display: flex; align-items: center; gap: 8px; }
+.ddistill__head b { flex: 1; font: 700 14px/20px var(--font-family); color: var(--color-text-secondary); }
+.ddistill__title { font: 800 17px/24px var(--font-family); color: var(--color-text-primary); }
+.ddistill__body { margin: 0; font: 400 15px/25px var(--font-family); color: var(--color-text-primary); white-space: pre-wrap; overflow-wrap: anywhere; }
+.dprog { position: relative; height: 2px; border-radius: 1px; background: var(--color-border-divider); overflow: hidden; }
+.dprog i { position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: 1px; background: var(--color-accent); animation: dprog 1.6s ease-in-out infinite; }
+@keyframes dprog { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+.diary.is-reduced .dprog i { animation: none; transform: translateX(75%); }

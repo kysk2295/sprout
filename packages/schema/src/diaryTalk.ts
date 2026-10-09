@@ -237,3 +237,83 @@ export function sessionLinesOf(rows: TalkRow[]): { who: 'me' | 'buddy'; text: st
 export const leadingSections = (sections: number, warmLines: number) => Math.max(0, sections - warmLines)
 /** 저장 한 줄 수 */
 export const warmCountOf = (rows: TalkRow[]) => rows.filter((m) => m.safety === SCRIPTED && m.role === 'buddy' && isWarm(m.content)).length
+
+// ── 28 §8.11 · 15 §10.11 받는 글: 저장소 · 프레임 드러내기 · 옮기기 JSON에서 글만 · 답 얼굴 ──
+export type StreamSnap = { text: string; title: string; seq: number; shown: number }
+/** 받는 글 저장소 — 받는 말풍선(또는 옮기는 중 카드) 하나만 구독해 다시 그린다(대화 화면 전체는 안 그림, 39 §11) */
+export function createTextStream() {
+  let snap: StreamSnap = { text: '', title: '', seq: 0, shown: 0 }
+  const subs = new Set<() => void>()
+  let waiters: (() => void)[] = []
+  const emit = () => { for (const f of [...subs]) f() }
+  const wake = () => { if (snap.shown >= snap.text.length) { const w = waiters; waiters = []; for (const f of w) f() } }
+  return {
+    get: () => snap,
+    subscribe: (f: () => void) => { subs.add(f); return () => { subs.delete(f); if (!subs.size) { const w = waiters; waiters = []; for (const g of w) g() } } },
+    /** 지금까지 받은 글(누적). 같으면 아무것도 안 함 */
+    set(text: string, title = snap.title) {
+      if (text === snap.text && title === snap.title) return
+      snap = { ...snap, text, title, seq: snap.seq + 1, shown: text.length < snap.text.length ? 0 : snap.shown }
+      emit()
+    },
+    reset() { snap = { text: '', title: '', seq: snap.seq + 1, shown: 0 }; emit(); wake() },
+    /** 화면이 드러낸 글자 수(구독자가 알려 줌) — emit하지 않는다 */
+    mark(n: number) { snap.shown = n; wake() },
+    /** 다 드러날 때까지(구독자가 없거나 ms가 지나면 바로) */
+    whenShown(ms = 800): Promise<void> {
+      if (!subs.size || snap.shown >= snap.text.length) return Promise.resolve()
+      return new Promise((r) => { const t = setTimeout(r, ms); waiters.push(() => { clearTimeout(t); r() }) })
+    }
+  }
+}
+export type TextStream = ReturnType<typeof createTextStream>
+
+/** 프레임 드러내기: 밀린 글을 시간 상수 catchupMs로 따라잡되(지수) 최소 초당 minPerSec자. pos는 소수 자리(다음 프레임으로 넘김) */
+export const REVEAL = { catchupMs: 180, minPerSec: 40 }
+export function revealNext(pos: number, target: string, dtMs: number, o = REVEAL): { pos: number; shown: number } {
+  const len = target.length
+  if (pos >= len) return { pos: len, shown: len }
+  const dt = Math.max(0, Math.min(dtMs, 100)) // 탭이 쉬었다 돌아와도 한 번에 너무 많이 건너뛰지 않게
+  const rate = Math.max(o.minPerSec / 1000, (len - pos) / o.catchupMs)
+  const next = Math.min(len, pos + rate * dt)
+  let shown = Math.floor(next)
+  // 서로게이트 쌍(이모지) 가운데서 자르지 않는다
+  const c = target.charCodeAt(shown - 1)
+  if (shown < len && c >= 0xd800 && c <= 0xdbff) shown++
+  return { pos: Math.max(next, shown), shown }
+}
+
+/** 받는 중인 옮기기 JSON에서 제목·본문 글만(아직 안 왔으면 null). 화면에 JSON을 내지 않는다 */
+export function partialDistill(raw: string): { title: string | null; entry: string | null } {
+  const field = (key: string): string | null => {
+    const m = new RegExp(`"${key}"\\s*:\\s*"`).exec(raw)
+    if (!m) return null
+    let out = ''
+    for (let i = m.index + m[0].length; i < raw.length; i++) {
+      const ch = raw[i]
+      if (ch === '"') break
+      if (ch !== '\\') { out += ch; continue }
+      const e = raw[i + 1]
+      if (e === undefined) break // 이스케이프가 반쯤 옴 — 다음 조각에서
+      if (e === 'u') {
+        const hex = raw.slice(i + 2, i + 6)
+        if (!/^[0-9a-fA-F]{4}$/.test(hex)) break
+        out += String.fromCharCode(parseInt(hex, 16)); i += 5; continue
+      }
+      out += e === 'n' ? '\n' : e === 't' ? '\t' : e === 'r' ? '' : e
+      i++
+    }
+    return out
+  }
+  const title = field('title')
+  const entry = field('entry')
+  return {
+    title: title === null ? null : title.trim().replace(/^["“#\s]+/, ''),
+    entry: entry === null ? null : entry.replace(/^\s*(나|캐릭터)\s*:\s*/, '').replace(/^\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일\s*[,.]?\s*/, '')
+  }
+}
+
+/** 다 받은 답의 얼굴: 따뜻한 말이면 happy(40 §3.2), 아니면 null(기분 얼굴 그대로) */
+export const replyFaceOf = (text: string): 'happy' | null => (/고마|다행|잘했|수고|좋았|좋다|멋지|멋있|기뻐|기쁘|축하|대단/.test(text) ? 'happy' : null)
+/** 맨 아래 근처인가(따라 내려가기) */
+export const nearBottom = (el: { scrollTop: number; scrollHeight: number; clientHeight: number }, slack = 64) => el.scrollHeight - el.scrollTop - el.clientHeight <= slack

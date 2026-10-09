@@ -4,8 +4,8 @@ import { ART_SPECIES } from '@sprout/schema/characterArt'
 import { normalizeSpecies, STAGES } from '@sprout/schema/growth'
 import { parseSections, transcriptOf, wantsTranscript } from '@sprout/schema/diaryPrompts'
 import {
-  asksDistill, BYE_BUDDY, BYE_ME, clock, composeDraft, greetingOf, introLine, isSkip, isWarm, leadingSections, MORE_LINE, nextLines, nudgeOf, OPEN_LINE,
-  ownWords, questionOf, replay, SCRIPTED, sessionLinesOf, SKIP, SOLO_LINE, talkPhase, talkStateOf, TIME_LABEL, timeOfDay, warmLineOf, type Phase
+  asksDistill, BYE_BUDDY, BYE_ME, clock, composeDraft, createTextStream, greetingOf, introLine, isSkip, isWarm, leadingSections, MORE_LINE, nearBottom, nextLines, nudgeOf, OPEN_LINE,
+  ownWords, partialDistill, questionOf, replay, replyFaceOf, SCRIPTED, sessionLinesOf, SKIP, SOLO_LINE, talkPhase, talkStateOf, TIME_LABEL, timeOfDay, warmLineOf, type Phase
 } from '@sprout/schema/diaryTalk'
 import { useQuery } from '../../data/useQuery'
 import {
@@ -16,6 +16,7 @@ import { CharacterArt, type CharacterMood } from '../growth/CharacterArt'
 import { useToast } from '../Toast'
 import { MoodFace } from './MoodFace'
 import { DraftCard, SavedCard, type Draft } from './Sections'
+import { BubbleFace, DistillCard, StreamText } from './Stream'
 
 // 15 §10 · 28 §8.10 오늘 일기 = 캐릭터와 이야기하고, 그 이야기를 일기로 옮긴다(사용자 스킬 conversational-journal-to-wiki를 따름).
 // 정해진 인사(시간대 + 그날 할 일) → 기분 빠른 답 → (동의 전이면 대화 안 카드) → AI와 자유 대화 / 혼자 쓰기·나만 보기는 정해진 질문 3개
@@ -25,7 +26,8 @@ import { DraftCard, SavedCard, type Draft } from './Sections'
 export type FullBuddy = Buddy & { stage: number; level: number }
 /** 저장 전 초안(앱 실행 동안만 — 다시 열면 대화에서 다시 만든다, 28 §8.6) */
 const drafts = new Map<string, Draft>()
-type Ai = { kind: 'idle' } | { kind: 'reading'; text: string; queue?: number } | { kind: 'error'; message: string }
+/** 28 §8.11: reading = 기다림(started false, 생각 얼굴) → 받는 중(started) · landing = 다 받아 저장 중(저장된 행이 보이면 내림) · error = 멈춤·오류(받은 글은 partial로 남김, 저장 안 함) */
+type Ai = { kind: 'idle' } | { kind: 'reading'; started: boolean; queue?: number; since: string } | { kind: 'landing'; since: string } | { kind: 'error'; message: string; partial: string; stopped?: boolean }
 const STALL_MS = 20_000
 const CHAT_LIMIT_LINE = '오늘은 이야기를 많이 나눴네. 지금까지 이야기로 일기를 정리해 둘까?'
 export type Chip = { key: string; label: string; tone?: 'acc' | 'mute'; onPress: () => void }
@@ -62,6 +64,11 @@ export function useTalk({ date, today, entry, buddy, consent, onConsent, reduced
   const [chatCapped, setChatCapped] = useState(false)
   const [editAt, setEditAt] = useState<number | null>(null)
   const [met] = useState(hasMet)
+  const [distillTry, setDistillTry] = useState(1)
+  const [pinN, setPinN] = useState(0) // 맨 아래로 따라가라는 신호(내가 보낼 때)
+  // 받는 글 저장소 — 받는 말풍선·옮기는 중 카드만 구독(28 §8.11 성능)
+  const stream = useMemo(createTextStream, [])
+  const dstream = useMemo(createTextStream, [])
   const abort = useRef<AbortController | null>(null)
   useEffect(() => () => abort.current?.abort(), [])
   const setDraft = (d: Draft | null) => { setDraftState(d); if (d) drafts.set(date, d); else drafts.delete(date) }
@@ -80,8 +87,8 @@ export function useTalk({ date, today, entry, buddy, consent, onConsent, reduced
     setHidden(new Set(ids))
     window.setTimeout(() => setHidden(new Set()), reduced ? 150 : 650)
   }, [reduced])
-  const busy = useRef(false)
-  const guard = () => { if (busy.current || typing || !loaded) return false; busy.current = true; window.setTimeout(() => { busy.current = false }, 300); return true }
+  const tapLock = useRef(false)
+  const guard = () => { if (tapLock.current || typing || !loaded) return false; tapLock.current = true; window.setTimeout(() => { tapLock.current = false }, 300); return true }
   const firstSession = !st.boundaries && !sections.length
   /** 기분(또는 글로 한 첫 답) */
   const answerMood = async (a: { mood?: number; text?: string }) => {
@@ -103,21 +110,43 @@ export function useTalk({ date, today, entry, buddy, consent, onConsent, reduced
   }
   const opts = (signal: AbortSignal) => ({
     buddy, signal,
-    onDelta: (t: string) => setAi({ kind: 'reading', text: t }),
-    onQueue: (q: number) => setAi((x) => (x.kind === 'reading' ? { ...x, queue: q } : x))
+    // 글은 저장소에만(받는 말풍선만 다시 그림), 화면 상태는 첫 글자에 한 번만 바꾼다
+    onDelta: (t: string) => { stream.set(t); if (t) setAi((x) => (x.kind === 'reading' && !x.started ? { ...x, started: true } : x)) },
+    onQueue: (q: number) => setAi((x) => (x.kind === 'reading' && x.queue !== q ? { ...x, queue: q } : x)),
+    settle: () => stream.whenShown(800)
   })
   const runAi = async (fn: (signal: AbortSignal) => Promise<unknown>) => {
     abort.current?.abort()
     const ctrl = new AbortController()
     abort.current = ctrl
-    setAi({ kind: 'reading', text: '' })
-    try { await fn(ctrl.signal); if (!ctrl.signal.aborted) setAi({ kind: 'idle' }) } catch (e) {
+    stream.reset()
+    const since = new Date().toISOString()
+    setAi({ kind: 'reading', started: false, since })
+    setPinN((n) => n + 1)
+    try {
+      const r = await fn(ctrl.signal)
+      if (!ctrl.signal.aborted) setAi(r === 'reply' ? { kind: 'landing', since } : { kind: 'idle' })
+    } catch (e) {
       if (ctrl.signal.aborted) return
       if (isDailyCap(e)) { setAi({ kind: 'idle' }); setChatCapped(true); reveal(await addScripted(date, [{ role: 'buddy', content: CHAT_LIMIT_LINE }])); return }
-      setAi({ kind: 'error', message: e instanceof Error ? e.message : String(e) })
+      setAi({ kind: 'error', message: e instanceof Error ? e.message : String(e), partial: stream.get().text })
     }
   }
-  const stop = () => { abort.current?.abort(); setAi({ kind: 'idle' }); setDistilling(false) }
+  // 다 받은 답이 저장된 행으로 보이면 받는 말풍선을 내린다(같은 그리기에서 바뀌어 깜빡임 없음)
+  const landed = ai.kind === 'landing' && messages.some((m) => m.role === 'buddy' && !m.safety && m.created_at >= ai.since)
+  useEffect(() => {
+    if (ai.kind !== 'landing') return
+    if (landed) { setAi({ kind: 'idle' }); return }
+    const t = window.setTimeout(() => setAi({ kind: 'idle' }), 1500)
+    return () => window.clearTimeout(t)
+  }, [ai.kind, landed])
+  const busy = ai.kind === 'reading' || (ai.kind === 'landing' && !landed)
+  /** ■ 멈추기: 받은 글은 흐린 말풍선 + 다시 시도(저장 안 함). 옮기기면 취소 */
+  const stop = () => {
+    abort.current?.abort()
+    if (ai.kind === 'reading') setAi({ kind: 'error', message: '', partial: stream.get().text, stopped: true })
+    setDistilling(false)
+  }
   const sessionLines = () => sessionLinesOf(S)
   const ownDraft = (): Draft => ({ time: null, title: '', tags: [], body: ownWords(S.filter((m) => m.role === 'me').map((m) => m.content)), source: 'own' })
   /** 일기로 옮기기(서버 distill). 실패·한도면 내 말 그대로 */
@@ -129,9 +158,19 @@ export function useTalk({ date, today, entry, buddy, consent, onConsent, reduced
     abort.current?.abort()
     abort.current = ctrl
     setDistilling(true)
+    dstream.reset()
+    setDistillTry(1)
+    setPinN((n) => n + 1)
     if (!redo) setDraft(null)
     try {
-      const d = await distillSession(date, sessionLines(), sessionMood ?? entry?.mood ?? null, ctrl.signal)
+      // 받는 중인 JSON에서 제목·본문 글만 뽑아 옮기는 중 카드에(28 §8.11)
+      const d = await distillSession(date, sessionLines(), sessionMood ?? entry?.mood ?? null, ctrl.signal, (raw, n) => {
+        setDistillTry((x) => (x === n ? x : n))
+        const p = partialDistill(raw)
+        dstream.set(p.entry ?? '', p.title ?? '')
+      })
+      if (ctrl.signal.aborted) return
+      await dstream.whenShown(600)
       if (ctrl.signal.aborted) return
       setDraft({ time: null, title: d.title, tags: d.tags, body: d.entry, source: 'ai' })
       setQuota((q) => (q ? { ...q, used: q.used + 1 } : q))
@@ -146,7 +185,7 @@ export function useTalk({ date, today, entry, buddy, consent, onConsent, reduced
   const makeTranscript = () => setDraft({ time: null, title: draft?.title ?? '', tags: draft?.tags ?? [], body: transcriptOf(sessionLines(), name), source: 'transcript' })
   /** AI와 이야기: 보내기 = 내 말 + 캐릭터 한 턴. "일기로 정리해 줘"·"대화 그대로 저장"은 바로 초안 */
   const say = (t: string) => {
-    if (ai.kind === 'reading' || !loaded) return
+    if (busy || !loaded) return
     if (wantsTranscript(t)) { makeTranscript(); return }
     if (asksDistill(t) && st.myTalk.length) { void distill(); return }
     if (chatCapped) { void addScripted(date, [{ role: 'me', content: t }]); return }
@@ -228,7 +267,7 @@ export function useTalk({ date, today, entry, buddy, consent, onConsent, reduced
 
   return {
     date, today, past, entry, buddy, name, reduced, loaded, messages: st.all, S, sections, stats, phase, aiFlow, consentPending, solo, setSolo: setSoloState,
-    typing, hidden, ai, draft, setDraft, distilling, quota, editAt, setEditAt, editSaved, chips, line, showComposer, placeholder, met, forming,
+    typing, hidden, ai, busy, stream, dstream, distillTry, pinN, draft, setDraft, distilling, quota, editAt, setEditAt, editSaved, chips, line, showComposer, placeholder, met, forming,
     sessionMood, answerMood, send, retry, stop, distill, makeTranscript, save, consentYes, consentNo, addTask, commit, focusN,
     onType: () => setTyped((n) => n + 1), canTranscript: aiFlow && S.some((m) => m.role === 'me')
   }
@@ -244,8 +283,10 @@ export function Talk({ t, inline }: { t: TalkState; inline: boolean }) {
   const scroll = useRef<HTMLDivElement>(null)
   const [openedAt] = useState(() => new Date().toISOString())
   const visible = t.messages.filter((m) => !t.hidden.has(m.id))
-  const lastBuddyId = [...visible].reverse().find((m) => m.role === 'buddy')?.id
-  const face = moodFace(t.sessionMood ?? t.entry?.mood)
+  const lastBuddy = [...visible].reverse().find((m) => m.role === 'buddy')
+  const lastBuddyId = lastBuddy?.id
+  // 따뜻한 답이면 마지막 얼굴 happy(28 §8.11), 아니면 기분 얼굴
+  const face = (lastBuddy && !lastBuddy.safety && replyFaceOf(lastBuddy.content)) || moodFace(t.sessionMood ?? t.entry?.mood)
   const virtualStart = t.loaded && !t.messages.length && !t.sections.length
   const greet = virtualStart ? greetingOf({ date: t.date, today: t.today, hour: new Date().getHours(), stats: t.stats }) : null
   const sp = normalizeSpecies(buddy.species)
@@ -253,15 +294,24 @@ export function Talk({ t, inline }: { t: TalkState; inline: boolean }) {
   const madeRows = useQuery<{ title: string }>(`SELECT title FROM tasks WHERE deleted_at IS NULL AND title IN (${taskTitles.map(() => '?').join(',') || "''"})`, taskTitles)
   const made = new Set((madeRows ?? []).map((r) => r.title))
 
-  // 새 말이 오면 아래로
-  useLayoutEffect(() => {
+  // 따라 내려가기(28 §8.11): 맨 아래 64px 안이면 내용이 자랄 때 따라가고, 위로 올려 읽는 중이면 멈춘다. 내가 보내면 다시 따라감
+  const pinned = useRef(true)
+  const toEnd = () => { const el = scroll.current; if (el) el.scrollTop = el.scrollHeight } // 바로 맨 아래로(부드러운 스크롤은 받는 중 끊겨 중간에 멈췄다)
+  useEffect(() => {
     const el = scroll.current
-    if (el) el.scrollTop = el.scrollHeight // 바로 맨 아래로(부드러운 스크롤은 받는 중 다시 그릴 때 끊겨 중간에 멈췄다)
-  }, [visible.length, ai.kind === 'reading' ? ai.text.length : -1, t.draft?.source, t.distilling, phase, typing, reduced]) // eslint-disable-line react-hooks/exhaustive-deps
-
+    const col = el?.firstElementChild
+    if (!el || !col || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => { if (pinned.current) toEnd() })
+    ro.observe(col)
+    return () => ro.disconnect()
+  }, [])
+  useLayoutEffect(() => { pinned.current = true; toEnd() }, [t.pinN, t.date])
+  useLayoutEffect(() => { if (pinned.current) toEnd() }, [visible.length, ai.kind, t.draft?.source, t.distilling, phase, typing, reduced]) // eslint-disable-line react-hooks/exhaustive-deps
+  const ring = STAGE_RING[Math.max(0, buddy.stage - 1)]
+  const live = (id: string | null) => !!id && id === lastBuddyId && !t.busy && !t.distilling // 움직이는 캐릭터는 하나(받는 중이면 받는 말풍선)
   const av = (id: string | null, mood: CharacterMood = 'smile') => (
-    <span className="dmsg__av" style={{ '--ring': STAGE_RING[Math.max(0, buddy.stage - 1)] } as React.CSSProperties}>
-      <CharacterArt species={buddy.species} stage={buddy.stage} size={30} mood={id && id === lastBuddyId ? face : mood} crop="bust" motion={id && id === lastBuddyId && !reduced ? 'idle' : 'still'} />
+    <span className="dmsg__av" style={{ '--ring': ring } as React.CSSProperties}>
+      <CharacterArt species={buddy.species} stage={buddy.stage} size={30} mood={id && id === lastBuddyId ? face : mood} crop="bust" motion={live(id) && !reduced ? 'idle' : 'still'} />
     </span>
   )
   const fresh = (createdAt: string) => (createdAt >= openedAt ? ' is-new' : '')
@@ -306,7 +356,7 @@ export function Talk({ t, inline }: { t: TalkState; inline: boolean }) {
   })
 
   return (
-    <div ref={scroll} className="dtalk" aria-live="polite">
+    <div ref={scroll} className="dtalk" aria-live="polite" onScroll={(e) => { pinned.current = nearBottom(e.currentTarget) }}>
       <div className="dtalk__col">
         {virtualStart && !typing && (
           <div className="dtalk__intro">
@@ -336,19 +386,41 @@ export function Talk({ t, inline }: { t: TalkState; inline: boolean }) {
             <small>{josa(name, '는', '은')} 친구처럼 들어 주지만 전문 상담은 아니에요 · ⋯에서 언제든 바꿔요</small>
           </div>
         )}
-        {ai.kind === 'reading' && (
-          <div className="dmsg">{av(null, 'think')}<div className="dmsg__bb">{ai.text ? parseBuddyReply(ai.text).text : <span className="dmsg__wait"><Dots />{ai.queue ? `차례를 기다리는 중… (앞에 ${ai.queue}명)` : `${josa(name, '가', '이')} 듣는 중`}</span>}</div></div>
+        {ai.kind === 'reading' && !ai.started && (
+          <div className="dmsg is-wait">
+            <BubbleFace buddy={buddy} mood="think" live think reduced={reduced} ring={ring} />
+            <div className="dmsg__bb"><span className="dmsg__wait">{ai.queue ? `차례를 기다리는 중… (앞에 ${ai.queue}명)` : '음…'}<Dots /></span></div>
+          </div>
         )}
-        {ai.kind === 'error' && (
+        {t.busy && (ai.kind === 'landing' || (ai.kind === 'reading' && ai.started)) && (
+          <div className="dmsg is-stream">
+            <BubbleFace buddy={buddy} mood="smile" live reduced={reduced} ring={ring} />
+            <div className="dmsg__bb"><StreamText stream={t.stream} reduced={reduced} /></div>
+          </div>
+        )}
+        {ai.kind === 'error' && (ai.partial || ai.stopped ? (
+          <>
+            {ai.partial && <div className="dmsg is-partial"><BubbleFace buddy={buddy} mood={ai.stopped ? 'smile' : 'sleepy'} live={false} reduced={reduced} ring={ring} /><div className="dmsg__bb">{parseBuddyReply(ai.partial).text}</div></div>}
+            <div className="dretry" role="status">
+              <span>{ai.stopped ? '멈췄어.' : '연결이 끊겼어.'}</span>
+              <button className="dchip" onClick={t.retry}><RotateCcw />다시 시도</button>
+            </div>
+          </>
+        ) : (
           <div className="dcard is-in is-error" role="status">
             <p>지금은 {josa(name, '가', '이')} 쉬고 있어요. 한 말은 그대로 남아 있어요</p>
             <button className="dbtn is-link" onClick={t.retry}><RotateCcw />다시 시도</button>
           </div>
-        )}
-        {t.distilling && (!t.draft || !inline) && (
-          <div className="dmsg">{av(null, 'think')}<div className="dmsg__bb"><span className="dmsg__wait"><Dots />네 말로 일기를 정리하는 중</span></div></div>
-        )}
-        {inline && t.draft && !typing && (
+        ))}
+        {t.distilling && (inline ? (
+          <div className="dmsg is-card"><DistillCard stream={t.dstream} buddy={buddy} name={name} again={t.distillTry > 1} reduced={reduced} onStop={t.stop} /></div>
+        ) : (
+          <div className="dmsg is-wait">
+            <BubbleFace buddy={buddy} mood="think" live think reduced={reduced} ring={ring} />
+            <div className="dmsg__bb"><span className="dmsg__wait">네 말로 일기를 옮기는 중<Dots /></span></div>
+          </div>
+        ))}
+        {inline && t.draft && !typing && !t.distilling && (
           <div className="dmsg is-card">
             <DraftCard draft={t.draft} date={t.date} past={t.past} name={name} mood={t.sessionMood ?? t.entry?.mood ?? null} aiFlow={t.aiFlow} distilling={t.distilling}
               left={t.quota ? Math.max(0, t.quota.limit - t.quota.used) : null} canTranscript={t.canTranscript}
@@ -366,7 +438,7 @@ export function Dock({ t }: { t: TalkState }) {
   const [text, setText] = useState('')
   const ref = useRef<HTMLTextAreaElement>(null)
   const { phase } = t
-  const disabled = t.typing || t.ai.kind === 'reading' || t.distilling
+  const disabled = t.typing || t.busy || t.distilling
   useEffect(() => { if (t.focusN) window.setTimeout(() => ref.current?.focus(), 60) }, [t.focusN])
   useEffect(() => { const el = ref.current; if (!el) return; el.style.height = ''; if (text) el.style.height = `${Math.min(el.scrollHeight, 132)}px` }, [text])
   const send = () => {

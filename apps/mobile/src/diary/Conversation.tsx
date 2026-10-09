@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ART_SPECIES } from '@sprout/schema/characterArt'
 import { normalizeSpecies, STAGES } from '@sprout/schema/growth'
 import { normalizeTag, parseSections, transcriptOf, wantsTranscript, type Section } from '@sprout/schema/diaryPrompts'
+import { createTextStream, nearBottom, partialDistill, replyFaceOf } from '@sprout/schema/diaryTalk'
 import { alpha } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { hx } from '../ui/haptics'
@@ -25,6 +26,7 @@ import { addScripted, chatTurn, distillSession, replaceSection, saveSection, tas
 import { useKeyboardHeight, useKeyboardLift } from './keyboard'
 import { dayTitle, josa, mayCallAi, moodOf, parseBuddyReply, type Buddy, type DiaryEntry } from './logic'
 import { BuddyArt } from './parts'
+import { DistillCard, StreamText } from './Stream'
 import { setConsent, setMet, useDiaryPrefs } from './prefs'
 import {
   asksDistill, BYE_BUDDY, BYE_ME, clock, composeDraft, greetingOf, introLine, isSkip, isWarm, MORE_LINE, nextLines, nudgeOf, OPEN_LINE, ownWords,
@@ -46,7 +48,8 @@ type Draft = Section & { source: 'ai' | 'own' | 'transcript' }
 /** 저장 전 초안(앱 실행 동안만 — 다시 열면 대화에서 다시 만든다, §8.6) */
 const drafts = new Map<string, Draft>()
 export const forgetDraft = (date: string) => drafts.delete(date)
-type Ai = { kind: 'idle' } | { kind: 'reading'; text: string; queue?: number } | { kind: 'error'; message: string }
+/** 28 §8.11: reading = 기다림(started false, 생각 얼굴) → 받는 중 · landing = 다 받아 저장 중(저장된 행이 보이면 내림) · error = 멈춤·오류(받은 글 partial, 저장 안 함) */
+type Ai = { kind: 'idle' } | { kind: 'reading'; started: boolean; queue?: number; since: string } | { kind: 'landing'; since: string } | { kind: 'error'; message: string; partial: string; stopped?: boolean }
 const STALL_MS = 20_000
 const CHAT_LIMIT_LINE = '오늘은 이야기를 많이 나눴네. 지금까지 이야기로 일기를 정리해 둘까?'
 
@@ -87,6 +90,11 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
   const [quota, setQuota] = useState<Quota>(null)
   const [chatCapped, setChatCapped] = useState(false)
   const [editAt, setEditAt] = useState<number | null>(null) // 저장한 편 고치기
+  const [distillTry, setDistillTry] = useState(1)
+  // 받는 글 저장소 — 받는 말풍선·옮기는 중 카드만 구독(39 §11: 글이 붙을 때 대화 전체를 다시 그리지 않음)
+  const stream = useMemo(createTextStream, [])
+  const dstream = useMemo(createTextStream, [])
+  const pinned = useRef(true)
   const abort = useRef<AbortController | null>(null)
   useEffect(() => () => abort.current?.abort(), [])
   const setDraft = (d: Draft | null) => { setDraftState(d); if (d) drafts.set(date, d); else drafts.delete(date) }
@@ -117,8 +125,8 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
     setHidden(new Set(ids))
     setTimeout(() => setHidden(new Set()), reduced ? 150 : 650)
   }, [reduced])
-  const busy = useRef(false)
-  const guard = () => { if (busy.current || typing) return false; busy.current = true; setTimeout(() => { busy.current = false }, 300); return true }
+  const tapLock = useRef(false)
+  const guard = () => { if (tapLock.current || typing) return false; tapLock.current = true; setTimeout(() => { tapLock.current = false }, 300); return true }
   const firstSession = !session.boundaries && !sections.length
   /** 기분(또는 글로 한 첫 답) */
   const answerMood = async (a: { mood?: number; text?: string }) => {
@@ -142,24 +150,47 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
   }
   const opts = (signal: AbortSignal) => ({
     buddy, signal,
-    onDelta: (t: string) => setAi({ kind: 'reading', text: t }),
-    onQueue: (q: number) => setAi((x) => (x.kind === 'reading' ? { ...x, queue: q } : x))
+    // 글은 저장소에만(받는 말풍선만 다시 그림), 화면 상태는 첫 글자에 한 번만 바꾼다
+    onDelta: (t: string) => { stream.set(t); if (t) setAi((x) => (x.kind === 'reading' && !x.started ? { ...x, started: true } : x)) },
+    onQueue: (q: number) => setAi((x) => (x.kind === 'reading' && x.queue !== q ? { ...x, queue: q } : x)),
+    settle: () => stream.whenShown(800)
   })
   const runAi = async (fn: (signal: AbortSignal) => Promise<unknown>) => {
     abort.current?.abort()
     const ctrl = new AbortController()
     abort.current = ctrl
-    setAi({ kind: 'reading', text: '' })
-    try { await fn(ctrl.signal); if (!ctrl.signal.aborted) setAi({ kind: 'idle' }) }
-    catch (e) {
+    stream.reset()
+    const since = new Date().toISOString()
+    pinned.current = true
+    setAi({ kind: 'reading', started: false, since })
+    try {
+      const r = await fn(ctrl.signal)
+      if (!ctrl.signal.aborted) setAi(r === 'reply' ? { kind: 'landing', since } : { kind: 'idle' })
+    } catch (e) {
       if (ctrl.signal.aborted) return
       if (e instanceof AiUnavailable && e.code === 'daily') { setAi({ kind: 'idle' }); setChatCapped(true); reveal(await addScripted(date, [{ role: 'buddy', content: CHAT_LIMIT_LINE }])); return }
-      setAi({ kind: 'error', message: e instanceof Error ? e.message : String(e) })
+      setAi({ kind: 'error', message: e instanceof Error ? e.message : String(e), partial: stream.get().text })
     }
+  }
+  // 다 받은 답이 저장된 행으로 보이면 받는 말풍선을 내린다(같은 그리기에서 바뀌어 깜빡임 없음)
+  const landed = ai.kind === 'landing' && all.some((m) => m.role === 'buddy' && !m.safety && m.created_at >= ai.since)
+  useEffect(() => {
+    if (ai.kind !== 'landing') return
+    if (landed) { setAi({ kind: 'idle' }); return }
+    const t = setTimeout(() => setAi({ kind: 'idle' }), 1500)
+    return () => clearTimeout(t)
+  }, [ai.kind, landed])
+  const busy = ai.kind === 'reading' || (ai.kind === 'landing' && !landed)
+  /** ■ 멈추기: 받은 글은 흐린 말풍선 + 다시 시도(저장 안 함). 옮기기면 취소 */
+  const stop = () => {
+    hx.tap()
+    abort.current?.abort()
+    if (ai.kind === 'reading') setAi({ kind: 'error', message: '', partial: stream.get().text, stopped: true })
+    setDistilling(false)
   }
   /** AI와 이야기: 보내기 = 내 말 + 캐릭터 한 턴. "일기로 정리해 줘"·"대화 그대로 저장"은 바로 초안 */
   const say = (t: string) => {
-    if (ai.kind === 'reading') return
+    if (busy) return
     hx.tap()
     if (wantsTranscript(t)) { makeTranscript(); return }
     if (asksDistill(t) && myTalk.length) { void distill(); return }
@@ -192,9 +223,19 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
     abort.current?.abort()
     abort.current = ctrl
     setDistilling(true)
+    dstream.reset()
+    setDistillTry(1)
+    pinned.current = true
     if (!redo) setDraft(null)
     try {
-      const d = await distillSession(date, sessionLines(), sessionMood ?? entry?.mood ?? null, ctrl.signal)
+      // 받는 중인 JSON에서 제목·본문 글만 뽑아 옮기는 중 카드에(28 §8.11)
+      const d = await distillSession(date, sessionLines(), sessionMood ?? entry?.mood ?? null, ctrl.signal, (raw, n) => {
+        setDistillTry((x) => (x === n ? x : n))
+        const pd = partialDistill(raw)
+        dstream.set(pd.entry ?? '', pd.title ?? '')
+      })
+      if (ctrl.signal.aborted) return
+      await dstream.whenShown(600)
       if (ctrl.signal.aborted) return
       setDraft({ time: null, title: d.title, tags: d.tags, body: d.entry, source: 'ai' })
       setQuota((q) => (q ? { ...q, used: q.used + 1 } : q))
@@ -244,14 +285,18 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
   const onDock = (e: LayoutChangeEvent) => setDockH(Math.round(e.nativeEvent.layout.height))
   const toEnd = useCallback(() => scroll.current?.scrollToEnd({ animated: !reduced }), [reduced])
   useEffect(() => { if (kbH) setTimeout(toEnd, 60) }, [kbH, toEnd])
+  // 따라 내려가기(28 §8.11): 맨 아래 64px 안이면 내용이 자랄 때 따라가고, 위로 올려 읽는 중이면 멈춘다
+  const followEnd = useCallback(() => { if (pinned.current) toEnd() }, [toEnd])
   const openedAt = useRef(new Date().toISOString()).current
   const enter = (createdAt: string) => (createdAt < openedAt ? undefined : reduced ? FadeIn.duration(150) : FadeInDown.duration(220))
   const taskChips = useMemo(() => all.filter((m) => m.role === 'buddy' && !m.safety).map((m) => parseBuddyReply(m.content).task).filter((t): t is string => !!t), [all])
   const made = useExistingTitles(taskChips)
 
   const visible = all.filter((m) => !hidden.has(m.id))
-  const lastBuddyId = [...visible].reverse().find((m) => m.role === 'buddy')?.id
-  const face = moodFaceArt(sessionMood ?? entry?.mood)
+  const lastBuddy = [...visible].reverse().find((m) => m.role === 'buddy')
+  const lastBuddyId = lastBuddy?.id
+  // 따뜻한 답이면 마지막 얼굴 happy(28 §8.11), 아니면 기분 얼굴
+  const face = (lastBuddy && !lastBuddy.safety && replyFaceOf(lastBuddy.content)) || moodFaceArt(sessionMood ?? entry?.mood)
   const virtualStart = !all.length && !sections.length
   const greet = virtualStart ? greetingOf({ date, today, hour: new Date().getHours(), stats }) : null
 
@@ -282,7 +327,7 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
       const parsed = isAi ? parseBuddyReply(m.content) : { text: m.content, task: undefined }
       rows.push(
         <Animated.View key={m.id} entering={isAi ? undefined : enter(m.created_at)}>
-          <BuddyRow buddy={buddy} avatar={!prev || prev.role !== 'buddy' || warm} live={m.id === lastBuddyId && !typing && ai.kind !== 'reading'} still={reduced} face={m.id === lastBuddyId ? face : 'smile'} ai={isAi}>
+          <BuddyRow buddy={buddy} avatar={!prev || prev.role !== 'buddy' || warm} live={m.id === lastBuddyId && !typing && !busy && !distilling} still={reduced} face={m.id === lastBuddyId ? face : 'smile'} ai={isAi}>
             <Text style={[st.msg, { color: p.textPrimary }]}>{parsed.text}</Text>
             {parsed.task ? (
               <Pressable accessibilityRole="button" disabled={made.has(parsed.task)} onPress={() => void addTask(parsed.task!)} hitSlop={6} style={[st.taskChip, { borderColor: p.accent }]}>
@@ -326,7 +371,9 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
           ref={scroll}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
-          onContentSizeChange={toEnd}
+          onContentSizeChange={followEnd}
+          onScroll={(e) => { pinned.current = nearBottom({ scrollTop: e.nativeEvent.contentOffset.y, scrollHeight: e.nativeEvent.contentSize.height, clientHeight: e.nativeEvent.layoutMeasurement.height }) }}
+          scrollEventThrottle={32}
           contentContainerStyle={[st.chat, { paddingBottom: dockH + Math.max(0, kbH - insets.bottom) + 12 }]}
         >
           {virtualStart && !typing ? (
@@ -355,24 +402,38 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
               <Text style={[st.small, { color: p.textTertiary }]}>{josa(name, '는', '은')} 친구처럼 들어 주지만 전문 상담은 아니에요 · ⋯에서 언제든 바꿔요</Text>
             </Animated.View>
           ) : null}
-          {ai.kind === 'reading' ? (
-            <BuddyRow buddy={buddy} avatar live still={reduced} ai>
-              {ai.text ? <Text style={[st.msg, { color: p.textPrimary }]}>{parseBuddyReply(ai.text).text}</Text>
-                : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><TypingDots still={reduced} /><Text style={{ color: p.textTertiary, fontSize: 13 }}>{ai.queue ? `차례를 기다리는 중… (앞에 ${ai.queue}명)` : `${josa(name, '가', '이')} 듣는 중`}</Text></View>}
+          {ai.kind === 'reading' && !ai.started ? (
+            <BuddyRow buddy={buddy} avatar live think still={reduced} ai>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} accessibilityLabel={`${name} 생각하는 중`}>
+                <Text style={{ color: p.textSecondary, fontSize: 15 }}>{ai.queue ? `차례를 기다리는 중… (앞에 ${ai.queue}명)` : '음…'}</Text><TypingDots still={reduced} />
+              </View>
             </BuddyRow>
           ) : null}
-          {ai.kind === 'error' ? (
+          {busy && (ai.kind === 'landing' || (ai.kind === 'reading' && ai.started)) ? (
+            <BuddyRow buddy={buddy} avatar live still={reduced} ai>
+              <StreamText stream={stream} reduced={reduced} style={[st.msg, { color: p.textPrimary }]} />
+            </BuddyRow>
+          ) : null}
+          {ai.kind === 'error' ? (ai.partial || ai.stopped ? (
+            <>
+              {ai.partial ? (
+                <BuddyRow buddy={buddy} avatar live={false} still={reduced} face={ai.stopped ? 'smile' : 'sleepy'} ai dim>
+                  <Text style={[st.msg, { color: p.textSecondary }]}>{parseBuddyReply(ai.partial).text}</Text>
+                </BuddyRow>
+              ) : null}
+              <View style={st.retryRow}>
+                <Text style={{ color: p.textTertiary, fontSize: 13 }}>{ai.stopped ? '멈췄어.' : '연결이 끊겼어.'}</Text>
+                <Pressable onPress={retry} accessibilityRole="button" hitSlop={8} style={[st.retryChip, { borderColor: p.accent }]}><RotateCcw size={14} color={p.accentInk} /><Text style={{ color: p.accentInk, fontWeight: '600', fontSize: 14 }}>다시 시도</Text></Pressable>
+              </View>
+            </>
+          ) : (
             <View style={[st.card, { backgroundColor: p.cardBg, borderColor: p.borderDivider }]}>
               <Text style={{ color: p.textSecondary, fontSize: 14, lineHeight: 20 }}>지금은 {josa(name, '가', '이')} 쉬고 있어요. 한 말은 그대로 남아 있어요</Text>
               <Pressable onPress={retry} accessibilityRole="button" hitSlop={8} style={st.retry}><RotateCcw size={14} color={p.accentInk} /><Text style={{ color: p.accentInk, fontWeight: '600', fontSize: 14 }}>다시 시도</Text></Pressable>
             </View>
-          ) : null}
-          {distilling && !draft ? (
-            <BuddyRow buddy={buddy} avatar live still={reduced} ai>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><TypingDots still={reduced} /><Text style={{ color: p.textTertiary, fontSize: 13 }}>네 말로 일기를 정리하는 중</Text></View>
-            </BuddyRow>
-          ) : null}
-          {draft && !typing ? (
+          )) : null}
+          {distilling ? <DistillCard stream={dstream} buddy={buddy} name={name} again={distillTry > 1} reduced={reduced} onStop={stop} /> : null}
+          {draft && !typing && !distilling ? (
             <DraftCard
               draft={draft} date={date} past={past} name={name} mood={sessionMood ?? entry?.mood ?? null}
               aiFlow={aiFlow} distilling={distilling} left={leftDistill} canTranscript={aiFlow && S.some((m) => m.role === 'me')}
@@ -388,13 +449,14 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
 
       <Animated.View onLayout={onDock} style={[st.dock, { paddingBottom: insets.bottom + 8, backgroundColor: p.pageBg }, lift]}>
         {phase === 'mood' ? <MoodRow onPick={(v) => void answerMood({ mood: v })} disabled={typing} /> : null}
-        <ChipRow chips={chips} disabled={typing || ai.kind === 'reading' || distilling} />
+        <ChipRow chips={chips} disabled={typing || busy || distilling} />
         {line ? <Text style={[st.dockline, { color: p.textTertiary }]}>{line}</Text> : null}
         {showComposer ? (
           <Composer
             ref={composerRef}
             ai={phase === 'talk'}
-            disabled={typing || ai.kind === 'reading' || distilling}
+            disabled={typing || busy || distilling}
+            onStop={ai.kind === 'reading' || distilling ? stop : undefined}
             placeholder={placeholder}
             onTyping={() => setTyped((n) => n + 1)}
             onSend={(t) => (phase === 'talk' ? say(t) : phase === 'mood' ? void answerMood({ text: t }) : void answerScripted(t))}
@@ -532,6 +594,8 @@ const st = StyleSheet.create({
   btnText: { fontSize: 15, fontWeight: '700' },
   small: { fontSize: 11.5, lineHeight: 16, textAlign: 'center', marginTop: 4 },
   retry: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', minHeight: 32 },
+  retryRow: { marginLeft: 38, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  retryChip: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 36, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1 },
   draft: { marginLeft: 38, marginVertical: 4, borderRadius: 20, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#0B2A22', shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, gap: 6 },
   dh: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   title: { fontSize: 17, fontWeight: '800', paddingVertical: 2, minHeight: 30 },

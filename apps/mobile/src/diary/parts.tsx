@@ -14,9 +14,17 @@ import { useWeekStart } from '../data/calendarPrefs'
 import { headWeekday } from '@sprout/schema/weekStart'
 
 /** 캐릭터: 대기 중엔 숨쉬기(움직임 줄이기면 멈춤), bounce가 바뀌면 깡충 한 번 — transform만(39 §11) */
-export function BuddyArt({ buddy, stage, size, mood = 'default', still, bounce, crop }: { buddy: Buddy; stage: number; size: number; mood?: Mood; still?: boolean; bounce?: number; crop?: 'bust' }) {
+export function BuddyArt({ buddy, stage, size, mood = 'default', still, bounce, crop, think }: { buddy: Buddy; stage: number; size: number; mood?: Mood; still?: boolean; bounce?: number; crop?: 'bust'
+  /** 생각 중: 좌우 3° 흔들림 1.4초(40 §7, 발밑 기준) — 움직임 줄이기(still)면 얼굴만 */
+  think?: boolean }) {
   const breathe = useSharedValue(1)
   const hop = useSharedValue(0)
+  const sway = useSharedValue(0)
+  useEffect(() => {
+    if (!think || still) { cancelAnimation(sway); sway.value = 0; return }
+    sway.value = withSequence(withTiming(-3, { duration: 350 }), withRepeat(withSequence(withTiming(3, { duration: 700 }), withTiming(-3, { duration: 700 })), -1))
+    return () => { cancelAnimation(sway); sway.value = 0 }
+  }, [think, still, sway])
   useEffect(() => {
     if (still) { cancelAnimation(breathe); breathe.value = 1; return }
     breathe.value = withRepeat(withSequence(withTiming(1.03, { duration: 1600 }), withTiming(1, { duration: 1600 })), -1)
@@ -26,8 +34,8 @@ export function BuddyArt({ buddy, stage, size, mood = 'default', still, bounce, 
     if (!bounce || still) return
     hop.value = withSequence(withTiming(-8, { duration: 140 }), withTiming(0, { duration: 180 }))
   }, [bounce, still, hop])
-  const st = useAnimatedStyle(() => ({ transform: [{ translateY: hop.value }, { scaleY: breathe.value }] }))
-  return <Animated.View style={st}><CharacterArt species={buddy.species} stage={stage} size={size} mood={mood} crop={crop} /></Animated.View>
+  const st = useAnimatedStyle(() => ({ transform: [{ translateY: hop.value }, { rotate: `${sway.value}deg` }, { scaleY: breathe.value }] }))
+  return <Animated.View style={[{ transformOrigin: '50% 92%' }, st]}><CharacterArt species={buddy.species} stage={stage} size={size} mood={mood} crop={crop} /></Animated.View>
 }
 
 /** 기분 달력 한 달: 칸 = 날짜 + 그날 얼굴(30). 오늘 = 강조 칩, 안 쓴 지난 날 = 점, 나만 보기 = 자물쇠, 기분 없이 쓴 날 = 강조 점, 미래 = 흐림 */

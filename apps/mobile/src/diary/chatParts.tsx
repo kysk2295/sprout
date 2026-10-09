@@ -1,5 +1,6 @@
 // 28 §8.4 대화 부품: 말풍선 · 점 세 개 · 빠른 답 칩 줄 · 기분 얼굴 줄 · 입력창. 누르는 것은 모두 44pt 이상.
-import { ArrowUp } from 'lucide-react-native'
+import { ArrowUp, Square } from 'lucide-react-native'
+import type { ArtMood } from '@sprout/schema/characterArt'
 import { forwardRef, memo, useEffect, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
@@ -29,12 +30,14 @@ export const TypingDots = memo(function TypingDots({ still }: { still: boolean }
 })
 
 /** 캐릭터 말풍선 줄: 묶음 첫 줄만 얼굴(30), 마지막 말의 얼굴만 숨쉰다(한 번에 하나만 움직임 — §8.8) */
-export function BuddyRow({ buddy, avatar, live, still, face = 'smile', ai, children }: { buddy: Buddy & { stage: number }; avatar: boolean; live: boolean; still: boolean; face?: 'smile' | 'happy' | 'default' | 'giggle' | 'think'; ai?: boolean; children: ReactNode }) {
+export function BuddyRow({ buddy, avatar, live, still, face = 'smile', ai, think, dim, children }: { buddy: Buddy & { stage: number }; avatar: boolean; live: boolean; still: boolean; face?: ArtMood; ai?: boolean
+  /** 생각 중(28 §8.11): 얼굴 think + 좌우 흔들림 */
+  think?: boolean; dim?: boolean; children: ReactNode }) {
   const p = usePalette()
   return (
-    <View style={s.rowB}>
+    <View style={[s.rowB, dim && { opacity: 0.75 }]}>
       <View style={[s.av, avatar && { backgroundColor: p.accentSubtle }]}>
-        {avatar ? (live ? <BuddyArt buddy={buddy} stage={buddy.stage} size={30} mood={face} still={still} crop="bust" /> : <CharacterArt species={buddy.species} stage={buddy.stage} size={30} mood={face} crop="bust" />) : null}
+        {avatar ? (live ? <BuddyArt buddy={buddy} stage={buddy.stage} size={30} mood={think ? 'think' : face} still={still} crop="bust" think={think} /> : <CharacterArt species={buddy.species} stage={buddy.stage} size={30} mood={face} crop="bust" />) : null}
       </View>
       <View style={[s.bb, { backgroundColor: p.dark ? p.bgSelected : p.cardBg, shadowOpacity: p.dark ? 0 : 0.06 }, ai && { borderWidth: StyleSheet.hairlineWidth, borderColor: alpha(p.accent, 0.35) }]}>{children}</View>
     </View>
@@ -88,7 +91,9 @@ export const MoodRow = memo(function MoodRow({ onPick, disabled, selected }: { o
 })
 
 /** 입력창(높이 48, 모서리 24) + 보내기 원 40. 한 줄 보내기(⏎ = 보내기) */
-export const Composer = forwardRef<TextInput, { placeholder: string; onSend: (t: string) => void; disabled?: boolean; ai?: boolean; onTyping?: () => void }>(function Composer({ placeholder, onSend, disabled, ai, onTyping }, ref) {
+export const Composer = forwardRef<TextInput, { placeholder: string; onSend: (t: string) => void; disabled?: boolean; ai?: boolean; onTyping?: () => void
+  /** 받는 중이면 보내기 자리가 ■ 멈추기(28 §8.11) */
+  onStop?: () => void }>(function Composer({ placeholder, onSend, disabled, ai, onTyping, onStop }, ref) {
   const p = usePalette()
   const [v, setV] = useState('')
   const ok = !!v.trim() && !disabled
@@ -108,9 +113,34 @@ export const Composer = forwardRef<TextInput, { placeholder: string; onSend: (t:
         maxLength={1000}
         style={[s.input, { color: p.textPrimary }]}
       />
-      <Pressable accessibilityRole="button" accessibilityLabel="보내기" disabled={!ok} onPress={send} hitSlop={4} style={[s.send, { backgroundColor: p.accent, opacity: ok ? 1 : 0.3 }]}>
-        <ArrowUp size={18} color={p.onAccent} strokeWidth={2.4} />
-      </Pressable>
+      {onStop ? (
+        <Pressable accessibilityRole="button" accessibilityLabel="멈추기" onPress={onStop} hitSlop={4} style={[s.send, { backgroundColor: p.textPrimary }]}>
+          <Square size={14} color={p.pageBg} fill={p.pageBg} strokeWidth={2.4} />
+        </Pressable>
+      ) : (
+        <Pressable accessibilityRole="button" accessibilityLabel="보내기" disabled={!ok} onPress={send} hitSlop={4} style={[s.send, { backgroundColor: p.accent, opacity: ok ? 1 : 0.3 }]}>
+          <ArrowUp size={18} color={p.onAccent} strokeWidth={2.4} />
+        </Pressable>
+      )}
+    </View>
+  )
+})
+
+/** 옮기는 중 진행 줄(2px): 좌→우로 흐르는 띠 — translateX만, 움직임 줄이기면 멈춘 띠 */
+export const ProgressLine = memo(function ProgressLine({ still }: { still: boolean }) {
+  const p = usePalette()
+  const [w, setW] = useState(0)
+  const x = useSharedValue(0)
+  useEffect(() => {
+    if (still || !w) { cancelAnimation(x); x.value = 0.3; return }
+    x.value = -0.4
+    x.value = withRepeat(withTiming(1, { duration: 1600 }), -1)
+    return () => cancelAnimation(x)
+  }, [still, w, x])
+  const st = useAnimatedStyle(() => ({ transform: [{ translateX: x.value * w }] }))
+  return (
+    <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={[s.prog, { backgroundColor: p.borderDivider }]} accessibilityRole="progressbar" accessibilityLabel="옮기는 중">
+      <Animated.View style={[s.progBar, { width: w * 0.4, backgroundColor: p.accent }, st]} />
     </View>
   )
 })
@@ -120,6 +150,8 @@ export const moodName = (v: number | null | undefined) => moodOf(v)?.label ?? ''
 
 const s = StyleSheet.create({
   dots: { flexDirection: 'row', gap: 4, paddingVertical: 7, paddingHorizontal: 2 },
+  prog: { height: 2, borderRadius: 1, overflow: 'hidden' },
+  progBar: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 1 },
   dot: { width: 6, height: 6, borderRadius: 3 },
   rowB: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, maxWidth: '88%' },
   av: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },

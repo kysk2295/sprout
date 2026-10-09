@@ -839,6 +839,53 @@ const take = (q: AiQueue, label: string, user: string, priority: 'interactive' |
   assert.equal((await distill('d4')).status, 200)
 }
 
+// 28 §8.11 일기 스트림: chat·distill 모두 stream:true면 NDJSON(대기열 줄 → 조각 → 끝), 없으면 예전 JSON 한 번(예전 앱)
+{
+  const { base, store } = await proxy()
+  const sys = { role: 'system', content: '너는 느리야' }
+  let r = await call(base, '/ai/diary', { mode: 'chat', stream: true, messages: [sys, { role: 'user', content: '떡볶이 먹었어' }] }, 'user-s')
+  assert.equal(r.status, 200)
+  assert.match(r.headers.get('content-type') ?? '', /x-ndjson/)
+  assert.equal(r.headers.get('x-accel-buffering'), 'no', '앞단 프록시가 모으지 않게')
+  let lines = await ndjson(r)
+  assert.deepEqual(lines[0], { queue: { position: 0, waiting: 0 } }, '첫 줄 = 내 차례')
+  const parts = lines.filter((l) => l.message).map((l) => l.message.content)
+  assert.ok(parts.length >= 2, '조각마다 한 줄씩 그대로 넘김')
+  assert.equal(parts.join(''), '답:떡볶이 먹었어')
+  assert.equal(lines.at(-1).done, true)
+  assert.ok(bodies.at(-1).messages[0].content.includes(COMPANION_RULES), '스트림도 대화 규칙·들은 말만')
+  assert.ok(bodies.at(-1).messages[0].content.includes(DIARY_GROUNDING))
+  const chatRow = [...store.rows.values()].find((x) => x.userId === 'user-s' && x.endpoint === 'diary-chat')!
+  assert.deepEqual([chatRow.requests, chatRow.prompt_tokens, chatRow.output_tokens, chatRow.duration_ms], [1, 11, 7, 5], '한 번 세고, 끝 줄의 토큰·시간')
+  // 예전 앱: stream 없음 → JSON 한 번
+  r = await call(base, '/ai/diary', { mode: 'chat', messages: [sys, { role: 'user', content: '산책' }] }, 'user-s')
+  const j = await r.json()
+  assert.equal(j.message.content, '답:산책')
+  assert.equal(j.done, true)
+  // 옮기기 스트림: 서버 지시·스키마 그대로, 몸은 Ollama 줄 그대로(앱이 제목·본문만 뽑는다)
+  r = await call(base, '/ai/diary', { mode: 'distill', stream: true, messages: [{ role: 'system', content: 'APP' }, { role: 'user', content: '<conversation>나: 시험</conversation>' }] }, 'user-s')
+  lines = await ndjson(r)
+  assert.equal(lines.at(-1).done, true)
+  assert.ok(bodies.at(-1).messages[0].content.startsWith(DISTILL_SYSTEM))
+  assert.deepEqual(bodies.at(-1).format.required, ['title', 'tags', 'entry'])
+  assert.equal(bodies.at(-1).stream, true)
+  // 받는 중에 끊으면(멈추기) Ollama까지 멈추고, 그 1회는 돌려준다
+  const ctl = new AbortController()
+  r = await call(base, '/ai/diary', { mode: 'chat', stream: true, messages: [sys, { role: 'user', content: 'slowstream' }] }, 'user-t', ctl.signal)
+  const reader = r.body!.getReader()
+  let got = ''
+  while (!got.includes('답:')) got += new TextDecoder().decode((await reader.read()).value)
+  aborted.length = 0
+  ctl.abort()
+  for (let i = 0; i < 50 && !aborted.includes('slowstream'); i++) await tick(20)
+  assert.ok(aborted.includes('slowstream'))
+  await tick(30)
+  const cut = [...store.rows.values()].find((x) => x.userId === 'user-t' && x.endpoint === 'diary-chat')!
+  assert.deepEqual([cut.requests, cut.failures], [0, 1])
+  const dump = JSON.stringify([...store.rows.values(), ...store.calls])
+  for (const secret of ['떡볶이', '산책', '느리', 'slowstream']) assert.ok(!dump.includes(secret), secret)
+}
+
 for (const s of servers) await close(s)
 await close(ollama)
 console.log('ai: ok')

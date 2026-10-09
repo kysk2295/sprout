@@ -90,7 +90,9 @@ export async function recentMemory(date: string): Promise<Memory[]> {
 
 // ── 대화 ──
 export type ReplyResult = 'reply' | 'blocked'
-type ReplyOpts = { buddy: Buddy; memoryOn: boolean; signal: AbortSignal; onDelta?: (visible: string) => void; onQueue?: (position: number) => void }
+type ReplyOpts = { buddy: Buddy; memoryOn: boolean; signal: AbortSignal; onDelta?: (visible: string) => void; onQueue?: (position: number) => void
+  /** 다 받은 뒤 저장하기 전 — 화면이 글을 다 드러낼 때까지 기다린다(28 §8.11) */
+  settle?: () => Promise<void> }
 
 /** 캐릭터가 일기 글을 읽고 한 번 답한다(그냥 쓰기로 쓴 날의 `느리가 읽고 답해 주기`) — AI 입력 = 일기 글 + AI 대화(safety 0)뿐 */
 export async function buddyReply(date: string, opts: ReplyOpts): Promise<ReplyResult> {
@@ -182,16 +184,24 @@ export async function chatTurn(date: string, text: string | null, opts: Omit<Rep
   raw = await aiChat({ purpose: 'diary', mode: 'chat', messages: msgs }, opts.signal, (d) => { raw += d; opts.onDelta?.(parseBuddyReply(raw).text) }, opts.onQueue)
   const parsed = parseBuddyReply(raw)
   if (!parsed.text) throw new Error('답이 비어 있어요')
+  await opts.settle?.()
   const again = await findEntry(date)
   if (again?.private) return 'blocked'
   await addMessage(date, 'buddy', parsed.task ? `${parsed.text}\n할 일: ${parsed.task}` : parsed.text)
   return 'reply'
 }
 /** 이번 편 대화 → 1인칭 일기 + 제목 + 태그(서버 옮기기). 모양이 틀리면 던진다(화면은 내 말 그대로로) */
-export async function distillSession(date: string, lines: { who: 'me' | 'buddy'; text: string }[], mood: number | null, signal: AbortSignal): Promise<Distilled> {
+/** onRaw = 받는 중인 JSON 원문(누적)과 몇 번째 물음인지 — 화면은 제목·본문 글만 뽑아 보인다(partialDistill, 28 §8.11) */
+export async function distillSession(date: string, lines: { who: 'me' | 'buddy'; text: string }[], mood: number | null, signal: AbortSignal, onRaw?: (raw: string, attempt: number) => void): Promise<Distilled> {
   const entry = await findEntry(date)
   if (entry?.private || isSolo(date) || getConsent() !== true) throw new Error('나만 보기 날은 옮기지 않아요')
-  const ask = () => aiChat({ purpose: 'diary', mode: 'distill', temperature: 0.2, format: DISTILL_SCHEMA as unknown as Record<string, unknown>, messages: distillMessages(lines, { date, mood: moodOf(mood)?.label ?? null }) }, signal)
+  let attempt = 0
+  const ask = () => {
+    const n = ++attempt
+    let raw = ''
+    onRaw?.('', n)
+    return aiChat({ purpose: 'diary', mode: 'distill', temperature: 0.2, format: DISTILL_SCHEMA as unknown as Record<string, unknown>, messages: distillMessages(lines, { date, mood: moodOf(mood)?.label ?? null }) }, signal, onRaw ? (d) => { raw += d; onRaw(raw, n) } : undefined)
+  }
   // 한 번은 다시: Mac mini가 잠깐 바쁘거나 모양이 틀린 답(작은 모델) — 한도(429)는 다시 하지 않는다
   let d: Distilled | null = null
   try { d = parseDistill(await ask()) } catch (e) { if (isDailyCap(e) || signal.aborted) throw e }

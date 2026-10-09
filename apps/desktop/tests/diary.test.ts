@@ -8,7 +8,7 @@ import {
   averageMood, buddyLine, DONE_SQL, highlightsOf, longestStreak, monthGrid, moodFaceOf, moodTrend, skyOf, WEEK_DAYS, weekDaysHead, weekdayIdx, weekOf
 } from '../src/renderer/src/data/diary'
 import { addScripted, chatTurn, clearScripted, distillSession, isDailyCap, previewOf, replaceSection, saveSection, setSolo } from '../src/renderer/src/data/diary'
-import { SCRIPTED, sessionLinesOf, talkStateOf } from '@sprout/schema/diaryTalk'
+import { partialDistill, SCRIPTED, sessionLinesOf, talkStateOf } from '@sprout/schema/diaryTalk'
 import { parseSections } from '@sprout/schema/diaryPrompts'
 import { insert, run } from '../src/renderer/src/data/mutations'
 const SQL = await initSqlJs()
@@ -18,12 +18,14 @@ const all = (sql:string, params:unknown[]=[]) => {const s=db.prepare(sql);s.bind
 // AI 호출을 가로채 기록한다(실제 모델 없음)
 const calls: { messages: { role: string; content: string }[] }[] = []
 let answer = ''
+const listeners = new Set<(e: { id: string; text: string }) => void>()
 const store = new Map<string, string>([['sprout.assistant.model', 'test-model']])
 Object.assign(globalThis, {
   localStorage: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) },
   window: { sprout: {
     db: { getAll: async (sql:string,p?:unknown[])=>all(sql,p), get: async (sql:string,p?:unknown[])=>all(sql,p)[0]??null, transaction: async (stmts:{sql:string;params?:unknown[]}[])=>{db.run('BEGIN');try{for(const s of stmts)db.run(s.sql,s.params as never);db.run('COMMIT')}catch(e){db.run('ROLLBACK');throw e}} },
-    assistant: { chat: async (_id: string, input: { messages: { role: string; content: string }[] }) => { calls.push(input); return answer }, onDelta: () => () => {}, cancel: () => {}, models: async () => ['test-model'] }
+    // 받는 글(28 §8.11): 답을 세 조각으로 assistant:delta처럼 흘려 보낸 뒤 돌려준다
+    assistant: { chat: async (id: string, input: { messages: { role: string; content: string }[] }) => { calls.push(input); const k = Math.ceil(answer.length / 3) || 1; for (let i = 0; i < answer.length; i += k) for (const f of listeners) f({ id, text: answer.slice(i, i + k) }); return answer }, onDelta: (f: (e: { id: string; text: string }) => void) => { listeners.add(f); return () => listeners.delete(f) }, cancel: () => {}, models: async () => ['test-model'] }
   } }
 })
 const buddy = { name: '도토리', species: 'squirrel' as const }
@@ -190,10 +192,26 @@ assert.ok(DONE_SQL.includes('completed_at FROM tasks'))
   assert.equal(chat.messages.at(-1)!.role, 'user')
   assert.ok(chat.messages[0].content.includes('묻지 않으면 조언하지 마') && chat.messages[0].content.includes('들은 말만'))
   assert.equal(msgs(D).at(-1)!.safety, 0)
+  // 받는 글: 조각마다 누적된 보이는 글 → 다 받은 뒤 settle(화면이 다 드러낼 때까지) → 그다음에 저장
+  {
+    answer = '들려줘서 고마워.\n할 일: 단어 외우기'
+    const seen: string[] = []
+    const order: string[] = []
+    const before = msgs(D).length
+    assert.equal(await chatTurn(D, '조금 했어', { buddy, signal, onDelta: (t) => seen.push(t), settle: async () => { order.push(`settle:${msgs(D).length - before}`) } }), 'reply')
+    assert.ok(seen.length >= 2 && seen.at(-1) === '들려줘서 고마워.', `할 일 줄은 받는 말풍선에 안 보임: ${JSON.stringify(seen)}`)
+    assert.ok(seen.every((t, i) => !i || t.startsWith(seen[i - 1].slice(0, 3))), '누적')
+    assert.deepEqual(order, ['settle:1'], '내 말만 저장된 뒤 settle, 캐릭터 답은 그다음')
+    assert.equal(msgs(D).length - before, 2)
+  }
   // 옮기기: mode distill · 서버 스키마 · 캐릭터 말은 물음만
   answer = JSON.stringify({ title: '손에 잡히지 않는 하루', tags: ['감정/무기력', '#영역/공부', '이상한태그'], entry: '시험이 코앞인데 손에 잡히지 않았다.' })
   const st = talkStateOf(all('SELECT * FROM diary_messages WHERE entry_id = ? ORDER BY created_at, id', [entryId(D)]) as never[])
-  const d = await distillSession(D, sessionLinesOf(st.S), 4, signal)
+  const raws: [string, number][] = []
+  const d = await distillSession(D, sessionLinesOf(st.S), 4, signal, (raw, n) => raws.push([raw, n]))
+  assert.deepEqual(raws[0], ['', 1], '물음마다 빈 글로 시작')
+  assert.equal(raws.at(-1)![0], answer, '누적된 원문')
+  assert.equal(partialDistill(raws[2][0]).title, '손에 잡히지 않는 하루', '받는 중에도 제목만 뽑힌다')
   const dist = calls.at(-1) as unknown as { mode?: string; format?: unknown; temperature?: number; messages: { role: string; content: string }[] }
   assert.equal(dist.mode, 'distill')
   assert.ok(dist.format && dist.temperature === 0.2)

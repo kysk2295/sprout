@@ -5,6 +5,7 @@ import { moodOf } from '../../data/diary'
 import { hhmm } from './dates'
 import { MoodFace } from './MoodFace'
 import { DraftCard, SavedCard, SectionView } from './Sections'
+import { DistillCard } from './Stream'
 import type { TalkState } from './Talk'
 
 // 15 §10.1 오른쪽 `오늘 일기` 340 — 저장한 편 카드(시각·제목·태그·본문, 고치기) · 지금 쓰는 편(내 말이 모이는 중 / 초안 카드) · 그날 끝낸 할 일(XP 없음).
@@ -24,7 +25,9 @@ export function DayPanel({ t, onPrivate, onOpenTask }: { t: TalkState; onPrivate
           <SavedCard key={`${k}-${sec.time}-${sec.title}`} section={sec} date={t.date} past={t.past} editing={t.editAt === k}
             onEdit={() => t.setEditAt(k)} onCancel={() => t.setEditAt(null)} onSave={(s) => void t.editSaved(k, s)} />
         ))}
-        {t.draft ? (
+        {t.distilling ? (
+          <DistillCard stream={t.dstream} buddy={t.buddy} name={t.name} again={t.distillTry > 1} reduced={t.reduced} onStop={t.stop} />
+        ) : t.draft ? (
           <DraftCard draft={t.draft} date={t.date} past={t.past} name={t.name} mood={t.sessionMood ?? t.entry?.mood ?? null} aiFlow={t.aiFlow} distilling={t.distilling}
             left={t.quota ? Math.max(0, t.quota.limit - t.quota.used) : null} canTranscript={t.canTranscript}
             onChange={(d) => t.setDraft({ ...t.draft!, ...d })} onRedo={() => void t.distill(true)} onTranscript={t.makeTranscript} onSave={() => void t.save()} onBack={t.aiFlow ? () => t.setDraft(null) : undefined} />
