@@ -5,7 +5,8 @@
 //  · splitPeople: 팀원 이름 읽기(`민수, 지은` · `민수랑 지은이`)
 // DB 읽기·쓰기는 앱(apps/desktop/.../data/projects.ts).
 import { distinctWords, STOP_WORDS, tagKey, type AtLink, type AtList, type AtTag } from './autoTag.ts'
-import { displayTitle, parseAliases } from './wikiLink.ts'
+import { eulReul } from './josa.ts'
+import { displayTitle, parseAliases, relationId } from './wikiLink.ts'
 import { daysBetween, membersEndedBy, PROJECT_STOP, projectDeadline, projectMembers, projectSpan, projectTitle, taskDay, workKind, type PTask } from './projects.ts'
 
 /** 점수표(§12.13.3). 합은 0~100으로 자른다 */
@@ -289,3 +290,65 @@ export function focusApplies(focus: FocusInfo | null | undefined, q: { title: st
   if (rest.some((o) => !o.ended && keysOf(o).some((k) => c.includes(k)))) return false
   return true
 }
+
+// ── 넣을지 묻기(§12.13.4 말풍선) · 주간 점검 끝(§12.13.6) — 데스크톱·휴대폰 공용(29 §9.8) ──
+/** 묻는 후보 하나: 점수 + 할 일 제목·프로젝트 이름·만든 시각 */
+export type AskItem = Cand & { title: string; project: string; created_at: string | null }
+/** projectCandidates 결과의 ask → 화면용(제목·프로젝트 이름 붙임). 순서 그대로(점수 높은 순) */
+export function askItemsOf(r: { ask: Cand[]; projects: Pick<ScoreProject, 'id' | 'name'>[] }, tasks: { id: string; title: string; created_at?: string | null }[]): AskItem[] {
+  const byId = new Map(tasks.map((t) => [t.id, t]))
+  const name = new Map(r.projects.map((p) => [p.id, p.name]))
+  return r.ask.map((c) => ({ ...c, title: byId.get(c.taskId)?.title ?? '', project: name.get(c.tagId) ?? '', created_at: byId.get(c.taskId)?.created_at ?? null }))
+}
+/** 말풍선용: 최근 7일 안에 만든 할 일만 */
+export const freshAsk = <T extends { created_at: string | null }>(xs: T[], now = Date.now()) => xs.filter((x) => x.created_at && now - Date.parse(x.created_at) <= PSCORE.askFreshDays * 86_400_000)
+/** 하루 물은 수(기기 기억 { day, n }) */
+export type AskedCount = { day: string; n: number }
+export const askedOn = (a: AskedCount | null | undefined, day: string) => (a && a.day === day ? a.n : 0)
+export const bumpAsked = (a: AskedCount | null | undefined, day: string): AskedCount => ({ day, n: askedOn(a, day) + 1 })
+/** 지금 말풍선에 띄울 물음: 하루 상한 안 · 최근 7일 · 방금 답한 것(gone) 뺌. 없으면 null */
+export function nextAsk<T extends { taskId: string; created_at: string | null }>(ask: T[], asked: number, gone: ReadonlySet<string> = new Set(), now = Date.now()): T | null {
+  if (asked >= PSCORE.askPerDay) return null
+  return freshAsk(ask, now).find((x) => !gone.has(x.taskId)) ?? null
+}
+/** 주간 점검 끝: 프로젝트마다 남은 후보(하루 상한·7일 제한 없음), 후보 많은 프로젝트 먼저 */
+export function leftoverGroups<T extends { taskId: string; tagId: string; project: string }>(ask: T[], gone: ReadonlySet<string> = new Set()): { tagId: string; project: string; items: T[] }[] {
+  const m = new Map<string, { tagId: string; project: string; items: T[] }>()
+  for (const a of ask) if (!gone.has(a.taskId)) (m.get(a.tagId) ?? m.set(a.tagId, { tagId: a.tagId, project: a.project, items: [] }).get(a.tagId)!).items.push(a)
+  return [...m.values()].sort((a, b) => b.items.length - a.items.length)
+}
+/**
+ * 답이 남길 것(§12.13.5). 아니 = dismissed 행만. 응 = 넣기 + ⓐ 제목의 사람 태그가 아직 팀원이 아니면 팀원으로 잇기
+ * ⓑ 제목에 사람이 없으면 가장 긴 뚜렷한 낱말을 배운 낱말로(사람이 이미 팀원이면 둘 다 없음).
+ */
+export type AnswerPlan = { add: false } | { add: true; person: string | null; hint: string | null }
+export function answerPlan(title: string, yes: boolean, persons: Pick<AtTag, 'id' | 'name' | 'aliases'>[], team: ReadonlySet<string>): AnswerPlan {
+  if (!yes) return { add: false }
+  const who = personInTitle(title, persons)
+  if (who && !team.has(who)) return { add: true, person: who, hint: null }
+  return { add: true, person: null, hint: who ? null : hintWord(title) }
+}
+/** 배운 낱말 행 id(relations 프로젝트 → hint) */
+export const hintRelId = (projectTagId: string, word: string) => relationId(projectTagId, `hint:${word}`, 'hint')
+/** 팀원 행 id(relations 프로젝트 → 사람 태그 field project) */
+export const projectPersonId = (projectTagId: string, personTagId: string) => relationId(projectTagId, personTagId, 'project')
+
+const askShort = (t: string) => ([...t].length > 18 ? `${[...t].slice(0, 17).join('')}…` : t)
+/** `'회의'` (18자 넘으면 줄임) */
+export const askQuote = (t: string) => `'${askShort(t)}'`
+/** `'회의'를` — 조사는 줄이기 전 제목으로 */
+export const askQuoteEul = (t: string) => `${askQuote(t)}${eulReul(t).slice(t.length)}`
+/** 말풍선 글: `'회의'도 K 데이터 공모전 일이야?` */
+export const askText = (x: { title: string; project: string }) => `${askQuote(x.title)}도 ${x.project} 일이야?`
+/** 토스트 글 */
+export const ASK_TOAST = {
+  /** 말풍선 [응] */
+  yes: (x: { title: string; project: string }) => `${askQuoteEul(x.title)} ${x.project}에 넣었어요`,
+  /** 주간 점검 [하나씩] [응] */
+  yesShort: (x: { title: string }) => `${askQuoteEul(x.title)} 넣었어요`,
+  no: '다시 묻지 않을게요',
+  /** 주간 점검 [모두 넣기] */
+  all: (n: number, project: string) => `${n}개를 ${project}에 넣었어요`
+} as const
+/** 주간 점검 끝 한 줄 */
+export const leftoverLine = (project: string, n: number) => `${project}에 들어갈 것 같은 일 ${n}개`

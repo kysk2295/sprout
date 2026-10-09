@@ -1,6 +1,6 @@
 // 31 §12.13 프로젝트 넣기 점수 — 실제처럼 아무렇게나 넣은 할 일 시나리오(K 데이터 공모전, 팀원 민수·지은)
 import assert from 'node:assert/strict'
-import { focusApplies, hintWord, personInTitle, projectCandidates, PSCORE, reasonLine, seriesKey, splitPeople, type ScoreInput, type ScoreTask } from './projectScore.ts'
+import { answerPlan, ASK_TOAST, askedOn, askItemsOf, askText, bumpAsked, focusApplies, hintRelId, leftoverGroups, leftoverLine, nextAsk, projectPersonId, freshAsk, hintWord, personInTitle, projectCandidates, PSCORE, reasonLine, seriesKey, splitPeople, type ScoreInput, type ScoreTask } from './projectScore.ts'
 import { initPlan, planReduce, type PlanState } from './planChat.ts'
 import { buildPlanView } from './planView.ts'
 
@@ -147,5 +147,50 @@ step({ type: 'skip' })
 step({ type: 'chip', id: 'none' })
 step({ type: 'chip', id: 'today' })
 assert.equal(s.phase, 'end')
+
+// ── 31 §12.13.4·12.13.6 묻기 · 주간 점검 끝(공용 — 데스크톱·휴대폰 29 §9.8) ──
+{
+  const NOW = Date.parse('2026-10-10T12:00:00Z')
+  const ago = (d: number) => new Date(NOW - d * 86_400_000).toISOString()
+  const mk = (taskId: string, tagId: string, project: string, created_at: string | null, title = taskId) => ({ taskId, tagId, project, created_at, title, score: 50, reasons: [], margin: 50 })
+  const asks = [mk('a', 'P', 'K 데이터 공모전', ago(1)), mk('b', 'P', 'K 데이터 공모전', ago(8)), mk('c', 'Q', '창업', ago(2)), mk('d', 'P', 'K 데이터 공모전', null)]
+  assert.deepEqual(freshAsk(asks, NOW).map((x) => x.taskId), ['a', 'c'], '7일 안에 만든 것만(만든 시각 없으면 뺌)')
+  assert.equal(nextAsk(asks, 0, new Set(), NOW)?.taskId, 'a', '점수 순 첫 번째')
+  assert.equal(nextAsk(asks, 0, new Set(['a']), NOW)?.taskId, 'c', '방금 답한 것은 건너뜀')
+  assert.equal(nextAsk(asks, 2, new Set(), NOW)?.taskId, 'a', '하루 2개 답했으면 아직 물음')
+  assert.equal(nextAsk(asks, 3, new Set(), NOW), null, '하루 3개면 그만')
+  assert.equal(nextAsk(asks, 0, new Set(['a', 'c']), NOW), null, '7일 안 후보가 없으면 없음')
+  // 하루 물은 수
+  assert.equal(askedOn(null, '2026-10-10'), 0)
+  assert.equal(askedOn({ day: '2026-10-09', n: 3 }, '2026-10-10'), 0, '날이 바뀌면 0')
+  assert.deepEqual(bumpAsked({ day: '2026-10-10', n: 2 }, '2026-10-10'), { day: '2026-10-10', n: 3 })
+  assert.deepEqual(bumpAsked({ day: '2026-10-09', n: 3 }, '2026-10-10'), { day: '2026-10-10', n: 1 })
+  // 주간 점검 끝: 프로젝트마다, 후보 많은 것 먼저, 7일·상한 없음
+  const g = leftoverGroups(asks)
+  assert.deepEqual(g.map((x) => [x.tagId, x.items.map((i) => i.taskId)]), [['P', ['a', 'b', 'd']], ['Q', ['c']]])
+  assert.deepEqual(leftoverGroups(asks, new Set(['c'])).map((x) => x.tagId), ['P'], '답한 것이 다 빠지면 프로젝트째 빠짐')
+  assert.equal(leftoverLine('K 데이터 공모전', 3), 'K 데이터 공모전에 들어갈 것 같은 일 3개')
+  // 화면용 후보(제목·이름 붙임)
+  const items = askItemsOf({ ask: [{ taskId: 't1', tagId: 'P', score: 55, reasons: [], margin: 55 }], projects: [{ id: 'P', name: 'K 데이터 공모전' }] }, [{ id: 't1', title: '회의', created_at: '2026-10-09T00:00:00Z' }])
+  assert.deepEqual(items.map((x) => [x.title, x.project, x.created_at]), [['회의', 'K 데이터 공모전', '2026-10-09T00:00:00Z']])
+  // 글
+  assert.equal(askText({ title: '회의', project: 'K 데이터 공모전' }), "'회의'도 K 데이터 공모전 일이야?")
+  assert.equal(askText({ title: '아주아주 긴 제목의 할 일 하나 둘 셋 넷', project: 'P' }), "'아주아주 긴 제목의 할 일 하나…'도 P 일이야?", '18자 넘으면 17자 + …')
+  assert.equal(ASK_TOAST.yes({ title: '회의', project: 'K 데이터 공모전' }), "'회의'를 K 데이터 공모전에 넣었어요")
+  assert.equal(ASK_TOAST.yesShort({ title: '데이터 전처리' }), "'데이터 전처리'를 넣었어요")
+  assert.equal(ASK_TOAST.yesShort({ title: '자료' }), "'자료'를 넣었어요")
+  assert.equal(ASK_TOAST.yesShort({ title: '발표' }), "'발표'를 넣었어요")
+  assert.equal(ASK_TOAST.yesShort({ title: '보고서' }), "'보고서'를 넣었어요")
+  assert.equal(ASK_TOAST.yesShort({ title: '회식' }), "'회식'을 넣었어요")
+  assert.equal(ASK_TOAST.all(3, '창업'), '3개를 창업에 넣었어요')
+  // 답이 남길 것(§12.13.5)
+  const persons = [{ id: 'm', name: '민수', aliases: null }, { id: 'j', name: '지은', aliases: null }]
+  assert.deepEqual(answerPlan('회의', false, persons, new Set()), { add: false }, '아니 = 넣지 않음(dismissed 행만)')
+  assert.deepEqual(answerPlan('지은이랑 창업 서류', true, persons, new Set(['m'])), { add: true, person: 'j', hint: null }, '제목의 사람이 팀원이 아니면 팀원으로')
+  assert.deepEqual(answerPlan('민수한테 자료', true, persons, new Set(['m'])), { add: true, person: null, hint: null }, '이미 팀원이면 아무것도 더 안 배움')
+  assert.deepEqual(answerPlan('데이터 전처리', true, persons, new Set()), { add: true, person: null, hint: hintWord('데이터 전처리') }, '사람이 없으면 배운 낱말')
+  assert.equal(hintRelId('P', '전처리'), hintRelId('P', '전처리'))
+  assert.notEqual(hintRelId('P', '전처리'), projectPersonId('P', '전처리'))
+}
 
 console.log('projectScore ok')

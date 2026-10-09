@@ -18,6 +18,7 @@ import { projectCardLine } from '@sprout/schema/planView'
 import type { PlanData, ProjectView, PTaskRow } from './plan'
 import { setFocus } from './focus'
 import { NewProjectSheet } from './NewProjectSheet'
+import { ProjectAskBubble } from './ProjectAsk'
 import { projectIcon } from './projectDirectModel'
 
 const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
@@ -67,6 +68,7 @@ export function ProjectBoard({ data }: { data: PlanData }) {
       <Text style={[s.summary, { color: p.textTertiary }]}>
         프로젝트 {data.projects.length}개{near ? ` · 가장 가까운 마감: ${near.title} ${near.deadline!.word} ${md(near.deadline!.day)}` : ''}
       </Text>
+      <ProjectAskBubble />{/* 29 §9.8 · 31 §12.13.4 넣을지 묻기 */}
       {live.map((x) => <ProjectCard key={x.tag.id} x={x} today={today} />)}
       {done.length ? (
         <Pressable onPress={() => setShowDone((v) => !v)} accessibilityRole="button" style={s.doneHead}>

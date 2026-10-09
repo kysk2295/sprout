@@ -12,7 +12,7 @@ import { getDb, type Row, type Stmt } from './db'
 import { readLinks, wouldCycle } from './map'
 import { createTask, deleteTasksHard, insert, remove, run, setTag, update, uuid } from './mutations'
 import { addToProject, noteAsked, removeFromProject } from './projects'
-import { hintWord, personInTitle } from '@sprout/schema/projectScore'
+import { answerPlan, hintRelId, projectPersonId } from '@sprout/schema/projectScore'
 import { itemRow } from './collect'
 import { removeTaskTag } from './wiki'
 
@@ -121,7 +121,7 @@ export async function linkPerson(taskId: string, personTagId: string): Promise<U
   return async () => { await run(...made.map((id) => remove('task_tags', id))); await before() }
 }
 export const unlinkPerson = (taskId: string, personTagId: string): Promise<Undo> => removeTaskTag(taskId, personTagId)
-export const projectPersonId = (projectTagId: string, personTagId: string) => relationId(projectTagId, personTagId, 'project')
+export { projectPersonId }
 export async function linkPersonToProject(projectTagId: string, personTagId: string): Promise<Undo> {
   const id = projectPersonId(projectTagId, personTagId)
   const undo = await snapRows('relations', [id])
@@ -313,7 +313,7 @@ export async function linkTeam(projectTagId: string, names: string[]): Promise<U
   }
   return both(...undos)
 }
-export const hintRelId = (projectTagId: string, word: string) => relationId(projectTagId, `hint:${word}`, 'hint')
+export { hintRelId }
 /** 배운 낱말(§12.13.5 ⓑ): 프로젝트 → hint(낱말) */
 export async function learnHint(projectTagId: string, word: string): Promise<Undo> {
   const id = hintRelId(projectTagId, word)
@@ -332,10 +332,9 @@ export async function answerProjectQuestion(q: { taskId: string; tagId: string; 
   const db = await getDb()
   const persons = await db.getAll<{ id: string; name: string; aliases: string | null }>("SELECT id, name, aliases FROM tags WHERE kind = 'person'")
   const team = new Set((await db.getAll<{ to_id: string }>("SELECT to_id FROM relations WHERE from_type = 'tag' AND from_id = ? AND to_type = 'tag' AND field = 'project' AND COALESCE(state, 'accepted') = 'accepted'", [q.tagId])).map((r) => r.to_id))
-  const who = personInTitle(q.title, persons)
-  if (who && !team.has(who)) return both(add, await linkPersonToProject(q.tagId, who))
-  const word = who ? null : hintWord(q.title)
-  return word ? both(add, await learnHint(q.tagId, word)) : add
+  const plan = answerPlan(q.title, true, persons, team)
+  if (plan.add && plan.person) return both(add, await linkPersonToProject(q.tagId, plan.person))
+  return plan.add && plan.hint ? both(add, await learnHint(q.tagId, plan.hint)) : add
 }
 export const focusRelId = (projectTagId: string) => relationId(projectTagId, 'focus', 'focus')
 /** 지금 집중(§12.13.7): 한 번에 하나 — 켜면 다른 집중 행은 지운다. null = 끄기 */

@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { grantReviewXp } from '../../src/growth/data'
 import { dayKey } from '../../src/lib/dates'
 import { Buddy } from '../../src/map/v2/bits'
+import { ReviewProjectLeftovers } from '../../src/map/v2/ProjectAsk'
 import { applyDecision, createGoals, loadProgressKv, restoreSnap, saveProgressKv, undoGoals } from '../../src/map/v2/review'
 import { useKv } from '../../src/map/v2/kv'
 import { FONT, M } from '../../src/theme/palette'
@@ -232,6 +233,7 @@ export default function WeeklyReview() {
                 <Text style={[FONT.sub, { color: p.textTertiary }]}>{finishSummary(pr)}</Text>
               </View>
             </View>
+            <ReviewProjectLeftovers />{/* 29 §9.8 · 31 §12.13.6 */}
             <Group title="다음 주 목표">
               {pr.created.length ? pr.created.map((c, i) => <Row key={c.goalId} first={i === 0} label={c.title} />) : <Row first label="고른 목표 없음" dim />}
               {reviewXp.length ? <Row label="주간 점검" value={`+${XP.review} XP`} valueColor={p.accent} /> : null}

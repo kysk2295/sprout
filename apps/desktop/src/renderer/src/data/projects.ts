@@ -6,7 +6,7 @@ import {
   aiTagId, autoTagRowId, dictionaryPass, findSynonym, planAssign, tagKey, type Assign, type AtFolder, type AtLink, type AtList, type AtTag, type Ctx
 } from '@sprout/schema/autoTag'
 import { findProjectClusters, INSTANCE, planProjectCleanup, PROJECT, projectMembers, type Proposal, type PTask } from '@sprout/schema/projects'
-import { projectCandidates, type ScoreRel } from '@sprout/schema/projectScore'
+import { askedOn, bumpAsked, projectCandidates, type ScoreRel } from '@sprout/schema/projectScore'
 import { parseAliases } from '@sprout/schema/wikiLink'
 import { encodeProjectsShared, mergeProjectsShared, PROJECTS_VIEW_KEY, type ProjectsShared } from '@sprout/schema/planView'
 import { getDb, type Stmt } from './db'
@@ -335,8 +335,8 @@ export function dismissSuggestion(key: string) {
   if (!d.includes(key)) projectStore.set({ dismissed: [...d, key] })
 }
 /** §12.13.4 오늘 물은 수(답한 수) */
-export function askedToday(day = dayKey()): number { const a = projectStore.get().asked; return a && a.day === day ? a.n : 0 }
-export function noteAsked(day = dayKey()) { projectStore.set({ asked: { day, n: askedToday(day) + 1 } }) }
+export function askedToday(day = dayKey()): number { return askedOn(projectStore.get().asked, day) }
+export function noteAsked(day = dayKey()) { projectStore.set({ asked: bumpAsked(projectStore.get().asked, day) }) }
 /** `빠진 거 없어` */
 export function confirmProject(tagId: string, count: number) { projectStore.set({ confirmed: { ...projectStore.get().confirmed, [tagId]: count } }) }
 

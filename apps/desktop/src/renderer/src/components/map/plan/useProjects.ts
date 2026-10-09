@@ -2,7 +2,7 @@
 // 계산은 공용 @sprout/schema/planView(모바일과 같은 코드). 쿼리는 useQuery(로컬 DB 감시)라 태그·할 일이 바뀌면 바로 다시 그린다.
 import { useMemo, useSyncExternalStore } from 'react'
 import { buildPlanView, type LinkRow, type ListRow, type PlanData, type PTaskRow, type SeqRow, type TagRow } from '@sprout/schema/planView'
-import { projectCandidates, PSCORE, type Cand, type ScoreRel } from '@sprout/schema/projectScore'
+import { askItemsOf, projectCandidates, type AskItem, type ScoreRel } from '@sprout/schema/projectScore'
 import { autoTagStore } from '../../../data/autoTag'
 import { projectStore } from '../../../data/projects'
 import { useQuery } from '../../../data/useQuery'
@@ -89,7 +89,7 @@ export function useRelationRows(): RelRows | null {
 }
 
 // ── 31 §12.13.4·12.13.6 넣을지 물을 할 일(점수 40~69) ──
-export type AskItem = Cand & { title: string; project: string; created_at: string | null }
+export type { AskItem } from '@sprout/schema/projectScore'
 /** 묻기 범위 후보 전부(점수 높은 순). 말풍선은 fresh·하루 상한으로 거르고, 주간 점검은 전부 */
 export function useProjectCandidates(): { loaded: boolean; ask: AskItem[] } {
   const cutoff = useMemo(cutoffDay, [])
@@ -102,10 +102,8 @@ export function useProjectCandidates(): { loaded: boolean; ask: AskItem[] } {
   return useMemo(() => {
     if (!tasks || !tags || !links || !lists || !rels) return { loaded: false, ask: [] }
     const r = projectCandidates({ tags, tasks, links, lists, relations: rels, today })
-    const byId = new Map(tasks.map((t) => [t.id, t]))
-    const name = new Map(r.projects.map((p) => [p.id, p.name]))
-    return { loaded: true, ask: r.ask.map((c) => ({ ...c, title: byId.get(c.taskId)?.title ?? '', project: name.get(c.tagId) ?? '', created_at: byId.get(c.taskId)?.created_at ?? null })) }
+    return { loaded: true, ask: askItemsOf(r, tasks) }
   }, [tasks, tags, links, lists, rels, today])
 }
-/** 말풍선용: 최근 7일 안에 만든 할 일만 */
-export const freshAsk = (xs: AskItem[], now = Date.now()) => xs.filter((x) => x.created_at && now - Date.parse(x.created_at) <= PSCORE.askFreshDays * 86_400_000)
+/** 말풍선용: 최근 7일 안에 만든 할 일만(공용) */
+export { freshAsk } from '@sprout/schema/projectScore'
