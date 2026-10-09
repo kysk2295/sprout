@@ -1,0 +1,1372 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>캐릭터 키우기 시안 (43)</title>
+<style>
+/* 시안 전용 (docs/screens/43-character-raising.md). 캐릭터·옷·장면은 전부 이 파일의 함수가 직접 그린 SVG — 틱틱·외부 그림 없음.
+   그림은 42 시안(character-evolution.html)의 art()를 그대로 옮기고 옷 칸·레벨 안 성장·두 갈래 길만 더했다.
+   40 §0.1 그대로: 그라데이션·빛·글로우·반짝이(✦)·보라·이모지 없음. 움직임은 transform·opacity만. */
+:root{
+  --bg-app:#fff;--bg-input:#f5f5f6;--bg-hover:#f5f5f5;--bg-card:#fafafa;--bg-popover:#fff;
+  --line:#f1f1f1;--divider:#ececee;
+  --t1:#191919;--t2:#7d7d7d;--t3:#a3a4a7;--t4:#b5b6b8;
+  --accent:#4e75f2;--accent-subtle:#ecf0fd;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Pretendard","Apple SD Gothic Neo",sans-serif;
+  --shadow-pop:0 4px 16px rgba(0,0,0,.1),0 0 0 1px rgba(0,0,0,.04);
+  --page:#e9e9ec;--note:#5b5b60;--frame:#1c1c1e;--lockc:#d9d9dd;
+  --grass-sky:#cde8ff;--grass-h1:#c3e3b2;--grass-h2:#b4dba3;--grass-g:#d5edc5;
+  --sunset-sky:#f9d6b6;--sunset-sky2:#f6c29b;--sunset-h1:#e6bb95;--sunset-h2:#d9a985;--sunset-g:#ecd0ab;
+  --night-sky:#2a3a6a;--night-h1:#3a5a4c;--night-h2:#33503f;--night-g:#3e5e48;
+  --moon-sky:#2e3b6b;
+  --snow-sky:#dce7f1;--snow-h1:#eaf0f6;--snow-h2:#e1e9f1;--snow-g:#f5f8fb;
+  --disc-op:.55;--mat-op:.7;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg-app:#1b1b1b;--bg-input:#262626;--bg-hover:#242424;--bg-card:#212121;--bg-popover:#232323;
+  --line:#262626;--divider:#2c2c2c;--t1:#e6e6e6;--t2:#9a9a9a;--t3:#6f6f6f;--t4:#4a4a4a;
+  --accent:#6a8cf6;--accent-subtle:#232b45;--shadow-pop:0 4px 16px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.05);
+  --page:#0e0e0e;--note:#a0a0a6;--frame:#000;--lockc:#3a3a3e;
+  --grass-sky:#2f4a66;--grass-h1:#456a43;--grass-h2:#3d613c;--grass-g:#3b5a3a;
+  --sunset-sky:#5a4152;--sunset-sky2:#6b4a50;--sunset-h1:#6b5144;--sunset-h2:#5e463b;--sunset-g:#6e5646;
+  --night-sky:#18213d;--night-h1:#2a4237;--night-h2:#243a30;--night-g:#2d4636;--moon-sky:#1e2747;
+  --snow-sky:#3a4656;--snow-h1:#59677a;--snow-h2:#4f5c6e;--snow-g:#7e8b9b;
+  --disc-op:.2;--mat-op:.35;color-scheme:dark}}
+:root[data-theme=dark]{
+  --bg-app:#1b1b1b;--bg-input:#262626;--bg-hover:#242424;--bg-card:#212121;--bg-popover:#232323;
+  --line:#262626;--divider:#2c2c2c;--t1:#e6e6e6;--t2:#9a9a9a;--t3:#6f6f6f;--t4:#4a4a4a;
+  --accent:#6a8cf6;--accent-subtle:#232b45;--shadow-pop:0 4px 16px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.05);
+  --page:#0e0e0e;--note:#a0a0a6;--frame:#000;--lockc:#3a3a3e;
+  --grass-sky:#2f4a66;--grass-h1:#456a43;--grass-h2:#3d613c;--grass-g:#3b5a3a;
+  --sunset-sky:#5a4152;--sunset-sky2:#6b4a50;--sunset-h1:#6b5144;--sunset-h2:#5e463b;--sunset-g:#6e5646;
+  --night-sky:#18213d;--night-h1:#2a4237;--night-h2:#243a30;--night-g:#2d4636;--moon-sky:#1e2747;
+  --snow-sky:#3a4656;--snow-h1:#59677a;--snow-h2:#4f5c6e;--snow-g:#7e8b9b;
+  --disc-op:.2;--mat-op:.35;color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+button,input{font:inherit;color:inherit;background:none;border:0}
+button{cursor:pointer}
+body{font:400 14px/20px var(--font);background:var(--page);color:var(--t1);padding:20px 16px 80px}
+.wrap{max-width:1240px;margin:0 auto}
+header h1{font:700 19px/27px var(--font)}
+header p{font-size:12.5px;line-height:19px;color:var(--note);max-width:920px;margin-top:4px}
+.ctl{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:12px;color:var(--note);padding:10px 0;margin:10px 0 18px;background:var(--page)}
+.ctl label{display:flex;gap:6px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--divider);border-radius:8px;overflow:hidden;background:var(--bg-popover)}
+.seg button{padding:5px 10px;font-size:12px;color:var(--t2)}
+.seg button+button{border-left:1px solid var(--divider)}
+.seg button.on{background:var(--accent);color:#fff}
+section.s{margin:0 0 40px}
+section.s>h2{font:700 15px/22px var(--font);margin-bottom:4px}
+section.s>.why{font-size:12px;line-height:18px;color:var(--note);margin-bottom:12px;max-width:940px}
+.card{background:var(--bg-app);border-radius:12px;box-shadow:var(--shadow-pop);padding:14px 16px}
+.note{font-size:11.5px;color:var(--note);line-height:17px}
+.btn{height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--divider);background:var(--bg-popover);font-size:12.5px;white-space:nowrap}
+.btn:hover{background:var(--bg-hover)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.sm{height:26px;padding:0 10px;font-size:12px}
+
+/* ── 휴대폰 틀 ── */
+.phones{display:flex;flex-wrap:wrap;gap:28px 30px;align-items:flex-start}
+.phone{width:360px;height:740px;border-radius:44px;background:var(--bg-app);box-shadow:0 0 0 9px var(--frame),0 10px 30px rgba(0,0,0,.18);overflow:hidden;position:relative;display:flex;flex-direction:column;flex:none}
+.ph-status{height:34px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 28px 4px;font:600 13px var(--font)}
+.ph-head{height:46px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;font:700 18px var(--font)}
+.ph-head .r{margin-left:auto;color:var(--t2);font-weight:400;font-size:20px}
+.ph-body{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 12px 12px}
+.ph-tabs{height:56px;flex:none;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);font-size:10px;color:var(--t3);text-align:center;padding-top:7px}
+.ph-tabs i{display:block;width:22px;height:22px;margin:0 auto 2px;border-radius:6px;border:2px solid currentColor;opacity:.7}
+.ph-tabs .on{color:var(--accent)}
+.side-notes{flex:1;min-width:280px;max-width:420px;display:flex;flex-direction:column;gap:12px}
+.side-notes h3{font:600 13px var(--font);margin-bottom:6px}
+.side-notes ul{padding-left:16px;font-size:12.5px;line-height:20px}
+.acts{display:flex;flex-wrap:wrap;gap:6px}
+
+/* 무대(방) */
+.stage{position:relative;overflow:hidden;border-radius:16px;user-select:none;-webkit-user-select:none;touch-action:none}
+.stage .scene{position:absolute;inset:0;width:100%;height:100%}
+.pos{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:3}
+.ch{position:relative;line-height:0;cursor:grab;touch-action:none}
+.ch:active{cursor:grabbing}
+.chi{line-height:0;transform-origin:50% 92%}
+.chi svg{display:block;width:100%;height:100%}
+.hud{position:absolute;left:10px;top:10px;z-index:4;padding:7px 10px;border-radius:10px;background:color-mix(in srgb,var(--bg-popover) 86%,transparent);box-shadow:var(--shadow-pop);font-size:11.5px;color:var(--t2);line-height:16px}
+.hud .nm{font:700 15px/20px var(--font);color:var(--t1);cursor:pointer}
+.hud .nm:hover{text-decoration:underline dotted var(--t3)}
+.chips{position:absolute;right:10px;top:10px;z-index:4;display:flex;gap:6px}
+.chip{height:24px;line-height:24px;padding:0 9px;border-radius:12px;background:color-mix(in srgb,var(--bg-popover) 86%,transparent);box-shadow:var(--shadow-pop);font-size:11.5px;color:var(--t2);white-space:nowrap}
+.say{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);white-space:nowrap;font-size:12.5px;line-height:17px;padding:6px 10px;border-radius:12px;background:var(--bg-popover);box-shadow:var(--shadow-pop);color:var(--t1);pointer-events:none;z-index:6}
+.xp{position:absolute;left:62%;top:6%;font:600 13px/16px var(--font);color:var(--accent);pointer-events:none}
+.chip-lv{position:absolute;left:50%;top:-4px;transform:translateX(-50%);padding:4px 12px;border-radius:14px;background:var(--bg-popover);box-shadow:var(--shadow-pop);font:700 14px var(--font);color:var(--accent);white-space:nowrap;pointer-events:none}
+.heart,.zz{position:absolute;left:50%;top:18%;width:14px;height:14px;pointer-events:none}
+.zz{font:700 13px var(--font);color:var(--t2);width:auto;height:auto;left:66%}
+.bit{position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;pointer-events:none;z-index:7}
+.bit svg,.heart svg{width:100%;height:100%;display:block}
+.tro{cursor:pointer}
+
+/* 성장 막대(레벨 안 성장 + 다음에 열리는 것) */
+.meter{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--bg-card);border:1px solid var(--line)}
+.meter .top{display:flex;align-items:baseline;gap:6px;font-size:12px;color:var(--t2)}
+.meter .top b{font:700 14px var(--font);color:var(--t1)}
+.meter .top span:last-child{margin-left:auto}
+.bar{height:8px;border-radius:4px;background:var(--bg-input);margin:7px 0 6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:4px;transition:width .3s}
+.next{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--t2)}
+.next .ico{width:34px;height:34px;border-radius:8px;background:var(--bg-app);border:1px solid var(--divider);display:flex;align-items:center;justify-content:center;flex:none}
+.next .ico svg{width:30px;height:30px}
+.next b{color:var(--t1);font-weight:600}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.tags span{font-size:10.5px;line-height:16px;padding:0 6px;border-radius:8px;background:var(--bg-input);color:var(--t2)}
+
+/* 오늘 할 일(가짜) */
+.today{margin-top:10px}
+.today h4{font:600 12.5px var(--font);color:var(--t2);padding:4px 2px 2px}
+.trow{display:flex;align-items:center;gap:10px;height:40px;padding:0 4px;border-bottom:1px solid var(--line);font-size:14px;cursor:pointer}
+.trow .cb{width:17px;height:17px;border-radius:4px;border:1.6px solid var(--t3);flex:none;display:flex;align-items:center;justify-content:center}
+.trow.done{color:var(--t3)}
+.trow.done .cb{background:var(--t4);border-color:var(--t4)}
+.trow.done .cb::after{content:'';width:8px;height:4px;border:2px solid #fff;border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+.trow small{margin-left:auto;font-size:11.5px;color:var(--t3)}
+.trow small.red{color:#e5534b}
+.row2{display:flex;gap:8px;margin-top:10px}
+.row2 .btn{flex:1;height:36px}
+
+/* 알림 카드(새 옷) */
+.toast{position:absolute;left:12px;right:12px;bottom:66px;z-index:30;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--bg-popover);box-shadow:var(--shadow-pop);opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .2s,transform .2s}
+.toast.show{opacity:1;pointer-events:auto;transform:none}
+.toast .ico{width:44px;height:44px;border-radius:10px;background:var(--bg-card);display:flex;align-items:center;justify-content:center;flex:none}
+.toast .ico svg{width:40px;height:40px}
+.toast .tx{flex:1;min-width:0;font-size:12px;color:var(--t2);line-height:17px}
+.toast .tx b{display:block;font-size:14px;color:var(--t1)}
+.toast .bt{display:flex;flex-direction:column;gap:4px}
+
+/* 꾸미기(옷장·도감) */
+.segc{display:flex;margin:2px 0 10px;border-radius:9px;background:var(--bg-input);padding:2px}
+.segc button{flex:1;height:30px;border-radius:7px;font-size:13px;color:var(--t2)}
+.segc button.on{background:var(--bg-app);color:var(--t1);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.preview{position:relative;height:210px;border-radius:14px;overflow:hidden}
+.preview .scene{position:absolute;inset:0;width:100%;height:100%}
+.preview .pv{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);line-height:0}
+.wtabs{display:flex;gap:2px;margin:10px 0 8px;border-bottom:1px solid var(--line)}
+.wtabs button{flex:1;height:34px;font-size:13px;color:var(--t2);border-bottom:2px solid transparent;margin-bottom:-1px}
+.wtabs button.on{color:var(--t1);font-weight:600;border-bottom-color:var(--accent)}
+.wtabs button i{display:inline-block;width:6px;height:6px;border-radius:3px;background:var(--accent);margin-left:3px;vertical-align:2px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.grid.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.grid.c6{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}
+.cell{position:relative;border-radius:10px;background:var(--bg-card);border:1px solid var(--divider);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:6px 3px 6px;min-height:84px;text-align:center}
+.cell svg{width:50px;height:50px;display:block}
+.cell .n{font-size:11px;line-height:14px;color:var(--t1);margin-top:2px}
+.cell .c{font-size:10px;line-height:13px;color:var(--t3);margin-top:1px}
+.cell.on{box-shadow:0 0 0 2px var(--accent);border-color:transparent}
+.cell.can{cursor:pointer}
+.cell.can:hover{background:var(--bg-hover)}
+.cell.locked .n{color:var(--t3)}
+.cell .dot{position:absolute;right:6px;top:6px;width:7px;height:7px;border-radius:4px;background:var(--accent)}
+.lock *{fill:var(--lockc)!important;stroke:var(--lockc)!important}
+.lock .c-shadow,.lock .c-disc,.lock .c-mat,.lock .c-aura{display:none}
+.subh{font:600 12px var(--font);color:var(--t2);margin:12px 2px 6px;display:flex}
+.subh span{margin-left:auto;font-weight:400;color:var(--t3)}
+
+/* 데스크톱 */
+.desk-wrap{overflow-x:auto;padding:4px}
+.desk{width:1180px;height:770px;border-radius:12px;overflow:hidden;display:grid;grid-template-columns:52px 1fr;background:var(--bg-app);box-shadow:var(--shadow-pop)}
+.rail{background:var(--bg-card);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:14px}
+.rail i{width:22px;height:22px;border-radius:6px;border:2px solid var(--t4)}
+.rail i.on{border-color:var(--accent);background:var(--accent-subtle)}
+.rail .av{width:34px;height:34px;border-radius:50%;background:var(--bg-input);overflow:hidden;line-height:0;margin-bottom:6px}
+.dmain{display:flex;flex-direction:column;min-width:0}
+.dhead{height:57px;flex:none;display:flex;align-items:center;padding:0 21px;font:700 19px var(--font);border-bottom:1px solid var(--line)}
+.dhead .r{margin-left:auto;color:var(--t2);font-weight:400}
+.dbody{padding:16px 21px;overflow:hidden}
+.dstage{height:380px;border-radius:16px 16px 0 0}
+.dstage .hud{left:14px;top:14px;width:290px;padding:10px 12px}
+.dstage .hud .nm{font-size:18px;line-height:24px}
+.dstage .pos{bottom:18px}
+.dstage .toast{left:50%;right:auto;bottom:14px;width:380px;margin-left:-190px}
+.road{display:flex;justify-content:space-around;align-items:center;height:60px;border-radius:0 0 16px 16px;background:var(--bg-app);border:1px solid var(--divider);border-top:0;padding:0 16px}
+.road .dot{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--t3)}
+.road .dot i{width:34px;height:34px;border-radius:50%;background:var(--bg-input);display:flex;align-items:center;justify-content:center;line-height:0;overflow:hidden}
+.road .dot.now{color:var(--t1);font-weight:600}
+.road .dot.now i{box-shadow:0 0 0 2px var(--accent)}
+.dgrid{display:grid;grid-template-columns:1fr 340px;gap:16px;margin-top:16px}
+.dcard{border:1px solid var(--divider);border-radius:12px;padding:10px 14px}
+.dcard h4{font:700 13px var(--font);margin-bottom:4px;display:flex}
+.dcard h4 span{margin-left:auto;font-weight:400;color:var(--t3);font-size:12px}
+.qrow{display:flex;align-items:center;gap:10px;height:38px;border-bottom:1px solid var(--line);font-size:13.5px}
+.qrow:last-child{border-bottom:0}
+.qrow .cb{width:16px;height:16px;border-radius:50%;border:1.6px solid var(--t3)}
+.qrow small{margin-left:auto;color:var(--t3);font-size:12px}
+.qrow.done{color:var(--t3)}.qrow.done .cb{background:var(--accent);border-color:var(--accent)}.qrow.done small{color:var(--accent)}
+.wpanel{position:absolute;right:0;top:0;bottom:0;width:276px;z-index:20;background:var(--bg-popover);box-shadow:var(--shadow-pop);padding:12px 12px 12px;overflow-y:auto;transform:translateX(102%);transition:transform .22s cubic-bezier(.3,.7,.4,1)}
+.wpanel.open{transform:none}
+.wpanel .hd{display:flex;align-items:center;font:700 14px var(--font)}
+.wpanel .hd button{margin-left:auto;color:var(--t2);font-size:18px;width:26px;height:26px}
+.wpanel .wtabs button{font-size:12px}
+.deco-btn{position:absolute;right:12px;bottom:12px;z-index:5}
+
+/* 레벨 안 성장 줄 */
+.lvrow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;align-items:end}
+.lvrow .c{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+.lvrow .c .art{line-height:0;display:flex;align-items:flex-end;justify-content:center;height:150px}
+.lvrow .c b{font:600 12px var(--font)}
+.lvrow .c span{font-size:11px;line-height:15px;color:var(--t2);text-align:center}
+.ruler{height:1px;background:var(--divider);margin:0 0 6px}
+@media (max-width:860px){.lvrow{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* 진화 무대 */
+.evo{position:relative;height:420px;border-radius:16px;overflow:hidden;cursor:pointer;user-select:none;-webkit-user-select:none}
+.evo .scene{position:absolute;inset:0;width:100%;height:100%}
+.dim{position:absolute;inset:0;background:rgba(10,12,30,.55);opacity:0;pointer-events:none;z-index:2}
+.ebox{position:absolute;inset:0;z-index:3;pointer-events:none}
+.evl{position:absolute;left:50%;bottom:36px;transform-origin:50% 92%;line-height:0}
+.evl svg{display:block;width:100%;height:100%}
+.namecard{position:absolute;left:50%;top:30px;transform:translateX(-50%);min-width:220px;padding:12px 18px;border-radius:14px;background:var(--bg-popover);box-shadow:var(--shadow-pop);text-align:center;opacity:0;pointer-events:none;z-index:5}
+.namecard .k{font-size:12px;color:var(--t2)}
+.namecard .n{font:700 19px/26px var(--font);color:var(--t1);margin-top:2px}
+.namecard .f{font-size:12.5px;color:var(--accent);margin-top:4px;font-weight:600}
+.skip{position:absolute;right:12px;top:12px;z-index:6;height:26px;padding:0 10px;border-radius:13px;background:rgba(255,255,255,.88);color:#333;font-size:12px;opacity:0;pointer-events:none}
+.playing .skip{opacity:1;pointer-events:auto}
+.choice{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;opacity:0;pointer-events:none}
+.choice.show{opacity:1;pointer-events:auto;transition:opacity .25s}
+.choice .q{font:700 17px var(--font);color:#fff}
+.choice .opts{display:flex;gap:14px}
+.choice .opt{width:168px;padding:10px 10px 12px;border-radius:14px;background:var(--bg-popover);box-shadow:var(--shadow-pop);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;transition:transform .15s}
+.choice .opt:hover{transform:translateY(-3px)}
+.choice .opt b{font:700 14px var(--font);color:var(--t1)}
+.choice .opt span{font-size:11.5px;line-height:16px;color:var(--t2);text-align:center}
+.choice .later{font-size:12px;color:rgba(255,255,255,.8);text-decoration:underline}
+.m-evo{position:absolute;inset:0;z-index:50;background:rgba(10,12,30,.92);opacity:0;pointer-events:none;transition:opacity .25s}
+.m-evo.show{opacity:1;pointer-events:auto}
+.m-evo .namecard{top:110px}
+.m-evo .evl{bottom:250px}
+
+/* 보이는 곳 */
+.where{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
+.where .w{display:flex;flex-direction:column;gap:6px;font-size:11.5px;color:var(--t3)}
+.sidecard{display:flex;align-items:center;gap:8px;width:220px;height:56px;padding:0 10px;border-radius:10px;background:var(--bg-app);box-shadow:0 0 0 1px var(--divider)}
+.sidecard b{font:600 12.5px var(--font);color:var(--t1)}
+.sidecard .bar{height:5px;margin:4px 0 0}
+.avc{border-radius:50%;overflow:hidden;line-height:0;background:var(--bg-input);display:flex;align-items:center;justify-content:center}
+.ansrow{display:flex;gap:8px;width:300px;padding:10px 12px;border-radius:10px;background:var(--bg-app);box-shadow:0 0 0 1px var(--divider)}
+.ansrow .who{font-size:11.5px;color:var(--t3)}
+.ansrow .line{font-size:13px;color:var(--t1)}
+.widget{width:158px;height:158px;border-radius:22px;background:var(--bg-app);box-shadow:var(--shadow-pop);padding:12px;display:flex;flex-direction:column;color:var(--t1)}
+.widget .top{display:flex;justify-content:space-between;font:600 12px var(--font)}
+.widget .bar{height:5px;margin:auto 0 4px}
+.tbl-wrap{overflow-x:auto}
+.mtable{width:100%;border-collapse:collapse;font-size:12px}
+.mtable th,.mtable td{border-bottom:1px solid var(--divider);padding:6px 8px;text-align:left;vertical-align:top;line-height:17px}
+.mtable th{color:var(--t2);font-weight:600}
+
+/* ── 캐릭터 SVG 안의 움직임 (42 그대로 + 옷) ── */
+.chr{overflow:visible}
+.chr .c-breath,.chr .c-hop,.chr .c-sway{transform-box:view-box;transform-origin:60px 108px}
+.chr .c-eyes{transform-box:fill-box;transform-origin:center}
+.chr .c-tail,.chr .c-ear,.chr .c-sprout,.chr .c-swing,.chr .c-head,.chr .c-tree,.chr .c-pb,.chr .c-wave,.chr .c-bob,.chr .c-flap{transform-box:view-box}
+.chr .c-float,.chr .c-fall,.chr .c-rise,.chr .c-twinkle{transform-box:fill-box;transform-origin:center}
+.st-1{--br:2.4s;--bx:1.02;--by:1.035;--amp:.5}
+.st-2{--br:3s;--amp:.7}.st-3{--br:3.2s;--amp:.85}.st-4{--br:3.4s;--amp:1}.st-5{--br:3.6s;--amp:1.15}
+.calm{--br:5s!important}
+.live .c-breath{animation:br var(--br,3.2s) ease-in-out infinite}
+@keyframes br{50%{transform:scale(var(--bx,1.012),var(--by,1.025))}}
+.live .c-eyes{animation:blink 4.6s infinite}
+.live.st-1 .c-eyes{animation-duration:3.4s}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}94.5%{transform:scaleY(.1)}}
+.live .c-sprout{animation:sway 2.8s ease-in-out infinite;--sw:calc(5deg*var(--amp))}
+@keyframes sway{0%,100%{transform:rotate(calc(var(--sw)*-1))}50%{transform:rotate(var(--sw))}}
+.live.st-1 .c-sway{animation:eggw 4s ease-in-out infinite}
+@keyframes eggw{0%,70%,100%{transform:rotate(0)}75%{transform:rotate(-4deg)}80%{transform:rotate(4deg)}85%{transform:rotate(-2deg)}90%{transform:rotate(0)}}
+.live.st-4 .c-hop,.live.st-5 .c-hop{animation:ihop 7s cubic-bezier(.3,.7,.4,1) infinite}
+.live.st-5 .c-hop{animation-duration:6s}
+@keyframes ihop{0%,85%,100%{transform:none}87.5%{transform:scale(1.04,.95)}91%{transform:translateY(-7px) scale(.97,1.04)}94.5%{transform:scale(1.03,.97)}97%{transform:none}}
+.sp-turtle.live .c-head{animation:bob 3.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(1.2px)}}
+.sp-turtle.live .c-tree{animation:sway 4s ease-in-out infinite;--sw:2.5deg}
+.sp-squirrel.live .c-tail{animation:sway 1.8s ease-in-out infinite;--sw:calc(7deg*var(--amp))}
+.sp-squirrel.live .c-ear-r{animation:twitch 5s ease-in-out infinite 1.2s}
+.sp-cat.live .c-tail{animation:sway 2.6s ease-in-out infinite;--sw:calc(10deg*var(--amp))}
+.sp-cat.live .c-ear-l{animation:twitch 5.5s ease-in-out infinite}
+.sp-cat.live.st-4 .c-head,.sp-cat.live.st-5 .c-head{animation:tilt 9s ease-in-out infinite 2s}
+@keyframes twitch{0%,88%,100%{transform:rotate(0)}90%{transform:rotate(-14deg)}93%{transform:rotate(0)}95%{transform:rotate(-7deg)}97%{transform:rotate(0)}}
+@keyframes tilt{0%,80%,100%{transform:rotate(0)}84%,92%{transform:rotate(-6deg)}}
+.sp-otter.live:not(.st-1) .c-sway{animation:sway 3s ease-in-out infinite;--sw:calc(2.5deg*var(--amp))}
+.sp-otter.live .c-tail{animation:sway 2.2s ease-in-out infinite;--sw:6deg}
+.live .c-swing{animation:sway 2.4s ease-in-out infinite;--sw:4deg}
+.sp-otter.live .c-pb{animation:toss 5s cubic-bezier(.3,.6,.5,1) infinite}
+@keyframes toss{0%,78%,100%{transform:none}86%{transform:translateY(-18px) rotate(160deg)}94%{transform:none}}
+.sp-otter.live.st-3 .c-pb2{animation-delay:-2.5s}
+.sp-otter.live.st-4 .c-pb,.sp-otter.live.st-5 .c-pb{animation:jug 1.5s linear infinite}
+.sp-otter.live.st-4 .c-pb2,.sp-otter.live.st-5 .c-pb2{animation-delay:-.5s}
+.sp-otter.live.st-4 .c-pb3,.sp-otter.live.st-5 .c-pb3{animation-delay:-1s}
+.sp-otter.st-4 .c-pb1,.sp-otter.st-5 .c-pb1{transform:translate(-9px,0)}.sp-otter.st-4 .c-pb2,.sp-otter.st-5 .c-pb2{transform:translate(0,-12px)}.sp-otter.st-4 .c-pb3,.sp-otter.st-5 .c-pb3{transform:translate(9px,0)}
+@keyframes jug{0%{transform:translate(-9px,0)}25%{transform:translate(-4px,-20px)}50%{transform:translate(9px,0)}75%{transform:translate(0,-6px)}100%{transform:translate(-9px,0)}}
+.live .c-float{animation:fl 5s ease-in-out infinite}
+.live .c-float:nth-of-type(2){animation-delay:-1.7s}.live .c-float:nth-of-type(3){animation-delay:-3.3s}
+@keyframes fl{50%{transform:translateY(-4px) rotate(8deg)}}
+.live .c-fall{animation:fall 6s linear infinite;opacity:0}
+.live .c-fall.d2{animation-delay:-2s}.live .c-fall.d3{animation-delay:-4s}
+@keyframes fall{0%{transform:translate(0,-6px) rotate(0);opacity:0}15%{opacity:1}80%{opacity:1}100%{transform:translate(8px,26px) rotate(140deg);opacity:0}}
+.live .c-twinkle{animation:tw 3s ease-in-out infinite}
+.live .c-twinkle.d2{animation-delay:-1s}.live .c-twinkle.d3{animation-delay:-2s}
+@keyframes tw{50%{opacity:.25;transform:scale(.8)}}
+.live .c-rise{animation:rise 4.5s ease-in infinite;opacity:0}
+.live .c-rise.d2{animation-delay:-1.5s}.live .c-rise.d3{animation-delay:-3s}
+@keyframes rise{0%{transform:translateY(8px);opacity:0}20%{opacity:.9}100%{transform:translateY(-22px);opacity:0}}
+/* 옷 움직임 */
+.live .c-bob{animation:bob2 3s ease-in-out infinite}
+@keyframes bob2{50%{transform:translateY(-3px) rotate(3deg)}}
+.live .c-flap{animation:flap 2.6s ease-in-out infinite}
+.live .c-flap.r{animation-delay:-1.3s}
+@keyframes flap{50%{transform:rotate(var(--fl,-6deg))}}
+.c-wave{animation:wave .32s ease-in-out 6 alternate}
+@keyframes wave{from{transform:rotate(-14deg)}to{transform:rotate(16deg)}}
+.c-disc{opacity:var(--disc-op)}
+.c-mat{opacity:var(--mat-op)}
+.sil *{fill:var(--sil,#fff)!important;stroke:var(--sil,#fff)!important}
+.sil .c-disc,.sil .c-mat,.sil .c-shadow,.sil .c-aura{display:none}
+/* 장면 움직임 */
+.sc-fly{animation:fly 9s ease-in-out infinite;transform-box:fill-box}
+@keyframes fly{0%,100%{transform:translate(0,0)}25%{transform:translate(18px,-10px)}50%{transform:translate(34px,4px)}75%{transform:translate(14px,8px)}}
+.sc-snow{animation:snow 7s linear infinite;transform-box:fill-box}
+@keyframes snow{from{transform:translateY(-30px)}to{transform:translateY(260px)}}
+[data-motion=reduce] .chr *,[data-motion=reduce] .chi,[data-motion=reduce] .scene *{animation:none!important}
+@media (prefers-reduced-motion:reduce){.chr *,.scene *{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>캐릭터 키우기 시안 — 만지고, 입히고, 레벨마다 자라는 게 보이게</h1>
+  <p>43 명세의 시안. 캐릭터·옷·장면은 이 파일에서 직접 그린 SVG이고, 42 시안의 그림을 그대로 이어 쓴다. 회색 글은 설명이라 실제 화면에는 나오지 않는다. 휴대폰·데스크톱·꾸미기·도감은 같은 상태를 쓴다. 한 곳에서 옷을 입히면 다른 곳에도 바로 보인다.</p>
+</header>
+<div class="ctl">
+  <label>종 <span class="seg" id="segSp"></span></label>
+  <label>테마 <span class="seg" id="segTh"><button data-v="light">라이트</button><button data-v="dark">다크</button></span></label>
+  <label>움직임 <span class="seg" id="segMo"><button data-v="full">켜기</button><button data-v="reduce">줄이기</button></span></label>
+  <button class="btn sm" id="bReset">처음 상태로</button>
+</div>
+
+<!-- A 휴대폰 -->
+<section class="s" id="secA">
+  <h2>A. 휴대폰 — 성장 탭과 꾸미기</h2>
+  <div class="why">왼쪽 휴대폰에서 캐릭터를 누르고, 길게 누르고, 빠르게 여러 번 누르고, 끌었다 놓아 보자. 오늘 할 일을 체크하면 XP가 쌓인다. 두 번째 체크에서 Lv 9가 되면서 작은 배낭이 열리고 "입혀 보기" 카드가 뜬다. "다음 레벨로"를 누르면 Lv 10이 되고, 단짝으로 진화하는 장면이 전체 화면으로 나온다. 이름(HUD)을 누르면 이름을 부른다.</div>
+  <div class="phones">
+    <div class="phone" id="phoneA">
+      <div class="ph-status"><span>9:41</span><span>●●● 100%</span></div>
+      <div class="ph-head">성장<span class="r">⋯</span></div>
+      <div class="ph-body">
+        <div class="stage" id="mStage" style="height:276px"></div>
+        <div class="meter" id="mMeter"></div>
+        <div class="today"><h4>오늘</h4><div id="mTasks"></div></div>
+        <div class="row2"><button class="btn" id="mOpenWard">옷장</button><button class="btn" id="mOpenDex">도감</button></div>
+      </div>
+      <div class="ph-tabs"><div><i></i>할 일</div><div><i></i>캘린더</div><div class="on"><i></i>성장</div><div><i></i>비서</div><div><i></i>더보기</div></div>
+      <div class="toast" id="mToast"></div>
+      <div class="m-evo" id="mEvo"><div class="ebox" id="mEvoBox"></div><div class="namecard" id="mEvoCard"><div class="k"></div><div class="n"></div><div class="f"></div></div></div>
+    </div>
+
+    <div class="phone" id="phoneB">
+      <div class="ph-status"><span>9:41</span><span>●●● 100%</span></div>
+      <div class="ph-head"><span style="color:var(--t2);font-weight:400">‹</span> 꾸미기</div>
+      <div class="ph-body">
+        <div class="segc" id="bSeg"><button data-v="ward" class="on">옷장</button><button data-v="dex">도감</button></div>
+        <div id="bWard">
+          <div class="preview" id="bPreview"></div>
+          <div class="wtabs" id="bTabs"></div>
+          <div id="bGrid"></div>
+        </div>
+        <div id="bDex" hidden></div>
+      </div>
+      <div class="ph-tabs"><div><i></i>할 일</div><div><i></i>캘린더</div><div class="on"><i></i>성장</div><div><i></i>비서</div><div><i></i>더보기</div></div>
+    </div>
+
+    <div class="side-notes">
+      <div class="card">
+        <h3>만지기</h3>
+        <ul class="note" style="color:var(--t1)">
+          <li><b>누르기</b>: 깡충 + 하트 + 한 줄</li>
+          <li><b>길게 누르기</b>(0.6초) = 쓰다듬기: 눈을 감고 하트가 오른다</li>
+          <li><b>빠르게 4번</b>(1.2초 안) = 간지럼: 몸을 비틀며 "히히"</li>
+          <li><b>끌었다 놓기</b>: 손가락을 따라오다가(반지름 90) 놓으면 통통 튀며 제자리로</li>
+          <li><b>이름 누르기</b>(HUD) = 부르기: 고개를 돌려 손을 흔든다</li>
+          <li>선반의 <b>트로피</b>를 누르면 캐릭터가 그 이야기를 한다</li>
+        </ul>
+        <p class="note" style="margin-top:6px">만지기로는 아무것도 받지 않는다(XP·아이템 없음). 재미만 있다.</p>
+      </div>
+      <div class="card">
+        <h3>하루 장면 <span class="note">(시안: 시각·상황 바꾸기)</span></h3>
+        <div class="acts">
+          <button class="btn sm" data-moment="morning">아침 인사</button>
+          <button class="btn sm" data-moment="busy">바쁜 날</button>
+          <button class="btn sm" data-moment="deadline">마감 날</button>
+          <button class="btn sm" data-moment="dayDone">하루 다 함</button>
+          <button class="btn sm" data-moment="night">늦은 밤</button>
+        </div>
+        <p class="note" style="margin-top:8px" id="momentNote">하루 첫 화면에서 한 번만 나온다. 바쁜 날 = 오늘 마감 8개 이상이거나 일정이 6시간 넘는 날. 마감 날 = 오늘 프로젝트 마감(31 projectDeadline)이 있는 날.</p>
+      </div>
+      <div class="card">
+        <h3>시안 단축</h3>
+        <div class="acts">
+          <button class="btn sm" id="bNextLv">다음 레벨로</button>
+          <button class="btn sm" id="bQuest">퀘스트 달성 +30</button>
+          <button class="btn sm" id="bProject">프로젝트 하나 끝냄</button>
+          <button class="btn sm" id="bSeason">크리스마스 기간에 할 일</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- B 데스크톱 -->
+<section class="s" id="secB">
+  <h2>B. 데스크톱 성장 화면 — 무대(방) + 트로피 선반 + 옷장 패널</h2>
+  <div class="why">10 §3.2의 무대를 그대로 쓰고 세 가지를 더한다. HUD 아래 줄에 다음 레벨에 생기는 것을 미리 보여 주고, 오른쪽에 트로피 선반을 두고, [꾸미기]를 누르면 옷장 패널이 밀려 나온다. 휴대폰과 같은 상태라서 여기서 체크하거나 입혀도 위 휴대폰이 같이 바뀐다.</div>
+  <div class="desk-wrap"><div class="desk">
+    <div class="rail"><div class="av" id="dAvatar"></div><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div>
+    <div class="dmain">
+      <div class="dhead">성장<span class="r">⋯</span></div>
+      <div class="dbody">
+        <div class="stage dstage" id="dStage"></div>
+        <div class="road" id="dRoad"></div>
+        <div class="dgrid">
+          <div class="dcard"><h4>오늘 할 일<span>체크하면 +1 XP · 하루 10까지</span></h4><div id="dTasks"></div></div>
+          <div class="dcard"><h4>이번 주 퀘스트<span id="dQuestSum"></span></h4><div id="dQuests"></div></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- C 레벨 안 성장 -->
+<section class="s" id="secC">
+  <h2>C. 레벨마다 자라는 게 보이게 — 키 · 새싹 잎 · 무늬 한 점 + 그 레벨의 선물</h2>
+  <div class="why">큰 단계(42)는 그대로 두고, 그 사이 레벨마다 작은 변화를 하나씩 더한다. 레벨마다 키가 3cm(그림 6px) 자라고, 홀수 칸은 새싹에 잎 하나, 짝수 레벨은 무늬 한 점이 생긴다. 그 레벨에 열리는 옷이나 장식이 있으면 같이 받는다. 아래는 옷을 입히지 않은 모습으로 비교한 것이다.</div>
+  <div class="card">
+    <div class="lvrow" id="lvRow"></div>
+  </div>
+</section>
+
+<!-- D 진화 + 고르기 -->
+<section class="s" id="secD">
+  <h2>D. 진화 + 고르는 순간 — 친구가 될 때 두 갈래 중 하나</h2>
+  <div class="why">42의 진화 순서(어두워짐 → 실루엣 교체 → 톡 → 이름 카드)를 그대로 쓴다. 꼬마에서 친구가 될 때만 실루엣 교체 뒤에 멈추고 "어떤 친구로 자랄까?"를 묻는다. 고른 길은 친구·단짝·전설 세 단계의 모습을 정한다. 나중에 도감에서 바꿀 수 있다(결정 ③). 고르면 위 휴대폰·데스크톱 캐릭터도 같이 바뀐다.</div>
+  <div class="acts" style="margin-bottom:10px">
+    <button class="btn pri" data-evo="2">꼬마 → 친구 (고르기)</button>
+    <button class="btn" data-evo="3">친구 → 단짝</button>
+    <button class="btn" data-evo="4">단짝 → 전설</button>
+  </div>
+  <div class="evo" id="evo"><div class="dim" id="evoDim"></div><div class="ebox" id="evoBox"></div>
+    <div class="namecard" id="evoCard"><div class="k"></div><div class="n"></div><div class="f"></div></div>
+    <button class="skip" id="evoSkip">건너뛰기</button>
+    <div class="choice" id="evoChoice"></div>
+  </div>
+</section>
+
+<!-- E 보이는 곳 -->
+<section class="s" id="secE">
+  <h2>E. 입힌 옷이 보이는 곳</h2>
+  <div class="why">입힌 옷은 캐릭터가 나오는 모든 자리에서 보인다. 36px 이하는 머리 쪽만 잘라 그리므로(42 §5.3) 모자가 가장 잘 보이고, 목·손·등 옷은 64px 이상에서만 그린다. 배경 테마는 성장 무대·꾸미기 미리보기·맥 위젯 큰 크기에만 깔린다.</div>
+  <div class="card"><div class="where" id="where"></div></div>
+</section>
+
+<!-- F 해금표 -->
+<section class="s" id="secF">
+  <h2>F. 처음 옷 23개 — 무엇이 언제 열리나</h2>
+  <div class="why">레벨·진화·한 날 누적·주간 점검·끝낸 프로젝트·계절로 열린다. 받은 것은 잃지 않는다. 계절 옷은 그 기간에 할 일을 하나만 끝내도 받고, 놓쳐도 다음 해에 다시 온다.</div>
+  <div class="card tbl-wrap"><table class="mtable" id="unlockTable"></table></div>
+</section>
+</div>
+
+<script>
+// ───────────────────────── 데이터 ─────────────────────────
+const SPECIES = {
+  turtle:  { name:'거북이', full:'꾸준한 거북이', pet:'느림보' },
+  squirrel:{ name:'다람쥐', full:'차곡차곡 다람쥐', pet:'도토리' },
+  cat:     { name:'고양이', full:'몰두하는 고양이', pet:'나비' },
+  otter:   { name:'수달',   full:'재주 많은 수달', pet:'퐁당' }
+}
+const STAGES = [null,
+  { name:'아기', from:1 }, { name:'꼬마', from:3 }, { name:'친구', from:6 }, { name:'단짝', from:10 }, { name:'전설', from:15 }]
+const stageOf = (lv) => lv >= 15 ? 5 : lv >= 10 ? 4 : lv >= 6 ? 3 : lv >= 3 ? 2 : 1
+const need = (lv) => 40 + 20 * (lv - 1)
+// 두 갈래 길(친구부터): 이름 · 한 줄
+const PATHS = {
+  turtle:  { a:{ name:'이끼 정원', line:'등에 이끼와 흰 꽃이 자라', t:['이끼 거북','정원 거북','숲지기 거북'] }, b:{ name:'꽃 정원', line:'등에 분홍 꽃이 피어', t:['꽃 거북','꽃밭 거북','벚나무 거북'] } },
+  squirrel:{ a:{ name:'가을 꼬리', line:'줄무늬 갈색 꼬리, 단풍잎 관', t:['보따리 다람쥐','목도리 다람쥐','단풍관 다람쥐'] }, b:{ name:'눈 꼬리', line:'하얀 꼬리와 귀 털, 눈꽃 관', t:['흰꼬리 다람쥐','눈목도리 다람쥐','눈꽃관 다람쥐'] } },
+  cat:     { a:{ name:'줄무늬', line:'이마 줄무늬, 남색 망토', t:['실뭉치 고양이','망토 고양이','별망토 고양이'] }, b:{ name:'얼룩', line:'한쪽 귀 얼룩, 빨간 망토', t:['얼룩 고양이','빨간망토 고양이','노을망토 고양이'] } },
+  otter:   { a:{ name:'조개 목걸이', line:'조개 목걸이, 물마루 관', t:['조개목걸이 수달','저글링 수달','물마루 수달'] }, b:{ name:'불가사리', line:'불가사리 목걸이, 산호 관', t:['불가사리 수달','산호 저글링 수달','산호관 수달'] } }
+}
+const TITLE12 = { turtle:['아기 거북','꼬마 거북'], squirrel:['아기 다람쥐','도토리 다람쥐'], cat:['아기 고양이','방울 고양이'], otter:['아기 수달','조약돌 수달'] }
+const titleOf = (sp, st, path = 'a') => st <= 2 ? TITLE12[sp][st - 1] : PATHS[sp][path].t[st - 3]
+const MARK = { turtle:'머리 무늬', squirrel:'주근깨', cat:'주근깨', otter:'주근깨' }
+const SLOTS = [['hat','모자'],['neck','목'],['hand','손'],['back','등'],['room','방']]
+const ITEMS = [
+  { id:'grass',     slot:'bg',   name:'풀밭',       rule:{ lv:1 } },
+  { id:'acorn-cap', slot:'hat',  name:'도토리 모자', rule:{ lv:2 } },
+  { id:'ribbon',    slot:'neck', name:'빨간 리본',   rule:{ lv:3 }, why:'꼬마 진화 선물' },
+  { id:'pencil',    slot:'hand', name:'몽당연필',   rule:{ lv:4 } },
+  { id:'leaf-hat',  slot:'hat',  name:'잎사귀 모자', rule:{ lv:5 } },
+  { id:'sunset',    slot:'bg',   name:'노을 언덕',   rule:{ lv:6 }, why:'친구 진화 선물' },
+  { id:'bandana',   slot:'neck', name:'노랑 반다나', rule:{ lv:7 } },
+  { id:'straw',     slot:'hat',  name:'밀짚모자',   rule:{ lv:8 } },
+  { id:'backpack',  slot:'back', name:'작은 배낭',   rule:{ lv:9 } },
+  { id:'night',     slot:'bg',   name:'밤하늘',     rule:{ lv:10 }, why:'단짝 진화 선물' },
+  { id:'bowtie',    slot:'neck', name:'나비넥타이', rule:{ lv:11 } },
+  { id:'beanie',    slot:'hat',  name:'방울 털모자', rule:{ lv:12 } },
+  { id:'balloon',   slot:'hand', name:'풍선',       rule:{ lv:13 } },
+  { id:'wings',     slot:'back', name:'잎 날개',     rule:{ lv:15 }, why:'전설 진화 선물' },
+  { id:'mug',       slot:'hand', name:'머그컵',     rule:{ days:7 } },
+  { id:'lantern',   slot:'back', name:'초롱',       rule:{ days:30 } },
+  { id:'lei',       slot:'neck', name:'꽃목걸이',   rule:{ reviews:4 } },
+  { id:'flag',      slot:'hand', name:'작은 깃발',   rule:{ projects:1 } },
+  { id:'songpyeon', slot:'hand', name:'송편',       rule:{ season:'chuseok' } },
+  { id:'moon',      slot:'bg',   name:'보름달 밤',   rule:{ season:'chuseok' } },
+  { id:'santa',     slot:'hat',  name:'산타 모자',   rule:{ season:'xmas' } },
+  { id:'snow',      slot:'bg',   name:'눈 오는 날', rule:{ season:'xmas' } },
+  { id:'bok',       slot:'hand', name:'복주머니',   rule:{ season:'seollal' } }
+]
+// 10 §3.2.7 방 장식(그대로) — 방 탭에서 놓기·치우기
+const DECOR = [
+  { id:'pot', name:'꽃 화분', lv:2 }, { id:'fence', name:'나무 울타리', lv:3 }, { id:'mushlamp', name:'버섯 등', lv:4 },
+  { id:'butterfly', name:'나비', lv:5 }, { id:'ball', name:'공', lv:6 }, { id:'bunting', name:'깃발 줄', lv:8 },
+  { id:'tent', name:'작은 텐트', lv:10 }, { id:'firefly', name:'반딧불', lv:12 }, { id:'arch', name:'꽃 아치', lv:15 }
+]
+const SEASON = { chuseok:'추석 앞뒤 7일', xmas:'12/18–12/31', seollal:'설 앞뒤 7일' }
+const byId = Object.fromEntries(ITEMS.map((i) => [i.id, i]))
+
+// ───────────────────────── 상태 ─────────────────────────
+const START = () => ({
+  sp:'cat', path:'a', lv:8, xp:178, days:23, reviews:3, projects:1, seasons:{ chuseok:true },
+  eq:{ hat:null, neck:null, hand:null, back:null, bg:'grass' }, decorOff:[], seen:new Set(), fresh:new Set(),
+  tasks:[{ t:'기획서 초안 보내기', d:'오늘', red:true, done:false }, { t:'운동 30분', d:'오늘', done:false }, { t:'토익 단어 20개', d:'오늘', done:false }, { t:'장보기', d:'오늘', done:true }],
+  quests:[{ t:'운동 3번', n:'2/3', done:false }, { t:'공모전 제출', n:'', done:true }, { t:'책 한 권 끝내기', n:'', done:false }],
+  trophies:[{ k:'cup', t:'공모전', s:'10/10에 끝낸 프로젝트' }, { k:'medal', t:'한 날 7일', s:'9월에 7번째 날' }, { k:'stamp', t:'주간 점검 3번', s:'지난주 점검' }],
+  dayDone:false, theme:null, motion:'full', night:false, calm:false, wardTab:'hat', dexOpen:false
+})
+let S = START()
+const reduced = () => S.motion === 'reduce' || matchMedia('(prefers-reduced-motion: reduce)').matches
+const stage = () => stageOf(S.lv)
+function has(item) {
+  const r = item.rule
+  if (r.lv) return S.lv >= r.lv
+  if (r.days) return S.days >= r.days
+  if (r.reviews) return S.reviews >= r.reviews
+  if (r.projects) return S.projects >= r.projects
+  if (r.season) return !!S.seasons[r.season]
+  return false
+}
+function condText(item) {
+  const r = item.rule
+  if (r.lv) return `Lv ${r.lv}`
+  if (r.days) return `한 날 ${r.days}일 · 지금 ${S.days}일`
+  if (r.reviews) return `주간 점검 ${r.reviews}번 · 지금 ${S.reviews}번`
+  if (r.projects) return '프로젝트 하나 끝내기'
+  if (r.season) return `${SEASON[r.season]}에 할 일 하나`
+}
+
+// ───────────────────────── 그림 (42 그대로 + 옷 · 갈래 · 레벨 안 성장) ─────────────────────────
+const INK = '#3A3A3A', CHEEK = '#FF9FA8', LEAF = '#5DBB63', LEAF2 = '#4FA65A', GOLD = '#E2B65A', WHITE = '#FFFFFF'
+const PAL0 = {
+  turtle:  { skin:'#9BD3A0', foot:'#86C68C', shell:'#5E9E6B', shellD:'#4A8357', belly:'#EDE6B5', bellyL:'#D3C98E', tint:'#BFE3B4', moss1:'#6FB36A', moss2:'#86C66E', flower:WHITE, can1:LEAF2, can2:'#63B86B', mark:'#4A8357' },
+  squirrel:{ skin:'#E8B48A', foot:'#C98552', belly:'#F8E3CC', tail:'#C98552', tailL:'#EBC59C', inner:'#C98552', tuft:'#C98552', scarf:'#E07A5F', scarfD:'#D2654B', crown:['#E8A33B', '#D9663F', '#8DB255', '#D9663F', '#E8A33B'], tint:'#F6D7B4', mark:'#B5764A' },
+  cat:     { skin:'#F2C9A0', foot:'#F2C9A0', belly:'#FFF1E0', dark:'#C98E5B', ear:'#F4A7A7', cape:'#3E5C9A', tint:'#C9D4EE', mark:'#C98E5B' },
+  otter:   { skin:'#B89A7E', foot:'#7E6249', belly:'#E3CFB8', dark:'#7E6249', mask:'#EFE2D0', crest:'#5FA8D8', pb:['#9AA5B1', '#C7B7A3', '#8FB8C9'], tint:'#BFDDF0', mark:'#7E6249' }
+}
+function pal(sp, path, st) {
+  const P = { ...PAL0[sp] }
+  if (path !== 'b' || st < 3) return P
+  if (sp === 'turtle') Object.assign(P, { moss1:'#F29BB2', moss2:'#F7BFCD', flower:WHITE, can1:'#F29BB2', can2:'#F7BFCD' })
+  if (sp === 'squirrel') Object.assign(P, { tail:'#EADBC8', tailL:'#FFFFFF', tuft:'#FFFFFF', scarf:'#7FA8C9', scarfD:'#5F8DB3', crown:['#FFFFFF', '#BFD8E8', '#EADBC8', '#BFD8E8', '#FFFFFF'] })
+  if (sp === 'cat') Object.assign(P, { cape:'#B5524A' })
+  if (sp === 'otter') Object.assign(P, { crest:'#F28B6B', pb:['#F2A65A', '#F6C7B6', '#F28B6B'] })
+  return P
+}
+const GEO = {
+  1:{ hy:66, hr:28,   by:96, brx:22, bry:12, e:5.4 },
+  2:{ hy:58, hr:27,   by:89, brx:21, bry:17, e:4.9 },
+  3:{ hy:52, hr:26,   by:86, brx:23, bry:21, e:4.6 },
+  4:{ hy:47, hr:25.5, by:83, brx:25, bry:24, e:4.5 },
+  5:{ hy:45, hr:25.5, by:82, brx:26, bry:25, e:4.5 }
+}
+const f = (n) => +(+n).toFixed(2)
+const star = (x, y, r, fill, cls = '') => { let p = ''; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .46 : r; p += (i ? 'L' : 'M') + f(x + rr * Math.cos(a)) + ' ' + f(y + rr * Math.sin(a)) } return `<path ${cls ? `class="${cls}"` : ''} d="${p}Z" fill="${fill}" stroke="${fill}" stroke-width="${f(r * .25)}" stroke-linejoin="round"/>` }
+const crescent = (x, y, r, fill) => `<path d="M${x} ${y - r} A${r} ${r} 0 1 0 ${x} ${y + r} A${f(r * 1.25)} ${f(r * 1.25)} 0 0 1 ${x} ${y - r}Z" fill="${fill}"/>`
+const leafL = (x, y, k, c = LEAF) => `<path d="M${f(x)} ${f(y)} c${f(-4 * k)} ${f(-7 * k)} ${f(-12 * k)} ${f(-8 * k)} ${f(-14 * k)} ${f(-3 * k)} c${f(3 * k)} ${f(4 * k)} ${f(9 * k)} ${f(5 * k)} ${f(14 * k)} ${f(3 * k)}z" fill="${c}"/>`
+const leafR = (x, y, k, c = LEAF) => `<path d="M${f(x)} ${f(y)} c${f(4 * k)} ${f(-7 * k)} ${f(12 * k)} ${f(-8 * k)} ${f(14 * k)} ${f(-3 * k)} c${f(-3 * k)} ${f(4 * k)} ${f(-9 * k)} ${f(5 * k)} ${f(-14 * k)} ${f(3 * k)}z" fill="${c}"/>`
+const oval = (cx, cy, rx, ry, fill, rot = 0, extra = '') => `<ellipse cx="${f(cx)}" cy="${f(cy)}" rx="${f(rx)}" ry="${f(ry)}" fill="${fill}"${rot ? ` transform="rotate(${rot} ${f(cx)} ${f(cy)})"` : ''} ${extra}/>`
+
+/** 새싹 + 레벨 안 잎눈(nb: 0~3) */
+function sprout(st, x, y, nb = 0) {
+  const h = [0, 8, 10, 11, 12, 12][st], t = y - h + 2
+  let s = `<g class="c-sprout" style="transform-origin:${x}px ${y}px"><path d="M${x} ${y} V${y - h}" stroke="${LEAF}" stroke-width="3" stroke-linecap="round" fill="none"/>`
+  for (let i = 0; i < nb; i++) { const yy = y - 2.5 - i * 2.6; s += i % 2 ? leafL(x - 1, yy, .56, LEAF2) : leafR(x + 1, yy, .56, LEAF2) }
+  if (st === 1) s += leafL(x, t, .8)
+  else if (st <= 3) s += leafL(x, t, st === 2 ? .9 : 1.05) + leafR(x, t - 1, st === 2 ? .9 : 1.05)
+  else if (st === 4) s += leafL(x, t, 1.1) + leafR(x, t - 1, 1.1) + leafR(x, y - h / 2 + 1, .7, LEAF2)
+  else {
+    s += leafL(x, t + 2, 1) + leafR(x, t + 1, 1)
+    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * 2 * Math.PI / 5; s += `<circle cx="${f(x + 3.6 * Math.cos(a))}" cy="${f(y - h - 2 + 3.6 * Math.sin(a))}" r="2.7" fill="#FF8FA3"/>` }
+    s += `<circle cx="${x}" cy="${y - h - 2}" r="2.2" fill="#FFD166"/>`
+  }
+  return s + '</g>'
+}
+/** 무늬 점(짝수 레벨마다 하나, 최대 6) */
+function marks(sp, P, cx, cy, hr, n) {
+  if (!n) return ''
+  const k = hr / 26
+  const pos = sp === 'turtle' ? [[-8, -17], [9, -15], [0, -21], [-15, -8], [15, -7], [3, -12]] : [[-15, 4.5], [15, 4.5], [-12, 6.8], [12, 6.8], [-16.5, 8], [16.5, 8]]
+  const r = sp === 'turtle' ? 3 : 1.5
+  return pos.slice(0, n).map(([x, y]) => `<circle cx="${f(cx + x * k)}" cy="${f(cy + y * k)}" r="${r}" fill="${P.mark}" opacity="${sp === 'turtle' ? .5 : .75}"/>`).join('')
+}
+function face(sp, P, cx, cy, e, mood, d, st) {
+  const lx = cx - 10.5, rx = cx + 10.5, ey = cy + 1
+  let s = ''
+  if (sp === 'otter') s += oval(cx, cy + 9, 12, 8, P.mask)
+  if (mood === 'sleepy') s += `<path d="M${lx - 5} ${ey} q5 4 10 0 M${rx - 5} ${ey} q5 4 10 0" stroke="${INK}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`
+  else if (mood === 'happy' || mood === 'giggle') s += `<path d="M${lx - 5} ${ey + 1} q5 -6 10 0 M${rx - 5} ${ey + 1} q5 -6 10 0" stroke="${INK}" stroke-width="2.6" fill="none" stroke-linecap="round"/>`
+  else s += `<g class="c-eyes"><circle cx="${lx}" cy="${ey}" r="${e}" fill="${INK}"/><circle cx="${rx}" cy="${ey}" r="${e}" fill="${INK}"/><circle cx="${f(lx + e * .35)}" cy="${f(ey - e * .38)}" r="${f(e * .32)}" fill="#fff"/><circle cx="${f(rx + e * .35)}" cy="${f(ey - e * .38)}" r="${f(e * .32)}" fill="#fff"/></g>`
+  s += `<circle cx="${cx - 18.5}" cy="${cy + 10}" r="4.6" fill="${CHEEK}" opacity=".55"/><circle cx="${cx + 18.5}" cy="${cy + 10}" r="4.6" fill="${CHEEK}" opacity=".55"/>`
+  let my = cy + 9.5
+  if (sp === 'otter') { s += oval(cx, cy + 6.3, 3.2, 2.2, '#5A4033'); my = cy + 10.5 }
+  if (sp === 'cat') { s += `<path d="M${cx - 2.4} ${cy + 5.4} h4.8 l-2.4 2.6z" fill="#E58F8F" stroke="#E58F8F" stroke-width="1" stroke-linejoin="round"/>`; my = cy + 9.8 }
+  if (sp === 'squirrel') { s += oval(cx, cy + 6.2, 2.2, 1.6, '#6B4630'); my = cy + 10 }
+  const nose = sp !== 'turtle'
+  if (mood === 'eat') s += oval(cx, my + 2, 4.5, 5, '#7A3B3B')
+  else if (mood === 'giggle') s += `<path d="M${cx - 6} ${my - 1} q6 9 12 0 Z" fill="#7A3B3B" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/>`
+  else if (mood === 'happy' || mood === 'smile') s += `<path d="M${cx - 6} ${my - .5} q6 7 12 0" stroke="${INK}" stroke-width="2" fill="none" stroke-linecap="round"/>`
+  else if (mood === 'sleepy') s += oval(cx, my + 1.5, 2, 2.2, INK, 0, 'opacity=".75"')
+  else if (mood === 'wow') s += oval(cx, my + 1.5, 2.8, 3.4, '#7A3B3B')
+  else s += nose ? `<path d="M${cx - 5} ${my - .5} q2.5 3 5 0 q2.5 3 5 0" stroke="${INK}" stroke-width="1.9" fill="none" stroke-linecap="round"/>` : `<path d="M${cx - 5} ${my} q5 4 10 0" stroke="${INK}" stroke-width="2" fill="none" stroke-linecap="round"/>`
+  if (d === 'full' && st >= 3 && (sp === 'otter' || sp === 'cat')) {
+    const wc = sp === 'otter' ? '#6E5641' : '#C2946A'
+    s += `<path d="M${cx - 13} ${cy + 7} l-9 -2 M${cx - 13} ${cy + 9.5} l-9 1.5 M${cx + 13} ${cy + 7} l9 -2 M${cx + 13} ${cy + 9.5} l9 1.5" stroke="${wc}" stroke-width="1.1" stroke-linecap="round" opacity=".8"/>`
+  }
+  return s
+}
+const eggBottom = () => `<path d="M30 84 L36 79 L42 85 L48 79 L54 85 L60 79 L66 85 L72 79 L78 85 L84 79 L90 84 C90 98 80 108 60 108 C40 108 30 98 30 84 Z" fill="#F3EBDD" stroke="#E0D3BC" stroke-width="2" stroke-linejoin="round"/><path d="M40 96 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4" stroke="#D8C7A8" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
+function acorn(x, y, k = 1) {
+  return `<g transform="translate(${x} ${y}) scale(${k})"><ellipse cx="0" cy="2.5" rx="5.6" ry="6.6" fill="#B07A45"/><path d="M-6.6 -.5 q6.6 -8 13.2 0 z" fill="#6E4A2A" stroke="#6E4A2A" stroke-width="1.4" stroke-linejoin="round"/><path d="M0 -4.5 v-3" stroke="#6E4A2A" stroke-width="1.8" stroke-linecap="round"/></g>`
+}
+
+// 종마다 부품. 칸 나눔: back(꼬리·등딱지) · prop(등 소품 = 등 칸) · held(든 것 = 손 칸) · neck(목 칸) · crown(관·핀 = 모자 칸) · pattern(몸 무늬)
+const SP = {
+  turtle(st, g, P, d) {
+    const { hy, hr, by, brx, bry } = g
+    let back = '', prop = '', front = '', held = '', belly = ''
+    if (st === 1) {
+      back += oval(60, 84, 33, 14, P.shell)
+      if (d === 'full') back += `<circle cx="30" cy="80" r="3.4" fill="${P.shellD}"/><circle cx="90" cy="80" r="3.4" fill="${P.shellD}"/>`
+    } else {
+      const sx = brx + 11, sy = bry + 7, scy = by - 3
+      back += `<ellipse cx="60" cy="${scy}" rx="${sx}" ry="${sy}" fill="${P.shell}" ${st >= 3 ? `stroke="${st >= 5 ? GOLD : '#E9DDB0'}" stroke-width="3"` : ''}/>`
+      if (d === 'full') for (const [ox, oy] of [[-sx + 7, -2], [sx - 7, -2], [-sx + 12, -sy + 9], [sx - 12, -sy + 9], [-sx + 9, sy - 10], [sx - 9, sy - 10]])
+        back += `<path d="M${f(60 + ox - 4)} ${f(scy + oy)} l2 -3.4 h4 l2 3.4 l-2 3.4 h-4z" fill="${P.shellD}" stroke="${P.shellD}" stroke-width="1.2" stroke-linejoin="round"/>`
+      const moss = (x, y, big) => `<circle cx="${x}" cy="${y}" r="${big ? 6.5 : 5.5}" fill="${P.moss1}"/><circle cx="${x + 6}" cy="${y - 3}" r="${big ? 5.5 : 4.5}" fill="${P.moss2}"/><circle cx="${x - 5.5}" cy="${y - 3.5}" r="4.5" fill="${P.moss2}"/><circle cx="${x + 1}" cy="${y - 6.5}" r="4" fill="${P.moss1}"/>`
+      const flower = (x, y, c = WHITE) => `<g><circle cx="${x - 2}" cy="${y}" r="2" fill="${c}"/><circle cx="${x + 2}" cy="${y}" r="2" fill="${c}"/><circle cx="${x}" cy="${y - 2}" r="2" fill="${c}"/><circle cx="${x}" cy="${y + 2}" r="2" fill="${c}"/><circle cx="${x}" cy="${y}" r="1.5" fill="#FFD166"/></g>`
+      const Lx = 60 - sx + 9, Rx = 60 + sx - 9, my = scy - sy + 11
+      if (st >= 3) { prop += moss(Lx, my, st >= 4); prop += flower(Lx + 1, my - 8, P.flower) }
+      if (st >= 4) { prop += moss(Rx, my, true) + flower(Lx - 6, my - 2, '#FF8FA3') }
+      if (st === 4) prop += `<rect x="${Rx + 1}" y="${my - 12}" width="3.4" height="7" rx="1.5" fill="#F5EBD8"/><path d="M${Rx - 4} ${my - 11} q6.7 -9 13.4 0z" fill="#E36A5A"/>`
+      if (st >= 5) {
+        const bx = Rx + 1, byy = my - 4, tx = bx + 9, ty = hy - 20
+        prop += `<g class="c-tree" style="transform-origin:${bx}px ${byy}px"><path d="M${bx} ${byy} Q${bx + 2} ${byy - 14} ${tx} ${ty}" stroke="#8B6B4A" stroke-width="4.2" fill="none" stroke-linecap="round"/><path d="M${bx + 3} ${byy - 12} q-6 -3 -8 -9" stroke="#8B6B4A" stroke-width="2.6" fill="none" stroke-linecap="round"/>`
+        prop += `<circle cx="${tx}" cy="${ty - 4}" r="12" fill="${P.can1}"/><circle cx="${tx - 9}" cy="${ty + 3}" r="8" fill="${P.can2}"/><circle cx="${tx + 8}" cy="${ty + 5}" r="7.5" fill="${P.can2}"/><circle cx="${bx - 6}" cy="${byy - 21}" r="5" fill="${P.can2}"/>`
+        prop += `<circle cx="${tx - 4}" cy="${ty - 8}" r="2.4" fill="#FF8FA3"/><circle cx="${tx + 5}" cy="${ty - 2}" r="2.4" fill="#FFD166"/><circle cx="${tx - 8}" cy="${ty + 4}" r="2.2" fill="#fff"/><circle cx="${tx + 7}" cy="${ty + 7}" r="2" fill="#FF8FA3"/></g>`
+      }
+      belly = `<ellipse cx="60" cy="${by + 2}" rx="${brx - 6}" ry="${bry - 4}" fill="${P.belly}"/>` + (d === 'full' ? `<path d="M${60 - brx + 9} ${by - 3} Q60 ${by - 1} ${60 + brx - 9} ${by - 3} M${60 - brx + 9} ${by + 6} Q60 ${by + 8} ${60 + brx - 9} ${by + 6}" stroke="${P.bellyL}" stroke-width="1.6" fill="none" stroke-linecap="round"/>` : '')
+      front += oval(60 - brx + 1, by - 3, 5, 7.5, P.skin, 25) + oval(60 + brx - 1, by - 3, 5, 7.5, P.skin, -25)
+      if (st === 4) held += `<path d="M${60 + brx + 3} ${by - 12} L${60 + brx + 8} ${by + bry + 1}" stroke="#8B6B4A" stroke-width="3" stroke-linecap="round"/>` + leafR(60 + brx + 3, by - 12, .6)
+    }
+    return { back, prop, ears:'', belly, front, held, neck:'', crown:'', pattern:'', head: oval(60, hy, hr, hr - 1, P.skin) }
+  },
+  squirrel(st, g, P, d) {
+    const { hy, hr, by, brx, bry } = g, cx = 60
+    let back = '', front = '', held = '', neck = '', crown = '', ears = '', belly = ''
+    const k = [0, .45, .75, .95, 1.05, 1.1][st]
+    const bx = st === 1 ? 80 : cx + brx - 6, bY = st === 1 ? 90 : by + bry - 6
+    back += `<g class="c-tail" style="transform-origin:${bx}px ${bY}px"><g transform="translate(${bx} ${bY}) scale(${k})"><path d="M0 0 C26 -2 34 -30 22 -50 C14 -64 -6 -62 -4 -48 C8 -46 12 -36 6 -24 C0 -14 -8 -10 -10 -2 Z" fill="${P.tail}"/>`
+    if (st >= 3) back += `<path d="M2 -7 C16 -12 22 -30 15 -45" stroke="${P.tailL}" stroke-width="${st >= 4 ? 5 : 4}" fill="none" stroke-linecap="round"/>`
+    if (st >= 5) back += `<g transform="translate(-6 -56) rotate(-30)">${leafR(0, 0, .9, P.crown[0] === '#FFFFFF' ? '#BFD8E8' : '#E8A33B')}</g>`
+    back += '</g></g>'
+    const ear = (x, y, flip, cls) => {
+      if (st === 1) return `<g class="c-ear ${cls}" style="transform-origin:${x}px ${y + 6}px"><circle cx="${x}" cy="${y}" r="6" fill="${P.skin}"/><circle cx="${x}" cy="${y}" r="3" fill="${P.inner}" opacity=".55"/></g>`
+      const m = flip
+      let s = `<g class="c-ear ${cls}" style="transform-origin:${x}px ${y + 6}px"><path d="M${f(x - 6 * m)} ${f(y + 5)} Q${f(x - 5 * m)} ${f(y - 13)} ${f(x + 1 * m)} ${f(y - 12)} Q${f(x + 6 * m)} ${f(y - 5)} ${f(x + 6 * m)} ${f(y + 5)} Z" fill="${P.skin}"/><path d="M${f(x - 3 * m)} ${f(y + 3)} Q${f(x - 2.5 * m)} ${f(y - 8)} ${f(x + 1 * m)} ${f(y - 7.5)} Q${f(x + 3.5 * m)} ${f(y - 3)} ${f(x + 3.5 * m)} ${f(y + 3)} Z" fill="${P.inner}" opacity=".55"/>`
+      if (st >= 3) s += `<path d="M${f(x + 1 * m)} ${f(y - 12)} l${-1.5 * m} -5 M${f(x + 1 * m)} ${f(y - 12)} l${1.5 * m} -4.5" stroke="${P.tuft}" stroke-width="2" stroke-linecap="round"/>`
+      return s + '</g>'
+    }
+    ears = ear(cx - hr * .6, hy - hr * .72, 1, 'c-ear-l') + ear(cx + hr * .6, hy - hr * .72, -1, 'c-ear-r')
+    if (st >= 2) {
+      belly = oval(cx, by + 3, brx - 7, bry - 4, P.belly)
+      if (st === 2) { held += acorn(cx, by - 4); front += oval(cx - 8, by - 2, 4.5, 4, P.skin) + oval(cx + 8, by - 2, 4.5, 4, P.skin) }
+      else {
+        front += oval(cx - brx + 2, by - 2, 4.6, 7, P.skin, 20) + oval(cx + brx - 2, by - 2, 4.6, 7, P.skin, -20)
+        held += `<path d="M${cx - brx + 6} ${by - bry + 7} L${cx + brx - 8} ${by + 4}" stroke="#7A5236" stroke-width="2.6" stroke-linecap="round"/>`
+        const x0 = cx + brx - 17, y0 = by + 1
+        held += `<rect x="${x0}" y="${y0}" width="15" height="12" rx="3" fill="#A0704A"/>` + (d === 'full' ? acorn(x0 + 7.5, y0 - 2, .7) : '') + `<path d="M${x0} ${y0 + 1} h15 v4 q-7.5 5 -15 0z" fill="#7A5236"/>`
+      }
+      if (st >= 4) {
+        const ny = hy + hr - 5
+        neck += `<path d="M${cx - 17} ${ny - 1} Q${cx} ${ny + 8} ${cx + 17} ${ny - 1} L${cx + 18} ${ny + 4} Q${cx} ${ny + 14} ${cx - 18} ${ny + 4} Z" fill="${P.scarf}"/>`
+        neck += `<g class="c-swing" style="transform-origin:${cx + 9}px ${ny + 7}px"><path d="M${cx + 6} ${ny + 7} l2 13 l7 -1 l-2 -13 z" fill="${P.scarfD}"/></g>`
+        if (d === 'full') neck += `<path d="M${cx - 12} ${ny + 4} l0 4 M${cx - 4} ${ny + 6.5} l0 4 M${cx + 4} ${ny + 6.5} l0 4 M${cx + 12} ${ny + 4} l0 4" stroke="#F3D2C4" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>`
+      }
+    }
+    if (st >= 5) {
+      ;[-162, -136, -112, -68, -44, -18].forEach((a, i) => {
+        const r = (a * Math.PI) / 180, x = cx + (hr + 1) * Math.cos(r), y = hy + (hr + 1) * Math.sin(r)
+        crown += `<ellipse cx="${f(x)}" cy="${f(y)}" rx="3.6" ry="7" fill="${P.crown[i % 5]}" stroke="${P.crown[0] === '#FFFFFF' ? '#BFD8E8' : 'none'}" stroke-width=".8" transform="rotate(${a + 90} ${f(x)} ${f(y)})"/>`
+      })
+    }
+    return { back, prop:'', ears, belly, front, held, neck, crown, pattern:'', head: `<circle cx="${cx}" cy="${hy}" r="${hr}" fill="${P.skin}"/>` }
+  },
+  cat(st, g, P, d, path) {
+    const { hy, hr, by, brx, bry } = g, cx = 60
+    let back = '', prop = '', front = '', held = '', neck = '', crown = '', pattern = '', belly = ''
+    const tk = [0, .55, .8, .95, 1, 1.05][st]
+    const bx = st === 1 ? 84 : cx + brx - 5, bY = st === 1 ? 86 : by + bry - 5
+    back += `<g class="c-tail" style="transform-origin:${bx}px ${bY}px"><g transform="translate(${bx} ${bY}) scale(${tk})"><path d="M0 0 C14 -2 19 -18 13 -30 C10 -37 14 -44 20 -42" stroke="${P.skin}" stroke-width="6.5" fill="none" stroke-linecap="round"/>${st >= 3 ? `<path d="M12.6 -33 C11 -38 14.5 -43.5 20 -42" stroke="${P.dark}" stroke-width="6.5" fill="none" stroke-linecap="round"/>` : ''}</g></g>`
+    if (st >= 4) {
+      prop += `<path d="M${cx - brx + 3} ${by - bry + 2} C${cx - brx - 10} ${by} ${cx - brx - 10} ${by + bry - 2} ${cx - brx - 6} ${by + bry + 1} Q${cx} ${by + bry + 6} ${cx + brx + 6} ${by + bry + 1} C${cx + brx + 10} ${by + bry - 2} ${cx + brx + 10} ${by} ${cx + brx - 3} ${by - bry + 2} Z" fill="${P.cape}" ${st >= 5 ? `stroke="${GOLD}" stroke-width="2.2"` : ''}/>`
+      if (st >= 5 && d === 'full') prop += star(cx - brx - 4, by + 2, 2.8, '#F2C94C') + star(cx + brx + 4, by, 2.8, '#F2C94C') + star(cx - brx - 2, by + bry - 5, 2.4, '#F2C94C') + star(cx + brx + 3, by + bry - 6, 2.4, '#F2C94C')
+    }
+    const ear = (side, cls) => {
+      const m = side, tipY = hy - hr - (st === 1 ? 4 : 9), tipX = cx - m * (hr - 5)
+      const b1x = cx - m * (hr - 1), b1y = hy - 10, b2x = cx - m * 7, b2y = hy - hr + 1
+      const fill = path === 'b' && st >= 3 && side === 1 ? P.dark : P.skin
+      return `<g class="c-ear ${cls}" style="transform-origin:${f((b1x + b2x) / 2)}px ${f((b1y + b2y) / 2)}px"><path d="M${f(b1x)} ${b1y} L${f(tipX)} ${tipY} L${b2x} ${b2y} Z" fill="${fill}" stroke="${fill}" stroke-width="3" stroke-linejoin="round"/><path d="M${f(b1x + m * 4)} ${b1y - 2} L${f(tipX + m * 1.2)} ${tipY + 6} L${b2x - m * 3} ${b2y + 2} Z" fill="${P.ear}"/></g>`
+    }
+    const ears = ear(1, 'c-ear-l') + ear(-1, 'c-ear-r')
+    if (st >= 2) {
+      belly = oval(cx, by + 3, brx - 7, bry - 4, P.belly)
+      if (st >= 3 && d === 'full' && path !== 'b') belly += `<path d="M${cx - brx + 2} ${by - 4} l5 1 M${cx - brx + 1} ${by + 3} l5 0 M${cx + brx - 2} ${by - 4} l-5 1 M${cx + brx - 1} ${by + 3} l-5 0" stroke="${P.dark}" stroke-width="2.2" stroke-linecap="round"/>`
+      if (st >= 3 && path === 'b') belly += oval(cx + brx - 7, by - 6, 6, 5, P.dark, -20, 'opacity=".9"')
+      if (st === 3) { held += `<circle cx="${cx}" cy="${by - 2}" r="7.5" fill="#8FB3E8"/><path d="M${cx - 6} ${by - 5} q6 3 12 0 M${cx - 7} ${by} q7 3 14 0 M${cx - 3} ${by - 9} q-1 7 1 14" stroke="#5F8ED6" stroke-width="1.4" fill="none"/><path d="M${cx + 6} ${by + 2} q8 6 4 ${bry - 4}" stroke="#5F8ED6" stroke-width="1.4" fill="none" stroke-linecap="round"/>`; front += oval(cx - 8, by + 1, 4.5, 4, P.skin) + oval(cx + 8, by + 1, 4.5, 4, P.skin) }
+      else front += oval(cx - brx + 2, by - 2, 4.6, 7, P.skin, 20) + oval(cx + brx - 2, by - 2, 4.6, 7, P.skin, -20)
+      const ny = hy + hr - 4
+      if (st >= 4) neck += `<path d="M${cx - 17} ${ny - 3} L${cx - 3} ${ny + 3} L${cx - 15} ${ny + 8}Z M${cx + 17} ${ny - 3} L${cx + 3} ${ny + 3} L${cx + 15} ${ny + 8}Z" fill="${P.cape}" stroke="${P.cape}" stroke-width="2" stroke-linejoin="round"/>`
+      else neck += `<path d="M${cx - 15} ${ny - 1} Q${cx} ${ny + 6} ${cx + 15} ${ny - 1}" stroke="#E0605A" stroke-width="4.5" fill="none" stroke-linecap="round"/>`
+      neck += `<circle cx="${cx}" cy="${ny + 4}" r="3.8" fill="#F2C14E"/><path d="M${cx - 2} ${ny + 5} h4" stroke="#B88A1E" stroke-width="1.2" stroke-linecap="round"/>`
+    }
+    if (st >= 3 && d === 'full' && path !== 'b') pattern += `<path d="M${cx} ${hy - hr + 4} v5 M${cx - 6} ${hy - hr + 5.5} l1 4 M${cx + 6} ${hy - hr + 5.5} l-1 4" stroke="${P.dark}" stroke-width="2.2" stroke-linecap="round"/>`
+    if (st >= 3 && path === 'b') pattern += `<path d="M${cx - hr - 1} ${hy - 6} C${cx - hr - 1} ${hy - hr + 2} ${cx - 10} ${hy - hr - 1} ${cx - 3} ${hy - hr + 1} C${cx - 4} ${hy - 12} ${cx - 12} ${hy - 6} ${cx - hr - 1} ${hy - 6} Z" fill="${P.dark}" opacity=".9"/>`
+    if (st >= 5) crown += crescent(cx + 15, hy - hr + 9, 4.6, '#F2C94C')
+    return { back, prop, ears, belly, front, held, neck, crown, pattern, head: oval(cx, hy, hr + 1.5, hr - .5, P.skin) }
+  },
+  otter(st, g, P, d, path) {
+    const { hy, hr, by, brx, bry } = g, cx = 60
+    let back = '', front = '', held = '', neck = '', crown = '', belly = ''
+    if (st >= 2) {
+      const k = [0, 0, .8, .95, 1.05, 1.1][st], bx = cx - brx + 5, bY = by + bry - 5
+      back += `<g class="c-tail" style="transform-origin:${bx}px ${bY}px"><g transform="translate(${bx} ${bY}) scale(${k})"><path d="M0 0 C-10 2 -24 0 -30 -7 C-27 -11 -14 -10 -1 -10 Z" fill="${P.dark}"/></g></g>`
+    }
+    const ears = `<g class="c-ear c-ear-l" style="transform-origin:${cx - hr + 3}px ${hy - hr + 9}px"><circle cx="${cx - hr + 3}" cy="${hy - hr + 7}" r="5.4" fill="${P.skin}"/><circle cx="${cx - hr + 3}" cy="${hy - hr + 7}" r="2.6" fill="${P.dark}"/></g><g class="c-ear c-ear-r" style="transform-origin:${cx + hr - 3}px ${hy - hr + 9}px"><circle cx="${cx + hr - 3}" cy="${hy - hr + 7}" r="5.4" fill="${P.skin}"/><circle cx="${cx + hr - 3}" cy="${hy - hr + 7}" r="2.6" fill="${P.dark}"/></g>`
+    const pebble = (x, y, c, cls) => `<g class="c-pb ${cls}" style="transform-origin:${x}px ${y}px">${oval(x, y, 5.6, 4.3, c)}<ellipse cx="${x - 1.8}" cy="${y - 1.5}" rx="1.8" ry="1" fill="#fff" opacity=".55"/></g>`
+    if (st >= 2) {
+      belly = oval(cx, by + 3, brx - 6, bry - 4, P.belly)
+      front += oval(cx - 8, by + 1, 4.6, 4.2, P.skin) + oval(cx + 8, by + 1, 4.6, 4.2, P.skin)
+      if (st === 2) held += pebble(cx, by - 4, P.pb[0], 'c-pb1')
+      else if (st === 3) held += pebble(cx - 6, by - 4, P.pb[0], 'c-pb1') + pebble(cx + 6, by - 4, P.pb[1], 'c-pb2')
+      else held += pebble(cx, by - 6, P.pb[0], 'c-pb1') + pebble(cx, by - 6, P.pb[1], 'c-pb2') + pebble(cx, by - 6, P.pb[2], 'c-pb3')
+    }
+    if (st >= 3) {
+      const ny = hy + hr - 4
+      neck += `<path d="M${cx - 16} ${ny - 3} Q${cx} ${ny + 6} ${cx + 16} ${ny - 3}" stroke="#C9B48F" stroke-width="1.6" fill="none"/>`
+      if (path === 'b') neck += star(cx - 8, ny + 2.5, 3.6, '#F2A65A') + star(cx, ny + 5, 4.2, '#F28B6B') + star(cx + 8, ny + 2.5, 3.6, '#F2A65A')
+      else { const shell = (x, y, c) => `<path d="M${x - 3.6} ${y} l3.6 -5 l3.6 5 q-3.6 2.6 -7.2 0z" fill="${c}" stroke="${c}" stroke-width="1" stroke-linejoin="round"/>`; neck += shell(cx - 8, ny + 2.5, '#F6C7B6') + shell(cx, ny + 5, '#FFE7A8') + shell(cx + 8, ny + 2.5, '#F6C7B6') }
+    }
+    if (st >= 5) {
+      const t = hy - hr
+      crown += `<path d="M${cx - 22} ${t + 11} C${cx - 25} ${t - 1} ${cx - 15} ${t - 9} ${cx - 9} ${t - 2} C${cx - 6} ${t + 2} ${cx - 3} ${t + 3} ${cx} ${t + 2} C${cx + 3} ${t + 3} ${cx + 6} ${t + 2} ${cx + 9} ${t - 2} C${cx + 15} ${t - 9} ${cx + 25} ${t - 1} ${cx + 22} ${t + 11} Q${cx} ${t + 3} ${cx - 22} ${t + 11} Z" fill="${P.crest}"/>`
+      crown += `<path d="M${cx - 17} ${t - 1} q3 -4 6 -1 M${cx + 11} ${t - 2} q3 -3 6 1" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>`
+    }
+    return { back, prop:'', ears, belly, front, held, neck, crown, pattern:'', head: oval(cx, hy, hr + 1.5, hr - 1, P.skin) }
+  }
+}
+
+// ── 옷: 모든 종에 맞게 머리 위·목·손·등 기준점(anchors)에 붙인다 ──
+function anchors(st) {
+  const g = GEO[st]
+  return { cx:60, top:g.hy - g.hr, hy:g.hy, hr:g.hr, ny: st === 1 ? 80 : g.hy + g.hr - 4, hx:60, hy2: st === 1 ? 79 : g.by - 3, by:g.by, brx:g.brx, bry:g.bry, st }
+}
+const HAT = {
+  'acorn-cap': (A, d) => { const w = A.hr, y = A.top + 6
+    return { svg:`<path d="M${f(60 - w * .8)} ${y} Q60 ${f(y - w * 1.05)} ${f(60 + w * .8)} ${y} Z" fill="#8A5A33"/>${d === 'full' ? `<path d="M${f(60 - w * .45)} ${y - 3} l6 -8 M${f(60 - w * .1)} ${y - 2} l7 -10 M${f(60 + w * .3)} ${y - 3} l5 -7" stroke="#A97A4E" stroke-width="1.6" stroke-linecap="round"/>` : ''}<rect x="${f(60 - w * .86)}" y="${y - 2}" width="${f(w * 1.72)}" height="6" rx="3" fill="#6E4A2A"/>`, tip:f(y - w * .5) } },
+  'leaf-hat': (A) => { const y = A.top + 4
+    return { svg:`<path d="M${f(60 - A.hr * 1.0)} ${y + 4} C${f(60 - A.hr * .6)} ${y - 16} ${f(60 + A.hr * .7)} ${y - 18} ${f(60 + A.hr * 1.05)} ${y + 2} C${f(60 + A.hr * .3)} ${y + 6} ${f(60 - A.hr * .4)} ${y + 8} ${f(60 - A.hr * 1.0)} ${y + 4} Z" fill="#7CC576"/><path d="M${f(60 - A.hr * .9)} ${y + 3} Q60 ${y - 5} ${f(60 + A.hr * 1.0)} ${y + 1}" stroke="#4FA65A" stroke-width="1.6" fill="none" stroke-linecap="round"/>`, tip:y - 7 } },
+  'straw': (A, d) => { const w = A.hr, y = A.top + 7
+    return { svg:`<ellipse cx="60" cy="${y}" rx="${f(w * 1.28)}" ry="5.5" fill="#E2BE6E"/><path d="M${f(60 - w * .64)} ${y} C${f(60 - w * .64)} ${y - 15} ${f(60 + w * .64)} ${y - 15} ${f(60 + w * .64)} ${y} Z" fill="#F0D48E"/><path d="M${f(60 - w * .64)} ${y - 3.5} h${f(w * 1.28)} v3.6 h${f(-w * 1.28)}z" fill="#E0605A"/>${d === 'full' ? `<path d="M${f(60 - w * 1.1)} ${y + 1} h${f(w * 2.2)}" stroke="#CDA65A" stroke-width="1" opacity=".8"/>` : ''}`, tip:y - 12 } },
+  'beanie': (A, d) => { const w = A.hr, y = A.top + 9
+    return { svg:`<path d="M${f(60 - w * .92)} ${y} C${f(60 - w * .92)} ${f(y - w * .95)} ${f(60 + w * .92)} ${f(y - w * .95)} ${f(60 + w * .92)} ${y} Z" fill="#6C8FD6"/>${d === 'full' ? `<path d="M${f(60 - w * .4)} ${y - 2} v-10 M60 ${y - 2} v-13 M${f(60 + w * .4)} ${y - 2} v-10" stroke="#5A7DC4" stroke-width="1.6" stroke-linecap="round"/>` : ''}<rect x="${f(60 - w * .96)}" y="${y - 3}" width="${f(w * 1.92)}" height="7" rx="3.5" fill="#5574BE"/><circle cx="60" cy="${f(y - w * .74)}" r="5.2" fill="#F4F4F4"/>`, tip:f(y - w * .74 - 4) } },
+  'santa': (A, d) => { const w = A.hr, y = A.top + 7
+    return { svg:`<path d="M${f(60 - w * .88)} ${y} C${f(60 - w * .6)} ${f(y - w * 1.0)} ${f(60 + w * .5)} ${f(y - w * 1.1)} ${f(60 + w * 1.05)} ${f(y - w * .35)} L${f(60 + w * .88)} ${y} Z" fill="#D9483B"/><rect x="${f(60 - w * .95)}" y="${y - 3}" width="${f(w * 1.9)}" height="7" rx="3.5" fill="#F7F4EE"/><circle cx="${f(60 + w * 1.05)}" cy="${f(y - w * .35)}" r="4.6" fill="#F7F4EE"/>`, tip:f(y - w * .62) } }
+}
+const NECK = {
+  ribbon: (A) => `<path d="M60 ${A.ny + 3} l-10 -6 v12 z M60 ${A.ny + 3} l10 -6 v12 z" fill="#E0605A" stroke="#E0605A" stroke-width="1.5" stroke-linejoin="round"/><circle cx="60" cy="${A.ny + 3}" r="3.2" fill="#C94B45"/>`,
+  bandana: (A, d) => `<path d="M${60 - 17} ${A.ny - 2} Q60 ${A.ny + 3} ${60 + 17} ${A.ny - 2} L60 ${A.ny + 14} Z" fill="#F2C14E" stroke="#F2C14E" stroke-width="2" stroke-linejoin="round"/>${d === 'full' ? `<circle cx="55" cy="${A.ny + 3}" r="1.3" fill="#fff"/><circle cx="64" cy="${A.ny + 2}" r="1.3" fill="#fff"/><circle cx="60" cy="${A.ny + 8}" r="1.3" fill="#fff"/>` : ''}`,
+  lei: (A) => { let s = ''; const cols = ['#FF8FA3', '#FFFFFF', '#FFD166', '#FF8FA3', '#FFFFFF', '#FFD166', '#FF8FA3']; for (let i = 0; i < 7; i++) { const t = i / 6, x = 60 - 17 + 34 * t, y = A.ny - 2 + 10 * Math.sin(Math.PI * t); s += `<circle cx="${f(x)}" cy="${f(y)}" r="3.3" fill="${cols[i]}" stroke="#E7A0AE" stroke-width=".6"/><circle cx="${f(x)}" cy="${f(y)}" r="1.1" fill="#F2B84B"/>` } return s },
+  bowtie: (A) => `<path d="M60 ${A.ny + 3} l-9 -5 v10 z M60 ${A.ny + 3} l9 -5 v10 z" fill="#3E5C9A" stroke="#3E5C9A" stroke-width="1.5" stroke-linejoin="round"/><rect x="57.6" y="${A.ny + .6}" width="4.8" height="4.8" rx="1.4" fill="#2E4880"/>`
+}
+const HAND = {
+  pencil: (A) => { const x = A.hx, y = A.hy2; return `<g transform="rotate(-38 ${x} ${y})"><rect x="${x - 3}" y="${y - 16}" width="6" height="24" rx="1.2" fill="#F2C14E"/><path d="M${x - 3} ${y + 8} L${x} ${y + 14} L${x + 3} ${y + 8} Z" fill="#F5DDB0"/><path d="M${x - 1} ${y + 11.5} L${x} ${y + 14} L${x + 1} ${y + 11.5}Z" fill="#555"/><rect x="${x - 3}" y="${y - 20}" width="6" height="5" rx="1.5" fill="#F29BB2"/></g>` },
+  flag: (A) => { const x = A.hx + 6, y = A.hy2 + 6; return `<path d="M${x} ${y} V${y - 34}" stroke="#8B6B4A" stroke-width="2.4" stroke-linecap="round"/><path d="M${x} ${y - 34} l15 5 l-15 5 z" fill="var(--accent)"/>` },
+  songpyeon: (A) => { const x = A.hx, y = A.hy2; return `<ellipse cx="${x}" cy="${y + 4}" rx="13" ry="3.6" fill="#F7F4EE" stroke="#E2DACB" stroke-width="1"/><path d="M${x - 11} ${y + 3} q4 -9 8 0 z" fill="#F6C7D2"/><path d="M${x - 4} ${y + 2} q4 -10 8 0 z" fill="#C9E4B4"/><path d="M${x + 3} ${y + 3} q4 -9 8 0 z" fill="#FBF6EA" stroke="#E2DACB" stroke-width=".8"/>` },
+  mug: (A, d) => { const x = A.hx, y = A.hy2; return `<rect x="${x - 6}" y="${y - 6}" width="12" height="13" rx="2.5" fill="#F7F4EE" stroke="#D9D2C4" stroke-width="1"/><path d="M${x + 6} ${y - 3} q5 0 5 4 q0 4 -5 4" stroke="#D9D2C4" stroke-width="2" fill="none"/><rect x="${x - 6}" y="${y - 2}" width="12" height="3" fill="var(--accent)" opacity=".8"/>${d === 'full' ? `<path d="M${x - 2} ${y - 9} q-2 -3 0 -6 M${x + 2} ${y - 9} q2 -3 0 -6" stroke="#BDBDBD" stroke-width="1.4" fill="none" stroke-linecap="round"/>` : ''}` },
+  balloon: (A) => { const x = A.hx + 4, y = A.hy2; const bx = x + 20, by = y - 52; return `<path d="M${x} ${y} Q${x + 14} ${y - 20} ${bx} ${by + 13}" stroke="#9A9A9A" stroke-width="1.1" fill="none"/><g class="c-bob" style="transform-origin:${bx}px ${by + 13}px"><ellipse cx="${bx}" cy="${by}" rx="10" ry="12" fill="#F07C7C"/><path d="M${bx - 2} ${by + 12} h4 l-2 2.5z" fill="#D9605F"/><ellipse cx="${bx - 3.5}" cy="${by - 5}" rx="2.4" ry="3.6" fill="#fff" opacity=".45"/></g>` },
+  bok: (A) => { const x = A.hx, y = A.hy2; return `<path d="M${x - 8} ${y - 2} q-2 12 8 12 q10 0 8 -12 z" fill="#D9483B"/><path d="M${x - 8} ${y - 2} q8 -5 16 0 q-3 -4 -8 -4 q-5 0 -8 4z" fill="#E86A5C"/><path d="M${x - 6} ${y - 2} h12" stroke="#F2C14E" stroke-width="2" stroke-linecap="round"/><circle cx="${x}" cy="${y + 4}" r="2.4" fill="#F2C14E"/>` }
+}
+const BACK = {
+  backpack: (A) => { const { brx, bry, by } = A
+    return { behind:`<rect x="${f(60 - brx - 4)}" y="${f(by - bry + 1)}" width="${f(2 * brx + 8)}" height="${f(bry * 1.55)}" rx="9" fill="#E07A5F"/><rect x="${f(60 - brx - 4)}" y="${f(by - bry + 1)}" width="${f(2 * brx + 8)}" height="7" rx="3.5" fill="#C9634A"/>`,
+      front:`<path d="M${f(60 - brx * .62)} ${f(by - bry + 3)} Q${f(60 - brx * .75)} ${f(by)} ${f(60 - brx * .55)} ${f(by + bry * .5)} M${f(60 + brx * .62)} ${f(by - bry + 3)} Q${f(60 + brx * .75)} ${f(by)} ${f(60 + brx * .55)} ${f(by + bry * .5)}" stroke="#B95A43" stroke-width="3.4" fill="none" stroke-linecap="round"/>` } },
+  wings: (A) => { const { brx, bry, by } = A, y = by - bry + 6
+    const w = (side) => { const m = side, x = 60 + m * (brx - 4); return `<g class="c-flap ${m > 0 ? 'r' : ''}" style="transform-origin:${f(x)}px ${f(y + 6)}px;--fl:${m > 0 ? 7 : -7}deg"><path d="M${f(x)} ${f(y + 6)} C${f(x + m * 10)} ${f(y - 14)} ${f(x + m * 28)} ${f(y - 18)} ${f(x + m * 30)} ${f(y - 6)} C${f(x + m * 26)} ${f(y + 6)} ${f(x + m * 12)} ${f(y + 12)} ${f(x)} ${f(y + 6)} Z" fill="#8FD18A"/><path d="M${f(x)} ${f(y + 6)} Q${f(x + m * 16)} ${f(y - 4)} ${f(x + m * 28)} ${f(y - 7)}" stroke="#5DBB63" stroke-width="1.6" fill="none" stroke-linecap="round"/></g>` }
+    return { behind:w(-1) + w(1), front:'' } },
+  lantern: (A) => { const { brx, bry, by } = A, x0 = 60 + brx - 6, y0 = by + 2, x1 = x0 + 16, y1 = by - bry - 26
+    return { behind:`<path d="M${f(x0)} ${f(y0)} L${f(x1)} ${f(y1)}" stroke="#8B6B4A" stroke-width="2.6" stroke-linecap="round"/><g class="c-swing" style="transform-origin:${f(x1)}px ${f(y1)}px"><path d="M${f(x1)} ${f(y1)} v5" stroke="#8B6B4A" stroke-width="1.4"/><rect x="${f(x1 - 6.5)}" y="${f(y1 + 5)}" width="13" height="3" rx="1.2" fill="#8B5A2B"/><ellipse cx="${f(x1)}" cy="${f(y1 + 14)}" rx="8" ry="7.5" fill="#F2994A"/><path d="M${f(x1 - 4)} ${f(y1 + 8)} q-2 6 0 12 M${f(x1 + 4)} ${f(y1 + 8)} q2 6 0 12" stroke="#D97C35" stroke-width="1.2" fill="none"/><rect x="${f(x1 - 6.5)}" y="${f(y1 + 20)}" width="13" height="3" rx="1.2" fill="#8B5A2B"/></g>`, front:'' } }
+}
+function aura(sp, st, P) {
+  if (st === 4) return `<ellipse class="c-mat" cx="60" cy="109" rx="44" ry="7" fill="${P.tint}"/>`
+  if (st < 5) return ''
+  let s = `<g class="c-aura"><circle class="c-disc" cx="60" cy="62" r="52" fill="${P.tint}"/>`
+  if (sp === 'turtle') s += `<g class="c-float">${leafL(18, 46, .8)}</g><g class="c-float">${leafR(98, 86, .7, LEAF2)}</g><g class="c-float"><circle cx="16" cy="84" r="2.6" fill="#FF8FA3"/></g>`
+  if (sp === 'squirrel') s += `<g class="c-fall"><ellipse cx="18" cy="30" rx="3" ry="5.5" fill="${P.crown[0]}"/></g><g class="c-fall d2"><ellipse cx="104" cy="36" rx="3" ry="5.5" fill="${P.crown[1]}"/></g><g class="c-fall d3"><ellipse cx="14" cy="70" rx="3" ry="5.5" fill="${P.crown[2]}"/></g>`
+  if (sp === 'cat') s += `<g>${crescent(22, 30, 9, '#F2E3A8')}</g><g class="c-twinkle">${star(104, 30, 3.4, '#F2C94C')}</g><g class="c-twinkle d2">${star(14, 70, 2.8, '#F2C94C')}</g><g class="c-twinkle d3">${star(106, 76, 2.6, '#F2C94C')}</g>`
+  if (sp === 'otter') s += `<path d="M6 100 q8 -6 16 0 t16 0 M82 100 q8 -6 16 0 t16 0" stroke="#7DBBE3" stroke-width="2.6" fill="none" stroke-linecap="round"/><g class="c-rise"><circle cx="18" cy="60" r="3.4" fill="none" stroke="#7DBBE3" stroke-width="1.6"/></g><g class="c-rise d2"><circle cx="102" cy="50" r="2.6" fill="none" stroke="#7DBBE3" stroke-width="1.6"/></g><g class="c-rise d3"><circle cx="108" cy="74" r="3" fill="none" stroke="#7DBBE3" stroke-width="1.6"/></g>`
+  return s + '</g>'
+}
+const budsOf = (lv) => Math.min(3, lv - STAGES[stageOf(lv)].from)
+const marksOf = (lv) => Math.min(6, Math.floor(lv / 2))
+
+/** o: { lv, path, eq, mood, detail, size, crop, live, sil, wave, calm, noAura } */
+function art(sp, st, o = {}) {
+  const path = o.path || 'a', P = pal(sp, path, st), g = GEO[st], mood = o.mood || 'default'
+  const d = o.detail && o.detail !== 'auto' ? o.detail : (o.size && o.size <= 40 ? 'small' : 'full')
+  const crop = o.crop || (o.size && o.size <= 40 ? 'bust' : 'full')
+  const small = o.size && o.size < 64
+  const eq = o.eq || {}, A = anchors(st), lv = o.lv || STAGES[st].from
+  const L = SP[sp](st, g, P, d, path)
+  const hat = eq.hat && HAT[eq.hat] ? HAT[eq.hat](A, d) : null
+  const sproutY = hat ? hat.tip : g.hy - g.hr + 2
+  const wave = o.wave ? `<g class="c-wave" style="transform-origin:${f(60 + g.hr - 4)}px ${f(st === 1 ? 80 : g.by - 6)}px">${oval(60 + g.hr + 3, st === 1 ? 70 : g.hy + 6, 5, 7.5, P.skin, -30)}</g>` : ''
+  const headG = `<g class="c-head" style="transform-origin:60px ${g.hy + g.hr}px">${L.ears}${L.head}${L.pattern}${d === 'full' ? marks(sp, P, 60, g.hy, g.hr, marksOf(lv)) : ''}${face(sp, P, 60, g.hy, g.e, mood, d, st)}${hat ? hat.svg : L.crown}${sprout(st, 60, sproutY, budsOf(lv))}</g>`
+  let inner
+  const handI = !small && eq.hand && HAND[eq.hand] ? HAND[eq.hand](A, d) : null
+  if (st === 1) {
+    const paw = sp === 'squirrel' || sp === 'otter' ? P.foot : P.skin
+    inner = L.back + headG + eggBottom() + (handI || '') + `<circle cx="48" cy="81" r="4.6" fill="${paw}"/><circle cx="72" cy="81" r="4.6" fill="${paw}"/>` + wave
+  } else {
+    const backI = !small && eq.back && BACK[eq.back] ? BACK[eq.back](A, d) : null
+    const neckI = !small && eq.neck && NECK[eq.neck] ? NECK[eq.neck](A, d) : null
+    const feet = oval(49, g.by + g.bry - 2, 7, 4.5, P.foot) + oval(71, g.by + g.bry - 2, 7, 4.5, P.foot)
+    inner = L.back + (backI ? backI.behind : L.prop) + `<ellipse cx="60" cy="${g.by}" rx="${g.brx}" ry="${g.bry}" fill="${P.skin}"/>` + L.belly + feet + (backI ? backI.front : '') + headG + (neckI ?? L.neck) + (handI ?? L.held) + L.front + wave
+  }
+  const auraS = d === 'full' && crop === 'full' && !o.noAura ? aura(sp, st, P) : ''
+  let vb = '0 0 120 120'
+  if (crop === 'bust') { const t = g.hy - g.hr - 16, b = g.hy + g.hr + 10, h = b - t; vb = `${f(60 - h / 2)} ${f(t)} ${f(h)} ${f(h)}` }
+  const cls = `chr sp-${sp} st-${st}${o.live ? ' live' : ''}${o.sil ? ' sil' : ''}${o.calm ? ' calm' : ''}`
+  const sz = o.size ? ` width="${o.size}" height="${o.size}"` : ''
+  return `<svg class="${cls}" viewBox="${vb}"${sz} role="img" aria-label="${SPECIES[sp].name} ${STAGES[st].name}">${auraS}<ellipse class="c-shadow" cx="60" cy="110" rx="${st === 1 ? 26 : 22 + st * 3}" ry="4.5" fill="rgba(0,0,0,.08)"/><g class="c-hop"><g class="c-sway"><g class="c-breath">${inner}</g></g></g></svg>`
+}
+const eggTop = () => `<path d="M60 24 C80 24 90 56 90 84 L84 79 L78 85 L72 79 L66 85 L60 79 L54 85 L48 79 L42 85 L36 79 L30 84 C30 56 40 24 60 24 Z" fill="#F3EBDD" stroke="#E0D3BC" stroke-width="2" stroke-linejoin="round"/>`
+
+// 옷 아이콘(캐릭터 없이 옷만, 친구 단계 기준점)
+function itemIcon(id, locked) {
+  const it = byId[id], A = anchors(3)
+  let body = '', vb = '0 0 120 120'
+  if (it.slot === 'hat') { body = HAT[id](A, 'full').svg; vb = '26 -8 68 46' }
+  else if (it.slot === 'neck') { body = NECK[id](A, 'full'); vb = `36 ${A.ny - 12} 48 32` }
+  else if (it.slot === 'hand') { body = HAND[id](A, 'full'); vb = id === 'balloon' ? '50 16 52 72' : id === 'flag' ? '44 44 40 40' : '40 60 40 40' }
+  else if (it.slot === 'back') { const b = BACK[id](A, 'full'); body = b.behind + (id === 'backpack' ? `<path d="M${60 - 14} 68 Q${60 - 17} 86 ${60 - 13} 96 M${60 + 14} 68 Q${60 + 17} 86 ${60 + 13} 96" stroke="#B95A43" stroke-width="3.4" fill="none" stroke-linecap="round"/>` : ''); vb = id === 'wings' ? '14 44 92 50' : id === 'lantern' ? '60 30 50 70' : '28 56 64 52' }
+  else if (it.slot === 'bg') return sceneIcon(id, locked)
+  return `<svg viewBox="${vb}" class="${locked ? 'lock' : ''}" aria-hidden="true">${body}</svg>`
+}
+
+// ───────────────────────── 장면(방) ─────────────────────────
+// viewBox 0 0 600 300, 땅 y 250. preserveAspectRatio slice로 휴대폰·데스크톱이 같이 쓴다.
+function sky(bg, night) {
+  const b = night && bg === 'grass' ? 'night' : bg
+  if (b === 'sunset') return `<rect width="600" height="300" fill="var(--sunset-sky)"/><rect width="600" height="120" fill="var(--sunset-sky2)"/><circle cx="430" cy="196" r="38" fill="#F59E5B" opacity=".9"/>`
+  if (b === 'night') return `<rect width="600" height="300" fill="var(--night-sky)"/>${crescent(470, 70, 18, '#F2E3A8')}${[[90, 60, 3.4], [180, 100, 2.6], [320, 50, 3], [540, 120, 2.6], [250, 130, 2.2]].map(([x, y, r]) => star(x, y, r, '#F2D98A')).join('')}`
+  if (b === 'moon') return `<rect width="600" height="300" fill="var(--moon-sky)"/><circle cx="440" cy="92" r="40" fill="#F6E7A8"/><circle cx="452" cy="86" r="7" fill="#E9D58C"/><circle cx="430" cy="104" r="5" fill="#E9D58C"/>${[[100, 70, 2.6], [220, 110, 2.2], [320, 60, 2.6]].map(([x, y, r]) => star(x, y, r, '#F2D98A')).join('')}`
+  if (b === 'snow') return `<rect width="600" height="300" fill="var(--snow-sky)"/>`
+  return `<rect width="600" height="300" fill="var(--grass-sky)"/><circle cx="490" cy="70" r="24" fill="#FFE29A" opacity=".9"/><g class="sc-cloud"><ellipse cx="150" cy="80" rx="34" ry="12" fill="#fff" opacity=".7"/><ellipse cx="172" cy="72" rx="20" ry="11" fill="#fff" opacity=".7"/></g>`
+}
+function hills(bg, night) {
+  const b = night && bg === 'grass' ? 'night' : bg === 'moon' ? 'night' : bg
+  const v = { grass:'grass', sunset:'sunset', night:'night', snow:'snow' }[b]
+  let s = `<path d="M0 220 Q120 170 260 210 T600 196 V300 H0Z" fill="var(--${v}-h2)"/><path d="M0 238 Q170 205 330 236 T600 228 V300 H0Z" fill="var(--${v}-h1)"/><rect x="0" y="250" width="600" height="50" fill="var(--${v}-g)"/>`
+  if (b === 'snow') s += [...Array(12)].map((_, i) => `<circle class="sc-snow" style="animation-delay:${-i * .6}s" cx="${30 + i * 48}" cy="${(i * 37) % 60}" r="${2 + (i % 3)}" fill="#fff"/>`).join('')
+  return s
+}
+function decorSvg(id) {
+  switch (id) {
+    case 'pot': return `<g><path d="M128 250 l4 -18 h22 l4 18z" fill="#D98B5F"/><path d="M143 232 v-14 M137 230 q-6 -8 -2 -14 M149 230 q6 -8 2 -14" stroke="#5DBB63" stroke-width="2.2" fill="none" stroke-linecap="round"/><circle cx="143" cy="216" r="5" fill="#FF8FA3"/><circle cx="135" cy="214" r="4" fill="#FFD166"/><circle cx="151" cy="214" r="4" fill="#fff"/></g>`
+    case 'fence': return `<g opacity=".95">${[40, 64, 88, 112, 476, 500, 524, 548].map((x) => `<rect x="${x}" y="214" width="7" height="34" rx="2" fill="#C9A27A"/>`).join('')}<rect x="36" y="222" width="86" height="5" fill="#B88F66"/><rect x="36" y="236" width="86" height="5" fill="#B88F66"/><rect x="472" y="222" width="86" height="5" fill="#B88F66"/><rect x="472" y="236" width="86" height="5" fill="#B88F66"/></g>`
+    case 'mushlamp': return `<g><rect x="96" y="234" width="7" height="16" rx="3" fill="#F5EBD8"/><path d="M88 236 q11.5 -18 23 0z" fill="#E36A5A"/><circle cx="96" cy="230" r="1.8" fill="#fff"/><circle cx="104" cy="228" r="1.6" fill="#fff"/></g>`
+    case 'butterfly': return `<g class="sc-fly"><ellipse cx="350" cy="120" rx="6" ry="4.5" fill="#F7A6C1" transform="rotate(-25 350 120)"/><ellipse cx="360" cy="120" rx="6" ry="4.5" fill="#F7A6C1" transform="rotate(25 360 120)"/><rect x="354" y="116" width="2" height="9" rx="1" fill="#555"/></g>`
+    case 'ball': return `<g><circle cx="200" cy="241" r="9" fill="#5FA8D8"/><path d="M191 241 h18 M200 232 q5 9 0 18" stroke="#fff" stroke-width="2" fill="none"/></g>`
+    case 'bunting': return `<g><path d="M60 82 Q300 112 540 82" stroke="#B9A27F" stroke-width="1.4" fill="none"/>${[...Array(9)].map((_, i) => { const x = 84 + i * 52, y = 85 + 22 * Math.sin(Math.PI * (x - 60) / 480); return `<path d="M${x - 7} ${f(y)} h14 l-7 12z" fill="${i % 2 ? 'var(--accent)' : '#F2C14E'}"/>` }).join('')}</g>`
+    case 'tent': return `<g><path d="M500 250 L536 196 L572 250 Z" fill="#F2C14E"/><path d="M536 196 L528 250 h16 Z" fill="#D9A23B"/></g>`
+    case 'firefly': return `<g>${[[220, 150], [380, 170], [300, 120]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.6" fill="#E8E07A"/>`).join('')}</g>`
+    case 'arch': return `<g><path d="M250 250 V170 Q300 120 350 170 V250" stroke="#8DB255" stroke-width="6" fill="none"/>${[[252, 200], [262, 160], [300, 140], [338, 160], [348, 200]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="5" fill="#FF8FA3"/>`).join('')}</g>`
+  }
+  return ''
+}
+// 트로피 선반: x 392–488
+function shelf(trophies) {
+  let s = `<g class="shelf"><rect x="392" y="176" width="5" height="74" fill="#A9825C"/><rect x="483" y="176" width="5" height="74" fill="#A9825C"/><rect x="388" y="204" width="104" height="5" rx="2" fill="#C9A27A"/><rect x="388" y="244" width="104" height="5" rx="2" fill="#C9A27A"/><rect x="388" y="174" width="104" height="4" rx="2" fill="#C9A27A"/>`
+  const pos = [[414, 204], [440, 204], [466, 204], [414, 244], [440, 244], [466, 244]]
+  trophies.slice(0, 6).forEach((t, i) => {
+    const [x, y] = pos[i]
+    let g = ''
+    if (t.k === 'cup') g = `<path d="M${x - 8} ${y - 24} h16 q0 12 -8 14 q-8 -2 -8 -14z" fill="${GOLD}"/><path d="M${x - 8} ${y - 21} q-5 0 -4 4 q1 3 5 3 M${x + 8} ${y - 21} q5 0 4 4 q-1 3 -5 3" stroke="${GOLD}" stroke-width="1.8" fill="none"/><rect x="${x - 1.6}" y="${y - 10}" width="3.2" height="5" fill="#C99B45"/><rect x="${x - 6}" y="${y - 5}" width="12" height="5" rx="1" fill="#8B6B4A"/>`
+    if (t.k === 'medal') g = `<path d="M${x - 5} ${y - 30} l5 10 l5 -10" stroke="#E0605A" stroke-width="3.4" fill="none"/><circle cx="${x}" cy="${y - 12}" r="8" fill="${GOLD}"/><text x="${x}" y="${y - 8.6}" font-size="9" font-weight="700" text-anchor="middle" fill="#8B6B2E" font-family="-apple-system,sans-serif">${t.n || 7}</text>`
+    if (t.k === 'stamp') g = `<circle cx="${x}" cy="${y - 10}" r="9" fill="#F3EBDD" stroke="var(--accent)" stroke-width="2"/><path d="M${x - 4} ${y - 10} l3 3 l5 -6" stroke="var(--accent)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
+    s += `<g class="tro" data-i="${i}">${g}<rect x="${x - 12}" y="${y - 32}" width="24" height="32" fill="transparent"/></g>`
+  })
+  return s + '</g>'
+}
+function scene({ bg = 'grass', night = false, decor = [], trophies = null, preview = false } = {}) {
+  let s = `<svg class="scene" viewBox="0 0 600 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${sky(bg, night)}`
+  s += hills(bg, night)
+  for (const d of ['bunting', 'fence', 'tent', 'arch', 'butterfly', 'firefly']) if (decor.includes(d)) s += decorSvg(d)
+  if (trophies) s += shelf(trophies)
+  for (const d of ['pot', 'mushlamp', 'ball']) if (decor.includes(d)) s += decorSvg(d)
+  return s + '</svg>'
+}
+function sceneIcon(id, locked) { return `<svg viewBox="150 120 300 180" class="${locked ? 'lock' : ''}" style="border-radius:8px" aria-hidden="true">${sky(id)}${hills(id)}</svg>` }
+function decorIcon(id, locked) {
+  const vb = { pot:'118 200 48 52', fence:'32 206 96 46', mushlamp:'82 220 36 34', butterfly:'336 106 36 28', ball:'186 228 28 26', bunting:'60 78 200 40', tent:'496 190 80 64', firefly:'210 110 180 70', arch:'240 126 120 128' }[id]
+  return `<svg viewBox="${vb}" class="${locked ? 'lock' : ''}" aria-hidden="true">${decorSvg(id).replace('class="sc-fly"', '')}</svg>`
+}
+
+// ───────────────────────── 화면 조립 ─────────────────────────
+const $ = (q) => document.querySelector(q)
+const $$ = (q) => [...document.querySelectorAll(q)]
+const sizeOf = (lv) => 180 + 6 * (Math.min(lv, 20) - 1)    // 레벨마다 6px(키 3cm)
+const cmOf = (lv) => 20 + 3 * lv
+const decorOn = () => DECOR.filter((d) => S.lv >= d.lv && !S.decorOff.includes(d.id)).map((d) => d.id)
+function eqNow() { return S.eq }
+function growthDiff(lv) {
+  const out = [`키 +3cm`]
+  if (stageOf(lv) !== stageOf(lv - 1)) out.push(`${STAGES[stageOf(lv)].name}로 진화`)
+  else { if (budsOf(lv) > budsOf(lv - 1)) out.push('새싹 잎 +1'); if (marksOf(lv) > marksOf(lv - 1)) out.push(`${MARK[S.sp]} +1`) }
+  return out
+}
+const nextItems = (lv) => ITEMS.filter((i) => i.rule.lv === lv)
+
+// 메인 캐릭터(휴대폰 무대·데스크톱 무대) — 감싸개 3겹: pos(가운데) → ch(끌기) → chi(깡충)
+const mains = []
+function makeMain(stageEl, scale, kind) {
+  const m = { stageEl, scale, kind, mood:null, wave:false }
+  stageEl.innerHTML = `<div class="sceneHost"></div><div class="hud"></div><div class="chips"></div><div class="pos"><div class="ch" tabindex="0" role="button"><div class="chi"></div></div></div>`
+  m.pos = stageEl.querySelector('.pos'); m.ch = stageEl.querySelector('.ch'); m.chi = stageEl.querySelector('.chi')
+  m.render = () => {
+    const mood = m.mood || (S.night ? 'sleepy' : 'smile')
+    const sz = Math.round(sizeOf(S.lv) * scale)
+    m.ch.style.width = m.ch.style.height = sz + 'px'
+    m.chi.style.width = m.chi.style.height = sz + 'px'
+    m.chi.innerHTML = art(S.sp, stage(), { lv:S.lv, path:S.path, eq:eqNow(), mood, live:true, wave:m.wave, calm:S.calm, noAura:true })
+    m.ch.setAttribute('aria-label', `${SPECIES[S.sp].pet}, Lv ${S.lv} ${STAGES[stage()].name}. 눌러서 말 걸기`)
+  }
+  m.paint = () => {
+    stageEl.querySelector('.sceneHost').innerHTML = scene({ bg:S.eq.bg, night:S.night, decor:decorOn(), trophies:S.trophies })
+    stageEl.querySelectorAll('.tro').forEach((t) => t.addEventListener('click', (e) => { e.stopPropagation(); const tr = S.trophies[+t.dataset.i]; say(m, tr.k === 'cup' ? `${tr.t} 끝낸 기념이야!` : tr.k === 'medal' ? `${tr.t}! 같이 쌓았지` : `${tr.t}. 꼼꼼했어`) }))
+    const st = stage()
+    stageEl.querySelector('.hud').innerHTML = `<div class="nm" title="눌러서 부르기">${SPECIES[S.sp].pet}</div><div>${titleOf(S.sp, st, S.path)} · Lv ${S.lv}</div>` + (kind === 'd' ? meterHtml(true) : '')
+    stageEl.querySelector('.hud .nm').onclick = () => callName(m)
+    const done = S.tasks.filter((t) => t.done).length
+    stageEl.querySelector('.chips').innerHTML = `<span class="chip">한 날 ${S.days}일</span><span class="chip">오늘 ${done}/10</span>`
+    m.render()
+  }
+  attachTouch(m)
+  mains.push(m)
+  return m
+}
+function meterHtml(compact) {
+  const n = need(S.lv), pct = Math.min(100, (S.xp / n) * 100), nx = nextItems(S.lv + 1), diff = growthDiff(S.lv + 1)
+  const ico = nx[0] ? itemIcon(nx[0].id) : art(S.sp, stageOf(S.lv + 1), { lv:S.lv + 1, path:S.path, crop:'bust', detail:'small' })
+  const what = nx[0] ? `Lv ${S.lv + 1}에 <b>${nx[0].name}</b>` : `Lv ${S.lv + 1}`
+  if (compact) return `<div class="bar"><i style="width:${pct}%"></i></div><div>${S.xp} / ${n} XP · 레벨업까지 ${n - S.xp}</div><div class="next" style="margin-top:6px"><span class="ico">${ico}</span><div>${what}<div class="tags">${diff.map((x) => `<span>${x}</span>`).join('')}</div></div></div>`
+  return `<div class="top"><b>Lv ${S.lv}</b><span>${STAGES[stage()].name} · 키 ${cmOf(S.lv)}cm</span><span>${S.xp} / ${n} XP</span></div><div class="bar"><i style="width:${pct}%"></i></div><div class="next"><span class="ico">${ico}</span><div>${what}${stage() < 5 && stageOf(S.lv + 1) === stage() ? ` · ${STAGES[stage() + 1].name}까지 ${STAGES[stage() + 1].from - S.lv}레벨` : ''}<div class="tags">${diff.map((x) => `<span>${x}</span>`).join('')}</div></div></div>`
+}
+function tasksHtml() {
+  return S.tasks.map((t, i) => `<div class="trow ${t.done ? 'done' : ''}" data-i="${i}"><span class="cb"></span>${t.t}<small class="${t.red && !t.done ? 'red' : ''}">${t.d}</small></div>`).join('')
+}
+function bindTasks(el) {
+  el.innerHTML = tasksHtml()
+  el.querySelectorAll('.trow').forEach((r) => r.onclick = () => toggleTask(+r.dataset.i))
+}
+
+// ── 만지기 ──
+function hop(el, h = 14) { if (reduced()) return; el.animate([{ transform:'none' }, { transform:'scale(1.05,.94)', offset:.15 }, { transform:`translateY(-${h}px) scale(.97,1.04)`, offset:.45 }, { transform:'scale(1.04,.96)', offset:.75 }, { transform:'none' }], { duration:420, easing:'cubic-bezier(.3,.7,.4,1)' }) }
+function floatEl(host, html, cls, ms = 900, dx = 0) {
+  const d = document.createElement('div'); d.className = cls; d.innerHTML = html; if (dx) d.style.marginLeft = dx + 'px'; host.appendChild(d)
+  const a = reduced() ? d.animate([{ opacity:1 }, { opacity:1, offset:.7 }, { opacity:0 }], { duration:ms }) : d.animate([{ opacity:0, transform:'translateY(4px)' }, { opacity:1, offset:.2 }, { opacity:0, transform:'translateY(-26px)' }], { duration:ms, easing:'ease-out' })
+  a.onfinish = () => d.remove()
+}
+const HEART = `<svg viewBox="0 0 14 14"><path d="M7 12.5 C2 9 .5 6.5 .5 4.3 C.5 2.3 2 1 3.8 1 C5.2 1 6.3 1.8 7 3 C7.7 1.8 8.8 1 10.2 1 C12 1 13.5 2.3 13.5 4.3 C13.5 6.5 12 9 7 12.5Z" fill="#FF8FA3"/></svg>`
+function say(m, text, ms = 2600) {
+  m.ch.querySelectorAll('.say').forEach((s) => s.remove())
+  const b = document.createElement('div'); b.className = 'say'; b.textContent = text; b.setAttribute('aria-live', 'polite'); m.ch.appendChild(b)
+  b.animate([{ opacity:0 }, { opacity:1, offset:.08 }, { opacity:1, offset:.88 }, { opacity:0 }], { duration:ms }).onfinish = () => b.remove()
+}
+function moodFor(m, mood, ms) { m.mood = mood; m.render(); clearTimeout(m._mt); if (ms) m._mt = setTimeout(() => { m.mood = null; m.render() }, ms) }
+const TAP_LINES = () => {
+  const left = S.tasks.filter((t) => !t.done).length, n = need(S.lv) - S.xp, nx = nextItems(S.lv + 1)[0]
+  return [left ? `오늘 ${left}개 남았어. 하나만 같이 할까?` : '오늘 다 했어! 최고야', n <= 10 ? `레벨업까지 ${n} XP!` : `나 키 ${cmOf(S.lv)}cm 됐어`, nx ? `Lv ${S.lv + 1}엔 ${nx.name} 받아` : '네가 끝낸 만큼 자라', '천천히 가도 괜찮아']
+}
+let tapLine = 0
+function attachTouch(m) {
+  let sx = 0, sy = 0, down = false, drag = false, pet = false, petT = 0, heartT = 0, taps = [], tickleUntil = 0
+  const el = m.ch
+  el.addEventListener('pointerdown', (e) => {
+    if (m.busy) return
+    down = true; drag = false; pet = false; sx = e.clientX; sy = e.clientY; el.setPointerCapture(e.pointerId)
+    petT = setTimeout(() => { if (drag || !down) return; pet = true; moodFor(m, 'happy'); let n = 0; heartT = setInterval(() => { if (n++ >= 6) return; floatEl(m.ch, HEART, 'heart', 1100, (n % 2 ? -1 : 1) * (8 + n * 4)) }, 300) }, 600)
+  })
+  el.addEventListener('pointermove', (e) => {
+    if (!down || pet) return
+    const dx = e.clientX - sx, dy = e.clientY - sy
+    if (!drag && Math.hypot(dx, dy) > 6) { drag = true; clearTimeout(petT); moodFor(m, 'wow') }
+    if (drag) { const r = Math.hypot(dx, dy), k = r > 90 ? 90 / r : 1, x = dx * k, y = Math.min(dy * k, 14); el.style.transform = `translate(${x}px,${y}px) rotate(${f(x / 9)}deg)`; m._x = x; m._y = y }
+  })
+  const up = () => {
+    if (!down) return
+    down = false; clearTimeout(petT); clearInterval(heartT)
+    if (drag) {
+      const x = m._x || 0, y = m._y || 0, far = Math.hypot(x, y) > 50
+      el.style.transform = ''
+      if (reduced()) el.animate([{ transform:`translate(${x}px,${y}px)` }, { transform:'none' }], { duration:160 })
+      else el.animate([{ transform:`translate(${x}px,${y}px) rotate(${f(x / 9)}deg)` }, { transform:`translate(${f(x * .35)}px,${f(Math.min(y, 0) - (far ? 34 : 16))}px) rotate(${f(-x / 14)}deg)`, offset:.34 }, { transform:'translate(0,0) scale(1.07,.9)', offset:.6 }, { transform:'translateY(-9px) scale(.97,1.04)', offset:.78 }, { transform:'scale(1.02,.98)', offset:.9 }, { transform:'none' }], { duration:680, easing:'cubic-bezier(.3,.7,.4,1)' })
+      moodFor(m, 'happy', 1600); setTimeout(() => say(m, far ? '와아! 한 번 더!' : '으쌰'), 500)
+    } else if (pet) { say(m, '헤헤, 고마워'); moodFor(m, 'happy', 1500) }
+    else tap()
+  }
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up)
+  el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap() } })
+  function tap() {
+    const now = Date.now(); taps = taps.filter((t) => now - t < 1200); taps.push(now)
+    if (S.night && m.mood !== 'default') { moodFor(m, 'default', 5000); hop(m.chi, 8); say(m, '으음… 안 잤어!'); return }
+    if (taps.length >= 4 && now > tickleUntil) {
+      tickleUntil = now + 8000; taps = []
+      moodFor(m, 'giggle', 1800)
+      if (!reduced()) m.chi.animate([0, -7, 7, -6, 6, -4, 4, 0].map((r, i) => ({ transform:`rotate(${r}deg) ${i % 2 ? 'scale(1.03,.97)' : ''}` })), { duration:720, easing:'ease-in-out' })
+      say(m, '히히, 간지러워!'); return
+    }
+    hop(m.chi); floatEl(m.ch, HEART, 'heart', 1000)
+    const L = TAP_LINES(); say(m, L[tapLine++ % L.length])
+  }
+}
+function callName(m) {
+  m.wave = true; moodFor(m, 'smile')
+  if (!reduced()) m.chi.animate([{ transform:'none' }, { transform:'rotate(-5deg)', offset:.3 }, { transform:'rotate(-5deg)', offset:.7 }, { transform:'none' }], { duration:1400 })
+  say(m, '응? 불렀어?')
+  clearTimeout(m._wt); m._wt = setTimeout(() => { m.wave = false; m.mood = null; m.render() }, 2100)
+}
+
+// ── 할 일 → XP → 레벨 → 옷 ──
+function toggleTask(i) {
+  const t = S.tasks[i]
+  t.done = !t.done
+  if (t.done) addXp(1, 'task')
+  else { S.xp = Math.max(0, S.xp - 1); paintAll() }   // 같은 날 취소는 −1 (레벨은 내려가지 않음)
+  if (S.tasks.every((x) => x.done) && !S.dayDone) { S.dayDone = true; setTimeout(() => moment('dayDone'), 900) }
+}
+function addXp(n, why) {
+  const before = S.lv, beforeSt = stage()
+  S.xp += n
+  const got = []
+  while (S.xp >= need(S.lv)) { S.xp -= need(S.lv); S.lv++; got.push(...nextItems(S.lv)) }
+  got.forEach((g) => S.fresh.add(g.id))
+  paintAll()
+  mains.forEach((m) => { floatEl(m.ch, `+${n}`, 'xp'); moodFor(m, 'happy', 2200); hop(m.chi) })
+  if (S.lv > before) {
+    const evolved = stage() !== beforeSt
+    const after = () => { mains.forEach((m) => { burst(m.ch, S.sp, 10, 90); floatEl(m.ch, `Lv ${S.lv}`, 'chip-lv', 1600) }); if (got.length) setTimeout(() => showToast(got), 700) }
+    if (evolved) phoneEvo(beforeSt, stage(), after)
+    else {
+      mains.forEach((m) => { if (!reduced()) m.chi.animate([{ transform:'none' }, { transform:'scale(.94,1.04)', offset:.2 }, { transform:'translateY(-10px) scale(1.12)', offset:.5 }, { transform:'scale(.98,1.02)', offset:.8 }, { transform:'none' }], { duration:600, easing:'cubic-bezier(.2,1.2,.4,1)' }) })
+      after()
+    }
+  }
+}
+function showToast(items) {
+  const it = items[0], more = items.length - 1
+  const canWear = it.slot !== 'bg'
+  for (const el of [$('#mToast'), $('#dToast')]) {
+    el.innerHTML = `<span class="ico">${itemIcon(it.id)}</span><div class="tx"><b>${it.name}${more ? ` 외 ${more}개` : ''}</b>Lv ${S.lv} 선물이야. ${it.why || '할 일을 끝내서 받았어'}</div><div class="bt"><button class="btn sm pri" data-wear>${canWear ? '입혀 보기' : '깔아 보기'}</button><button class="btn sm" data-later>나중에</button></div>`
+    el.classList.add('show')
+    el.querySelector('[data-wear]').onclick = () => { equip(it); hideToast(); mains.forEach((m) => { moodFor(m, 'happy', 2000); hop(m.chi); say(m, canWear ? '어때? 잘 어울려?' : '여기 좋다!') }) }
+    el.querySelector('[data-later]').onclick = hideToast
+  }
+  clearTimeout(window._tt); window._tt = setTimeout(hideToast, 9000)
+}
+function hideToast() { $('#mToast').classList.remove('show'); $('#dToast').classList.remove('show') }
+function equip(it) {
+  const slot = it.slot === 'bg' ? 'bg' : it.slot
+  S.eq[slot] = S.eq[slot] === it.id && slot !== 'bg' ? null : it.id
+  S.fresh.delete(it.id)
+  paintAll()
+}
+
+// 종 소품 조각
+function bitSvg(sp, i) {
+  const acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
+  if (i % 3 === 0) return `<svg viewBox="0 0 10 10"><rect x="2" y="2" width="6" height="6" rx="1.5" fill="${acc}"/></svg>`
+  if (sp === 'turtle') return `<svg viewBox="0 0 10 10"><ellipse cx="5" cy="5" rx="2.6" ry="4.6" fill="${i % 2 ? LEAF : '#FF8FA3'}"/></svg>`
+  if (sp === 'squirrel') return `<svg viewBox="0 0 10 10"><ellipse cx="5" cy="5" rx="2.6" ry="4.6" fill="${i % 2 ? '#E8A33B' : '#D9663F'}"/></svg>`
+  if (sp === 'cat') return `<svg viewBox="0 0 10 10">${star(5, 5, 4.4, '#F2C94C')}</svg>`
+  return `<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="3.6" fill="none" stroke="#5FA8D8" stroke-width="1.4"/></svg>`
+}
+function burst(host, sp, n, dist, delay = 0) {
+  if (reduced()) return
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement('div'); b.className = 'bit'; b.innerHTML = bitSvg(sp, i); host.appendChild(b)
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2 + (i % 2 ? .2 : -.1), r = dist * (.75 + (i % 3) * .15)
+    const an = b.animate([{ transform:'translate(0,0) scale(.4) rotate(0)', opacity:0 }, { opacity:1, offset:.15 }, { transform:`translate(${f(Math.cos(a) * r)}px,${f(Math.sin(a) * r + 16)}px) scale(1) rotate(${i * 50}deg)`, opacity:0 }], { duration:760, delay, easing:'cubic-bezier(.2,.8,.4,1)', fill:'backwards' })
+    an.onfinish = () => b.remove()
+  }
+}
+
+// ── 하루 장면 ──
+function moment(k) {
+  S.night = k === 'night'; S.calm = k === 'busy'
+  paintAll()
+  const notes = {
+    morning:'하루 처음 열 때(아침 6–11시) 한 번 — 손을 흔들고 오늘 할 일 수를 말한다.',
+    busy:'오늘 마감 8개 이상 또는 일정 6시간 이상 — 숨을 느리게(5초) 쉬고 깡충을 줄인다. 재촉하지 않는다.',
+    deadline:'오늘 프로젝트 마감이 있는 날 — 깃발을 들고 두 번 깡충, 응원 한 줄. 끝내면 같이 축하.',
+    dayDone:'오늘 할 일을 다 끝낸 순간 — 조각이 터지고 두 번 깡충. 0개인 날에는 아무 말도 하지 않는다.',
+    night:'밤 23–6시에 앱이 열려 있으면 존다. 누르면 5초 깼다가 다시 존다. 다음 날 할 일 XP가 들어오면 깨어난다.'
+  }
+  $('#momentNote').textContent = notes[k]
+  mains.forEach((m) => {
+    if (k === 'morning') { callName(m); setTimeout(() => say(m, `좋은 아침! 오늘 할 일 ${S.tasks.filter((t) => !t.done).length}개야`), 50) }
+    if (k === 'busy') { moodFor(m, 'smile'); say(m, '많은 날이네. 하나씩 같이 가자', 3200) }
+    if (k === 'deadline') {
+      const old = S.eq.hand; S.eq.hand = 'flag'; m.render(); S.eq.hand = old
+      hop(m.chi); setTimeout(() => hop(m.chi), 460); say(m, '오늘 제출이야! 끝나면 같이 축하하자', 3200)
+      clearTimeout(m._ft); m._ft = setTimeout(() => m.render(), 3400)
+    }
+    if (k === 'dayDone') { moodFor(m, 'happy', 2600); hop(m.chi); setTimeout(() => hop(m.chi), 460); burst(m.ch, S.sp, 14, 120); say(m, '오늘 할 일 다 했다!', 3000) }
+    if (k === 'night') { m.mood = null; m.render(); if (!reduced()) { let i = 0; const z = setInterval(() => { if (i++ > 2) return clearInterval(z); floatEl(m.ch, 'Z', 'zz', 1600, i * 6) }, 500) } }
+  })
+}
+
+// ── 꾸미기(옷장) ──
+function wardrobe(gridEl, tabsEl, cols, tabKey) {
+  const tab = S[tabKey] || 'hat'
+  tabsEl.innerHTML = SLOTS.map(([k, n]) => { const fresh = ITEMS.some((i) => (k === 'room' ? i.slot === 'bg' : i.slot === k) && S.fresh.has(i.id)); return `<button data-k="${k}" class="${tab === k ? 'on' : ''}">${n}${fresh ? '<i></i>' : ''}</button>` }).join('')
+  tabsEl.querySelectorAll('button').forEach((b) => b.onclick = () => { S[tabKey] = b.dataset.k; paintAll() })
+  const cell = (it) => {
+    const own = has(it), on = it.slot === 'bg' ? S.eq.bg === it.id : S.eq[it.slot] === it.id
+    return `<div class="cell ${own ? 'can' : 'locked'} ${on ? 'on' : ''}" data-id="${it.id}">${S.fresh.has(it.id) ? '<span class="dot"></span>' : ''}${itemIcon(it.id, !own)}<div class="n">${it.name}</div>${own ? '' : `<div class="c">${condText(it)}</div>`}</div>`
+  }
+  let h = ''
+  if (tab === 'room') {
+    h += `<div class="subh">배경</div><div class="grid ${cols}">${ITEMS.filter((i) => i.slot === 'bg').map(cell).join('')}</div>`
+    h += `<div class="subh">장식<span>눌러서 놓기·치우기</span></div><div class="grid ${cols}">${DECOR.map((d) => { const own = S.lv >= d.lv, on = own && !S.decorOff.includes(d.id); return `<div class="cell ${own ? 'can' : 'locked'} ${on ? 'on' : ''}" data-decor="${d.id}">${decorIcon(d.id, !own)}<div class="n">${d.name}</div>${own ? '' : `<div class="c">Lv ${d.lv}</div>`}</div>` }).join('')}</div>`
+  } else {
+    const st = stage(), base = { hat: st >= 5 ? '진화 관' : '없음', neck: { turtle:'없음', squirrel: st >= 4 ? '뜨개 목도리' : '없음', cat: st >= 4 ? '망토 걸쇠' : '방울 목줄', otter: st >= 3 ? '목걸이' : '없음' }[S.sp], hand: '진화 소품', back: { turtle: st >= 3 ? '이끼 정원' : '없음', cat: st >= 4 ? '망토' : '없음' }[S.sp] || '없음' }[tab]
+    h += `<div class="grid ${cols}"><div class="cell can ${S.eq[tab] ? '' : 'on'}" data-base="${tab}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="22" fill="none" stroke="var(--t4)" stroke-width="4" stroke-dasharray="6 6"/></svg><div class="n">기본</div><div class="c">${base}</div></div>${ITEMS.filter((i) => i.slot === tab).map(cell).join('')}</div>`
+    if (tab !== 'hat' && st === 1) h += `<p class="note" style="margin-top:8px">아기 때는 알껍데기 안이라 목·등 옷은 꼬마부터 보인다.</p>`
+  }
+  gridEl.innerHTML = h
+  gridEl.querySelectorAll('.cell.can[data-id]').forEach((c) => c.onclick = () => { equip(byId[c.dataset.id]); mains.forEach((m) => { hop(m.chi, 8) }) })
+  gridEl.querySelectorAll('.cell[data-base]').forEach((c) => c.onclick = () => { S.eq[c.dataset.base] = null; paintAll() })
+  gridEl.querySelectorAll('.cell.can[data-decor]').forEach((c) => c.onclick = () => { const id = c.dataset.decor; S.decorOff = S.decorOff.includes(id) ? S.decorOff.filter((x) => x !== id) : [...S.decorOff, id]; paintAll() })
+  gridEl.querySelectorAll('.cell.locked').forEach((c) => c.onclick = () => { c.animate([{ transform:'translateX(0)' }, { transform:'translateX(-3px)' }, { transform:'translateX(3px)' }, { transform:'none' }], { duration:220 }) })
+}
+// ── 도감 ──
+function dex(el) {
+  const st = stage(), own = ITEMS.filter(has).length
+  const looks = [[1, 'a'], [2, 'a'], [3, 'a'], [3, 'b'], [4, 'a'], [4, 'b'], [5, 'a'], [5, 'b']]
+  const lookOwn = ([s, p]) => s <= st && (s < 3 || true)
+  let h = `<div class="note" style="margin:0 2px 6px">옷 ${own}/${ITEMS.length} · 모습 ${looks.filter(lookOwn).length}/${looks.length} · 트로피 ${S.trophies.length}</div>`
+  h += `<div class="subh">모습<span>다른 길은 언제든 바꿀 수 있어</span></div><div class="grid c3">` + looks.map(([s, p]) => {
+    const ok = s <= st, cur = s === st && (s < 3 || p === S.path)
+    const name = titleOf(S.sp, s, p)
+    return `<div class="cell ${ok && s >= 3 && s === st && p !== S.path ? 'can' : ''} ${cur ? 'on' : ''} ${ok ? '' : 'locked'}" ${ok && s === st && s >= 3 && p !== S.path ? `data-path="${p}"` : ''}>${art(S.sp, s, { path:p, size:56, detail:'full', crop:'full', noAura:true, sil:false }).replace('class="chr', `class="${ok ? '' : 'lock '}chr`)}<div class="n">${name}</div><div class="c">${ok ? (s >= 3 && p !== S.path ? (s === st ? '눌러서 바꾸기' : '다른 길') : s >= 3 ? PATHS[S.sp][p].name : '') : `Lv ${STAGES[s].from}`}</div></div>`
+  }).join('') + '</div>'
+  for (const [k, n] of SLOTS) {
+    const list = ITEMS.filter((i) => (k === 'room' ? i.slot === 'bg' : i.slot === k))
+    h += `<div class="subh">${k === 'room' ? '배경' : n}<span>${list.filter(has).length}/${list.length}</span></div><div class="grid">${list.map((it) => { const o = has(it); return `<div class="cell ${o ? '' : 'locked'}">${itemIcon(it.id, !o)}<div class="n">${it.name}</div>${o ? '' : `<div class="c">${condText(it)}</div>`}</div>` }).join('')}</div>`
+  }
+  h += `<div class="subh">트로피 선반</div>` + S.trophies.map((t) => `<div class="trow" style="cursor:default"><span style="width:8px;height:8px;border-radius:4px;background:${t.k === 'cup' ? GOLD : t.k === 'medal' ? '#E0605A' : 'var(--accent)'}"></span>${t.t}<small>${t.s}</small></div>`).join('')
+  el.innerHTML = h
+  el.querySelectorAll('[data-path]').forEach((c) => c.onclick = () => { S.path = c.dataset.path; paintAll() })
+}
+
+// ───────────────────────── 진화 (42 그대로 + 고르기) ─────────────────────────
+function makeEvo(o) {   // o: { box, dim, card, root, choiceEl, size }
+  const E = { ...o, anims:[], done:null }
+  const layer = (html) => { const d = document.createElement('div'); d.className = 'evl'; d.style.cssText = `width:${E.size}px;height:${E.size}px;margin-left:${-E.size / 2}px`; d.innerHTML = html; E.box.appendChild(d); return d }
+  const tl = (el, frames, total, extra = {}) => { const k = frames.map(([t, p]) => ({ ...p, offset:t / total })); const a = el.animate(k, { duration:total, fill:'forwards', ...extra }); E.anims.push(a); return a }
+  E.finish = () => { E.anims.forEach((a) => { try { a.finish() } catch (e) {} }); E.anims = []; if (E.choicePending) return; if (E.done) { const d = E.done; E.done = null; d() } }
+  E.card = (sp, st, path, at) => {
+    const c = E.cardEl
+    c.querySelector('.k').textContent = `${STAGES[st].name}${st === 4 ? '으로' : '로'} 자랐어요`
+    c.querySelector('.n').textContent = titleOf(sp, st, path)
+    const NEW = { 3:'새 길 · ' + PATHS[sp][path].name, 4:'새 모습 · 소품이 하나 더', 5:'새 모습 · 전설의 관' }
+    c.querySelector('.f').textContent = '+ ' + NEW[st] + (ITEMS.find((i) => i.rule.lv === STAGES[st].from) ? ` · 선물 ${ITEMS.find((i) => i.rule.lv === STAGES[st].from).name}` : '')
+    const r = reduced()
+    tl(c, [[0, { opacity:0, transform:`translate(-50%, ${r ? 0 : 10}px)` }], [at, { opacity:0, transform:`translate(-50%, ${r ? 0 : 10}px)` }], [at + 260, { opacity:1, transform:'translate(-50%, 0)' }], [at + 3300, { opacity:1, transform:'translate(-50%, 0)' }], [at + 3600, { opacity:0, transform:'translate(-50%, 0)' }]], at + 3600)
+  }
+  E.play = (sp, from, to, opts = {}) => {
+    E.finish(); E.box.innerHTML = ''; E.root.classList.add('playing')
+    const eq = opts.eq || {}, choose = to === 3 && opts.choose !== false
+    let path = opts.path || 'a'
+    const end = () => { E.box.innerHTML = ''; layer(art(sp, to, { live:true, mood:'smile', path, eq, lv:STAGES[to].from })); E.root.classList.remove('playing'); E.dim.style.opacity = 0; const c = E.cardEl; c.style.opacity = 1; c.style.transform = 'translate(-50%,0)'; clearTimeout(E._ct); E._ct = setTimeout(() => { c.style.opacity = 0; opts.onDone && opts.onDone() }, 2400) }
+    E.done = end
+    const reveal = (t0) => {
+      const B = layer(art(sp, to, { mood:'happy', path, eq, lv:STAGES[to].from }))
+      if (reduced()) { tl(B, [[0, { opacity:0 }], [300, { opacity:1 }]], 300); E.card(sp, to, path, 200); E.anims.at(-1).onfinish = () => { if (E.done) { E.done = null; end() } }; return }
+      tl(B, [[0, { opacity:0, transform:'scale(1.12)' }], [40, { opacity:1 }], [220, { transform:'scale(.95,1.04)' }], [380, { transform:'scale(1.02,.98)' }], [530, { transform:'none', opacity:1 }]], 530)
+      burst(E.box, sp, 8, 120)
+      E.card(sp, to, path, 130)
+      tl(E.dim, [[0, { opacity:1 }], [480, { opacity:1 }], [880, { opacity:0 }]], 880)
+      setTimeout(() => { if (E.done === end) { E.done = null; end() } }, 940)
+    }
+    const fromHtml = art(sp, from, { path, eq, lv:STAGES[to].from - 1 })
+    if (reduced()) {
+      const A = layer(fromHtml); tl(A, [[0, { opacity:1 }], [300, { opacity:0 }]], 300)
+      if (choose) return E.ask(sp, (p) => { path = p; reveal(0) })
+      return reveal(0)
+    }
+    tl(E.dim, [[0, { opacity:0 }], [250, { opacity:1 }], [1320, { opacity:1 }]], 1320)
+    const A = layer(fromHtml), As = layer(art(sp, from, { sil:true, path, eq })), Bs = layer(art(sp, to, { sil:true, path, eq }))
+    tl(A, [[0, { opacity:1, transform:'none' }], [120, { transform:'scale(1.05,.94)' }], [250, { transform:'none' }], [540, { opacity:1 }], [560, { opacity:0 }]], 560)
+    const sc = (t) => `scale(${f(1 + Math.min(1, Math.max(0, (t - 250) / 1070)) * .08)})`
+    tl(As, [[0, { opacity:0, transform:'none' }], [250, { opacity:0, transform:sc(250) }], [550, { opacity:1, transform:sc(550) }], [650, { opacity:1, transform:sc(650) }], [770, { opacity:0, transform:sc(770) }], [950, { opacity:0, transform:sc(950) }], [1070, { opacity:1, transform:sc(1070) }], [1200, { opacity:1, transform:sc(1200) }], [1320, { opacity:0, transform:sc(1320) }]], 1320)
+    tl(Bs, [[0, { opacity:0, transform:'none' }], [650, { opacity:0, transform:sc(650) }], [770, { opacity:1, transform:sc(770) }], [950, { opacity:1, transform:sc(950) }], [1070, { opacity:0, transform:sc(1070) }], [1200, { opacity:0, transform:sc(1200) }], [1320, { opacity:1, transform:sc(1320) }]], 1320)
+    E._phase = setTimeout(() => {
+      const puff = () => { tl(Bs, [[0, { opacity:1, transform:sc(1320) }], [100, { opacity:1, transform:'scale(1.18)' }], [240, { opacity:0, transform:'scale(1.02)' }]], 240) }
+      if (choose) E.ask(sp, (p) => { path = p; puff(); setTimeout(() => reveal(0), 100) })
+      else { puff(); setTimeout(() => reveal(0), 100) }
+    }, 1320)
+  }
+  E.ask = (sp, pick) => {
+    E.choicePending = true
+    const P = PATHS[sp]
+    E.choiceEl.innerHTML = `<div class="q">어떤 친구로 자랄까?</div><div class="opts">${['a', 'b'].map((p) => `<div class="opt" data-p="${p}" role="button" tabindex="0">${art(sp, 3, { path:p, size:104, mood:'smile', live:true })}<b>${P[p].name}</b><span>${P[p].line}<br>→ ${P[p].t[2]}</span></div>`).join('')}</div><button class="later">나중에 고를래</button>`
+    E.choiceEl.classList.add('show')
+    const go = (p) => { E.choicePending = false; E.choiceEl.classList.remove('show'); pick(p); E.onPath && E.onPath(p) }
+    E.choiceEl.querySelectorAll('.opt').forEach((b) => b.onclick = (e) => { e.stopPropagation(); go(b.dataset.p) })
+    E.choiceEl.querySelector('.later').onclick = (e) => { e.stopPropagation(); go('a') }
+  }
+  return E
+}
+
+// 휴대폰 진화(전체 화면)
+let mEvo
+function phoneEvo(from, to, after) {
+  const ov = $('#mEvo'); ov.classList.add('show')
+  mEvo.play(S.sp, from, to, { path:S.path, eq:S.eq, onDone:() => { ov.classList.remove('show'); after && after() } })
+}
+
+// ───────────────────────── 그리기 ─────────────────────────
+let mMain, dMain, evoD
+function paintAll() {
+  mains.forEach((m) => m.paint())
+  $('#mMeter').innerHTML = meterHtml(false)
+  bindTasks($('#mTasks')); bindTasks($('#dTasks'))
+  // 데스크톱
+  const st = stage()
+  $('#dRoad').innerHTML = [1, 2, 3, 4, 5].map((s) => `<div class="dot ${s === st ? 'now' : ''}"><i>${art(S.sp, s, { size:30, path:S.path, eq: s === st ? S.eq : {}, lv: s === st ? S.lv : STAGES[s].from, mood:'smile' }).replace('class="chr', s > st ? 'style="opacity:.35" class="chr' : 'class="chr')}</i>${STAGES[s].name}<span style="color:var(--t4)">Lv ${STAGES[s].from}</span></div>`).join('')
+  $('#dQuests').innerHTML = S.quests.map((q) => `<div class="qrow ${q.done ? 'done' : ''}"><span class="cb"></span>${q.t}<small>${q.n ? q.n + ' · ' : ''}${q.done ? '+30 ✓' : '+30'}</small></div>`).join('')
+  $('#dQuestSum').textContent = `${S.quests.filter((q) => q.done).length}/${S.quests.length}`
+  $('#dAvatar').innerHTML = art(S.sp, st, { size:34, path:S.path, eq:S.eq, lv:S.lv, mood:'smile' })
+  wardrobe($('#dWGrid'), $('#dWTabs'), 'c3', 'dTab')
+  // 꾸미기 휴대폰
+  $('#bPreview').innerHTML = scene({ bg:S.eq.bg, night:S.night, decor:decorOn(), preview:true }) + `<div class="pv">${art(S.sp, st, { size:Math.round(sizeOf(S.lv) * .78), path:S.path, eq:S.eq, lv:S.lv, mood:'smile', live:true, noAura:true })}</div>`
+  wardrobe($('#bGrid'), $('#bTabs'), '', 'wardTab')
+  dex($('#bDex'))
+  renderLvRow(); renderWhere()
+  const es = $('#evo .evoScene'); if (es) es.innerHTML = scene({ bg:S.eq.bg, decor:['fence', 'pot'] })
+  if (evoD && !$('#evo').classList.contains('playing') && !evoD.choicePending && !evoD.done) { $('#evoBox').innerHTML = `<div class="evl" style="width:240px;height:240px;margin-left:-120px">${art(S.sp, stage(), { live:true, mood:'smile', path:S.path, eq:S.eq, lv:S.lv })}</div>` }
+}
+function renderLvRow() {
+  const from = STAGES[stage()].from, lvs = [from, from + 1, from + 2, from + 3, Math.min(from + 4, 19), Math.min(from + 5, 20)]
+  const uniq = [...new Set(lvs)]
+  $('#lvRow').innerHTML = uniq.map((lv) => {
+    const sz = Math.round(sizeOf(lv) * .62), it = nextItems(lv)
+    return `<div class="c"><div class="art">${art(S.sp, stageOf(lv), { size:sz, lv, path:S.path, mood:'smile', noAura:true })}</div><div class="ruler" style="width:100%"></div><b>Lv ${lv} · 키 ${cmOf(lv)}cm</b><span>${growthDiff(lv).join(' · ')}${it.length ? `<br><b style="font-weight:600;color:var(--accent)">+ ${it.map((i) => i.name).join(', ')}</b>` : ''}</span></div>`
+  }).join('')
+}
+function renderWhere() {
+  const st = stage(), o = { path:S.path, eq:S.eq, lv:S.lv, mood:'smile' }
+  const n = need(S.lv)
+  $('#where').innerHTML =
+    `<div class="w">사이드바 카드(36)<div class="sidecard">${art(S.sp, st, { ...o, size:36 })}<div style="flex:1"><b>${SPECIES[S.sp].pet} · Lv ${S.lv}</b><div class="bar"><i style="width:${(S.xp / n) * 100}%"></i></div></div></div></div>` +
+    `<div class="w">레일 아바타(34) · 설정 아바타(72)<div style="display:flex;gap:12px;align-items:center"><div class="avc" style="width:34px;height:34px">${art(S.sp, st, { ...o, size:34 })}</div><div class="avc" style="width:72px;height:72px">${art(S.sp, st, { ...o, size:72, crop:'bust', detail:'full' })}</div></div></div>` +
+    `<div class="w">AI 비서 답 얼굴(30)<div class="ansrow">${art(S.sp, st, { ...o, size:30 })}<div><div class="who">${SPECIES[S.sp].pet}</div><div class="line">넣어 뒀어. 내일 오후 3시야.</div></div></div></div>` +
+    `<div class="w">AI 비서 빈 대화(96)<div style="width:120px;height:110px;display:flex;align-items:flex-end;justify-content:center">${art(S.sp, st, { ...o, size:96, noAura:true })}</div></div>` +
+    `<div class="w">맥 위젯(작게)<div class="widget"><div class="top"><span>오늘 ${S.tasks.filter((t) => t.done).length}/${S.tasks.length}</span><span style="color:var(--t3)">Lv ${S.lv}</span></div><div style="flex:1;display:flex;align-items:center;justify-content:center">${art(S.sp, st, { ...o, size:72, noAura:true })}</div><div class="bar"><i style="width:${(S.xp / n) * 100}%"></i></div></div></div>`
+}
+function renderUnlockTable() {
+  const src = (r) => r.lv ? (STAGES.some((s) => s && s.from === r.lv && r.lv > 1) ? '레벨 · 진화' : '레벨') : r.days ? '한 날 누적' : r.reviews ? '주간 점검' : r.projects ? '끝낸 프로젝트' : '계절'
+  const rows = [...ITEMS].sort((a, b) => (a.rule.lv || 99) - (b.rule.lv || 99))
+  $('#unlockTable').innerHTML = `<tr><th></th><th>옷</th><th>칸</th><th>열리는 때</th><th>갈래</th></tr>` + rows.map((it) => `<tr><td style="width:44px"><span style="display:inline-flex;width:36px;height:36px">${itemIcon(it.id)}</span></td><td>${it.name}</td><td>${{ hat:'모자', neck:'목', hand:'손', back:'등', bg:'방 · 배경' }[it.slot]}</td><td>${condText({ rule:it.rule }).replace(/ · 지금.*/, '')}${it.why ? ` <span style="color:var(--t3)">(${it.why})</span>` : ''}</td><td>${src(it.rule)}</td></tr>`).join('')
+}
+
+// ───────────────────────── 시작 ─────────────────────────
+function seg(id, items, key, after) {
+  const el = $(id)
+  if (items) el.innerHTML = items.map(([v, t]) => `<button data-v="${v}">${t}</button>`).join('')
+  const sync = () => el.querySelectorAll('button').forEach((b) => b.classList.toggle('on', String(S[key]) === b.dataset.v))
+  el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; S[key] = b.dataset.v; sync(); after() })
+  el._sync = sync; sync()
+}
+const qs = new URLSearchParams(location.search)
+function boot() {
+  // 데스크톱 무대에 토스트·옷장 패널·꾸미기 버튼 붙이기
+  mMain = makeMain($('#mStage'), .7, 'm')
+  dMain = makeMain($('#dStage'), 1, 'd')
+  const ds = $('#dStage')
+  ds.insertAdjacentHTML('beforeend', `<button class="btn deco-btn" id="dDeco">꾸미기</button><div class="toast" id="dToast"></div><div class="wpanel" id="dPanel"><div class="hd">꾸미기<button id="dClose" aria-label="닫기">×</button></div><div class="wtabs" id="dWTabs"></div><div id="dWGrid"></div></div>`)
+  $('#dDeco').onclick = () => $('#dPanel').classList.toggle('open')
+  $('#dClose').onclick = () => $('#dPanel').classList.remove('open')
+  mEvo = makeEvo({ box:$('#mEvoBox'), dim:document.createElement('div'), cardEl:$('#mEvoCard'), root:$('#mEvo'), choiceEl:document.createElement('div'), size:230 })
+  $('#mEvo').onclick = () => mEvo.finish()
+  evoD = makeEvo({ box:$('#evoBox'), dim:$('#evoDim'), cardEl:$('#evoCard'), root:$('#evo'), choiceEl:$('#evoChoice'), size:240 })
+  evoD.onPath = (p) => { S.path = p; paintAll() }
+  $('#evo').onclick = () => { if ($('#evo').classList.contains('playing')) evoD.finish() }
+  $('#evoSkip').onclick = (e) => { e.stopPropagation(); evoD.finish() }
+  $$('[data-evo]').forEach((b) => b.onclick = () => { const from = +b.dataset.evo; evoD.play(S.sp, from, from + 1, { path:S.path, eq:S.eq }) })
+  $('#evo').insertAdjacentHTML('afterbegin', `<div class="evoScene" style="position:absolute;inset:0"></div>`)
+  $('#bSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; $$('#bSeg button').forEach((x) => x.classList.toggle('on', x === b)); $('#bWard').hidden = b.dataset.v !== 'ward'; $('#bDex').hidden = b.dataset.v !== 'dex' })
+  $('#mOpenWard').onclick = () => $('#bSeg button[data-v=ward]').click()
+  $('#mOpenDex').onclick = () => $('#bSeg button[data-v=dex]').click()
+  $$('[data-moment]').forEach((b) => b.onclick = () => moment(b.dataset.moment))
+  $('#bNextLv').onclick = () => addXp(need(S.lv) - S.xp, 'skip')
+  $('#bQuest').onclick = () => { const q = S.quests.find((x) => !x.done); if (q) q.done = true; addXp(30, 'quest') }
+  $('#bProject').onclick = () => { S.projects++; S.trophies.push({ k:'cup', t:'토익 준비', s:'오늘 끝낸 프로젝트' }); paintAll(); mains.forEach((m) => { moodFor(m, 'happy', 2000); hop(m.chi); say(m, '트로피가 선반에 올라갔어!') }) }
+  $('#bSeason').onclick = () => { S.seasons.xmas = true; S.fresh.add('santa'); S.fresh.add('snow'); paintAll(); showToast([byId.santa, byId.snow]) }
+  $('#bReset').onclick = () => { const keep = { theme:S.theme, motion:S.motion, sp:S.sp }; S = Object.assign(START(), keep); hideToast(); paintAll() }
+  seg('#segSp', Object.entries(SPECIES).map(([k, v]) => [k, v.name]), 'sp', paintAll)
+  seg('#segTh', null, 'theme', () => { document.documentElement.dataset.theme = S.theme; paintAll() })
+  seg('#segMo', null, 'motion', () => { document.documentElement.dataset.motion = S.motion; paintAll() })
+  document.addEventListener('visibilitychange', () => document.getAnimations().forEach((a) => (document.hidden ? a.pause() : a.play())))
+  renderUnlockTable(); paintAll()
+  // 확인용 주소 인자: ?sp=otter&theme=dark&lv=12&eq=straw,bandana,mug,backpack,sunset&demo=toast|choice|dex|panel|night|evo
+  if (qs.get('demo') === 'toast') { toggleTask(0); toggleTask(1) }
+  if (qs.get('demo') === 'choice') setTimeout(() => evoD.play(S.sp, 2, 3, { path:'a', eq:S.eq }), 50)
+  if (qs.get('demo') === 'dex') $('#bSeg button[data-v=dex]').click()
+  if (qs.get('demo') === 'panel') $('#dPanel').classList.add('open')
+  if (qs.get('demo') === 'night') moment('night')
+  if (qs.get('demo') === 'evo') { S.xp = need(S.lv) - 1; S.lv = 9; S.xp = need(9) - 1; paintAll(); setTimeout(() => toggleTask(0), 50) }
+}
+S.theme = qs.get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+document.documentElement.dataset.theme = S.theme
+if (qs.get('sp')) S.sp = qs.get('sp')
+if (qs.get('motion')) { S.motion = qs.get('motion'); document.documentElement.dataset.motion = S.motion }
+if (qs.get('lv')) { S.lv = +qs.get('lv'); S.xp = Math.min(S.xp, need(S.lv) - 1) }
+if (qs.get('path')) S.path = qs.get('path')
+if (qs.get('eq')) for (const id of qs.get('eq').split(',')) if (byId[id]) S.eq[byId[id].slot] = id
+boot()
+</script>
+</body>
+</html>
