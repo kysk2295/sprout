@@ -20,6 +20,7 @@ import { ToastProvider, useToast } from '../src/ui/Toast'
 import { useDeviceCalBridge } from '../src/calendars/bridge'
 import { useDeviceCalLifecycle } from '../src/calendars/store'
 import { WikiIndexProvider } from '../src/wiki/WikiIndex'
+import { RaiseRoot } from '../src/growth/raise'
 import { PERF, PerfProbe, seedPerfTasks } from '../src/dev/perfProbe'
 
 export const unstable_settings = { anchor: '(tabs)' }
@@ -38,7 +39,10 @@ export default function Root() {
             <ToastProvider>
               {/* 33 §11: 행 태그 알약·[[링크]]가 쓰는 색인 하나 */}
               <WikiIndexProvider>
-                <Screens signedIn={status === 'signedIn'} />
+                {/* 43: 입힌 옷을 모든 캐릭터 그림에 + 해금 판정 */}
+                <RaiseRoot signedIn={status === 'signedIn'}>
+                  <Screens signedIn={status === 'signedIn'} />
+                </RaiseRoot>
               </WikiIndexProvider>
             </ToastProvider>
           </ThemeProvider>

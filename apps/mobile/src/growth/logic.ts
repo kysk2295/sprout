@@ -318,3 +318,13 @@ export function axisView(ax: { ratioA: number; leanA: boolean | null }) {
   const pct = Math.round(ax.ratioA * 100)
   return { pctA: pct, pctB: 100 - pct, strongA: ax.leanA ?? pct >= 50 }
 }
+
+/** 43 §4.2 바쁜 날: 오늘 일정 합(분). 하루 밖으로 넘친 부분은 자른다. 종일·반복 일정은 부르는 쪽이 뺀다 [임시] */
+export function minutesToday(rows: { start_at: string; end_at: string }[], today: string): number {
+  const a = Date.parse(`${today}T00:00`), b = a + 86_400_000
+  const ms = rows.reduce((sum, r) => {
+    const s0 = Date.parse(r.start_at), e0 = Date.parse(r.end_at)
+    return Number.isFinite(s0) && Number.isFinite(e0) ? sum + Math.max(0, Math.min(b, e0) - Math.max(a, s0)) : sum
+  }, 0)
+  return Math.round(ms / 60000)
+}

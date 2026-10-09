@@ -1,6 +1,6 @@
 // 35 §2 프로필 이미지 한 개(휴대폰) — 데스크톱 components/avatar/ProfileAvatar.tsx와 같은 규칙:
 // 글자 · 성장 캐릭터(CharacterArt 재사용) · 알 · 얼굴(공용 도형 데이터 AVATAR_FACES).
-import { avatarCharBox, findFace, type FaceShape, type ResolvedAvatar } from '@sprout/schema/avatar'
+import { findFace, type FaceShape, type ResolvedAvatar } from '@sprout/schema/avatar'
 import { StyleSheet, Text, View } from 'react-native'
 import Svg, { Circle, Ellipse, Path, Rect } from 'react-native-svg'
 import { CharacterArt } from '../growth/art/CharacterArt'
@@ -29,12 +29,10 @@ export function ProfileAvatar({ avatar, size, letter }: { avatar: ResolvedAvatar
       </View>
     )
   }
-  const box = avatarCharBox(size, avatar.type === 'char' ? avatar.stage : null)
+  // 42 §5.3 아바타 = 머리 쪽 자르기(bust): 단계마다 다른 새싹·관·모자가 원 안에 보인다. 입힌 모자는 CharacterWearProvider(따라가기 = 지금 단계)
   return (
     <View style={[s.base, round, { backgroundColor: avatar.bg }]}>
-      <View style={{ position: 'absolute', left: box.left, top: box.top }}>
-        <CharacterArt species={avatar.type === 'char' ? avatar.species : null} stage={avatar.type === 'char' ? avatar.stage : 1} size={box.art} />
-      </View>
+      <CharacterArt species={avatar.type === 'char' ? avatar.species : null} stage={avatar.type === 'char' ? avatar.stage : 1} size={size} crop="bust" detail={size > 40 ? 'full' : 'small'} mood="smile" />
     </View>
   )
 }

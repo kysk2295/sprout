@@ -22,19 +22,6 @@ import {
 
 const card = (p: Palette) => ({ backgroundColor: p.cardBg })
 
-/** ③ 요약 칩 줄(넘치면 가로 스크롤) */
-export function SummaryChips({ p, weekDone, streak, total }: { p: Palette; weekDone: number; streak: number; total: number }) {
-  const chip = (t: string) => <View key={t} style={[s.chip, { backgroundColor: p.bgSelected }]}><Text style={[s.chipText, { color: p.textSecondary }]}>{t}</Text></View>
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
-      {chip(`이번 주 완료 ${weekDone}개`)}
-      {streak >= 2 ? chip(`🔥 연속 ${streak}일`) : null}
-      {chip(`총 ${total} XP`)}
-    </ScrollView>
-  )
-}
-
-/** ④ 진화 길: 5단계 원(44). 누르면 그 단계 미리보기 말풍선, 다시 누르거나 다른 곳을 누르면 닫힘 */
 export function EvolutionRoad({ p, species, level, stage, open, onOpen }: { p: Palette; species: Species | null; level: number; stage: number; open: number | null; onOpen: (n: number | null) => void }) {
   const sel = open !== null ? STAGES.find((x) => x.stage === open) : undefined
   return (

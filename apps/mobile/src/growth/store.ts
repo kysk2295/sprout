@@ -29,9 +29,14 @@ export const KEY = {
   room: (cid: string) => `sprout.room.${cid}`,
   greeted: 'sprout.greetedDay',
   motion: 'sprout.growthMotion',
-  surveyOffered: 'sprout.surveyOffered'
+  surveyOffered: 'sprout.surveyOffered',
+  /** 43 §4.2 하루 장면(하루 한 번) · 하루 다 함 */
+  dayMoment: (day: string) => `sprout.dayMoment.${day}`,
+  dayDone: (day: string) => `sprout.dayDone.${day}`,
+  /** 43 §10 옷장 마지막 탭 */
+  wardTab: 'sprout.wardTab'
 }
-export const keysFor = (cid: string | undefined) => [KEY.greeted, KEY.motion, KEY.surveyOffered, ...(cid ? [KEY.seenLevel(cid), KEY.seenLevelAt(cid), KEY.seenAt(cid), KEY.room(cid)] : [])]
+export const keysFor = (cid: string | undefined, day?: string) => [KEY.greeted, KEY.motion, KEY.surveyOffered, KEY.wardTab, ...(day ? [KEY.dayMoment(day), KEY.dayDone(day)] : []), ...(cid ? [KEY.seenLevel(cid), KEY.seenLevelAt(cid), KEY.seenAt(cid), KEY.room(cid)] : [])]
 
 export function readRoomOff(cid: string): Set<string> {
   try { return new Set(JSON.parse(read(KEY.room(cid)) ?? '[]') as string[]) } catch { return new Set() }

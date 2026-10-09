@@ -4,6 +4,7 @@
 // - 로그아웃 → 로그아웃 형태 + 그림·대기열 지움(25 §8.8)
 // - 캐릭터 그림: 보이지 않는 곳에 CharacterArt를 그려 PNG로 굽는다(WidgetArtBaker, §7.3)
 import { planWidgetActions, signedOutSnapshot, widgetSnapshotKey, type WidgetMood } from '@sprout/schema/widget'
+import { parseLook, type Look } from '@sprout/schema/wardrobe'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { AppState, View } from 'react-native'
 import type Svg from 'react-native-svg'
@@ -22,7 +23,7 @@ let running: Promise<void> | null = null
 let again = false
 
 // ── 굽기 요청(그림이 저장 칸에 없을 때) ──
-type ArtJob = { rel: string; species: Species | null; stage: number; mood: WidgetMood }
+type ArtJob = { rel: string; species: Species | null; stage: number; level: number; mood: WidgetMood; look: Look }
 let artJob: ArtJob | null = null
 const artListeners = new Set<() => void>()
 const setArtJob = (j: ArtJob | null) => { artJob = j; artListeners.forEach((l) => l()) }
@@ -37,12 +38,14 @@ export function refreshWidgets(signedIn: boolean): Promise<void> {
         if (!widgetsAvailable()) return
         const now = new Date()
         const today = dayKey()
-        const snap = signedIn ? composeWidgetSnapshot(await readWidgetData(coreDb, today), { today, now, signedIn, appliedActions: applied }) : signedOutSnapshot(now)
+        const data = signedIn ? await readWidgetData(coreDb, today) : null
+        const snap = data ? composeWidgetSnapshot(data, { today, now, signedIn, appliedActions: applied }) : signedOutSnapshot(now)
         const key = widgetSnapshotKey(snap)
         if (key === lastKey) continue
         if (await writeSnapshot(JSON.stringify(snap), true)) lastKey = key
         const g = snap.growth
-        if (g && !hasArt(g.art)) setArtJob({ rel: g.art, species: g.species as Species | null, stage: g.stage, mood: g.mood })
+        // 43 §17 6: 입힌 모습(look_json)까지 같이 굽는다 — 파일 이름에 모습 열쇠가 들어 있어 옷을 바꾸면 새로 굽는다
+        if (g && !hasArt(g.art)) setArtJob({ rel: g.art, species: g.species as Species | null, stage: g.stage, level: g.level, mood: g.mood, look: parseLook(data?.character?.look_json) })
       } while (again)
     } catch (e) {
       console.warn('[widgets] refresh failed:', e)
@@ -143,7 +146,7 @@ export function WidgetArtBaker() {
   if (!job) return null
   return (
     <View pointerEvents="none" style={{ position: 'absolute', left: -1000, top: -1000, width: 192, height: 192, opacity: 0 }} importantForAccessibility="no-hide-descendants">
-      <CharacterArt species={job.species} stage={job.stage} mood={job.mood} size={192} svgRef={ref} />
+      <CharacterArt species={job.species} stage={job.stage} mood={job.mood} size={192} svgRef={ref} noAura wear={{ lv: job.level, path: job.look.path, eq: job.look.eq }} />
     </View>
   )
 }

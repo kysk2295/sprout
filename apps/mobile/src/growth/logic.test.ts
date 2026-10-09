@@ -181,3 +181,8 @@ assert.deepEqual(axisView({ ratioA: 0.75, leanA: true }), { pctA: 75, pctB: 25, 
 assert.deepEqual(axisView({ ratioA: 0.5, leanA: false }), { pctA: 50, pctB: 50, strongA: false }) // 동점은 동점 문항으로 정한 쪽
 
 console.log('growth logic ok')
+
+// 43 §4.2 바쁜 날 일정 합(분): 하루 밖은 자르고 깨진 값은 뺀다
+import { minutesToday } from './logic.ts'
+assert.equal(minutesToday([{ start_at: '2026-10-09T09:00', end_at: '2026-10-09T12:00' }, { start_at: '2026-10-08T23:00', end_at: '2026-10-09T01:00' }, { start_at: 'x', end_at: 'y' }], '2026-10-09'), 240)
+assert.equal(minutesToday([], '2026-10-09'), 0)

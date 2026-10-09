@@ -7,10 +7,10 @@ import { useRouter } from 'expo-router'
 import { Check, ChevronLeft, X } from 'lucide-react-native'
 import { useEffect, useMemo, useState } from 'react'
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import Animated, { Easing, FadeIn, SlideInRight, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated'
+import Animated, { Easing, FadeIn, SlideInRight, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { CharacterArt, Egg } from '../../src/growth/art/CharacterArt'
-import { Confetti } from '../../src/growth/Bits'
+import { CharacterArt, Egg, HatchTop } from '../../src/growth/art/CharacterArt'
+import { SpeciesBurst } from '../../src/growth/Bits'
 import { assignCharacter } from '../../src/growth/data'
 import { CHARACTER_SQL } from '../../src/growth/goalCore'
 import { axisView, defaultName, MAIN_QUESTIONS, SURVEY_DESC, surveyQueue, typeCodeOf, type CharacterRow } from '../../src/growth/logic'
@@ -133,23 +133,29 @@ export default function Survey() {
   )
 }
 
-/** 알이 깨지는 애니메이션 → 캐릭터 + 색종이(B7) */
+/** 씨앗 깨기(42 §10.6): 종마다 다른 뚜껑(달팽이 씨앗 윗껍질 · 꿀벌 밀랍 뚜껑 · 애벌레 알 윗부분 · 올챙이 물방울 막)이
+ *  두 번 흔들린 뒤 날아가고(물방울은 터지고) 아랫단째 아기가 톡 + 종 조각. 움직임 줄이기 = 뚜껑 페이드만 */
 function Hatch({ species, reduced }: { species: Species; reduced: boolean }) {
   const [hatched, setHatched] = useState(reduced)
-  const shake = useSharedValue(0)
+  const rot = useSharedValue(0), tx = useSharedValue(0), ty = useSharedValue(0), sc = useSharedValue(1), op = useSharedValue(1), hop = useSharedValue(0)
   useEffect(() => {
-    if (reduced) return
-    shake.value = withSequence(withTiming(-10, { duration: 90 }), withTiming(10, { duration: 120 }), withTiming(-8, { duration: 110 }), withTiming(6, { duration: 100 }), withTiming(0, { duration: 90 }))
-    const t = setTimeout(() => setHatched(true), 650)
+    if (reduced) { op.value = withTiming(0, { duration: 300 }); return }
+    rot.value = withSequence(withTiming(-6, { duration: 180 }), withTiming(6, { duration: 180 }), withTiming(-8, { duration: 180 }), withTiming(8, { duration: 180 }), withTiming(0, { duration: 180 }))
+    const fly = { duration: 300 }
+    if (species === 'frog') sc.value = withDelay(900, withTiming(1.3, fly))
+    else { tx.value = withDelay(900, withTiming(40, fly)); ty.value = withDelay(900, withTiming(-120, fly)) }
+    op.value = withDelay(900, withTiming(0, fly))
+    hop.value = withDelay(900, withSequence(withTiming(-10, { duration: 150 }), withTiming(0, { duration: 250 })))
+    const t = setTimeout(() => setHatched(true), 900)
     return () => clearTimeout(t)
-  }, [reduced, shake])
-  const st = useAnimatedStyle(() => ({ transform: [{ rotate: `${shake.value}deg` }] }))
+  }, [reduced, species, rot, tx, ty, sc, op, hop])
+  const lid = useAnimatedStyle(() => ({ opacity: op.value, transform: [{ translateX: tx.value }, { translateY: ty.value }, { rotate: `${rot.value}deg` }, { scale: sc.value }] }))
+  const baby = useAnimatedStyle(() => ({ transform: [{ translateY: hop.value }] }))
   return (
     <View style={s.hatch}>
-      {hatched
-        ? <Animated.View entering={FadeIn.duration(reduced ? 150 : 300)}><CharacterArt species={species} stage={1} size={150} mood="happy" /></Animated.View>
-        : <Animated.View style={st}><Egg size={150} cracks={3} /></Animated.View>}
-      {hatched && !reduced ? <View style={s.hatchBurst} pointerEvents="none"><Confetti count={20} spread={120} /></View> : null}
+      <Animated.View style={baby}><CharacterArt species={species} stage={1} size={150} mood={hatched ? 'happy' : 'wow'} /></Animated.View>
+      <Animated.View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }, lid]} pointerEvents="none"><HatchTop species={species} size={150} fit /></Animated.View>
+      {hatched && !reduced ? <View style={s.hatchBurst} pointerEvents="none"><SpeciesBurst species={species} count={12} dist={110} big /></View> : null}
     </View>
   )
 }
