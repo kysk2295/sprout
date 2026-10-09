@@ -2,12 +2,20 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-10 AI 비서 B안 2단계 구현 (47 확정 v1.0 — "추천안대로") — **서버 배포 전**
+- 결정 ①~④ 확정: 턴 1번 = 1회·하루 40턴 · 확인 카드 하나에만 말로 `응`(지우기는 단추로만) · 일기 기본 꺼짐 + 설정(일기 AI 동의 필요) · 길잡이가 쓰기·확인·기간·마지막으로 한 날·일기·상대 날짜를 먼저.
+- 공용 `packages/schema/src/assistant{Tools,Exec,Router,Ground,Agent}.ts`(+ `assistantFixture.ts`·`assistantAgent.test.ts`), `recognize(…, { assistant: true })`. 서버 `ai.ts` `mode:'agent'`(턴 id·front 갈래·turn_limit·150초·`features:['agent']`·**num_ctx 6144 모든 용도**). 데스크톱 `AssistantAgent.tsx`·`AssistantBody.tsx`·`data/assistant.ts`·main IPC `assistant:agent`, 휴대폰 `src/assistant/AgentParts.tsx`·`store.ts`·`data.ts`, 설정 › AI 비서(일기 보기).
+- **배포 전에는 앱이 13 의도 경로 그대로**(`/ai/status`에 `features` 없음). 배포 = `server/api`만(마이그레이션 없음, Dockerfile이 `packages/schema/src` 복사). 새 환경 변수 기본값 그대로 써도 됨: `AI_DAILY_ASSISTANT=40`, `AI_NUM_CTX=6144`, `AI_AGENT_NUM_CTX`, `AI_PREDICT_AGENT_TOOLS=300`, `AI_PREDICT_AGENT_ANSWER=450`, `AI_AGENT_CALL_TIMEOUT_MS=60000`, `AI_TURN_MAX_CALLS=4`, `AI_TURN_MAX_MS=150000`.
+- 배포 전 시험: `ssh -N -L 21434:127.0.0.1:11434 macmini` + `node --experimental-strip-types server/scripts/ai-local.ts`(127.0.0.1:6070, 운영 JWKS로 토큰 검증) → 데스크톱 `SPROUT_AI_URL`, 휴대폰 `EXPO_PUBLIC_AI_URL`. 실측 `scripts/assistant-eval.ts`(research 39 §8: 사람 채점 20/22 × 2, 지어낸 데이터 0, 호출/턴 1.11).
+- 처리방침 제7조 2항 예시(국·영 md + `site/public/privacy.html`)·스토어 소개 줄 고침 — **사이트 배포는 아직**(시행일·공고일은 그대로 2026-10-06, 사용자 판단).
+- 남은 것: 메모 카드 → 그 메모 바로 열기(지금은 수집함 화면) · 데스크톱 [고치기]는 입력창에 문장(편집기 아님) · 넣기는 할 일만(꿈틀 일정 넣기 [다음]) · 근거 검사 횟수 서버 칸 [다음] · 동시 사용자 부하 실측 · 도구 턴 p90 40초 줄이기.
+
 ## ★ 2026-10-09 캐릭터 v3 — 3D 비닐 인형 화풍 + 장면 가득 + 만들기 흐름 (49 초안 · 사용자 확인 대기, 앱 코드 없음)
 - 요청: "레퍼런스처럼 캐릭터랑 UI/UX 다시… 지금은 조금 유치한 느낌" + "화면에 디자인이 가득 찬 디자인이 좋아". 명세 [49](docs/screens/49-character-v3.md)(48은 자동 정리가 먼저 씀), 시안 `docs/screens/mockups/character-v3.html`(만들기 흐름 끝까지 눌러짐 · 성장 홈 · 옷장 · 도감 · 진화 · 보이는 곳 · 할 일 화면 채움 두 단계 · v2 비교).
 - 그림 파이프라인 = **Blender 5.2 헤드리스 절차 생성 → 미리 구운 WebP**(`scripts/characters3d/` kk3d.py·jobs·encode.py·build.sh, `brew install --cask blender`). 결과 `docs/screens/mockups/assets/char3d/`(1.2 MB). Metal 렌더는 커널 컴파일로 첫 장 10분 → CPU로. 층 = 몸·얼굴·옷(몸을 shadow catcher로 두고 구움).
 - 결정 필요 4개(49 §11): ① 3D로 바꿀까(추천 바꿈) ② 할 일 화면 채움(추천 은은하게) ③ 씨앗 고르기 = 껍질 무늬만(추천) ④ 표정 11 → 5(추천). 확인 전에는 42·43 그림·코드 그대로.
 
-## ★ 2026-10-09 AI 비서 B안 "자유 대화 + 도구" (47 초안 · 사용자 확인 대기, 코드 없음)
+## 2026-10-09 AI 비서 B안 "자유 대화 + 도구" 1단계 (47 초안 → 10-10 확정·구현, 위)
 - 사용자 "B안": 캐릭터와 ChatGPT처럼 자유롭게 이야기 + 내 데이터가 필요하면 앱 도구(할 일·꿈틀 일정·메모·마지막으로 한 날·날짜 계산·프로젝트·성장·동의한 일기)로 찾아 답함. 모델은 Mac mini qwen3.5:9b 그대로, 밖으로 나가는 것 없음.
 - 실측 [research 39](docs/ticktick-research/39-assistant-tools-eval.md)(합성 데이터 22문항 × 88턴): 지시 v3(날짜표·label·재촉 1번)로 사람 채점 17/22, 데이터 질문 8/8, **쓰기 도구는 0/15**(모델이 말로만 묻는다) → 쓰기·확인·상대 날짜·일기 꺼짐은 앱 길잡이가 먼저 푼다. 지연: 호출 1번 중앙 ~11초, 도구 턴 중앙 ~30초(p90 37초).
 - 명세 [47](docs/screens/47-assistant-free-chat.md): 도구 10개 JSON 스키마, 루프(호출 최대 4·시간), 도구 칩·결과 카드·확인 카드(넣기·고치기·취소 → 되돌리기), 근거 검사, 상한 = 턴 단위 하루 40 [임시], num_ctx 6144, 일기 대화와 따로. 결정 필요 4개(§15). 개인정보 문구 필수 변경 없음(외부 캘린더는 도구에서 뺌), 권장 2곳(§13).
