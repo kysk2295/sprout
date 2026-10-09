@@ -63,7 +63,7 @@
 · AI는 운영자의 서버에서 직접 돌리는 모델로 처리하고, 외부 AI 회사로 보내지 않아요. 요청 원문은 저장하지 않아요.
 
 ■ 어디서나 같이
-· iPhone·iPad·Android·Mac·Windows 앱이 자동으로 동기화
+· iPhone·Android·Mac·Windows 앱이 자동으로 동기화
 · 인터넷이 끊겨도 기기에서 그대로 쓰고, 다시 연결되면 맞춰요
 
 ■ 광고·추적 없음
@@ -74,7 +74,7 @@
 이용약관: https://web-production-cd889.up.railway.app/terms
 문의: kysk2295@naver.com
 ```
-> 확인: "공유하기로 모으기"는 iOS 공유 확장만 있음(Android 공유 대상 없음) → Play 설명에서는 그 줄을 지운다. iPad는 `supportsTablet: true`라 나열했지만 iPad 레이아웃 점검 전이면 뺀다. Windows 앱이 스토어 출시와 같이 나가지 않으면 설명의 Windows를 뺀다.
+> 확인: "공유하기로 모으기"는 iOS 공유 확장만 있음(Android 공유 대상 없음) → Play 설명에서는 그 줄을 지운다. iPad는 v1에서 지원하지 않는다(`supportsTablet: false`, 2026-10-09 사용자 결정 — 출시 뒤 1.1 업데이트에서 iPad 화면을 만들고 켠다. 한 번 켜면 끌 수 없음) → 설명에서 iPad를 뺐다. Windows 앱이 스토어 출시와 같이 나가지 않으면 설명의 Windows를 뺀다.
 
 **키워드 (App Store, 100자)**
 `할일,투두,플래너,캘린더,일정,습관,목표,캐릭터,성장,메모,일기,체크리스트,리마인더,생산성,다이어리` (약 55자 — 남는 칸은 검색 데이터 보고 채운다. 앱 이름·부제에 있는 낱말은 넣지 않아도 된다)
@@ -121,7 +121,7 @@ AI ASSISTANT, WORK MAP & JOURNAL
 • AI runs on a model hosted on the operator's own server — never sent to third-party AI companies, and request text isn't stored.
 
 EVERYWHERE
-• iPhone, iPad, Android, Mac and Windows stay in sync
+• iPhone, Android, Mac and Windows stay in sync
 • Works offline and catches up when you reconnect
 
 NO ADS, NO TRACKING
