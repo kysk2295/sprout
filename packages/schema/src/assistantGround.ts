@@ -17,6 +17,8 @@ export type GroundInput = {
   saved?: boolean
   /** 카드가 있다(다 빠지면 '찾은 건 카드에 있어.') */
   hasCards?: boolean
+  /** 이 턴에 확인 카드가 떴다(없으면 '넣을까?'는 엉뚱한 말) */
+  proposed?: boolean
 }
 export type GroundResult = { text: string; hits: number; reasons: string[]; priceBlocked: boolean }
 
@@ -129,10 +131,19 @@ export function ground(i: GroundInput): GroundResult {
     if (!drop && !i.usedTools && (claimsSearched(s) || /(할\s*일|메모|일정|기록)[^.!?]{0,12}(없|있)/.test(s))) { drop = true; reasons.push('unfounded') }
     // 3c. 찾은 게 있는데 '기록은 없어'라고 함
     if (!drop && i.usedTools && i.facts.titles.length && /(기록|할\s*일|일정)[은는이가]?\s*없/.test(s)) { drop = true; reasons.push('false-empty') }
+    // 3d. 실측에서 나온 군말: 묻지 않은 일기 이야기(지시 9가 샘) · 카드도 없는데 '넣을까?' · 결과에 없는 'N번째'
+    if (!drop && /(일기|못\s*보게\s*해)/.test(s) && !/일기/.test(i.user)) { drop = true; reasons.push('diary-aside') }
+    if (!drop && !i.proposed && /(넣을까|추가할까|등록할까|잡을까)\??$/.test(s) && !/(넣|추가|등록|잡아|예약)/.test(i.user)) { drop = true; reasons.push('stray-propose') }
+    if (!drop && i.usedTools && /번째/.test(s)) { drop = true; reasons.push('ordinal') }
     // 4. 가격 숫자(인터넷 없음 — §8.3): 결과에 없는 가격이면 빼고 띠
     if (!drop && PRICE.test(s) && !i.facts.numbers.some((n) => s.includes(String(n)))) { drop = true; priceBlocked = true; reasons.push('price') }
     // 5. 저장 말인데 저장 없음 → '이렇게 넣을까?'
-    if (!drop && !i.saved && SAVE_RE.test(s) && !/(까\?|까|래\?|줄까)/.test(s)) { s = '이렇게 넣을까?'; reasons.push('save') }
+    if (!drop && !i.saved && SAVE_RE.test(s) && !/(까\?|까|래\?|줄까)/.test(s)) {
+      // 확인 카드가 떠 있거나 쓰기를 부탁한 말이면 '이렇게 넣을까?', 아니면 그 문장을 뺀다(실측: 레벨 답 끝에 엉뚱한 '이렇게 넣을까?')
+      if (i.proposed || /(넣|추가|등록|잡아|예약)/.test(i.user)) s = '이렇게 넣을까?'
+      else drop = true
+      reasons.push('save')
+    }
     if (!drop) keep.push(s)
   }
   let out = [...new Set(keep)].join(' ').trim()

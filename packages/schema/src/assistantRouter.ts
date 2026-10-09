@@ -111,7 +111,7 @@ export function route(text: string, ctx: { now: Date; pending?: ConfirmCard | nu
     if ((!title || GENERIC.test(title)) && subject) { basis = `이전 대화의 “${subject}”을 이어 받음`; title = `${subject} ${title}`.trim() }
     if (title && !GENERIC.test(title)) {
       const listWord = /(\S+)\s*리스트(에|로)?/.exec(body)?.[1]
-      return r({ kind: 'create', title: title.replace(/\s*\S+\s*리스트(에|로)?\s*/, ' ').trim(), start: rec.start_at ?? '', due: rec.due_at ?? '', repeat: rec.repeat_rule ?? '', said: rec.recognized.join(' '), ...(rec.duration_min ? { durationMin: rec.duration_min } : {}), ...(rec.assumed_pm ? { assumedPm: true } : {}), ...(basis ? { basis } : {}), ...(listWord ? { list: listWord } : {}) })
+      return r({ kind: 'create', title: title.replace(/\s*\S+\s*리스트(에|로)?\s*/, ' ').trim(), start: rec.start_at ?? '', due: rec.due_at ?? '', repeat: rec.repeat_rule ?? '', said: rec.recognized.join(' ').replace(/(에|로|으로|부터|까지|쯤에?|경에?)(?=\s|$)/g, ''), ...(rec.duration_min ? { durationMin: rec.duration_min } : {}), ...(rec.assumed_pm ? { assumedPm: true } : {}), ...(basis ? { basis } : {}), ...(listWord ? { list: listWord } : {}) })
     }
   }
   // ④ 쓰기: 완료·옮기기·지우기 → 후보를 찾아 확인 카드
@@ -153,6 +153,8 @@ export function route(text: string, ctx: { now: Date; pending?: ConfirmCard | nu
     else calls.push({ name: 'find_tasks', args: { status: 'open', from: per.from, to: per.to } }, { name: 'find_events', args: { from: per.from, to: per.to } })
     return r({ kind: 'prefetch', calls })
   }
+  // 기간 없이 '내 할 일 목록 …' → 남은 할 일(마감 순) 먼저(실측: 모델이 status all로 끝낸 기록까지 읽음)
+  if (!bands.length && /할\s*일\s*(목록|리스트|뭐|전부|다\s)/.test(t)) return r({ kind: 'prefetch', calls: [{ name: 'find_tasks', args: { status: 'open', sort: 'due' } }] })
   return r({ kind: 'model' })
 }
 

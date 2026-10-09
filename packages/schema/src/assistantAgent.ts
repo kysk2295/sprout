@@ -245,9 +245,10 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
     return result('', { calls, nudged, error: stopped ? STOPPED_TEXT : timedOut ? TOO_LONG_TEXT : msgOf(e), stopped })
   }
   clearTimeout(timer)
-  const g = ground({ text: answer, facts, user: i.text + ' ' + routed.notes.join(' '), now, aliases: memory.aliases, usedTools, hasCards: cards.length > 0 })
+  const g = ground({ text: answer, facts, user: i.text + ' ' + routed.notes.join(' '), now, aliases: memory.aliases, usedTools, hasCards: cards.length > 0, proposed: cards.some(isConfirm) })
   const bands = [...routed.bands]
-  if ((g.priceBlocked || /인터넷/.test(answer)) && !bands.includes('noweb')) bands.push('noweb')
+  // 띠는 길잡이가 본 말(가격·날씨…)이나 근거 검사가 막은 가격일 때만 — 모델이 '인터넷' 말만 해도 붙이면 엉뚱한 띠(실측: 빈 미용실 결과)
+  if (g.priceBlocked && !bands.includes('noweb')) bands.push('noweb')
   return { ...result(g.text, { calls, nudged, grounding: { hits: g.hits, reasons: g.reasons }, raw: answer }), bands }
 }
 
