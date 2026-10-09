@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 108 108">
+  <!-- Android 적응형 배경 -->
+  <defs><linearGradient id="bg" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="#167762"/><stop offset="1" stop-color="#0A4337"/></linearGradient></defs><rect width="108" height="108" fill="url(#bg)"/>
+</svg>

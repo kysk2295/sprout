@@ -11,7 +11,7 @@ import { renderSvg, alphaBounds } from './render.mjs'
 const here = dirname(fileURLToPath(import.meta.url))
 const tmp = mkdtempSync(join(tmpdir(), 'sprout-measure-'))
 const out = {}
-for (const k of Object.values(CONCEPTS)) {
+for (const k of Object.values(CONCEPTS).filter((x) => !x.mark)) { // mark 기호(씨앗 친구)는 100 판 좌표 그대로라 잴 필요 없다
   // 1000 상자를 1024 캔버스에 (12,12) 옮겨 그대로 그린다
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs><mask id="m" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1400" height="1400"><rect x="-200" y="-200" width="1400" height="1400" fill="#fff"/>${k.cut}</mask></defs><g transform="translate(12 12)"><g mask="url(#m)">${k.shape.replaceAll('{FG}', '#000')}</g></g></svg>`
   const png = join(tmp, `${k.id}.png`)

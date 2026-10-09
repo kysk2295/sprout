@@ -4,8 +4,9 @@
 //   node scripts/brand/build-icons.mjs            # 추천 후보(glyphs.mjs RECOMMENDED) → docs/release/brand/out/<id>/
 //   node scripts/brand/build-icons.mjs c          # 다른 후보
 //   node scripts/brand/build-icons.mjs a --out /tmp/icons
+//   node scripts/brand/build-icons.mjs seed --apply  # 만든 뒤 앱·사이트·스토어 자리에 바로 덮어쓴다(45 확정 로고)
 //
-// 앱 폴더의 지금 아이콘은 바꾸지 않는다. 결과 폴더의 APPLY.md 대로 사람이 옮긴다.
+// --apply가 없으면 앱 폴더의 지금 아이콘은 바꾸지 않는다(결과 폴더의 APPLY.md 대로 옮긴다).
 // 기호(glyphs.mjs)를 고쳤으면 먼저 node scripts/brand/measure.mjs.
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -26,6 +27,7 @@ const id = args.find((a) => !a.startsWith('--') && !args[args.indexOf(a) - 1]?.s
 if (!CONCEPTS[id]) throw new Error(`없는 후보: ${id} (가능: ${Object.keys(CONCEPTS).join(', ')})`)
 const outIdx = args.indexOf('--out')
 const OUT = outIdx >= 0 ? args[outIdx + 1] : join(root, 'docs', 'release', 'brand', 'out', id)
+const APPLY = args.includes('--apply')
 
 rmSync(OUT, { recursive: true, force: true })
 const tmp = mkdtempSync(join(tmpdir(), 'sprout-icons-'))
@@ -188,8 +190,8 @@ write(
   join(OUT, 'web', 'site.webmanifest'),
   JSON.stringify(
     {
-      name: '[제품명]',
-      short_name: '[제품명]',
+      name: '꿈틀',
+      short_name: '꿈틀',
       icons: [
         { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
         { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -210,14 +212,12 @@ opaque(m('ios-light'), join(tmp, 'play-1024.png'))
 resize(join(tmp, 'play-1024.png'), mk(join(OUT, 'store', 'play-icon-512.png')), 512) // Play: 512×512, 32비트 PNG, 모서리는 Play가 깎음
 note(join(OUT, 'store', 'play-icon-512.png'))
 {
-  // Play 그래픽 이미지 1024×500 — 글자 없이(제품명 미정) 기호만. 이름이 정해지면 다시 만든다
-  const g = variantSvg(id, 'splash-light')
-    .replace(/^<svg[^>]*>/, '')
-    .replace(/<\/svg>\s*$/, '')
+  // Play 그래픽 이미지 1024×500 — 글자 없는 판(기호만). 글자 로고가 들어간 판은 build-marketing.mjs가 만든다
+  const g = variantSvg(id, 'splash-light').replace(/^<svg xmlns="http:\/\/www.w3.org\/2000\/svg" width="1024" height="1024"/, '<svg x="337" y="75" width="350" height="350"')
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
   <defs><linearGradient id="fgbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${PALETTE.light.bgTop}"/><stop offset="1" stop-color="${PALETTE.light.bgBottom}"/></linearGradient></defs>
   <rect width="1024" height="500" fill="url(#fgbg)"/>
-  <svg x="362" y="-50" width="300" height="600" viewBox="0 0 1024 1024" preserveAspectRatio="xMidYMid meet">${g}</svg>
+  ${g}
 </svg>`
   const p = mk(join(OUT, 'store', 'play-feature-graphic-1024x500.png'))
   renderSvg(svg, join(tmp, 'feature.png'), 1024, 500)
@@ -225,7 +225,7 @@ note(join(OUT, 'store', 'play-icon-512.png'))
 }
 
 // ── 원본 SVG ─────────────────────────────────────────
-for (const v of ['ios-light', 'ios-dark', 'mac-light', 'mac-dark', 'android-fg', 'android-bg', 'android-mono', 'mono', 'mono-small', 'favicon', 'favicon-small', 'splash-light', 'splash-dark'])
+for (const v of ['ios-light', 'ios-dark', 'ios-tinted', 'mac-light', 'mac-dark', 'android-fg', 'android-bg', 'android-mono', 'mono', 'mono-small', 'favicon', 'favicon-small', 'splash-light', 'splash-dark'])
   svgFile(v, join(OUT, 'svg', `${v}.svg`))
 
 rmSync(tmp, { recursive: true, force: true })
@@ -283,3 +283,40 @@ ${made.map((f) => `- ${f}`).join('\n')}
 `
 )
 console.log(`후보 ${id}: 파일 ${made.length}개 → ${OUT}`)
+
+// ── --apply: 앱·사이트·스토어 자리에 덮어쓴다 ─────────────────
+if (APPLY) {
+  const pairs = [
+    ['macos/icon.icns', 'apps/desktop/build/icon.icns'],
+    ['macos/icon.png', 'apps/desktop/build/icon.png'],
+    ['svg/mac-light.svg', 'apps/desktop/build/icon.svg'],
+    ['windows/icon.ico', 'apps/desktop/build/icon.ico'],
+    ['macos/trayTemplate.png', 'apps/desktop/resources/trayTemplate.png'],
+    ['macos/trayTemplate@2x.png', 'apps/desktop/resources/trayTemplate@2x.png'],
+    ['macos/trayTemplate@3x.png', 'apps/desktop/resources/trayTemplate@3x.png'],
+    ['windows/tray.ico', 'apps/desktop/resources/tray.ico'],
+    ['ios/AppIcon.appiconset/AppIcon-1024.png', 'apps/mobile/assets/brand/AppIcon-1024.png'],
+    ['ios/AppIcon.appiconset/AppIcon-1024-dark.png', 'apps/mobile/assets/brand/AppIcon-1024-dark.png'],
+    ['ios/AppIcon.appiconset/AppIcon-1024-tinted.png', 'apps/mobile/assets/brand/AppIcon-1024-tinted.png'],
+    ['android/expo/adaptive-foreground.png', 'apps/mobile/assets/brand/adaptive-foreground.png'],
+    ['android/expo/adaptive-background.png', 'apps/mobile/assets/brand/adaptive-background.png'],
+    ['android/expo/adaptive-monochrome.png', 'apps/mobile/assets/brand/adaptive-monochrome.png'],
+    ['android/expo/notification-icon.png', 'apps/mobile/assets/brand/notification-icon.png'],
+    ['splash/splash-icon.png', 'apps/mobile/assets/brand/splash-icon.png'],
+    ['splash/splash-icon-dark.png', 'apps/mobile/assets/brand/splash-icon-dark.png'],
+    ['web/favicon.ico', 'site/public/favicon.ico'],
+    ['web/favicon.svg', 'site/public/favicon.svg'],
+    ['web/favicon.svg', 'site/public/assets/brand/favicon.svg'],
+    ['web/apple-touch-icon.png', 'site/public/apple-touch-icon.png'],
+    ['web/icon-192.png', 'site/public/icon-192.png'],
+    ['web/icon-512.png', 'site/public/icon-512.png'],
+    ['web/icon-maskable-512.png', 'site/public/icon-maskable-512.png'],
+    ['store/play-icon-512.png', 'docs/release/store/play-assets/icon-512.png'],
+    ['store/app-store-1024.png', 'docs/release/store/app-store-assets/icon-1024.png']
+  ]
+  for (const [from, to] of pairs) {
+    mkdirSync(dirname(join(root, to)), { recursive: true })
+    copyFileSync(join(OUT, from), join(root, to))
+  }
+  console.log(`--apply: ${pairs.length}개 자리에 덮어씀`)
+}

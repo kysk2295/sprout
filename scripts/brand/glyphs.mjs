@@ -47,13 +47,50 @@ export const CONCEPTS = {
   }
 }
 
-export const RECOMMENDED = 'a'
+// ── 45 확정(2026-10-09, 사용자 "추천대로"): B 씨앗 친구 × 깊은 숲 ─────────────────
+// 위 a·b·c는 예전 후보(기록용)다. 씨앗 친구는 여러 색이 겹치는 그림이라 1000 상자 shape/cut 대신
+// 100 × 100 판 위의 mark(c, small) 함수로 그린다(시안 docs/screens/mockups/brand-identity.html LOGOS b와 같은 좌표).
+//   c = 색 자리(husk 씨앗 껍질 · eye 눈·입 · cheek 볼 · leaf/leaf2 잎). c.mono면 단색 마스크(흰 = 칠함, 검정 = 구멍).
+//   small = 32px 이하: 눈을 키우고 볼·입·빛을 뺀다, 새싹을 조금 키운다.
+const sproutAt = (x, y, k, c, w) =>
+  `<path d="M${x} ${y + 10 * k} V${y + 1}" stroke="${c.leaf}" stroke-width="${w}" stroke-linecap="round"/>` +
+  `<path transform="translate(${x} ${y}) scale(${k})" d="M-1 1 C-8 1 -15 -3 -17 -12 C-8 -13 -2 -8 -1 1 Z" fill="${c.leaf2}"/>` +
+  `<path transform="translate(${x} ${y}) scale(${k})" d="M1 0 C2 -9 8 -15 18 -15 C18 -5 11 0 1 0 Z" fill="${c.leaf}"/>`
 
-// 색 — 성장(초록) 계열. 앱 강조색(파랑 #4e75f2)은 틱틱 UI 기준이라 브랜드 색과 분리한다.
+CONCEPTS.seed = {
+  id: 'seed',
+  name: '씨앗 친구 (Seed Buddy)',
+  nameEn: 'Seed Buddy',
+  idea: '머리에 새싹 난 씨앗 얼굴 — 앱의 주인공(캐릭터)이 곧 로고. 작은 크기에서도 눈 두 개가 남는다.',
+  mark: (c, s = false) =>
+    `<g transform="translate(0 2)"><path d="M50 31 C69 31 81 45 81 61 C81 77 67 87 50 87 C33 87 19 77 19 61 C19 45 31 31 50 31 Z" fill="${c.husk}"/>` +
+    (c.mono || s ? '' : `<ellipse cx="35" cy="45" rx="7.5" ry="4" transform="rotate(-32 35 45)" fill="#fff" opacity=".5"/>`) +
+    (c.mono || s ? '' : `<ellipse cx="31" cy="69" rx="5.6" ry="3.4" fill="${c.cheek}" opacity=".8"/><ellipse cx="69" cy="69" rx="5.6" ry="3.4" fill="${c.cheek}" opacity=".8"/>`) +
+    `<ellipse cx="39.5" cy="60" rx="${s ? 5.6 : 4.4}" ry="${s ? 6.6 : 5.4}" fill="${c.eye}"/><ellipse cx="60.5" cy="60" rx="${s ? 5.6 : 4.4}" ry="${s ? 6.6 : 5.4}" fill="${c.eye}"/>` +
+    (s ? '' : `<circle cx="41.2" cy="58" r="1.6" fill="#fff"/><circle cx="62.2" cy="58" r="1.6" fill="#fff"/>`) +
+    (s ? '' : `<path d="M45.5 68.5 Q50 73 54.5 68.5" stroke="${c.eye}" stroke-width="2.6" stroke-linecap="round" fill="none"/>`) +
+    sproutAt(50, 21, s ? 1.15 : 1, c, s ? 6 : 4.8) +
+    '</g>',
+  // 단색 기호를 정사각에 담을 때의 상자(100 판 단위) — 껍데기 19~81, 잎 끝 ~5, 아래 ~89
+  box: [7, 4, 86, 86]
+}
+
+export const RECOMMENDED = 'seed'
+
+/** 45 §3 깊은 숲 — 아이콘 판·기호 색(시안 PALS forest ic / icd) */
+export const SEED_COLORS = {
+  light: { bg1: '#167762', bg2: '#0A4337', husk: '#F5C487', eye: '#2B1F18', cheek: '#FF8B86', leaf: '#8EE6A6', leaf2: '#C6F5A6' },
+  dark: { bg1: '#12261F', bg2: '#07110D', husk: '#E8B474', eye: '#1B140F', cheek: '#E0706E', leaf: '#6FDCA0', leaf2: '#B3EE8F' }
+}
+export const MONO = { husk: '#fff', leaf: '#fff', leaf2: '#fff', eye: '#000', cheek: 'none', mono: true }
+
+// 색 — 45 깊은 숲. 앱 기본 테마 강조색(--color-accent #12715E)과 같은 집안이다.
 export const PALETTE = {
-  light: { bgTop: '#5CD08F', bgBottom: '#1F9455', fg: '#FFFFFF' },
-  dark: { bgTop: '#17291F', bgBottom: '#0B1611', fgTop: '#7BE5A8', fgBottom: '#34B771' },
+  light: { bgTop: SEED_COLORS.light.bg1, bgBottom: SEED_COLORS.light.bg2, fg: '#FFFFFF' },
+  dark: { bgTop: SEED_COLORS.dark.bg1, bgBottom: SEED_COLORS.dark.bg2, fgTop: '#6FDCA0', fgBottom: '#3CC4A2' },
   mono: '#000000',
-  brand: '#2BAE66', // 단색 배경(안드로이드 적응형 배경·스플래시 배경 등)
-  brandDark: '#0F1E16'
+  brand: '#12715E', // 단색 배경(스플래시·알림 색·사이트 theme_color)
+  brandDark: '#0A100E', // 다크 스플래시 = 앱 다크 바닥
+  honey: '#F2B84B',
+  apricot: '#F08A5D'
 }
