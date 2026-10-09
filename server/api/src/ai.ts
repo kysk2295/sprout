@@ -13,10 +13,18 @@
 //   대기열은 interactive 먼저 → 같은 갈래 안에서는 사용자별 돌아가며. background는 사용자당 1개, 대기 상한 따로, 줄이 차면 밀려난다(bg_deferred + Retry-After)
 // 규칙: 동시 실행 수 + 대기열(공용), 사용자별 분·일 상한, 성장 주간 AI(kpi-draft·weekly-report) 주 1+1, 용도별 하루 상한(breakdown 10 · tag 40 · diary-chat 30 · diary-distill 5),
 //       용도별 출력 상한(tag 1600 — 할 일 40개 답이 700토큰을 넘는다, 33 §9),
-//       컨텍스트 4096·출력 700 토큰·제한 시간, 클라우드·원격 모델 금지. 요청·응답 원문은 저장도 기록도 하지 않는다(숫자만).
+//       컨텍스트 6144(모든 용도 같게 — 바뀌면 모델을 다시 올림)·출력 700 토큰·제한 시간, 클라우드·원격 모델 금지. 요청·응답 원문은 저장도 기록도 하지 않는다(숫자만).
+// 47 AI 비서 B안(자유 대화 + 앱 도구): POST /ai/assistant {mode:'agent', messages, tools, stream} + 헤더 X-Sprout-Turn: <턴 id>
+//   tools = 도구 이름(또는 {function:{name}}) — packages/schema/src/assistantTools.ts TOOL_NAMES의 부분집합. 정의는 서버 것(TOOL_SPECS)만 Ollama로 보낸다
+//   messages = system(앱 칸: 오늘·날짜표·이름 — 서버가 이번 질문 앞에 [앱 정보]로 붙임, system은 AGENT_SYSTEM 고정 = 캐시, 앱 지시는 버림) · user · assistant(+tool_calls) · tool(tool_name). 끝은 user 또는 tool
+//   상한은 턴 단위(47 §9·§15 ①): 같은 턴 id의 첫 호출만 분·일·용도(assistant 하루 40) 상한에서 센다. 2~4번째는 세지 않고(requests 0, 토큰·시간만)
+//     대기열 맨 앞(front 갈래)으로. 5번째는 turn_limit, 턴 시작 150초 뒤는 timeout, 3분 지나면 잊는다. 첫 호출이 실패하면 턴도 지운다(다시 시도 = 새 턴)
+//   num_ctx 6144(AI_AGENT_NUM_CTX) · 출력 도구 있음 300 / 답 450 [임시] · 호출당 60초. 스트림은 Ollama 줄 그대로(tool_calls도 message 안에).
+//   mode 없음 = 예전 의도 JSON 경로 그대로. /ai/status features에 'agent'가 있으면 앱이 이 경로를 쓴다(없으면 예전 경로)
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AiBackend } from './ai-backend.ts'
 import { COMPANION_RULES, DIARY_GROUNDING, DISTILL_SCHEMA, DISTILL_SYSTEM } from '../../../packages/schema/src/diaryPrompts.ts'
+import { AGENT_CONTEXT_MAX, AGENT_SYSTEM, isToolName, NUDGE, TOOL_SPECS, type ToolName } from '../../../packages/schema/src/assistantTools.ts'
 export { COMPANION_RULES, DIARY_GROUNDING, DISTILL_SYSTEM }
 
 export const ENDPOINTS = ['assistant', 'classify', 'map', 'diary', 'kpi-draft', 'weekly-report', 'breakdown', 'tag', 'diary-chat', 'diary-distill'] as const
@@ -68,6 +76,15 @@ export type AiConfig = {
   maxMessageChars: number
   maxTotalChars: number
   maxBodyBytes: number
+  /** 47 agent: 컨텍스트 · 출력(도구 있음 / 답) · 호출당 시간 · 턴 */
+  agentNumCtx: number
+  agentPredictTools: number
+  agentPredictAnswer: number
+  agentCallTimeoutMs: number
+  agentMaxMessages: number
+  turnMaxCalls: number
+  turnMaxMs: number
+  turnTtlMs: number
 }
 
 export function aiConfigFromEnv(env: Record<string, string | undefined> = process.env): AiConfig {
@@ -93,16 +110,25 @@ export function aiConfigFromEnv(env: Record<string, string | undefined> = proces
     perMinute: n('AI_USER_PER_MINUTE', 6),
     perDay: n('AI_USER_PER_DAY', 100),
     weekly: { 'kpi-draft': n('AI_WEEKLY_KPI_DRAFT', 1), 'weekly-report': n('AI_WEEKLY_REPORT', 1) },
-    daily: { breakdown: n('AI_DAILY_BREAKDOWN', 10), tag: n('AI_DAILY_TAG', 40), 'diary-chat': n('AI_DAILY_DIARY_CHAT', 30), 'diary-distill': n('AI_DAILY_DIARY_DISTILL', 5) },
+    daily: { assistant: n('AI_DAILY_ASSISTANT', 40), breakdown: n('AI_DAILY_BREAKDOWN', 10), tag: n('AI_DAILY_TAG', 40), 'diary-chat': n('AI_DAILY_DIARY_CHAT', 30), 'diary-distill': n('AI_DAILY_DIARY_DISTILL', 5) },
     predict: { tag: n('AI_PREDICT_TAG', 1600) },
-    numCtx: n('AI_NUM_CTX', 4096),
+    // 47 §9: 모든 용도 6144 — Ollama는 num_ctx가 바뀌면 모델을 다시 올린다(약 13초). 비서만 6144면 다른 용도와 번갈아 다시 올림
+    numCtx: n('AI_NUM_CTX', 6144),
     numPredict: n('AI_NUM_PREDICT', 700),
     keepAlive: env.AI_KEEP_ALIVE || '5m',
     tzOffsetMin: n('AI_TZ_OFFSET_MIN', 540), // 한국 시각. 날짜·주(월요일 시작) 경계
     maxMessages: n('AI_MAX_MESSAGES', 30),
     maxMessageChars: n('AI_MAX_MESSAGE_CHARS', 30_000),
     maxTotalChars: n('AI_MAX_TOTAL_CHARS', 60_000),
-    maxBodyBytes: n('AI_MAX_BODY_BYTES', 256 * 1024)
+    maxBodyBytes: n('AI_MAX_BODY_BYTES', 256 * 1024),
+    agentNumCtx: n('AI_AGENT_NUM_CTX', n('AI_NUM_CTX', 6144)),
+    agentPredictTools: n('AI_PREDICT_AGENT_TOOLS', 300), // [임시] 47 §9는 200 — 도구를 줘도 바로 답하는 일이 있어 잘리지 않게
+    agentPredictAnswer: n('AI_PREDICT_AGENT_ANSWER', 450),
+    agentCallTimeoutMs: n('AI_AGENT_CALL_TIMEOUT_MS', 60_000),
+    agentMaxMessages: n('AI_AGENT_MAX_MESSAGES', 40),
+    turnMaxCalls: n('AI_TURN_MAX_CALLS', 4),
+    turnMaxMs: n('AI_TURN_MAX_MS', 150_000),
+    turnTtlMs: n('AI_TURN_TTL_MS', 180_000)
   }
 }
 
@@ -111,6 +137,7 @@ const MESSAGES = {
   unauthorized: [401, '로그인이 필요해요.'],
   not_found: [404, '없는 AI 기능이에요.'],
   bad_request: [400, '요청 형식이 올바르지 않아요.'],
+  turn_limit: [429, '한 번에 너무 많이 찾았어요. 더 좁혀서 물어봐 주세요.'],
   model: [400, '쓸 수 있는 모델이 아니에요.'],
   too_large: [413, '요청이 너무 커요. 내용을 줄여 주세요.'],
   user_busy: [429, '이미 처리 중인 AI 요청이 있어요. 끝난 뒤 다시 시도해 주세요.'],
@@ -228,10 +255,13 @@ export function memoryUsageStore() {
 // background는 동시에 bgConcurrency개까지만 돌고(기본: 전체-1, 최소 1), 사용자당 bgPerUser개까지만 돈다.
 // 줄이 꽉 찼을 때 interactive가 오면 가장 늦게 들어온 background를 밀어낸다(bg_deferred + Retry-After, 앱이 나중에 다시).
 export type Priority = 'interactive' | 'background'
+/** 갈래: front = 같은 턴의 이어 받기(47 §9 — 사용자 차례가 이미 시작됨), interactive, background */
+type LaneKey = 'front' | Priority
 type Waiter = {
   seq: number
   user: string
   cls: Priority
+  lane: LaneKey
   start: () => void
   reject: (e: unknown) => void
   onPosition?: (position: number, waiting: number) => void
@@ -245,7 +275,7 @@ export class AiQueue {
   running = 0
   runningBg = 0
   private bgByUser = new Map<string, number>()
-  private lanes: Record<Priority, Lane> = { interactive: lane(), background: lane() }
+  private lanes: Record<LaneKey, Lane> = { front: lane(), interactive: lane(), background: lane() }
   private seq = 0
   concurrency: number
   /** 대기 전체 상한(두 갈래 합) */
@@ -265,13 +295,14 @@ export class AiQueue {
   }
   /** 차례 순서대로 늘어선 대기 목록(사용자 정보는 밖으로 내보내지 않는다 — 길이·순서 확인용) */
   get waiting(): Waiter[] { return this.order() }
-  waitingOf(cls: Priority) { return this.lanes[cls].size }
+  waitingOf(cls: LaneKey) { return this.lanes[cls].size }
+  private get total() { return this.lanes.front.size + this.lanes.interactive.size + this.lanes.background.size }
   /** interactive도 더 받을 수 없다(밀어낼 background도 없다) */
   get full() { return this.admitError('interactive') !== null }
 
   /** 지금 이 갈래 요청을 줄에 세울 수 있는지(못 세우면 그 오류). 바로 돌 수 있으면 언제나 null */
   admitError(cls: Priority): AiError | null {
-    const total = this.lanes.interactive.size + this.lanes.background.size
+    const total = this.total
     if (cls === 'interactive') {
       if (total < this.max || this.lanes.background.size > 0) return null
       return new AiError('queue_full', 10)
@@ -281,20 +312,24 @@ export class AiQueue {
   }
 
   /** 차례가 오면 release 함수를 돌려준다. signal이 끊기면 줄에서 빠진다 */
-  acquire(signal: AbortSignal, onPosition?: Waiter['onPosition'], opts: { user?: string; priority?: Priority } = {}): Promise<() => void> {
+  /** front = 같은 턴 이어 받기: 줄 맨 앞, 꽉 차도 받는다 */
+  acquire(signal: AbortSignal, onPosition?: Waiter['onPosition'], opts: { user?: string; priority?: Priority; front?: boolean } = {}): Promise<() => void> {
     if (signal.aborted) return Promise.reject(signal.reason)
     const cls = opts.priority ?? 'interactive'
     const user = opts.user ?? ''
-    const err = this.admitError(cls)
-    // 꽉 찼어도 바로 돌 수 있으면 받는다(대기 0)
-    if (err && !this.runnableNow(cls, user)) return Promise.reject(err)
-    if (cls === 'interactive' && this.lanes.interactive.size + this.lanes.background.size >= this.max && !this.runnableNow(cls, user)) this.evictNewestBg()
+    const laneKey: LaneKey = opts.front && cls === 'interactive' ? 'front' : cls
+    if (laneKey !== 'front') {
+      const err = this.admitError(cls)
+      // 꽉 찼어도 바로 돌 수 있으면 받는다(대기 0)
+      if (err && !this.runnableNow(laneKey, user)) return Promise.reject(err)
+      if (cls === 'interactive' && this.total >= this.max && !this.runnableNow(laneKey, user)) this.evictNewestBg()
+    }
     return new Promise((resolve, reject) => {
       const onAbort = () => {
         if (this.remove(entry)) { reject(signal.reason); this.notify() }
       }
       const entry: Waiter = {
-        seq: this.seq++, user, cls, onPosition,
+        seq: this.seq++, user, cls, lane: laneKey, onPosition,
         start: () => {
           signal.removeEventListener('abort', onAbort)
           this.running++
@@ -313,27 +348,29 @@ export class AiQueue {
   /** 운영 상태(사용자 정보 없음) */
   stats() {
     return {
-      running: this.running, waiting: this.lanes.interactive.size + this.lanes.background.size, concurrency: this.concurrency, max: this.max,
+      running: this.running, waiting: this.total, concurrency: this.concurrency, max: this.max,
+      front: { waiting: this.lanes.front.size },
       interactive: { running: this.running - this.runningBg, waiting: this.lanes.interactive.size },
       background: { running: this.runningBg, waiting: this.lanes.background.size, concurrency: this.bgConcurrency, max: this.maxBg }
     }
   }
 
-  private runnableNow(cls: Priority, user: string) {
+  private runnableNow(laneKey: LaneKey, user: string) {
     if (this.running >= this.concurrency) return false
-    if (cls === 'interactive') return this.lanes.interactive.size === 0
-    return this.lanes.interactive.size === 0 && this.lanes.background.size === 0 && this.bgCanRun(user)
+    if (laneKey === 'front') return this.lanes.front.size === 0
+    if (laneKey === 'interactive') return this.lanes.front.size === 0 && this.lanes.interactive.size === 0
+    return this.total === 0 && this.bgCanRun(user)
   }
   private bgCanRun(user: string) { return this.runningBg < this.bgConcurrency && (this.bgByUser.get(user) ?? 0) < this.bgPerUser }
   private push(w: Waiter) {
-    const l = this.lanes[w.cls]
+    const l = this.lanes[w.lane]
     const list = l.byUser.get(w.user)
     if (list) list.push(w)
     else { l.byUser.set(w.user, [w]); l.ring.push(w.user) }
     l.size++
   }
   private remove(w: Waiter): boolean {
-    const l = this.lanes[w.cls]
+    const l = this.lanes[w.lane]
     const list = l.byUser.get(w.user)
     const i = list ? list.indexOf(w) : -1
     if (!list || i < 0) return false
@@ -343,7 +380,7 @@ export class AiQueue {
     return true
   }
   /** 이 갈래에서 다음 차례(라운드 로빈). 돌 수 있는 사람이 없으면 undefined */
-  private take(cls: Priority): Waiter | undefined {
+  private take(cls: LaneKey): Waiter | undefined {
     const l = this.lanes[cls]
     for (let i = 0; i < l.ring.length; i++) {
       const user = l.ring[i]
@@ -360,7 +397,7 @@ export class AiQueue {
   }
   private pump() {
     while (this.running < this.concurrency) {
-      const w = this.take('interactive') ?? (this.lanes.interactive.size ? undefined : this.take('background'))
+      const w = this.take('front') ?? this.take('interactive') ?? (this.lanes.front.size || this.lanes.interactive.size ? undefined : this.take('background'))
       if (!w) break
       w.start()
     }
@@ -375,7 +412,7 @@ export class AiQueue {
   /** 지금 상태에서 차례가 올 순서(흉내만, 바꾸지 않는다) */
   private order(): Waiter[] {
     const out: Waiter[] = []
-    for (const cls of ['interactive', 'background'] as const) {
+    for (const cls of ['front', 'interactive', 'background'] as const) {
       const l = this.lanes[cls]
       const ring = [...l.ring]
       const lists = new Map([...l.byUser].map(([u, ws]) => [u, [...ws]]))
@@ -461,6 +498,95 @@ export function validateInput(body: unknown, cfg: AiConfig): AiInput {
   return { messages, format, model: body.model as string | undefined, stream: body.stream === true, temperature }
 }
 
+// ── 47 AI 비서 agent: 도구·tool 메시지 검사 ──
+export type AgentMsg = {
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string
+  tool_calls?: { function: { name: ToolName; arguments: Record<string, unknown> } }[]
+  tool_name?: ToolName
+}
+export type AgentInput = { messages: AgentMsg[]; tools: ToolName[]; model?: string; stream: boolean; temperature: number }
+/** body.mode — 'agent'만 새 경로, 없으면 예전 경로, 그 밖은 잘못된 요청 */
+export function assistantModeOf(body: unknown): 'agent' | null {
+  const mode = isObj(body) ? body.mode : undefined
+  if (mode === undefined || mode === null) return null
+  if (mode === 'agent') return 'agent'
+  throw new AiError('bad_request')
+}
+export const TURN_HEADER = 'x-sprout-turn'
+export function turnIdOf(header: string | string[] | undefined): string {
+  const v = Array.isArray(header) ? header[0] : header
+  if (typeof v !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(v)) throw new AiError('bad_request')
+  return v
+}
+/** 앱이 보낸 도구 목록(이름 또는 {function:{name}}) → 이름. 서버 목록의 부분집합·중복 없음·10개까지 */
+export function toolNamesOf(tools: unknown): ToolName[] {
+  if (tools === undefined || tools === null) return []
+  if (!Array.isArray(tools) || tools.length > 10) throw new AiError('bad_request')
+  const names = tools.map((t) => (typeof t === 'string' ? t : isObj(t) && isObj(t.function) ? t.function.name : undefined))
+  if (names.some((n) => !isToolName(n)) || new Set(names).size !== names.length) throw new AiError('bad_request')
+  return names as ToolName[]
+}
+export function validateAgentInput(body: unknown, cfg: AiConfig): AgentInput {
+  if (!isObj(body) || !Array.isArray(body.messages) || !body.messages.length) throw new AiError('bad_request')
+  if (body.messages.length > cfg.agentMaxMessages) throw new AiError('too_large')
+  if (body.format !== undefined && body.format !== null) throw new AiError('bad_request')
+  const tools = toolNamesOf(body.tools)
+  let total = 0
+  const messages: AgentMsg[] = body.messages.map((m: unknown) => {
+    if (!isObj(m) || typeof m.role !== 'string' || !['system', 'user', 'assistant', 'tool'].includes(m.role)) throw new AiError('bad_request')
+    const role = m.role as AgentMsg['role']
+    const content = m.content === undefined && role === 'assistant' ? '' : m.content
+    if (typeof content !== 'string') throw new AiError('bad_request')
+    if (content.length > cfg.maxMessageChars) throw new AiError('too_large')
+    total += content.length
+    const out: AgentMsg = { role, content } // 다른 칸(images 등)은 버린다
+    if (role === 'assistant' && m.tool_calls !== undefined && m.tool_calls !== null) {
+      if (!Array.isArray(m.tool_calls) || m.tool_calls.length > 3) throw new AiError('bad_request')
+      out.tool_calls = m.tool_calls.map((c: unknown) => {
+        const f = isObj(c) && isObj(c.function) ? c.function : null
+        if (!f || !isToolName(f.name)) throw new AiError('bad_request')
+        let args: unknown = f.arguments ?? {}
+        if (typeof args === 'string') { try { args = JSON.parse(args) } catch { throw new AiError('bad_request') } }
+        if (!isObj(args)) throw new AiError('bad_request')
+        total += JSON.stringify(args).length
+        return { function: { name: f.name, arguments: args } }
+      })
+    }
+    // 앞 라운드 결과는 이번 호출 도구 목록(답만 쓰는 마지막 호출은 비어 있음)과 상관없이 서버 도구 이름이면 된다
+    if (role === 'tool') {
+      if (!isToolName(m.tool_name)) throw new AiError('bad_request')
+      out.tool_name = m.tool_name
+    }
+    return out
+  })
+  if (total > cfg.maxTotalChars) throw new AiError('too_large')
+  if (body.model !== undefined && (typeof body.model !== 'string' || !body.model || body.model.length > 200)) throw new AiError('bad_request')
+  if (body.stream !== undefined && typeof body.stream !== 'boolean') throw new AiError('bad_request')
+  let temperature = 0
+  if (body.options !== undefined) {
+    if (!isObj(body.options)) throw new AiError('bad_request')
+    const t = body.options.temperature
+    if (t !== undefined && (typeof t !== 'number' || !(t >= 0 && t <= 2))) throw new AiError('bad_request')
+    if (typeof t === 'number') temperature = t
+  }
+  return { messages: prepareAgentMessages(messages), tools, model: body.model as string | undefined, stream: body.stream === true, temperature }
+}
+/** 지시문은 서버 것만: 앱 system을 모두 버리고 system = AGENT_SYSTEM(고정). 앱 칸(오늘·날짜표·이름·이어 받을 것 — 규칙이 아닌 사실, 자름)은
+ *  이번 질문(재촉 줄이 아닌 마지막 user) 앞에 붙인다 — system + 도구 정의가 늘 같아야 Ollama가 그 앞부분(약 1,000토큰)을 캐시에서 읽는다(47 §14, 실측 research 39 §8). 끝은 user 또는 tool */
+export function prepareAgentMessages(messages: AgentMsg[]): AgentMsg[] {
+  const ctx = (messages.find((m) => m.role === 'system')?.content ?? '').trim().slice(0, AGENT_CONTEXT_MAX)
+  const rest = messages.filter((m) => m.role !== 'system')
+  const last = rest.at(-1)?.role
+  if (last !== 'user' && last !== 'tool') throw new AiError('bad_request')
+  if (ctx) {
+    let i = rest.length - 1
+    while (i >= 0 && !(rest[i].role === 'user' && rest[i].content !== NUDGE)) i--
+    if (i >= 0) rest[i] = { ...rest[i], content: `[앱 정보]\n${ctx}\n\n[질문]\n${rest[i].content}` }
+  }
+  return [{ role: 'system', content: AGENT_SYSTEM }, ...rest]
+}
+
 // ── 일기(28 §8): 서버가 정하는 지시 ──
 /** 용도별 메시지 손보기: diary = 지시 끝에 들은 말만, diary-chat = 대화 규칙·들은 말만이 없으면 덧붙임, diary-distill = 서버 지시 + <conversation> 하나 */
 export function prepareMessages(endpoint: Endpoint, messages: Msg[]): Msg[] {
@@ -538,6 +664,9 @@ export function createAi(deps: AiDeps) {
   const bgInflight = new Map<string, number>()
   const counter = (cls: Priority) => (cls === 'background' ? bgInflight : inflight)
   const locks = new Map<string, Promise<unknown>>()
+  /** 47 §9 턴 셈: `${사용자}:${턴 id}` → 호출 수·첫 호출 시각(숫자만) */
+  const turns = new Map<string, { calls: number; firstAt: number }>()
+  const sweepTurns = (t: number) => { for (const [k, v] of turns) if (t - v.firstAt > cfg.turnTtlMs) turns.delete(k) }
 
   // 같은 사용자의 상한 확인 + 예약을 한 번에 하나씩(동시 요청으로 주간 상한을 넘지 못하게)
   async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
@@ -581,6 +710,16 @@ export function createAi(deps: AiDeps) {
       const c = counter(cls)
       c.set(userId, (c.get(userId) ?? 0) + 1)
       return { day, at: t }
+    })
+  }
+  /** 같은 턴 2~4번째: 분·일·용도 상한은 세지 않고 동시 요청만 본다 */
+  async function reserveFollowup(userId: string, cls: Priority) {
+    return withLock(userId, async () => {
+      if ((counter(cls).get(userId) ?? 0) >= (cls === 'background' ? cfg.userBgConcurrent : cfg.userConcurrent)) throw new AiError('user_busy', 5)
+      const t = now()
+      const c = counter(cls)
+      c.set(userId, (c.get(userId) ?? 0) + 1)
+      return { day: dayKey(t, cfg.tzOffsetMin), at: t }
     })
   }
   /** 서버가 바빠서 못 한 요청은 분 상한에서도 되돌린다(앱 잘못이 아니다) */
@@ -628,6 +767,7 @@ export function createAi(deps: AiDeps) {
       default_model: names.includes(cfg.defaultModel) ? cfg.defaultModel : names[0] ?? null,
       backend: deps.backend.name,
       queue: queue.stats(), // 갈래별 길이만(누가 기다리는지는 없다)
+      features: ['agent'], // 47: 앱은 이게 있으면 자유 대화 + 도구 경로를 쓴다
       limits: { per_minute: cfg.perMinute, per_day: cfg.perDay, num_ctx: cfg.numCtx, num_predict: cfg.numPredict, timeout_ms: cfg.timeoutMs },
       usage: { today: await deps.store.count(userId, today), weekly, daily }
     }))
@@ -637,15 +777,36 @@ export function createAi(deps: AiDeps) {
     const userId = await deps.auth(req).catch(() => { throw new AiError('unauthorized') })
     const body = await readBody(req, cfg.maxBodyBytes)
     if (endpoint === 'diary') endpoint = diaryEndpointOf(body)
-    const input = validateInput(body, cfg)
-    const messages = prepareMessages(endpoint, input.messages)
-    const format = formatFor(endpoint, input.format)
+    const agent = endpoint === 'assistant' ? assistantModeOf(body) === 'agent' : false
+    const turnId = agent ? turnIdOf(req.headers[TURN_HEADER]) : null
+    const agentInput = agent ? validateAgentInput(body, cfg) : null
+    const input: AiInput = agentInput ? { messages: [], model: agentInput.model, stream: agentInput.stream, temperature: agentInput.temperature } : validateInput(body, cfg)
+    const messages: (Msg | AgentMsg)[] = agentInput ? agentInput.messages : prepareMessages(endpoint, input.messages)
+    const format = agentInput ? undefined : formatFor(endpoint, input.format)
     const names = await models()
     if (!names.length) throw new AiError('unavailable', 30)
     const model = input.model ?? (names.includes(cfg.defaultModel) ? cfg.defaultModel : names[0])
     if (!names.includes(model)) throw new AiError('model')
     const cls = priorityOf(endpoint, req.headers[PRIORITY_HEADER], cfg.background)
-    const { day, at } = await reserve(userId, endpoint, cls)
+    // 47 §9 턴: 첫 호출만 상한에서 센다. 이어 받기는 줄 맨 앞, 4번 넘으면 거절, 150초 넘으면 시간 초과
+    const turnKey = turnId ? `${userId}:${turnId}` : null
+    let followup = false
+    if (turnKey) {
+      const t0 = now()
+      sweepTurns(t0)
+      const t = turns.get(turnKey)
+      if (t) {
+        if (t.calls >= cfg.turnMaxCalls) throw new AiError('turn_limit')
+        if (t0 - t.firstAt > cfg.turnMaxMs) throw new AiError('timeout')
+        followup = true
+      }
+    }
+    const { day, at } = followup ? await reserveFollowup(userId, cls) : await reserve(userId, endpoint, cls)
+    if (turnKey) {
+      const t = turns.get(turnKey)
+      if (followup && t) t.calls++
+      else turns.set(turnKey, { calls: 1, firstAt: at })
+    }
 
     // 클라이언트가 끊으면 대기열에서 빠지고 Ollama 요청도 멈춘다
     const client = new AbortController()
@@ -664,24 +825,34 @@ export function createAi(deps: AiDeps) {
         ? (position: number, waiting: number) => write(JSON.stringify({ queue: { position, waiting } }) + '\n')
         : undefined
       const waitSignal = AbortSignal.any([client.signal, AbortSignal.timeout(cfg.queueWaitMs)])
-      release = await queue.acquire(waitSignal, onPosition, { user: userId, priority: cls }).catch((e) => {
+      release = await queue.acquire(waitSignal, onPosition, { user: userId, priority: cls, front: followup }).catch((e) => {
         if (e instanceof Error && e.name === 'TimeoutError') throw cls === 'background' ? new AiError('bg_deferred', cfg.bgRetryAfter) : new AiError('queue_timeout', 10)
         throw e
       })
       if (input.stream) write(JSON.stringify({ queue: { position: 0, waiting: queue.waiting.length } }) + '\n')
 
-      const signal = AbortSignal.any([client.signal, AbortSignal.timeout(cfg.timeoutMs)])
+      const signal = AbortSignal.any([client.signal, AbortSignal.timeout(agentInput ? cfg.agentCallTimeoutMs : cfg.timeoutMs)])
       const started = now()
       // 백엔드에는 늘 stream:true로 보낸다(워커 방식도 같은 모양, 끊으면 바로 멈춤). stream:false 요청은 여기서 모아서 준다
-      const upstream = await deps.backend.chat({
-        model,
-        messages: withFormatHint(messages, format),
-        ...(format !== undefined ? { format } : {}),
-        stream: true,
-        think: false,
-        keep_alive: cfg.keepAlive,
-        options: { temperature: input.temperature, num_ctx: cfg.numCtx, num_predict: cfg.predict?.[endpoint] ?? cfg.numPredict }
-      }, signal).catch((e) => { throw toAiError(e, 'unavailable') })
+      const upstream = await deps.backend.chat(agentInput
+        ? {
+            model,
+            messages,
+            ...(agentInput.tools.length ? { tools: agentInput.tools.map((n) => TOOL_SPECS[n]) } : {}),
+            stream: true,
+            think: false,
+            keep_alive: cfg.keepAlive,
+            options: { temperature: input.temperature, num_ctx: cfg.agentNumCtx, num_predict: agentInput.tools.length ? cfg.agentPredictTools : cfg.agentPredictAnswer }
+          }
+        : {
+            model,
+            messages: withFormatHint(messages as Msg[], format),
+            ...(format !== undefined ? { format } : {}),
+            stream: true,
+            think: false,
+            keep_alive: cfg.keepAlive,
+            options: { temperature: input.temperature, num_ctx: cfg.numCtx, num_predict: cfg.predict?.[endpoint] ?? cfg.numPredict }
+          }, signal).catch((e) => { throw toAiError(e, 'unavailable') })
       if (!upstream.ok || !upstream.body) {
         await upstream.body?.cancel().catch(() => {})
         throw new AiError(upstream.status === 404 ? 'model' : 'unavailable', 30)
@@ -698,6 +869,7 @@ export function createAi(deps: AiDeps) {
       let buffer = ''
       let done = false
       let content = ''
+      const toolCalls: unknown[] = []
       let totalDuration: unknown = null
       const line = (raw: string) => {
         if (!raw.trim()) return
@@ -705,7 +877,10 @@ export function createAi(deps: AiDeps) {
         try { item = JSON.parse(raw) } catch { throw new AiError('unavailable') }
         if (item?.error) throw new AiError('unavailable', 30)
         if (input.stream) write(raw + '\n')
-        else if (typeof item?.message?.content === 'string') content += item.message.content
+        else {
+          if (typeof item?.message?.content === 'string') content += item.message.content
+          if (Array.isArray(item?.message?.tool_calls)) toolCalls.push(...item.message.tool_calls)
+        }
         if (item?.done) { done = true; totalDuration = item.total_duration ?? null; final(item) }
       }
       try {
@@ -722,12 +897,13 @@ export function createAi(deps: AiDeps) {
       else {
         res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
         res.end(JSON.stringify({
-          model, message: { role: 'assistant', content }, done: true,
+          model, message: { role: 'assistant', content, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) }, done: true,
           prompt_eval_count: usage.prompt_tokens, eval_count: usage.output_tokens, total_duration: totalDuration, queue_wait_ms: started - queuedAt
         }))
       }
       ok = true
     } catch (e) {
+      if (turnKey && !followup) turns.delete(turnKey) // 첫 호출 실패 = 턴도 없던 일(다시 시도는 새 턴)
       if (client.signal.aborted) throw new AiError('aborted')
       const err = toAiError(e, 'server')
       if (!release && LOAD_CODES.has(err.code)) refundMinute(userId, at)
@@ -738,7 +914,8 @@ export function createAi(deps: AiDeps) {
       c.set(userId, Math.max(0, (c.get(userId) ?? 1) - 1))
       if (!c.get(userId)) c.delete(userId)
       // 실패·중단은 상한에서 되돌린다(주간 1회를 날리지 않게). 숫자만 남긴다
-      const delta: UsageDelta = ok ? usage : { requests: -1, failures: 1 }
+      // 이어 받기(같은 턴 2번째~)는 처음부터 세지 않았으니 되돌릴 것도 없다
+      const delta: UsageDelta = ok ? usage : followup ? { failures: 1 } : { requests: -1, failures: 1 }
       await deps.store.add(userId, endpoint, day, delta).catch(() => log(`ai usage write failed (${endpoint})`))
     }
   }
