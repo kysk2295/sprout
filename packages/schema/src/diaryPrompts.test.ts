@@ -25,6 +25,7 @@ assert.deepEqual(parseDistill('{"title":"시험 앞에서 멈춘 하루","tags":
 assert.equal(parseDistill('```json\n{"title":"t","tags":[],"entry":"본문"}\n```')!.entry, '본문')
 assert.equal(parseDistill('설명: {"title":"t","tags":"x","entry":"나: 본문"}')!.entry, '본문', '나: 접두 제거 · 태그가 배열 아니면 빈 배열')
 assert.equal(parseDistill('{"title":"t","tags":[],"entry":"  "}'), null)
+assert.equal(parseDistill('{"title":"t","tags":[],"entry":"2026 년 10 월 9 일, 자기 전에 산책을 20 분 했다."}')!.entry, '자기 전에 산책을 20 분 했다.', '입력 머리의 날짜는 본문에서 뺀다')
 assert.equal(parseDistill('{"title":"t","tags":[],"entry":"너무 지쳤다. 그저 캐릭터의 위로와 함께 있었다. 내일은 한 챕터만 보자."}')!.entry, '너무 지쳤다. 내일은 한 챕터만 보자.', '캐릭터 문장은 뺀다')
 assert.equal(parseDistill('그냥 문장'), null)
 assert.equal(parseDistill('{broken'), null)

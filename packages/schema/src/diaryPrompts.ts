@@ -86,9 +86,9 @@ export function parseDistill(raw: string): Distilled | null {
   try { o = JSON.parse(text.slice(a, b + 1)) } catch { return null }
   if (!o || typeof o !== 'object') return null
   const r = o as Record<string, unknown>
-  // 캐릭터 이야기가 새어 든 문장은 뺀다(규칙 2를 작은 모델이 가끔 어김)
+  // 캐릭터 이야기가 새어 든 문장은 뺀다(규칙 2를 작은 모델이 가끔 어김). 입력 머리의 날짜를 본문 첫머리에 옮겨 적는 것도 뺀다(실측 "2026 년 10 월 9 일, …")
   const entry = typeof r.entry === 'string'
-    ? r.entry.trim().replace(/^(나|캐릭터)\s*:\s*/gm, '').split('\n').map((p) => sentences(p).filter((x) => !x.includes('캐릭터')).join(' ')).join('\n').replace(/\n{3,}/g, '\n\n').trim()
+    ? r.entry.trim().replace(/^(나|캐릭터)\s*:\s*/gm, '').replace(/^\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일\s*[,.]?\s*(오늘[은,]?\s*)?/, '').split('\n').map((p) => sentences(p).filter((x) => !x.includes('캐릭터')).join(' ')).join('\n').replace(/\n{3,}/g, '\n\n').trim()
     : ''
   if (!entry) return null
   const title = typeof r.title === 'string' ? clip(r.title.trim().replace(/^["“#\s]+|["”\s]+$/g, ''), 30) : ''
