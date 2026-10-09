@@ -183,10 +183,10 @@ export function widgetAccents(stored: string | null | undefined): { accentLight:
 /** 위젯 그림에 입힌 모습(characters.look_json) 열쇠 — 아무것도 안 입고 갈래 A면 빈 글(옛 이름 그대로) */
 export function widgetLookKey(raw: string | null | undefined): string {
   const l = parseLook(raw)
-  return l.path === 'a' && !l.eq.hat && !l.eq.neck && !l.eq.hand && !l.eq.back ? '' : lookKey(l)
+  return l.path === 'a' && !l.eq.hat && !l.eq.neck && !l.eq.hand && !l.eq.back && !l.seed ? '' : lookKey(l)
 }
-/** 저장 칸 안 캐릭터 그림 경로(25 §8.4) — 조합마다 한 장. 그림 판 v3(42 §10.3 꿈틀 정원 친구들) + 입은 모습 열쇠(43 §17 6 — wardrobe.lookKey) */
-export const widgetArtPath = (species: string | null, stage: number, mood: WidgetMood, look = '') => (species ? `art/v4-${species}-${stage}${look ? `-${look}` : ''}-${mood}@2x.png` : 'art/v4-egg@2x.png')
+/** 저장 칸 안 캐릭터 그림 경로(25 §8.4) — 조합마다 한 장. 그림 판 v5(49 3D 스프라이트) + 입은 모습 열쇠(43 §17 6 — wardrobe.lookKey) */
+export const widgetArtPath = (species: string | null, stage: number, mood: WidgetMood, look = '') => (species ? `art/v5-${species}-${stage}${look ? `-${look}` : ''}-${mood}@2x.png` : 'art/v5-egg@2x.png')
 
 /** "2026-10-04T09:12:03+09:00" — 로컬 시각 + 오프셋 */
 export function isoLocal(d: Date): string {

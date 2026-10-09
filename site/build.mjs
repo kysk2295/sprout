@@ -1,6 +1,6 @@
 // 꿈틀(코드네임 sprout) 사이트 빌드 — 의존성 없음(Node 20+). `node build.mjs` → public/*.html
 // 법률 문서는 ../docs/release/legal/*.md(정본)에서 매번 다시 만든다. 문서를 고치면 다시 빌드만 하면 된다.
-import { readFileSync, writeFileSync, existsSync, copyFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, copyFileSync, mkdirSync, readdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -235,3 +235,14 @@ writeFileSync(join(pub, 'site.webmanifest'), JSON.stringify({
 writeFileSync(join(pub, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${cfg.baseUrl}/sitemap.xml\n`)
 writeFileSync(join(pub, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${['/', '/privacy', '/terms', '/account-deletion', '/support'].map((p) => `  <url><loc>${cfg.baseUrl}${p}</loc></url>`).join('\n')}\n</urlset>\n`)
 console.log('built:', Object.keys(files).join(', '))
+
+// 49 §4.4 휴대폰 종 묶음: 3D 그림 512를 /art3d/v3/에 둔다(앱이 처음 부화 뒤 내 종 것만 내려받는다). 원본은 packages/schema/art3d — 저장소에 두 번 넣지 않게 빌드 때 복사만
+{
+  const src = join(here, '../packages/schema/art3d'), dst = join(pub, 'art3d/v3')
+  if (existsSync(src)) {
+    mkdirSync(dst, { recursive: true })
+    let n = 0
+    for (const f of readdirSync(src)) if (f.endsWith('@512.webp')) { copyFileSync(join(src, f), join(dst, f)); n++ }
+    console.log('art3d pack files:', n)
+  } else console.warn('! packages/schema/art3d 없음 — 종 묶음을 건너뛴다')
+}

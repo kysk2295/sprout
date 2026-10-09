@@ -8,6 +8,8 @@
 import type { Species } from './growth.ts'
 import { SPECIES_IDS, LEGACY_SPECIES, STAGES, withLegacyKeys } from './growth.ts'
 import { budsOf, marksOf, type Equip, type Path, type TrophyKind } from './wardrobe.ts'
+// v3(49): 미리 구운 3D 스프라이트 그림 목록 — 앱의 캐릭터 그림은 모두 이쪽을 쓴다. 아래 SVG 그림은 v2 대체용(오프라인·시험)으로만 남긴다 [다음 판에서 지움]
+export * from './art3d.ts'
 
 type Pal = Record<string, any>
 const f = (n: number) => +(+n).toFixed(2)

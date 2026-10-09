@@ -1,0 +1,8 @@
+/* 49 §6 · §8 3D 장면 판(데스크톱) */
+.s3 { position: relative; overflow: hidden; isolation: isolate; }
+.s3-img, .s3-decor { position: absolute; display: block; max-width: none; pointer-events: none; user-select: none; }
+.s3-decor { z-index: 0; }
+/* 큰 제목 뒤 띠: 아래 55%에서 바탕에 녹는다(위젯 레이어 없이 mask) */
+.s3-band { position: absolute; left: 0; right: 0; top: 0; z-index: 0; pointer-events: none;
+  background-size: cover; background-position: center 72%; background-repeat: no-repeat;
+  -webkit-mask-image: linear-gradient(#000 0%, #000 42%, transparent 100%); mask-image: linear-gradient(#000 0%, #000 42%, transparent 100%); }

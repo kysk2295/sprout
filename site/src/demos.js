@@ -196,7 +196,7 @@
   // 성장 체험에서 고른 종을 첫 화면 캐릭터에도
   var species = 'worm'
   var onSpecies = []
-  var charSrc = function (sp, st) { return '/assets/characters/' + (st ? sp + '-' + st : 'egg') + '.svg' }
+  var charSrc = function (sp, st) { return '/assets/characters/' + (st ? sp + '-' + st : 'egg') + '.webp' }
 
   // ════════════════════════════════════════════════════════════════
   // 1. 첫 화면 — 빠른 추가

@@ -64,3 +64,26 @@
 /* 움직임 줄이기(OS · 성장 ⋯ 스위치 = .is-still / html[data-growth-still]) · 창이 안 보이면 멈춤 */
 .is-still .chr *, .is-still .scene-svg *, html[data-growth-still] .chr *, html[data-growth-still] .scene-svg *, html[data-hidden] .chr *, html[data-hidden] .scene-svg * { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .chr *, .scene-svg * { animation: none !important; } }
+
+/* ───── 49 v3: 미리 구운 3D 층 ───── */
+.character.c3 { position: relative; overflow: hidden; }
+.c3-move { position: absolute; inset: 0; transform-origin: 50% 90%; }
+.c3-l { position: absolute; display: block; max-width: none; pointer-events: none; user-select: none; }
+.c3-tint { -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+.c3-shut { opacity: 0; }
+.character.c3.blink .c3-shut { opacity: 1; }
+.character.c3.blink .c3-open { opacity: 0; }
+/* 숨쉬기(발밑 기준 세로 1.5%) · 깜빡임(4.6초에 0.12초) — transform·opacity만 */
+.character.c3.live .c3-move { animation: k3Breath 3.2s ease-in-out infinite; }
+.character.c3.live.calm .c3-move { animation-duration: 5s; }
+.character.c3.live:not(.blink) .c3-shut { animation: k3Shut 4.6s steps(1) infinite; }
+.character.c3.live:not(.blink) .c3-open { animation: k3Open 4.6s steps(1) infinite; }
+.character.c3.wave .c3-move { animation: k3Wave .35s ease-in-out 6 alternate; }
+@keyframes k3Breath { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 0.985); } }
+@keyframes k3Shut { 0%, 94% { opacity: 0; } 94.5%, 97% { opacity: 1; } 97.5% { opacity: 0; } }
+@keyframes k3Open { 0%, 94% { opacity: 1; } 94.5%, 97% { opacity: 0; } 97.5% { opacity: 1; } }
+@keyframes k3Wave { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .character.c3.live .c3-move, .character.c3.wave .c3-move { animation: none; }
+}
+.is-still .c3 *, html[data-growth-still] .c3 *, html[data-hidden] .c3 * { animation: none !important; }

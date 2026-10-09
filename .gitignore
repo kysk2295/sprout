@@ -64,3 +64,4 @@ apps/mobile/modules/*/ios/build/
 *.aab
 *.apk
 *.xcarchive
+site/public/art3d/

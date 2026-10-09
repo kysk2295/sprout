@@ -98,6 +98,6 @@ function RaiseOn({ children }: { children: ReactNode }) {
     const offDb = db.onChange({ onChange: () => { clearTimeout(t); t = setTimeout(() => void checkUnlocks(), 1500) } }, { tables: ['tags'], throttleMs: 2000 })
     return () => { off(); offDb(); clearTimeout(t) }
   }, [hasSynced])
-  const value = useMemo(() => ({ species: r.species, level: r.progress.level, wear: { path: r.look.path, eq: r.worn } }), [r.species, r.progress.level, r.look.path, r.worn])
+  const value = useMemo(() => ({ species: r.species, level: r.progress.level, wear: { path: r.look.path, eq: r.worn, seed: r.look.seed } }), [r.species, r.progress.level, r.look.path, r.worn, r.look.seed])
   return <CharacterWearProvider value={value}>{children}</CharacterWearProvider>
 }

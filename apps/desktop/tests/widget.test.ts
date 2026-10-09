@@ -78,7 +78,7 @@ assert.equal(g.todayTaskXp, 1)
 assert.equal(g.mood, 'happy')
 assert.equal(g.stageName, '아기')
 assert.equal(g.species, 'worm') // 옛 종 id(cat)도 새 종으로(43 결정 ⑥)
-assert.equal(g.art, 'art/v4-worm-1-happy@2x.png')
+assert.equal(g.art, 'art/v5-worm-1-happy@2x.png')
 
 // 내용이 같으면 키가 같다(generatedAt만 다름 → 새로 고침 안 함)
 const again = await buildSnapshot(db, { today, now: new Date(Date.now() + 5000), signedIn: true, appliedActions: ['A1'] })

@@ -197,7 +197,8 @@ export function conditionText(item: Item, s?: RaiseState): string {
 // ── 입힌 모습(characters.look_json, 동기화) ────────────────────────
 export type Path = 'a' | 'b'
 export type Equip = { hat: string | null; neck: string | null; hand: string | null; back: string | null; bg: string }
-export type Look = { path: Path; eq: Equip; decorOff: string[] }
+/** seed = 만들기 흐름에서 고른 씨앗 껍질(0~3, 49 §5.2 — 아기 단계 그릇 색·도감 첫 칸). 없으면 0 */
+export type Look = { path: Path; eq: Equip; decorOff: string[]; seed?: number }
 export const DEFAULT_LOOK: Look = { path: 'a', eq: { hat: null, neck: null, hand: null, back: null, bg: 'grass' }, decorOff: [] }
 const slotOk = (id: unknown, slot: Slot) => (typeof id === 'string' && ITEM_BY_ID[id]?.slot === slot ? id : null)
 /** look_json 읽기 — 깨졌거나 모르는 아이템은 기본으로(겉모습뿐이라 막을 것 없음, 43 §10) */
@@ -210,10 +211,13 @@ export function parseLook(raw: string | null | undefined): Look {
   return {
     path: v.path === 'b' ? 'b' : 'a',
     eq: { hat: slotOk(eq.hat, 'hat'), neck: slotOk(eq.neck, 'neck'), hand: slotOk(eq.hand, 'hand'), back: slotOk(eq.back, 'back'), bg: slotOk(eq.bg, 'bg') ?? 'grass' },
-    decorOff: Array.isArray(v.decorOff) ? v.decorOff.filter((d: unknown) => typeof d === 'string' && DECOR.some((x) => x.id === d)) : []
+    decorOff: Array.isArray(v.decorOff) ? v.decorOff.filter((d: unknown) => typeof d === 'string' && DECOR.some((x) => x.id === d)) : [],
+    ...(Number.isInteger(v.seed) && v.seed >= 0 && v.seed <= 3 ? { seed: v.seed as number } : {})
   }
 }
-export const serializeLook = (l: Look) => JSON.stringify({ path: l.path, eq: l.eq, decorOff: l.decorOff })
+export const serializeLook = (l: Look) => JSON.stringify({ path: l.path, eq: l.eq, decorOff: l.decorOff, ...(l.seed !== undefined ? { seed: l.seed } : {}) })
+/** 씨앗 껍질 고르기(49 §5.2) — 모습의 다른 칸은 그대로 */
+export const setSeed = (l: Look, seed: number): Look => ({ ...l, seed: Math.max(0, Math.min(3, Math.round(seed))) })
 /** 누르면 입고, 입은 칸을 다시 누르면 벗는다. 배경은 늘 하나 깔려 있다(43 §5.4) */
 export function equipItem(l: Look, itemId: string): Look {
   const it = ITEM_BY_ID[itemId]
@@ -235,8 +239,8 @@ export function wornEquip(l: Look, owned: Set<string>): Equip {
 /** 켜진 장식(레벨로 열린 것 − 치운 것) */
 export const decorOn = (level: number, l: Look) => DECOR.filter((d) => level >= d.lv && !l.decorOff.includes(d.id)).map((d) => d.id)
 /** 위젯 PNG 캐시 이름에 붙일 짧은 열쇠(갈래 + 입은 옷). 모습이 같으면 같은 글 */
-export function lookKey(l: Pick<Look, 'path' | 'eq'>): string {
-  const s = [l.path, l.eq.hat, l.eq.neck, l.eq.hand, l.eq.back].map((x) => x ?? '').join('|')
+export function lookKey(l: Pick<Look, 'path' | 'eq'> & { seed?: number }): string {
+  const s = [l.path, l.eq.hat, l.eq.neck, l.eq.hand, l.eq.back, l.seed ? `s${l.seed}` : ''].map((x) => x ?? '').join('|')
   let h = 5381
   for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0
   return h.toString(36)

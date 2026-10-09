@@ -7,6 +7,6 @@ export function RaiseProvider({ children }: { children: ReactNode }) {
   useRaiseRunner()
   const r = useRaise()
   useEffect(() => { if (r.species) void runUnlocks() }, [r.species])
-  const value = useMemo(() => ({ species: r.species, level: r.level, wear: { path: r.look.path, eq: r.worn } }), [r.species, r.level, r.look.path, r.worn])
+  const value = useMemo(() => ({ species: r.species, level: r.level, wear: { path: r.look.path, eq: r.worn, seed: r.look.seed } }), [r.species, r.level, r.look.path, r.worn, r.look.seed])
   return <CharacterWearProvider value={value}>{children}</CharacterWearProvider>
 }

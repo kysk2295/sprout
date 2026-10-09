@@ -243,7 +243,7 @@ export function support({ cfg, T, val, page }) {
 
 export function notFound({ cfg, T, page }) {
   const body = `<article class="doc nf">
-<img src="/assets/characters/egg.svg" alt="" width="120" height="120">
+<img src="/assets/characters/egg.webp" alt="" width="120" height="120">
 <h1>${T('페이지를 찾을 수 없어요', 'Page not found')}</h1>
 <p>${T('주소가 바뀌었거나 없는 페이지예요.', 'This page has moved or does not exist.')}</p>
 <p><a class="btn" href="/">${T('처음으로', 'Go home')}</a></p>

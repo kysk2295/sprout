@@ -2,18 +2,19 @@
 // - 위젯 표가 바뀌면 1초 모아 저장 파일 다시 쓰기 → 내용이 바뀌었을 때만 위젯 새로 고침
 // - 앞으로 올 때·시작·자정 + 5초·백그라운드 새로 고침·(Android) 위젯 체크 신호 → 대기열 반영(정상 완료 경로) + 다시 쓰기
 // - 로그아웃 → 로그아웃 형태 + 그림·대기열 지움(25 §8.8)
-// - 캐릭터 그림: 보이지 않는 곳에 CharacterArt를 그려 PNG로 굽는다(WidgetArtBaker, §7.3)
+// - 캐릭터 그림: 보이지 않는 곳에 3D 그림 층(layers3d, 49 §8.1)을 Svg 안 Image로 겹쳐 그려 PNG로 굽는다(WidgetArtBaker, §7.3)
 import { planWidgetActions, signedOutSnapshot, widgetSnapshotKey, type WidgetMood } from '@sprout/schema/widget'
 import { parseLook, type Look } from '@sprout/schema/wardrobe'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { AppState, View } from 'react-native'
-import type Svg from 'react-native-svg'
+import Svg, { Image as SvgImage } from 'react-native-svg'
+import { bodyBox, bodyKey, layers3d, seedTurnKey, type Box } from '@sprout/schema/characterArt'
 import type { Species } from '@sprout/schema/growth'
 import { useAuth } from '../data/auth'
 import { coreDb, db } from '../data/db'
 import { completeTasks, reopenTasks } from '../data/tasks'
 import { dayKey } from '../lib/dates'
-import { CharacterArt } from '../growth/art/CharacterArt'
+import { artSource } from '../growth/art/CharacterArt'
 import { clearWidgetData, hasArt, onWidgetAction, readActions, removeActions, widgetsAvailable, writeArt, writeSnapshot } from './native'
 import { composeWidgetSnapshot, readWidgetData, WIDGET_TABLES } from './snapshot'
 
@@ -125,13 +126,34 @@ export function useWidgets() {
   }, [status])
 }
 
-/** §7.3 캐릭터 그림 굽기: 굽기 요청이 있을 때만 화면 밖에 192pt로 그려 PNG(base64)로 저장 칸에 쓴다 */
+/** 굽는 그림 층(뒤 → 앞)과 꽉 채울 상자 — 앱 CharacterArt와 같은 층(공용 layers3d), 몸 테두리(bodyBox)로 192 칸을 채운다 */
+const EGG_BOX: Box = { x: 0.12, y: 0.06, w: 0.76, h: 0.76 }
+type ArtSrc = NonNullable<ReturnType<typeof artSource>>
+function widgetLayers(job: ArtJob): { srcs: ArtSrc[]; box: Box } {
+  const seed = job.look.seed ?? 0
+  if (!job.species) {
+    const src = artSource(seedTurnKey(seed, 0), 512)
+    return { srcs: src ? [src] : [], box: EGG_BOX }
+  }
+  const L = layers3d(job.species, job.stage, { path: job.look.path, seed, eq: job.look.eq, mood: job.mood, size: 192 })
+  const srcs = L.map((l) => artSource(l.key, 512)).filter((x): x is ArtSrc => x != null)
+  return { srcs, box: bodyBox(bodyKey(job.species, job.stage, job.look.path, seed)) }
+}
+
+/** §7.3 캐릭터 그림 굽기: 굽기 요청이 있을 때만 화면 밖에 192pt로 그려 PNG(base64)로 저장 칸에 쓴다.
+ *  49 §8.1: 3D 그림(WebP)을 react-native-svg <Image>로 겹쳐 그리고 그 Svg의 toDataURL로 굽는다(네이티브 변경 없음).
+ *  층이 모두 올라온 뒤(onLoad) 굽는다 — iOS는 onLoad 뒤에 그림을 붙이므로 한 박자 쉬고, onLoad가 안 오면 2.5초 뒤 그대로 굽는다. */
 export function WidgetArtBaker() {
   const job = useSyncExternalStore((l) => { artListeners.add(l); return () => { artListeners.delete(l) } }, () => artJob)
   const ref = useRef<Svg | null>(null)
   const [tries, setTries] = useState(0)
+  const [loaded, setLoaded] = useState(0)
+  const art = useMemo(() => (job ? widgetLayers(job) : null), [job])
+  useEffect(() => { setLoaded(0); setTries(0) }, [job])
+  const ready = !!art && loaded >= art.srcs.length
   useEffect(() => {
-    if (!job) return
+    if (!job || !art) return
+    if (!art.srcs.length) { if (artJob === job) setArtJob(null); return } // 그림 파일이 없다 — 위젯은 그림 없이
     const t = setTimeout(() => {
       const svg = ref.current as unknown as { toDataURL?: (cb: (b64: string) => void, o?: object) => void } | null
       if (!svg?.toDataURL) { if (tries < 3) setTries(tries + 1); return }
@@ -140,13 +162,16 @@ export function WidgetArtBaker() {
         if (artJob === job) setArtJob(null)
         if (ok) { lastKey = null; void refreshWidgets(true) }
       }, { width: 192, height: 192 })
-    }, 300)
+    }, ready ? 300 : 2500)
     return () => clearTimeout(t)
-  }, [job, tries])
-  if (!job) return null
+  }, [job, art, ready, tries])
+  if (!job || !art) return null
+  const U = 1000, b = art.box
   return (
     <View pointerEvents="none" style={{ position: 'absolute', left: -1000, top: -1000, width: 192, height: 192, opacity: 0 }} importantForAccessibility="no-hide-descendants">
-      <CharacterArt species={job.species} stage={job.stage} mood={job.mood} size={192} svgRef={ref} noAura wear={{ lv: job.level, path: job.look.path, eq: job.look.eq }} />
+      <Svg key={job.rel} ref={ref} width={192} height={192} viewBox={`${b.x * U} ${b.y * U} ${b.w * U} ${b.h * U}`}>
+        {art.srcs.map((src, i) => <SvgImage key={i} href={src} x={0} y={0} width={U} height={U} preserveAspectRatio="none" onLoad={() => setLoaded((n) => n + 1)} />)}
+      </Svg>
     </View>
   )
 }
