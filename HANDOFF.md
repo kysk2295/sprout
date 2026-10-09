@@ -2,6 +2,10 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-09 휴대폰 월 보기: 그날 판의 할 일을 끌어 다른 날로 (research 37 [영상 실측] · 39 §4.11)
+- `ui/DayDrag.tsx`(훅 + 행 + 떠 있는 카드·✕) + `CalendarScreen` MonthFull·DayPanel. 길게 눌러 움직이면 끌기 → 판 밖이면 판 닫힘 → 손가락 밑 날짜에 강조색 원 → 놓으면 `moveDates`(토스트 없음), 끄는 동안 + 자리에 ✕(취소). 그대로 떼면 지금 메뉴.
+- 남은 것: 기기에서 손으로 확인(특히 끌지 않고 뗄 때 메뉴), 판 안 순서 바꾸기·화면 끝 달 넘김·일정 행 끌기 [다음].
+
 ## ★ 2026-10-09 캐릭터 키우기 구현 (42·43 "추천대로" 확정 — 데스크톱·휴대폰, 배포 전)
 - **그림 = 한 곳:** `packages/schema/src/characterArt.ts`(시안 kkumteul-art.js v3 그대로, 완결된 SVG 글) → 데스크톱 `CharacterArt`(innerHTML + `character.css` 부품 키프레임), 휴대폰 `CharacterArt`(`svgTree`로 react-native-svg 요소, ref·toDataURL 그대로), 맥 위젯 PNG(`main/widgetArt.ts`), 사이트 SVG(`site/scripts/gen-characters.mjs`). 크기: 무대·도감·진화 = `fit={false}`(단계 배율 0.7→1.45), 그 밖은 기본 fit(상자 채움). 입힌 옷은 `CharacterWearProvider`(데스크톱 `RaiseProvider`, 휴대폰 `RaiseRoot`)로 AI 비서·아바타·일기·위젯까지.
 - **데이터:** `wardrobe.ts`(옷 23·해금·트로피·look_json·하루 장면·성장 막대 문구), `raiseCore.ts`(옛 종 옮기기·끝낸 프로젝트·해금 넣기·모습 저장 문). 종 id `turtle/squirrel/cat/otter → snail/bee/worm/frog`(서버 마이그레이션 + 앱이 한 번 옮김 + `normalizeSpecies`·숨은 별칭으로 옛 값도 읽힘).
