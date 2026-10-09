@@ -1,6 +1,7 @@
 // 28 모바일 일기 — DB 읽기·쓰기와 캐릭터 대화(데스크톱 data/diary.ts와 같은 순서·같은 규칙).
 // 동의 전·나만 보기·오늘은 혼자에서는 /ai/diary를 부르지 않는다. 일기로 XP 없음(15 §4).
-import { useLiveQuery } from '../data/rows'
+import { useMemo } from 'react'
+import { COUNT_THROTTLE, useLiveQuery, useRows } from '../data/rows'
 import { addDays } from '@sprout/schema/time'
 import { stageOf } from '@sprout/schema/growth'
 import { currentUserId } from '../data/auth'
@@ -15,6 +16,8 @@ import {
   MEMORY_SQL, mayCallAi, parseBuddyReply, XP_SQL, type Buddy, type DiaryEntry, type DiaryMessage
 } from './logic'
 import { getConsent, getMemory, isSolo } from './prefs'
+import { SCRIPTED, type DayStats, type Line } from './talk'
+import { IN_SMART } from '../data/views'
 
 const uuid = () => crypto.randomUUID()
 const ENTRY_BY_DATE = 'SELECT * FROM diary_entries WHERE date = ? ORDER BY created_at, id LIMIT 1'
@@ -29,7 +32,7 @@ export function useEntries(): DiaryEntry[] {
   return useLiveQuery<DiaryEntry>(ENTRIES_SQL).data
 }
 export function useMessages(date: string): DiaryMessage[] {
-  return useLiveQuery<DiaryMessage>('SELECT m.* FROM diary_messages m JOIN diary_entries e ON e.id = m.entry_id WHERE e.date = ? ORDER BY m.created_at, m.id', [date]).data
+  return useRows<DiaryMessage>('SELECT m.* FROM diary_messages m JOIN diary_entries e ON e.id = m.entry_id WHERE e.date = ? ORDER BY m.created_at, m.id', [date]).data
 }
 export type DoneRow = { id: string; title: string; completed_at: string }
 export function useDone(date: string): { rows: DoneRow[]; xp: number } {
@@ -50,6 +53,24 @@ export function useDoneByDay(month: string): Map<string, number> {
     m.set(key, (m.get(key) ?? 0) + 1)
   }
   return m
+}
+/** 28 §8.3 인사·칩: 그날 할 일(기기 안, 읽기만). total = 그날 마감인 열린 할 일 + 그날 끝낸 할 일(오늘 탭의 오늘 묶음 + 완료와 같은 기준) */
+const S_DAY = 'substr(COALESCE(t.start_at, t.due_at), 1, 10)'
+const E_DAY = 'substr(t.due_at, 1, 10)'
+const OPEN_DUE_SQL = `SELECT count(*) AS n FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.status = 0 AND t.deleted_at IS NULL AND ${IN_SMART} AND ${S_DAY} <= ? AND ${E_DAY} >= ?`
+const NEXT_SQL = `SELECT t.id, t.title FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE t.status = 0 AND t.deleted_at IS NULL AND t.parent_id IS NULL AND ${IN_SMART} AND (${E_DAY} = ? OR substr(t.start_at, 1, 10) = ?) ORDER BY t.priority DESC, t.sort_order LIMIT 2`
+export function useDayStats(date: string): DayStats {
+  const [a, b] = dayRange(date)
+  const done = useRows<DoneRow>(DONE_SQL, [a, b], COUNT_THROTTLE).data
+  const open = useRows<{ n: number }>(OPEN_DUE_SQL, [date, date], COUNT_THROTTLE).data[0]?.n ?? 0
+  const next = addDays(date, 1)
+  const nextRows = useRows<{ id: string; title: string }>(NEXT_SQL, [next, next], COUNT_THROTTLE).data
+  return useMemo(() => ({
+    total: open + done.length,
+    done: done.length,
+    doneTitles: done.slice().reverse().map((r) => r.title).filter(Boolean),
+    nextTitles: nextRows.map((r) => r.title).filter(Boolean)
+  }), [open, done, nextRows])
 }
 /** 대화 상대 = 내 성장 캐릭터(이름·종·단계) */
 export function useBuddy(): Buddy & { stage: number; level: number } {
@@ -97,6 +118,40 @@ async function addMessage(date: string, role: 'me' | 'buddy', content: string) {
   await run([insert('diary_messages', { id: uuid(), entry_id: entryRef, role, content, safety: 0, created_at: at.toISOString(), modified_at: new Date().toISOString() })])
 }
 
+/** 정해진 말(28 §8.3)과 그 답을 한 번에 남긴다(safety = SCRIPTED). 화면이 캐릭터 말을 잠깐 뒤에 보이도록 만든 id를 돌려준다 */
+export async function addScripted(date: string, lines: Line[]): Promise<string[]> {
+  if (!lines.length) return []
+  const entryRef = await saveEntry(date, {})
+  const ids: string[] = []
+  const now = new Date().toISOString()
+  const rows = lines.map((l) => {
+    const at = new Date(Math.max(Date.now(), lastAt + 1))
+    lastAt = at.getTime()
+    const id = uuid()
+    ids.push(id)
+    return insert('diary_messages', { id, entry_id: entryRef, role: l.role, content: l.content, safety: SCRIPTED, created_at: at.toISOString(), modified_at: now })
+  })
+  await run(rows)
+  return ids
+}
+/** 처음부터 다시 묻기: 정해진 행만 지운다(AI 대화·일기 글은 그대로) */
+export async function clearScripted(date: string) {
+  const id = (await findEntry(date))?.id
+  if (!id) return
+  const msgs = await db.getAll<{ id: string }>('SELECT id FROM diary_messages WHERE entry_id = ? AND safety = ?', [id, SCRIPTED])
+  await run(msgs.map((m) => ({ sql: 'DELETE FROM diary_messages WHERE id = ?', params: [m.id] })))
+}
+/** 다듬기(28 §8.5): 서버가 지시문을 정한다. 답에서 따옴표·머리말만 걷어 낸다 */
+export async function polishDraft(text: string, signal: AbortSignal, onQueue?: (position: number) => void): Promise<string> {
+  const raw = await diaryChat([{ role: 'user', content: text.slice(0, 4000) }], signal, undefined, onQueue, { mode: 'polish' })
+  const out = cleanPolished(raw)
+  if (!out) throw new Error('답이 비어 있어요')
+  return out
+}
+export function cleanPolished(raw: string): string {
+  return raw.trim().replace(/^```[a-z]*\n?|```$/g, '').replace(/^(다듬은 (일기|글)\s*[:：]\s*)/, '').replace(/^["“'‘]|["”'’]$/g, '').trim()
+}
+
 // ── 대화 ──
 export type ReplyResult = 'reply' | 'blocked'
 export type ReplyOpts = { buddy: Buddy; signal: AbortSignal; onDelta?: (visible: string) => void; onQueue?: (position: number) => void }
@@ -128,6 +183,13 @@ export async function sendMessage(date: string, text: string, opts: ReplyOpts): 
   if (!t) return 'blocked'
   await addMessage(date, 'me', t.slice(0, 2000))
   return buddyReply(date, opts)
+}
+/** 이번 실행에서 쓰거나 고친 날 — 화면을 떠날 때 기억하기 요약(켜 둔 사람만) */
+const touched = new Set<string>()
+export const touchEntry = (date: string) => { touched.add(date) }
+export function flushSummaries() {
+  for (const d of touched) void summarizeEntry(d, AbortSignal.timeout(180000)).catch(() => {})
+  touched.clear()
 }
 /** 기억하기용 짧은 요약 — 기억하기를 켠 사람의, 나만 보기가 아닌 날만 */
 export async function summarizeEntry(date: string, signal: AbortSignal) {

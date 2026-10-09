@@ -1,9 +1,9 @@
-// 일기 기기 설정(15 §3.1·§7, 28 §5 "기기에만"): 동의 · 기억하기 · 오늘은 혼자(날짜) · 한계 안내 본 횟수 · 마지막 탭(쓰기/돌아보기).
+// 일기 기기 설정(15 §3.1·§7, 28 §5·§8.6 "기기에만"): 동의 · 기억하기 · 오늘은 혼자(날짜) · 한계 안내 본 횟수 · 쓰기 방식(대화/그냥 쓰기) · 소개 봤음.
 // 동기화하지 않는다. 저장은 expo-secure-store, 읽기는 메모리 사본(preload 뒤 동기적으로).
 import * as SecureStore from 'expo-secure-store'
 import { useEffect, useState } from 'react'
 
-const K = { consent: 'sprout.diary.consent', memory: 'sprout.diary.memory', solo: 'sprout.diary.solo', notice: 'sprout.diary.notice' }
+const K = { consent: 'sprout.diary.consent', memory: 'sprout.diary.memory', solo: 'sprout.diary.solo', notice: 'sprout.diary.notice', mode: 'sprout.diary.mode', met: 'sprout.diary.met' }
 const cache = new Map<string, string | null>()
 const listeners = new Set<() => void>()
 let loaded: Promise<void> | null = null
@@ -31,6 +31,13 @@ export function setSolo(date: string, on: boolean) {
   const days = (read(K.solo) ?? '').split(',').filter((d) => d && d !== date).slice(-30)
   write(K.solo, (on ? [...days, date] : days).join(','))
 }
+/** 28 §8.7 ①: 오늘 일기를 열 때 대화(기본) / 그냥 쓰기 — `그냥 쓸래요`를 고르면 이 기기는 다음에도 그냥 쓰기로 연다 */
+export type WriteMode = 'chat' | 'free'
+export const getWriteMode = (): WriteMode => (read(K.mode) === 'free' ? 'free' : 'chat')
+export const setWriteMode = (m: WriteMode) => write(K.mode, m)
+/** 캐릭터 소개(§8.3 0)는 처음 한 번만 — 첫 답을 남기면 켠다 */
+export const hasMet = () => read(K.met) === 'on'
+export const setMet = () => { if (!hasMet()) write(K.met, 'on') }
 /** 한계 안내는 처음 5번만 */
 export function takeNotice(limit = 5): boolean {
   const n = Number(read(K.notice) ?? 0)
@@ -49,5 +56,5 @@ export function useDiaryPrefs() {
     void preloadDiaryPrefs().then(() => setReady(true))
     return () => { listeners.delete(l) }
   }, [])
-  return { ready, consent: getConsent(), memory: getMemory(), isSolo }
+  return { ready, consent: getConsent(), memory: getMemory(), isSolo, mode: getWriteMode(), met: hasMet() }
 }

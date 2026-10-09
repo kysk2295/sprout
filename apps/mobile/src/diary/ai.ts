@@ -5,7 +5,26 @@ import { serverAccess } from '../data/auth'
 import type { ChatMessage } from './logic'
 
 export const UNAVAILABLE = '지금은 AI를 쓸 수 없어요'
-export class AiUnavailable extends Error {}
+/** code = 서버 오류 코드(429 'daily' = 오늘 다 씀 등) */
+export class AiUnavailable extends Error {
+  code?: string
+  constructor(message: string, code?: string) { super(message); this.code = code }
+}
+
+/** 다듬기 하루 상한(28 §8.7 ④) — 서버 /ai/status의 usage.daily['diary-polish']. 서버에 아직 없으면(배포 전) null = 다듬기 감춤 */
+export type PolishQuota = { used: number; limit: number } | null
+export async function polishQuota(signal?: AbortSignal): Promise<PolishQuota> {
+  const { url, token } = await serverAccess()
+  if (!token) return null
+  try {
+    const res = await globalThis.fetch(`${url}/ai/status`, { headers: { authorization: `Bearer ${token}` }, signal })
+    if (!res.ok) return null
+    const j = (await res.json()) as { available?: boolean; usage?: { daily?: Record<string, { used?: number; limit?: number }> } }
+    const q = j.usage?.daily?.['diary-polish']
+    if (!j.available || !q || typeof q.limit !== 'number') return null
+    return { used: Number(q.used) || 0, limit: q.limit }
+  } catch { return null }
+}
 
 /** NDJSON 한 줄 → 글 조각·대기열·끝. 오류 줄은 던진다 */
 export function readLine(value: string): { delta?: string; queue?: number; done?: boolean } {
@@ -33,7 +52,7 @@ function utf8(bytes: Uint8Array): string {
 }
 
 /** 한 번 묻고 전체 답을 받는다. onDelta = 받는 중 조각. 연결·503·429·로그인 문제는 AiUnavailable */
-export async function diaryChat(messages: ChatMessage[], signal: AbortSignal, onDelta?: (delta: string) => void, onQueue?: (position: number) => void): Promise<string> {
+export async function diaryChat(messages: ChatMessage[], signal: AbortSignal, onDelta?: (delta: string) => void, onQueue?: (position: number) => void, opts: { mode?: 'polish' } = {}): Promise<string> {
   const { url, token } = await serverAccess()
   if (!token) throw new AiUnavailable('로그인하면 AI를 쓸 수 있어요')
   let res: Awaited<ReturnType<typeof streamFetch>>
@@ -41,7 +60,7 @@ export async function diaryChat(messages: ChatMessage[], signal: AbortSignal, on
     res = await streamFetch(`${url}/ai/diary`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      body: JSON.stringify({ messages, stream: true }),
+      body: JSON.stringify({ messages, stream: true, ...(opts.mode ? { mode: opts.mode, options: { temperature: 0.2 } } : {}) }),
       signal
     })
   } catch (e) {
@@ -49,8 +68,8 @@ export async function diaryChat(messages: ChatMessage[], signal: AbortSignal, on
     throw new AiUnavailable(UNAVAILABLE)
   }
   if (!res.ok) {
-    const json = (await res.json().catch(() => null)) as { error?: string } | null
-    throw new AiUnavailable(json?.error ?? UNAVAILABLE)
+    const json = (await res.json().catch(() => null)) as { error?: string; code?: string } | null
+    throw new AiUnavailable(json?.error ?? UNAVAILABLE, json?.code)
   }
   const reader = res.body?.getReader()
   if (!reader) throw new AiUnavailable('응답 스트림이 비어 있어요')

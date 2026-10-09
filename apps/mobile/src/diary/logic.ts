@@ -19,12 +19,13 @@ export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: stri
 export const entryId = (date: string, owner?: string | null) => (owner ? `diary-${date}-${owner}` : `diary-${date}`)
 
 // ── 기분 5단계(15 §3, 색 §7) ──
+// 28 §8.2 v2 색: 비 · 안개 · 꿀 · 잎 · 살구(보라·반짝이 없음 — 40 §0.1). 이름은 글자색으로 쓴다(대비)
 export const MOODS = [
-  { value: 1, emoji: '😢', label: '힘들었어요', color: '#8a94a6' },
-  { value: 2, emoji: '😕', label: '별로였어요', color: '#a07cf0' },
-  { value: 3, emoji: '😐', label: '그저 그랬어요', color: '#efab3e' },
-  { value: 4, emoji: '😊', label: '좋았어요', color: '#3fb950' },
-  { value: 5, emoji: '🤩', label: '최고였어요', color: '#4e75f2' }
+  { value: 1, emoji: '😢', label: '힘들었어요', color: '#8797AE' },
+  { value: 2, emoji: '😕', label: '별로였어요', color: '#8EC1D6' },
+  { value: 3, emoji: '😐', label: '그저 그랬어요', color: '#F2B84B' },
+  { value: 4, emoji: '😊', label: '좋았어요', color: '#62BF7E' },
+  { value: 5, emoji: '🤩', label: '최고였어요', color: '#F08A5D' }
 ] as const
 export const moodOf = (v: number | null | undefined) => MOODS.find((m) => m.value === v)
 
@@ -67,9 +68,9 @@ export function buildBuddyMessages(input: { buddy: Buddy; entry: Pick<DiaryEntry
   const system = [
     `너는 할 일 앱 꿈틀에서 사용자와 같이 자라는 성장 캐릭터 "${buddy.name}"야. 친구처럼 사용자의 일기를 읽고 이야기를 들어 줘.`,
     `말투: 존댓말 없이 친구처럼 반말(~했구나, ~겠다, ~어?), ${tone}.`,
-    '첫 답 예: "기획서를 반이나 썼구나! 막혔던 게 풀릴 때 기분 좋았겠다. 내일 면담은 어떤 점이 제일 신경 쓰여?"',
     '규칙:',
-    '1. 첫 답은 공감 1~2문장과 열린 질문 딱 1개. 일기 내용을 구체적으로 짚어서 말해.',
+    '0. 일기에 적힌 말과 사용자가 이 대화에서 직접 한 말만 짚어. 일기에 없는 장소·사람·음식·날씨·물건·사건·감정을 지어내거나 짐작해서 사실처럼 말하지 마. 모르면 물어봐.',
+    '1. 첫 답은 공감 1~2문장과 열린 질문 딱 1개. 공감은 일기에 적힌 일 하나를 그 말 그대로 짚어서 해.',
     '2. 사용자가 방법을 묻거나 고민을 풀고 싶어 할 때만, 질문으로 생각을 정리하고 선택지 2~3개를 같이 봐. 묻지 않았는데 조언이나 해결책을 늘어놓지 마.',
     '3. 한 번에 4문장 이내로 짧게. 목록·제목·번호 같은 서식은 쓰지 말고, 이모지는 많아야 1개(힘든 이야기에는 웃는 이모지를 쓰지 마).',
     '4. 자해 방법이나 진단·치료·약 같은 의료 조언은 절대 하지 마. 너는 전문 상담사가 아니라 친구야.',
@@ -81,7 +82,7 @@ export function buildBuddyMessages(input: { buddy: Buddy; entry: Pick<DiaryEntry
   const memory = input.memory?.length ? `\n<memory>\n${input.memory.slice(0, 7).map((m) => `${m.date}: ${clip(m.summary, 120)}`).join('\n')}\n</memory>\n지난 기록은 자연스러울 때만 한 번 이어서 물어봐.` : ''
   const diary = `${entry.date} 일기야.\n${mood}<diary>\n${clip(entry.content ?? '', 4000)}\n</diary>${memory}`
   const out: ChatMessage[] = [{ role: 'system', content: system }, { role: 'user', content: diary }]
-  // safety=1은 예전 위기 카드 행(기능 제외, 2026-10-05) — 건너뛴다
+  // safety≠0은 건너뛴다: 1 = 예전 위기 카드 행(기능 제외, 2026-10-05), 2 = 정해진 질문·답(28 §8 — 답은 이미 일기 글에 들어 있다)
   for (const m of input.messages.filter((x) => !x.safety).slice(-12)) {
     const role = m.role === 'me' ? 'user' : 'assistant'
     const content = clip(m.content, 1500)
