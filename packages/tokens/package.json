@@ -2,8 +2,9 @@
   "name": "@sprout/tokens",
   "version": "0.0.1",
   "private": true,
-  "description": "디자인 토큰 — docs/screens/00-design-tokens.md v1.1",
+  "description": "디자인 토큰 — docs/screens/00-design-tokens.md v2.0 · 말랑 아이콘 그림 데이터(44 §4)",
   "exports": {
-    "./tokens.css": "./tokens.css"
+    "./tokens.css": "./tokens.css",
+    "./softIcons": "./softIcons.ts"
   }
 }
