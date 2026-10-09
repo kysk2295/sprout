@@ -2,13 +2,28 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-10 남은 것 정리 묶음 — 리드가 할 배포·빌드 (47 §19 · 태그 · 세그먼트 · Pretendard · 넣을지 묻기 · 시험 계정 · iOS 기여자 문서)
+- **서버 배포 필요:** `server/api` + 마이그레이션 `server/db/migrations/20261015-ai-ground.sql`(`ai_usage.ground_hits`, 두 번 돌려도 안전, 순서 무관 — 칸이 없으면 API가 안 쓰고 한 줄 로그). 위 47 B안 배포와 함께 하면 된다. 일정 넣기 도구(`propose_create kind`)·`/ai/ground`·features `'ground'`는 배포 뒤부터.
+- **맥 앱 다시 빌드:** 메인·preload가 바뀜(IPC `assistant:ground`) + 태그·세그먼트·넣을지 묻기(렌더러).
+- **휴대폰 네이티브 다시 만들기 필요:** Pretendard(`expo-font` 설정 플러그인, 앱 +약 7.9 MB) — `npx expo prebuild --platform ios`(작업 폴더에서 `--clean` 금지)·`--platform android` 뒤 빌드. 45 아이콘 prebuild와 같이. 그 전 빌드는 시스템 글꼴로 조용히 돌아감. 나머지(47·태그·세그먼트·넣을지 묻기)는 JS만.
+- **태그 아이콘 하나(30 §A.5 · 33 §4.2):** 이름 앞 이모지가 여럿이면 하나만(종류 기본 아이콘 아닌 것 우선), 이름에서는 다 뗌 — 데스크톱 `shared/emoji` `tagShow`·`tagText`, 휴대폰 `data/emojiLead`, 공용 `projectEmoji`·`projectTitle`도 같은 규칙.
+- **세그먼트 대비(44 §4.1):** 트랙 = 글자색 10%(다크 12%) + 머리카락 선, 고른 칸 = 흰 칸 + 테두리 + 그림자. 휴대폰 `ui/Segmented` `segColors`, 데스크톱 `.dp__tabs·.dp__seg·.seg`. 토큰 `seg-track`은 그대로(진행 막대 등).
+- **운영 서버 시험 계정 정리(2026-10-10):** 백업 `~/sprout/server/backups/pre-test-cleanup-20261010-065233.dump`(pg_dump -Fc, 표 36개) 뒤 deleteAccount와 같은 SQL(ai_usage·device_tokens → users, 나머지 33개 표는 ON DELETE CASCADE 확인)로 7개 삭제(@example.com 1 · e2e- 4 · perf- 2, 할 일 259·일정 4·리스트 25가 함께 지워짐) + 이번 작업 중 만든 2개(tagseg-1010·e2e-askmap-…@example.com). 남은 사용자 8. 남겨 둔 것: 오너·`demo-store-202610050756@sprout.test`·gmail 5개·`ㅂㅁ-ㅇㄷㅍㅊ미-1005@ㄷㅌ므ㅔㅣㄷ.채ㅡ`(한글 자판으로 친 qa-devcal-1005@example.com으로 보임 — 규칙 밖이라 안 지움, 사용자 판단)·`charleft-1010@example.com`(캐릭터 작업 세션이 쓰는 중 — 그쪽이 지울 것).
+- **iOS 기여자 문서:** `docs/release/CONTRIBUTOR-IOS.md` §9(캘린더 권한 문구·expo-audio·expo-sensors·Pretendard·45 아이콘·art3d 종 묶음).
+- 남은 것: 휴대폰 [고치기]로 넣은 결과는 카드에 안 붙음(토스트만) · 일정 바꾸기·지우기 카드 · 넣을지 묻기 하루 3개는 기기마다 따로 셈 · Android 글꼴 실기 확인.
+
+## ★ 2026-10-10 휴대폰 작업 지도 "넣을지 묻기" (29 §9.8 · 31 §12.13.4~6)
+- 휴대폰 보드 요약 줄 아래 캐릭터 말풍선 `'회의'도 K 데이터 공모전 일이야?` [응] [아니](7일 안 · 하루 3개, 기기 `sprout.map.ask.v1`) + 주간 점검 끝 `… 들어갈 것 같은 일 N개` [모두 넣기] [하나씩]. 답이 남기는 행은 데스크톱과 같다(task_tags user/dismissed · relations hint/팀원) — 휴대폰은 여전히 70↑ 자동 붙이기는 안 함.
+- 공용으로 옮김: `@sprout/schema/projectScore` 끝(`askItemsOf`·`freshAsk`·`nextAsk`·`leftoverGroups`·`answerPlan`·`askedOn`/`bumpAsked`·`askText`·`ASK_TOAST`·`hintRelId`·`projectPersonId`, 시험 `projectScore.test.ts`). 데스크톱 `ProjectAsk.tsx`·`useProjects.ts`·`data/projects.ts`·`data/projectEdit.ts`는 이것을 가져다 씀(동작 같음). 휴대폰 `src/map/v2/ask.ts`·`ProjectAsk.tsx`, 끼운 곳 `ProjectBoard.tsx`·`app/growth/review.tsx` 한 줄씩. 서버·스키마 변경 없음 → 앱 JS만.
+
 ## ★ 2026-10-10 AI 비서 B안 2단계 구현 (47 확정 v1.0 — "추천안대로") — **서버 배포 전**
 - 결정 ①~④ 확정: 턴 1번 = 1회·하루 40턴 · 확인 카드 하나에만 말로 `응`(지우기는 단추로만) · 일기 기본 꺼짐 + 설정(일기 AI 동의 필요) · 길잡이가 쓰기·확인·기간·마지막으로 한 날·일기·상대 날짜를 먼저.
 - 공용 `packages/schema/src/assistant{Tools,Exec,Router,Ground,Agent}.ts`(+ `assistantFixture.ts`·`assistantAgent.test.ts`), `recognize(…, { assistant: true })`. 서버 `ai.ts` `mode:'agent'`(턴 id·front 갈래·turn_limit·150초·`features:['agent']`·**num_ctx 6144 모든 용도**). 데스크톱 `AssistantAgent.tsx`·`AssistantBody.tsx`·`data/assistant.ts`·main IPC `assistant:agent`, 휴대폰 `src/assistant/AgentParts.tsx`·`store.ts`·`data.ts`, 설정 › AI 비서(일기 보기).
 - **배포 전에는 앱이 13 의도 경로 그대로**(`/ai/status`에 `features` 없음). 배포 = `server/api`만(마이그레이션 없음, Dockerfile이 `packages/schema/src` 복사). 새 환경 변수 기본값 그대로 써도 됨: `AI_DAILY_ASSISTANT=40`, `AI_NUM_CTX=6144`, `AI_AGENT_NUM_CTX`, `AI_PREDICT_AGENT_TOOLS=300`, `AI_PREDICT_AGENT_ANSWER=450`, `AI_AGENT_CALL_TIMEOUT_MS=60000`, `AI_TURN_MAX_CALLS=4`, `AI_TURN_MAX_MS=150000`.
 - 배포 전 시험: `ssh -N -L 21434:127.0.0.1:11434 macmini` + `node --experimental-strip-types server/scripts/ai-local.ts`(127.0.0.1:6070, 운영 JWKS로 토큰 검증) → 데스크톱 `SPROUT_AI_URL`, 휴대폰 `EXPO_PUBLIC_AI_URL`. 실측 `scripts/assistant-eval.ts`(research 39 §8: 사람 채점 20/22 × 2, 지어낸 데이터 0, 호출/턴 1.11).
 - 처리방침 제7조 2항 예시(국·영 md + `site/public/privacy.html`)·스토어 소개 줄 고침 — **사이트 배포는 아직**(시행일·공고일은 그대로 2026-10-06, 사용자 판단).
-- 남은 것: 메모 카드 → 그 메모 바로 열기(지금은 수집함 화면) · 데스크톱 [고치기]는 입력창에 문장(편집기 아님) · 넣기는 할 일만(꿈틀 일정 넣기 [다음]) · 근거 검사 횟수 서버 칸 [다음] · 동시 사용자 부하 실측 · 도구 턴 p90 40초 줄이기.
+- **2026-10-10 마무리(47 v1.1 §19):** 메모 카드 → 그 메모 바로 열기(데스크톱 수집 행 선택 + 상세 `requestOpenNote`, 휴대폰 수집 탭 + 항목 시트 `requestItem`) · [고치기] = 데스크톱 빠른 만들기 팝오버(`QuickCreate initial`)를 카드 값으로, 거기서 넣으면 카드가 `넣었어요` + ⟲(`savedFromEditor`) / 휴대폰 빠른 입력을 `editParams`(제목·시작·끝·리스트·반복·할 일/일정)로 · **꿈틀 일정 넣기**(길잡이 `wantsEvent`: `할 일로` < `일정` 말 · 시간 범위 · 약속 낱말+시각, `propose_create` `kind`, `eventFieldsOf` — 1시간 기본·알림 없음·내 일정, ⟲ 같음) · **근거 검사 횟수 서버 칸** `POST /ai/ground {hits}` → `ai_usage.ground_hits`(마이그레이션 `20261015-ai-ground.sql`, 칸 없어도 API 안 멈춤). 데스크톱 라이브 확인(fake Ollama + ai-local, @example.com 시험 계정 삭제함). **배포:** 서버 `server/api` 재배포 + 마이그레이션 1개(순서 상관없음, 도구 정의 `kind`도 서버가 보냄), 맥 앱 다시 빌드(메인·preload 바뀜 — `assistant:ground`), 휴대폰 JS만.
+- 남은 것: 휴대폰 [고치기]로 넣은 결과는 카드에 안 붙음(토스트만) · 일정 바꾸기·지우기 카드 · 동시 사용자 부하 실측 · 도구 턴 p90 40초 줄이기.
 
 ## ★ 2026-10-10 캐릭터 v3 구현 — 3D 스프라이트 · 만들기 흐름 · 장면 끝까지 · 만지기 v3 (49 확정 v1.0)
 - 사용자 "추천안대로"(49 §11 ①~④) + "클릭하면 점프하고 한바퀴 돌고…"(49 §7.1). 명세 [49](docs/screens/49-character-v3.md) §14가 구현 표, 40·42·43·44 머리에 v3 줄.

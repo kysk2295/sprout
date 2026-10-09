@@ -86,3 +86,20 @@ open ios/*.xcworkspace     # 타깃 3개(앱·SproutShare·SproutWidget) 모두 
 
 시뮬레이터 빌드는 프로비저닝 프로파일 없이도 App Group이 동작한다(2026-10-05 iPhone 17 Pro · iOS 26.5에서 확인, 스크린샷 `docs/screens/shots/36-mobile-widgets/`).
 
+
+---
+
+## 9. 이 문서 뒤에 늘어난 네이티브 요구 (2026-10-10 갱신)
+아래는 모두 `app.json`·`package.json`에 이미 들어 있습니다. 기여자는 **`npx expo prebuild --platform ios --clean`을 한 번 새로 돌리고**(§4) 아래만 확인하면 됩니다. 저장소 주인의 작업 폴더에서는 `--clean`을 쓰지 않지만, 기여자의 새 브랜치에서는 써도 됩니다.
+
+| 무엇 | 어디서 들어옴 | 확인할 것 |
+|---|---|---|
+| 휴대폰 캘린더 권한 문구 (38) | `expo-calendar` 플러그인 `calendarPermission` | Info.plist에 `NSCalendarsUsageDescription`·`NSCalendarsFullAccessUsageDescription`(iOS 17+)이 한국어 문구로 들어갔는지. 미리 알림(`remindersPermission`)은 끔 — `NSRemindersUsageDescription`이 없어야 정상. 심사 메모에 "설정 › 캘린더 연동에서 사용자가 켤 때만 묻는다"고 적혀 있음 |
+| 완료음 (39) | `expo-audio` (플러그인 없음) | 소리만 냄(녹음 없음) — 마이크 권한 문구(`NSMicrophoneUsageDescription`)가 없어야 정상. 생기면 PR에 적기 |
+| 흔들기 (49, 들어왔을 때만) | `expo-sensors` | `package.json`에 있으면 가속도계만 씀 — 권한 문구 필요 없음. `NSMotionUsageDescription`은 걸음 수(Pedometer)를 쓸 때만이라 넣지 않음 |
+| 글꼴 Pretendard (44) | `expo-font` 플러그인, `apps/mobile/assets/fonts/` | 빌드 산출물 Info.plist `UIAppFonts`에 Pretendard 파일들이 들어갔는지. 라이선스(SIL OFL 1.1) 파일이 같은 폴더에 있음 — 지우지 말 것 |
+| 앱 아이콘·스플래시 (45 브랜드) | `app.json` `ios.icon`(기본·다크·색조 1024) · `expo-splash-screen` | prebuild 뒤 Xcode `Images.xcassets/AppIcon`에 새 씨앗 아이콘(옛 파랑 아님)과 다크·색조 변형이 있는지. 스토어용 1024는 `docs/release/store/app-store-assets/icon-1024.png` |
+| 캐릭터 그림 종 묶음 (49) | 코드(`src/growth/art/art3dPacks.ts`) — 네이티브 설정 없음 | 앱은 기본 그림만 품고, 큰 그림은 처음 종을 고를 때 `https://web-production-cd889.up.railway.app/art3d/v3/`에서 받아 문서 폴더에 둠. HTTPS라 ATS 예외 필요 없음. 심사 전에 주소 하나가 열리는지 확인(안 열리면 주인에게 — 사이트 배포 문제) |
+
+- 위 항목이 없는 예전 빌드를 TestFlight에 올렸다면 빌드 번호를 올려 다시 올립니다.
+- 개인정보 답변(`store/privacy-answers.md`)은 위 항목으로 바뀌지 않습니다(휴대폰 캘린더에서 읽기만 한 일정은 기기 안 처리, 꿈틀에서 만든 일정은 이미 "캘린더 일정" 항목 — 같은 파일 26·51줄).
