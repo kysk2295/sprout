@@ -252,7 +252,8 @@
 | 약한 곳 고침(§4.5) | ① 꿀벌 날개 = 굽은 반투명 판 + 흰 테·맥(나비 날개도 같은 방식) ② 목 옷 = 납작한 띠 단면 + 축에서 바깥으로 잰 고리(개구리·애벌레에서 튜브·늘어남 없음) ③ 씨앗 금 = 표면을 따라 Boolean으로 파낸 진짜 틈(속은 짙은 재질) ④ 장면 = 먼 숲·구름·결 있는 돌·조약돌, 별은 하늘 무늬(공은 피사계 심도로 큰 흰 원) ⑥ 실루엣 = 같은 층 한 색(휴대폰 tintColor · 데스크톱 CSS mask) — 따로 굽지 않는다 |
 | 그림 목록 | `packages/schema/src/art3d.ts`(`@sprout/schema/characterArt`에서 다시 내보냄): bodyKey·faceKey·accKey·layers3d(뒤→앞: 몸 · 칸 소품 · 등 · 얼굴 · 목 · 손 · 모자, < 64pt = 모자만)·cropBox(bust)·mood5·sceneKeyFor·sceneLayout·spinOf·mobileTier. 자동 생성 `art3dManifest.ts`. 시험 `art3d.test.ts`(모든 층이 목록·디스크에, 기준점, 층 순서, 예산) |
 | 표정 짝(결정 ④) | default → 기본 · smile·happy·content·pet·giggle·eat → 웃음 · sleepy → 졸림 · wow → 놀람 · think·puzzled → 생각(40 §6) |
-| 예산(실측) | 전체 4.0 MB(데스크톱은 전부 앱 안). **휴대폰 기본 묶음 895 KB**(160 그림 전부 · 아기 512 · 씨앗 · 장면 · 장식), **종 묶음 660~900 KB**(꼬마~전설 512 · 옷 512 · 소품 · 회전 띠) — 처음 종을 알 때 사이트 정적 파일 `/art3d/v3/`(Railway, 변경 불가 캐시)에서 내려받아 문서 폴더에 둔다(`art3dPacks.ts`). 받기 전에는 160으로 대신 그린다. **사이트 배포가 필요하다** |
+| 예산(실측, 2026-10-10 해상도 고침 뒤) | 800으로 굽고 768·384·160 사다리(늘리지 않는 가장 작은 것), 씨앗 앞모습 512·도는 컷 384, 장면 1170×2340. 전체 8.3 MB(데스크톱은 전부 앱 안). **휴대폰 기본 묶음 1.8 MB**(160 전부 · 아기 768 · 씨앗 · 자동 장면 넷 + 모든 장면 390 미리보기 · 장식), **종 묶음 1.3~1.4 MB, 꿀벌 1.9 MB**(반투명 날개 — 예산 1.5 MB 넘음), **배경 묶음** 장면 하나씩 40~80 KB. 사이트 `/art3d/v3/`(Railway)에서 받는다 — **사이트 배포 필요** |
+| 흰 상자 고침 | 데스크톱 만지기 감싸개 `.pc-in`이 PlanChat 전역 `.pc-in`(회색 둥근 상자)과 겹쳤다 → `.ply-*`. 그림은 진짜 알파, 줄일 때 premultiplied |
 | 휴대폰 | `growth/art/CharacterArt.tsx`(Image 층, 깜빡임 = 졸림 층 opacity) · `Scene3D.tsx` · `art3dFiles.ts`(자동 생성) · `art3dPacks.ts`. expo-image 대신 RN Image(WebP는 iOS ImageIO) — 네이티브 변경 없음 |
 | 데스크톱 | `components/growth/CharacterArt.tsx`(<img> 층) · `Scene3D.tsx` · `art3dUrls.ts`(import.meta.glob) |
 | 위젯 · 사이트 | 맥 위젯 = 같은 층을 숨은 창에서 겹쳐 PNG(resources/art3d) · 휴대폰 위젯 = react-native-svg Image 층 → toDataURL · 그림 판 v5. 사이트 캐릭터 21장 = 구운 그림 겹침 WebP |
