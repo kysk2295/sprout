@@ -47,6 +47,7 @@ import { AutoTrashNotice } from './components/overdue/AutoTrash'
 import { useLinkSync } from './components/wiki/LinkText'
 import type { OpenTarget } from './data/wiki'
 import { isEventKey, openEventById, requestCalendarDate, requestOpenEvent } from './data/events'
+import { requestOpenNote } from './data/notes'
 import { dayKey } from './lib/dates'
 import { guideTabOf, OPEN_QUICK_ADD, OPEN_SHORTCUTS, requestGuide } from './components/guide/core'
 
@@ -122,8 +123,8 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   const settingsRef = useRef<() => void>(() => {})
   const openTask = (id: string) => { setView('tasks'); setSelected('smart:all'); setSelection([id]) }
   // 13 §3.1 AI 비서 카드: 할 일 · 꿈틀 일정('ev:') · 연결된 캘린더 일정('day:<날짜>' = 그날 캘린더)
-  // 47: view:diary(일기로 가기) · view:settings(설정 열기) · note:<id>(메모 — 수집함 화면으로)
-  const openAssistantItem = (id: string) => { if (id === 'view:diary') { setView('diary'); return } if (id === 'view:settings') { settingsRef.current(); return } if (id.startsWith('note:')) { setView('notes'); return } if (isEventKey(id)) { setView('calendar'); void openEventById(id) } else if (id.startsWith('day:')) { setView('calendar'); requestCalendarDate(id.slice(4)) } else openTask(id) }
+  // 47: view:diary(일기로 가기) · view:settings(설정 열기) · note:<id>(메모 — 수집함 › 수집에서 그 메모를 골라 상세로, §19.1)
+  const openAssistantItem = (id: string) => { if (id === 'view:diary') { setView('diary'); return } if (id === 'view:settings') { settingsRef.current(); return } if (id.startsWith('note:')) { setView('notes'); requestOpenNote(id.slice(5)); return } if (isEventKey(id)) { setView('calendar'); void openEventById(id) } else if (id.startsWith('day:')) { setView('calendar'); requestCalendarDate(id.slice(4)) } else openTask(id) }
   // 뒤에서 도는 정리: 수집함 AI 분류·링크 제목(11 v3-3), 새 할 일 영역 분류(14 §0.3)
   useCollector(lists)
   useLinkSync() // 33 §6.4 [[링크]] 글 ↔ 관계
@@ -254,7 +255,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   useEffect(() => {
     const on = (e: Event) => {
       const s = (e as CustomEvent<SideScreen>).detail
-      if (s === 'review') setView('growth')
+      if (s === 'review' || s === 'growth') setView('growth')
       else if (s === 'tidy' && takeScreen('tidy')) setTidyOpen(true)
     }
     window.addEventListener(OPEN_SCREEN, on)

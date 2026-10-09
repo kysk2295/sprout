@@ -141,8 +141,8 @@ export function openMap(intent: MapIntent) {
   pending = intent
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(OPEN_MAP, { detail: intent }))
 }
-/** 지도 밖 화면: review = 성장 › 주간 점검, tidy = 정리 화면(분류 책상). App이 탭을 옮기고, 그 화면이 takeScreen으로 받는다 */
-export type SideScreen = 'review' | 'tidy'
+/** 지도 밖 화면: review = 성장 › 주간 점검, tidy = 정리 화면(분류 책상), growth = 성장 탭만 열기(49 §5.1 만들기 흐름 끝 `정원으로 가기`). App이 탭을 옮기고, 그 화면이 takeScreen으로 받는다 */
+export type SideScreen = 'review' | 'tidy' | 'growth'
 export const OPEN_SCREEN = 'sprout:open-screen'
 let pendingScreen: SideScreen | null = null
 export function openScreen(s: SideScreen) {
@@ -151,6 +151,8 @@ export function openScreen(s: SideScreen) {
 }
 export const openReview = () => openScreen('review')
 export const openTidy = () => openScreen('tidy')
+/** 성장 탭으로만 옮긴다(받아 갈 요청 없음 — pending을 남기지 않는다) */
+export const openGrowth = () => { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(OPEN_SCREEN, { detail: 'growth' })) }
 /** 그 화면 요청이 남아 있으면 가져간다(한 번) */
 export const takeScreen = (s: SideScreen): boolean => { if (pendingScreen !== s) return false; pendingScreen = null; return true }
 export const takeMapIntent = (): MapIntent | null => { const p = pending; pending = null; return p }

@@ -12,7 +12,7 @@ import { setSeed } from '@sprout/schema/wardrobe'
 import { assignCharacter, useMotionReduced } from '../../data/growth'
 import { saveLook, useRaise } from '../../data/raise'
 import { createTask, taskListId } from '../../data/mutations'
-import { OPEN_SCREEN } from '../../data/mapMoments'
+import { openGrowth } from '../../data/mapMoments'
 import { useTaskActions } from '../../lib/taskActions'
 import { dayKey } from '../../lib/dates'
 import { artUrl } from './art3dUrls'
@@ -204,8 +204,8 @@ export function MakeFlow({ onClose }: { onClose: (r?: MakeResult) => void }) {
   }
   const finish = () => {
     onClose({ firstTask: !!task?.done, done: true })
-    // 성장 탭으로(App이 OPEN_SCREEN 'review'를 받으면 성장 탭으로 옮긴다 — 점검 요청은 남기지 않았으므로 점검은 열리지 않는다)
-    window.dispatchEvent(new CustomEvent(OPEN_SCREEN, { detail: 'review' }))
+    // 49 §5.1 6단계: 성장 탭(정원)으로 바로 — App이 OPEN_SCREEN 'growth'를 받아 탭만 옮긴다
+    openGrowth()
   }
 
   // ── 키보드: Esc = 나중에 · ←/→ = 씨앗 돌리기(씨앗 칸에 있으면 씨앗 바꾸기) · 1·2 = 선택지 ──
