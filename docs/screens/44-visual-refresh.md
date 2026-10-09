@@ -1,6 +1,6 @@
 # 44 · 시각 개편 — 틱틱 배치는 그대로, 껍데기는 꿈틀답게
 
-- 상태: **초안 v0.1** (2026-10-09, 사용자 확인 대기). 사용자 요청: "https://www.behance.net/gallery/208487841/-luckkids 이 레퍼런스를 참고해서 이정도 UI로 변경을 했으면 좋겠어 ㅎ" → "캐릭터도 바꿔도 돼. 전체 UI를 수정해줘".
+- 상태: **확정 v1.0** (2026-10-09, 사용자 "추천대로") — 할 일 쪽 껍데기 구현됨(토큰 00 v2.0·말랑 아이콘·데스크톱·휴대폰, HANDOFF 참고). 구현 차이: 데스크톱 바닥은 새 `--color-bg-ground`(`--color-bg-app`은 흰 면 그대로), 다크 강조 채움은 흰 글자 3:1을 위해 `#22A45D`(글자 `#6FE09F`). 이전: 초안 v0.1 사용자 요청: "https://www.behance.net/gallery/208487841/-luckkids 이 레퍼런스를 참고해서 이정도 UI로 변경을 했으면 좋겠어 ㅎ" → "캐릭터도 바꿔도 돼. 전체 UI를 수정해줘".
 - 시안: [mockups/visual-refresh.html](mockups/visual-refresh.html)(앱 전체: 로그인·온보딩·오늘·빠른 입력·캘린더 월·프로젝트·성장·AI 비서·설정, 휴대폰 + 데스크톱 오늘·성장)와 [mockups/character-raising-v2.html](mockups/character-raising-v2.html)(캐릭터·성장·꾸미기·진화 자세히). 두 시안은 같은 그림 [kkumteul-art.js](mockups/kkumteul-art.js)와 같은 토큰 [kkumteul-skin.css](mockups/kkumteul-skin.css)을 쓴다. 확인용 주소 인자: 아래 §11.
 - 레퍼런스 분석: [research 36](../ticktick-research/36-ref-luckkids.md). 앞선 명세: [00 디자인 토큰](00-design-tokens.md), [20 모바일 개요](20-mobile-overview.md), [21 오늘](21-mobile-today.md), [22 빠른 입력](22-mobile-quick-add.md), [38](38-mobile-calendars.md)·[06 캘린더](06-calendar.md), [29](29-mobile-map.md)·[31 작업 지도](31-work-map-v3.md), [08 로그인](08-login.md), [18 온보딩](18-onboarding.md), [27 AI 비서](27-mobile-assistant.md), [40 캐릭터 동행](40-character-companion.md), [42 진화](42-character-evolution.md), [43 키우기](43-character-raising.md), [39 움직임](39-mobile-motion.md).
 - 표기: **[틱틱]** 틱틱 그대로 · **[sprout]** 새 설계 · **[임시]** · **[결정 필요]** · **[다음]**
