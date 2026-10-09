@@ -76,7 +76,18 @@ for (const t of THEMES) {
     const hoverBg = over(hover, parse(get('--color-bg-rail')))
     check(contrast(get('--color-rail-icon-hover'), `rgb(${hoverBg.slice(0, 3).join(',')})`) >= 3, `${t.id}: 호버 레일 아이콘 < 3`)
   }
+  // 00 v2.0 (44 §8): 작은 강조 글자(링크·시각)는 accent-ink — 흰 면·바닥·고른 면에서 읽혀야 한다
+  const inkMin = MEASURED.has(t.id) && t.id === 'sky' ? 4 : 4.5
+  for (const s of ['--color-bg-app', '--color-bg-sidebar', '--color-bg-ground']) check(contrast(get('--color-accent-ink'), get(s)) >= inkMin, `${t.id}: 강조 글자 / ${s} ${contrast(get('--color-accent-ink'), get(s)).toFixed(2)} < ${inkMin}`)
+  check(contrast(get('--color-accent-ink'), get('--color-bg-selected')) >= 4, `${t.id}: 강조 글자 / 고른 면 < 4`)
+  check(contrast(get('--color-text-danger'), get('--color-bg-app')) >= 4.4, `${t.id}: 빨강 글자 / 면 ${contrast(get('--color-text-danger'), get('--color-bg-app')).toFixed(2)} < 4.4`)
+  check(contrast(get('--color-priority-high'), get('--color-bg-app')) >= 3, `${t.id}: 높음 체크 테두리 / 면 < 3`)
+  check(contrast(get('--color-on-accent'), get('--color-accent')) >= (MEASURED.has(t.id) ? 3 : 4.5), `${t.id}: 강조 위 글자 < 기준`)
 }
+// 기본 테마 = 꿈틀 초록(44 결정 ⓒ), 다른 색 테마는 각자 강조색
+assert.equal(resolved('default').get('--color-accent'), '#22a45d')
+assert.equal(resolved('sky').get('--color-accent'), '#4e75f2')
+assert.equal(resolved('black').get('--color-accent'), '#5a62fa')
 assert.deepEqual(failures, [], `대비 기준 미달:\n${failures.join('\n')}`)
 
 // 저장 형식: 예전 값('default'·'sky'·'dark')은 그대로 읽히고, 두 번째 칸은 시스템 다크일 때 테마

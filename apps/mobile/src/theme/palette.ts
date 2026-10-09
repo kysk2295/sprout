@@ -8,7 +8,7 @@ export type ThemeId = keyof typeof TOKEN_THEMES
 export type Palette = TokenColors & {
   id: ThemeId
   dark: boolean
-  /** 회색 바닥(목록·설정) — 라이트 #F3F3F6, 색 테마는 견본색 9% 섞음 [sprout 해석 research 24 §11] */
+  /** 회색 바닥(목록·설정) — 기본 #F4F6F3(44), 색 테마는 견본색 9% 섞음 [sprout 해석 research 24 §11] */
   pageBg: string
   /** 묶음 카드 면 */
   cardBg: string
@@ -60,35 +60,39 @@ export function paletteOf(id: string): Palette {
     toastBg: '#2b2b2e', toastAction: '#8fa6ff'
   }
   if (dark) {
+    // 44 §3.1 다크: 바닥 #0C0F0D → 카드 #161A17 → 칸 #1F2420 (트루 블랙은 그대로)
     return {
       ...t, ...base, id: themeId, dark,
-      pageBg: black ? '#000000' : '#0f0f0f',
-      cardBg: black ? '#121212' : '#1c1c1c',
+      pageBg: black ? '#000000' : t.bgGround,
+      cardBg: black ? '#121212' : t.bgApp,
       sheetBg: t.bgPopover,
-      glass: black ? 'rgba(28,28,30,0.85)' : 'rgba(44,44,46,0.82)',
+      glass: black ? 'rgba(28,28,30,0.85)' : 'rgba(31,36,32,0.82)',
       glassLine: 'rgba(255,255,255,0.08)',
-      drawerBg: black ? '#0a0a0a' : '#1a1a1a',
-      drawerSel: black ? '#222222' : '#2c2c2c',
-      tabIcon: '#a0a0a5',
-      tabOn: t.accent,
+      drawerBg: black ? '#0a0a0a' : t.bgApp,
+      drawerSel: black ? '#222222' : t.bgSelected,
+      tabIcon: black ? '#a0a0a5' : t.textSecondary,
+      tabOn: black ? t.accent : t.accentInk,
       scrim: 'rgba(0,0,0,0.55)',
-      overdue: t.danger,
-      toastBg: '#3a3a3c'
+      overdue: t.textDanger,
+      toastBg: black ? '#3a3a3c' : t.toastBg,
+      toastAction: black ? base.toastAction : '#6fe09f'
     }
   }
   return {
     ...t, ...base, id: themeId, dark,
-    pageBg: colored ? mix(t.bgRail, '#f3f3f6', 0.09) : '#f3f3f6',
+    // 44 §3.1: 기본 테마 바닥 #F4F6F3(옅은 초록 회색) + 흰 카드. 색 테마는 견본색 9%
+    pageBg: colored ? mix(t.bgRail, '#f3f3f6', 0.09) : '#f4f6f3',
     cardBg: t.bgApp,
     sheetBg: t.bgPopover,
     glass: 'rgba(255,255,255,0.82)',
     glassLine: 'rgba(0,0,0,0.06)',
     drawerBg: t.bgSidebar,
     drawerSel: colored ? t.bgSelected : t.accentSubtle,
-    tabIcon: '#3c3c43',
-    tabOn: t.accent,
-    scrim: 'rgba(0,0,0,0.30)',
-    overdue: t.danger
+    tabIcon: colored ? '#3c3c43' : '#59665e',
+    tabOn: colored ? t.accent : t.accentInk,
+    scrim: colored ? 'rgba(0,0,0,0.30)' : t.overlayScrim,
+    overdue: t.textDanger,
+    ...(colored ? {} : { toastBg: t.toastBg, toastAction: '#8fe3b3' })
   }
 }
 

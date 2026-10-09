@@ -1,4 +1,6 @@
 /* 앱 셸 — 01-app-shell, 02-task-list. 값은 전부 tokens.css 변수. */
+/* 00 v2.0 · 44 §3.2: Pretendard(SIL OFL 1.1, assets/fonts/Pretendard-LICENSE.txt)를 앱에 넣어 어느 기기에서나 같은 글자 */
+@font-face { font-family: "Pretendard"; font-weight: 45 920; font-style: normal; font-display: swap; src: url("../assets/fonts/PretendardVariable.woff2") format("woff2-variations"), url("../assets/fonts/PretendardVariable.woff2") format("woff2"); }
 html { font-size: 14px; } /* 00 v1.2: 실측 본문 14pt */
 html, body, #root { height: 100%; margin: 0; }
 body { background: var(--color-bg-app); color: var(--color-text-primary); font: var(--text-body); user-select: none; overflow: hidden; }
@@ -541,7 +543,7 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .qc__head { display: flex; align-items: center; justify-content: space-between; }
 .qc__date { display: inline-flex; align-items: center; gap: 6px; font: var(--text-meta); color: var(--color-accent); }
 .qc__date svg { width: 15px; height: 15px; }
-.qc__input { width: 100%; border: 0; outline: 0; background: transparent; font: var(--text-title); color: var(--color-text-primary); padding: 10px 0 14px; user-select: text; }
+.qc__input { width: 100%; border: 0; outline: 0; background: transparent; font: 700 20px/26px var(--font-family); color: var(--color-text-primary); padding: 10px 0 14px; user-select: text; }
 .qc__input::placeholder { color: var(--color-text-quaternary); }
 .qc__foot { display: flex; }
 .day-pop__dot { width: 8px; height: 8px; border-radius: 50%; display: block; }

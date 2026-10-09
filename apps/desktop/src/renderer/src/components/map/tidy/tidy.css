@@ -118,7 +118,7 @@ body.td-dragging, body.td-dragging * { cursor: grabbing !important; user-select:
 
 /* ── 다 정리했어 ── */
 .td-fin { align-items: center; justify-content: center; text-align: center; gap: 10px; }
-.td-fin h3 { margin: 4px 0 0; font: var(--text-title); color: var(--color-text-primary); }
+.td-fin h3 { margin: 4px 0 0; font: var(--text-h2); color: var(--color-text-primary); }
 .td-fin p { margin: 0; color: var(--color-text-secondary); font: var(--text-body); }
 .td-fin__acts { display: flex; gap: 8px; margin-top: 6px; }
 .td-fin__acts .map-btn { height: 30px; padding: 0 14px; }

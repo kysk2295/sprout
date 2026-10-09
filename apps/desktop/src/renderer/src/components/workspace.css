@@ -74,7 +74,7 @@
 .assistant-v2 .assistant-card__head em { margin-left: auto; font-style: normal; font-weight: 500; color: var(--color-text-tertiary); }
 .assistant-v2 .assistant-card__stats { display: flex; gap: 24px; padding: 12px; flex-wrap: wrap; }
 .assistant-v2 .assistant-card__stats div { display: flex; flex-direction: column; }
-.assistant-v2 .assistant-card__stats strong { font: var(--text-title); }
+.assistant-v2 .assistant-card__stats strong { font: 700 20px/26px var(--font-family); }
 .assistant-v2 .assistant-card__stats span { font: var(--text-meta); color: var(--color-text-tertiary); }
 .assistant-v2 .assistant-row { height: var(--size-row-height); display: flex; align-items: center; gap: var(--space-row-icon-gap); padding: 0 12px; position: relative; cursor: default; }
 .assistant-v2 .assistant-row:hover { background: var(--color-bg-hover); }
