@@ -97,7 +97,7 @@ npm start                                                                       
 | `AI_BACKGROUND_PURPOSES` | `tag,map` | 기본이 background인 용도(쉼표). 앱 헤더로 다른 용도도 낮출 수 있다 |
 | `AI_USER_PER_MINUTE` · `AI_USER_PER_DAY` | 6 · 100 | 사용자당 상한 [임시] |
 | `AI_WEEKLY_KPI_DRAFT` · `AI_WEEKLY_REPORT` | 1 · 1 | 주간 상한(PRD) |
-| `AI_DAILY_BREAKDOWN` · `AI_DAILY_TAG` | 10 · 40 | 용도별 하루 상한(31 쪼개기 · 33 자동 태그) |
+| `AI_DAILY_BREAKDOWN` · `AI_DAILY_TAG` · `AI_DAILY_DIARY_POLISH` | 10 · 40 · 3 | 용도별 하루 상한(31 쪼개기 · 33 자동 태그 · 28 §8 일기 다듬기 — `POST /ai/diary {mode:"polish"}`, 지시문은 서버 것) |
 | `AI_PREDICT_TAG` | 1600 | `tag` 용도 출력 토큰 상한(할 일 40개 답) |
 | `AI_NUM_CTX` · `AI_NUM_PREDICT` · `AI_TZ_OFFSET_MIN` | 4096 · 700 · 540 | 토큰 제한 · 날짜/주 경계 시간대(한국) |
 
