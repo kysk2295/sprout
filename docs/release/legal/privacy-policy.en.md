@@ -4,7 +4,7 @@
 
 UniPort (Representative: Ko Yunseo; "we") operates Kkumteul (꿈틀; desktop and mobile apps, the "Service") and processes personal information in accordance with the Personal Information Protection Act of the Republic of Korea ("PIPA").
 
-- Effective date: 2026-10-06
+- Effective date: 2026-10-10
 - The Korean version governs if the two versions differ.
 - The Service is **free** and uses **no advertising, analytics or tracking tools**.
 
@@ -112,5 +112,5 @@ Personal Information Dispute Mediation Committee 1833-6972 (www.kopico.go.kr) ·
 
 ## 15. Changes
 We announce changes in the app or on our website at least **7 days** before they take effect (**30 days** for material or unfavorable changes).
-- Announced: 2026-10-06 / Effective: 2026-10-06
-- Previous versions: none (first version)
+- Announced: 2026-10-10 / Effective: 2026-10-10
+- History: 2026-10-10 revision — added what the AI assistant looks up to answer (tasks, events, notes, and diary if enabled) · 2026-10-06 first version
