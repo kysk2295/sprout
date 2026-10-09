@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>꿈틀 모바일 일기 v2 시안 (28)</title>
+<!-- 28 §8 v2 시안: 오늘 일기 = 캐릭터와 나누는 대화(정해진 질문 + 빠른 답) → 내 말로 묶은 초안 카드 → 저장.
+     같은 폴더의 kkumteul-skin.css(44 껍데기)·kkumteul-art.js(정원 친구들 그림)만 읽는다. 외부 네트워크 없음. 강조색은 45 깊은 숲(#12715E)으로 덮어쓴다.
+     주소 인자: ?theme=light|dark · &sp=snail|bee|worm|frog · &time=morning|day|evening|night · &ai=1(AI 자리 표시) · &motion=reduce · &only=<섹션 id>(now·talk·more·past·cal) · &demo=auto(첫 휴대폰 자동 재생) -->
+<link rel="stylesheet" href="kkumteul-skin.css">
+<style>
+/* ───────── 45 깊은 숲 팔레트 덮어쓰기 ───────── */
+:root {
+  --k-accent: #12715E; --k-accent-ink: #12715E; --k-accent-soft: #DCEFE9; --k-accent-hi: #3DB79B; --k-on-accent: #FFFFFF;
+  --k-ground: #F3F5F1; --k-surface: #FFFFFF; --k-surface-2: #EBEFEA; --k-surface-3: #DFE5DF; --k-line: #E3E8E2; --k-line-strong: #CFD8D0;
+  --k-ink: #13201C; --k-ink-2: #56655F; --k-ink-3: #8D9A94; --k-ink-4: #B5C0BA; --k-danger: #D9343A;
+  --k-sh-accent: 0 6px 18px rgba(18, 113, 94, .28);
+  --honey: #F2B84B; --apricot: #F08A5D;
+  --bub-b: #FFFFFF; --bub-me: #DCEFE9; --kb: #D3D7DC; --kb-key: #FDFDFD; --kb-w: #ABB1B9;
+}
+:root[data-theme="dark"] {
+  --k-accent: #3CC4A2; --k-accent-ink: #6EE0C2; --k-accent-soft: rgba(60, 196, 162, .15); --k-accent-hi: #86EBD0; --k-on-accent: #032119;
+  --k-ground: #0A100E; --k-surface: #141B18; --k-surface-2: #1C2521; --k-surface-3: #25302B; --k-raised: #19221E; --k-line: #202925; --k-line-strong: #2E3934;
+  --k-ink: #ECF4F0; --k-ink-2: #A0B0A9; --k-ink-3: #6B7C75; --k-ink-4: #46544E; --k-danger: #FF6369;
+  --k-sh-accent: 0 6px 18px rgba(60, 196, 162, .2);
+  --bub-b: #1C2521; --bub-me: rgba(60, 196, 162, .18); --kb: #2A2D2B; --kb-key: #5A5E5C; --kb-w: #3E423F;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --k-accent: #3CC4A2; --k-accent-ink: #6EE0C2; --k-accent-soft: rgba(60, 196, 162, .15); --k-accent-hi: #86EBD0; --k-on-accent: #032119;
+    --k-ground: #0A100E; --k-surface: #141B18; --k-surface-2: #1C2521; --k-surface-3: #25302B; --k-raised: #19221E; --k-line: #202925; --k-line-strong: #2E3934;
+    --k-ink: #ECF4F0; --k-ink-2: #A0B0A9; --k-ink-3: #6B7C75; --k-ink-4: #46544E; --k-danger: #FF6369;
+    --k-sh-accent: 0 6px 18px rgba(60, 196, 162, .2);
+    --bub-b: #1C2521; --bub-me: rgba(60, 196, 162, .18); --kb: #2A2D2B; --kb-key: #5A5E5C; --kb-w: #3E423F;
+  }
+}
+
+/* ───────── 페이지 틀 ───────── */
+.top { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 24px; background: color-mix(in srgb, var(--k-ground) 88%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-bottom: 1px solid var(--k-line) }
+.top h1 { margin: 0; font: 800 17px/1 var(--k-font); letter-spacing: -.02em }
+.top nav { display: flex; gap: 2px; flex-wrap: wrap; flex: 1 }
+.top nav a { font: 600 12.5px/1 var(--k-font); color: var(--k-ink-2); text-decoration: none; padding: 7px 9px; border-radius: 9px }
+.top nav a:hover { background: var(--k-surface-2); color: var(--k-ink) }
+.top .seg { min-width: 180px }
+.top .tg { height: 32px; padding: 0 11px; border-radius: 10px; border: 0; background: var(--k-surface-2); font: 600 12.5px/1 var(--k-font); cursor: pointer; color: var(--k-ink-2) }
+.top .tg.on { background: var(--k-accent-soft); color: var(--k-accent-ink) }
+main { max-width: 1640px; margin: 0 auto; padding: 8px 24px 80px }
+section.s { padding: 36px 0 12px; border-bottom: 1px solid var(--k-line) }
+section.s > h2 { margin: 0 0 6px; font: 800 24px/30px var(--k-font); letter-spacing: -.025em }
+.note { margin: 0 0 6px; font: 500 13.5px/21px var(--k-font); color: var(--k-ink-2); max-width: 1060px }
+.note b { color: var(--k-ink) }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 6px 0 18px; font: 600 12px/1 var(--k-font); color: var(--k-ink-2) }
+.legend i { display: inline-block; width: 22px; height: 14px; border-radius: 5px; vertical-align: -3px; margin-right: 5px }
+.legend .lg-ai { outline: 1.5px dashed var(--apricot); background: color-mix(in srgb, var(--apricot) 12%, transparent) }
+.legend .lg-sc { outline: 1.5px dashed var(--k-ink-3) }
+.phones { display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-start }
+.pcap { width: 360px; margin-top: 12px; font: 650 13px/18px var(--k-font); color: var(--k-ink); text-align: center }
+.pcap small { display: block; font-weight: 500; color: var(--k-ink-3); margin-top: 3px; line-height: 17px }
+.toggles { display: flex; gap: 6px; justify-content: center; margin-top: 8px; flex-wrap: wrap }
+.toggles .chip { cursor: pointer; border: 0 }
+.probs { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 10px; margin: 14px 0 }
+.prob { background: var(--k-surface); border-radius: 16px; padding: 12px 14px; box-shadow: var(--k-sh-1); font: 500 13px/19px var(--k-font); color: var(--k-ink-2) }
+.prob b { display: block; color: var(--k-ink); font: 700 13.5px/19px var(--k-font); margin-bottom: 3px }
+.prob em { font-style: normal; color: var(--k-accent-ink); font-weight: 650 }
+.shots { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 8px }
+.shots figure { margin: 0; width: 220px }
+.shots img { width: 220px; border-radius: 26px; box-shadow: 0 0 0 1px var(--k-line), var(--k-sh-2); display: block }
+.shots figcaption { font: 600 12px/16px var(--k-font); color: var(--k-ink-2); text-align: center; margin-top: 6px }
+
+/* ───────── 휴대폰 안 ───────── */
+.ic { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block }
+.ic.sm { width: 18px; height: 18px } .ic.xs { width: 14px; height: 14px; stroke-width: 2.1 }
+.scr .body { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; overflow: hidden }
+.hdr { height: 52px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 12px; position: relative; z-index: 5 }
+.gbtn { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; border: 0; cursor: pointer; color: var(--k-ink); background: var(--k-surface); box-shadow: var(--k-sh-1); flex: none }
+.gpill { height: 44px; border-radius: 22px; display: flex; align-items: center; padding: 0 3px; background: var(--k-surface); box-shadow: var(--k-sh-1); flex: none }
+.gpill button { width: 40px; height: 40px; border: 0; background: none; display: grid; place-items: center; cursor: pointer; color: var(--k-ink); border-radius: 20px }
+:root[data-theme="dark"] .gbtn, :root[data-theme="dark"] .gpill { background: var(--k-surface-2) }
+.hmid { flex: 1; min-width: 0; text-align: center; cursor: pointer; border: 0; background: none; color: inherit; padding: 0 }
+.hmid b { display: block; font: 700 16px/20px var(--k-font); letter-spacing: -.01em }
+.hmid span { display: inline-flex; align-items: center; gap: 4px; font: 500 12px/16px var(--k-font); color: var(--k-ink-3) }
+.hmid .lockc { color: var(--k-accent-ink); font-weight: 650 }
+.hmid .sv { color: var(--k-ink-3) }
+
+/* 대화 */
+.chat { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 4px 14px 12px; display: flex; flex-direction: column; gap: 8px; touch-action: pan-y }
+.chat::-webkit-scrollbar { display: none }
+.hero { display: block; margin: 0 auto; overflow: hidden; flex: none }
+.hero svg { width: 100%; height: 100% }
+.intro { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 26px 0 6px }
+.intro b { font: 700 15px/20px var(--k-font); margin-top: 6px } .intro span { font: 500 12px/16px var(--k-font); color: var(--k-ink-3) }
+.daysep { align-self: center; font: 600 11.5px/1 var(--k-font); color: var(--k-ink-3); padding: 8px 0 4px }
+.row-b { display: flex; align-items: flex-end; gap: 6px; max-width: 88% }
+.row-b .av { width: 32px; height: 32px; flex: none; border-radius: 50%; background: var(--k-accent-soft); display: grid; place-items: center; overflow: hidden }
+.row-b .av.gap { background: none }
+.bb { background: var(--bub-b); border-radius: 18px 18px 18px 6px; padding: 9px 13px; font: 400 15px/22px var(--k-font); box-shadow: var(--k-sh-1); white-space: pre-wrap; position: relative }
+.row-me { align-self: flex-end; max-width: 80% }
+.bm { background: var(--bub-me); border-radius: 18px 18px 6px 18px; padding: 9px 13px; font: 400 15px/22px var(--k-font); white-space: pre-wrap; display: flex; align-items: center; gap: 8px }
+.bm.skip { background: transparent; box-shadow: inset 0 0 0 1px var(--k-line-strong); color: var(--k-ink-3) }
+.typing { display: inline-flex; gap: 4px; padding: 4px 2px }
+.typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--k-ink-3); animation: dt 1s infinite }
+.typing i:nth-child(2) { animation-delay: .15s } .typing i:nth-child(3) { animation-delay: .3s }
+@keyframes dt { 0%, 60%, 100% { opacity: .3; transform: none } 30% { opacity: 1; transform: translateY(-2px) } }
+.enter { animation: inUp .32s var(--k-spring) both }
+@keyframes inUp { from { opacity: 0; transform: translateY(10px) scale(.98) } to { opacity: 1; transform: none } }
+.reduce .enter, .reduce .typing i { animation: none }
+.tag-ai { display: inline-block; margin-left: 6px; font: 700 9.5px/1 var(--k-font); color: var(--apricot); vertical-align: 1px }
+
+/* 초안 카드 */
+.draft { align-self: stretch; margin: 4px 0 2px 38px; background: var(--k-surface); border-radius: 20px; box-shadow: var(--k-sh-2); padding: 14px 14px 12px; border: 1px solid var(--k-line); position: relative }
+.draft .dh { display: flex; align-items: center; gap: 8px; margin-bottom: 8px }
+.draft .dh b { font: 750 15px/20px var(--k-font) } .draft .dh span { font: 500 12px/1 var(--k-font); color: var(--k-ink-3); flex: 1 }
+.draft .dt { font: 400 15.5px/25px var(--k-font); white-space: pre-wrap; cursor: text; border-radius: 10px; margin: 0 -6px; padding: 2px 6px }
+.draft .dt:hover { background: var(--k-surface-2) }
+.draft textarea { width: 100%; min-height: 120px; resize: none; border: 0; border-radius: 12px; background: var(--k-surface-2); padding: 10px; font: 400 15.5px/25px var(--k-font); color: var(--k-ink); outline: 2px solid var(--k-accent) }
+.draft .da { display: flex; gap: 6px; margin-top: 12px; align-items: center }
+.draft .da .btn { height: 40px; font-size: 14px; padding: 0 13px; border-radius: 12px }
+.draft .da .pri { margin-left: auto }
+.draft .dn { font: 500 11.5px/16px var(--k-font); color: var(--k-ink-3); margin-top: 8px }
+.draft .dn a { color: var(--k-accent-ink); font-weight: 650; cursor: pointer; text-decoration: none }
+.draft.saved { box-shadow: var(--k-sh-1) }
+.draft.saved .dt { color: var(--k-ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
+.okb { display: inline-flex; align-items: center; gap: 4px; font: 650 12px/1 var(--k-font); color: var(--k-accent-ink) }
+.consent { align-self: stretch; margin-left: 38px; background: var(--k-surface); border-radius: 20px; padding: 14px; box-shadow: var(--k-sh-1); border: 1px solid var(--k-line) }
+.consent b { font: 700 15px/21px var(--k-font) }
+.consent ul { margin: 8px 0 10px; padding: 0; list-style: none; display: grid; gap: 6px; font: 500 13px/18px var(--k-font); color: var(--k-ink-2) }
+.consent li { display: flex; gap: 8px; align-items: center }
+.consent .bt { display: flex; gap: 8px } .consent .btn { flex: 1; height: 44px }
+.consent small { display: block; font: 500 11.5px/16px var(--k-font); color: var(--k-ink-3); margin-top: 8px; text-align: center }
+
+/* 아래 고정: 빠른 답 + 입력창 */
+.dock { flex: none; padding: 6px 0 10px; background: linear-gradient(to bottom, transparent, var(--k-ground) 14px); position: relative; z-index: 4 }
+.qr { display: flex; gap: 8px; overflow-x: auto; padding: 4px 14px 8px; scrollbar-width: none }
+.qr::-webkit-scrollbar { display: none }
+.qc { flex: none; height: 40px; padding: 0 15px; border-radius: 20px; border: 1.5px solid var(--k-line-strong); background: var(--k-surface); color: var(--k-ink); font: 600 14px/1 var(--k-font); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap }
+.qc:active { transform: scale(.96) }
+.qc.acc { border-color: var(--k-accent); color: var(--k-accent-ink) }
+.qc.mute { border-color: transparent; background: var(--k-surface-2); color: var(--k-ink-2) }
+.qmood { display: flex; justify-content: space-between; padding: 2px 10px 8px }
+.qf { width: 64px; border: 0; background: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 0; border-radius: 16px; color: var(--k-ink-2); font: 600 11.5px/14px var(--k-font) }
+.qf:active { transform: scale(.94) } .qf:hover { background: var(--k-surface-2) }
+.cmp { display: flex; align-items: flex-end; gap: 8px; margin: 0 12px; padding: 4px 4px 4px 16px; border-radius: 24px; background: var(--k-surface); box-shadow: var(--k-sh-1); border: 1px solid var(--k-line) }
+.cmp input { flex: 1; min-width: 0; height: 40px; border: 0; background: none; font: 400 15.5px/1 var(--k-font); color: var(--k-ink); outline: none }
+.cmp input::placeholder { color: var(--k-ink-4) }
+.send { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--k-accent); color: var(--k-on-accent); display: grid; place-items: center; cursor: pointer; flex: none; transition: opacity var(--k-fast) }
+.send:disabled { opacity: .3; cursor: default }
+.send .ic { width: 18px; height: 18px; stroke-width: 2.4 }
+.dockline { text-align: center; font: 500 12px/16px var(--k-font); color: var(--k-ink-3); padding: 6px 20px 2px }
+.homepad { height: 22px; flex: none }
+.kbd { flex: none; background: var(--kb); padding: 8px 3px 30px; display: grid; gap: 9px }
+.kbd div { display: flex; gap: 5px; justify-content: center }
+.kbd span { flex: 0 0 29px; height: 40px; border-radius: 6px; background: var(--kb-key); box-shadow: 0 1px 0 rgba(0, 0, 0, .3); font: 400 17px/40px var(--k-font); text-align: center; color: var(--k-ink) }
+.kbd span.w { flex: 0 0 42px; background: var(--kb-w); font-size: 13px } .kbd span.sp { flex: 1 1 auto; font-size: 14px }
+.kbd span.ret { flex: 0 0 74px; background: var(--k-accent); color: var(--k-on-accent); font-size: 13px }
+
+/* 그냥 쓰기 */
+.free { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 18px }
+.fmood { display: flex; justify-content: space-between; padding: 4px 0 6px }
+.fmood .qf { width: 60px }
+.free textarea { flex: 1; min-height: 0; width: 100%; border: 0; resize: none; background: none; outline: none; font: 400 17px/28px var(--k-font); color: var(--k-ink); padding: 6px 0 }
+.free textarea::placeholder { color: var(--k-ink-4) }
+.acc { flex: none; height: 50px; display: flex; align-items: center; gap: 2px; padding: 0 8px; background: var(--k-surface); border-top: 1px solid var(--k-line) }
+.acc button { height: 40px; min-width: 44px; border: 0; background: none; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: var(--k-ink-2); font: 650 13px/1 var(--k-font); cursor: pointer; padding: 0 8px }
+.acc button.on { color: var(--k-accent-ink); background: var(--k-accent-soft) }
+.acc button:disabled { opacity: .35 }
+.acc .done { margin-left: auto; color: var(--k-accent-ink) }
+.mpop { position: absolute; left: 8px; right: 8px; bottom: 56px; display: flex; justify-content: space-around; padding: 8px; border-radius: 20px; background: var(--k-raised); box-shadow: var(--k-sh-3); z-index: 8 }
+
+/* 지난 날 */
+.past { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 4px 16px 30px; touch-action: pan-y }
+.past::-webkit-scrollbar { display: none }
+.pbig { display: flex; align-items: center; gap: 12px; padding: 6px 2px 14px }
+.pbig h3 { margin: 0; font: 800 30px/36px var(--k-font); letter-spacing: -.035em }
+.pbig span { font: 500 13px/18px var(--k-font); color: var(--k-ink-3); display: block }
+.pcard { background: var(--k-surface); border-radius: 20px; padding: 16px; box-shadow: var(--k-sh-1) }
+.pcard .pm { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font: 650 14px/1 var(--k-font) }
+.pcard .pt { font: 400 16.5px/28px var(--k-font); white-space: pre-wrap }
+.prow { margin-top: 10px; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 14px; border-radius: 16px; background: var(--k-surface); box-shadow: var(--k-sh-1); border: 0; width: 100%; color: var(--k-ink); font: 600 14.5px/1 var(--k-font); cursor: pointer; text-align: left }
+.prow span { flex: 1 } .prow small { color: var(--k-ink-3); font: 500 13px/1 var(--k-font) }
+.ptalk { padding: 6px 4px 2px; display: grid; gap: 6px }
+.ptalk p { margin: 0; font: 400 13.5px/20px var(--k-font); color: var(--k-ink-2) }
+.ptalk p b { color: var(--k-ink); font-weight: 650; margin-right: 4px }
+.pempty { text-align: center; padding: 40px 10px 10px }
+.pempty b { display: block; font: 650 17px/24px var(--k-font); margin-top: 8px }
+.pempty span { display: block; font: 500 14px/20px var(--k-font); color: var(--k-ink-3); margin-top: 4px }
+.pempty .btn { margin-top: 16px }
+.lockbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 14px; background: var(--k-accent-soft); color: var(--k-accent-ink); font: 600 13px/18px var(--k-font); margin-bottom: 10px }
+
+/* 기분 달력 */
+.cal { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 0 14px 30px; touch-action: pan-y }
+.cal::-webkit-scrollbar { display: none }
+.ctitle { display: flex; align-items: center; padding: 2px 4px 12px; gap: 4px }
+.ctitle h3 { margin: 0; font: 800 30px/36px var(--k-font); letter-spacing: -.035em; flex: 1 }
+.ctitle h3 small { font: 600 14px/1 var(--k-font); color: var(--k-ink-3); margin-left: 6px; letter-spacing: 0 }
+.ctitle button { width: 44px; height: 44px; border: 0; background: none; border-radius: 22px; display: grid; place-items: center; color: var(--k-ink); cursor: pointer }
+.ctitle button:disabled { opacity: .25 }
+.ccard { background: var(--k-surface); border-radius: 20px; padding: 12px 8px 8px; box-shadow: var(--k-sh-1); margin-bottom: 12px }
+.cwk { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font: 600 11px/1 var(--k-font); color: var(--k-ink-3); padding-bottom: 6px }
+.cwk span:first-child { color: var(--k-danger) } .cwk span:last-child { color: #4169E8 }
+.cgrid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 2px }
+.cd { height: 56px; border: 0; background: none; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px; padding-top: 5px; cursor: pointer; color: var(--k-ink); font: 600 11px/1 var(--k-num) }
+.cd:hover { background: var(--k-surface-2) }
+.cd .ph { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center }
+.cd .ph i { width: 6px; height: 6px; border-radius: 50%; background: var(--k-line-strong) }
+.cd.today .n { background: var(--k-accent); color: var(--k-on-accent); border-radius: 8px; padding: 1px 5px }
+.cd.fut { color: var(--k-ink-4); cursor: default } .cd.fut:hover { background: none }
+.cd.lockd .ph { background: var(--k-surface-2) }
+.sh2 { font: 700 15px/20px var(--k-font); margin: 0 0 10px; display: flex; align-items: center; gap: 6px }
+.sh2 small { font: 500 12.5px/1 var(--k-font); color: var(--k-ink-3); margin-left: auto }
+.pad { padding: 14px }
+.mbar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--k-surface-2); gap: 2px }
+.mbar i { display: block; height: 100% }
+.mleg { display: flex; justify-content: space-between; margin-top: 12px }
+.mleg div { display: flex; flex-direction: column; align-items: center; gap: 3px; font: 700 13px/1 var(--k-num); color: var(--k-ink) }
+.mleg div small { font: 500 10.5px/1 var(--k-font); color: var(--k-ink-3) }
+.wkrow { display: flex; justify-content: space-between; padding: 2px 0 10px }
+.wkrow div { display: flex; flex-direction: column; align-items: center; gap: 4px; font: 600 11px/1 var(--k-font); color: var(--k-ink-3); width: 38px }
+.wkrow .e { width: 30px; height: 30px; border-radius: 50%; border: 1.5px dashed var(--k-line-strong) }
+.wkline { display: flex; gap: 10px; align-items: flex-end; padding-top: 4px }
+.wkline .bb { font-size: 14px; line-height: 20px; flex: 1 }
+.ymos { display: grid; gap: 3px }
+.ymos div { display: flex; gap: 2px; align-items: center }
+.ymos b { width: 26px; font: 600 10px/1 var(--k-font); color: var(--k-ink-3) }
+.ymos i { width: 7px; height: 7px; border-radius: 2px; background: var(--k-surface-2) }
+
+/* 시트 · 토스트 */
+.layer { position: absolute; inset: 0; z-index: 70; display: flex; flex-direction: column; justify-content: flex-end }
+.layer .scrim { position: absolute; inset: 0; background: var(--k-scrim); animation: fadeIn .2s both }
+.sheet { position: relative; background: var(--k-raised); border-radius: 22px 22px 0 0; padding: 8px 16px 30px; box-shadow: var(--k-sh-3); animation: sheetUp .36s var(--k-spring) both }
+.sheet .grab { width: 38px; height: 5px; border-radius: 3px; background: var(--k-line-strong); margin: 0 auto 12px }
+.sheet h4 { margin: 4px 0 6px; font: 700 19px/25px var(--k-font); text-align: center }
+.act { display: grid; gap: 2px; background: var(--k-surface-2); border-radius: 16px; overflow: hidden; margin-top: 4px }
+.act button { height: 52px; border: 0; background: var(--k-raised); color: var(--k-ink); font: 600 15px/1 var(--k-font); cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 0 16px; text-align: left }
+.act button .ic { color: var(--k-ink-2) }
+.act button.dng { color: var(--k-danger) } .act button.dng .ic { color: var(--k-danger) }
+.act button em { margin-left: auto; font-style: normal; font: 600 13px/1 var(--k-font); color: var(--k-accent-ink) }
+.sheet .cancel { margin-top: 8px; width: 100%; height: 50px }
+@keyframes sheetUp { from { transform: translateY(100%) } to { transform: none } }
+@keyframes fadeIn { from { opacity: 0 } }
+.reduce .sheet, .reduce .layer .scrim { animation: none }
+.ptoast { position: absolute; left: 14px; right: 14px; bottom: 100px; padding: 12px 14px; border-radius: 18px; background: #16201A; color: #fff; font: 600 13.5px/18px var(--k-font); box-shadow: var(--k-sh-3); z-index: 80; animation: inUp .3s var(--k-spring) both }
+:root[data-theme="dark"] .ptoast { background: #26302A }
+
+/* AI 자리 표시 */
+.showai .ai { outline: 1.5px dashed var(--apricot); outline-offset: 2px; position: relative }
+.showai .ai::after { content: "AI"; position: absolute; top: -9px; right: -4px; font: 800 9px/1 var(--k-font); background: var(--apricot); color: #fff; border-radius: 5px; padding: 2px 4px; z-index: 3 }
+.showai .sc { outline: 1.5px dashed var(--k-ink-4); outline-offset: 2px; position: relative }
+.showai .sc::after { content: "정해진 말"; position: absolute; top: -9px; right: -4px; font: 750 8.5px/1 var(--k-font); background: var(--k-ink-3); color: #fff; border-radius: 5px; padding: 2px 4px; z-index: 3 }
+.mface { display: block; flex: none }
+.swipe-hint { font: 500 11.5px/1 var(--k-font); color: var(--k-ink-3); text-align: center; padding: 8px 0 2px }
+.rules { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; margin-top: 12px }
+.rules div { background: var(--k-surface); border-radius: 16px; padding: 12px 14px; box-shadow: var(--k-sh-1); font: 500 13px/19px var(--k-font); color: var(--k-ink-2) }
+.rules div b { display: block; color: var(--k-ink); margin-bottom: 4px }
+</style>
+</head>
+<body class="k">
+<div class="top">
+  <h1>모바일 일기 v2 — 캐릭터와 대화로 쓰기</h1>
+  <nav><a href="#now">지금 문제</a><a href="#talk">① 대화로 쓰기</a><a href="#more">② 동의·나만 보기·그냥 쓰기</a><a href="#past">③ 지난 날·빈 상태</a><a href="#cal">④ 기분 달력</a><a href="#rule">규칙</a></nav>
+  <div class="seg" id="themeSeg"><button data-t="system">시스템</button><button data-t="light">라이트</button><button data-t="dark">다크</button></div>
+  <div class="seg" id="spSeg"><button data-s="snail">달팽이</button><button data-s="bee">꿀벌</button><button data-s="worm">애벌레</button><button data-s="frog">개구리</button></div>
+  <div class="seg" id="timeSeg"><button data-h="morning">아침</button><button data-h="day">낮</button><button data-h="evening">저녁</button><button data-h="night">밤</button></div>
+  <button class="tg" id="aiTg">AI 자리 표시</button>
+  <button class="tg" id="motTg">움직임 줄이기</button>
+</div>
+<main id="main">
+  <section class="s" id="now">
+    <h2>지금 휴대폰 일기 — 무엇이 불편한가</h2>
+    <p class="note">지금 화면은 데스크톱 일기(15 §9)를 세로로 쌓은 모양이다. 빈 종이를 주고 "써 보세요"라고 하니, 쓸 말이 없는 날에는 열었다가 그냥 닫게 된다. 아래 캡처는 iOS 시뮬레이터(Release 빌드, 시험 계정)에서 찍었다.</p>
+    <div class="probs">
+      <div class="prob"><b>1 · 빈 종이부터 시작한다</b>질문 쪽지는 하나뿐이고 누르면 <code>Q. …</code> 한 줄이 들어갈 뿐이다. 무엇을 써야 할지는 여전히 내가 정해야 한다. <em>→ 캐릭터가 오늘 데이터로 먼저 말을 걸고, 짧은 질문 2~3개로 이끈다.</em></div>
+      <div class="prob"><b>2 · 층이 너무 많다</b>머리 → 큰 제목 → 세그먼트 → 주 띠 → 하늘 띠(날짜 44) → 기분 → 쪽지 → 줄 노트 → 한 일 타임라인 → 캐릭터 칸 → 바닥 줄까지 11층이다. 날짜는 주 띠와 하늘 띠에 두 번 나온다. <em>→ 머리 한 줄 + 대화 + 아래 입력창, 3층으로 줄인다.</em></div>
+      <div class="prob"><b>3 · 키보드와 잘 안 맞는다</b>글 칸은 6줄짜리 카드이고 화면 전체를 스크롤한다. 키보드가 올라오면 기분·나만 보기가 위로 밀려 사라지고, 키보드를 내릴 "완료"가 없다. <em>→ 입력창이 늘 키보드 바로 위에 있고, 빠른 답이 그 위에 붙는다.</em></div>
+      <div class="prob"><b>4 · 엄지가 닿지 않는다</b>나만 보기 책갈피·⋯ 메뉴는 오른쪽 위 28×40, 질문 쪽지 버튼은 13px 글자 + 여유 6이다. 44pt가 안 된다. <em>→ 답하는 손길은 전부 아래 1/3에 두고, 버튼은 모두 44 이상.</em></div>
+      <div class="prob"><b>5 · 기분 줄 색과 이름</b>보라(#a07cf0)가 들어 있고(40 §0.1 금지 색), 5번 얼굴에 반짝이가 있다. 노란 "그저 그랬어요" 글자는 종이 위에서 대비가 2:1 남짓이다. 얼굴 그림도 새 정원 친구들 화풍과 다르다. <em>→ 비·안개·꿀·잎·살구 5색, 이름은 글자색(ink-2)으로.</em></div>
+      <div class="prob"><b>6 · 캐릭터 말이 겹친다</b>날짜·기분을 바꿀 때마다 말풍선이 튀고, 캐릭터 칸 상태 문장과 바닥 줄 두 문장(연속 기록, "도토리만 같이 읽어요")이 함께 나온다. 이름도 아직 "도토리"다. <em>→ 캐릭터는 대화 속에서만 말하고, 한 번에 한 줄.</em></div>
+      <div class="prob"><b>7 · 일기와 할 일·XP가 섞인다</b>"오늘 한 일 6개 · +6 XP" 타임라인이 일기 종이 안에 있다. 일기로는 XP를 주지 않는데(15 §4) 숫자가 먼저 보인다. <em>→ 할 일 수는 인사 한 줄과 빠른 답 후보로만 쓴다.</em></div>
+      <div class="prob"><b>8 · 날짜 넘기기와 달력이 두 군데</b>주 띠는 띠 위에서만 밀리고, 📅 시트 달력과 돌아보기 탭 달력이 따로 있다. 연속 기록은 돌아보기에 세 번(칩·숫자 카드·바닥 줄) 나온다. <em>→ 화면을 좌우로 밀어 하루씩, 달력은 기분 달력 하나로 합친다. 연속 숫자는 뺀다.</em></div>
+      <div class="prob"><b>9 · 동의 시트가 먼저 막는다</b>처음 열면 쓰기도 전에 "나눌까요?" 시트가 뜬다. 지울 때 확인 창도 화면 위쪽에 떠 있는 직접 만든 상자다. <em>→ 동의는 AI가 실제로 필요한 순간(첫 저장 뒤, 다듬어 줘)에만 묻고, 확인은 아래 시트로.</em></div>
+      <div class="prob"><b>10 · AI 첫 답이 없는 말을 지어낸다</b>시뮬레이터에서 "기획서를 반쯤 썼다… 산책하고 나니 정리됐다"에 첫 답이 "햇살과 차가 마음을 따뜻하게 했어?"였다. 일기에 없는 말이다. 답은 화면 맨 아래 카드에 있어 스크롤해야 보인다. <em>→ 질문은 정해진 말로 바꾸고, AI는 저장 뒤 한 번 + 원할 때만.</em></div>
+    </div>
+    <div class="shots" id="shots"></div>
+  </section>
+
+  <section class="s" id="talk">
+    <h2>① 오늘 일기 = 캐릭터와 나누는 대화</h2>
+    <p class="note">캐릭터가 <b>시간대와 오늘 데이터</b>(할 일 몇 개 중 몇 개 끝냈는지)로 먼저 인사한다 → <b>기분 얼굴 5개</b>를 빠른 답으로 고른다 → 기분에 맞춘 <b>짧은 질문 3개</b>(좋았던 것·힘들었던 것·내일 하나), 각 질문마다 빠른 답 칩이 있고 직접 쳐도 된다 → 답을 <b>내 말 그대로</b> 묶은 "오늘 일기" 초안 카드가 나온다 → 눌러서 고치고 <b>저장</b> → 캐릭터가 따뜻한 한 줄로 답한다. 질문과 묶기는 전부 앱 안 정해진 말이고 AI를 부르지 않는다. AI는 <b>다듬어 줘</b>와 <b>저장 뒤 답·이어서 이야기</b>에만 쓴다.</p>
+    <div class="legend"><span><i class="lg-sc"></i>정해진 말(기기 안, AI 호출 없음)</span><span><i class="lg-ai"></i>AI 필요(동의 + 나만 보기 아님 + 사용 한도 안)</span><span>위 막대 <b>AI 자리 표시</b>로 휴대폰 안에 테두리를 켤 수 있다.</span></div>
+    <div class="phones" id="phTalk"></div>
+  </section>
+
+  <section class="s" id="more">
+    <h2>② 동의 전 · 나만 보기 · 그냥 쓸래요</h2>
+    <p class="note">동의를 아직 안 했어도 대화로 쓰기는 끝까지 된다(질문이 전부 정해진 말이라서). 첫 저장 뒤에 대화 안에서 한 번 <b>"느리가 읽고 답해 줄까?"</b>를 묻는다. <b>나만 보기</b>(⋯ 또는 머리 자물쇠)를 켜면 다듬어 줘·답·이어서 이야기가 사라지고, 캐릭터는 정해진 말만 한다. <b>그냥 쓸래요</b>는 첫 빠른 답 줄과 ⋯에 늘 있고, 자유 글쓰기 화면으로 바꾼다(키보드 위 도구 막대: 기분 · 사진[다음] · 나만 보기 · 질문 · 완료).</p>
+    <div class="phones" id="phMore"></div>
+  </section>
+
+  <section class="s" id="past">
+    <h2>③ 지난 날 · 빈 날 · 처음</h2>
+    <p class="note">화면을 <b>오른쪽으로 밀면 어제</b>, 왼쪽으로 밀면 다음 날(오늘 다음은 막힘). 지난 날은 저장한 일기 카드가 먼저 보이고, 그날 대화는 접힌 한 줄(펼치면 짧게)이다. 비어 있는 지난 날은 "그날 이야기 해 볼까?"로 같은 대화를 그날 기준 질문으로 시작한다. 처음 쓰는 사람에게는 캐릭터 소개 한 줄이 인사 앞에 붙는다.</p>
+    <div class="phones" id="phPast"></div>
+  </section>
+
+  <section class="s" id="cal">
+    <h2>④ 기분 달력 (돌아보기 탭과 📅 시트를 하나로)</h2>
+    <p class="note">머리 가운데 날짜나 📅를 누르면 기분 달력. 칸마다 그날 기분 얼굴, 누르면 그날. 아래는 <b>이번 달 기분</b> 분포(연속 숫자 없음)와 <b>이번 주 돌아보기</b> 카드(그 주 얼굴 7칸 + 앱이 센 한 줄 + "이번 주를 한 줄로" 버튼 — AI 없음). 월·연 전환, 좌우로 밀면 달이 바뀐다.</p>
+    <div class="phones" id="phCal"></div>
+  </section>
+
+  <section class="s" id="rule">
+    <h2>규칙 요약</h2>
+    <div class="rules">
+      <div><b>정해진 말 vs AI</b>인사·기분 묻기·질문 3개·빠른 답 칩·초안 묶기·저장 뒤 첫 한 줄은 기기 안 정해진 말(오늘 할 일 수·제목·내일 할 일 제목은 로컬 데이터). AI(<code>POST /ai/diary</code>)는 ① 다듬어 줘 ② 저장 뒤 답 ③ 이어서 이야기 — 셋 다 동의 + 나만 보기 아님 + 한도 안일 때만.</div>
+      <div><b>내 말 그대로</b>초안은 내가 쓴 답을 그대로 이어 붙인다. 앱이 넣는 말은 "내일은 " 한 마디뿐. 건너뛴 질문은 빠진다. 다듬어 줘를 눌렀을 때만 AI가 문장을 고치고, "원래대로"로 되돌릴 수 있다.</div>
+      <div><b>한도</b>다듬어 줘는 하루 3번(서버 용도별 하루 상한, breakdown·tag와 같은 방식). 다 쓰면 버튼 대신 "오늘은 다 썼어요 · 내일 다시". 저장 뒤 답·이어서 이야기는 지금 /ai/diary 분·일 상한 그대로.</div>
+      <div><b>캐릭터</b>대화 속 얼굴 32(S), 움직이는 건 마지막 말 하나(40 §0.1). 반말 한 줄, 사실·버튼은 해요체. 슬퍼하거나 탓하지 않는다. 연속 기록·XP 숫자 없음.</div>
+      <div><b>엄지·키보드</b>빠른 답·입력창은 늘 아래, 키보드가 올라오면 그 바로 위. 칩 높이 40 + 여유, 얼굴 64×58, 머리 버튼 44. 대화는 키보드를 끌어 내리면 같이 내려간다(interactive).</div>
+      <div><b>저장</b>초안 카드 저장 = <code>diary_entries.content</code>·<code>mood</code>(지금 그대로). 질문·답은 <code>diary_messages</code>(role buddy/me)로 남겨 지난 날 접힌 대화로 보인다 — 스키마 변경 없음. 자동 저장: 답 하나마다 대화 행이 저장되고, 일기 본문은 저장을 누를 때.</div>
+    </div>
+  </section>
+</main>
+
+<script src="kkumteul-art.js"></script>
+<script>
+'use strict'
+const Q = new URLSearchParams(location.search)
+const $ = (s, r = document) => r.querySelector(s)
+const $$ = (s, r = document) => [...r.querySelectorAll(s)]
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+let SP = Q.get('sp') || 'snail'
+let TIME = Q.get('time') || 'evening'
+let REDUCE = Q.get('motion') === 'reduce'
+const TODAY = '2026-10-09'
+const pd = (n) => String(n).padStart(2, '0')
+const keyOf = (d) => `${d.getFullYear()}-${pd(d.getMonth() + 1)}-${pd(d.getDate())}`
+const parse = (k) => new Date(k + 'T00:00:00')
+const addD = (k, n) => { const d = parse(k); d.setDate(d.getDate() + n); return keyOf(d) }
+const WD = '일월화수목금토'
+const md = (k) => `${+k.slice(5, 7)}월 ${+k.slice(8)}일`
+const pet = () => KK.SPECIES[SP].pet
+function josa(w, a, b) { const c = w.charCodeAt(w.length - 1) - 0xAC00; return w + (c >= 0 && c < 11172 && c % 28 ? b : a) }
+
+/* ───────── 기분 5단계 (보라·반짝이 없음) ───────── */
+const MOODS = [
+  { v: 1, label: '힘들었어요', c: '#8797AE', face: 'default' },
+  { v: 2, label: '별로였어요', c: '#8EC1D6', face: 'default' },
+  { v: 3, label: '그저 그랬어요', c: '#F2B84B', face: 'smile' },
+  { v: 4, label: '좋았어요', c: '#62BF7E', face: 'happy' },
+  { v: 5, label: '최고였어요', c: '#F08A5D', face: 'giggle' }
+]
+const moodOf = (v) => MOODS.find((m) => m.v === v)
+function face(v, size = 40) {
+  const m = moodOf(v); if (!m) return ''
+  const I = '#2A2433'
+  const dot = (x) => `<ellipse cx="${x}" cy="19.5" rx="2" ry="2.5" fill="${I}"/><circle cx="${x + .7}" cy="18.5" r=".8" fill="#fff"/>`
+  const up = (x) => `<path d="M${x - 2.8} 20 q2.8 -3.4 5.6 0" stroke="${I}" stroke-width="1.9" fill="none" stroke-linecap="round"/>`
+  const down = (x) => `<path d="M${x - 2.6} 18.6 q2.6 2.6 5.2 0" stroke="${I}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`
+  const ln = (d) => `<path d="${d}" stroke="${I}" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
+  let e = '', mo = ''
+  if (v === 1) { e = down(14) + down(26); mo = ln('M16.5 28.6 q3.5 -2.6 7 0') }
+  else if (v === 2) { e = dot(14) + dot(26); mo = ln('M15.5 28 q2.2 -1.8 4.5 0 t4.5 0') }
+  else if (v === 3) { e = dot(14) + dot(26); mo = ln('M16.5 27.6 h7') }
+  else if (v === 4) { e = up(14) + up(26); mo = ln('M15.2 25.6 q4.8 5 9.6 0') }
+  else { e = up(14) + up(26); mo = `<path d="M14.6 25 q5.4 7.6 10.8 0 z" fill="#B8475A" stroke="${I}" stroke-width="1.1" stroke-linejoin="round"/><ellipse cx="20" cy="28.6" rx="2.6" ry="1.3" fill="#FF9AAE"/>` }
+  const ck = v >= 3 ? .5 : .28
+  return `<svg class="mface" width="${size}" height="${size}" viewBox="0 0 40 40" aria-hidden="true">${KK.C(20, 21, 17, m.c)}<ellipse cx="14" cy="12.6" rx="5.4" ry="2.6" fill="#fff" opacity=".38" transform="rotate(-18 14 12.6)"/><ellipse cx="10.4" cy="25" rx="3.2" ry="2" fill="#FF8FA3" opacity="${ck}"/><ellipse cx="29.6" cy="25" rx="3.2" ry="2" fill="#FF8FA3" opacity="${ck}"/>${e}${mo}</svg>`
+}
+const chr = (size, mood = 'smile', live = false) => KK.art(SP, 3, { size, crop: 'bust', mood, live: live && !REDUCE, lv: 8 })
+const hero = (size, mood = 'smile', live = false) => `<span class="hero" style="width:${size}px;height:${size}px">${KK.art(SP, 3, { size, mood, live: live && !REDUCE, lv: 8, noAura: true })}</span>`
+
+/* ───────── 아이콘 ───────── */
+const IC = {
+  back: '<path d="M15 18l-6-6 6-6"/>', next: '<path d="M9 18l6-6-6-6"/>', cal: '<rect x="3.5" y="5" width="17" height="15" rx="3.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  more: '<circle cx="5.5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="18.5" cy="12" r="1.2" fill="currentColor"/>',
+  up: '<path d="M12 19V6M6 11l6-6 6 6"/>', lock: '<rect x="5" y="10.5" width="14" height="10" rx="2.6"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>',
+  unlock: '<rect x="5" y="10.5" width="14" height="10" rx="2.6"/><path d="M8 10.5V8a4 4 0 0 1 7.6-1.7"/>', pen: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  img: '<rect x="3.5" y="5" width="17" height="14" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M5 17l4.5-4 3 2.5 3-3L20 16"/>', q: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.4M12 16.6v.2"/>',
+  kbd: '<rect x="3" y="6" width="18" height="11" rx="2.5"/><path d="M7 10h.01M10 10h.01M13 10h.01M16 10h.01M8 13.5h8"/>', trash: '<path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/>',
+  chat: '<path d="M5 6.5h14a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H10l-4 3v-3H5A1.5 1.5 0 0 1 3.5 16V8A1.5 1.5 0 0 1 5 6.5z"/>', down: '<path d="M6 9l6 6 6-6"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', moon: '<path d="M19 14.5A7.5 7.5 0 1 1 9.5 5a6 6 0 0 0 9.5 9.5z"/>', solo: '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+  task: '<rect x="4.5" y="4.5" width="15" height="15" rx="4"/><path d="M8.5 12l2.5 2.5 4.5-5"/>', shield: '<path d="M12 3.5l7 3v5c0 4.5-3 7.8-7 9-4-1.2-7-4.5-7-9v-5z"/>', cloud: '<path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.6A3.3 3.3 0 0 0 7 18z"/>', redo: '<path d="M4 12a8 8 0 0 1 14-5.3M20 5v4h-4M20 12a8 8 0 0 1-14 5.3M4 19v-4h4"/>'
+}
+const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${IC[n]}</svg>`
+
+/* ───────── 가짜 데이터 ───────── */
+const BASE = {
+  '2026-09-03': { m: 3, t: '비가 와서 하루 종일 집.' }, '2026-09-08': { m: 4, t: '새 프로젝트 시작.' }, '2026-09-12': { m: 5, t: '친구 결혼식.' }, '2026-09-15': { m: 2, t: '감기 기운.' },
+  '2026-09-19': { m: 4, t: '' }, '2026-09-22': { m: 3, t: '' }, '2026-09-26': { m: 4, t: '' }, '2026-09-29': { m: 1, t: '' }, '2026-09-30': { m: 3, t: '' },
+  '2026-10-01': { m: 4, t: '추석 연휴 첫날. 오랜만에 늦잠 자고 동네 빵집까지 걸어갔다.' },
+  '2026-10-02': { m: 3, t: '할머니 댁 가는 길이 막혀서 차에서 다섯 시간. 그래도 노래는 실컷 들었다.' },
+  '2026-10-03': { m: 5, t: '가족이랑 뒷산에 올랐다. 정상에서 먹은 귤이 제일 맛있었다.' },
+  '2026-10-05': { m: 2, t: '연휴 끝나고 첫 출근. 메일이 백 통 넘게 쌓여 있었다.\n점심도 대충 먹었다.\n내일은 메일부터 30분만 정리하기.', talk: [['b', '연휴 끝 첫날이네. 할 일 6개 중 6개 다 끝냈어! 어땠어?'], ['me', '별로였어요', 2], ['b', '음, 별로였구나. 뭐가 제일 마음에 걸렸어?'], ['me', '연휴 끝나고 첫 출근. 메일이 백 통 넘게 쌓여 있었다.'], ['b', '그래도 괜찮았던 거 하나만 꼽자면?'], ['me', '점심도 대충 먹었다.'], ['b', '내일 하나만 정한다면 뭐 할래?'], ['me', '메일부터 30분만 정리하기'], ['b', '잘 남겼어. 오늘 6개나 해낸 거 잊지 마.']] },
+  '2026-10-06': { m: 4, t: '미뤄 둔 정산을 끝냈다. 생각보다 30분 만에 끝나서 허무할 정도.\n저녁엔 오랜만에 요가.\n내일은 아침에 일찍 일어나기.', talk: [['b', '저녁이네. 오늘 할 일 5개 중 5개 다 끝냈어! 어땠어?'], ['me', '좋았어요', 4], ['b', '좋았다니 나도 좋다! 제일 좋았던 순간은 뭐였어?'], ['me', '미뤄 둔 정산을 끝냈다. 생각보다 30분 만에 끝나서 허무할 정도.'], ['b', '힘들었던 건 없었어?'], ['me', '저녁엔 오랜만에 요가.'], ['b', '내일 하나만 정한다면 뭐 할래?'], ['me', '아침에 일찍 일어나기'], ['b', '정산 30분 만에 끝낸 거 멋지다! 미뤄 둘 때는 뭐가 제일 걸렸어?', 0, 1], ['me', '양이 많아 보여서 시작을 못 했어'], ['b', '시작 전이 제일 무거웠구나. 다음엔 10분만 해 보자고 정해 두면 어때?', 0, 1]] },
+  '2026-10-07': { m: 1, t: '오늘은 그냥 적어 두기만. 아무한테도 말하고 싶지 않은 날.', p: true },
+  '2026-10-08': { m: 4, t: '팀 회의에서 내 안이 채택됐다. 별거 아닌데 하루 종일 기분이 좋았다.' }
+}
+const DAYTASK = { '2026-10-04': { total: 1, done: 1 }, '2026-10-06': { total: 5, done: 5 }, '2026-10-09': { total: 5, done: 4 } }
+const DONE_TODAY = ['기획서 초안 1~3장', '디자인 리뷰 답장', '주간 회의 자료 올리기', '택배 반품 신청']
+const TOMORROW = ['면담 자료 한 장 정리', '치과 예약 전화']
+
+/* ───────── 대화 대본(정해진 말) ───────── */
+function greet(S) {
+  const t = DAYTASK[S.date] || { total: 0, done: 0 }
+  const isToday = S.date === TODAY
+  const lead = !isToday ? `${md(S.date)} 이야기구나.` : { morning: '좋은 아침!', day: '점심은 먹었어?', evening: '저녁이네.', night: '늦게까지 수고했어.' }[TIME]
+  let data
+  if (!isToday) data = t.total ? `그날 할 일 ${t.total}개 중 ${t.done}개 끝냈더라. 그날은 어땠어?` : '그날은 어땠어?'
+  else if (TIME === 'morning') data = t.total ? `오늘 할 일이 ${t.total}개 있어. 지금 기분은 어때?` : '오늘 기분부터 적어 둘까?'
+  else if (!t.total) data = '오늘은 할 일 없이 지나갔네. 어떤 하루였어?'
+  else if (t.done === t.total) data = `오늘 할 일 ${t.total}개 다 끝냈어! 어땠어?`
+  else data = `오늘 할 일 ${t.total}개 중 ${t.done}개 끝냈네! 어땠어?`
+  return `${lead} ${data}`
+}
+const REACT = { 1: '그랬구나. 힘든 날이었네.', 2: '음, 별로였구나.', 3: '그럭저럭이었구나.', 4: '좋았다니 나도 좋다!', 5: '최고였다니! 나도 신나.' }
+function qOf(S, step) {
+  const low = (S.ans.mood || 3) <= 2, past = S.date !== TODAY
+  if (step === 'q1') return low ? { q: '뭐가 제일 마음에 걸렸어?', chips: ['일이 많았어', '사람 때문에', '몸이 안 좋았어'] }
+    : { q: '제일 좋았던 순간은 뭐였어?', chips: (past ? [] : DONE_TODAY.slice(0, 2).map((x) => `${x} 끝냄`)).concat(['산책했어']) }
+  if (step === 'q2') return low ? { q: '그래도 괜찮았던 거 하나만 꼽자면?', chips: ['밥은 맛있었어', '일찍 잤어'] } : { q: '힘들었던 건 없었어?', chips: ['딱히 없었어'] }
+  return { q: past ? '그다음 날 하고 싶었던 건 뭐였어?' : '내일 하나만 정한다면 뭐 할래?', chips: past ? ['일찍 자기'] : TOMORROW.concat(['일찍 자기']) }
+}
+const SKIPS = new Set(['건너뛸래', '딱히 없었어'])
+function compose(S) {
+  const a = S.ans, out = []
+  if (a.q1 && !SKIPS.has(a.q1)) out.push(end(a.q1))
+  if (a.q2 && !SKIPS.has(a.q2)) out.push(end(a.q2))
+  if (a.q3 && !SKIPS.has(a.q3)) out.push('내일은 ' + end(a.q3.replace(/^내일은?\s*/, '')))
+  return out.join('\n')
+}
+function end(s) { s = s.trim(); return /[.!?。~요다]$/.test(s) ? s : s + '.' }
+const WARM = (S) => { const t = DAYTASK[S.date]; const m = S.ans.mood || 3; return m <= 2 ? '잘 남겼어. 오늘은 푹 쉬자.' : t && t.done ? `잘 남겼어. 오늘 ${t.done}개나 해낸 거 잊지 마.` : '잘 남겼어. 내일 또 이야기해.' }
+const POLISHED = '기획서 초안을 1~3장까지 끝냈다. 차별점 부분에서 한참 막혔는데, 저녁 먹고 산책을 다녀오니 머리가 좀 정리됐다.\n내일은 면담 전에 자료를 한 장으로 줄여 보려고 한다.'
+const AI_FIRST = '기획서 1~3장까지 썼구나! 차별점에서 막혔던 건 어떤 부분이었어?'
+const AI_MORE = ['그 마음 알 것 같아. 내일 아침에 제일 먼저 할 한 가지만 정해 볼까?', '좋아. 그럼 면담 자료는 세 줄 요약부터 시작해 보는 거 어때?', '응, 오늘은 여기까지도 충분해. 잘 자.']
+
+/* ───────── 휴대폰 상태 ───────── */
+const PH = []
+function mk(o) {
+  const S = Object.assign({ view: 'chat', date: TODAY, consent: true, priv: false, msgs: [], ans: {}, step: 'mood', draft: '', orig: '', polished: false, editDraft: false, typing: false, kb: false, sheet: null, polishLeft: 3, aiN: 0, input: '', toast: '', openTalk: false, calMonth: '2026-10', calMode: 'month', freeText: '', freeMood: null, moodPop: false, first: false }, o)
+  S.data = JSON.parse(JSON.stringify(o.data || BASE))
+  if (S.first) S.data = {}
+  return S
+}
+function startChat(S) {
+  S.msgs = []; S.ans = {}; S.step = 'mood'; S.draft = ''; S.polished = false; S.editDraft = false; S.aiN = 0
+  if (S.first) S.msgs.push({ w: 'b', t: `안녕, 나는 ${pet()}야. 오늘 하루를 같이 정리해 줄게. 몇 가지만 물어볼게.`, sc: 1 })
+  S.msgs.push({ w: 'b', t: greet(S), sc: 1 })
+}
+function later(S, fn, ms = 650) {
+  if (S.instant) { fn(); return }
+  S.typing = true; draw(S)
+  setTimeout(() => { S.typing = false; fn(); draw(S) }, REDUCE ? 150 : ms)
+}
+function ask(S, step) { const q = qOf(S, step); S.step = step; S.msgs.push({ w: 'b', t: q.q, sc: 1 }) }
+function answer(S, text, mood) {
+  if (S.typing) return
+  if (S.step === 'mood') {
+    S.ans.mood = mood; S.msgs.push({ w: 'me', t: moodOf(mood).label, mood })
+    later(S, () => { S.msgs.push({ w: 'b', t: REACT[mood], sc: 1 }); ask(S, 'q1') })
+  } else if (S.step === 'q1' || S.step === 'q2' || S.step === 'q3') {
+    const st = S.step; S.ans[st] = text; S.msgs.push({ w: 'me', t: text, skip: SKIPS.has(text) })
+    if (st === 'q1') later(S, () => ask(S, 'q2'))
+    else if (st === 'q2') later(S, () => ask(S, 'q3'))
+    else later(S, () => {
+      S.draft = compose(S); S.orig = S.draft
+      S.msgs.push({ w: 'b', t: S.draft ? '좋아, 네 말 그대로 오늘 일기로 묶어 봤어. 고칠 데 있으면 눌러서 고쳐 줘.' : '오늘은 기분만 남겨도 충분해. 저장할까?', sc: 1 })
+      S.msgs.push({ w: 'draft' }); S.step = 'draft'
+    }, 800)
+  } else if (S.step === 'more' || S.step === 'after') {
+    S.step = 'more'
+    S.msgs.push({ w: 'me', t: text })
+    later(S, () => { S.msgs.push({ w: 'b', t: AI_MORE[S.aiN++ % AI_MORE.length], ai: 1 }) }, 1100)
+  }
+}
+function save(S) {
+  if (S.editDraft) { const ta = $('.draft textarea', S.el); if (ta) S.draft = ta.value; S.editDraft = false }
+  S.data[S.date] = { m: S.ans.mood, t: S.draft, p: S.priv }
+  S.step = 'saved'
+  later(S, () => {
+    S.msgs.push({ w: 'b', t: WARM(S), sc: 1 })
+    afterSave(S)
+  })
+}
+function afterSave(S) {
+  if (S.priv) { S.step = 'end'; return }
+  if (S.consent === null) { S.msgs.push({ w: 'consent' }); S.step = 'consent'; return }
+  if (S.consent === false) { S.step = 'end'; return }
+  aiReply(S, AI_FIRST, () => { S.step = 'after' })
+}
+function aiReply(S, text, done) {
+  if (S.instant) { S.msgs.push({ w: 'b', t: text, ai: 1 }); done && done(); return }
+  const m = { w: 'b', t: '', ai: 1, reading: true }; S.msgs.push(m); draw(S)
+  setTimeout(() => {
+    m.reading = false; let i = 0
+    const tick = () => { i += 2; m.t = text.slice(0, i); draw(S, true); if (i < text.length) setTimeout(tick, REDUCE ? 0 : 35); else { done && done(); draw(S) } }
+    tick()
+  }, REDUCE ? 100 : 1200)
+}
+
+/* ───────── 그리기 ───────── */
+const phone = (inner) => `<div class="phone"><div class="scr${REDUCE ? ' reduce' : ''}"><div class="island"></div><div class="sbar"><span>${{ morning: '8:12', day: '12:40', evening: '21:41', night: '23:58' }[TIME]}</span><i>●●● ◖</i></div>${inner}<div class="homebar"></div></div></div>`
+function head(S, mid, opts = {}) {
+  const left = opts.left || `<button class="gbtn" data-a="${opts.back || 'noop'}" aria-label="${opts.backLabel || '뒤로'}">${ic('back')}</button>`
+  const right = opts.right ?? `<div class="gpill"><button data-a="cal" aria-label="기분 달력">${ic('cal', 'sm')}</button><button data-a="menu" aria-label="일기 메뉴">${ic('more', 'sm')}</button></div>`
+  return `<div class="hdr">${left}${mid}${right}</div>`
+}
+function dateMid(S, sub) {
+  const d = parse(S.date), today = S.date === TODAY
+  return `<button class="hmid" data-a="cal" aria-label="기분 달력 열기"><b>${md(S.date)} ${WD[d.getDay()]}요일</b><span>${S.priv ? `<span class="lockc">${ic('lock', 'xs')}나만 보기</span> · ` : ''}${sub ?? (today ? '오늘 일기' : '지난 일기')}</span></button>`
+}
+function bubbleRows(S) {
+  let lastB = -1
+  S.msgs.forEach((m, i) => { if (m.w === 'b') lastB = i })
+  let out = S.step === 'mood' && S.msgs.length <= 2 ? `<div class="intro">${hero(96, 'smile', !S.typing)}<b>${pet()}</b><span>${KK.SPECIES[SP].full} · Lv 8 친구</span></div>` : ''
+  out += `<div class="daysep">${md(S.date)} ${WD[parse(S.date).getDay()]}요일${S.date === TODAY ? ' · ' + { morning: '아침', day: '낮', evening: '저녁', night: '밤' }[TIME] : ''}</div>`
+  S.msgs.forEach((m, i) => {
+    const prev = S.msgs[i - 1]
+    const fresh = S.fresh && i >= S.fresh ? ' enter' : ''
+    if (m.w === 'b') {
+      const showAv = !(prev && prev.w === 'b')
+      const live = i === lastB && !S.typing
+      const body = m.reading ? `<span class="typing"><i></i><i></i><i></i></span> <span style="color:var(--k-ink-3);font-size:13px">${josa(pet(), '가', '이')} 읽는 중</span>` : esc(m.t)
+      out += `<div class="row-b${fresh}"><span class="av${showAv ? '' : ' gap'}">${showAv ? chr(30, i === lastB ? (moodOf(S.ans.mood)?.face || 'smile') : 'smile', live) : ''}</span><div class="bb ${m.ai ? 'ai' : 'sc'}">${body}</div></div>`
+    } else if (m.w === 'me') {
+      out += `<div class="row-me${fresh}"><div class="bm${m.skip ? ' skip' : ''}">${m.mood ? face(m.mood, 26) : ''}${esc(m.t)}</div></div>`
+    } else if (m.w === 'draft') out += draftCard(S, fresh)
+    else if (m.w === 'consent') out += S.step === 'consent' ? `<div class="consent${fresh}"><b>${josa(pet(), '가', '이')} 일기를 읽고 답해 줄까?</b><ul><li>${ic('chat', 'sm')}저장한 일기를 읽고 한마디 해 줘요</li><li>${ic('lock', 'sm')}나만 보기로 둔 날은 보내지 않아요</li><li>${ic('cloud', 'sm')}꿈틀 서버에서 처리하고 원문은 남기지 않아요</li></ul><div class="bt"><button class="btn" data-a="solo">혼자 쓸게요</button><button class="btn pri" data-a="consent">나누기</button></div><small>${josa(pet(), '는', '은')} 친구처럼 들어 주지만 전문 상담은 아니에요 · ⋯에서 언제든 바꿔요</small></div>` : ''
+  })
+  if (S.typing) out += `<div class="row-b"><span class="av">${chr(30, 'smile', true)}</span><div class="bb"><span class="typing"><i></i><i></i><i></i></span></div></div>`
+  return out
+}
+function draftCard(S, fresh) {
+  const saved = S.step !== 'draft', mood = moodOf(S.ans.mood)
+  const aiOk = S.consent !== false && !S.priv
+  const txt = S.draft || '(기분만 남겼어요)'
+  const body = S.editDraft ? `<textarea aria-label="오늘 일기 고치기">${esc(S.draft)}</textarea>` : `<div class="dt" data-a="${saved ? 'noop' : 'edit'}">${esc(txt)}</div>`
+  const polish = !aiOk ? '' : S.polishLeft > 0 ? `<button class="btn ai" data-a="polish" ${S.polished ? 'disabled style="opacity:.4"' : ''}>다듬어 줘</button>` : `<button class="btn" disabled style="opacity:.45">오늘은 다 썼어요</button>`
+  const acts = saved ? `<div class="da"><span class="okb">${ic('check', 'xs')}저장했어요</span><button class="btn ghost" style="margin-left:auto;height:36px" data-a="reedit">고치기</button></div>`
+    : `<div class="da">${S.editDraft ? '' : `<button class="btn ghost" data-a="edit">${ic('pen', 'xs')}고치기</button>`}${polish}<button class="btn pri" data-a="save">저장</button></div>`
+  const note = saved ? '' : `<div class="dn">${S.polished ? `${josa(pet(), '가', '이')} 문장만 다듬었어요 · <a data-a="unpolish">원래대로</a>` : '내가 한 말 그대로예요.'}${aiOk && !S.polished ? ` 다듬기는 AI가 문장만 고쳐요 · 오늘 ${S.polishLeft}번 남음` : ''}</div>`
+  return `<div class="draft${saved ? ' saved' : ''}${fresh}"><div class="dh">${mood ? face(mood.v, 28) : ''}<b>오늘 일기</b><span>${md(S.date)}${mood ? ' · ' + mood.label : ''}</span></div>${body}${note}${acts}</div>`
+}
+function dock(S) {
+  const aiOk = S.consent === true && !S.priv
+  let chips = '', ph = '직접 써도 돼', on = true
+  if (S.typing) chips = ''
+  else if (S.step === 'mood') chips = `<div class="qmood" role="radiogroup" aria-label="오늘 기분">${MOODS.map((m) => `<button class="qf" data-a="mood" data-v="${m.v}" role="radio" aria-label="${m.label}">${face(m.v, 40)}<span>${m.label.replace('였어요', '').replace('었어요', '').replace('그저 그랬어요', '그저 그래')}</span></button>`).join('')}</div><div class="qr"><button class="qc mute" data-a="free">${ic('pen', 'xs')}그냥 쓸래요</button></div>`
+  else if (/^q[123]$/.test(S.step)) { const q = qOf(S, S.step); chips = `<div class="qr">${q.chips.map((c) => `<button class="qc" data-a="chip" data-t="${esc(c)}">${esc(c)}</button>`).join('')}<button class="qc mute" data-a="chip" data-t="건너뛸래">건너뛸래</button></div>`; ph = '직접 써도 돼 — 한 줄이면 충분해' }
+  else if (S.step === 'draft') { chips = ''; on = false }
+  else if (S.step === 'after') chips = `<div class="qr"><button class="qc acc ai" data-a="more">이어서 이야기할래</button><button class="qc mute" data-a="bye">오늘은 여기까지</button></div>`
+  else if (S.step === 'consent' || S.step === 'saved') on = false
+  if (S.step === 'more' || S.step === 'after') ph = `${pet()}에게 이야기하기…`
+  if (S.step === 'end' || (S.step === 'more' && !aiOk)) return `<div class="dock"><div class="dockline">${S.priv ? `${ic('lock', 'xs')} 나만 보기 — ${josa(pet(), '는', '은')} 정해진 말만 하고, 일기는 어디로도 보내지 않아요` : S.consent === false ? `혼자 쓰는 중이에요 · ⋯에서 ${josa(pet(), '와', '과')} 나누기를 켤 수 있어요` : '오늘 일기를 저장했어요'}</div><div class="homepad"></div></div>`
+  if (S.step === 'draft') return `<div class="dock"><div class="dockline">카드를 눌러 고치고, 다 되면 저장</div><div class="homepad"></div></div>`
+  if (!on) return `<div class="dock"><div class="homepad"></div></div>`
+  return `<div class="dock">${chips}<div class="cmp ${S.step === 'more' || S.step === 'after' ? 'ai' : ''}"><input data-in="1" placeholder="${ph}" value="${esc(S.input)}" aria-label="답 쓰기" enterkeyhint="send"><button class="send" data-a="send" aria-label="보내기" ${S.input.trim() ? '' : 'disabled'}>${ic('up')}</button></div>${S.kb ? '' : '<div class="homepad"></div>'}</div>${S.kb ? kbd() : ''}`
+}
+const kbd = (ret = '보내기') => `<div class="kbd" data-a="kbdown"><div>${'ㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔ'.split('').map((c) => `<span>${c}</span>`).join('')}</div><div>${'ㅁㄴㅇㄹㅎㅗㅓㅏㅣ'.split('').map((c) => `<span>${c}</span>`).join('')}</div><div><span class="w">⇧</span>${'ㅋㅌㅊㅍㅠㅜㅡ'.split('').map((c) => `<span>${c}</span>`).join('')}<span class="w">⌫</span></div><div><span class="w">123</span><span class="w">🌐</span><span class="sp">스페이스</span><span class="ret">${ret}</span></div></div>`
+
+function viewChat(S) {
+  return head(S, dateMid(S, S.step === 'saved' || S.step === 'end' || S.step === 'after' || S.step === 'more' ? '저장됨 ✓' : undefined), { back: 'noop' }) +
+    `<div class="body" data-swipe="1"><div class="chat">${bubbleRows(S)}</div>${dock(S)}</div>`
+}
+function viewFree(S) {
+  const mood = S.freeMood
+  const acc = `<div class="acc"><button data-a="fmoodpop" class="${mood ? 'on' : ''}" aria-label="기분">${mood ? face(mood, 26) : face(3, 26).replace('class="mface"', 'class="mface" style="filter:grayscale(1);opacity:.5"')}</button><button disabled aria-label="사진(다음)">${ic('img', 'sm')}</button><button data-a="priv" class="${S.priv ? 'on' : ''}" aria-label="나만 보기">${ic(S.priv ? 'lock' : 'unlock', 'sm')}</button><button data-a="fq" aria-label="질문 넣기">${ic('q', 'sm')}</button><button data-a="tochat" aria-label="대화로 쓰기">${ic('chat', 'sm')}</button><button class="done" data-a="fdone">완료</button></div>`
+  return head(S, dateMid(S, S.freeText ? '자동 저장됨 ✓' : '그냥 쓰기'), { back: 'tochat', backLabel: '대화로' , right: '<div style="width:44px"></div>' }) +
+    `<div class="body"><div class="free">${S.kb ? '' : `<div class="fmood" role="radiogroup">${MOODS.map((m) => `<button class="qf" data-a="fmood" data-v="${m.v}" aria-label="${m.label}" style="${mood && mood !== m.v ? 'filter:saturate(.3);opacity:.55' : ''}">${face(m.v, mood === m.v ? 46 : 40)}<span style="visibility:${mood === m.v ? 'visible' : 'hidden'}">${m.label}</span></button>`).join('')}</div>`}<textarea data-in="free" placeholder="오늘 하루는 어땠어요?" aria-label="일기 글">${esc(S.freeText)}</textarea></div>${S.moodPop ? `<div class="mpop">${MOODS.map((m) => `<button class="qf" data-a="fmood" data-v="${m.v}" aria-label="${m.label}">${face(m.v, 38)}</button>`).join('')}</div>` : ''}${S.kb ? acc + kbd('줄 바꿈') : acc + '<div class="homepad" style="background:var(--k-surface)"></div>'}</div>`
+}
+function viewPast(S) {
+  const e = S.data[S.date], d = parse(S.date)
+  const t = DAYTASK[S.date]
+  let inner
+  if (!e) {
+    inner = `<div class="pempty">${hero(88, 'smile')}<b>이 날은 비어 있어요</b><span>${josa(pet(), '가', '이')} 그날 이야기를 물어볼게요</span><button class="btn pri" data-a="pastchat">그날 이야기 하기</button><br><button class="btn ghost" data-a="pastfree" style="margin-top:4px">그냥 쓸래요</button></div>`
+  } else {
+    const m = moodOf(e.m), talk = e.talk || []
+    inner = `${e.p ? `<div class="lockbar">${ic('lock', 'sm')}나만 보기 — ${josa(pet(), '가', '이')} 읽지 않은 날이에요</div>` : ''}<div class="pcard">${m ? `<div class="pm">${face(m.v, 34)}${m.label}</div>` : ''}<div class="pt">${esc(e.t || '(기분만 남겼어요)')}</div></div>
+      ${talk.length && !e.p ? `<button class="prow" data-a="ptalk">${ic('chat', 'sm')}<span>${josa(pet(), '와', '과')} 나눈 이야기</span><small>${talk.length}개</small>${ic(S.openTalk ? 'down' : 'next', 'sm')}</button>${S.openTalk ? `<div class="ptalk">${talk.map((x) => `<p><b>${x[0] === 'b' ? pet() : '나'}</b>${esc(x[1])}${x[3] ? '<span class="tag-ai">AI</span>' : ''}</p>`).join('')}</div>` : ''}` : ''}
+      ${t ? `<button class="prow" data-a="noop">${ic('task', 'sm')}<span>그날 끝낸 할 일</span><small>${t.done}개</small>${ic('next', 'sm')}</button>` : ''}`
+  }
+  return head(S, dateMid(S), { back: 'noop', right: `<div class="gpill"><button data-a="gotoday" aria-label="오늘로" style="width:auto;padding:0 10px;font:650 13px/1 var(--k-font);color:var(--k-accent-ink)">오늘</button><button data-a="cal" aria-label="기분 달력">${ic('cal', 'sm')}</button><button data-a="menu" aria-label="메뉴">${ic('more', 'sm')}</button></div>` }) +
+    `<div class="body" data-swipe="1"><div class="past">${inner}<div class="swipe-hint">← 밀어서 다음 날 · 밀어서 전날 →</div></div></div>`
+}
+function viewCal(S) {
+  const [y, mo] = S.calMonth.split('-').map(Number)
+  const first = new Date(y, mo - 1, 1), days = new Date(y, mo, 0).getDate()
+  let cells = ''
+  for (let i = 0; i < first.getDay(); i++) cells += '<span></span>'
+  for (let dd = 1; dd <= days; dd++) {
+    const k = `${y}-${pd(mo)}-${pd(dd)}`, e = S.data[k], fut = k > TODAY
+    cells += `<button class="cd${k === TODAY ? ' today' : ''}${fut ? ' fut' : ''}${e && e.p ? ' lockd' : ''}" ${fut ? 'disabled' : `data-a="day" data-d="${k}"`} aria-label="${md(k)}${e && e.m ? ' ' + moodOf(e.m).label : ''}"><span class="n">${dd}</span><span class="ph">${e && e.m ? (e.p ? ic('lock', 'xs') : face(e.m, 30)) : fut ? '' : '<i></i>'}</span></button>`
+  }
+  const inMonth = Object.entries(S.data).filter(([k, e]) => k.startsWith(S.calMonth) && e.m)
+  const cnt = MOODS.map((m) => inMonth.filter(([, e]) => e.m === m.v).length)
+  const total = cnt.reduce((a, b) => a + b, 0)
+  const ws = '2026-10-04', wk = Array.from({ length: 7 }, (_, i) => addD(ws, i))
+  const wkE = wk.map((k) => S.data[k])
+  const good = wkE.filter((e) => e && e.m >= 4).length, nWk = wkE.filter(Boolean).length
+  const canNext = S.calMonth < TODAY.slice(0, 7)
+  const monthBody = `<div class="ccard"><div class="cwk">${[...WD].map((w) => `<span>${w}</span>`).join('')}</div><div class="cgrid">${cells}</div></div>
+    <div class="ccard pad"><div class="sh2">이번 달 기분<small>${total}일 남겼어요</small></div>${total ? `<div class="mbar">${MOODS.map((m, i) => cnt[i] ? `<i style="width:${cnt[i] / total * 100}%;background:${m.c}"></i>` : '').join('')}</div><div class="mleg">${MOODS.map((m, i) => `<div>${face(m.v, 28)}${cnt[i]}<small>${m.label.replace('였어요', '').replace('었어요', '').replace('그저 그랬어요', '그저 그래')}</small></div>`).join('')}</div>` : '<div style="font:500 13px/18px var(--k-font);color:var(--k-ink-3)">이 달은 아직 비어 있어요</div>'}</div>
+    ${S.calMonth === '2026-10' ? `<div class="ccard pad"><div class="sh2">이번 주 돌아보기<small>10월 4일 ~ 10일</small></div><div class="wkrow">${wk.map((k, i) => { const e = S.data[k]; return `<div>${e && e.m ? (e.p ? `<span class="e" style="border-style:solid;display:grid;place-items:center">${ic('lock', 'xs')}</span>` : face(e.m, 30)) : `<span class="e"${k > TODAY ? ' style="opacity:.4"' : ''}></span>`}${WD[i]}</div>` }).join('')}</div>
+      <div class="wkline"><span>${chr(40, 'happy')}</span><div class="bb sc">이번 주는 ${nWk}일 남겼고, 좋았던 날이 ${good}번이었어. 할 일을 다 끝낸 날 기분이 좋았네.</div></div>
+      <button class="btn block" data-a="weekline" style="margin-top:12px">이번 주를 한 줄로 남기기</button></div>` : ''}`
+  const yearBody = `<div class="ccard pad"><div class="sh2">2026년<small>${Object.keys(S.data).filter((k) => k.startsWith('2026')).length}일 남겼어요</small></div><div class="ymos">${Array.from({ length: 12 }, (_, i) => `<div><b>${i + 1}월</b>${Array.from({ length: 31 }, (_, j) => { const k = `2026-${pd(i + 1)}-${pd(j + 1)}`, e = S.data[k]; return `<i style="${e && e.m ? `background:${moodOf(e.m).c}` : k > TODAY ? 'opacity:.35' : ''}"></i>` }).join('')}</div>`).join('')}</div></div>`
+  return head(S, '<div style="flex:1"></div>', { back: 'calback', backLabel: '일기로', right: `<div class="seg" style="width:96px"><button class="${S.calMode === 'month' ? 'on' : ''}" data-a="cmode" data-m="month">월</button><button class="${S.calMode === 'year' ? 'on' : ''}" data-a="cmode" data-m="year">연</button></div>` }) +
+    `<div class="body" data-swipe="1"><div class="cal"><div class="ctitle"><h3>${S.calMode === 'month' ? `${mo}월<small>${y}</small>` : '올해'}</h3>${S.calMode === 'month' ? `<button data-a="cprev" aria-label="이전 달">${ic('back')}</button><button data-a="cnext" aria-label="다음 달" ${canNext ? '' : 'disabled'}>${ic('next')}</button>` : ''}</div>${S.calMode === 'month' ? monthBody : yearBody}</div></div>`
+}
+function sheets(S) {
+  if (!S.sheet) return ''
+  if (S.sheet === 'menu') {
+    const today = S.date === TODAY
+    return `<div class="layer"><div class="scrim" data-a="close"></div><div class="sheet"><div class="grab"></div><div class="act">
+      <button data-a="priv">${ic(S.priv ? 'unlock' : 'lock')}${S.priv ? '나만 보기 끄기' : '나만 보기'}<em>${S.priv ? '켜짐' : ''}</em></button>
+      ${S.view !== 'free' && today ? `<button data-a="free">${ic('pen')}그냥 쓸래요</button>` : ''}
+      <button data-a="toggleConsent">${ic('chat')}${S.consent ? `${josa(pet(), '와', '과')} 나누기 끄기` : `${josa(pet(), '와', '과')} 나누기 켜기`}</button>
+      ${today ? `<button data-a="restart">${ic('redo')}처음부터 다시 묻기</button>` : ''}
+      <button class="dng" data-a="askdel">${ic('trash')}이 날 일기 지우기</button></div>
+      <button class="btn cancel" data-a="close">취소</button></div></div>`
+  }
+  if (S.sheet === 'del') return `<div class="layer"><div class="scrim" data-a="close"></div><div class="sheet"><div class="grab"></div><h4>이 날 일기를 지울까요?</h4><p style="text-align:center;margin:0 0 14px;font:500 14px/20px var(--k-font);color:var(--k-ink-2)">글·기분·대화가 모든 기기에서 지워져요.</p><div class="act"><button class="dng" data-a="del" style="justify-content:center">지우기</button></div><button class="btn cancel" data-a="close">취소</button></div></div>`
+  if (S.sheet === 'consent') return `<div class="layer"><div class="scrim" data-a="close"></div><div class="sheet" style="text-align:center"><div class="grab"></div>${hero(88, 'smile', true)}<h4>다듬기는 ${josa(pet(), '가', '이')} 도와줘요</h4><p style="margin:0 0 12px;font:500 14px/21px var(--k-font);color:var(--k-ink-2)">초안을 AI가 읽고 문장만 고쳐요.<br>나만 보기로 둔 날은 보내지 않아요.<br>꿈틀 서버에서 처리하고 원문은 남기지 않아요.</p><div style="display:flex;gap:8px"><button class="btn" style="flex:1;height:52px" data-a="close">그대로 둘게요</button><button class="btn pri" style="flex:1;height:52px" data-a="consentPolish">나누고 다듬기</button></div><p style="margin:10px 0 0;font:500 12px/16px var(--k-font);color:var(--k-ink-3)">⋯ 메뉴에서 언제든 끌 수 있어요</p></div></div>`
+  return ''
+}
+
+function draw(S, soft) {
+  // soft: 받는 중 글자만 갱신
+  if (soft) { const bs = $$('.chat .bb', S.el); const last = bs[bs.length - 1]; const m = [...S.msgs].reverse().find((x) => x.w === 'b'); if (last && m) { last.textContent = m.t; const c = $('.chat', S.el); c.scrollTop = c.scrollHeight } return }
+  const prevLen = S.lastLen ?? S.msgs.length
+  S.fresh = S.msgs.length > prevLen ? prevLen : 0
+  S.lastLen = S.msgs.length
+  const inner = S.view === 'chat' ? viewChat(S) : S.view === 'free' ? viewFree(S) : S.view === 'past' ? viewPast(S) : viewCal(S)
+  S.el.innerHTML = phone(inner + sheets(S) + (S.toast ? `<div class="ptoast">${esc(S.toast)}</div>` : ''))
+  const c = $('.chat', S.el); if (c) c.scrollTop = c.scrollHeight
+  if (S.scrollEnd) { const k = $('.cal', S.el); if (k) k.scrollTop = k.scrollHeight }
+  if (S.focus) { const el = $(`[data-in="${S.focus}"]`, S.el); if (el) { el.focus(); const n = el.value.length; el.setSelectionRange(n, n) } S.focus = null }
+  bindSwipe(S)
+}
+function toast(S, t) { S.toast = t; draw(S); clearTimeout(S.tt); S.tt = setTimeout(() => { S.toast = ''; draw(S) }, 2200) }
+function goDate(S, k, dir) {
+  if (k > TODAY) { toast(S, '내일은 아직 오지 않았어요'); return }
+  S.date = k; S.openTalk = false; S.kb = false; S.sheet = null
+  if (k === TODAY) { S.view = 'chat'; if (S.todayState) Object.assign(S, S.todayState); else startChat(S) }
+  else S.view = 'past'
+  S.lastLen = S.msgs.length
+  draw(S)
+  const b = $('.body', S.el)
+  if (b && dir && !REDUCE) b.animate([{ transform: `translateX(${dir * 60}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' })
+}
+function keepToday(S) { if (S.date === TODAY && S.view === 'chat') S.todayState = { msgs: S.msgs, ans: S.ans, step: S.step, draft: S.draft, polished: S.polished } }
+function bindSwipe(S) {
+  const b = $('[data-swipe]', S.el); if (!b) return
+  let x0 = null, y0 = 0, dx = 0
+  b.addEventListener('pointerdown', (e) => { if (e.target.closest('input,textarea,.qr,button')) return; x0 = e.clientX; y0 = e.clientY; dx = 0 })
+  b.addEventListener('pointermove', (e) => { if (x0 === null) return; dx = e.clientX - x0; if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(e.clientY - y0)) b.style.transform = `translateX(${dx * .5}px)` })
+  const up = () => {
+    if (x0 === null) return; b.style.transform = ''; x0 = null
+    if (Math.abs(dx) < 70) return
+    if (S.view === 'cal') { act(S, dx > 0 ? 'cprev' : 'cnext'); return }
+    keepToday(S); goDate(S, addD(S.date, dx > 0 ? -1 : 1), dx > 0 ? -1 : 1)
+  }
+  b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up)
+}
+function act(S, a, t) {
+  const d = t?.dataset || {}
+  switch (a) {
+    case 'mood': answer(S, '', +d.v); S.kb = false; draw(S); break
+    case 'chip': S.input = ''; answer(S, d.t); draw(S); break
+    case 'send': { const v = S.input.trim(); if (!v) return; S.input = ''; S.focus = S.kb ? 'in1' : null; answer(S, v); draw(S); if (S.kb) { const el = $('[data-in="1"]', S.el); el && el.focus() } break }
+    case 'kbdown': S.kb = false; draw(S); break
+    case 'edit': S.editDraft = true; draw(S); { const ta = $('.draft textarea', S.el); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length) } } break
+    case 'reedit': S.step = 'draft'; S.editDraft = true; S.msgs = S.msgs.filter((m, i) => i <= S.msgs.findIndex((x) => x.w === 'draft')); S.lastLen = S.msgs.length; draw(S); break
+    case 'polish':
+      if (S.editDraft) { S.draft = $('.draft textarea', S.el).value; S.editDraft = false }
+      if (S.consent !== true) { S.sheet = 'consent'; draw(S); break }
+      doPolish(S); break
+    case 'consentPolish': S.consent = true; S.sheet = null; doPolish(S); break
+    case 'unpolish': S.draft = S.orig; S.polished = false; draw(S); break
+    case 'save': save(S); draw(S); break
+    case 'consent': S.consent = true; S.msgs = S.msgs.filter((m) => m.w !== 'consent'); S.step = 'saved'; S.lastLen = S.msgs.length; draw(S); aiReply(S, AI_FIRST, () => { S.step = 'after' }); break
+    case 'solo': S.consent = false; S.msgs = S.msgs.filter((m) => m.w !== 'consent'); S.msgs.push({ w: 'b', t: '알겠어. 정해진 말만 할게. 일기는 너만 봐.', sc: 1 }); S.step = 'end'; draw(S); break
+    case 'more': S.step = 'more'; S.kb = true; S.focus = '1'; draw(S); break
+    case 'bye': S.msgs.push({ w: 'me', t: '오늘은 여기까지' }); later(S, () => { S.msgs.push({ w: 'b', t: '응, 잘 자. 내일 또 와.', sc: 1 }); S.step = 'end' }); draw(S); break
+    case 'free': S.sheet = null; keepToday(S); S.view = 'free'; S.freeText = S.draft || S.freeText; S.freeMood = S.ans.mood || S.freeMood; draw(S); break
+    case 'pastfree': S.view = 'free'; S.freeText = ''; S.freeMood = null; draw(S); break
+    case 'tochat': S.kb = false; S.moodPop = false; if (S.date === TODAY) { S.view = 'chat'; if (S.todayState) Object.assign(S, S.todayState) } else S.view = 'past'; S.lastLen = S.msgs.length; draw(S); break
+    case 'fmood': S.freeMood = S.freeMood === +d.v ? null : +d.v; S.moodPop = false; draw(S); if (S.kb) S.focus = 'free', draw(S); break
+    case 'fmoodpop': S.moodPop = !S.moodPop; draw(S); break
+    case 'fq': S.freeText = 'Q. 오늘 가장 뿌듯했던 순간은?\n' + S.freeText; S.focus = 'free'; draw(S); break
+    case 'fdone': S.kb = false; S.moodPop = false; draw(S); toast(S, '저장했어요'); break
+    case 'priv': S.priv = !S.priv; S.sheet = null; draw(S); toast(S, S.priv ? `이 날은 나만 봐요. ${josa(pet(), '가', '이')} 읽지 않아요` : `${josa(pet(), '와', '과')} 같이 읽어요`); break
+    case 'menu': S.sheet = 'menu'; draw(S); break
+    case 'close': S.sheet = null; draw(S); break
+    case 'toggleConsent': S.consent = !S.consent; S.sheet = null; draw(S); toast(S, S.consent ? '나누기를 켰어요' : '나누기를 껐어요. 질문은 계속 정해진 말로 해요'); break
+    case 'restart': S.sheet = null; startChat(S); S.lastLen = 0; draw(S); break
+    case 'askdel': S.sheet = 'del'; draw(S); break
+    case 'del': S.sheet = null; delete S.data[S.date]; if (S.date === TODAY) { S.todayState = null; startChat(S); S.lastLen = 0 } draw(S); toast(S, '일기를 지웠어요'); break
+    case 'cal': keepToday(S); S.prevView = S.view; S.view = 'cal'; S.calMonth = S.date.slice(0, 7); S.sheet = null; draw(S); break
+    case 'calback': goDate(S, S.date); break
+    case 'day': goDate(S, d.d); break
+    case 'gotoday': goDate(S, TODAY, 1); break
+    case 'cprev': { const [y, m] = S.calMonth.split('-').map(Number); const n = new Date(y, m - 2, 1); S.calMonth = `${n.getFullYear()}-${pd(n.getMonth() + 1)}`; draw(S); break }
+    case 'cnext': { if (S.calMonth >= TODAY.slice(0, 7)) return; const [y, m] = S.calMonth.split('-').map(Number); const n = new Date(y, m, 1); S.calMonth = `${n.getFullYear()}-${pd(n.getMonth() + 1)}`; draw(S); break }
+    case 'cmode': S.calMode = d.m; draw(S); break
+    case 'weekline': goDate(S, TODAY); toast(S, '이번 주를 한 줄로 — 질문을 띄웠어요'); break
+    case 'ptalk': S.openTalk = !S.openTalk; draw(S); break
+    case 'pastchat': S.view = 'chat'; startChat(S); S.lastLen = 0; draw(S); break
+  }
+}
+function doPolish(S) {
+  S.polishLeft--
+  S.msgs.splice(S.msgs.findIndex((m) => m.w === 'draft'), 0, { w: 'b', t: '', ai: 1, reading: true })
+  S.lastLen = S.msgs.length; draw(S)
+  const fin = () => { const i = S.msgs.findIndex((m) => m.reading); if (i >= 0) S.msgs.splice(i, 1); S.orig = S.draft; S.draft = S.draft ? POLISHED : S.draft; S.polished = true; S.lastLen = S.msgs.length; draw(S) }
+  if (S.instant) fin(); else setTimeout(fin, REDUCE ? 200 : 1500)
+}
+function mount(host, o, cap, sub, extra = '') {
+  const wrap = document.createElement('div')
+  wrap.innerHTML = `<div class="ph"></div><div class="pcap">${cap}<small>${sub}</small></div>${extra}`
+  host.appendChild(wrap)
+  const S = mk(o); S.el = $('.ph', wrap); S.cap = wrap
+  if (o.setup) { S.instant = true; o.setup(S); S.instant = false } else if (S.view === 'chat') startChat(S)
+  S.lastLen = S.msgs.length
+  draw(S); PH.push(S)
+  S.el.addEventListener('click', (e) => { const t = e.target.closest('[data-a]'); if (!t || !S.el.contains(t)) return; if (t.disabled) return; act(S, t.dataset.a, t) })
+  S.el.addEventListener('focusin', (e) => {
+    const i = e.target.closest('[data-in]'); if (!i || S.kb) return
+    if (S.view === 'free' || i.dataset.in === '1') { S.kb = true; S.focus = i.dataset.in; draw(S) }
+  })
+  S.el.addEventListener('input', (e) => {
+    const i = e.target.closest('[data-in]'); if (!i) return
+    if (i.dataset.in === '1') { S.input = i.value; const b = $('.send', S.el); if (b) b.disabled = !i.value.trim() }
+    else { S.freeText = i.value; const sp = $('.hmid span', S.el); if (sp) sp.textContent = '저장 중…'; clearTimeout(S.st); S.st = setTimeout(() => { const s2 = $('.hmid span', S.el); if (s2) s2.textContent = '자동 저장됨 ✓' }, 600) }
+  })
+  S.el.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.dataset.in === '1' && !e.isComposing) { e.preventDefault(); act(S, 'send') } })
+  return S
+}
+const run = (S, steps) => steps.forEach((s) => typeof s === 'number' ? answer(S, '', s) : s === 'SAVE' ? save(S) : answer(S, s))
+const TODAY_TEXT = ['기획서 초안 1~3장 끝냄', '차별점에서 한참 막혔는데 저녁 먹고 산책하고 나니 좀 정리됐어', '면담 자료 한 장 정리']
+
+function build() {
+  PH.length = 0
+  for (const id of ['phTalk', 'phMore', 'phPast', 'phCal']) $('#' + id).innerHTML = ''
+  const live = mount($('#phTalk'), {}, '① 직접 해 보기 — 처음부터 끝까지', '인사 → 기분 → 질문 3개 → 초안 → 저장 → 답. 칩을 누르거나 직접 쳐 보세요',
+    '<div class="toggles"><button class="chip" id="replay">처음부터</button><button class="chip on" id="auto">자동 재생</button></div>')
+  $('#replay').onclick = () => { live.view = 'chat'; live.date = TODAY; live.todayState = null; live.sheet = null; live.kb = false; live.input = ''; live.polishLeft = 3; startChat(live); live.lastLen = 0; draw(live) }
+  $('#auto').onclick = () => autoplay(live)
+  mount($('#phTalk'), { kb: true, input: '차별점에서 한참 막혔는데', setup: (S) => { startChat(S); run(S, [4, TODAY_TEXT[0]]) } }, '② 질문에 답하는 중 · 키보드', '빠른 답 칩과 입력창이 키보드 바로 위. 키보드를 누르면 내려간다')
+  mount($('#phTalk'), { setup: (S) => { startChat(S); run(S, [4, ...TODAY_TEXT]) } }, '③ 오늘 일기 초안', '내 답을 그대로 묶은 카드. 눌러서 고치기 · 다듬어 줘(AI) · 저장')
+  mount($('#phTalk'), { setup: (S) => { startChat(S); run(S, [4, ...TODAY_TEXT, 'SAVE']) } }, '④ 저장 뒤 — 따뜻한 한 줄 + 답', '첫 줄은 정해진 말, 다음 답은 AI(동의했을 때만). 이어서 이야기 / 오늘은 여기까지')
+
+  mount($('#phMore'), { consent: null, setup: (S) => { startChat(S); run(S, [3, '산책했어', '딱히 없었어', '일찍 자기', 'SAVE']) } }, '⑤ 동의 전 — 첫 저장 뒤 한 번 묻기', '여기까지 AI 호출 0. 나누기를 누르면 그때 처음 답이 온다')
+  mount($('#phMore'), { priv: true, setup: (S) => { startChat(S); run(S, [2, '일이 많았어', '일찍 잤어', '일찍 자기']) } }, '⑥ 나만 보기', '머리에 자물쇠 · 다듬어 줘 없음 · 저장 뒤 답 없음. 질문은 그대로(기기 안)')
+  mount($('#phMore'), { view: 'free', kb: true, freeMood: 4, freeText: '오후에 기획서를 반쯤 썼다. 차별점에서 계속 막혔는데, 저녁 먹고 산책하고 나니 조금 정리됐다.\n', setup: () => {} }, '⑦ 그냥 쓸래요 — 자유 글쓰기', '키보드 위 도구 막대: 기분 · 사진[다음] · 나만 보기 · 질문 · 대화로 · 완료')
+
+  mount($('#phPast'), { view: 'past', date: '2026-10-06', openTalk: true, setup: () => {} }, '⑧ 지난 날 — 저장한 일기 + 접힌 대화', '대화는 한 줄로 접혀 있고 누르면 짧게 펼친다. 오른쪽으로 밀면 전날')
+  mount($('#phPast'), { view: 'past', date: '2026-10-07', setup: () => {} }, '⑨ 지난 날 · 나만 보기였던 날', '대화 줄 없음, 캐릭터가 읽지 않은 날이라고만')
+  mount($('#phPast'), { view: 'past', date: '2026-10-04', setup: () => {} }, '⑩ 비어 있는 지난 날', '"그날 이야기 하기" = 같은 대화를 그날 기준 질문으로')
+  mount($('#phPast'), { first: true, consent: null }, '⑪ 처음 쓰는 사람', '동의 시트 없이 바로 인사 + 소개 한 줄. 동의는 저장 뒤에')
+
+  mount($('#phCal'), { view: 'cal', setup: () => {} }, '⑫ 기분 달력 — 월', '칸을 누르면 그날. 좌우로 밀면 달이 바뀐다')
+  mount($('#phCal'), { view: 'cal', scrollEnd: true, setup: () => {} }, '⑬ 이번 달 기분 · 이번 주 돌아보기', '분포는 개수만(연속 숫자 없음). 주 카드 한 줄은 앱이 센 것 — AI 없음')
+  mount($('#phCal'), { view: 'cal', calMode: 'year', setup: () => {} }, '⑭ 기분 달력 — 연', '12줄 × 31칸, 칸 = 그날 기분 색')
+}
+function autoplay(S) {
+  $('#replay').click()
+  const steps = [[900, () => act(S, 'mood', { dataset: { v: '4' } })], [1800, () => act(S, 'chip', { dataset: { t: TODAY_TEXT[0] } })], [1800, () => { S.input = TODAY_TEXT[1]; act(S, 'send') }], [1800, () => act(S, 'chip', { dataset: { t: TODAY_TEXT[2] } })], [2200, () => act(S, 'save')]]
+  let t = 0; for (const [d, f] of steps) { t += REDUCE ? 400 : d; setTimeout(f, t) }
+}
+function shots() {
+  const list = [['28-v2-now-consent.png', '지금 · 열자마자 동의 시트'], ['28-v2-now-write.png', '지금 · 쓰기 첫 화면(11층)'], ['28-v2-now-written.png', '지금 · 쓴 뒤 — 첫 답이 맨 아래'], ['28-v2-now-bottom.png', '지금 · 아래(한 일·캐릭터 칸·바닥 줄)'], ['28-v2-now-review.png', '지금 · 돌아보기(연속 3번)'], ['28-v2-now-chat.png', '지금 · 이야기는 다른 화면']]
+  $('#shots').innerHTML = list.map(([f, c]) => `<figure><img src="../shots/28-mobile-diary/${f}" alt="${c}" onerror="this.parentNode.remove()"><figcaption>${c}</figcaption></figure>`).join('')
+}
+
+/* ───────── 위 막대 ───────── */
+function setTheme(t) { if (t === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); $$('#themeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.t === t)) }
+$$('#themeSeg button').forEach((b) => b.onclick = () => setTheme(b.dataset.t))
+$$('#spSeg button').forEach((b) => b.onclick = () => { SP = b.dataset.s; $$('#spSeg button').forEach((x) => x.classList.toggle('on', x === b)); build() })
+$$('#timeSeg button').forEach((b) => b.onclick = () => { TIME = b.dataset.h; $$('#timeSeg button').forEach((x) => x.classList.toggle('on', x === b)); build() })
+$('#aiTg').onclick = () => { document.body.classList.toggle('showai'); $('#aiTg').classList.toggle('on') }
+$('#motTg').onclick = () => { REDUCE = !REDUCE; $('#motTg').classList.toggle('on', REDUCE); build() }
+setTheme(Q.get('theme') || 'system')
+$$('#spSeg button').forEach((x) => x.classList.toggle('on', x.dataset.s === SP))
+$$('#timeSeg button').forEach((x) => x.classList.toggle('on', x.dataset.h === TIME))
+if (Q.get('ai') === '1') { document.body.classList.add('showai'); $('#aiTg').classList.add('on') }
+if (REDUCE) $('#motTg').classList.add('on')
+if (Q.get('only')) { $$('section.s').forEach((s) => { if (s.id !== Q.get('only')) s.style.display = 'none' }); $('.top').style.display = 'none' }
+build(); shots()
+if (Q.get('demo') === 'auto') autoplay(PH[0])
+</script>
+</body>
+</html>
