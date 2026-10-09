@@ -253,14 +253,17 @@ export function WritePage({ date, today, entry, entries, buddy, stage, reduced }
             {MOODS.map((m) => {
               const on = entry?.mood === m.value
               return (
-                <Pressable key={m.value} accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={m.label} onPress={() => void pickMood(m.value)} hitSlop={4}
-                  style={[st.face, on && { transform: [{ scale: 1.12 }], borderColor: m.color, borderWidth: 2 }]}>
-                  <MoodFace mood={m.value} size={40} faded={!!entry?.mood && !on} />
-                </Pressable>
+                <View key={m.value} style={st.moodCol}>
+                  <Pressable accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={m.label} onPress={() => void pickMood(m.value)} hitSlop={4}
+                    style={[st.face, on && { transform: [{ scale: 1.12 }], borderColor: m.color, borderWidth: 2 }]}>
+                    <MoodFace mood={m.value} size={40} faded={!!entry?.mood && !on} />
+                  </Pressable>
+                  {/* 고른 얼굴 바로 아래에 이름(2026-10-09: 늘 가운데에 뜨던 문제) — 자리는 늘 잡아 두어 줄이 출렁이지 않게 */}
+                  <Text numberOfLines={1} style={[st.moodLabel, { color: m.color, opacity: on ? 1 : 0 }]}>{m.label}</Text>
+                </View>
               )
             })}
           </View>
-          {mood ? <Text style={[st.moodLabel, { color: mood.color }]}>{mood.label}</Text> : null}
 
           {!text.trim() ? (
             <Animated.View key={shift} entering={reduced ? undefined : FadeIn.duration(250)} style={[st.note, { backgroundColor: c.note }]}>
@@ -372,7 +375,8 @@ const st = StyleSheet.create({
   label: { fontSize: 12, fontWeight: '600' },
   moods: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 },
   face: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
-  moodLabel: { textAlign: 'center', fontSize: 12, fontWeight: '600', marginTop: -4 },
+  moodCol: { alignItems: 'center', width: 64 },
+  moodLabel: { textAlign: 'center', fontSize: 12, fontWeight: '600', marginTop: 6, width: 80 },
   note: { borderRadius: 6, padding: 12, gap: 6, transform: [{ rotate: '-1deg' }], shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
   noteHead: { fontSize: 11, fontWeight: '600' },
   noteQ: { fontSize: 15, fontWeight: '600', lineHeight: 21 },
