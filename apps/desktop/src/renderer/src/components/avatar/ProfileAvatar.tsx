@@ -1,6 +1,6 @@
 // 35 §2 프로필 이미지 한 개 — 글자 · 성장 캐릭터(CharacterArt 재사용) · 알 · 얼굴(공용 도형 데이터).
 // 크기만 받는다(레일 34 · 설정 72 · 고르기 칸 40 · 미리 보기 64). 배경색은 그림의 일부라 테마와 무관.
-import { avatarCharBox, findFace, type FaceShape, type ResolvedAvatar } from '@sprout/schema/avatar'
+import { findFace, type FaceShape, type ResolvedAvatar } from '@sprout/schema/avatar'
 import type { CSSProperties } from 'react'
 import { CharacterArt } from '../growth/CharacterArt'
 import './avatar.css'
@@ -18,12 +18,11 @@ function Shape({ s }: { s: FaceShape }) {
   return <path d={s.d} {...paint} />
 }
 
-/** 그림 부분만(원 안). 캐릭터는 단계마다 커지는 몸을 같은 크기로 맞춰 원을 채운다(몸 반지름 ≈ 원의 0.36, 새싹 끝은 잘릴 수 있음) */
+/** 그림 부분만(원 안). 캐릭터는 머리 쪽을 잘라(bust) 원을 채운다 — 42 §5.3 아바타 칸, 43 결정 ⑨ fit. 입힌 모자가 보인다(43 §5.3) */
 export function AvatarArt({ avatar, size }: { avatar: Exclude<ResolvedAvatar, { type: 'letter' }>; size: number }) {
   if (avatar.type === 'face') return <FaceArt id={avatar.faceId} size={size} />
-  const box = avatarCharBox(size, avatar.type === 'char' ? avatar.stage : null)
-  const style: CSSProperties = { position: 'absolute', left: box.left, top: box.top }
-  return <span className="avatar__char" style={style}><CharacterArt species={avatar.type === 'char' ? avatar.species : null} stage={avatar.type === 'char' ? avatar.stage : 1} size={box.art} /></span>
+  const style: CSSProperties = { position: 'absolute', left: 0, top: size * 0.04 }
+  return <span className="avatar__char" style={style}><CharacterArt species={avatar.type === 'char' ? avatar.species : null} stage={avatar.type === 'char' ? avatar.stage : 1} size={size} crop="bust" noAura mood="smile" /></span>
 }
 
 export function ProfileAvatar({ avatar, size, letter, className = '' }: { avatar: ResolvedAvatar; size: number; letter: string; className?: string }) {

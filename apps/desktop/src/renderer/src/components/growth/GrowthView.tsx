@@ -1,6 +1,8 @@
 import { Check, ChevronRight, MoreHorizontal, Plus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { SPECIES, XP, type Species } from '@sprout/schema/growth'
+import { normalizeSpecies, SPECIES, XP, type Species } from '@sprout/schema/growth'
+import { activeDayList } from '@sprout/schema/wardrobe'
+import { RAISE_PANEL } from '../../data/raise'
 import { addDays } from '@sprout/schema/time'
 import {
   addGoal, carryOver, dismissDraft, nextWeek, readLogOpen, removeGoal, setGoalProgress, thisWeek, useGoalDraft, useGrowth, useMotionReduced, useWeeklyClose,
@@ -45,7 +47,7 @@ function GrowthHome({ onSurvey, onReview }: { onSurvey: () => void; onReview: ()
   const questsRef = useRef<HTMLElement>(null)
   const goalInputRef = useRef<HTMLInputElement>(null)
   const diaryRef = useRef<HTMLElement>(null)
-  const species = character?.species ?? null
+  const species = normalizeSpecies(character?.species)
   const name = species ? (character?.name || SPECIES[species].name) : '알'
   const today = dayKey()
   const week = thisWeek()
@@ -54,6 +56,14 @@ function GrowthHome({ onSurvey, onReview }: { onSurvey: () => void; onReview: ()
   const todayStart = new Date(`${today}T00:00`).toISOString()
   const todayDone = useQuery<{ n: number }>('SELECT count(*) n FROM tasks WHERE status = 1 AND deleted_at IS NULL AND completed_at >= ?', [todayStart])?.[0]?.n ?? 0
   const todayOpen = useQuery<{ n: number }>('SELECT count(*) n FROM tasks WHERE status = 0 AND deleted_at IS NULL AND due_at >= ? AND due_at < ?', [today, addDays(today, 1)])?.[0]?.n ?? 0
+  // 43 §4.2 하루 장면: 오늘 마감 전체 · 오늘 일정 합(분)
+  const dueTotal = useQuery<{ n: number }>('SELECT count(*) n FROM tasks WHERE status IN (0, 1) AND deleted_at IS NULL AND due_at >= ? AND due_at < ?', [today, addDays(today, 1)])?.[0]?.n ?? 0
+  const evRows = useQuery<{ start_at: string; end_at: string }>('SELECT start_at, end_at FROM events WHERE deleted_at IS NULL AND (is_all_day IS NULL OR is_all_day = 0) AND start_at < ? AND end_at > ?', [addDays(today, 1), today])
+  const eventMinutes = useMemo(() => (evRows ?? []).reduce((sum, e) => {
+    const a = Math.max(Date.parse(`${e.start_at.length > 10 ? e.start_at : `${e.start_at}T00:00`}`), Date.parse(`${today}T00:00`))
+    const b = Math.min(Date.parse(`${e.end_at.length > 10 ? e.end_at : `${e.end_at}T00:00`}`), Date.parse(`${addDays(today, 1)}T00:00`))
+    return sum + Math.max(0, (b - a) / 60000)
+  }, 0), [evRows, today])
   const weekGoals = useQuery<{ title: string; target: number; progress: number; status: string }>('SELECT title, target, progress, status FROM kpis WHERE week_start = ? ORDER BY sort_order', [week])
   const reports = useWeeklyReports()
   const stats: StageStats = useMemo(() => {
@@ -61,14 +71,14 @@ function GrowthHome({ onSurvey, onReview }: { onSurvey: () => void; onReview: ()
     const last = events.filter((e) => e.amount > 0).map((e) => e.day).sort().pop()
     const idleDays = last ? Math.round((new Date(`${today}T00:00`).getTime() - new Date(`${last}T00:00`).getTime()) / 86400000) : 0
     return {
-      todayDone, todayOpen,
+      todayDone, todayOpen, dueTotal, eventMinutes, activeDays: activeDayList(events).length,
       todayTaskXp: todayEv.filter((e) => e.kind === 'task' || e.kind === 'task_revoke').reduce((s, e) => s + e.amount, 0),
       streak: streakOf(events, today), idleDays,
       level: progress.level, into: progress.into, toNext: progress.toNext,
       diaryUnseen: !!reports?.some((r) => !r.seen_at),
       goals: (weekGoals ?? []).map((g) => ({ title: g.title, target: g.target, progress: g.progress, achieved: g.status === 'achieved' }))
     }
-  }, [events, today, todayDone, todayOpen, progress.level, progress.into, progress.toNext, reports, weekGoals])
+  }, [events, today, todayDone, todayOpen, dueTotal, eventMinutes, progress.level, progress.into, progress.toNext, reports, weekGoals])
 
   const toQuests = () => {
     questsRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' })
@@ -86,7 +96,9 @@ function GrowthHome({ onSurvey, onReview }: { onSurvey: () => void; onReview: ()
         <button ref={moreRef} className="icon-btn" aria-label="성장 메뉴" onClick={() => setMenu(!menu)}><MoreHorizontal /></button>
         {menu && (
           <Popover anchor={moreRef.current} align="end" width={200} className="menu" onClose={() => setMenu(false)}>
-            <MenuItem label="캐릭터 이름 바꾸기" disabled={!species} onClick={() => { setMenu(false); window.setTimeout(() => document.querySelector<HTMLElement>('.gs-hud__name')?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })), 0) }} />
+            <MenuItem label="꾸미기" disabled={!species} onClick={() => { setMenu(false); window.dispatchEvent(new CustomEvent(RAISE_PANEL, { detail: 'ward' })) }} />
+            <MenuItem label="도감" disabled={!species} onClick={() => { setMenu(false); window.dispatchEvent(new CustomEvent(RAISE_PANEL, { detail: 'dex' })) }} />
+            <MenuItem label="캐릭터 이름 바꾸기" disabled={!species} onClick={() => { setMenu(false); window.setTimeout(() => window.dispatchEvent(new Event('sprout:growth-rename')), 0) }} />
             <MenuItem label={species ? '성향 다시 조사하기' : '성향 조사하기'} onClick={() => { setMenu(false); onSurvey() }} />
             {/* 10 §3.2.11 결정: 기기별 스위치. OS 설정이 켜져 있으면 늘 줄인다 */}
             <MenuItem label="움직임 줄이기" active={reduced} trail={reduced ? <Check className="menu__check" /> : undefined} onClick={() => { writeMotionPref(!reduced); setMenu(false) }} />

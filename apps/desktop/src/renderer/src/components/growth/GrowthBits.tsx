@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { cumulativeXp, SPECIES, STAGES } from '@sprout/schema/growth'
-import { isGrowthStageActive, useGrowth, useWeeklyClose, type XpRow } from '../../data/growth'
+import { cumulativeXp, normalizeSpecies, SPECIES, STAGES } from '@sprout/schema/growth'
+import { itemIcon } from '@sprout/schema/characterArt'
+import { equipItem, giftsAt, type Item } from '@sprout/schema/wardrobe'
+import { saveLook, useRaise } from '../../data/raise'
+import { EvolutionMoment } from './EvolutionMoment'
+import { isGrowthStageActive, motionReduced, useGrowth, useWeeklyClose, type XpRow } from '../../data/growth'
+const motionReducedNow = motionReduced
 import { CharacterArt } from './CharacterArt'
 import { iGa, ro } from '../../lib/josa'
 import { addNotice } from '../../data/notices'
 import './growth-report.css'
+import './raise.css'
 
 // 10 §2.3 사이드바 맨 아래 작은 캐릭터 카드 — 누르면 성장 화면
 export function SidebarCharacter({ onOpen }: { onOpen: () => void }) {
@@ -36,7 +42,9 @@ export function LevelUpWatcher() {
   const { character, progress, events } = useGrowth()
   // 10 §5 새 주 첫 실행 때 지난주 마감(앱에 늘 붙어 있는 이 감시자에서 부른다)
   useWeeklyClose()
-  const [shown, setShown] = useState<{ level: number; stage: number; prevStage: number; gained: { label: string; amount: number }[] }>()
+  const [shown, setShown] = useState<{ level: number; prevLevel: number; stage: number; prevStage: number; gained: { label: string; amount: number }[] }>()
+  const raise = useRaise()
+  const [worn, setWorn] = useState<string | null>(null)
   const seenKey = character ? `sprout.seenLevel.${character.id}` : ''
   const ready = useRef(false)
   useEffect(() => {
@@ -63,13 +71,14 @@ export function LevelUpWatcher() {
       const prevStage = STAGES.filter((s) => seen >= s.from).pop()!.stage
       let since: string | null = null
       try { since = localStorage.getItem(`${seenKey}.at`) } catch { /* */ }
-      setShown({ level: progress.level, stage: progress.stage, prevStage, gained: gainedSince(events, seen, since) })
+      setWorn(null)
+      setShown({ level: progress.level, prevLevel: seen, stage: progress.stage, prevStage, gained: gainedSince(events, seen, since) })
       try { localStorage.setItem(seenKey, String(progress.level)) } catch { /* */ }
       stamp()
     }
   }, [character, progress.level, progress.stage, seenKey, progress, events])
   if (!shown || !character) return null
-  const species = character.species
+  const species = normalizeSpecies(character.species)
   const evolved = shown.stage > shown.prevStage
   const stageName = STAGES.find((s) => s.stage === shown.stage)!.name
   const prevName = STAGES.find((s) => s.stage === shown.prevStage)!.name
@@ -77,7 +86,12 @@ export function LevelUpWatcher() {
   return createPortal(
     <div className="modal-scrim" onMouseDown={(e) => e.target === e.currentTarget && setShown(undefined)}>
       <div className="levelup" role="dialog" aria-label="레벨업">
-        <div className={`levelup__art${evolved ? ' is-evolve' : ''}`}><CharacterArt species={species} stage={shown.stage} size={150} mood="happy" /></div>
+        <div className={evolved && species ? 'levelup__evo' : 'levelup__art'}>
+          {evolved && species
+            ? <EvolutionMoment species={species} from={shown.prevStage} to={shown.stage} path={raise.look.path} eq={raise.worn} size={150} reduced={motionReducedNow()} speed={0.55}
+              onPath={(p) => void saveLook({ ...raise.look, path: p })} onDone={() => undefined} />
+            : <CharacterArt species={species} stage={shown.stage} size={150} mood="happy" />}
+        </div>
         <h2>{evolved ? `${iGa(who)} ${prevName}에서 ${ro(stageName)} 자랐어요` : `레벨 ${iGa(String(shown.level))} 됐어요`}</h2>
         <p>Lv {shown.level} · {stageName}</p>
         {shown.gained.length > 0 && (
@@ -85,6 +99,20 @@ export function LevelUpWatcher() {
             {shown.gained.map((g) => <li key={g.label}><span>{g.label}</span><b>+{g.amount}</b></li>)}
           </ul>
         )}
+        {(() => {
+          // 43 §5.5 다른 화면에서 레벨이 올랐을 때: 레벨업 창 아래 같은 줄(선물 · 입혀 보기)
+          const gifts: Item[] = []
+          for (let l = shown.prevLevel + 1; l <= shown.level; l++) gifts.push(...giftsAt(l))
+          const g = gifts[0]
+          if (!g) return null
+          return (
+            <div className="levelup__gift">
+              <span className="levelup__gift-ico" dangerouslySetInnerHTML={{ __html: itemIcon(g.id) }} />
+              <span><b>{g.name}{gifts.length > 1 ? ` 외 ${gifts.length - 1}개` : ''}</b> Lv {shown.level} 선물이야</span>
+              <button className="gs2-btn pri sm" disabled={worn === g.id} onClick={() => { void saveLook(equipItem(raise.look, g.id)); setWorn(g.id) }}>{worn === g.id ? '입었어요' : g.slot === 'bg' ? '깔아 보기' : '입혀 보기'}</button>
+            </div>
+          )
+        })()}
         <button className="survey__primary" onClick={() => setShown(undefined)}>좋아요</button>
       </div>
     </div>,

@@ -15,7 +15,7 @@ import { weekStart } from '../lib/calendar'
 
 // 10 성장 — XP 원장·캐릭터·주간 목표. 레벨은 원장에서 계산한다.
 export type XpRow = { id: string; kind: string; amount: number; ref_id: string; day: string; created_at: string }
-export type CharacterRow = { id: string; name: string | null; species: Species | null; type_code: string | null; assessed_at: string | null }
+export type CharacterRow = { id: string; name: string | null; species: Species | null; type_code: string | null; assessed_at: string | null; look_json?: string | null }
 export type GoalRow = { id: string; week_start: string; title: string; target: number; progress: number; status: string; source: string; achieved_at: string | null; sort_order: number }
 
 export const thisWeek = () => weekStart(dayKey())
@@ -26,7 +26,7 @@ const announce = (amount: number) => { if (amount) window.dispatchEvent(new Cust
 
 // ── 캐릭터 ──
 // 행이 여러 개면(두 기기가 따로 만든 경우 등) 배정된 캐릭터, 그다음 먼저 만든 것을 쓴다
-const CHARACTER_SQL = 'SELECT id, name, species, type_code, assessed_at FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1'
+const CHARACTER_SQL = 'SELECT id, name, species, type_code, assessed_at, look_json FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1'
 let creating: Promise<CharacterRow> | undefined
 export async function ensureCharacter(): Promise<CharacterRow> {
   const db = await getDb()
@@ -370,6 +370,8 @@ export const isSleepy = (h: number, idleDays: number) => h >= 23 || h < 6 || idl
 
 export type StageStats = {
   todayDone: number; todayOpen: number; todayTaskXp: number; streak: number; idleDays: number
+  /** 43 하루 장면: 오늘 마감 할 일 전체(완료 포함) · 오늘 일정 합(분) · 할 일을 한 날 누적 */
+  dueTotal?: number; eventMinutes?: number; activeDays?: number
   level: number; into: number; toNext: number; diaryUnseen: boolean
   goals: { title: string; target: number; progress: number; achieved: boolean }[]
 }
@@ -394,7 +396,6 @@ export function stageLines(s: StageStats): string[] {
   if (gap <= 10) out.push(`레벨업까지 ${gap} XP! 거의 다 왔어`)
   const nd = nextDecor(s.level)
   if (nd) out.push(`Lv ${nd.lv}${'이이가이가가이이이가'[nd.lv % 10]} 되면 ${josaOf(nd.name, '이', '가')} 생겨`)
-  if (s.streak >= 2) out.push(`${s.streak}일 연속이야!`)
   if (s.todayTaskXp >= XP.taskDailyCap) out.push('오늘은 배불러! 남은 건 내일 먹을게')
   out.push('네가 끝낸 일만큼 자라', '잠깐 쉬어도 괜찮아')
   return out

@@ -49,6 +49,7 @@ export type CharacterArtProps = {
   fit?: boolean
   /** 입힌 모습(없으면 Provider 값) — null이면 아무것도 입히지 않는다 */
   wear?: CharacterWear | null
+  /** 전설 배경(원판·장면 조각) 끄기 — 기본: 96 미만이면 끈다(42 결정 ③: 무대·AI 비서 빈 대화만) */
   noAura?: boolean
   wave?: boolean
   calm?: boolean
@@ -65,7 +66,7 @@ export const CharacterArt = memo(function CharacterArt({ species, stage = 1, siz
   const html = useMemo(() => {
     if (!sp) return seedArt({ size, cracks, uid, live: motion === 'idle', crop: tight ? 'bust' : crop })
     return art(sp, st, {
-      size, mood, look, blink, detail, crop: tight ? 'bust' : crop, sil: silhouette, lock, fit, noAura, wave, calm, uid, label,
+      size, mood, look, blink, detail, crop: tight ? 'bust' : crop, sil: silhouette, lock, fit, noAura: noAura ?? size < 96, wave, calm, uid, label,
       live: motion === 'idle', lv: w?.lv, path: w?.path, eq: w?.eq
     })
     // w는 매번 새 객체라 값으로 비교한다

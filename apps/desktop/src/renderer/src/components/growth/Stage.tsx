@@ -1,50 +1,54 @@
-import { Paintbrush, X } from 'lucide-react'
+import { Shirt } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { art, bitSvg, HEART_SVG, itemIcon, scene, sceneGround, sceneIsDark, standBottom, titleOf } from '@sprout/schema/characterArt'
 import { SPECIES, STAGES, stageOf, XP, type Species } from '@sprout/schema/growth'
 import {
-  catchUpOf, DECOR, greetingLine, isSleepy, levelOfTotal, newlyUnlocked, readRoomOff, readSeenAt, renameCharacter, setGrowthStageActive, stageLines,
-  takeGreeting, timeOfDay, writeRoomOff, writeSeenAt, type CharacterRow, type StageStats, type TimeOfDay, type XpRow
-} from '../../data/growth'
+  cmOf, dayJustDone, decorOn, equipItem, evolutionHint, giftsAt, growthTags, isBusy, isNight, ITEM_BY_ID, momentLine, pickDayMoment, stageBoxSize, tapLines,
+  TOUCH, TOUCH_LINES, trophyLine, trophyShape, type CharacterItemRow, type DayMoment, type Item, type Path
+} from '@sprout/schema/wardrobe'
+import { catchUpOf, isSleepy, levelOfTotal, readSeenAt, renameCharacter, setGrowthStageActive, stageLines, writeSeenAt, type CharacterRow, type StageStats, type XpRow } from '../../data/growth'
+import { isProjectDeadlineToday, RAISE_FRESH, RAISE_PANEL, saveLook, useRaise } from '../../data/raise'
 import { dayKey } from '../../lib/dates'
 import { CharacterArt, type CharacterMood } from './CharacterArt'
-import { Confetti } from './Interactive'
-import { DecorIcon, Scene } from './StageScene'
+import { EvolutionMoment } from './EvolutionMoment'
+import { RaisePanel } from './RaisePanel'
+import './raise.css'
 
-// 10 §3.2 캐릭터 중심 v3 — 무대(캐릭터 방): 상태 머신 · 말 걸기 · 먹이(XP 방울) · 레벨업·진화 연출 · 꾸미기
+// 10 §3.2 무대(캐릭터 방) + 43 키우기(v0.3): 장면이 끝까지 · 왼쪽 위 유리 HUD(큰 % · 다음 선물 · 막대 · 태그) · 레벨마다 자라는 상자 ·
+// 만지기(누르기·쓰다듬기·간지럼·끌기·부르기·트로피) · 하루 장면 5 · 레벨업 → 선물 카드 → 입혀 보기 · 진화 순간(+두 갈래) · 옷장·도감 패널.
+// 움직임은 transform · opacity만(WAAPI). 만지기는 아무것도 주지 않는다(43 §1).
 type Progress = { total: number; level: number; into: number; toNext: number; stage: number }
 type Pt = { x: number; y: number }
-type Reveal = { evolve: boolean; prev: number; level: number; phase: 'build' | 'show'; artStage?: number }
+type Evo = { from: number; to: number; level: number; prev: number }
 
 const EGG_LINES = ['톡톡… 누가 날 깨워 줄래?', '성향 조사를 하면 내가 깨어나!']
-const center = (el: Element | null): Pt | null => { if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } }
+const ls = { get: (k: string) => { try { return localStorage.getItem(k) } catch { return null } }, set: (k: string, v: string) => { try { localStorage.setItem(k, v) } catch { /* */ } } }
+const f = (n: number) => +n.toFixed(2)
+const rowsToItems = (rows: CharacterItemRow[]) => rows.map((r) => ITEM_BY_ID[r.item_id]).filter((x): x is Item => !!x)
 
-export function GrowthStage({ character, events, progress, ready, stats, reduced, onSurvey, onQuests, onDiary }: {
+export function GrowthStage({ character, events, progress, ready, stats, reduced, onSurvey, onDiary }: {
   character?: CharacterRow; events: XpRow[]; progress: Progress; ready: boolean; stats: StageStats; reduced: boolean
-  onSurvey: () => void; onQuests: () => void; onDiary: () => void
+  onSurvey: () => void; onQuests?: () => void; onDiary: () => void
 }) {
-  const species: Species | null = character?.species ?? null
-  const name = species ? (character?.name || SPECIES[species].name) : '아직 모르는 알'
+  const raise = useRaise()
+  const species: Species | null = raise.species
+  const name = species ? (character?.name || SPECIES[species].name) : '아직 모르는 씨앗'
   const stageEl = useRef<HTMLDivElement>(null)
   const charEl = useRef<HTMLButtonElement>(null)
-  const bowlEl = useRef<HTMLButtonElement>(null)
+  const inEl = useRef<HTMLSpanElement>(null)
 
   // ── 시간 · 크기 ──
   const [hour, setHour] = useState(() => new Date().getHours())
   useEffect(() => { const t = window.setInterval(() => setHour(new Date().getHours()), 60_000); return () => window.clearInterval(t) }, [])
-  const tod: TimeOfDay = timeOfDay(hour)
-  const [narrow, setNarrow] = useState(false)
-  const [short, setShort] = useState(() => window.innerHeight < 760)
+  const [dims, setDims] = useState({ w: 900, h: 520 })
   useEffect(() => {
     const el = stageEl.current
     if (!el) return
-    const ro = new ResizeObserver(() => setNarrow(el.clientWidth < 720))
+    const ro = new ResizeObserver(() => setDims({ w: el.clientWidth, h: el.clientHeight }))
     ro.observe(el)
-    const onR = () => setShort(window.innerHeight < 760)
-    window.addEventListener('resize', onR)
-    return () => { ro.disconnect(); window.removeEventListener('resize', onR) }
+    return () => ro.disconnect()
   }, [])
-  const [hidden, setHidden] = useState(document.hidden)
-  useEffect(() => { const on = () => setHidden(document.hidden); document.addEventListener('visibilitychange', on); return () => document.removeEventListener('visibilitychange', on) }, [])
+  const narrow = dims.w < 720
 
   // ── 표시용 XP(방울이 닿을 때마다 찬다) ──
   const [shownTotal, setShownTotal] = useState<number | null>(null)
@@ -53,148 +57,185 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
   useEffect(() => { if (shownTotal === null && flying.current === 0) settled.current = progress.total }, [progress.total, shownTotal])
   const shown = shownTotal === null ? progress : { ...levelOfTotal(shownTotal), total: shownTotal, stage: progress.stage }
   const stage = progress.stage
-  const size = Math.round((230 + (stage - 1) * 12) * (narrow ? 0.8 : 1))
+  const level = progress.level
+  const box = Math.round(stageBoxSize(level) * (narrow ? 0.8 : 1))
+  const bottom = standBottom(dims.w, dims.h, box)
 
   // ── 반응 상태 ──
-  const [react, setReact] = useState<{ mood: CharacterMood; id: number }>()
-  const [act, setAct] = useState<{ name: string; id: number }>()
-  const [bubble, setBubble] = useState<{ text: string; id: number }>()
-  const [hearts, setHearts] = useState<{ id: number; dx: number }[]>([])
+  const [mood, setMood] = useState<{ m: CharacterMood; id: number }>()
+  const [wave, setWave] = useState(false)
+  const [tempHand, setTempHand] = useState<string | null>(null)
   const [woke, setWoke] = useState(false)
-  const [curious, setCurious] = useState(false)
   const [cracks, setCracks] = useState(0)
   const [banner, setBanner] = useState<string>()
-  const [reveal, setReveal] = useState<Reveal>()
-  const [unlock, setUnlock] = useState<(typeof DECOR)[number]>()
-  const [panel, setPanel] = useState(false)
-  const [off, setOff] = useState<Set<string>>(new Set())
-  const [fx, setFx] = useState<{ ball: boolean; lamp: boolean; flowers: number; butterfly: number }>({ ball: false, lamp: false, flowers: 0, butterfly: 0 })
-  const [bump, setBump] = useState(0)
-  const [burst, setBurst] = useState(0)
-  useEffect(() => { if (character) setOff(readRoomOff(character.id)) }, [character?.id])
+  const [evo, setEvo] = useState<Evo>()
+  const [toast, setToast] = useState<{ items: Item[]; why: string; id: number }>()
+  const [panel, setPanel] = useState<'ward' | 'dex' | null>(null)
+  const [look, setLookEye] = useState<{ x: number; y: number }>()
+  const [calm, setCalm] = useState(false)
+  const [live, setLive] = useState('')
 
   const timers = useRef(new Set<number>())
   const later = useCallback((fn: () => void, ms: number) => { const t = window.setTimeout(() => { timers.current.delete(t); fn() }, ms); timers.current.add(t); return t }, [])
   const orbs = useRef(new Set<HTMLElement>())
   useEffect(() => () => { timers.current.forEach((t) => window.clearTimeout(t)); orbs.current.forEach((o) => o.remove()) }, [])
 
-  const sleepy = !!species && isSleepy(hour, stats.idleDays) && !woke && !reveal
+  const night = isNight(hour)
+  const sleepy = !!species && isSleepy(hour, stats.idleDays) && !woke && !evo
   const baseMood: CharacterMood = sleepy ? 'sleepy' : stats.todayTaskXp >= XP.taskDailyCap ? 'content' : stats.todayDone > 0 ? 'smile' : 'default'
-  const mood = react?.mood ?? baseMood
+  const curMood = mood?.m ?? baseMood
 
-  const feel = useCallback((m: CharacterMood, ms: number) => { const id = Date.now() + Math.random(); setReact({ mood: m, id }); later(() => setReact((r) => (r?.id === id ? undefined : r)), ms) }, [later])
-  const play = useCallback((name: string, ms = 600) => { if (reduced) return; const id = Date.now() + Math.random(); setAct({ name, id }); later(() => setAct((a) => (a?.id === id ? undefined : a)), ms) }, [reduced, later])
-  const say = useCallback((text: string) => { const id = Date.now(); setBubble({ text, id }); later(() => setBubble((b) => (b?.id === id ? undefined : b)), 2600) }, [later])
-  const heart = useCallback((dx = 0) => { if (reduced) return; const id = Date.now() + Math.random(); setHearts((h) => [...h.slice(-5), { id, dx }]); later(() => setHearts((h) => h.filter((x) => x.id !== id)), 1100) }, [reduced, later])
+  const feel = useCallback((m: CharacterMood, ms?: number) => { const id = Date.now() + Math.random(); setMood({ m, id }); if (ms) later(() => setMood((r) => (r?.id === id ? undefined : r)), ms) }, [later])
+  const anim = useCallback((frames: Keyframe[], o: KeyframeAnimationOptions) => { if (reduced || !inEl.current) return; inEl.current.animate(frames, o) }, [reduced])
+  const hop = useCallback((h = 14) => anim([{ transform: 'none' }, { transform: 'scale(1.06,.93)', offset: 0.15 }, { transform: `translateY(-${h}px) scale(.96,1.05)`, offset: 0.45 }, { transform: 'scale(1.05,.95)', offset: 0.75 }, { transform: 'none' }], { duration: 440, easing: 'cubic-bezier(.3,.7,.4,1)' }), [anim])
+  const floatEl = useCallback((html: string, cls: string, ms = 900, dx = 0) => {
+    const host = charEl.current
+    if (!host) return
+    const d = document.createElement('div'); d.className = cls; d.innerHTML = html; if (dx) d.style.marginLeft = `${dx}px`; host.appendChild(d)
+    const a = reduced ? d.animate([{ opacity: 1 }, { opacity: 1, offset: 0.7 }, { opacity: 0 }], { duration: ms }) : d.animate([{ opacity: 0, transform: 'translateY(6px) scale(.8)' }, { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.2 }, { opacity: 0, transform: 'translateY(-30px) scale(1)' }], { duration: ms, easing: 'ease-out' })
+    a.onfinish = () => d.remove()
+  }, [reduced])
+  const say = useCallback((text: string, ms: number = TOUCH.sayMs) => {
+    const host = charEl.current
+    if (!host) return
+    host.querySelectorAll('.gs2-say').forEach((s) => s.remove())
+    const b = document.createElement('div'); b.className = 'gs2-say'; b.textContent = text; host.appendChild(b)
+    setLive(text)
+    if (text.startsWith('일기')) b.onclick = (e) => { e.stopPropagation(); onDiary() }
+    b.animate(reduced ? [{ opacity: 0 }, { opacity: 1, offset: 0.08 }, { opacity: 1, offset: 0.88 }, { opacity: 0 }] : [{ opacity: 0, transform: 'translateX(-50%) translateY(6px) scale(.9)' }, { opacity: 1, transform: 'translateX(-50%) scale(1)', offset: 0.08 }, { opacity: 1, transform: 'translateX(-50%) scale(1)', offset: 0.88 }, { opacity: 0, transform: 'translateX(-50%) scale(1)' }], { duration: ms, easing: 'cubic-bezier(.34,1.56,.64,1)' }).onfinish = () => b.remove()
+  }, [reduced, onDiary])
+  const burst = useCallback((n: number, dist: number) => {
+    const host = charEl.current
+    if (reduced || !host || !species) return
+    for (let i = 0; i < n; i++) {
+      const b = document.createElement('div'); b.className = 'gs2-bit'; b.innerHTML = bitSvg(species, i); host.appendChild(b)
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2 + (i % 2 ? 0.2 : -0.1), r = dist * (0.7 + (i % 3) * 0.17), fall = species === 'frog' ? -30 : species === 'bee' ? 30 : 18
+      b.animate([{ transform: 'translate(0,0) scale(.4)', opacity: 0 }, { opacity: 1, offset: 0.12 }, { transform: `translate(${f(Math.cos(a) * r * 0.8)}px,${f(Math.sin(a) * r * 0.8)}px) scale(1) rotate(${i * 40}deg)`, opacity: 1, offset: 0.55 }, { transform: `translate(${f(Math.cos(a) * r)}px,${f(Math.sin(a) * r + fall)}px) scale(.9) rotate(${i * 70}deg)`, opacity: 0 }], { duration: 780, easing: 'cubic-bezier(.2,.8,.4,1)', fill: 'both' }).onfinish = () => b.remove()
+    }
+  }, [reduced, species])
 
-  // 말풍선 문장: 실제 숫자, 바로 전 문장은 다시 안 고른다
+  // ── 말풍선 문장(실제 숫자) ──
   const lineIdx = useRef(0)
-  const lastLine = useRef('')
   const nextLine = () => {
-    const all = species ? stageLines({ ...stats, level: progress.level, into: progress.into, toNext: progress.toNext }) : EGG_LINES
-    let l = all[lineIdx.current++ % all.length]
-    if (l === lastLine.current && all.length > 1) l = all[lineIdx.current++ % all.length]
-    lastLine.current = l
-    return l
+    if (!species) return EGG_LINES[lineIdx.current++ % EGG_LINES.length]
+    const busy = isBusy({ dueTotal: stats.dueTotal ?? 0, eventMinutes: stats.eventMinutes ?? 0 })
+    const own = tapLines({ level, dueOpen: stats.todayOpen, xpLeft: progress.toNext - progress.into, busy })
+    const old = stageLines({ ...stats, level, into: progress.into, toNext: progress.toNext }).filter((l) => l.startsWith('일기') || l.includes('퀘스트') || l.includes('배불러'))
+    const all = [...old.slice(0, 1), ...own, ...old.slice(1)]
+    return all[lineIdx.current++ % all.length]
   }
 
-  // ── 깜빡임 · 대기 동작 (보이지 않으면 쉰다) ──
-  useEffect(() => {
-    let t = 0
-    const loop = () => {
-      t = window.setTimeout(() => {
-        const el = charEl.current
-        if (el && !document.hidden) { el.classList.add('is-blink'); window.setTimeout(() => el.classList.remove('is-blink'), 140) }
-        loop()
-      }, 3000 + Math.random() * 3000)
-    }
-    loop()
-    return () => window.clearTimeout(t)
-  }, [])
-  const idleRef = useRef({ sleepy, reduced, reveal: !!reveal, species })
-  idleRef.current = { sleepy, reduced, reveal: !!reveal, species }
-  useEffect(() => {
-    let t = 0
-    const loop = () => {
-      t = window.setTimeout(() => {
-        const s = idleRef.current
-        if (!document.hidden && !s.reduced && !s.reveal) {
-          if (!s.species) play('is-wobble', 800)
-          else if (!s.sleepy) {
-            const own = s.species === 'snail' ? 'is-tilt' : s.species === 'bee' ? 'is-wag' : s.species === 'worm' ? 'is-stretch' : 'is-hop'
-            const pool = ['is-look', 'is-stretch', 'is-hop', own]
-            play(pool[Math.floor(Math.random() * pool.length)], 2000)
-          }
-        }
-        loop()
-      }, 12000 + Math.random() * 8000)
-    }
-    loop()
-    return () => window.clearTimeout(t)
-  }, [play])
-
-  // ── 시선 ──
+  // ── 시선(마우스) — 반 칸씩 끊어 다시 그리기를 줄인다 ──
+  const drag = useRef({ on: false, down: false, sx: 0, sy: 0, x: 0, y: 0, pet: false, petT: 0, heartT: 0 })
   const raf = useRef(0)
   const onMove = (e: React.PointerEvent) => {
-    if (reduced) return
+    if (reduced || drag.current.on) return
     const p = { x: e.clientX, y: e.clientY }
     if (raf.current) return
     raf.current = requestAnimationFrame(() => {
       raf.current = 0
-      const el = charEl.current
-      const pupils = el?.querySelector('.character__pupils')
-      if (!el || !pupils) return
-      const r = el.getBoundingClientRect()
-      const x = Math.max(-1, Math.min(1, (p.x - (r.left + r.width / 2)) / 300))
-      const y = Math.max(-1, Math.min(1, (p.y - (r.top + r.height * 0.55)) / 200))
-      pupils.setAttribute('transform', `translate(${x * 2.6} ${y * 2})`)
+      const r = charEl.current?.getBoundingClientRect()
+      if (!r) return
+      const q = (v: number) => Math.round(Math.max(-1, Math.min(1, v)) * 2) / 2
+      const n = { x: q((p.x - (r.left + r.width / 2)) / 300), y: q((p.y - (r.top + r.height * 0.45)) / 200) }
+      setLookEye((o) => (o && o.x === n.x && o.y === n.y ? o : n))
     })
   }
-  const onLeave = () => { charEl.current?.querySelector('.character__pupils')?.setAttribute('transform', 'translate(0 0)') }
 
   // ── 먹이: XP 방울 ──
-  const mouth = (): Pt => { const r = charEl.current?.getBoundingClientRect(); return r ? { x: r.left + r.width / 2, y: r.top + r.height * 0.62 } : { x: 0, y: 0 } }
-  const fly = useCallback((from: Pt, via: Pt | null, label: string, big: boolean, delay: number) => new Promise<void>((done) => {
+  const mouth = (): Pt => { const r = charEl.current?.getBoundingClientRect(); return r ? { x: r.left + r.width / 2, y: r.top + r.height * 0.5 } : { x: 0, y: 0 } }
+  const fly = useCallback((from: Pt, label: string, big: boolean, delay: number) => new Promise<void>((done) => {
     const o = document.createElement('div')
     o.className = `gs-orb${big ? ' is-big' : ''}`
     o.textContent = label
     document.body.appendChild(o)
     orbs.current.add(o)
     const to = mouth()
-    const mid = (a: Pt, b: Pt, lift: number) => `translate(${(a.x + b.x) / 2}px, ${Math.min(a.y, b.y) - lift}px)`
-    const kf: Keyframe[] = [{ transform: `translate(${from.x}px, ${from.y}px) scale(.4)`, opacity: 0 }]
-    if (via) kf.push({ transform: `${mid(from, via, 90)} scale(1)`, opacity: 1 }, { transform: `translate(${via.x}px, ${via.y - 6}px) scale(.9)`, opacity: 1 })
-    kf.push({ transform: `${mid(via ?? from, to, 70)} scale(1)`, opacity: 1 }, { transform: `translate(${to.x}px, ${to.y}px) scale(.3)`, opacity: 0.2 })
-    const a = o.animate(kf, { duration: via ? 950 : 750, delay, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'both' })
+    const a = o.animate([{ transform: `translate(${from.x}px, ${from.y}px) scale(.4)`, opacity: 0 }, { transform: `translate(${(from.x + to.x) / 2}px, ${Math.min(from.y, to.y) - 70}px) scale(1)`, opacity: 1 }, { transform: `translate(${to.x}px, ${to.y}px) scale(.3)`, opacity: 0.2 }], { duration: 750, delay, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'both' })
     const end = () => { o.remove(); orbs.current.delete(o); done() }
     a.onfinish = end
     a.oncancel = end
   }), [])
-  /** amounts: 방울마다 XP. from이 없으면 무대 왼쪽 가장자리에서 밥그릇을 거쳐 온다 */
-  const feed = useCallback(async (amounts: number[], opts: { from?: Pt; viaBowl?: boolean; base?: number } = {}) => {
+  const feed = useCallback(async (amounts: number[], opts: { from?: Pt; base?: number } = {}) => {
     if (!amounts.length) return
     const total = amounts.reduce((a, b) => a + b, 0)
-    if (reduced || document.hidden) { feel('happy', 1500); return }
+    if (reduced || document.hidden) { feel('happy', 1500); floatEl(`+${total} XP`, 'gs2-xp'); return }
     const r = stageEl.current?.getBoundingClientRect()
     if (!r) return
-    const from = opts.from ?? { x: r.left + 8, y: r.top + r.height * 0.45 }
-    const via = opts.viaBowl === false ? null : center(bowlEl.current)
+    const from = opts.from ?? { x: r.left + r.width / 2 + 60, y: r.top + 4 }
     const base = opts.base ?? settled.current
     setShownTotal((t) => t ?? base)
     flying.current += amounts.length
-    await Promise.all(amounts.map((amt, i) => fly(from, via, `+${amt}`, amt >= 10, i * 120).then(() => {
+    await Promise.all(amounts.map((amt, i) => fly(from, `+${amt}`, amt >= 10, i * 120).then(() => {
       flying.current--
       setShownTotal((t) => (t ?? base) + amt)
-      if (via) setBump((b) => b + 1)
-      setReact({ mood: 'eat', id: -1 })
-      window.setTimeout(() => setReact((x) => (x?.id === -1 ? undefined : x)), 150)
+      feel('eat', 150)
     })))
-    feel('happy', 2500)
-    play('is-hop', 600)
+    feel('happy', 2200)
+    hop()
+    floatEl(`+${total} XP`, 'gs2-xp')
     later(() => { if (flying.current === 0) { setShownTotal(null); settled.current = base + total } }, 400)
-  }, [reduced, fly, feel, play, later])
+  }, [reduced, fly, feel, hop, floatEl, later])
 
-  // 자리 비운 사이 받은 XP + 하루 첫 인사 (화면에 들어올 때 한 번)
+  // ── 레벨업 · 진화 → 선물 카드(43 §5.5) ──
+  const busyReveal = useRef(false)
+  const pendingFresh = useRef<Item[]>([])
+  const showToast = useCallback((items: Item[], why: string) => {
+    if (!items.length) return
+    const id = Date.now()
+    setToast({ items, why, id })
+    later(() => setToast((t) => (t?.id === id ? undefined : t)), 9000)
+  }, [later])
+  const afterReveal = useCallback((prev: number, lv: number) => {
+    busyReveal.current = false
+    burst(10, 90)
+    floatEl(`Lv ${lv}`, 'gs2-chiplv', 1600)
+    const g: Item[] = []
+    for (let l = prev + 1; l <= lv; l++) g.push(...giftsAt(l))
+    const rest = pendingFresh.current
+    pendingFresh.current = []
+    later(() => {
+      if (g.length) showToast([...g, ...rest], `Lv ${lv} 선물이야. ${g[0].why ?? '할 일을 끝내서 받았어'}`)
+      else if (rest.length) showToast(rest, '할 일을 끝내서 받았어')
+    }, 700)
+  }, [burst, floatEl, later, showToast])
+  const startReveal = useCallback((prev: number, lv: number) => {
+    if (!species) return
+    busyReveal.current = true
+    const from = stageOf(prev), to = stageOf(lv)
+    feel('happy', 2200)
+    if (to > from) { setEvo({ from, to, prev, level: lv }); return }
+    anim([{ transform: 'none' }, { transform: 'scale(.94,1.05)', offset: 0.2 }, { transform: 'translateY(-12px) scale(1.12)', offset: 0.5 }, { transform: 'scale(.98,1.02)', offset: 0.8 }, { transform: 'none' }], { duration: 620, easing: 'cubic-bezier(.2,1.2,.4,1)' })
+    later(() => afterReveal(prev, lv), reduced ? 0 : 640)
+  }, [species, feel, anim, later, afterReveal, reduced])
+  useEffect(() => {
+    const on = (e: Event) => { const d = (e as CustomEvent<{ prev: number; level: number }>).detail; later(() => startReveal(d.prev, d.level), 900) }
+    window.addEventListener('sprout:growth-reveal', on)
+    return () => window.removeEventListener('sprout:growth-reveal', on)
+  }, [startReveal, later])
+  // 레벨이 아닌 해금(한 날 · 점검 · 계절 · 프로젝트) — 레벨업 연출 중이면 그 뒤에. 트로피는 말 한 줄
+  useEffect(() => {
+    const on = (e: Event) => {
+      const rows = (e as CustomEvent<CharacterItemRow[]>).detail
+      if (rows.some((r) => r.kind === 'trophy')) later(() => { hop(); feel('happy', 2000); say(TOUCH_LINES.trophy) }, 1200)
+      const items = rowsToItems(rows.filter((r) => r.kind === 'item' && r.source !== 'level'))
+      if (!items.length) return
+      if (busyReveal.current) { pendingFresh.current.push(...items); return }
+      later(() => showToast(items, '할 일을 끝내서 받았어'), 700)
+    }
+    window.addEventListener(RAISE_FRESH, on)
+    return () => window.removeEventListener(RAISE_FRESH, on)
+  }, [later, hop, feel, say, showToast])
+
+  // ── 하루 장면(43 §4.2) — 성장 화면을 열 때 하루 한 번 ──
+  const playMoment = useCallback((m: DayMoment) => {
+    const line = momentLine(m, { dueOpen: stats.todayOpen })
+    if (m === 'morning') { setWave(true); feel('smile', TOUCH.callMs); later(() => setWave(false), TOUCH.callMs); say(line) }
+    if (m === 'busy') { setCalm(true); feel('smile', 3200); say(line, 3200) }
+    if (m === 'deadline') { setTempHand('flag'); hop(); later(() => hop(), 460); say(line, 3200); later(() => setTempHand(null), 3400) }
+    if (m === 'dayDone') { feel('happy', 2600); hop(); later(() => hop(), 460); burst(14, 120); say(line, 3000) }
+    if (m === 'night' && !reduced) for (let i = 0; i < 3; i++) later(() => floatEl('Z', 'gs2-zz', 1600, i * 6), 500 * i)
+  }, [stats.todayOpen, feel, later, say, hop, burst, floatEl, reduced])
   const entered = useRef(false)
   useEffect(() => {
     if (!ready || !character || entered.current) return
@@ -202,19 +243,37 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
     const since = readSeenAt(character.id)
     writeSeenAt(character.id)
     const c = catchUpOf(events, since)
-    const greet = takeGreeting(dayKey())
-    let wait = 600
+    let wait = 700
     if (c.orbs.length) {
       setBanner(`자리 비운 사이 · ${c.tasks ? `할 일 ${c.tasks}개 ` : ''}+${c.xp} XP`)
       later(() => setBanner(undefined), 2600)
       settled.current = progress.total - c.xp
       later(() => void feed(c.orbs, { base: progress.total - c.xp }), 500)
-      wait = 2200
+      wait = 2400
     }
-    if (greet && species) later(() => { say(greetingLine(tod, stats)); play('is-hop', 600) }, wait)
+    if (!species) return
+    const today = dayKey()
+    if (isBusy({ dueTotal: stats.dueTotal ?? 0, eventMinutes: stats.eventMinutes ?? 0 })) setCalm(true)
+    if (isNight(hour)) { later(() => playMoment('night'), wait); return }
+    void isProjectDeadlineToday(today).then((deadline) => {
+      const m = pickDayMoment({ hour, dueOpen: stats.todayOpen, dueTotal: stats.dueTotal ?? 0, eventMinutes: stats.eventMinutes ?? 0, projectDeadline: deadline, shownToday: ls.get(`sprout.dayMoment.${today}`) === '1' })
+      if (!m) return
+      ls.set(`sprout.dayMoment.${today}`, '1')
+      later(() => playMoment(m), wait)
+    }).catch(() => undefined)
   }, [ready, character]) // eslint-disable-line react-hooks/exhaustive-deps
+  // 하루 다 함: 오늘 마감이 1개 이상이었고 방금 모두 끝냈을 때 하루 한 번(0개인 날은 아무 말도 없다)
+  const prevDue = useRef<{ dueOpen: number; dueTotal: number } | null>(null)
+  useEffect(() => {
+    const cur = { dueOpen: stats.todayOpen, dueTotal: stats.dueTotal ?? 0 }
+    const before = prevDue.current
+    prevDue.current = cur
+    if (!before || !species) return
+    const key = `sprout.dayDone.${dayKey()}`
+    if (dayJustDone(before, cur) && ls.get(key) !== '1') { ls.set(key, '1'); later(() => playMoment('dayDone'), 900) }
+  }, [stats.todayOpen, stats.dueTotal, species, later, playMoment])
 
-  // 앱 어디서든 XP가 들어오면 방울(목표 행이면 그 자리에서 큰 방울)
+  // 앱 어디서든 XP가 들어오면 방울
   const origin = useRef<{ pt: Pt; at: number } | undefined>(undefined)
   useEffect(() => {
     setGrowthStageActive(true)
@@ -226,13 +285,9 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
       setWoke(true)
       const o = origin.current && Date.now() - origin.current.at < 2000 ? origin.current.pt : null
       origin.current = undefined
-      if (o) { play('is-hop2', 1000); void feed([amount], { from: o, viaBowl: false }); return }
-      const r = stageEl.current?.getBoundingClientRect()
-      const many = amount > 10 ? [amount] : Array.from({ length: amount }, () => 1)
-      void feed(many, r ? { from: { x: r.left + r.width / 2 + 60, y: r.top + 4 } } : {})
+      void feed(amount > 10 || o ? [amount] : Array.from({ length: amount }, () => 1), o ? { from: o } : {})
     }
-    // 할 일 완료(XP가 없어도 — 하루 10을 넘은 뒤): 기뻐하기만 한다
-    const onDone = () => { setWoke(true); feel('happy', 3000); play('is-hop', 600) }
+    const onDone = () => { setWoke(true); feel('happy', 3000); hop() }
     window.addEventListener('sprout:growth-feed', onFeed)
     window.addEventListener('sprout:xp', onXp)
     window.addEventListener('sprout:task-done', onDone)
@@ -243,267 +298,217 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
       window.removeEventListener('sprout:xp', onXp)
       window.removeEventListener('sprout:task-done', onDone)
     }
-  }, [character, feed, feel, play])
+  }, [character, feed, feel, hop])
   useEffect(() => { if (!woke) return; const t = window.setTimeout(() => setWoke(false), 60_000); return () => window.clearTimeout(t) }, [woke])
-
-  // ── 레벨업 · 진화 연출 (LevelUpWatcher가 무대에 넘긴다) ──
-  const finishReveal = useCallback((r: Reveal) => {
-    const st = STAGES.find((s) => s.stage === stageOf(r.level))!
-    setReveal({ ...r, phase: 'show', artStage: undefined })
-    setBanner(r.evolve ? `${st.name}${/[가-힣]$/.test(st.name) && (st.name.charCodeAt(st.name.length - 1) - 0xac00) % 28 ? '으로' : '로'} 자랐어요!` : `Lv ${r.level}!`)
-    setBurst((b) => b + 1)
-    feel('happy', 2200)
-    play('is-grow', 500)
-    later(() => {
-      setReveal(undefined)
-      setBanner(undefined)
-      say(r.evolve ? '나 많이 컸지?' : '나 커졌지?')
-      const u = newlyUnlocked(r.prev, r.level)
-      if (u.length) setUnlock(u[u.length - 1])
-    }, r.evolve ? 1600 : 1300)
-  }, [feel, play, later, say])
-  const startReveal = useCallback((prev: number, level: number) => {
-    const evolve = stageOf(level) > stageOf(prev)
-    const r: Reveal = { evolve, prev, level, phase: 'build' }
-    if (reduced) { finishReveal(r); return }
-    setReveal(r)
-    if (evolve) {
-      const oldS = stageOf(prev), newS = stageOf(level)
-      for (let i = 0; i < 6; i++) later(() => setReveal((x) => x && { ...x, artStage: i % 2 ? oldS : newS }), 500 + i * 220)
-      later(() => finishReveal(r), 500 + 6 * 220 + 200)
-    } else later(() => finishReveal(r), 700)
-  }, [reduced, later, finishReveal])
   useEffect(() => {
-    const on = (e: Event) => { const d = (e as CustomEvent<{ prev: number; level: number }>).detail; later(() => startReveal(d.prev, d.level), 900) }
-    window.addEventListener('sprout:growth-reveal', on)
-    return () => window.removeEventListener('sprout:growth-reveal', on)
-  }, [startReveal, later])
-  const skipReveal = () => {
-    if (!reveal) return
-    timers.current.forEach((t) => window.clearTimeout(t))
-    timers.current.clear()
-    setReveal(undefined)
-    setBanner(undefined)
-    const u = newlyUnlocked(reveal.prev, reveal.level)
-    if (u.length) setUnlock(u[u.length - 1])
-  }
-  useEffect(() => {
-    if (!reveal) return
-    const on = (e: KeyboardEvent) => { if (e.key === 'Escape') skipReveal() }
-    document.addEventListener('keydown', on)
-    return () => document.removeEventListener('keydown', on)
-  })
+    const on = (e: Event) => setPanel(((e as CustomEvent<'ward' | 'dex'>).detail) ?? 'ward')
+    window.addEventListener(RAISE_PANEL, on)
+    return () => window.removeEventListener(RAISE_PANEL, on)
+  }, [])
 
-  // ── 만지기 ──
-  const press = useRef<{ timer: number; pet?: number; petting: boolean }>({ timer: 0, petting: false })
-  const clicks = useRef<number[]>([])
-  const dizzyAt = useRef(0)
-  const onDown = () => {
-    if (!species) return
-    press.current.timer = window.setTimeout(() => {
-      press.current.petting = true
-      setReact({ mood: 'happy', id: -2 })
-      let n = 0
-      press.current.pet = window.setInterval(() => { if (n++ < 6) heart((Math.random() - 0.5) * 50) }, 300)
-    }, 600)
-  }
-  const endPress = (spoke: boolean) => {
-    window.clearTimeout(press.current.timer)
-    window.clearInterval(press.current.pet)
-    if (press.current.petting) {
-      setReact((x) => (x?.id === -2 ? undefined : x))
-      if (spoke) say('헤헤, 고마워')
-    }
-  }
-  const onClick = () => {
-    if (press.current.petting) { press.current.petting = false; return }
-    if (reveal) { skipReveal(); return }
-    if (!species) { setCracks((c) => Math.min(3, c + 1)); play('is-wobble', 800); say(nextLine()); return }
-    if (sleepy) { setWoke(true); say('으음… 안 잤어!'); later(() => setWoke(false), 5000); return }
+  // ── 만지기(43 §4.1) ──
+  const taps = useRef<number[]>([])
+  const tickleUntil = useRef(0)
+  const tap = () => {
+    if (!species) { setCracks((c) => Math.min(3, c + 1)); anim([0, -6, 6, -4, 0].map((r) => ({ transform: `rotate(${r}deg)` })), { duration: 600 }); say(nextLine()); return }
+    if (sleepy) { setWoke(true); feel('default', TOUCH.wakeMs); hop(8); say(TOUCH_LINES.wake); return }
     const now = Date.now()
-    clicks.current = [...clicks.current.filter((t) => now - t < 2000), now]
-    if (clicks.current.length >= 5 && now - dizzyAt.current > 10_000) { dizzyAt.current = now; clicks.current = []; play('is-dizzy', 1000); say('어지러워~'); return }
-    play('is-hop', 600)
-    heart()
+    taps.current = [...taps.current.filter((t) => now - t < TOUCH.tickleWindowMs), now]
+    if (taps.current.length >= TOUCH.tickleTaps && now > tickleUntil.current) {
+      tickleUntil.current = now + TOUCH.tickleCooldownMs
+      taps.current = []
+      feel('giggle', 1800)
+      anim([0, -7, 7, -6, 6, -4, 4, 0].map((r, i) => ({ transform: `rotate(${r}deg) ${i % 2 ? 'scale(1.03,.97)' : ''}` })), { duration: 720, easing: 'ease-in-out' })
+      say(TOUCH_LINES.tickle)
+      return
+    }
+    hop()
+    if (!reduced) floatEl(HEART_SVG, 'gs2-heart', 1000)
     feel('happy', 1500)
     say(nextLine())
   }
-
-  // ── 장식 ──
-  const toggleDecor = (id: string, on?: boolean) => {
-    if (!character) return
-    const next = new Set(off)
-    if (on ?? next.has(id)) next.delete(id); else next.add(id)
-    setOff(next)
-    writeRoomOff(character.id, next)
+  const onDown = (e: React.PointerEvent) => {
+    if (evo || e.button !== 0) return
+    const d = drag.current
+    Object.assign(d, { down: true, on: false, pet: false, sx: e.clientX, sy: e.clientY, x: 0, y: 0 })
+    try { charEl.current?.setPointerCapture(e.pointerId) } catch { /* */ }
+    if (!species) return
+    d.petT = window.setTimeout(() => {
+      if (d.on || !d.down) return
+      d.pet = true
+      feel('pet')
+      let n = 0
+      d.heartT = window.setInterval(() => { if (n++ >= 6) return; if (!reduced) floatEl(HEART_SVG, 'gs2-heart', 1100, (n % 2 ? -1 : 1) * (8 + n * 4)) }, 300)
+    }, TOUCH.petMs)
   }
-  const placed = useMemo(() => new Set(DECOR.filter((d) => d.lv <= progress.level && !off.has(d.id) && species).map((d) => d.id)), [progress.level, off, species])
-  const onDeco = (id: string) => {
-    if (reduced) return
-    if (id === 'ball') setFx((f) => ({ ...f, ball: !f.ball }))
-    if (id === 'lamp') setFx((f) => ({ ...f, lamp: !f.lamp }))
-    if (id === 'flowers') setFx((f) => ({ ...f, flowers: f.flowers + 1 }))
-    if (id === 'butterfly') setFx((f) => ({ ...f, butterfly: f.butterfly + 1 }))
+  const onPMove = (e: React.PointerEvent) => {
+    const d = drag.current
+    if (!d.down || d.pet || !species) return
+    const dx = e.clientX - d.sx, dy = e.clientY - d.sy
+    if (!d.on && Math.hypot(dx, dy) > TOUCH.dragStartPx) { d.on = true; window.clearTimeout(d.petT); feel('wow') }
+    if (d.on && charEl.current) {
+      const r = Math.hypot(dx, dy), k = r > TOUCH.dragRadius ? TOUCH.dragRadius / r : 1
+      d.x = dx * k; d.y = Math.min(dy * k, TOUCH.dragDown)
+      charEl.current.style.transform = `translate(${d.x}px,${d.y}px)${reduced ? '' : ` rotate(${f(d.x / 9)}deg)`}`
+    }
+  }
+  const onUp = () => {
+    const d = drag.current
+    if (!d.down) return
+    d.down = false
+    window.clearTimeout(d.petT); window.clearInterval(d.heartT)
+    const el = charEl.current
+    if (d.on && el) {
+      const { x, y } = d, far = Math.hypot(x, y) > TOUCH.dropFarPx
+      el.style.transform = ''
+      if (reduced) el.animate([{ transform: `translate(${x}px,${y}px)` }, { transform: 'none' }], { duration: 160 })
+      else el.animate([{ transform: `translate(${x}px,${y}px) rotate(${f(x / 9)}deg)` }, { transform: `translate(${f(x * 0.35)}px,${f(Math.min(y, 0) - (far ? 34 : 16))}px) rotate(${f(-x / 14)}deg)`, offset: 0.34 }, { transform: 'translate(0,0) scale(1.08,.89)', offset: 0.6 }, { transform: 'translateY(-9px) scale(.97,1.04)', offset: 0.78 }, { transform: 'scale(1.02,.98)', offset: 0.9 }, { transform: 'none' }], { duration: 680, easing: 'cubic-bezier(.3,.7,.4,1)' })
+      feel('happy', 1600)
+      later(() => say(far ? TOUCH_LINES.dropFar : TOUCH_LINES.drop), 500)
+      d.on = false
+      return
+    }
+    if (d.pet) { d.pet = false; say(TOUCH_LINES.pet); feel('happy', 1500); return }
+    tap()
+  }
+  const callName = () => {
+    if (!species) return
+    setWave(true); feel('smile', TOUCH.callMs)
+    anim([{ transform: 'none' }, { transform: 'rotate(-5deg)', offset: 0.3 }, { transform: 'rotate(-5deg)', offset: 0.7 }, { transform: 'none' }], { duration: 1400 })
+    say(TOUCH_LINES.call)
+    later(() => setWave(false), TOUCH.callMs)
+  }
+  const onSceneClick = (e: React.MouseEvent) => {
+    const t = (e.target as Element).closest('.trophy') as SVGGElement | null
+    if (!t) return
+    const tr = raise.trophies.slice(-6)[Number(t.dataset.i)]
+    if (tr) { hop(8); say(trophyLine(tr)) }
   }
 
+  const wearNow = (it: Item) => {
+    void saveLook(equipItem(raise.look, it.id))
+    setToast(undefined)
+    feel('happy', 2000); hop(); say(it.slot === 'bg' ? TOUCH_LINES.bg : TOUCH_LINES.wear)
+  }
+
+  // ── 장면 ──
+  const bg = raise.worn.bg
+  const sceneHtml = useMemo(() => scene({ bg, night, decor: species ? decorOn(level, raise.look) : [], trophies: raise.trophies.map(trophyShape), uid: 'gstage' }), [bg, night, species, level, raise.look, raise.trophies])
+  const dark = sceneIsDark(bg, night)
+  const eq = tempHand ? { ...raise.worn, hand: tempHand } : raise.worn
+
+  // HUD
   const toNext = shown.toNext
-  const C = 2 * Math.PI * 19
-  const stName = STAGES.find((s) => s.stage === stage)!.name
-  const artStage = reveal?.artStage ?? stage
-  const goalsDone = stats.goals.filter((g) => g.achieved).length
+  const pct = Math.floor(Math.min(100, (shown.into / toNext) * 100))
+  const nx = giftsAt(level + 1)[0]
+  const giftHtml = useMemo(() => (nx ? itemIcon(nx.id) : species ? art(species, stageOf(level + 1), { lv: level + 1, path: raise.look.path, crop: 'bust', detail: 'small' }) : ''), [nx, species, level, raise.look.path])
+  const stName = STAGES[stage - 1].name
+  const t0 = toast?.items[0]
 
   return (
-    <div
-      ref={stageEl}
-      className={`gs-stage gs-stage--${tod}${narrow ? ' is-narrow' : ''}${short ? ' is-short' : ''}${hidden ? ' is-paused' : ''}`}
-      onPointerMove={onMove}
-      onPointerLeave={onLeave}
-    >
-      <span className="gs-cloud" aria-hidden />
-      <span className="gs-cloud gs-cloud--2" aria-hidden />
-      <Scene species={species} stage={stage} level={progress.level} tod={tod} name={name} placed={placed} fx={fx} onDeco={onDeco} />
-      <div className={`gs-dim${reveal ? ' is-on' : ''}${reveal?.evolve ? ' is-deep' : ''}`} onClick={skipReveal} aria-hidden />
+    <div ref={stageEl} className={`gs2-stage${dark ? ' is-dark' : ''}${reduced ? ' is-still' : ''}`} style={{ background: sceneGround(bg, night) } as CSSProperties} onPointerMove={onMove} onPointerLeave={() => setLookEye(undefined)}>
+      <div className="gs2-scene" onClick={onSceneClick} dangerouslySetInnerHTML={{ __html: sceneHtml }} />
 
-      {/* 무대 위 정보(HUD) */}
-      <div className="gs-hud">
-        <div className="gs-ring" title={`다음 레벨까지 ${toNext - shown.into} XP`}>
-          <svg viewBox="0 0 44 44" width="44" height="44" aria-hidden>
-            <circle cx="22" cy="22" r="19" className="gs-ring__bg" />
-            <circle cx="22" cy="22" r="19" className="gs-ring__fg" style={{ strokeDasharray: C, strokeDashoffset: C * (1 - shown.into / toNext) }} />
-          </svg>
-          <span><small>Lv</small>{shown.level}</span>
+      {/* 유리 HUD(43 §18.2) */}
+      <div className="gs2-hud">
+        <div className="who">
+          <HudName name={name} editable={!!species} onCall={callName} />
+          <span className="lvb">Lv {shown.level}</span>
+          <span className="ttl">{species ? `${titleOf(species, stage, raise.look.path)} · 키 ${cmOf(level)}cm` : '나와 닮은 친구를 찾으면 깨어나요'}</span>
         </div>
-        <HudName name={name} editable={!!species} />
-        <div className="gs-hud__type">{species ? `${SPECIES[species].name} · ${stName}` : '나와 닮은 친구를 찾으면 깨어나요'}</div>
-        <div className="gs-hud__bar" role="progressbar" aria-label="다음 레벨까지" aria-valuenow={shown.into} aria-valuemax={toNext}><span style={{ width: `${(shown.into / toNext) * 100}%` }} /></div>
-        <div className="gs-hud__hint"><b>{shown.into}</b> / {toNext} XP · 레벨업까지 {toNext - shown.into}</div>
-        {!species && <button className="gs-btn gs-hud__survey" onClick={onSurvey}>나와 닮은 친구 찾기</button>}
+        <div className="mid">
+          <div>
+            <div className="num">{pct}<small>%</small></div>
+            <div className="lbl">Lv {level + 1}까지 · {evolutionHint(level)}</div>
+          </div>
+          {species && (
+            <div className="gift">
+              <span className="tip">{nx ? `Lv ${level + 1}에 ${nx.name}` : `Lv ${level + 1} 모습`}</span>
+              <span className="ico" dangerouslySetInnerHTML={{ __html: giftHtml }} />
+            </div>
+          )}
+        </div>
+        <div className="bar" role="progressbar" aria-label="다음 레벨까지" aria-valuenow={shown.into} aria-valuemax={toNext}><i style={{ width: `${pct}%` }} /></div>
+        <div className="xpline"><span>{shown.into} / {toNext} XP</span><span>레벨업까지 {toNext - shown.into}</span></div>
+        {species ? <div className="tags">{growthTags(level + 1, species).map((t) => <span key={t}>{t}</span>)}</div>
+          : <button className="gs2-btn pri" onClick={onSurvey}>나와 닮은 친구 찾기</button>}
       </div>
-      <div className="gs-chips">
-        {stats.streak >= 2 && (
-          <span className="gs-chip" title="할 일을 끝낸 날이 이어진 수">
-            <svg className="gs-flame" viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-7 0 2 1 3 2 3 0-3-1-5 1-8z" /></svg>
-            <span><b>{stats.streak}</b>일 연속</span>
-          </span>
-        )}
-        <span className="gs-chip" title={`할 일 XP는 하루 ${XP.taskDailyCap}까지 — 밥그릇이 가득 차면 오늘은 끝`}><span>밥그릇 <b>{Math.min(XP.taskDailyCap, stats.todayTaskXp)}</b>/{XP.taskDailyCap}</span></span>
+      <div className="gs2-chips">
+        <span className="gs2-chip" title="할 일을 한 날 누적(끊겨도 줄지 않아요)">한 날 <b>{stats.activeDays ?? raise.state.days}</b>일</span>
+        <span className="gs2-chip" title={`할 일 XP는 하루 ${XP.taskDailyCap}까지`}>오늘 <b>{stats.todayDone}</b>/{stats.todayDone + stats.todayOpen}</span>
       </div>
-      {banner && !reveal && <div className="gs-catchup" role="status">{banner}</div>}
-
-      {/* 밥그릇 · 퀘스트 팻말 */}
-      <button ref={bowlEl} key={`bowl${bump}`} className={`gs-bowl${stats.todayTaskXp >= XP.taskDailyCap ? ' is-full' : ''}${bump ? ' is-bump' : ''}`}
-        aria-label={`밥그릇: 오늘 할 일 XP ${Math.min(XP.taskDailyCap, stats.todayTaskXp)}/${XP.taskDailyCap}`}
-        onClick={() => say(stats.todayTaskXp >= XP.taskDailyCap ? '오늘은 배불러! 남은 건 내일 먹을게' : `오늘 할 일로 ${Math.max(0, stats.todayTaskXp)} XP 먹었어. ${XP.taskDailyCap - Math.max(0, stats.todayTaskXp)} 더 먹을 수 있어`)}>
-        <Bowl n={stats.todayTaskXp} />
-      </button>
-      <button className="gs-sign" aria-label={stats.goals.length ? `이번 주 퀘스트 ${goalsDone}/${stats.goals.length} — 퀘스트로 가기` : '이번 주 퀘스트 적기'} onClick={onQuests}>
-        <svg viewBox="0 0 96 80" width="100%" aria-hidden>
-          <rect x="44" y="40" width="8" height="40" fill="#9a7552" />
-          <rect x="4" y="6" width="88" height="40" rx="6" fill="#f3e3c8" stroke="#c89c6d" strokeWidth="3" />
-          <text x="48" y="23" textAnchor="middle" className="gs-sign__small">이번 주 퀘스트</text>
-          <text x="48" y="39" textAnchor="middle" className="gs-sign__big">{stats.goals.length ? `${goalsDone} / ${stats.goals.length}` : '+ 적기'}</text>
-        </svg>
-      </button>
+      {banner && <div className="gs2-banner" role="status">{banner}</div>}
 
       {/* 캐릭터 */}
-      <button
-        ref={charEl}
-        className={`gs-char${act ? ` ${act.name}` : ''}${curious && !sleepy && species ? ' is-curious' : ''}${sleepy ? ' is-sleepy' : ''}${reveal?.phase === 'build' ? (reveal.evolve ? ' is-silhouette' : ' is-glow') : ''}`}
-        style={{ '--gs-size': `${size}px` } as CSSProperties}
-        aria-label={species ? `${name}, Lv ${progress.level} ${stName}. 눌러서 말 걸기` : '아직 모르는 알. 눌러서 두드리기'}
-        onClick={onClick}
-        onPointerDown={onDown}
-        onPointerUp={() => endPress(true)}
-        onPointerEnter={() => setCurious(true)}
-        onPointerLeave={() => { setCurious(false); endPress(false); press.current.petting = false }}
-      >
-        <span className="gs-char__act" key={act ? act.id : 'idle'}><span className="gs-char__breath"><CharacterArt species={species} stage={artStage} size={size} mood={mood} cracks={cracks} /></span></span>
-        <span className="gs-char__q" aria-hidden>?</span>
-        {sleepy && <span className="gs-char__zzz" aria-hidden>Zzz</span>}
-        {hearts.map((h) => (
-          <svg key={h.id} className="gs-heart" viewBox="0 0 24 24" style={{ '--dx': `${h.dx}px` } as CSSProperties} aria-hidden><path fill="currentColor" d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6C19 16.5 12 21 12 21z" /></svg>
-        ))}
-      </button>
-      {bubble && <div className="gs-bubble" key={bubble.id} style={{ bottom: 40 + size - 8 }} onClick={() => bubble.text.startsWith('일기') && onDiary()}>{bubble.text}</div>}
-      <div className="gs-live" aria-live="polite">{bubble?.text}</div>
-      {reveal?.phase === 'show' && banner && <div className="gs-banner" role="status">{banner}</div>}
-      {reveal?.phase === 'show' && !reduced && <span className="gs-ringburst" style={{ bottom: 40 + size / 2 }} aria-hidden />}
-      {burst > 0 && <span className="gs-burst" key={burst}><Confetti count={28} spread={170} /></span>}
+      <div className="gs2-pos" style={{ bottom, width: box, height: box, marginLeft: -box / 2, visibility: evo ? 'hidden' : undefined }}>
+        <button
+          ref={charEl}
+          className="gs2-char"
+          aria-label={species ? `${name}, Lv ${level} ${stName}. 눌러서 말 걸기` : '아직 모르는 씨앗. 눌러서 두드리기'}
+          onPointerDown={onDown} onPointerMove={onPMove} onPointerUp={onUp} onPointerCancel={onUp}
+          onClick={(e) => { if (e.detail === 0) tap() }}
+        >
+          <span ref={inEl} className="gs2-char__in">
+            <CharacterArt species={species} stage={stage} size={box} mood={curMood} look={look} cracks={cracks} fit={false} motion="idle" calm={calm} wave={wave}
+              wear={{ lv: level, path: raise.look.path, eq }} label={species ? `${name} ${stName}` : undefined} />
+          </span>
+        </button>
+      </div>
+      <div className="gs-live" aria-live="polite">{live}</div>
 
-      {unlock && (
-        <div className="gs-unlock" role="status">
-          <DecorIcon id={unlock.id} />
-          <span>새 장식: <b>{unlock.name}</b></span>
-          <button className="gs-btn" onClick={() => { toggleDecor(unlock.id, true); setUnlock(undefined) }}>놓기</button>
-          <button className="gs-btn is-ghost" onClick={() => { toggleDecor(unlock.id, false); setUnlock(undefined) }}>나중에</button>
+      {evo && species && (
+        <EvolutionMoment species={species} from={evo.from} to={evo.to} path={raise.look.path} eq={raise.worn} reduced={reduced} size={Math.min(270, box)}
+          onPath={(p: Path) => void saveLook({ ...raise.look, path: p })}
+          onDone={() => { const e = evo; setEvo(undefined); later(() => afterReveal(e.prev, e.level), 50) }} />
+      )}
+
+      {toast && t0 && (
+        <div className="gs2-toast" role="status" key={toast.id}>
+          <span className="ico" dangerouslySetInnerHTML={{ __html: itemIcon(t0.id) }} />
+          <div className="tx"><b>{t0.name}{toast.items.length > 1 ? ` 외 ${toast.items.length - 1}개` : ''}</b>{toast.why}</div>
+          <div className="bt">
+            <button className="gs2-btn pri sm" onClick={() => wearNow(t0)}>{t0.slot === 'bg' ? '깔아 보기' : '입혀 보기'}</button>
+            <button className="gs2-btn sm" onClick={() => setToast(undefined)}>나중에</button>
+          </div>
         </div>
       )}
 
-      {/* 꾸미기 */}
-      {species && <button className="gs-decobtn" onClick={() => setPanel(!panel)} aria-expanded={panel}><Paintbrush aria-hidden />꾸미기</button>}
-      <aside className={`gs-panel${panel ? ' is-open' : ''}`} aria-label="방 꾸미기" aria-hidden={!panel}>
-        <h4>방 꾸미기 <button className="icon-btn" aria-label="닫기" onClick={() => setPanel(false)} tabIndex={panel ? 0 : -1}><X /></button></h4>
-        <div className="gs-panel__grid">
-          {DECOR.map((d) => {
-            const locked = d.lv > progress.level
-            const on = !locked && !off.has(d.id)
-            return (
-              <button key={d.id} className={`gs-tile${locked ? ' is-locked' : ''}${on ? ' is-on' : ''}`} aria-disabled={locked} aria-pressed={on} tabIndex={panel ? 0 : -1}
-                title={locked ? `Lv ${d.lv}에 열려요` : on ? '눌러서 치우기' : '눌러서 놓기'} onClick={() => !locked && toggleDecor(d.id)}>
-                <DecorIcon id={d.id} />{d.name}{locked && <span className="gs-tile__lv">Lv {d.lv}</span>}
-              </button>
-            )
-          })}
-        </div>
-        <p>레벨이 오르면 장식이 열려요. 누르면 놓고, 다시 누르면 치워요. 이 기기에만 저장돼요.</p>
-      </aside>
+      {species && <button className="gs2-btn glass gs2-deco" onClick={() => setPanel(panel ? null : 'ward')} aria-expanded={!!panel}><Shirt aria-hidden />꾸미기</button>}
+      {species && <RaisePanel raise={raise} open={!!panel} tab={panel ?? 'ward'} onTab={(t) => setPanel(t)} onClose={() => setPanel(null)} onWorn={() => hop(8)} />}
     </div>
   )
 }
 
-function HudName({ name, editable }: { name: string; editable: boolean }) {
+function HudName({ name, editable, onCall }: { name: string; editable: boolean; onCall: () => void }) {
   const [editing, setEditing] = useState(false)
+  useEffect(() => {
+    const on = () => editable && setEditing(true)
+    window.addEventListener('sprout:growth-rename', on)
+    return () => window.removeEventListener('sprout:growth-rename', on)
+  }, [editable])
   if (editing) {
     return (
-      <input className="gs-hud__rename" autoFocus defaultValue={name}
+      <input className="gs2-rename" autoFocus defaultValue={name}
         onKeyDown={(e) => { if (e.nativeEvent.isComposing) return; if (e.key === 'Enter') { const v = e.currentTarget.value.trim(); if (v) void renameCharacter(v); setEditing(false) } if (e.key === 'Escape') setEditing(false) }}
         onBlur={() => setEditing(false)} />
     )
   }
-  return <div className="gs-hud__name" title={editable ? '두 번 눌러 이름 바꾸기' : undefined} onDoubleClick={() => editable && setEditing(true)}>{name}</div>
+  return <button className="nm" title={editable ? '눌러서 부르기 · 두 번 눌러 이름 바꾸기' : undefined} onClick={onCall} onDoubleClick={() => editable && setEditing(true)}>{name}</button>
 }
 
-/** 밥그릇: 오늘 할 일 XP 10칸 */
-function Bowl({ n }: { n: number }) {
-  return (
-    <svg viewBox="0 0 84 52" width="100%" aria-hidden>
-      <ellipse cx="42" cy="48" rx="34" ry="4" fill="rgba(0,0,0,.1)" />
-      {Array.from({ length: XP.taskDailyCap }, (_, i) => <circle key={i} className={`gs-kib${i < n ? ' is-on' : ''}`} cx={18 + (i % 5) * 12} cy={i < 5 ? 18 : 10} r="5.5" />)}
-      <path className="gs-bowl__rim" d="M6 20 h72 a36 26 0 0 1 -72 0z" fill="#f2e6d8" stroke="#e0cfba" strokeWidth="2" />
-      <path d="M14 30 h56" stroke="#e5d4bf" strokeWidth="2" />
-    </svg>
-  )
-}
-
-/** 무대 아랫단 진화 길(§3.2.1): 점 32 · 마우스를 올리면 그 단계 모습과 열리는 장식 */
+/** 진화 길(42px 전신 fit — 43 §18.5): 지나온 = 색, 지금 = 강조, 앞으로 = 실루엣 */
 export function StageRoad({ species, level, stage }: { species: Species | null; level: number; stage: number }) {
+  const raise = useRaise()
   return (
     <div className="gs-road">
       {STAGES.map((s, i) => {
         const state = s.stage < stage ? 'past' : s.stage === stage ? 'now' : 'future'
-        const next = STAGES[i + 1]?.from ?? 99
-        const unl = DECOR.filter((d) => d.lv >= s.from && d.lv < next).map((d) => d.name).join(' · ')
         return (
           <div key={s.stage} className="gs-road__item">
             {i > 0 && <span className={`gs-road__line${s.stage <= stage ? ' is-on' : ''}`} />}
             <div className={`gs-road__st is-${state}`} tabIndex={0} aria-label={`${s.name} 단계 Lv ${s.from}${state === 'future' ? ` · ${s.from - level}레벨 남음` : ''}`}>
-              <span className="gs-road__dot"><CharacterArt species={species} stage={s.stage} size={30} /></span>
-              <span className="gs-road__lab">{s.name}<small>Lv {s.from}</small></span>
-              <div className="gs-road__tip" role="tooltip">
-                <CharacterArt species={species} stage={s.stage} size={70} />
-                <span>{state === 'future' ? `Lv ${s.from}에 만나요 · ${s.from - level}레벨 남음` : state === 'now' ? '지금 단계' : '지나온 단계'}</span>
-                <span>열리는 장식: {unl || '—'}</span>
-              </div>
+              <span className="gs-road__dot gs2-road-dot"><CharacterArt species={species} stage={s.stage} size={40} crop="full" lock={state === 'future'} noAura mood="smile" wear={state === 'now' ? undefined : { path: raise.look.path }} /></span>
+              <span className="gs-road__lab">{species ? titleOf(species, s.stage, raise.look.path) : s.name}<small>{s.name} · Lv {s.from}</small></span>
             </div>
           </div>
         )

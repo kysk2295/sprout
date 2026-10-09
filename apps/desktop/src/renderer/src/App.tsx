@@ -13,6 +13,7 @@ import { ListSuggestHost } from './components/listSuggest/ListSuggest'
 import { GrowthView } from './components/growth/GrowthView'
 import { SurveyDialog } from './components/growth/SurveyDialog'
 import { LevelUpWatcher } from './components/growth/GrowthBits'
+import { RaiseProvider } from './components/growth/RaiseProvider'
 import { ensureCharacter } from './data/growth'
 import { useEffect, useRef, useState } from 'react'
 import '@sprout/tokens/tokens.css'
@@ -297,7 +298,7 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
   const showSidebar = narrow ? sidebarPeek : sidebarOpen
   toggleRef.current = toggleSidebar
   return (
-      <div className="app">
+      <RaiseProvider><div className="app">
         {survey && <SurveyDialog onClose={() => { setSurvey(false); try { localStorage.setItem(surveyKey, '1') } catch { /* */ } }} />}
         <OnboardingHost onOpenCalendar={() => setView('calendar')} />
         <LevelUpWatcher />
@@ -347,6 +348,6 @@ function Shell({ sync, email }: { sync?: AuthState['sync']; email?: string }) {
         </>}
           </>
         )}
-      </div>
+      </div></RaiseProvider>
   )
 }

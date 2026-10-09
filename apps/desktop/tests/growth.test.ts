@@ -189,7 +189,7 @@ assert.equal(isWeeklyCap(new Error('지금은 AI를 쓰는 사람이 많아요. 
   assert.ok(l.includes("'운동 3번' 1번 남았어!"))
   assert.ok(l.includes('레벨업까지 8 XP! 거의 다 왔어'))
   assert.ok(l.includes('Lv 5가 되면 나비가 생겨'))
-  assert.ok(l.includes('3일 연속이야!'))
+  assert.ok(!l.some((x) => x.includes('연속'))) // 43 §12: 연속 기록은 어디에도 보이지 않는다(누적만)
   const l2 = stageLines({ ...base, todayDone: 0, todayTaskXp: 10, diaryUnseen: false, streak: 0, goals: [{ title: 'a', target: 1, progress: 1, achieved: true }, { title: 'b', target: 1, progress: 1, achieved: true }] })
   assert.ok(l2.includes('오늘 할 일 2개 있어. 하나만 같이 해 볼까?'))
   assert.ok(l2.includes('이번 주 퀘스트 다 했다! 보너스 +20'))
