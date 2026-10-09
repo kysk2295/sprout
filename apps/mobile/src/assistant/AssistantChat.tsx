@@ -234,7 +234,7 @@ function EmptyChat({ a, variant, onPick }: { a: AssistantState; variant: 'full' 
       <View style={s.emptyChips}>
         {SUGGESTIONS.slice(0, variant === 'sheet' ? 2 : 4).map((text, i) => (
           // 44 §6.7: 제안 = 2열 카드(말랑 아이콘 + 두 줄)
-          <Pressable key={text} accessibilityRole="button" disabled={a.busy || !a.model} onPress={() => onPick(text)} style={({ pressed }) => [s.sug, { backgroundColor: pressed ? p.bgSelected : p.cardBg }, (!a.model || a.busy) && { opacity: 0.5 }]}>
+          <Pressable key={text} accessibilityRole="button" disabled={a.busy || !a.model} onPress={() => onPick(text)} style={({ pressed }) => [s.sug, { backgroundColor: pressed ? p.bgSelected : p.bgInput }, (!a.model || a.busy) && { opacity: 0.5 }]}>
             <SoftIcon name={SUG_ICONS[i % SUG_ICONS.length]} size={28} />
             <Text style={[s.sugText, { color: p.textPrimary }]} numberOfLines={2}>{text}</Text>
           </Pressable>

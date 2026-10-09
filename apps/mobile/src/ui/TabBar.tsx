@@ -18,9 +18,10 @@ type IconT = typeof Settings
 /** 캘린더 탭 아이콘: 둥근 사각 안 오늘 날짜 숫자(시안 .date-ic) — 선택이면 채움 */
 function DateIcon({ color, size, strokeWidth }: { color: string; size: number; strokeWidth: number }) {
   const on = strokeWidth > 2
+  const p = usePalette()
   return (
     <View style={{ width: size - 3, height: size - 3, borderRadius: 6, borderWidth: 2, borderColor: color, backgroundColor: on ? color : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: 10, lineHeight: 13, fontWeight: '700', color: on ? '#fff' : color }}>{new Date().getDate()}</Text>
+      <Text style={{ fontSize: 10, lineHeight: 13, fontWeight: '700', color: on ? (p.dark ? p.bgGround : '#fff') : color }}>{new Date().getDate()}</Text>
     </View>
   )
 }
