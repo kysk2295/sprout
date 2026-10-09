@@ -152,6 +152,26 @@ for p in sorted(glob.glob(os.path.join(B, 'prop', '*-prop-full.png'))):
     save(a, name, [512, 160], Q['acc'], 'prop')
     PROP[name] = bbox(a, 0.25)
 
+# ── 한 바퀴 회전 컷(만지기 49 §5.x): 12컷을 가로 띠 한 장으로(앱은 띠를 translateX로 넘긴다 — 컷마다 다시 그리기 없음) ──
+SPIN = {}
+spm = readmeta('spin')
+for name, m in sorted(spm.items()):
+    if name.startswith('@') or not isinstance(m, dict): continue
+    n = m.get('frames', 12)
+    fr = [os.path.join(B, 'spin', f'{name}-t{k:02d}.png') for k in range(n)]
+    if not all(os.path.exists(f) for f in fr): continue
+    ims = [Image.open(f).convert('RGBA') for f in fr]
+    w = ims[0].width
+    strip = Image.new('RGBA', (w * n, w))
+    for k, im in enumerate(ims): strip.paste(im, (k * w, 0))
+    a = np.asarray(strip).astype(np.float32) / 255
+    a[..., 3] = np.where(a[..., 3] < 8 / 255, 0, a[..., 3])
+    im2 = Image.fromarray((a * 255 + 0.5).astype(np.uint8), 'RGBA')
+    fn = f'{name}@{w}.webp'; pth = os.path.join(OUT, fn)
+    im2.save(pth, 'WEBP', quality=74, method=6, exact=False, alpha_quality=50)
+    sizes[fn] = os.path.getsize(pth); total['spin'] = total.get('spin', 0) + sizes[fn]
+    SPIN[name[:-5]] = [n, w]
+
 # ── 씨앗(320 한 크기) ──
 SEED = []
 for p in sorted(glob.glob(os.path.join(B, 'seed', '*.png'))):
@@ -196,6 +216,8 @@ export const SEEDS3D: string[] = {ts(SEED)}
 /** 장면: perch=받침 윗면(캐릭터 발밑) 자리, unit=1 m가 캔버스 폭에서 차지하는 비율, aspect=높이/폭 */
 export const SCENES3D: Record<string, {{ perch: number[]; unit: number; aspect: number }}> = {ts(SCENE)}
 export const DECOR3D: Record<string, number[]> = {ts(DEC)}
+/** 한 바퀴 회전 띠: 몸 이름 → [컷 수, 컷 크기 px] (파일 = <몸>-spin@<px>.webp, 가로로 컷이 이어짐) */
+export const SPINS3D: Record<string, number[]> = {ts(SPIN)}
 /** 파일 크기(바이트) — 예산 시험용 */
 export const FILE_BYTES: Record<string, number> = {ts(sizes)}
 """
@@ -214,6 +236,7 @@ def tier(fn):
     if not m: return 'none'
     key, px = m.group(1), int(m.group(2))
     if re.match(r'^(seed|scene|band|decor)', key): return 'base'
+    if key.endswith('-spin'): return 'pack'
     a = re.match(r'^[a-z]+-\d-acc-(.+)$', key)
     if a: return 'pack' if px == 512 else ('base' if a.group(1) in HATS else 'none')
     if px != 512: return 'base'

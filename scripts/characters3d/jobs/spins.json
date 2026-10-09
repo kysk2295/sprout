@@ -1,0 +1,418 @@
+{
+"out": "build/spin",
+"size": 240,
+"samples": 32,
+"skip_existing": true,
+"items": [
+{
+"kind": "char",
+"species": "snail",
+"stage": 1,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "snail-1s0-spin"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 1,
+"branch": "a",
+"seed": 1,
+"layer": "spin",
+"frames": 12,
+"name": "snail-1s1-spin"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 1,
+"branch": "a",
+"seed": 2,
+"layer": "spin",
+"frames": 12,
+"name": "snail-1s2-spin"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 1,
+"branch": "a",
+"seed": 3,
+"layer": "spin",
+"frames": 12,
+"name": "snail-1s3-spin"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 2,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "snail-2-spin"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 3,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "snail-3a-spin"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 3,
+"branch": "b",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "snail-3b-spin"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 4,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "snail-4a-spin"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 4,
+"branch": "b",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "snail-4b-spin"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 5,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "snail-5a-spin"
+},
+{
+"kind": "char",
+"species": "snail",
+"stage": 5,
+"branch": "b",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "snail-5b-spin"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 1,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "bee-1s0-spin"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 1,
+"branch": "a",
+"seed": 1,
+"layer": "spin",
+"frames": 12,
+"name": "bee-1s1-spin"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 1,
+"branch": "a",
+"seed": 2,
+"layer": "spin",
+"frames": 12,
+"name": "bee-1s2-spin"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 1,
+"branch": "a",
+"seed": 3,
+"layer": "spin",
+"frames": 12,
+"name": "bee-1s3-spin"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 2,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "bee-2-spin"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 3,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "bee-3a-spin"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 3,
+"branch": "b",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "bee-3b-spin"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 4,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "bee-4a-spin"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 4,
+"branch": "b",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "bee-4b-spin"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 5,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "bee-5a-spin"
+},
+{
+"kind": "char",
+"species": "bee",
+"stage": 5,
+"branch": "b",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "bee-5b-spin"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 1,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "worm-1s0-spin"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 1,
+"branch": "a",
+"seed": 1,
+"layer": "spin",
+"frames": 12,
+"name": "worm-1s1-spin"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 1,
+"branch": "a",
+"seed": 2,
+"layer": "spin",
+"frames": 12,
+"name": "worm-1s2-spin"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 1,
+"branch": "a",
+"seed": 3,
+"layer": "spin",
+"frames": 12,
+"name": "worm-1s3-spin"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 2,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "worm-2-spin"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 3,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "worm-3a-spin"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 3,
+"branch": "b",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "worm-3b-spin"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 4,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "worm-4a-spin"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 4,
+"branch": "b",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "worm-4b-spin"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 5,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "worm-5a-spin"
+},
+{
+"kind": "char",
+"species": "worm",
+"stage": 5,
+"branch": "b",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "worm-5b-spin"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 1,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "frog-1-spin"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 2,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "frog-2-spin"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 3,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "frog-3a-spin"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 3,
+"branch": "b",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "frog-3b-spin"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 4,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "frog-4a-spin"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 4,
+"branch": "b",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "frog-4b-spin"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 5,
+"branch": "a",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "frog-5a-spin"
+},
+{
+"kind": "char",
+"species": "frog",
+"stage": 5,
+"branch": "b",
+"seed": 0,
+"layer": "spin",
+"frames": 12,
+"name": "frog-5b-spin"
+}
+]
+}

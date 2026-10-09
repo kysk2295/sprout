@@ -3,11 +3,11 @@
 // 같은 종·단계의 층(몸·칸 소품·얼굴·옷)은 같은 캔버스·같은 카메라로 구웠다 → 앱은 같은 크기 그림을 순서대로 겹치기만 한다(기준점 계산 없음).
 // 옷 층은 몸에 가려지는 부분이 이미 빠져 있고(holdout) 몸에 진 그림자를 품고 있다 → 겹치는 순서만 지키면 된다.
 // 실루엣·잠김(진화 연출·도감)은 따로 굽지 않는다: 같은 층을 한 색으로 칠한다(휴대폰 Image tintColor · 데스크톱 CSS mask) — 필터 없음(40 §7).
-import { ART3D_VERSION, ACCS, BODIES, DECOR3D, FACES, FILE_BYTES, PROPS, SCENES3D, SEEDS3D } from './art3dManifest.ts'
+import { ART3D_VERSION, ACCS, BODIES, DECOR3D, FACES, FILE_BYTES, PROPS, SCENES3D, SEEDS3D, SPINS3D } from './art3dManifest.ts'
 import { LEGACY_SPECIES, SPECIES_IDS, type Species } from './growth.ts'
 import type { Equip, Path } from './wardrobe.ts'
 
-export { ART3D_VERSION, ACCS, BODIES, DECOR3D, FACES, FILE_BYTES, PROPS, SCENES3D, SEEDS3D }
+export { ART3D_VERSION, ACCS, BODIES, DECOR3D, FACES, FILE_BYTES, PROPS, SCENES3D, SEEDS3D, SPINS3D }
 
 /* ───────── 표정 5 (49 결정 ④) ───────── */
 export type Mood5 = 'default' | 'happy' | 'sleepy' | 'wow' | 'think'
@@ -190,6 +190,7 @@ export function mobileTier(file: string): ArtTier {
   const [, key, pxs] = m
   const px = Number(pxs)
   if (/^(seed|scene|band|decor)/.test(key)) return 'base'
+  if (/-spin$/.test(key)) return 'pack'
   const acc = /^[a-z]+-\d-acc-(.+)$/.exec(key)
   if (acc) return px === 512 ? 'pack' : ACC_HATS.has(acc[1]) ? 'base' : 'none'
   if (px !== 512) return 'base'
@@ -203,3 +204,11 @@ export function packFiles(sp: Species | string): string[] {
   return Object.keys(FILE_BYTES).filter((f) => f.startsWith(`${s}-`) && mobileTier(f) === 'pack').sort()
 }
 export const tierBytes = (tier: ArtTier, sp?: Species) => artBytes((f) => mobileTier(f) === tier && (!sp || f.startsWith(`${sp}-`)))
+
+/* ───────── 한 바퀴 회전 띠(만지기 — 49 §5.3) ───────── */
+/** 이 몸의 회전 띠: 파일 키·컷 수·컷 px. 없으면 null(아직 안 구웠거나 휴대폰에서 종 묶음 전) */
+export function spinOf(sp: Species | string, st: number, path: Path = 'a', seed = 0): { key: string; frames: number; px: number } | null {
+  const b = bodyKey(sp, st, path, seed)
+  const s = SPINS3D[b]
+  return s ? { key: `${b}-spin`, frames: s[0], px: s[1] } : null
+}

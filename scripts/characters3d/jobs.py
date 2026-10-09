@@ -52,6 +52,8 @@ for sp in SPECIES:
         ids = [a for a in acc_ids(st) if not PREVIEW or a in ('straw', 'bandana', 'balloon', 'backpack', 'lei', 'santa', 'lantern', 'wings')]
         acc.append({'kind': 'char', 'species': sp, 'stage': st, 'layer': 'accs', 'ids': ids, 'name': f'{sp}-{st}-acc'})
     write(pre + 'acc-' + sp, {'out': out('acc'), 'size': size, 'samples': samples, 'skip_existing': not PREVIEW, 'items': acc})
+spins = [{'kind': 'char', 'species': sp, 'stage': st, 'branch': br, 'seed': s, 'layer': 'spin', 'frames': 12, 'name': f'{n}-spin'} for sp, st, br, s, n in bodies()]
+write(pre + 'spins', {'out': out('spin'), 'size': 240 if not PREVIEW else 160, 'samples': 32 if not PREVIEW else 12, 'skip_existing': not PREVIEW, 'items': spins})
 seeds = []
 for s in range(4):
     for t in range(12):

@@ -28,7 +28,7 @@ export const useCharacterWear = () => useContext(WearContext)
 export function artSource(key: string, px: number): number | { uri: string } | null {
   const f = artFile(key, px)
   if (ART_FILES[f]) return ART_FILES[f]
-  if (px === 512) { const u = packUri(f); if (u) return { uri: u } }
+  if (px === 512 || /-spin$/.test(key)) { const u = packUri(f); if (u) return { uri: u } } // 종 묶음: 512 그림·회전 띠
   return ART_FILES[artFile(key, 160)] ?? ART_FILES[artFile(key, 512)] ?? null
 }
 export { useArtPackVersion }

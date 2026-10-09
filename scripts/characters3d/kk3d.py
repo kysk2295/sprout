@@ -1168,6 +1168,21 @@ def do_char(it, out, size, samples):
     elif layer == 'props':
         render_pair(sc, cam, out, base, propobjs, [], samples)
         metas.append({'name': base})
+    elif layer == 'spin':
+        # 한 바퀴 회전 컷(만지기 — 공중에서 한 바퀴): 몸 + 칸 소품 + 웃는 얼굴을 함께, 바닥 그림자 없이(공중이라). 옷은 돌 때 숨긴다
+        for o in ground: o.hide_render = True
+        for o in faceobjs: o.hide_render = True
+        happy = face(b, fx, fz, fs, 'happy')
+        lo, hi = bbox(P.body)
+        piv = bpy.data.objects.new('pivot', None); link(piv); piv.location = ((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, 0)
+        movers = [o for o in bpy.data.objects if o.type in ('MESH', 'CURVE') and o not in ground and not o.hide_render and o.parent is None]
+        for o in movers:
+            mw = o.matrix_world.copy(); o.parent = piv; o.matrix_parent_inverse = piv.matrix_world.inverted(); o.matrix_world = mw
+        n = it.get('frames', 12)
+        for k in range(n):
+            piv.rotation_euler.z = math.radians(360 * k / n)
+            render(os.path.join(out, f'{base}-t{k:02d}.png'), samples)
+        metas.append({'name': base, 'frames': n})
     return metas
 
 def do_seed(it, out, size, samples):

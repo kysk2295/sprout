@@ -1,4 +1,4 @@
-# sprout 작업 인계 (2026-10-05 기준, 새 탭 3개·성장 마무리·AI 프록시 구현 후 갱신)
+# sprout 작업 인계 (2026-10-10 기준, 새 탭 3개·성장 마무리·AI 프록시 구현 후 갱신)
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
@@ -10,17 +10,14 @@
 - 처리방침 제7조 2항 예시(국·영 md + `site/public/privacy.html`)·스토어 소개 줄 고침 — **사이트 배포는 아직**(시행일·공고일은 그대로 2026-10-06, 사용자 판단).
 - 남은 것: 메모 카드 → 그 메모 바로 열기(지금은 수집함 화면) · 데스크톱 [고치기]는 입력창에 문장(편집기 아님) · 넣기는 할 일만(꿈틀 일정 넣기 [다음]) · 근거 검사 횟수 서버 칸 [다음] · 동시 사용자 부하 실측 · 도구 턴 p90 40초 줄이기.
 
-## ★ 2026-10-09 캐릭터 v3 — 3D 비닐 인형 화풍 + 장면 가득 + 만들기 흐름 (49 초안 · 사용자 확인 대기, 앱 코드 없음)
-- 요청: "레퍼런스처럼 캐릭터랑 UI/UX 다시… 지금은 조금 유치한 느낌" + "화면에 디자인이 가득 찬 디자인이 좋아". 명세 [49](docs/screens/49-character-v3.md)(48은 자동 정리가 먼저 씀), 시안 `docs/screens/mockups/character-v3.html`(만들기 흐름 끝까지 눌러짐 · 성장 홈 · 옷장 · 도감 · 진화 · 보이는 곳 · 할 일 화면 채움 두 단계 · v2 비교).
-- 그림 파이프라인 = **Blender 5.2 헤드리스 절차 생성 → 미리 구운 WebP**(`scripts/characters3d/` kk3d.py·jobs·encode.py·build.sh, `brew install --cask blender`). 결과 `docs/screens/mockups/assets/char3d/`(1.2 MB). Metal 렌더는 커널 컴파일로 첫 장 10분 → CPU로. 층 = 몸·얼굴·옷(몸을 shadow catcher로 두고 구움).
-- 결정 필요 4개(49 §11): ① 3D로 바꿀까(추천 바꿈) ② 할 일 화면 채움(추천 은은하게) ③ 씨앗 고르기 = 껍질 무늬만(추천) ④ 표정 11 → 5(추천). 확인 전에는 42·43 그림·코드 그대로.
-
-## 2026-10-09 AI 비서 B안 "자유 대화 + 도구" 1단계 (47 초안 → 10-10 확정·구현, 위)
-- 사용자 "B안": 캐릭터와 ChatGPT처럼 자유롭게 이야기 + 내 데이터가 필요하면 앱 도구(할 일·꿈틀 일정·메모·마지막으로 한 날·날짜 계산·프로젝트·성장·동의한 일기)로 찾아 답함. 모델은 Mac mini qwen3.5:9b 그대로, 밖으로 나가는 것 없음.
-- 실측 [research 39](docs/ticktick-research/39-assistant-tools-eval.md)(합성 데이터 22문항 × 88턴): 지시 v3(날짜표·label·재촉 1번)로 사람 채점 17/22, 데이터 질문 8/8, **쓰기 도구는 0/15**(모델이 말로만 묻는다) → 쓰기·확인·상대 날짜·일기 꺼짐은 앱 길잡이가 먼저 푼다. 지연: 호출 1번 중앙 ~11초, 도구 턴 중앙 ~30초(p90 37초).
-- 명세 [47](docs/screens/47-assistant-free-chat.md): 도구 10개 JSON 스키마, 루프(호출 최대 4·시간), 도구 칩·결과 카드·확인 카드(넣기·고치기·취소 → 되돌리기), 근거 검사, 상한 = 턴 단위 하루 40 [임시], num_ctx 6144, 일기 대화와 따로. 결정 필요 4개(§15). 개인정보 문구 필수 변경 없음(외부 캘린더는 도구에서 뺌), 권장 2곳(§13).
-- 시안 [assistant-free-chat.html](docs/screens/mockups/assistant-free-chat.html): 데스크톱 + 휴대폰 반 시트, 장면 ⓐ~ⓖ, 라이트·다크, `?demo=a&at=end`.
-- 서버(2단계): `/ai/assistant` `mode:'agent'` — tools·`role:tool` 통과(지금 validateInput이 버림), 턴 id 셈. 다른 세션의 since-last 의도는 도구 `when_last`로 감싼다.
+## ★ 2026-10-10 캐릭터 v3 구현 — 3D 스프라이트 · 만들기 흐름 · 장면 끝까지 · 만지기 v3 (49 확정 v1.0)
+- 사용자 "추천안대로"(49 §11 ①~④) + "클릭하면 점프하고 한바퀴 돌고…"(49 §7.1). 명세 [49](docs/screens/49-character-v3.md) §14가 구현 표, 40·42·43·44 머리에 v3 줄.
+- **그림:** `scripts/characters3d/`(`sh build.sh` = jobs.py → run_all.sh(Blender CPU, 이어 굽기) → encode.py) → `packages/schema/art3d/*.webp` 1060장(4.0 MB) + `art3dManifest.ts` + 휴대폰 `art3dFiles.ts`. 준비: `brew install --cask blender`, `python3 -m venv scripts/characters3d/.venv && .venv/bin/pip install numpy pillow`. 옷 층 = 한 번에 구운 색 + holdout 알파 + 밝기 비 그림자. 회전 띠 41 × 12컷(만지기 한 바퀴).
+- **API:** `packages/schema/src/art3d.ts`(layers3d·cropBox·mood5·sceneLayout·spinOf·mobileTier) · 만지기 규칙 `charPlay.ts`. 컴포넌트 인자는 그대로(species·stage·mood·wear·crop·silhouette·lock). 옛 SVG `art()` 등은 v2 대체용으로만 남음.
+- **휴대폰 묶음:** 기본 895 KB(앱 안) + 종 묶음 660~900 KB(처음 종을 알 때 `https://web-production-cd889.up.railway.app/art3d/v3/`에서 받음, 받기 전엔 160 대체). **사이트 배포 필요**(`cd site && npm run deploy` — build.mjs가 512·회전 띠를 public/art3d/v3로 복사, Caddy 변경 불가 캐시). 배포 뒤 주소 하나 열어 확인.
+- **화면:** 휴대폰 만들기 흐름 `app/growth/make.tsx`(새 사용자 `/growth/survey` → make), 성장 홈 `src/growth/Stage.tsx`, 옷장·도감 `Decorate.tsx`, 진화 `EvolutionMoment.tsx`, 할 일 장면 띠 `TaskListScreen`·`CalendarScreen`, 빈 상태 3D. 데스크톱 `MakeFlow.tsx`(SurveyDialog가 종 없으면 이걸), `Stage.tsx`·`RaisePanel.tsx`·`EvolutionMoment.tsx`, `ListSceneBand.tsx`. 만지기 `PlayableCharacter`(두 앱).
+- **확인 방법:** 데스크톱 `SPROUT_PROFILE=<이름> npx electron-vite dev --remoteDebuggingPort <포트>` + `scripts/devtools`. 휴대폰 키우기 데모 = `EXPO_PUBLIC_SPROUT_RAISE_DEMO=1`로 Release 빌드 → 앱 문서 폴더 `raise-demo.txt`에 `v=stage&sp=bee&lv=16&eq=beanie,lei,balloon&path=b` 같은 글을 쓰면 바뀜(종 묶음 확인은 문서 폴더 `art3d/v3/`에 512 파일을 넣어 흉내). 시뮬레이터 입력은 `axe`(한글 자판이면 pbcopy + ⌘V).
+- **[다음]:** 아트 디렉터가 생성기 숫자 다듬기(작은 손 옷·등 옷이 둥근 몸 뒤에서 잘 안 보임), 로그인 새벽 정원, 성장 탭 유리 탭 막대, 흔들기(expo-sensors 네이티브), 데스크톱 성장 탭 열기 이벤트(지금 `정원으로 가기`는 OPEN_SCREEN 'review' 우회).
 
 ## ★ 2026-10-09 만료 2주 지난 할 일 자동 정리 (48, 사용자 요청 "만료됨 2주 지난 거는 자동으로 휴지통으로" — 기본 켬)
 - **규칙(공용 `packages/schema/src/autoTrash.ts`, 시험):** 열린 할 일 중 `마감 날짜 < 오늘 − 14일`(사용자 시간대, 날짜만) → 휴지통(`deleted_at`). 빼는 것: 반복·고정·보관 리스트·진행 중 프로젝트(⚑ 마감 또는 가장 늦은 구성원 마감 ≥ 오늘)·마감 없음·완료/하지 않음·**자동으로 옮겼다가 되살린 일(같은 마감인 동안)**. 하위: 열린 하위와 함께, 열린 하위 중 지켜야 할 것(반복·고정·프로젝트·2주 안 된 마감)이 있으면 부모 건너뜀, 완료한 하위는 그대로. XP·완료 행 안 건드림. 외부 캘린더 일정(events)은 대상 아님.

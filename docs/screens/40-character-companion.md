@@ -156,6 +156,16 @@
 | 일기(주간 리포트) AI 문장 자리 | 10 §5 `지금은 AI를 쓸 수 없어요` + [다시 시도]는 그대로. 주간 상한이면 일기장 빈 줄에 캐릭터 1인칭 `이번 주 일기는 숫자만 적어 둘게` |
 
 ## 6. 그림 — 지금 그림을 다시 쓰고, 새로 그리는 것은 얼굴 둘
+> **v3(2026-10-10, 49 확정 — 결정 ④):** 얼굴은 미리 구운 3D 얼굴 층 **5개**(기본·웃음·졸림·놀람·생각)로 줄었다. 위 표·§3.2의 얼굴 이름은 그대로 쓰고, 공용 `mood5()`(`packages/schema/src/art3d.ts` `MOOD_MAP`)가 짝짓는다:
+> | 옛 얼굴 | v3 |
+> |---|---|
+> | default | 기본(`default`) |
+> | smile · happy · content · pet · giggle · eat | 웃음(`happy`) — ∩ 감은 눈 + 조금 넓은 미소 |
+> | sleepy | 졸림(`sleepy`) — 처진 감은 눈 + 작은 입(깜빡임도 이 층) |
+> | wow | 놀람(`wow`) — 조금 큰 점 눈 + 동그란 입 |
+> | think · puzzled | 생각(`think`) — 눈이 위·옆 + 한쪽으로 비낀 짧은 입 |
+> 몸 움직임(깡충·갸웃·흔들림)은 그대로 transform. "그라데이션·빛 금지"는 캐릭터 자리에서 이미 풀려 있다(44 ⓑ). 아래 v2 본문은 역사 기록.
+
 - 원본은 `CharacterArt`(데스크톱 `components/growth/CharacterArt.tsx`, 휴대폰 `src/growth/art/CharacterArt.tsx`, 같은 도형)다. 사이트용 정적 SVG(`site/public/assets/characters/*.svg`)는 `site/scripts/gen-characters.mjs`가 같은 컴포넌트에서 뽑는다. 전부 sprout가 직접 그린 벡터라 틱틱이나 외부 자산은 없다.
 - **새 얼굴 2개**(`CharacterMood`에 더함, 눈동자 위치와 입 모양만 바꾼다):
   | 얼굴 | 눈 | 입 | 쓰는 곳 |

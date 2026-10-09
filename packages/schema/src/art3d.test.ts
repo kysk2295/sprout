@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  ACCS, BODIES, DECOR3D, FACES, FILE_BYTES, PROPS, SCENES3D, SEEDS3D, MOODS5, MOOD_MAP, accIcon, accKey, artBytes, artFile, bodyKey, cropBox, faceKey,
+  ACCS, BODIES, DECOR3D, FACES, FILE_BYTES, PROPS, SCENES3D, SEEDS3D, SPINS3D, spinOf, MOODS5, MOOD_MAP, accIcon, accKey, artBytes, artFile, bodyKey, cropBox, faceKey,
   layers3d, mobileTier, mood5, packFiles, pickPx, propKey, tierBytes, sceneKeyFor, sceneLayout, seedCrackKey, seedTurnKey, standOnPerch, wornSlots3d, DECOR_SPOTS, decorKey, bandKeyFor, headTop3d
 } from './art3d.ts'
 import { ART_MOODS } from './characterArt.ts'
@@ -126,7 +126,7 @@ assert.ok(base <= 2 * 1024 * 1024, `기본 묶음 ${Math.round(base / 1024)} KB`
 for (const sp of SPECIES_IDS) {
   const pk = tierBytes('pack', sp)
   assert.ok(pk > 0 && pk <= 1.5 * 1024 * 1024, `${sp} 종 묶음 ${Math.round(pk / 1024)} KB`)
-  assert.ok(packFiles(sp).every((f) => f.startsWith(sp + '-') && f.endsWith('@512.webp')))
+  assert.ok(packFiles(sp).every((f) => f.startsWith(sp + '-') && (f.endsWith('@512.webp') || /-spin@\d+\.webp$/.test(f))))
   for (let st = 1; st <= 5; st++) for (const path of ['a', 'b'] as const) {
     const L = layers3d(sp, st, { path, eq: { hat: 'straw', neck: 'bowtie', hand: 'mug', back: 'backpack' }, size: 240 })
     for (const l of L) {
@@ -140,4 +140,7 @@ for (const sp of SPECIES_IDS) {
 assert.equal(mobileTier('seed0-t03@320.webp'), 'base'); assert.equal(mobileTier('scene-day@780.webp'), 'base')
 assert.equal(mobileTier('snail-1s2@512.webp'), 'base'); assert.equal(mobileTier('snail-3a@512.webp'), 'pack')
 assert.equal(mobileTier('bee-3-acc-mug@160.webp'), 'none'); assert.equal(mobileTier('bee-3-acc-straw@160.webp'), 'base'); assert.equal(mobileTier('frog-5a-prop@512.webp'), 'pack')
+// 한 바퀴 띠: 모든 몸에 있다(12컷), 휴대폰은 종 묶음
+for (const k of Object.keys(BODIES)) { const sp = SPINS3D[k]; assert.ok(sp && sp[0] === 12, `회전 띠 ${k}`); assert.ok(onDisk(`${k}-spin`, sp[1]), `띠 파일 ${k}`); assert.equal(mobileTier(artFile(`${k}-spin`, sp[1])), 'pack') }
+assert.deepEqual(spinOf('snail', 3, 'b'), { key: 'snail-3b-spin', frames: 12, px: SPINS3D['snail-3b'][1] })
 console.log(`art3d ok — 파일 ${Object.keys(FILE_BYTES).length}개 · 전체 ${Math.round(all / 1024)} KB · 휴대폰 기본 ${Math.round(base / 1024)} KB · 종 묶음 ${SPECIES_IDS.map((s) => Math.round(tierBytes('pack', s) / 1024)).join('/')} KB`)
