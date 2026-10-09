@@ -5,6 +5,7 @@
 // - 33 §11: `[[` = 태그 → 리스트 → 할 일 제안, `[[ ]]`는 인식에서 보호되어 제목에 남음, 기본함 + `[[리스트]]` 하나 = 그 리스트에 만든다, 저장 뒤 그 할 일 링크 관계
 // - 보내면 입력 창은 비운 채 열려 있다(연속 입력). 닫으면 쓴 글은 초안으로 남는다(22 §4)
 // - 맨 위 `할 일 · 일정`(22 §3.5, 06 §14.4.2): 일정이면 장소 줄 + 날짜·"● 내 일정"만, 마지막으로 고른 쪽을 기기에 기억
+import { useToast } from '../src/ui/Toast'
 import { hx } from '../src/ui/haptics'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ArrowUp, Calendar, Ellipsis, Flag, Hash, Inbox, List as ListIcon, MapPin, Sparkles, Square, X } from 'lucide-react-native'
@@ -79,6 +80,7 @@ export default function QuickAdd() {
   const [priority, setPriority] = useState<number | null>(null)
   const [listId, setListId] = useState<string | null>(null)
   const [dateOpen, setDateOpen] = useState(false)
+  const toast = useToast()
   const [flash, setFlash] = useState<{ msg: string; error?: boolean; id: number } | null>(null)
   const lastTyped = useRef(0)
   const flag = useAnchor()
@@ -148,10 +150,10 @@ export default function QuickAdd() {
       if (r.links.length) void syncTaskLinks(newId)
       hx.tap()
       const msg = linkList && list ? `${list.name}에 추가했어요` : addedToast(view, input.due_at, input.start_at, today, !list || list.kind === 'inbox' ? '기본함' : list.name)
-      if (msg) setFlash({ msg, id: Date.now() })
-      setText(''); setDesc(''); setCursor(0); setIgnored([]); setManual(null); setPriority(null); setListId(null)
-      titleRef.current?.focus()
+      // 2026-10-09 사용자 결정: 만들면 입력 창을 내린다(키보드와 함께) — 알림은 앱 아래 토스트로
+      if (msg) toast.show(msg)
       if (input.reminders.length) void ensurePermission({ reminder: true })
+      close()
     } catch {
       setFlash({ msg: '저장하지 못했어요. 다시 시도해 주세요', error: true, id: Date.now() })
     }
@@ -164,10 +166,9 @@ export default function QuickAdd() {
       await createEvent({ title: input.title, notes: desc, location: place, ...f, link })
       if (link) scheduleBridge(0)
       hx.tap()
-      setFlash({ msg: eventAddedToast(f.start_at ?? f.due_at, today), id: Date.now() })
-      setText(''); setDesc(''); setPlace(''); setCursor(0); setIgnored([]); setManual(null)
-      titleRef.current?.focus()
+      toast.show(eventAddedToast(f.start_at ?? f.due_at, today))
       if (f.reminders.length) void ensurePermission({ reminder: true })
+      close()
     } catch {
       setFlash({ msg: '저장하지 못했어요. 다시 시도해 주세요', error: true, id: Date.now() })
     }
