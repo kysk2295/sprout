@@ -34,7 +34,7 @@ export function NewItemToast({ rows, level, bottom, reduced, onWear, onClose }: 
 const s = StyleSheet.create({
   toast: { position: 'absolute', left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 18, backgroundColor: '#1B231E', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, zIndex: 40 },
   ico: { width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
-  b: { color: '#fff', fontSize: 14.5, fontWeight: '750' as never, marginBottom: 1 },
+  b: { color: '#fff', fontSize: 14.5, fontWeight: '700', marginBottom: 1 },
   tx: { color: 'rgba(255,255,255,0.72)', fontSize: 12, lineHeight: 16.5 },
   bt: { gap: 6 },
   btn: { height: 30, borderRadius: 10, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },

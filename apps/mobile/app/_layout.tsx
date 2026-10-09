@@ -21,6 +21,7 @@ import { useDeviceCalBridge } from '../src/calendars/bridge'
 import { useDeviceCalLifecycle } from '../src/calendars/store'
 import { WikiIndexProvider } from '../src/wiki/WikiIndex'
 import { RaiseRoot } from '../src/growth/raise'
+import { RAISE_DEMO, RaiseDemo } from '../src/dev/raiseDemo'
 import { PERF, PerfProbe, seedPerfTasks } from '../src/dev/perfProbe'
 
 export const unstable_settings = { anchor: '(tabs)' }
@@ -31,6 +32,7 @@ export default function Root() {
   useShareInbox() // 24: 공유 확장 토큰 건네기 + 대기열 비우기
   useWidgets() // 36: 홈 화면 위젯 저장 파일·체크 대기열
   if (status === 'loading') return null
+  if (RAISE_DEMO) return <GestureHandlerRootView style={{ flex: 1 }}><SafeAreaProvider><PowerSyncContext.Provider value={db}><ThemeProvider><RaiseDemo /></ThemeProvider></PowerSyncContext.Provider></SafeAreaProvider></GestureHandlerRootView>
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

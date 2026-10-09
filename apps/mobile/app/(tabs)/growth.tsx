@@ -243,7 +243,7 @@ const s = StyleSheet.create({
   menuBtn: { position: 'absolute', right: 14 },
   quick: { flexDirection: 'row', gap: 8, marginHorizontal: 16, marginBottom: 4 },
   qb: { flex: 1, borderRadius: 16, paddingTop: 10, paddingBottom: 9, alignItems: 'center', gap: 5 },
-  qbT: { fontSize: 12.5, fontWeight: '650' as never },
+  qbT: { fontSize: 12.5, fontWeight: '600' },
   qbDot: { position: 'absolute', top: 8, right: 14, width: 7, height: 7, borderRadius: 4 },
   surveyCard: { marginHorizontal: 12, borderRadius: 14, padding: 16, alignItems: 'center', gap: 6 },
   sils: { flexDirection: 'row', gap: 10, marginBottom: 4 },

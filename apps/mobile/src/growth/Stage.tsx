@@ -1,7 +1,7 @@
 // 43 §18.2 휴대폰 성장 탭 무대(시안 character-raising-v2 A): 장면이 화면 위 끝까지 + 큰 제목·유리 칩 + 받침 위 캐릭터 + 유리 HUD
 // (큰 % · 다음 선물 칩 · 굵은 막대 · 태그). 만지기(43 §4.1): 누르기 · 길게 = 쓰다듬기 · 빠르게 4번 = 간지럼 · 끌었다 놓기 · 이름 = 부르기.
 // 만지기는 아무것도 주지 않는다(XP·아이템 없음). 움직임은 감싸개의 transform·opacity만, UI 스레드(39 §11). 반복 움직임 캐릭터는 이 무대 하나.
-import { itemIcon, scene, sceneGround, sceneIsDark, standBottom, titleOf, art } from '@sprout/schema/characterArt'
+import { anchors, itemIcon, scene, sceneGround, sceneIsDark, SCALE, standBottom, titleOf, art } from '@sprout/schema/characterArt'
 import { stageOf, type Species } from '@sprout/schema/growth'
 import { cmOf, decorOn, evolutionHint, giftsAt, growthTags, stageBoxSize, TOUCH, TOUCH_LINES, trophyShape, type Equip } from '@sprout/schema/wardrobe'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
@@ -40,8 +40,14 @@ export const RaiseStage = forwardRef<StageHandle, {
   const sceneH = H - 108
   const [w, setW] = useState(0)
   const onLayout = (e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)
-  const box = Math.round(stageBoxSize(lv) * 0.8)
+  // 무대 상자 × 0.8(43 §18.2). 좁은 휴대폰에서 전설이 제목·칩을 덮지 않게 머리 위를 제목 아래로 막는다
+  const feetY = w ? sceneH - 120 * Math.max(w / 600, sceneH / 420) : sceneH - 112
+  // 상자 위쪽은 단계 배율 때문에 비어 있다 — 그려진 머리(새싹) 꼭대기만 본다
+  const headFrac = species ? (108 - (108 - (anchors(st, species, look.path).top - 14)) * SCALE[st]) / 120 : 0.2
+  const box = Math.round(Math.min(stageBoxSize(lv) * 0.8, (feetY - topInset - 44) / (11 / 12 - headFrac)))
   const bottom = w ? H - sceneH + standBottom(w, sceneH, box) : 140
+  // 말풍선은 머리(새싹) 바로 위: 그림 안 단계 배율 때문에 상자 위가 비어 있다
+  const headTop = box * headFrac
 
   // ── 얼굴 · 말 · 하트 · 칩 ──
   const [mood, setMood] = useState<{ m: StageMood; id: number } | null>(null)
@@ -220,7 +226,7 @@ export const RaiseStage = forwardRef<StageHandle, {
 
       <View style={[s.charPos, { bottom }]} pointerEvents="box-none">
         {bubble ? (
-          <Animated.View key={bubble.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(180)} style={[s.say, { bottom: box - 6 }]} pointerEvents="none">
+          <Animated.View key={bubble.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(180)} style={[s.say, { bottom: box - headTop + 4 }]} pointerEvents="none">
             <Text style={s.sayT} numberOfLines={2} accessibilityLiveRegion="polite">{bubble.text}</Text>
             <View style={s.sayTail} />
           </Animated.View>
@@ -232,7 +238,7 @@ export const RaiseStage = forwardRef<StageHandle, {
             <CharacterArt species={species} stage={st} size={box} fit={false} mood={faceMood} wave={waving} calm={calm} wear={{ lv, path: look.path, eq }} />
           </Animated.View>
         </GestureDetector>
-        <View style={[s.fx, { top: box * 0.18 }]} pointerEvents="none">
+        <View style={[s.fx, { top: headTop + 10 }]} pointerEvents="none">
           {hearts.map((h) => <Heart key={h.id} dx={h.dx} />)}
           {chips.map((c) => <FloatChip key={c.id} text={c.text} kind={c.kind} dx={c.dx} reduced={reduced} />)}
         </View>
@@ -279,7 +285,7 @@ const s = StyleSheet.create({
   sayTail: { position: 'absolute', bottom: -5, left: '50%', marginLeft: -5, width: 10, height: 10, backgroundColor: '#fff', transform: [{ rotate: '45deg' }], borderRadius: 2 },
   hud: { position: 'absolute', left: 12, right: 12, bottom: 26, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 12, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#0A2814', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
   who: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  nm: { fontSize: 15, fontWeight: '750' as never },
+  nm: { fontSize: 15, fontWeight: '700' },
   lvb: { borderRadius: 7, paddingHorizontal: 7, paddingVertical: 3 },
   lvbT: { color: '#fff', fontSize: 11, fontWeight: '800' },
   ttl: { flex: 1, fontSize: 12.5, opacity: 0.72 },

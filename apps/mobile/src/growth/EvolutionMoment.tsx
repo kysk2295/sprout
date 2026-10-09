@@ -190,12 +190,12 @@ const s = StyleSheet.create({
   ring: { position: 'absolute', left: -60, top: -40, width: 120, height: 120, borderRadius: 60, borderWidth: 4 },
   burst: { position: 'absolute', left: 0, top: 10, width: 0, height: 0 },
   card: { position: 'absolute', left: 24, right: 24, alignItems: 'center' },
-  k: { color: '#8FF0B5', fontSize: 13, fontWeight: '650' as never, marginBottom: 10 },
+  k: { color: '#8FF0B5', fontSize: 13, fontWeight: '600', marginBottom: 10 },
   n: { color: '#fff', fontSize: 30, fontWeight: '800', letterSpacing: -0.9, textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 16 },
   ba: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12 },
   bi: { alignItems: 'center', gap: 2, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)' },
   biNow: { backgroundColor: 'rgba(143,240,181,0.2)', borderWidth: 1.5, borderColor: '#8FF0B5' },
-  bie: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '650' as never },
+  bie: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '600' },
   arrow: { color: '#8FF0B5', fontSize: 18, fontWeight: '800' },
   f: { marginTop: 12, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: 'rgba(255,255,255,0.1)' },
   fT: { color: '#fff', fontSize: 12.5, fontWeight: '600' },
@@ -203,7 +203,7 @@ const s = StyleSheet.create({
   q: { color: '#fff', fontSize: 26, fontWeight: '800', letterSpacing: -0.8 },
   opts: { flexDirection: 'row', gap: 12, paddingHorizontal: 12 },
   opt: { flex: 1, maxWidth: 170, borderRadius: 24, padding: 12, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' },
-  optB: { color: '#fff', fontSize: 16, fontWeight: '750' as never, marginTop: 6, marginBottom: 4 },
+  optB: { color: '#fff', fontSize: 16, fontWeight: '700', marginTop: 6, marginBottom: 4 },
   optS: { color: 'rgba(255,255,255,0.72)', fontSize: 12, lineHeight: 17, textAlign: 'center' },
   later: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600' }
 })

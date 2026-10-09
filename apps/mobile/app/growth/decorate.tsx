@@ -76,5 +76,5 @@ export default function Decorate() {
 
 const s = StyleSheet.create({
   nav: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  title: { flex: 1, fontSize: 20, fontWeight: '750' as never, letterSpacing: -0.4 }
+  title: { flex: 1, fontSize: 20, fontWeight: '700', letterSpacing: -0.4 }
 })
