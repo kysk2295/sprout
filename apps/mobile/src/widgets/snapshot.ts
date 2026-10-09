@@ -2,11 +2,11 @@
 // - readWidgetData = DB 읽기(SQL만), composeWidgetSnapshot = 순수 조립(시험: snapshot.test.ts)
 // - 오늘 목록 = 할 일 탭 smart:today와 같은 범위·날짜 문구(만료됨 먼저 → 오늘, 하위 할 일 한 단계)
 // - 월 칸 = 캘린더 탭 월 보기와 같은 항목·순서(itemsOf + 일정 eventItems → itemsOnDay), 색 = 리스트 색/일정 색
-import { progressFromEvents, SPECIES, STAGES, type Species } from '@sprout/schema/growth'
+import { normalizeSpecies, progressFromEvents, SPECIES, STAGES } from '@sprout/schema/growth'
 import { addDays, daysBetween } from '@sprout/schema/time'
 import type { CoreDb } from '@sprout/schema/taskCore'
 import {
-  buildWidgetCalendar, isoLocal, widgetAccents, widgetArtPath, widgetCalendarRange, WIDGET_MAX_APPLIED, WIDGET_MAX_TASKS,
+  buildWidgetCalendar, isoLocal, widgetAccents, widgetArtPath, widgetCalendarRange, widgetLookKey, WIDGET_MAX_APPLIED, WIDGET_MAX_TASKS,
   type WidgetCalItem, type WidgetGrowth, type WidgetMood, type WidgetSnapshot, type WidgetTask
 } from '@sprout/schema/widget'
 import { displayTitle } from '@sprout/schema/wikiLink'
@@ -24,11 +24,11 @@ export type WidgetData = {
   events: EventRow[]
   calendarOptions: string | null
   theme: string | null
-  character: { name: string | null; species: string | null } | null
+  character: { name: string | null; species: string | null; look_json?: string | null } | null
   xp: XpRow[]
 }
 
-const CHARACTER_SQL = 'SELECT name, species FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1'
+const CHARACTER_SQL = 'SELECT name, species, look_json FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1'
 /** 캘린더 탭과 같은 조건(보관한 리스트 제외, 완료도 보임 — 완료 보기 기본 켬) */
 const CAL_SQL = `SELECT ${COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id = t.list_id
   WHERE t.deleted_at IS NULL AND t.due_at IS NOT NULL AND (l.archived_at IS NULL) AND t.status IN (0, 1)
@@ -51,7 +51,7 @@ export async function readWidgetData(db: CoreDb, today: string): Promise<WidgetD
     db.getAll<EventRow>(EVENTS_SQL, [r.to, r.from, r.to]),
     db.get<{ options_json: string | null }>("SELECT options_json FROM view_settings WHERE view_key = 'calendar' LIMIT 1"),
     db.get<{ theme: string | null }>('SELECT theme FROM user_prefs ORDER BY created_at LIMIT 1'),
-    db.get<{ name: string | null; species: string | null }>(CHARACTER_SQL),
+    db.get<{ name: string | null; species: string | null; look_json?: string | null }>(CHARACTER_SQL),
     db.getAll<XpRow>('SELECT kind, amount, day, created_at FROM xp_events')
   ])
   return { todayRows, calTasks, events, calendarOptions: cal?.options_json ?? null, theme: prefs?.theme ?? null, character: character ?? null, xp }
@@ -92,7 +92,7 @@ export function growthOf(character: WidgetData['character'], events: XpRow[], to
   const lastDay = events.filter((e) => Number(e.amount) > 0).map((e) => e.day).sort().at(-1)
   // 10 §3.1: 오늘 XP가 있으면 기쁨, 이틀 넘게 없으면 졸림, 그 밖은 보통(맥 위젯과 같다)
   const mood: WidgetMood = todayAny > 0 ? 'happy' : lastDay && daysBetween(lastDay, today) >= 2 ? 'sleepy' : 'default'
-  const species = character?.species && character.species in SPECIES ? (character.species as Species) : null
+  const species = normalizeSpecies(character?.species) // 옛 종 id도 새 종으로(43 결정 ⑥)
   return {
     hasCharacter: !!species,
     name: character?.name || (species ? SPECIES[species].name : null),
@@ -105,7 +105,7 @@ export function growthOf(character: WidgetData['character'], events: XpRow[], to
     todayTaskXp: Math.max(0, todayTaskXp),
     todayTaskXpCap: 10,
     mood,
-    art: widgetArtPath(species, p.stage, mood)
+    art: widgetArtPath(species, p.stage, mood, widgetLookKey(character?.look_json))
   }
 }
 

@@ -81,9 +81,9 @@ assert.deepEqual([0, 1000, 2000, 3000, 4000, 5000].map((t) => tapSpeaks(taps, t)
 assert.equal(tapSpeaks(taps, 16000), true)
 
 // 이름·단계
-assert.equal(levelLine('squirrel', 7, 3), '차곡차곡 다람쥐 · Lv 7 친구')
+assert.equal(levelLine('bee', 7, 3), '차곡차곡 꿀벌 · Lv 7 친구')
 assert.equal(levelLine(null, 1, 1), '성향 조사를 하면 깨어나요')
-assert.equal(companionLabel('squirrel', '도토리', 7, 3), '도토리, Lv 7 친구. 눌러서 말 걸기')
+assert.equal(companionLabel('bee', '도토리', 7, 3), '도토리, Lv 7 친구. 눌러서 말 걸기')
 
 // 빈 상태 한 줄(실제 숫자)
 assert.deepEqual(todayEmptyLines({ todayDone: 0, hour: 14 }), ['하고 싶은 일이 생기면 적어 줘', '잠깐 쉬어도 괜찮아'])

@@ -7,7 +7,7 @@ import {
 } from './logic.ts'
 
 // ── 나만 보기·동의 ──
-const buddy = { name: '도토리', species: 'squirrel' as const }
+const buddy = { name: '도토리', species: 'bee' as const }
 assert.equal(buildBuddyMessages({ buddy, entry: { date: '2026-10-04', mood: 4, content: '비밀', private: 1 }, messages: [] }), null)
 assert.equal(buildSummaryMessages({ content: '비밀', private: 1 }, []), null)
 assert.equal(buildSummaryMessages({ content: '  ', private: 0 }, []), null)
@@ -57,7 +57,7 @@ assert.equal(wantsFirstReply('열 글자가 넘는 일기야', 1), false)
 
 // ── 캐릭터·말 ──
 assert.deepEqual(buddyOf(undefined), { name: '새싹', species: null })
-assert.equal(buddyOf({ name: null, species: 'turtle' }).name, '거북이')
+assert.equal(buddyOf({ name: null, species: 'snail' }).name, '달팽이')
 assert.equal(josa('도토리', '와', '과'), '도토리와')
 assert.equal(josa('거북', '와', '과'), '거북과')
 assert.equal(buddyLine({ kind: 'mood', mood: 1 }), '곁에 있을게')

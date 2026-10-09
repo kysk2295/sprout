@@ -19,7 +19,7 @@ import { dayKey } from '../../src/lib/dates'
 import { usePalette } from '../../src/theme/ThemeProvider'
 import { GlassButton } from '../../src/ui/Glass'
 
-const ALL: Species[] = ['turtle', 'squirrel', 'cat', 'otter']
+const ALL: Species[] = ['snail', 'bee', 'worm', 'frog']
 
 export default function Survey() {
   const p = usePalette()

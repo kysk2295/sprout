@@ -1,0 +1,66 @@
+/* 42 §4.1 · §10.4 캐릭터 그림 공통 — 시안 kkumteul-skin.css "캐릭터 그림 공통" 그대로.
+   부품 이름(c-breath·c-eyes…)은 @sprout/schema/characterArt가 붙인다. transform · opacity만, .live일 때만 움직인다. */
+.character { display: inline-block; line-height: 0; flex: none; vertical-align: middle; }
+.character > svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* 대기 동작 */
+.chr.live .c-breath { animation: kBreath 3.2s ease-in-out infinite; transform-origin: 60px 108px; }
+.chr.live.st-1 .c-breath { animation-duration: 2.4s; }
+.chr.live .c-eyes { animation: kBlink 4.6s infinite; }
+.chr.live .c-sprout { animation: kSway 3.4s ease-in-out infinite; }
+.chr.live .c-ear-l { animation: kEarL 3.8s ease-in-out infinite; }
+.chr.live .c-ear-r { animation: kEarR 3.8s ease-in-out infinite .4s; }
+.chr.live .c-flap { animation: kFlap .9s ease-in-out infinite; }
+.chr.live.sp-worm .c-flap { animation-duration: 2.6s; }
+.chr.live .c-tail { animation: kTail 1.6s ease-in-out infinite; }
+.chr.live .c-seg { animation: kSeg 1.8s ease-in-out infinite; }
+.chr.live .c-seg.s1 { animation-delay: .2s; }
+.chr.live .c-seg.s2 { animation-delay: .4s; }
+.chr.live .c-tree { animation: kSway 4s ease-in-out infinite; }
+.chr.live .c-scarf { animation: kSway 2.2s ease-in-out infinite; }
+.chr.live .c-swing, .chr.live .c-bob { animation: kSway 2.6s ease-in-out infinite; }
+.chr.live.st-4 .c-hop { animation: kIdleHop 7s ease-in-out infinite; }
+.chr.live.st-5 .c-hop { animation: kIdleHop 6s ease-in-out infinite; }
+.chr.live.calm .c-breath { animation-duration: 5s; }
+.chr.live.calm .c-hop { animation: none; }
+.chr.live .c-float { animation: kFloat 5s ease-in-out infinite; }
+.chr.live .c-float.d2 { animation-delay: -1.6s; }
+.chr.live .c-float.d3 { animation-delay: -3.2s; }
+.chr.live .c-twinkle, .scene-svg .c-twinkle { animation: kTw 3s ease-in-out infinite; }
+.c-twinkle.d2 { animation-delay: -1s !important; }
+.c-twinkle.d3 { animation-delay: -2s !important; }
+.chr.live .c-rise { animation: kRise 4.5s ease-in infinite; }
+.chr.live .c-rise.d2 { animation-delay: -1.5s; }
+.chr.live .c-rise.d3 { animation-delay: -3s; }
+.chr.live .c-wave { animation: kWave .35s ease-in-out 6 alternate; }
+.chr.egg.live .c-egg { animation: kEgg 4s ease-in-out infinite; }
+.scene-svg .c-snow { animation: kSnow 7s linear infinite; }
+.scene-svg .c-snow.d1 { animation-delay: -2s; }
+.scene-svg .c-snow.d2 { animation-delay: -4s; }
+.scene-svg .c-snow.d3 { animation-delay: -5.5s; }
+.scene-svg .c-float { animation: kFloat 5s ease-in-out infinite; }
+/* [호환] 부모 .is-blink = 한 프레임 눈 감기 */
+.is-blink .c-eyes { transform: scaleY(.1); }
+
+@keyframes kBreath { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.018, .972); } }
+@keyframes kBlink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
+@keyframes kSway { 0%, 100% { transform: rotate(-3.5deg); } 50% { transform: rotate(3.5deg); } }
+@keyframes kEarL { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-7deg); } }
+@keyframes kEarR { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(7deg); } }
+@keyframes kFlap { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(var(--fl, 8deg)); } }
+@keyframes kTail { 0%, 100% { transform: rotate(-9deg); } 50% { transform: rotate(9deg); } }
+@keyframes kSeg { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(2.2px); } }
+@keyframes kIdleHop { 0%, 88%, 100% { transform: none; } 92% { transform: translateY(-7px) scale(.98, 1.03); } 96% { transform: scale(1.03, .97); } }
+@keyframes kFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes kTw { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+@keyframes kRise { 0% { transform: translateY(10px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-40px); opacity: 0; } }
+@keyframes kSnow { 0% { transform: translateY(-30px); } 100% { transform: translateY(380px); } }
+@keyframes kWave { from { transform: rotate(-15deg); } to { transform: rotate(15deg); } }
+@keyframes kEgg { 0%, 80%, 100% { transform: rotate(0); } 85% { transform: rotate(-4deg); } 90% { transform: rotate(4deg); } 95% { transform: rotate(-2deg); } }
+
+/* 다크: 빛 원판·발밑 원판이 빛나 보이지 않게(42 §10.2) */
+[data-theme="dark"] .chr .c-disc { opacity: .4; }
+[data-theme="dark"] .chr .c-mat { opacity: .45; }
+/* 움직임 줄이기(OS · 성장 ⋯ 스위치 = .is-still / html[data-growth-still]) · 창이 안 보이면 멈춤 */
+.is-still .chr *, .is-still .scene-svg *, html[data-growth-still] .chr *, html[data-growth-still] .scene-svg *, html[data-hidden] .chr *, html[data-hidden] .scene-svg * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .chr *, .scene-svg * { animation: none !important; } }

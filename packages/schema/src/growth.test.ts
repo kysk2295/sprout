@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import {
   aiLeft, canGrantTaskXp, cumulativeXp, kpiEarnsXp, levelFromXp, levelsToNextStage, parseGoalDraft, parseReportText, progressFromEvents, QUESTIONS, readTextJson,
-  scoreSurvey, speciesFrom, stageOf, weekHasActivity, weekLabel, weeklyStats, xpEventId, xpToNext, isoWeekStart, reviewXpEvent, tidyXpEvent, xpKindLabel
+  scoreSurvey, speciesFrom, normalizeSpecies, LEGACY_SPECIES, SPECIES, type Species, stageOf, weekHasActivity, weekLabel, weeklyStats, xpEventId, xpToNext, isoWeekStart, reviewXpEvent, tidyXpEvent, xpKindLabel
 } from './growth.ts'
 
 // 레벨 곡선: 40, 60, 80 …
@@ -52,15 +52,15 @@ assert.deepEqual([0, 1, 2, 3, 4].map(kpiEarnsXp), [true, true, true, false, fals
 // 성향 조사
 assert.equal(QUESTIONS.filter((q) => !q.tiebreak).length, 8)
 const all = (plan: 'A' | 'B', focus: 'A' | 'B') => Object.fromEntries(QUESTIONS.filter((q) => !q.tiebreak).map((q) => [q.id, q.axis === 'plan' ? plan : focus]))
-assert.equal(speciesFrom(scoreSurvey(all('A', 'A'))), 'turtle')
-assert.equal(speciesFrom(scoreSurvey(all('A', 'B'))), 'squirrel')
-assert.equal(speciesFrom(scoreSurvey(all('B', 'A'))), 'cat')
-assert.equal(speciesFrom(scoreSurvey(all('B', 'B'))), 'otter')
+assert.equal(speciesFrom(scoreSurvey(all('A', 'A'))), 'snail')
+assert.equal(speciesFrom(scoreSurvey(all('A', 'B'))), 'bee')
+assert.equal(speciesFrom(scoreSurvey(all('B', 'A'))), 'worm')
+assert.equal(speciesFrom(scoreSurvey(all('B', 'B'))), 'frog')
 // 계획 축 2:2 동점 → 동점 문항 전에는 결정 못 함, 답하면 결정
 const tie = { ...all('A', 'A'), q1: 'B', q3: 'B' } as Record<string, 'A' | 'B'>
 assert.equal(scoreSurvey(tie).plan.tie, true)
 assert.equal(speciesFrom(scoreSurvey(tie)), null)
-assert.equal(speciesFrom(scoreSurvey({ ...tie, 't-plan': 'B' })), 'cat')
+assert.equal(speciesFrom(scoreSurvey({ ...tie, 't-plan': 'B' })), 'worm')
 assert.equal(scoreSurvey(all('A', 'B')).plan.ratioA, 1)
 
 // ── 주간 리포트 숫자(10 §5) ──
@@ -116,3 +116,15 @@ assert.deepEqual(aiLeft(readTextJson(null)), { report: true, draft: true })
 assert.deepEqual(aiLeft(readTextJson('{"reportTried":true}')), { report: false, draft: true })
 assert.deepEqual(readTextJson('깨진 값'), {})
 console.log('growth: ok')
+
+// 43 결정 ⑥ 종 옮기기: 옛 동물 id → 꿈틀 정원 친구들(성향 칸 그대로)
+assert.deepEqual(LEGACY_SPECIES, { turtle: 'snail', squirrel: 'bee', cat: 'worm', otter: 'frog' })
+assert.equal(normalizeSpecies('otter'), 'frog')
+assert.equal(normalizeSpecies('cat'), 'worm')
+assert.equal(normalizeSpecies('snail'), 'snail')
+assert.equal(normalizeSpecies(null), null)
+assert.equal(normalizeSpecies(''), null)
+assert.equal(normalizeSpecies('dragon'), null)
+// 옛 id로 찾아도 깨지지 않는다(숨은 별칭 — 열거에는 안 나온다)
+assert.equal(SPECIES['otter' as Species].name, '재주 많은 개구리')
+assert.deepEqual(Object.keys(SPECIES), ['snail', 'bee', 'worm', 'frog'])

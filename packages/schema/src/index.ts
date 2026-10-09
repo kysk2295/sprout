@@ -118,7 +118,14 @@ export const TABLES = {
   user_prefs: { columns: { ...common, smart_list_visibility: 'text', theme: 'text', follow_system_dark: 'integer', week_start: 'integer', notify_json: 'text', avatar_json: 'text' } },
   // 10 성장: XP 원장(레벨은 계산), 캐릭터, 주간 목표, 주간 리포트
   xp_events: { columns: { ...common, kind: 'text', amount: 'integer', ref_id: 'text', day: 'text' }, indexes: { day: ['day'] } },
-  characters: { columns: { ...common, name: 'text', species: 'text', type_code: 'text', answers_json: 'text', assessed_at: 'text' } },
+  // look_json: 43 §10 입힌 모습 {path:'a'|'b', eq:{hat,neck,hand,back,bg}, decorOff:[]} (wardrobe.ts parseLook) — 모든 기기·위젯·아바타가 같은 모습
+  characters: { columns: { ...common, name: 'text', species: 'text', type_code: 'text', answers_json: 'text', assessed_at: 'text', look_json: 'text' } },
+  // 43 §10 받은 옷·트로피(지우지 않는다). id를 사건에서 만든다: item:<캐릭터>:<옷 id> · trophy:<캐릭터>:project:<프로젝트> · trophy:<캐릭터>:days:30 —
+  // 두 기기가 같이 넣어도 한 행. kind 'item'|'trophy' · source 'level'|'days'|'review'|'project'|'season' · title = 트로피 이름(프로젝트를 지워도 남게) · seen_at 비면 "새로 받음" 점
+  character_items: {
+    columns: { ...common, character_id: 'text', item_id: 'text', kind: 'text', source: 'text', ref_id: 'text', title: 'text', earned_at: 'text', seen_at: 'text' },
+    indexes: { character: ['character_id'] }
+  },
   kpis: {
     columns: { ...common, week_start: 'text', title: 'text', target: 'integer', progress: 'integer', link_kind: 'text', link_id: 'text', status: 'text', source: 'text', achieved_at: 'text', sort_order: 'real' },
     indexes: { week: ['week_start'] }

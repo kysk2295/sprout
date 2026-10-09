@@ -120,7 +120,22 @@ export const kpiEarnsXp = (achievedIndexInWeek: number) => achievedIndexInWeek <
 // ── 성향 조사 (10 §2.2) ──
 export type Axis = 'plan' | 'focus'
 export type Pick2 = 'A' | 'B'
-export type Species = 'turtle' | 'squirrel' | 'cat' | 'otter'
+/** 42 §10 · 43 결정 ⑥ — 꿈틀 정원 친구들: 달팽이(계획·몰입) · 꿀벌(계획·멀티) · 애벌레→나비(즉흥·몰입) · 올챙이→개구리(즉흥·멀티) */
+export type Species = 'snail' | 'bee' | 'worm' | 'frog'
+export const SPECIES_IDS: Species[] = ['snail', 'bee', 'worm', 'frog']
+/** 옛 종 id(v0.1 동물) → 새 종 id. 서버 마이그레이션(20261013-character-raising.sql)과 같은 표 — 서버가 아직 안 옮겼어도 앱은 이 표로 읽는다 */
+export const LEGACY_SPECIES: Record<string, Species> = { turtle: 'snail', squirrel: 'bee', cat: 'worm', otter: 'frog' }
+/** DB 값(옛 id 포함) → 종. 모르는 값·빈 값은 null(= 아직 모르는 씨앗) */
+export function normalizeSpecies(raw: string | null | undefined): Species | null {
+  if (!raw) return null
+  if ((SPECIES_IDS as string[]).includes(raw)) return raw as Species
+  return LEGACY_SPECIES[raw] ?? null
+}
+/** 종으로 찾는 표에 옛 id를 숨은 별칭으로 붙인다(열거되지 않음) — 서버 마이그레이션 전 값으로 SPECIES['otter']를 찾아도 깨지지 않게 */
+export function withLegacyKeys<T extends Record<Species, unknown>>(table: T): T {
+  for (const [old, sp] of Object.entries(LEGACY_SPECIES)) Object.defineProperty(table, old, { value: table[sp], enumerable: false })
+  return table
+}
 export const QUESTIONS: { id: string; axis: Axis; tiebreak?: boolean; text: string; a: string; b: string }[] = [
   { id: 'q1', axis: 'plan', text: '월요일 아침, 이번 주 할 일은?', a: '미리 다 적어 둔다', b: '그날그날 떠오르는 대로' },
   { id: 'q2', axis: 'focus', text: '보고서를 쓰다 메시지가 오면?', a: '다 쓰고 나서 확인한다', b: '바로 답하고 돌아온다' },
@@ -151,16 +166,16 @@ export function scoreSurvey(answers: Record<string, Pick2>) {
 export function speciesFrom(score: ReturnType<typeof scoreSurvey>): Species | null {
   const { plan, focus } = score
   if (plan.leanA === null || focus.leanA === null) return null
-  if (plan.leanA) return focus.leanA ? 'turtle' : 'squirrel'
-  return focus.leanA ? 'cat' : 'otter'
+  if (plan.leanA) return focus.leanA ? 'snail' : 'bee'
+  return focus.leanA ? 'worm' : 'frog'
 }
 
-export const SPECIES: Record<Species, { name: string; type: string; line: string }> = {
-  turtle: { name: '꾸준한 거북이', type: '계획·몰입', line: '정한 일을 끝까지 차근차근' },
-  squirrel: { name: '차곡차곡 다람쥐', type: '계획·멀티', line: '여러 일을 빠짐없이 챙겨요' },
-  cat: { name: '몰두하는 고양이', type: '즉흥·몰입', line: '꽂히면 깊게 빠져요' },
-  otter: { name: '재주 많은 수달', type: '즉흥·멀티', line: '아이디어가 많고 빨라요' }
-}
+export const SPECIES: Record<Species, { name: string; type: string; line: string }> = withLegacyKeys({
+  snail: { name: '꾸준한 달팽이', type: '계획·몰입', line: '정한 일을 끝까지 차근차근' },
+  bee: { name: '차곡차곡 꿀벌', type: '계획·멀티', line: '여러 일을 빠짐없이 챙겨요' },
+  worm: { name: '몰두하는 애벌레', type: '즉흥·몰입', line: '꽂히면 깊게 빠져요' },
+  frog: { name: '재주 많은 개구리', type: '즉흥·멀티', line: '아이디어가 많고 빨라요' }
+})
 
 // ── 주간 마감 · AI 주간 리포트 · KPI 초안 (10 §4.3, §5) ──
 // 숫자는 앱이 계산하고(결정적), AI는 문장·초안만 쓴다. 서버 프록시도 같은 검사를 쓸 수 있게 여기 둔다.

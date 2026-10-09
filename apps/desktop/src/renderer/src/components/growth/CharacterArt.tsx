@@ -1,103 +1,74 @@
-import type { Species } from '@sprout/schema/growth'
-import './growth-stage.css'
+// 42 §5.2 · 43 §5 캐릭터 그림 — 공용 그림 데이터(@sprout/schema/characterArt, 시안 kkumteul-art.js v3)를 그대로 그린다.
+// 휴대폰(src/growth/art/CharacterArt.tsx)·맥 위젯 PNG(main/widgetArt.ts)·사이트 SVG가 같은 글을 그린다.
+// 입힌 옷: wear를 넘기지 않으면 CharacterWearProvider(내 캐릭터의 모습·레벨)를 쓴다 — 같은 종·같은 단계일 때만(진화 길의 다른 단계엔 안 입힌다).
+// 크기(43 결정 ⑨): 기본은 상자를 꽉 채운다(fit — 아바타·AI 비서·위젯·빈 상태). 성장 무대·도감·진화는 fit={false}로 단계 배율(0.7→1.45)을 그대로.
+import { createContext, memo, useContext, useId, useMemo, type ReactNode } from 'react'
+import { art, seedArt, type ArtMood, type Crop, type Detail } from '@sprout/schema/characterArt'
+import { normalizeSpecies, stageOf, type Species } from '@sprout/schema/growth'
+import type { Equip, Path } from '@sprout/schema/wardrobe'
+import './character.css'
 
-// 10 §2.2 자리 표시 그림(직접 그린 단순 벡터). 정식 그림 자산이 생기면 이 컴포넌트만 바꾼다.
-// 공통 화풍: 둥근 몸 · 큰 눈 · 볼터치 · 머리에 새싹(단계마다 자란다). species = null 이면 "아직 모르는 알".
-const COLORS: Record<Species, { body: string; accent: string }> = {
-  turtle: { body: '#9BD3A0', accent: '#5E9E6B' },
-  squirrel: { body: '#E8B48A', accent: '#B5764A' },
-  cat: { body: '#F2C9A0', accent: '#C98E5B' },
-  otter: { body: '#B89A7E', accent: '#7E6249' }
-}
+/** 얼굴(10 §3.2.3 · 40 §6 · 43 만지기): default · smile · happy · content · eat · sleepy · think · puzzled · pet · giggle · wow */
+export type CharacterMood = ArtMood
+/** 입힌 모습: 레벨(새싹 잎눈·무늬 점) · 갈래 · 옷 */
+export type CharacterWear = { lv?: number; path?: Path; eq?: Partial<Equip> }
 
-/** 10 §3.2.3 얼굴: default 보통 · smile 눈 뜨고 웃는 입 · happy 웃는 눈 · content 배부름 · eat 냠(입 벌림) · sleepy 감은 눈
- *  40 §6 새 얼굴: think 생각 중(눈동자 위·옆 + 작은 동그라미 입) · puzzled 되묻기(눈동자 살짝 옆 + 물결 입) */
-export type CharacterMood = 'default' | 'smile' | 'happy' | 'content' | 'eat' | 'sleepy' | 'think' | 'puzzled'
-/** 40 §6 얼굴별 눈동자 기본 위치(시선 look에 더한다) */
-const PUPIL_SHIFT: Partial<Record<CharacterMood, [number, number]>> = { think: [-2.2, -2.4], puzzled: [1.6, 0] }
-/** 40 §6 [임시] 작은 자리(S 18~30)에서 눈이 작아 보이지 않게 그림이 차지하는 칸만 보이는 viewBox */
-export function tightViewBox(species: Species | null, stage = 1) {
-  if (!species) return '12 16 96 96'
-  const s = 0.72 + stage * 0.07
-  const top = 108 - 50 * s + ((stage >= 4 ? 4 : 15) - 58) * s - 2 // 새싹·나무 꼭대기
-  const h = 114 - top
-  return `${(60 - h / 2).toFixed(1)} ${top.toFixed(1)} ${h.toFixed(1)} ${h.toFixed(1)}`
+type WearCtx = { species: Species | null; level: number; wear: CharacterWear } | null
+const WearContext = createContext<WearCtx>(null)
+/** 내 캐릭터의 모습을 아래 모든 CharacterArt에 준다(App 맨 위에서 한 번) */
+export function CharacterWearProvider({ value, children }: { value: WearCtx; children: ReactNode }) {
+  return <WearContext.Provider value={value}>{children}</WearContext.Provider>
 }
-export function CharacterArt({ species, stage = 1, size = 120, mood = 'default', look, blink, cracks, tight }: { species: Species | null; stage?: number; size?: number; mood?: CharacterMood; look?: { x: number; y: number }; blink?: boolean; cracks?: number; tight?: boolean }) {
-  // look: 눈동자가 바라보는 방향(−1~1), blink: 눈 감기(깜빡임 한 프레임)
-  const lx = (look?.x ?? 0) * 2.6 + (PUPIL_SHIFT[mood]?.[0] ?? 0)
-  const ly = (look?.y ?? 0) * 2 + (PUPIL_SHIFT[mood]?.[1] ?? 0)
-  if (!species) return <Egg size={size} cracks={cracks} viewBox={tight ? tightViewBox(null) : undefined} />
-  const c = COLORS[species]
-  const closed = <><path d="M44 62 q5 4 10 0" stroke="#3A3A3A" strokeWidth="2.4" fill="none" strokeLinecap="round" /><path d="M66 62 q5 4 10 0" stroke="#3A3A3A" strokeWidth="2.4" fill="none" strokeLinecap="round" /></>
-  const scale = 0.72 + stage * 0.07 // 자랄수록 조금씩 커진다
-  return (
-    <svg className={`character character--${species}`} width={size} height={size} viewBox={tight ? tightViewBox(species, stage) : '0 0 120 120'} role="img" aria-label="캐릭터">
-      <ellipse cx="60" cy="110" rx={30 * scale} ry="5" fill="rgba(0,0,0,0.08)" />
-      <g transform={`translate(60 ${108 - 50 * scale}) scale(${scale}) translate(-60 -58)`}>
-        {species === 'turtle' && <ellipse cx="60" cy="74" rx="40" ry="26" fill={c.accent} />}
-        {species === 'squirrel' && <path d="M88 84 C116 76 112 30 90 34 C104 46 96 64 84 70 Z" fill={c.accent} />}
-        {species === 'otter' && <ellipse cx="60" cy="96" rx="34" ry="8" fill={c.accent} opacity="0.6" />}
-        {species === 'cat' && <path d="M86 92 C104 92 108 74 100 66" stroke={c.accent} strokeWidth="7" fill="none" strokeLinecap="round" />}
-        <ellipse cx="60" cy="66" rx="34" ry="32" fill={c.body} />
-        {species === 'cat' && (<><path d="M32 44 L36 22 L50 38 Z" fill={c.body} /><path d="M88 44 L84 22 L70 38 Z" fill={c.body} /></>)}
-        {(species === 'squirrel' || species === 'otter') && (<><circle cx="36" cy="40" r="7" fill={c.body} /><circle cx="84" cy="40" r="7" fill={c.body} /></>)}
-        {species === 'turtle' && (<><circle cx="30" cy="90" r="6" fill={c.body} /><circle cx="90" cy="90" r="6" fill={c.body} /></>)}
-        {/* 얼굴 */}
-        {mood === 'sleepy' || blink ? closed : mood === 'happy' || mood === 'content' ? (
-          <><path d="M44 63 q5 -6 10 0" stroke="#3A3A3A" strokeWidth="2.6" fill="none" strokeLinecap="round" /><path d="M66 63 q5 -6 10 0" stroke="#3A3A3A" strokeWidth="2.6" fill="none" strokeLinecap="round" /></>
-        ) : (
-          // 눈 뜬 얼굴: 깜빡임은 부모의 .is-blink 클래스로 감은 눈을 보인다(다시 그리지 않는다), 시선은 .character__pupils 변환
-          <>
-            <g className="character__eyes-open"><g className="character__pupils" transform={`translate(${lx} ${ly})`}><circle cx="49" cy="62" r="4.5" fill="#3A3A3A" /><circle cx="71" cy="62" r="4.5" fill="#3A3A3A" /><circle cx="50.5" cy="60.5" r="1.4" fill="#fff" /><circle cx="72.5" cy="60.5" r="1.4" fill="#fff" /></g></g>
-            <g className="character__eyes-closed">{closed}</g>
-          </>
-        )}
-        <circle cx="41" cy="72" r="5" fill="#FF9FA8" opacity="0.55" />
-        <circle cx="79" cy="72" r="5" fill="#FF9FA8" opacity="0.55" />
-        {mood === 'eat' ? <ellipse cx="60" cy="75" rx="5" ry="5.5" fill="#7A3B3B" />
-          : mood === 'think' ? <circle cx="61" cy="74" r="2.3" fill="none" stroke="#3A3A3A" strokeWidth="2" />
-          : mood === 'puzzled' ? <path d="M53 74 q3.5 -3 7 0 q3.5 3 7 0" stroke="#3A3A3A" strokeWidth="2" fill="none" strokeLinecap="round" />
-          : <path d={mood === 'content' ? 'M53 72 q7 6 14 0' : mood === 'happy' || mood === 'smile' ? 'M54 72 q6 7 12 0' : 'M55 73 q5 4 10 0'} stroke="#3A3A3A" strokeWidth="2" fill="none" strokeLinecap="round" />}
-        {/* 머리 새싹: 단계마다 잎이 늘고, 4단계부터 작은 나무, 5단계는 꽃 */}
-        <Sprout stage={stage} />
-      </g>
-    </svg>
-  )
+export const useCharacterWear = () => useContext(WearContext)
+
+/** 40 §6 [호환] 작은 자리 viewBox — 이제 crop='bust'가 대신한다 */
+export const tightViewBox = (_species: Species | null, _stage = 1) => '0 0 120 120'
+
+export type CharacterArtProps = {
+  species: Species | string | null
+  stage?: number
+  size?: number
+  mood?: CharacterMood
+  /** 눈동자 방향(−1~1) */
+  look?: { x: number; y: number }
+  /** 눈 감기 한 프레임(motion='still'일 때) */
+  blink?: boolean
+  /** 씨앗 금(0~3, 종을 모를 때) */
+  cracks?: number
+  /** [호환] 작은 자리 = crop 'bust' */
+  tight?: boolean
+  /** idle = 부품 대기 동작(42 §4.1) — 반복해서 움직이는 캐릭터는 화면에 하나 */
+  motion?: 'still' | 'idle'
+  detail?: Detail
+  crop?: Crop
+  /** 한 색 실루엣(진화 연출 — true = 흰색) */
+  silhouette?: boolean | string
+  /** 잠긴 칸 실루엣(도감·진화 길) */
+  lock?: boolean
+  /** 단계 배율을 끄고 상자를 채운다. 기본 true(무대·도감·진화는 false) */
+  fit?: boolean
+  /** 입힌 모습(없으면 Provider 값) — null이면 아무것도 입히지 않는다 */
+  wear?: CharacterWear | null
+  noAura?: boolean
+  wave?: boolean
+  calm?: boolean
+  className?: string
+  label?: string
 }
 
-function Sprout({ stage }: { stage: number }) {
-  const leaf = '#5DBB63'
-  if (stage >= 4) {
-    return (
-      <g>
-        <rect x="58" y="22" width="4" height="14" rx="2" fill="#8B6B4A" />
-        <circle cx="60" cy="18" r={stage >= 5 ? 13 : 11} fill={leaf} />
-        {stage >= 5 && (<><circle cx="54" cy="14" r="3.5" fill="#FFD166" /><circle cx="66" cy="16" r="3.5" fill="#FF8FA3" /><circle cx="60" cy="9" r="3.5" fill="#FFF" /></>)}
-      </g>
-    )
-  }
-  return (
-    <g>
-      <path d="M60 36 V24" stroke={leaf} strokeWidth="3" strokeLinecap="round" />
-      <path d="M60 26 C52 18 44 22 46 28 C52 30 57 29 60 26 Z" fill={leaf} />
-      {stage >= 2 && <path d="M60 24 C68 16 76 20 74 26 C68 28 63 27 60 24 Z" fill={leaf} />}
-      {stage >= 3 && <path d="M60 30 C66 26 72 30 70 34 C66 35 62 33 60 30 Z" fill={leaf} />}
-    </g>
-  )
-}
-
-function Egg({ size, cracks = 0, viewBox = '0 0 120 120' }: { size: number; cracks?: number; viewBox?: string }) {
-  return (
-    <svg className="character character--egg" width={size} height={size} viewBox={viewBox} role="img" aria-label="아직 모르는 알">
-      <ellipse cx="60" cy="108" rx="24" ry="5" fill="rgba(0,0,0,0.08)" />
-      <path d="M60 22 C82 22 92 58 92 76 C92 96 78 106 60 106 C42 106 28 96 28 76 C28 58 38 22 60 22 Z" fill="#F3EBDD" stroke="#E0D3BC" strokeWidth="2" />
-      <path d="M40 70 l8 -6 l8 6 l8 -6 l8 6 l8 -6" stroke="#D8C7A8" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-      {cracks > 0 && <path d="M50 40 l6 8 l-4 6 l6 6" stroke="#B9A47F" strokeWidth="2" fill="none" />}
-      {cracks > 1 && <path d="M74 46 l-5 7 l5 5" stroke="#B9A47F" strokeWidth="2" fill="none" />}
-      {cracks > 2 && <path d="M64 86 l-4 -7 l6 -5" stroke="#B9A47F" strokeWidth="2" fill="none" />}
-      <path d="M60 30 V20" stroke="#5DBB63" strokeWidth="3" strokeLinecap="round" />
-      <path d="M60 22 C53 15 46 19 48 24 C53 26 57 25 60 22 Z" fill="#5DBB63" />
-    </svg>
-  )
-}
+export const CharacterArt = memo(function CharacterArt({ species, stage = 1, size = 120, mood = 'default', look, blink, cracks, tight, motion = 'still', detail = 'auto', crop, silhouette, lock, fit = true, wear, noAura, wave, calm, className, label }: CharacterArtProps) {
+  const uid = useId()
+  const ctx = useContext(WearContext)
+  const sp = normalizeSpecies(species ?? null)
+  const st = Math.min(5, Math.max(1, stage))
+  const w = wear === null ? undefined : wear ?? (ctx && sp && ctx.species === sp && stageOf(ctx.level) === st ? { ...ctx.wear, lv: ctx.wear.lv ?? ctx.level } : undefined)
+  const html = useMemo(() => {
+    if (!sp) return seedArt({ size, cracks, uid, live: motion === 'idle', crop: tight ? 'bust' : crop })
+    return art(sp, st, {
+      size, mood, look, blink, detail, crop: tight ? 'bust' : crop, sil: silhouette, lock, fit, noAura, wave, calm, uid, label,
+      live: motion === 'idle', lv: w?.lv, path: w?.path, eq: w?.eq
+    })
+    // w는 매번 새 객체라 값으로 비교한다
+  }, [sp, st, size, mood, look?.x, look?.y, blink, detail, crop, tight, silhouette, lock, fit, noAura, wave, calm, uid, label, motion, cracks, w?.lv, w?.path, w?.eq?.hat, w?.eq?.neck, w?.eq?.hand, w?.eq?.back])
+  return <span className={`character${className ? ` ${className}` : ''}`} style={{ width: size, height: size }} dangerouslySetInnerHTML={{ __html: html }} />
+})

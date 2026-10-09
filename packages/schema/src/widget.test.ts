@@ -79,8 +79,9 @@ assert.deepEqual(widgetAccents(null), { accentLight: '#4E75F2', accentDark: '#54
 assert.deepEqual(widgetAccents('teal|black'), { accentLight: '#237973', accentDark: '#5A62FA' })
 assert.deepEqual(widgetAccents('dark'), { accentLight: '#4E75F2', accentDark: '#545DFA' })
 assert.deepEqual(widgetAccents('모름|이상'), { accentLight: '#4E75F2', accentDark: '#545DFA' })
-assert.equal(widgetArtPath('cat', 2, 'happy'), 'art/cat-2-happy@2x.png')
-assert.equal(widgetArtPath(null, 1, 'default'), 'art/egg@2x.png')
+assert.equal(widgetArtPath('worm', 2, 'happy'), 'art/v3-worm-2-happy@2x.png')
+assert.equal(widgetArtPath('worm', 2, 'happy', 'abc'), 'art/v3-worm-2-abc-happy@2x.png')
+assert.equal(widgetArtPath(null, 1, 'default'), 'art/v3-egg@2x.png')
 
 // 대기열
 const now = new Date('2026-10-05T10:00:00+09:00')

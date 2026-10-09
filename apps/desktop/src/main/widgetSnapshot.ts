@@ -2,7 +2,7 @@
 // Electron에 기대지 않아 시험(tests/widget.test.ts)이 sql.js로 그대로 돌린다. 쓰기·감시는 main/widget.ts.
 // 15 월 캘린더 위젯의 `calendar`(이번 달 격자)도 여기서 만든다(앱 06 캘린더와 같은 보기 설정·쿼리).
 // Swift 쪽 Codable: native/widget/SproutWidget/Snapshot.swift — 두 쪽이 같은 예시 native/widget/fixtures/snapshot.v1.json을 읽는다.
-import { progressFromEvents, SPECIES, STAGES, type Species } from '@sprout/schema/growth'
+import { normalizeSpecies, progressFromEvents, SPECIES, STAGES, type Species } from '@sprout/schema/growth'
 import type { CoreDb } from '@sprout/schema/taskCore'
 import { defaultSettings, openTasksSql } from '../renderer/src/data/views'
 import { rowDateLabel, timeGroup } from '../renderer/src/lib/dates'
@@ -13,6 +13,7 @@ import { MY_CAL_COLOR, occurrences } from '@sprout/schema/events'
 import { holidayMap } from '@sprout/schema/holidays'
 import { toWeekStart, type WeekStart } from '@sprout/schema/weekStart'
 import { addDays, datePart, daysBetween, hasTime } from '@sprout/schema/time'
+import { widgetArtPath, widgetLookKey } from '@sprout/schema/widget'
 import { colorOf, DEFAULT_OPTIONS, itemsOf, rangeOf, type CalOptions } from '../renderer/src/lib/calendar'
 import { TASK_COLUMNS } from '../renderer/src/data/taskQueries'
 import type { ExtEvent } from '../shared/calendars'
@@ -91,7 +92,8 @@ export function widgetAccents(stored: string | null | undefined): { accentLight:
 }
 
 /** 저장 칸 안 캐릭터 그림 경로(§8.4) — 조합마다 한 장 */
-export const artPath = (species: Species | null, stage: number, mood: WidgetMood) => (species ? `art/${species}-${stage}-${mood}@2x.png` : 'art/egg@2x.png')
+/** 저장 칸 안 그림 경로 — 공용 widgetArtPath(그림 판 v3 + 입은 모습 열쇠, 휴대폰과 같은 이름) */
+export const artPath = widgetArtPath
 
 /** 09 미니 창 "오늘"과 같은 쿼리·순서: 만료됨 먼저, 그다음 오늘. 하위 할 일은 부모 바로 아래 한 단계 */
 export function todayItems(rows: TaskRow[], today: string): WidgetTask[] {
@@ -121,7 +123,7 @@ export function todayItems(rows: TaskRow[], today: string): WidgetTask[] {
 }
 
 type XpRow = { kind: string; amount: number; day: string; created_at: string }
-export function growthOf(character: { name: string | null; species: string | null } | null, events: XpRow[], today: string): WidgetGrowth {
+export function growthOf(character: { name: string | null; species: string | null; look_json?: string | null } | null, events: XpRow[], today: string): WidgetGrowth {
   const p = progressFromEvents(events.map((e) => ({ amount: Number(e.amount) || 0, created_at: e.created_at ?? '' })))
   const ofToday = events.filter((e) => e.day === today)
   const todayTaskXp = ofToday.filter((e) => e.kind === 'task' || e.kind === 'task_revoke').reduce((s, e) => s + Number(e.amount), 0)
@@ -129,7 +131,7 @@ export function growthOf(character: { name: string | null; species: string | nul
   const lastDay = events.filter((e) => Number(e.amount) > 0).map((e) => e.day).sort().at(-1)
   // 10 §3.1: 오늘 XP가 있으면 기쁨, 이틀 넘게 없으면 졸림, 그 밖은 보통
   const mood: WidgetMood = todayAny > 0 ? 'happy' : lastDay && daysBetween(lastDay, today) >= 2 ? 'sleepy' : 'default'
-  const species = character?.species && character.species in SPECIES ? (character.species as Species) : null
+  const species = normalizeSpecies(character?.species) // 옛 종 id도 새 종으로(43 결정 ⑥)
   return {
     hasCharacter: !!species,
     name: character?.name || (species ? SPECIES[species].name : null),
@@ -142,12 +144,12 @@ export function growthOf(character: { name: string | null; species: string | nul
     todayTaskXp: Math.max(0, todayTaskXp),
     todayTaskXpCap: 10,
     mood,
-    art: artPath(species, p.stage, mood)
+    art: artPath(species, p.stage, mood, widgetLookKey(character?.look_json))
   }
 }
 
 // 렌더러 data/growth.ts CHARACTER_SQL과 같은 순서(배정된 캐릭터 먼저)
-const CHARACTER_SQL = 'SELECT name, species FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1'
+const CHARACTER_SQL = 'SELECT name, species, look_json FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1'
 
 /** DB → 저장 파일. 로그아웃이면 로그아웃 형태만(§8.3·§8.8) */
 export async function buildSnapshot(db: CoreDb, opts: { today: string; now: Date; signedIn: boolean; appliedActions?: string[]; extEvents?: (from: string, to: string) => ExtEvent[] }): Promise<WidgetSnapshot> {
@@ -157,7 +159,7 @@ export async function buildSnapshot(db: CoreDb, opts: { today: string; now: Date
   const rows = await db.getAll<TaskRow>(q.sql, q.params)
   const items = todayItems(rows, opts.today)
   const prefs = await db.get<{ theme: string | null }>('SELECT theme FROM user_prefs ORDER BY created_at LIMIT 1')
-  const character = await db.get<{ name: string | null; species: string | null }>(CHARACTER_SQL)
+  const character = await db.get<{ name: string | null; species: string | null; look_json?: string | null }>(CHARACTER_SQL)
   const events = await db.getAll<XpRow>('SELECT kind, amount, day, created_at FROM xp_events')
   return {
     schema: 1,

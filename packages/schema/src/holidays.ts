@@ -56,8 +56,8 @@ export function lunarLabel(date: string): string | null {
   const l = lunarOf(date)
   return l ? `${l.leap ? '윤' : ''}${l.month}.${l.day}` : null
 }
-/** 그해(양력 year)에 있는 음력 달·날의 양력 날짜(윤달 아님) */
-function solarOfLunar(year: number, month: number, day: number): string | null {
+/** 그해(양력 year)에 있는 음력 달·날의 양력 날짜(윤달 아님). 표 범위 밖이면 null — 43 계절 옷(설·추석)도 쓴다 */
+export function solarOfLunar(year: number, month: number, day: number): string | null {
   for (const [start, m] of LUNAR_MONTHS) {
     if (m !== month) continue
     const d = addDays(start, day - 1)

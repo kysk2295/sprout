@@ -245,9 +245,27 @@ CREATE TABLE IF NOT EXISTS characters (
   species text,
   type_code text,
   answers_json text,
-  assessed_at text
+  assessed_at text,
+  look_json text
 );
 CREATE INDEX IF NOT EXISTS characters_owner_idx ON characters (owner_id);
+
+CREATE TABLE IF NOT EXISTS character_items (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  character_id text,
+  item_id text,
+  kind text,
+  source text,
+  ref_id text,
+  title text,
+  earned_at text,
+  seen_at text
+);
+CREATE INDEX IF NOT EXISTS character_items_owner_idx ON character_items (owner_id);
+CREATE INDEX IF NOT EXISTS character_items_character_idx ON character_items (owner_id, character_id);
 
 CREATE TABLE IF NOT EXISTS kpis (
   id text PRIMARY KEY,
@@ -404,4 +422,4 @@ CREATE INDEX IF NOT EXISTS diary_messages_entry_idx ON diary_messages (owner_id,
 
 -- PowerSync는 이 publication으로 변경분을 읽는다
 DROP PUBLICATION IF EXISTS powersync;
-CREATE PUBLICATION powersync FOR TABLE notes, wiki_topics, wiki_versions, folders, lists, tags, filters, sections, tasks, check_items, task_tags, reminders, view_settings, user_prefs, xp_events, characters, kpis, weekly_reports, map_areas, task_areas, map_links, relations, events, diary_entries, diary_messages;
+CREATE PUBLICATION powersync FOR TABLE notes, wiki_topics, wiki_versions, folders, lists, tags, filters, sections, tasks, check_items, task_tags, reminders, view_settings, user_prefs, xp_events, characters, character_items, kpis, weekly_reports, map_areas, task_areas, map_links, relations, events, diary_entries, diary_messages;

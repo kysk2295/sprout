@@ -64,7 +64,7 @@ export function RoomScene({ species, stage, tod, dark, name, placed, accent, wid
       )}
       {stage >= 2 && <Ellipse cx={90} cy={360} rx={300} ry={110} fill={c.hill1} />}
       {stage >= 4 && <Ellipse cx={540} cy={370} rx={300} ry={115} fill={c.hill2} />}
-      {stage >= 3 && species !== 'squirrel' && (
+      {stage >= 3 && species !== 'bee' && (
         <G transform="translate(36 0)"><Rect x={42} y={230} width={14} height={110} rx={5} fill="#a5794f" /><Circle cx={49} cy={214} r={44} fill="#8ed081" /><Circle cx={22} cy={236} r={26} fill="#7cc472" /></G>
       )}
       <Ellipse cx={300} cy={470} rx={560} ry={140} fill={c.ground} />
@@ -138,15 +138,15 @@ export function RoomScene({ species, stage, tod, dark, name, placed, accent, wid
 /** 종마다 소품(데스크톱 Props를 600 무대로 옮김) */
 function Props({ species }: { species: Species | null }) {
   switch (species) {
-    case 'turtle': return <G transform="translate(-40 120)"><Ellipse cx={460} cy={230} rx={70} ry={16} fill="#8FD3F2" opacity={0.75} /><Ellipse cx={440} cy={226} rx={16} ry={5} fill="#7BC47F" /><Ellipse cx={482} cy={233} rx={11} ry={3.5} fill="#7BC47F" /></G>
-    case 'squirrel': return (
+    case 'snail': return <G transform="translate(-40 120)"><Ellipse cx={460} cy={230} rx={70} ry={16} fill="#8FD3F2" opacity={0.75} /><Ellipse cx={440} cy={226} rx={16} ry={5} fill="#7BC47F" /><Ellipse cx={482} cy={233} rx={11} ry={3.5} fill="#7BC47F" /></G>
+    case 'bee': return (
       <G>
         <G transform="translate(-352 24)"><Rect x={424} y={160} width={18} height={190} rx={6} fill="#B5835A" /><Circle cx={432} cy={146} r={56} fill="#8ED081" /><Circle cx={410} cy={132} r={6} fill="#C98E5B" /><Circle cx={452} cy={152} r={6} fill="#B5764A" /></G>
         <G transform="translate(50 0)"><Ellipse cx={420} cy={358} rx={9} ry={7} fill="#B5764A" /><Ellipse cx={440} cy={361} rx={9} ry={7} fill="#C98E5B" /></G>
       </G>
     )
-    case 'cat': return <G><Ellipse cx={300} cy={356} rx={110} ry={16} fill="#F4B6C2" opacity={0.85} /><G transform="translate(-10 110)"><Circle cx={430} cy={246} r={13} fill="#9FB8FF" /><Path d="M419 246 q11 -10 22 0 M421 251 q9 -6 18 0" stroke="#fff" strokeWidth={2} fill="none" /></G></G>
-    case 'otter': return <G><Path d="M-80 350 q40 -10 80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 V400 H-80 Z" fill="#8FD3F2" opacity={0.55} /><G transform="translate(-250 0)"><Circle cx={690} cy={342} r={9} fill="#B8B2A7" /><Circle cx={710} cy={347} r={7} fill="#CFC9BE" /><Circle cx={728} cy={341} r={8} fill="#A9A397" /></G></G>
+    case 'worm': return <G><Ellipse cx={300} cy={356} rx={110} ry={16} fill="#F4B6C2" opacity={0.85} /><G transform="translate(-10 110)"><Circle cx={430} cy={246} r={13} fill="#9FB8FF" /><Path d="M419 246 q11 -10 22 0 M421 251 q9 -6 18 0" stroke="#fff" strokeWidth={2} fill="none" /></G></G>
+    case 'frog': return <G><Path d="M-80 350 q40 -10 80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 V400 H-80 Z" fill="#8FD3F2" opacity={0.55} /><G transform="translate(-250 0)"><Circle cx={690} cy={342} r={9} fill="#B8B2A7" /><Circle cx={710} cy={347} r={7} fill="#CFC9BE" /><Circle cx={728} cy={341} r={8} fill="#A9A397" /></G></G>
     default: return null
   }
 }

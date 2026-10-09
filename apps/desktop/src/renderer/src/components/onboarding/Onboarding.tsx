@@ -149,7 +149,7 @@ function SurveyStep({ ready, onStart, onSkip }: { ready: boolean; onStart: () =>
   // 조사를 마치면(캐릭터 생김) 위 autoSkip이 이 단계를 '함'으로 넘긴다 — 결과 축하는 조사 창의 결과 화면이 맡는다
   return (
     <section className="onb__body onb__body--center">
-      <div className="onb__lineup">{(['turtle', 'squirrel', 'cat', 'otter'] as const).map((s) => <CharacterArt key={s} species={s} size={64} />)}</div>
+      <div className="onb__lineup">{(['snail', 'bee', 'worm', 'frog'] as const).map((s) => <CharacterArt key={s} species={s} size={64} />)}</div>
       <h2 className="onb__title">나와 닮은 친구를 찾아볼까요?</h2>
       <p className="onb__lead">할 일을 다루는 방식을 8가지만 물어요(1분).<br />결과에 맞는 친구를 키우게 돼요.</p>
       <Foot>

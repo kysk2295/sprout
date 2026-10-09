@@ -2,6 +2,7 @@
 // - 모양은 맥 위젯(apps/desktop/src/main/widgetSnapshot.ts)과 같다. 모바일이 `calendar`를 더한다(맥 위젯은 모르는 필드를 무시).
 // - 순수 함수만(시험: widget.test.ts). DB 읽기는 앱 쪽(모바일 src/widgets/snapshot.ts).
 // - Swift(plugins/widgets/ios/Snapshot.swift)·Kotlin(modules/sprout-widgets/android …/Snapshot.kt)이 같은 필드를 읽는다.
+import { lookKey, parseLook } from './wardrobe.ts'
 import { toDate } from './time.ts'
 import { holidayMap } from './holidays.ts'
 import { monthWeeksDays, weekdayTone, weekHead, type WeekStart } from './weekStart.ts'
@@ -179,8 +180,13 @@ export function widgetAccents(stored: string | null | undefined): { accentLight:
   return { accentLight: DARK_IDS.has(main) ? WIDGET_THEME_ACCENT.default : WIDGET_THEME_ACCENT[main], accentDark: WIDGET_THEME_ACCENT[dark] }
 }
 
-/** 저장 칸 안 캐릭터 그림 경로(25 §8.4) — 조합마다 한 장 */
-export const widgetArtPath = (species: string | null, stage: number, mood: WidgetMood) => (species ? `art/${species}-${stage}-${mood}@2x.png` : 'art/egg@2x.png')
+/** 위젯 그림에 입힌 모습(characters.look_json) 열쇠 — 아무것도 안 입고 갈래 A면 빈 글(옛 이름 그대로) */
+export function widgetLookKey(raw: string | null | undefined): string {
+  const l = parseLook(raw)
+  return l.path === 'a' && !l.eq.hat && !l.eq.neck && !l.eq.hand && !l.eq.back ? '' : lookKey(l)
+}
+/** 저장 칸 안 캐릭터 그림 경로(25 §8.4) — 조합마다 한 장. 그림 판 v3(42 §10.3 꿈틀 정원 친구들) + 입은 모습 열쇠(43 §17 6 — wardrobe.lookKey) */
+export const widgetArtPath = (species: string | null, stage: number, mood: WidgetMood, look = '') => (species ? `art/v3-${species}-${stage}${look ? `-${look}` : ''}-${mood}@2x.png` : 'art/v3-egg@2x.png')
 
 /** "2026-10-04T09:12:03+09:00" — 로컬 시각 + 오프셋 */
 export function isoLocal(d: Date): string {

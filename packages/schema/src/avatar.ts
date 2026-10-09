@@ -1,7 +1,7 @@
 // 35 프로필 이미지 — 데스크톱·휴대폰이 같이 쓰는 순수 데이터·함수: user_prefs.avatar_json 읽기·검사, 배경색, 얼굴 도형.
 // 얼굴 도형은 viewBox 0 0 120 120 기준 데이터 — 데스크톱(SVG)·휴대폰(react-native-svg)이 같은 데이터를 그린다.
 // 그림은 전부 sprout가 직접 그린 단순 벡터(성장 캐릭터와 같은 화풍). 틱틱 그림 원본 없음.
-import { STAGES, type Species } from './growth.ts'
+import { LEGACY_SPECIES, SPECIES_IDS, STAGES, withLegacyKeys, type Species } from './growth.ts'
 
 export type AvatarKind = 'follow' | 'char' | 'face'
 export type AvatarPref = { kind: AvatarKind; id?: string; color: AvatarColorId }
@@ -25,12 +25,15 @@ export const DEFAULT_AVATAR_COLOR: AvatarColorId = 'green'
 export const avatarColorHex = (id: string | undefined) => (AVATAR_COLORS.find((c) => c.id === id) ?? AVATAR_COLORS.find((c) => c.id === DEFAULT_AVATAR_COLOR)!).hex
 
 // ── 성장 캐릭터 20개 (4종 × 5단계) ──
-export const CHAR_SPECIES: Species[] = ['turtle', 'squirrel', 'cat', 'otter']
-export const SPECIES_SHORT: Record<Species, string> = { turtle: '거북이', squirrel: '다람쥐', cat: '고양이', otter: '수달' }
+export const CHAR_SPECIES: Species[] = SPECIES_IDS
+export const SPECIES_SHORT: Record<Species, string> = withLegacyKeys({ snail: '달팽이', bee: '꿀벌', worm: '애벌레', frog: '개구리' })
 export const charAvatarId = (species: Species, stage: number) => `${species}-${stage}`
+/** 'snail-3' → 종·단계. 옛 id('otter-3')도 새 종으로 읽는다(43 결정 ⑥ — 서버 마이그레이션 전에 저장된 값) */
 export function parseCharId(id: string | undefined): { species: Species; stage: number } | null {
-  const m = /^(turtle|squirrel|cat|otter)-([1-5])$/.exec(id ?? '')
-  return m ? { species: m[1] as Species, stage: Number(m[2]) } : null
+  const m = /^([a-z]+)-([1-5])$/.exec(id ?? '')
+  if (!m) return null
+  const sp = (SPECIES_IDS as string[]).includes(m[1]) ? (m[1] as Species) : LEGACY_SPECIES[m[1]]
+  return sp ? { species: sp, stage: Number(m[2]) } : null
 }
 export const stageName = (stage: number) => STAGES.find((s) => s.stage === stage)?.name ?? ''
 
@@ -144,7 +147,7 @@ export function parseAvatar(raw: string | null | undefined): AvatarPref | null {
   if (!v || typeof v !== 'object') return DEFAULT_AVATAR
   const color: AvatarColorId = AVATAR_COLORS.some((c) => c.id === v.color) ? v.color : DEFAULT_AVATAR_COLOR
   if (v.kind === 'follow') return { kind: 'follow', color }
-  if (v.kind === 'char' && parseCharId(v.id)) return { kind: 'char', id: v.id, color }
+  if (v.kind === 'char') { const c = parseCharId(v.id); if (c) return { kind: 'char', id: charAvatarId(c.species, c.stage), color } }
   if (v.kind === 'face' && findFace(v.id)) return { kind: 'face', id: v.id, color }
   return null
 }

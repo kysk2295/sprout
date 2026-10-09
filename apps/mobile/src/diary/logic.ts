@@ -30,10 +30,10 @@ export const moodOf = (v: number | null | undefined) => MOODS.find((m) => m.valu
 
 // ── 캐릭터 ──
 const TONE: Record<Species, string> = {
-  turtle: '느긋하고 차분하게, 서두르지 않는 말투',
-  squirrel: '밝고 생기 있게, 작은 일도 같이 기뻐하는 말투',
-  cat: '담백하고 군더더기 없이, 그래도 다정한 말투',
-  otter: '다정하고 포근하게, 마음을 먼저 살피는 말투'
+  snail: '느긋하고 차분하게, 서두르지 않는 말투',
+  bee: '밝고 생기 있게, 작은 일도 같이 기뻐하는 말투',
+  worm: '담백하고 군더더기 없이, 그래도 다정한 말투',
+  frog: '다정하고 포근하게, 마음을 먼저 살피는 말투'
 }
 export function buddyOf(c: { name: string | null; species: Species | null } | undefined): Buddy {
   const species = c?.species ?? null

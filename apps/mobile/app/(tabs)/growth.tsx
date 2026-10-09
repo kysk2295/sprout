@@ -112,7 +112,7 @@ export default function Growth() {
               <GrowthRoom p={p} character={g.character} events={g.events} progress={g.progress} stats={g.stats} reduced={reduced} focused={focused} loaded={g.loaded} />
               {!species && !laterCard ? (
                 <View style={[s.surveyCard, { backgroundColor: p.cardBg }]}>
-                  <View style={s.sils}>{(['turtle', 'squirrel', 'cat', 'otter'] as Species[]).map((sp) => <CharacterArt key={sp} species={sp} size={40} silhouette={p.dark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.14)'} />)}</View>
+                  <View style={s.sils}>{(['snail', 'bee', 'worm', 'frog'] as Species[]).map((sp) => <CharacterArt key={sp} species={sp} size={40} silhouette={p.dark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.14)'} />)}</View>
                   <Text style={[s.surveyTitle, { color: p.textPrimary }]}>나와 닮은 친구를 찾아볼까요?</Text>
                   <Text style={[s.surveySub, { color: p.textSecondary }]}>할 일을 다루는 방식을 8가지만 물어볼게요. 조사 전에도 XP는 그대로 쌓여요.</Text>
                   <Pressable style={[s.surveyBtn, { backgroundColor: p.accent }]} onPress={() => router.push('/growth/survey')} accessibilityRole="button"><Text style={s.surveyBtnText}>시작하기</Text></Pressable>

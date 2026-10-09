@@ -8,10 +8,10 @@ import { CharacterArt } from './CharacterArt'
 // 10 §2.2 일하는 스타일 조사: 시작 → 8문항(+동점 문항) → 결과·이름 짓기
 const MAIN = QUESTIONS.filter((q) => !q.tiebreak)
 const DESC: Record<Species, string[]> = {
-  turtle: ['정한 일을 끝까지 해내는 힘이 있어요.', '큰 일도 차근차근 나누면 반드시 끝내요.', '꿈틀이 큰 목표를 작은 단계로 나눠 드릴게요.'],
-  squirrel: ['여러 일을 빠짐없이 챙기는 정리왕이에요.', '목록이 깔끔할수록 마음이 편해요.', '꿈틀이 리스트마다 균형 있게 목표를 제안할게요.'],
-  cat: ['꽂힌 일에는 누구보다 깊이 빠져들어요.', '흐름을 탈 때 가장 큰 성과를 내요.', '꿈틀이 몰입한 시간을 성장으로 바꿔 드릴게요.'],
-  otter: ['아이디어가 많고 손이 빨라요.', '작은 완료를 자주 쌓을 때 신나요.', '꿈틀이 작은 성공을 자주 모을 수 있게 도울게요.']
+  snail: ['정한 일을 끝까지 해내는 힘이 있어요.', '큰 일도 차근차근 나누면 반드시 끝내요.', '꿈틀이 큰 목표를 작은 단계로 나눠 드릴게요.'],
+  bee: ['여러 일을 빠짐없이 챙기는 정리왕이에요.', '목록이 깔끔할수록 마음이 편해요.', '꿈틀이 리스트마다 균형 있게 목표를 제안할게요.'],
+  worm: ['꽂힌 일에는 누구보다 깊이 빠져들어요.', '흐름을 탈 때 가장 큰 성과를 내요.', '꿈틀이 몰입한 시간을 성장으로 바꿔 드릴게요.'],
+  frog: ['아이디어가 많고 손이 빨라요.', '작은 완료를 자주 쌓을 때 신나요.', '꿈틀이 작은 성공을 자주 모을 수 있게 도울게요.']
 }
 
 export function SurveyDialog({ onClose }: { onClose: () => void }) {
@@ -55,7 +55,7 @@ export function SurveyDialog({ onClose }: { onClose: () => void }) {
         <button className="survey__close icon-btn" aria-label="닫기" onClick={onClose}><X /></button>
         {step === 'intro' && (
           <div className="survey__intro">
-            <div className="survey__lineup">{(['turtle', 'squirrel', 'cat', 'otter'] as Species[]).map((s) => <CharacterArt key={s} species={s} size={64} />)}</div>
+            <div className="survey__lineup">{(['snail', 'bee', 'worm', 'frog'] as Species[]).map((s) => <CharacterArt key={s} species={s} size={64} />)}</div>
             <h2>{again ? '성향을 다시 알아볼까요?' : '나와 닮은 친구를 찾아볼까요?'}</h2>
             <p>{again
               ? '질문 8개에 다시 답하면 캐릭터 종류가 바뀔 수 있어요. 지금까지 쌓은 레벨과 XP는 그대로 이어져요.'

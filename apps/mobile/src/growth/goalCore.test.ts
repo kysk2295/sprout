@@ -24,9 +24,9 @@ const set = async (id: string, p: number) => { const r = await planSetGoalProgre
 const add = async (title: string, target = 1, source: 'manual' | 'ai' = 'manual') => { const r = await planAddGoal(db, env, week, title, target, source); if (r === 'full') return r; run(r); return all('SELECT id FROM kpis WHERE title = ? ORDER BY sort_order DESC', [title])[0].id as string }
 
 // ── 캐릭터: 없으면 만들고 조사 결과를 쓴다(새 행 owner_id = 지금 사용자) ──
-run(await planAssignCharacter(db, env, { species: 'squirrel', typeCode: 'plan-multi', answers: { q1: 'A' }, name: '도토리' }))
+run(await planAssignCharacter(db, env, { species: 'bee', typeCode: 'plan-multi', answers: { q1: 'A' }, name: '도토리' }))
 const ch = all(CHARACTER_SQL)[0]
-assert.equal(ch.species, 'squirrel')
+assert.equal(ch.species, 'bee')
 assert.equal(ch.name, '도토리')
 assert.equal(ch.type_code, 'plan-multi')
 assert.equal(all('SELECT owner_id FROM characters')[0].owner_id, 'user-1')

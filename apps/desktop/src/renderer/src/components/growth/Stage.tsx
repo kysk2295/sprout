@@ -121,7 +121,7 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
         if (!document.hidden && !s.reduced && !s.reveal) {
           if (!s.species) play('is-wobble', 800)
           else if (!s.sleepy) {
-            const own = s.species === 'turtle' ? 'is-tilt' : s.species === 'squirrel' ? 'is-wag' : s.species === 'cat' ? 'is-stretch' : 'is-hop'
+            const own = s.species === 'snail' ? 'is-tilt' : s.species === 'bee' ? 'is-wag' : s.species === 'worm' ? 'is-stretch' : 'is-hop'
             const pool = ['is-look', 'is-stretch', 'is-hop', own]
             play(pool[Math.floor(Math.random() * pool.length)], 2000)
           }

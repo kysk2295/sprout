@@ -50,7 +50,8 @@ assert.equal(snap.day, today)
 assert.deepEqual(snap.theme, { accentLight: '#237973', accentDark: '#5A62FA' })
 assert.equal(snap.today!.count, 5)
 assert.equal(snap.growth!.mood, 'happy')
-assert.equal(snap.growth!.art, 'art/cat-1-happy@2x.png')
+assert.equal(snap.growth!.species, 'worm') // 옛 종 id(cat)도 새 종으로
+assert.equal(snap.growth!.art, 'art/v3-worm-1-happy@2x.png')
 assert.equal(snap.growth!.todayTaskXp, 1)
 const cal = snap.calendar!
 assert.equal(cal.months.length, 4)

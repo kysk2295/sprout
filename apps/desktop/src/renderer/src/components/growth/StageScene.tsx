@@ -37,7 +37,7 @@ export function Scene({ species, stage, tod, name, placed, fx, onDeco }: {
       )}
       {stage >= 2 && <ellipse className="gs-hill1" cx="230" cy="360" rx="380" ry="120" />}
       {stage >= 4 && <ellipse className="gs-hill2" cx="840" cy="370" rx="400" ry="125" />}
-      {stage >= 3 && species !== 'squirrel' && (
+      {stage >= 3 && species !== 'bee' && (
         <g><rect x="42" y="230" width="14" height="110" rx="5" fill="#a5794f" /><circle cx="49" cy="214" r="44" fill="#8ed081" /><circle cx="22" cy="236" r="26" fill="#7cc472" /></g>
       )}
       <ellipse className="gs-ground" cx="520" cy="470" rx="780" ry="140" />
@@ -98,10 +98,10 @@ export function Scene({ species, stage, tod, name, placed, fx, onDeco }: {
 /** 종마다 소품(Interactive v2 RoomProps를 1040×400 무대로 옮김) */
 function Props({ species }: { species: Species | null }) {
   switch (species) {
-    case 'turtle': return <g transform="translate(200 120)"><ellipse cx="460" cy="230" rx="70" ry="16" fill="#8FD3F2" opacity="0.75" /><ellipse cx="440" cy="226" rx="16" ry="5" fill="#7BC47F" /><ellipse cx="482" cy="233" rx="11" ry="3.5" fill="#7BC47F" /></g>
-    case 'squirrel': return <g><g transform="translate(-350 -10)"><rect x="424" y="160" width="18" height="190" rx="6" fill="#B5835A" /><circle cx="432" cy="146" r="56" fill="#8ED081" /><circle cx="410" cy="132" r="6" fill="#C98E5B" /><circle cx="452" cy="152" r="6" fill="#B5764A" /></g><ellipse cx="420" cy="358" rx="9" ry="7" fill="#B5764A" /><ellipse cx="440" cy="361" rx="9" ry="7" fill="#C98E5B" /></g>
-    case 'cat': return <g><ellipse cx="520" cy="356" rx="110" ry="16" fill="#F4B6C2" opacity="0.85" /><g transform="translate(160 110)"><circle cx="430" cy="246" r="13" fill="#9FB8FF" /><path d="M419 246 q11 -10 22 0 M421 251 q9 -6 18 0" stroke="#fff" strokeWidth="2" fill="none" /></g></g>
-    case 'otter': return <g><path d="M0 350 q40 -10 80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 V400 H0 Z" fill="#8FD3F2" opacity="0.55" /><circle cx="690" cy="342" r="9" fill="#B8B2A7" /><circle cx="710" cy="347" r="7" fill="#CFC9BE" /><circle cx="728" cy="341" r="8" fill="#A9A397" /></g>
+    case 'snail': return <g transform="translate(200 120)"><ellipse cx="460" cy="230" rx="70" ry="16" fill="#8FD3F2" opacity="0.75" /><ellipse cx="440" cy="226" rx="16" ry="5" fill="#7BC47F" /><ellipse cx="482" cy="233" rx="11" ry="3.5" fill="#7BC47F" /></g>
+    case 'bee': return <g><g transform="translate(-350 -10)"><rect x="424" y="160" width="18" height="190" rx="6" fill="#B5835A" /><circle cx="432" cy="146" r="56" fill="#8ED081" /><circle cx="410" cy="132" r="6" fill="#C98E5B" /><circle cx="452" cy="152" r="6" fill="#B5764A" /></g><ellipse cx="420" cy="358" rx="9" ry="7" fill="#B5764A" /><ellipse cx="440" cy="361" rx="9" ry="7" fill="#C98E5B" /></g>
+    case 'worm': return <g><ellipse cx="520" cy="356" rx="110" ry="16" fill="#F4B6C2" opacity="0.85" /><g transform="translate(160 110)"><circle cx="430" cy="246" r="13" fill="#9FB8FF" /><path d="M419 246 q11 -10 22 0 M421 251 q9 -6 18 0" stroke="#fff" strokeWidth="2" fill="none" /></g></g>
+    case 'frog': return <g><path d="M0 350 q40 -10 80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 V400 H0 Z" fill="#8FD3F2" opacity="0.55" /><circle cx="690" cy="342" r="9" fill="#B8B2A7" /><circle cx="710" cy="347" r="7" fill="#CFC9BE" /><circle cx="728" cy="341" r="8" fill="#A9A397" /></g>
     default: return null
   }
 }

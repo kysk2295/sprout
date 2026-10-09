@@ -109,10 +109,10 @@ assert.deepEqual(levelChange(5, 4), { kind: 'none' }) // 레벨은 내려가지 
 assert.deepEqual(levelChange(3, 4), { kind: 'levelup', prev: 3, level: 4, prevStage: 2, stage: 2 })
 assert.deepEqual(levelChange(2, 3), { kind: 'evolve', prev: 2, level: 3, prevStage: 1, stage: 2 })
 assert.deepEqual(levelChange(4, 11), { kind: 'evolve', prev: 4, level: 11, prevStage: 2, stage: 4 }) // 여러 단계를 건너도 한 번
-const et = evolveText('squirrel', 1, 2, 3)
-assert.equal(et.title, '아기 다람쥐가 꼬마로 자랐어요')
+const et = evolveText('bee', 1, 2, 3)
+assert.equal(et.title, '아기 꿀벌이 꼬마로 자랐어요')
 assert.equal(et.sub, '떡잎이 한 장 더 났어요. 다음 모습은 Lv 6!')
-assert.equal(evolveText('cat', 4, 5, 15).sub, '나무에 꽃이 피었어요. 이제 전설이에요!')
+assert.equal(evolveText('worm', 4, 5, 15).sub, '나무에 꽃이 피었어요. 이제 전설이에요!')
 // 이번에 받은 XP 내역: 본 때 뒤 사건을 종류별 순합
 const gs = [ev('task', 1, today, '2026-10-07T01:00:00Z'), ev('task', 1, today, '2026-10-07T05:00:00Z'), ev('kpi', 30, today, '2026-10-07T06:00:00Z'), ev('kpi_all', 20, today, '2026-10-07T06:00:01Z'), ev('task_revoke', -1, today, '2026-10-07T07:00:00Z')]
 assert.deepEqual(gainedSince(gs, 1, '2026-10-07T02:00:00Z'), [{ label: '목표 달성', amount: 30 }, { label: '모두 달성 보너스', amount: 20 }])
@@ -172,11 +172,11 @@ assert.equal(surveyQueue(allA).length, 8)
 const tiePlan: Record<string, Pick2> = { ...allA, q1: 'B', q3: 'B' } // 계획 2:2 → 동점 문항 하나 더
 assert.deepEqual(surveyQueue(tiePlan).map((q) => q.id).slice(8), ['t-plan'])
 const sc = scoreSurvey({ ...tiePlan, 't-plan': 'B' })
-assert.equal(speciesFrom(sc), 'cat')
+assert.equal(speciesFrom(sc), 'worm')
 assert.equal(typeCodeOf(sc), 'flow-deep')
 assert.equal(typeCodeOf(scoreSurvey(allA)), 'plan-deep')
-assert.equal(defaultName('squirrel'), '다람쥐')
-assert.equal(defaultName('squirrel', '도토리'), '도토리')
+assert.equal(defaultName('bee'), '꿀벌')
+assert.equal(defaultName('bee', '도토리'), '도토리')
 assert.deepEqual(axisView({ ratioA: 0.75, leanA: true }), { pctA: 75, pctB: 25, strongA: true })
 assert.deepEqual(axisView({ ratioA: 0.5, leanA: false }), { pctA: 50, pctB: 50, strongA: false }) // 동점은 동점 문항으로 정한 쪽
 
