@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>캐릭터 진화 시안 (42)</title>
+<style>
+/* 시안 전용 (docs/screens/42-character-evolution.md). 캐릭터는 이 파일의 art() 함수가 직접 그린 SVG — 틱틱·외부 그림 없음.
+   40 §0.1 그대로: 그라데이션·빛·글로우·반짝이(✦)·보라·이모지 없음. 움직임은 transform·opacity만. */
+:root{
+  --bg-app:#fff;--bg-rail:#f8f8f8;--bg-input:#f5f5f6;--bg-hover:#f5f5f5;--bg-card:#fafafa;--bg-popover:#fff;
+  --line:#f1f1f1;--divider:#ececee;
+  --t1:#191919;--t2:#7d7d7d;--t3:#a3a4a7;--t4:#b5b6b8;
+  --accent:#4e75f2;--accent-subtle:#ecf0fd;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Pretendard","Apple SD Gothic Neo",sans-serif;
+  --shadow-pop:0 4px 16px rgba(0,0,0,.1),0 0 0 1px rgba(0,0,0,.04);
+  --page:#e9e9ec;--note:#5b5b60;
+  --sky:#cde8ff;--hill1:#c3e3b2;--hill2:#b4dba3;--ground:#d5edc5;
+  --disc-op:.55;--mat-op:.7;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg-app:#1b1b1b;--bg-rail:#1b1b1b;--bg-input:#262626;--bg-hover:#242424;--bg-card:#212121;--bg-popover:#212121;
+  --line:#262626;--divider:#2c2c2c;--t1:#e6e6e6;--t2:#9a9a9a;--t3:#6f6f6f;--t4:#4a4a4a;
+  --accent:#6a8cf6;--accent-subtle:#232b45;--shadow-pop:0 4px 16px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.05);
+  --page:#0e0e0e;--note:#a0a0a6;--sky:#2f4a66;--hill1:#456a43;--hill2:#3d613c;--ground:#3b5a3a;--disc-op:.2;--mat-op:.35;color-scheme:dark}}
+:root[data-theme=dark]{
+  --bg-app:#1b1b1b;--bg-rail:#1b1b1b;--bg-input:#262626;--bg-hover:#242424;--bg-card:#212121;--bg-popover:#212121;
+  --line:#262626;--divider:#2c2c2c;--t1:#e6e6e6;--t2:#9a9a9a;--t3:#6f6f6f;--t4:#4a4a4a;
+  --accent:#6a8cf6;--accent-subtle:#232b45;--shadow-pop:0 4px 16px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.05);
+  --page:#0e0e0e;--note:#a0a0a6;--sky:#2f4a66;--hill1:#456a43;--hill2:#3d613c;--ground:#3b5a3a;--disc-op:.2;--mat-op:.35;color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+button,select{font:inherit;color:inherit;background:none;border:0}
+button{cursor:pointer}
+body{font:400 14px/20px var(--font);background:var(--page);color:var(--t1);padding:20px 16px 80px}
+.wrap{max-width:1240px;margin:0 auto}
+header h1{font:700 19px/27px var(--font)}
+header p{font-size:12.5px;line-height:19px;color:var(--note);max-width:900px;margin-top:4px}
+.ctl{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:12px;color:var(--note);padding:10px 0;margin:10px 0 18px;background:var(--page)}
+.ctl label{display:flex;gap:6px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--divider);border-radius:8px;overflow:hidden;background:var(--bg-popover)}
+.seg button{padding:5px 10px;font-size:12px;color:var(--t2)}
+.seg button+button{border-left:1px solid var(--divider)}
+.seg button.on{background:var(--accent);color:#fff}
+section.s{margin:0 0 38px}
+section.s>h2{font:700 15px/22px var(--font);margin-bottom:4px}
+section.s>.why{font-size:12px;line-height:18px;color:var(--note);margin-bottom:12px;max-width:920px}
+.card{background:var(--bg-app);border-radius:12px;box-shadow:var(--shadow-pop);padding:16px}
+.note{font-size:11.5px;color:var(--note);line-height:17px}
+
+/* ── A 지금 vs 제안 ── */
+.ab{display:grid;grid-template-columns:72px repeat(5,minmax(0,1fr));gap:6px 10px;align-items:end}
+.ab .lab{font:600 12px var(--font);color:var(--t2);align-self:center}
+.ab .cell{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.ab .cell svg{width:100%;max-width:112px;height:auto}
+.ab .cap{font-size:11px;color:var(--t3);text-align:center;line-height:15px}
+.ab .head{font:600 12px var(--font);text-align:center;color:var(--t1)}
+.ab .head small{display:block;font-weight:400;color:var(--t3);font-size:11px}
+.diag{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.diag ul{padding-left:16px;font-size:12.5px;line-height:20px;color:var(--t1)}
+.diag h3{font:600 13px var(--font);margin-bottom:6px}
+@media (max-width:760px){.diag{grid-template-columns:1fr}.ab{grid-template-columns:48px repeat(5,minmax(0,1fr));gap:4px}}
+
+/* ── B 전체 사다리 ── */
+.ladder-wrap{overflow-x:auto}
+.ladder{display:grid;grid-template-columns:96px repeat(5,minmax(132px,1fr));gap:10px;min-width:780px}
+.ladder .hd{font:600 12px var(--font);color:var(--t2);text-align:center}
+.ladder .hd small{display:block;font-weight:400;color:var(--t3);font-size:11px}
+.ladder .sp{font:600 13px var(--font);align-self:center}
+.ladder .sp small{display:block;font-weight:400;color:var(--t3);font-size:11px}
+.ladder .c{background:var(--bg-app);border-radius:12px;padding:8px 8px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;box-shadow:0 0 0 1px var(--divider)}
+.ladder .c svg{width:112px;height:112px}
+.ladder .c b{font:600 12px var(--font)}
+.ladder .c span{font-size:11px;line-height:15px;color:var(--t2);text-align:center}
+
+/* ── C 움직임 ── */
+.live-grid{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:16px}
+@media (max-width:760px){.live-grid{grid-template-columns:1fr}}
+.pen{position:relative;height:300px;border-radius:12px;background:var(--bg-card);display:flex;align-items:flex-end;justify-content:center;padding-bottom:20px;overflow:hidden}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.btn{height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--divider);background:var(--bg-popover);font-size:12.5px}
+.btn:hover{background:var(--bg-hover)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.row5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.row5 .c{display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--bg-card);border-radius:10px;padding:6px 4px 8px}
+.row5 .c svg{width:100%;max-width:120px;height:auto}
+.row5 .c b{font:600 11.5px var(--font)}
+.row5 .c span{font-size:10.5px;color:var(--t3);text-align:center;line-height:14px}
+.mtable{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
+.mtable th,.mtable td{border-bottom:1px solid var(--divider);padding:6px 8px;text-align:left;vertical-align:top;line-height:17px}
+.mtable th{color:var(--t2);font-weight:600}
+.tbl-wrap{overflow-x:auto}
+
+/* 캐릭터 감싸개(반응 움직임은 이 div에 — transform·opacity만) */
+.ch{position:relative;display:inline-block;line-height:0;transform-origin:50% 92%}
+.ch svg{display:block;width:100%;height:100%}
+.say{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);white-space:nowrap;font-size:12.5px;line-height:17px;padding:6px 10px;border-radius:12px;background:var(--bg-popover);box-shadow:var(--shadow-pop);color:var(--t1);pointer-events:none}
+.xp{position:absolute;left:62%;top:6%;font:600 13px/16px var(--font);color:var(--accent);pointer-events:none}
+.chip-lv{position:absolute;left:50%;top:0;transform:translateX(-50%);padding:4px 12px;border-radius:14px;background:var(--bg-popover);box-shadow:var(--shadow-pop);font:700 14px var(--font);color:var(--accent);white-space:nowrap}
+.bit{position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;pointer-events:none}
+.bit svg{width:100%;height:100%;display:block}
+
+/* ── 캐릭터 SVG 안의 움직임 ── */
+.chr{overflow:visible}
+.chr .c-breath,.chr .c-hop,.chr .c-sway{transform-box:view-box;transform-origin:60px 108px}
+.chr .c-eyes{transform-box:fill-box;transform-origin:center}
+.chr .c-tail,.chr .c-ear,.chr .c-sprout,.chr .c-swing,.chr .c-head,.chr .c-tree,.chr .c-pb{transform-box:view-box}
+.chr .c-float,.chr .c-fall,.chr .c-rise,.chr .c-twinkle{transform-box:fill-box;transform-origin:center}
+.st-1{--br:2.4s;--bx:1.02;--by:1.035;--amp:.5}
+.st-2{--br:3s;--amp:.7}.st-3{--br:3.2s;--amp:.85}.st-4{--br:3.4s;--amp:1}.st-5{--br:3.6s;--amp:1.15}
+.live .c-breath{animation:br var(--br,3.2s) ease-in-out infinite}
+@keyframes br{50%{transform:scale(var(--bx,1.012),var(--by,1.025))}}
+.live .c-eyes{animation:blink 4.6s infinite}
+.live.st-1 .c-eyes{animation-duration:3.4s}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}94.5%{transform:scaleY(.1)}}
+.live .c-sprout{animation:sway calc(2.8s) ease-in-out infinite;--sw:calc(5deg*var(--amp))}
+@keyframes sway{0%,100%{transform:rotate(calc(var(--sw)*-1))}50%{transform:rotate(var(--sw))}}
+.live.st-1 .c-sway{animation:eggw 4s ease-in-out infinite}
+@keyframes eggw{0%,70%,100%{transform:rotate(0)}75%{transform:rotate(-4deg)}80%{transform:rotate(4deg)}85%{transform:rotate(-2deg)}90%{transform:rotate(0)}}
+.live.st-4 .c-hop,.live.st-5 .c-hop{animation:ihop 7s cubic-bezier(.3,.7,.4,1) infinite}
+.live.st-5 .c-hop{animation-duration:6s}
+@keyframes ihop{0%,85%,100%{transform:none}87.5%{transform:scale(1.04,.95)}91%{transform:translateY(-7px) scale(.97,1.04)}94.5%{transform:scale(1.03,.97)}97%{transform:none}}
+/* 종마다 */
+.sp-turtle.live .c-head{animation:bob 3.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(1.2px)}}
+.sp-turtle.live .c-tree{animation:sway 4s ease-in-out infinite;--sw:2.5deg}
+.sp-squirrel.live .c-tail{animation:sway 1.8s ease-in-out infinite;--sw:calc(7deg*var(--amp))}
+.sp-squirrel.live .c-ear-r{animation:twitch 5s ease-in-out infinite 1.2s}
+.sp-cat.live .c-tail{animation:sway 2.6s ease-in-out infinite;--sw:calc(10deg*var(--amp))}
+.sp-cat.live .c-ear-l{animation:twitch 5.5s ease-in-out infinite}
+.sp-cat.live.st-4 .c-head,.sp-cat.live.st-5 .c-head{animation:tilt 9s ease-in-out infinite 2s}
+@keyframes twitch{0%,88%,100%{transform:rotate(0)}90%{transform:rotate(-14deg)}93%{transform:rotate(0)}95%{transform:rotate(-7deg)}97%{transform:rotate(0)}}
+@keyframes tilt{0%,80%,100%{transform:rotate(0)}84%,92%{transform:rotate(-6deg)}}
+.sp-otter.live:not(.st-1) .c-sway{animation:sway 3s ease-in-out infinite;--sw:calc(2.5deg*var(--amp))}
+.sp-otter.live .c-tail{animation:sway 2.2s ease-in-out infinite;--sw:6deg}
+.live .c-swing{animation:sway 2.4s ease-in-out infinite;--sw:4deg}
+/* 수달 조약돌: 2단계 1개 톡, 3단계 2개 번갈아, 4·5단계 3개 저글링 */
+.sp-otter.live .c-pb{animation:toss 5s cubic-bezier(.3,.6,.5,1) infinite}
+@keyframes toss{0%,78%,100%{transform:none}86%{transform:translateY(-18px) rotate(160deg)}94%{transform:none}}
+.sp-otter.live.st-3 .c-pb2{animation-delay:-2.5s}
+.sp-otter.live.st-4 .c-pb,.sp-otter.live.st-5 .c-pb{animation:jug 1.5s linear infinite}
+.sp-otter.live.st-4 .c-pb2,.sp-otter.live.st-5 .c-pb2{animation-delay:-.5s}
+.sp-otter.live.st-4 .c-pb3,.sp-otter.live.st-5 .c-pb3{animation-delay:-1s}
+/* 멈춘 그림에서도 조약돌 셋이 겹치지 않게 */
+.sp-otter.st-4 .c-pb1,.sp-otter.st-5 .c-pb1{transform:translate(-9px,0)}.sp-otter.st-4 .c-pb2,.sp-otter.st-5 .c-pb2{transform:translate(0,-12px)}.sp-otter.st-4 .c-pb3,.sp-otter.st-5 .c-pb3{transform:translate(9px,0)}
+@keyframes jug{0%{transform:translate(-9px,0)}25%{transform:translate(-4px,-20px)}50%{transform:translate(9px,0)}75%{transform:translate(0,-6px)}100%{transform:translate(-9px,0)}}
+/* 전설 배경 소품 */
+.live .c-float{animation:fl 5s ease-in-out infinite}
+.live .c-float:nth-of-type(2){animation-delay:-1.7s}.live .c-float:nth-of-type(3){animation-delay:-3.3s}
+@keyframes fl{50%{transform:translateY(-4px) rotate(8deg)}}
+.live .c-fall{animation:fall 6s linear infinite;opacity:0}
+.live .c-fall.d2{animation-delay:-2s}.live .c-fall.d3{animation-delay:-4s}
+@keyframes fall{0%{transform:translate(0,-6px) rotate(0);opacity:0}15%{opacity:1}80%{opacity:1}100%{transform:translate(8px,26px) rotate(140deg);opacity:0}}
+.live .c-twinkle{animation:tw 3s ease-in-out infinite}
+.live .c-twinkle.d2{animation-delay:-1s}.live .c-twinkle.d3{animation-delay:-2s}
+@keyframes tw{50%{opacity:.25;transform:scale(.8)}}
+.live .c-rise{animation:rise 4.5s ease-in infinite;opacity:0}
+.live .c-rise.d2{animation-delay:-1.5s}.live .c-rise.d3{animation-delay:-3s}
+@keyframes rise{0%{transform:translateY(8px);opacity:0}20%{opacity:.9}100%{transform:translateY(-22px);opacity:0}}
+.c-disc{opacity:var(--disc-op)}
+.c-mat{opacity:var(--mat-op)}
+/* 실루엣(진화 연출): 그림 고유색을 한 색으로 덮는다 */
+.sil *{fill:var(--sil,#fff)!important;stroke:var(--sil,#fff)!important}
+.sil .c-disc,.sil .c-mat,.sil .c-shadow,.sil .c-aura{display:none}
+/* 움직임 줄이기 */
+[data-motion=reduce] .chr *, [data-motion=reduce] .ch{animation:none!important}
+@media (prefers-reduced-motion:reduce){.chr *{animation:none!important}}
+
+/* ── D 진화 무대 ── */
+.evo{position:relative;height:400px;border-radius:16px;overflow:hidden;background:var(--sky);cursor:pointer;user-select:none;-webkit-user-select:none}
+.evo .scene{position:absolute;inset:0;width:100%;height:100%}
+.evo .hill1{fill:var(--hill1)}.evo .hill2{fill:var(--hill2)}.evo .ground{fill:var(--ground)}
+.evo .dim{position:absolute;inset:0;background:rgba(10,12,30,.55);opacity:0;pointer-events:none}
+.evl{position:absolute;left:50%;bottom:44px;transform-origin:50% 92%;line-height:0}
+.evl svg{display:block;width:100%;height:100%}
+.namecard{position:absolute;left:50%;top:44px;transform:translateX(-50%);min-width:220px;padding:12px 18px 12px;border-radius:14px;background:var(--bg-popover);box-shadow:var(--shadow-pop);text-align:center;opacity:0;pointer-events:none}
+.namecard .k{font-size:12px;color:var(--t2)}
+.namecard .n{font:700 19px/26px var(--font);color:var(--t1);margin-top:2px}
+.namecard .f{font-size:12.5px;color:var(--accent);margin-top:4px;font-weight:600}
+.evo .hint{position:absolute;right:12px;bottom:10px;font-size:11.5px;color:rgba(0,0,0,.45)}
+:root[data-theme=dark] .evo .hint{color:rgba(255,255,255,.5)}
+.evo .skip{position:absolute;right:12px;top:12px;height:26px;padding:0 10px;border-radius:13px;background:rgba(255,255,255,.85);color:#333;font-size:12px;opacity:0;pointer-events:none}
+.evo.playing .skip{opacity:1;pointer-events:auto}
+.evo-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.timeline{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:12px}
+.timeline div{font-size:11.5px;line-height:16px;color:var(--t2);border-top:3px solid var(--divider);padding-top:6px}
+.timeline div b{display:block;color:var(--t1);font-weight:600}
+@media (max-width:760px){.timeline{grid-template-columns:repeat(2,1fr)}}
+
+/* ── E 실제 크기 ── */
+.real{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+@media (max-width:980px){.real{grid-template-columns:1fr}}
+.gstage{position:relative;height:400px;border-radius:16px 16px 0 0;overflow:hidden;background:var(--sky)}
+.gstage .scene{position:absolute;inset:0;width:100%;height:100%}
+.gstage .hill1{fill:var(--hill1)}.gstage .hill2{fill:var(--hill2)}.gstage .ground{fill:var(--ground)}
+.gstage .gch{position:absolute;left:50%;bottom:40px;transform:translateX(-50%)}
+.hud{position:absolute;left:14px;top:14px;width:250px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--bg-popover) 84%,transparent);box-shadow:var(--shadow-pop);font-size:12px;color:var(--t2)}
+.hud .nm{font:700 17px/22px var(--font);color:var(--t1)}
+.bar{height:8px;border-radius:4px;background:var(--bg-input);margin:7px 0 4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.road{display:flex;justify-content:space-around;align-items:center;height:64px;border-radius:0 0 16px 16px;background:var(--bg-app);border-top:1px solid var(--divider);padding:0 16px}
+.road .dot{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--t3)}
+.road .dot i{width:34px;height:34px;border-radius:50%;background:var(--bg-input);display:flex;align-items:center;justify-content:center;line-height:0}
+.road .dot.now{color:var(--t1);font-weight:600}
+.road .dot.now i{box-shadow:0 0 0 2px var(--accent)}
+.road .dot.lock i svg{opacity:.35}
+.asst{background:var(--bg-app);border-radius:12px;box-shadow:var(--shadow-pop);overflow:hidden}
+.asst .hd{height:48px;display:flex;align-items:center;padding:0 16px;font:700 16px var(--font);border-bottom:1px solid var(--line)}
+.asst .empty{display:flex;flex-direction:column;align-items:center;padding:26px 16px 18px;gap:4px;text-align:center}
+.asst .empty .nm{font:600 15px var(--font);margin-top:6px}
+.asst .empty .sub{font-size:12px;color:var(--t3)}
+.asst .empty .tx{font-size:13px;color:var(--t2);margin-top:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}
+.chips span{height:28px;line-height:26px;padding:0 12px;border-radius:14px;border:1px solid var(--divider);font-size:12.5px}
+.ans{display:flex;gap:8px;padding:12px 16px 16px;border-top:1px solid var(--line)}
+.ans .who{font-size:11.5px;color:var(--t3)}
+.ans .line{font-size:13.5px;margin-top:1px}
+.ans .tcard{margin-top:6px;border:1px solid var(--divider);border-radius:8px;padding:7px 10px;font-size:12.5px;display:flex;gap:8px;align-items:center}
+.ans .tcard i{width:14px;height:14px;border:1.5px solid var(--t3);border-radius:3px}
+.minis{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-top:14px}
+.minis .m{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--t3)}
+.av{border-radius:50%;overflow:hidden;line-height:0;display:flex;align-items:center;justify-content:center}
+.side{display:flex;align-items:center;gap:8px;width:220px;height:56px;padding:0 10px;border-radius:10px;background:var(--bg-app);box-shadow:0 0 0 1px var(--divider)}
+.side b{font:600 12.5px var(--font)}
+.side .bar{height:5px;margin:4px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>캐릭터 진화 시안 — 단계마다 확 달라지게, 더 살아 있게</h1>
+  <p>42 명세의 시안. 캐릭터는 전부 이 파일에서 직접 그린 SVG다. 위 막대에서 종·단계·테마·움직임 줄이기를 바꾸면 모든 칸이 같이 바뀐다. 회색 글은 설명이고 실제 화면에는 나오지 않는다.</p>
+</header>
+<div class="ctl" id="ctl">
+  <label>종 <span class="seg" id="segSp"></span></label>
+  <label>단계 <span class="seg" id="segSt"></span></label>
+  <label>테마 <span class="seg" id="segTh"><button data-v="light">라이트</button><button data-v="dark">다크</button></span></label>
+  <label>움직임 <span class="seg" id="segMo"><button data-v="full">켜기</button><button data-v="reduce">줄이기</button></span></label>
+</div>
+
+<!-- A -->
+<section class="s" id="secA">
+  <h2>A. 지금 그림 vs 제안 — <span class="spname"></span></h2>
+  <div class="why">윗줄은 지금 앱의 CharacterArt를 그대로 옮긴 것, 아랫줄이 제안이다. 같은 크기(112)로 나란히 놓았다.</div>
+  <div class="card">
+    <div class="ab" id="abGrid"></div>
+    <div class="diag">
+      <div>
+        <h3>지금 단계마다 바뀌는 것</h3>
+        <ul>
+          <li>몸은 단계와 상관없이 같은 동그라미 하나(가로 34·세로 32)다. 단계마다 <b>크기만 0.79배에서 1.07배</b>로 커진다.</li>
+          <li>종을 알아보는 부분(등딱지 타원·꼬리·귀)은 1단계와 5단계가 같다.</li>
+          <li>단계 표시는 머리 위 새싹뿐이다. 잎 1→2→3장, 4단계는 동그란 나무, 5단계는 그 나무에 꽃 점 3개가 붙는다. 112px로 봐도 차이가 10~20px이다.</li>
+          <li>색은 종마다 2색(몸·강조)으로 고정이고 단계로 바뀌지 않는다.</li>
+          <li>30px(AI 답 얼굴·진화 길 점)에서는 새싹 차이가 2~3px라 단계를 구별할 수 없다.</li>
+          <li>움직임은 무대가 통째로 주는 숨쉬기·깡충뿐이다. 꼬리·귀·눈이 따로 움직이지 않고, 종·단계가 달라도 똑같이 움직인다.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>제안에서 단계마다 바뀌는 것</h3>
+        <ul>
+          <li><b>몸 비율:</b> 1단계는 알껍데기에 앉은 큰 머리, 2단계부터 머리와 몸이 나뉘고, 단계마다 몸이 길어지며 머리 비율이 줄어든다.</li>
+          <li><b>새 소품 하나:</b> 단계마다 그 종의 이야기가 담긴 소품이 하나씩 더해진다(도토리 → 보따리 → 목도리 → 단풍관).</li>
+          <li><b>색:</b> 2색 → 배 색 → 소품 색 → 무늬 → 금빛 테두리 순으로 색이 늘어난다.</li>
+          <li><b>배경:</b> 4단계는 발밑 원판, 5단계는 뒤 원판과 종 소품 3개가 떠다닌다. 빛이나 그라데이션은 쓰지 않는다.</li>
+          <li><b>움직임:</b> 종마다 다르다(꼬리·귀·고개·조약돌). 단계가 오를수록 동작이 많아진다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- B -->
+<section class="s" id="secB">
+  <h2>B. 네 종 전체 진화 길</h2>
+  <div class="why">칸마다 그 단계에 새로 생기는 것을 적었다. 레벨과 누적 XP는 10 §2.2.1·§6 그대로다(주 100 XP를 받으면 꼬마까지 1주, 친구까지 4주, 단짝까지 11주, 전설까지 24주쯤). 칸 안의 그림은 멈춰 있다.</div>
+  <div class="ladder-wrap"><div class="ladder" id="ladder"></div></div>
+</section>
+
+<!-- C -->
+<section class="s" id="secC">
+  <h2>C. 살아 있는 대기 동작 · 반응</h2>
+  <div class="why">왼쪽은 고른 종·단계의 큰 캐릭터다. 버튼으로 반응을 확인할 수 있다. 오른쪽은 같은 종의 1~5단계가 동시에 움직이는 모습으로, 단계가 오를수록 동작이 많아지는 것을 비교하는 용도다. 실제 앱에서는 한 화면에 움직이는 캐릭터가 하나뿐이다(40 §7).</div>
+  <div class="live-grid">
+    <div class="card">
+      <div class="pen" id="pen"></div>
+      <div class="acts">
+        <button class="btn" id="bTap">누르기</button>
+        <button class="btn" id="bDone">할 일 완료 +1</button>
+        <button class="btn" id="bLv">레벨업</button>
+        <button class="btn" id="bSleep">졸림 ↔ 보통</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row5" id="row5"></div>
+      <div class="tbl-wrap"><table class="mtable">
+        <tr><th>단계</th><th>모두</th><th id="spMotionHead">이 종만</th></tr>
+        <tbody id="motionRows"></tbody>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+<!-- D -->
+<section class="s" id="secD">
+  <h2>D. 진화하는 순간</h2>
+  <div class="why">[진화 보기]를 누르면 위에서 고른 단계 바로 앞 단계에서 고른 단계로 진화한다. 1단계를 고르면 알이 깨지는 장면이 나온다. 전체는 약 2.3초이고, 무대를 누르면 바로 끝 장면으로 건너뛴다. 움직임 줄이기를 켜면 0.3초 페이드와 이름 카드만 남는다.</div>
+  <div class="evo-row">
+    <button class="btn pri" id="bEvo">진화 보기</button>
+    <span class="note" id="evoLabel"></span>
+  </div>
+  <div class="evo" id="evo">
+    <svg class="scene" viewBox="0 0 800 400" preserveAspectRatio="none" aria-hidden="true">
+      <path class="hill2" d="M0 300 Q160 240 340 290 T800 270 V400 H0Z"/>
+      <path class="hill1" d="M0 330 Q220 290 420 325 T800 315 V400 H0Z"/>
+      <rect class="ground" x="0" y="350" width="800" height="50"/>
+    </svg>
+    <div class="dim" id="evoDim"></div>
+    <div id="evoLayers"></div>
+    <div class="namecard" id="evoCard"><div class="k"></div><div class="n"></div><div class="f"></div></div>
+    <button class="skip" id="evoSkip">건너뛰기</button>
+    <div class="hint">무대를 누르면 건너뜀</div>
+  </div>
+  <div class="timeline">
+    <div><b>0 – 0.25초</b>무대가 어두워지고 캐릭터가 한 번 웅크린다</div>
+    <div><b>0.25 – 0.55초</b>옛 모습이 흰 실루엣으로 바뀐다</div>
+    <div><b>0.65 – 1.3초</b>옛·새 실루엣이 세 번 엇갈리며 조금씩 커진다(0.12초 페이드, 초당 3번 이하)</div>
+    <div><b>1.3 – 1.8초</b>톡 터지듯 새 모습이 나타나고(튀어 오르는 크기), 종 소품 조각 8개가 흩어진다</div>
+    <div><b>1.55초</b>이름 카드가 올라온다. "단짝이 됐어요 / 정원 거북 / + 새 모습 · …"</div>
+    <div><b>1.9 – 2.3초</b>어두움이 걷히고 새 모습이 대기 동작을 시작한다. 카드는 3초 더 머문다</div>
+  </div>
+</section>
+
+<!-- E -->
+<section class="s" id="secE">
+  <h2>E. 실제 크기로 — 성장 무대 · AI 비서 · 아바타</h2>
+  <div class="why">성장 무대 캐릭터는 230 + 12×(단계−1), 진화 길 점은 30, AI 비서 빈 대화는 96, 답 얼굴은 30, 사이드바 카드는 36, 레일 아바타는 34다. 36 이하에서는 머리 쪽만 잘라 그리고, 작은 무늬와 배경을 뺀다(작은 그림 모드). 대신 단계마다 머리 쪽에 표시를 하나씩 두어 30px에서도 단계를 알아볼 수 있게 했다.</div>
+  <div class="real">
+    <div>
+      <div class="gstage" id="gstage">
+        <svg class="scene" viewBox="0 0 800 400" preserveAspectRatio="none" aria-hidden="true">
+          <path class="hill2" d="M0 300 Q160 240 340 290 T800 270 V400 H0Z"/>
+          <path class="hill1" d="M0 330 Q220 290 420 325 T800 315 V400 H0Z"/>
+          <rect class="ground" x="0" y="350" width="800" height="50"/>
+        </svg>
+        <div class="hud"><div class="nm" id="hudName"></div><div id="hudSub"></div><div class="bar"><i style="width:42%"></i></div><div>42 / 100 XP · 레벨업까지 58</div></div>
+        <div class="gch" id="gch"></div>
+      </div>
+      <div class="road" id="road"></div>
+    </div>
+    <div>
+      <div class="asst">
+        <div class="hd">AI 비서</div>
+        <div class="empty">
+          <div id="asstBig"></div>
+          <div class="nm" id="asstName"></div>
+          <div class="sub" id="asstSub"></div>
+          <div class="tx">말로 적으면 할 일과 일정으로 넣어 드려요.</div>
+          <div class="chips"><span>내일 오후 3시 회의 잡아줘</span><span>오늘 남은 일</span></div>
+        </div>
+        <div class="ans">
+          <div id="asstSmall"></div>
+          <div style="flex:1;min-width:0">
+            <div class="who" id="asstWho"></div>
+            <div class="line">넣어 뒀어. 내일 오후 3시야.</div>
+            <div class="tcard"><i></i>기획 회의 <span style="margin-left:auto;color:var(--accent);font-size:12px">내일 15:00</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="minis" id="minis"></div>
+    </div>
+  </div>
+</section>
+</div>
+
+<script>
+// ───────────────────────── 데이터 ─────────────────────────
+const SPECIES = {
+  turtle:  { name:'거북이', full:'꾸준한 거북이', pet:'느림보' },
+  squirrel:{ name:'다람쥐', full:'차곡차곡 다람쥐', pet:'도토리' },
+  cat:     { name:'고양이', full:'몰두하는 고양이', pet:'나비' },
+  otter:   { name:'수달',   full:'재주 많은 수달', pet:'퐁당' }
+}
+const STAGES = [
+  null,
+  { name:'아기', lv:'Lv 1~2',  xp:0,    from:1 },
+  { name:'꼬마', lv:'Lv 3~5',  xp:100,  from:3 },
+  { name:'친구', lv:'Lv 6~9',  xp:400,  from:6 },
+  { name:'단짝', lv:'Lv 10~14',xp:1080, from:10 },
+  { name:'전설', lv:'Lv 15~',  xp:2380, from:15 }
+]
+// 종마다 단계 이름(결정 필요 ②) · 새로 생기는 것
+const TITLE = {
+  turtle:  ['', '아기 거북', '꼬마 거북', '이끼 거북', '정원 거북', '숲지기 거북'],
+  squirrel:['', '아기 다람쥐', '도토리 다람쥐', '보따리 다람쥐', '목도리 다람쥐', '단풍관 다람쥐'],
+  cat:     ['', '아기 고양이', '방울 고양이', '실뭉치 고양이', '망토 고양이', '별망토 고양이'],
+  otter:   ['', '아기 수달', '조약돌 수달', '조개목걸이 수달', '저글링 수달', '물마루 수달']
+}
+const FEAT = {
+  turtle:  ['', '알껍데기에서 고개만 · 등딱지 끝', '알에서 나와 선다 · 육각 무늬 등딱지 · 배딱지 줄', '등에 이끼 한 덩이와 흰 꽃 · 크림색 테두리', '양 어깨 이끼 정원 · 버섯 · 나뭇가지 지팡이', '등에서 자란 작은 나무 · 금빛 테두리 · 떠다니는 잎'],
+  squirrel:['', '알 위로 귀 · 꼬리 끝만', '도토리를 꼭 쥔다 · 꼬리가 반만큼', '도토리 보따리 · 귀 털 · 줄무늬 꼬리', '뜨개 목도리 · 몸만 한 꼬리', '단풍잎 관 · 꼬리 끝 잎 · 떨어지는 잎'],
+  cat:     ['', '알 위로 세모 귀 · 꼬리 끝', '빨간 목줄 방울 · 꼬리를 세운다', '이마 줄무늬 · 실뭉치 · 꼬리 끝 색', '짧은 망토 · 방울 걸쇠 · 고개 갸웃', '별무늬 망토 · 금빛 단 · 초승달 핀 · 별'],
+  otter:   ['', '알 위로 둥근 귀 · 하얀 주둥이', '조약돌 하나 · 납작 꼬리', '조개 목걸이 · 수염 · 조약돌 둘', '조약돌 셋 저글링 · 더 큰 몸', '물마루 관 · 물결과 거품']
+}
+const NEWLINE = { // 진화 카드 "+ 새 모습"
+  turtle:  ['', '알에서 깨어났어', '육각 무늬 등딱지', '등에 이끼가 자랐어', '어깨에 작은 정원', '등에 나무가 자랐어'],
+  squirrel:['', '알에서 깨어났어', '첫 도토리', '도토리 보따리', '뜨개 목도리', '단풍잎 관'],
+  cat:     ['', '알에서 깨어났어', '방울 목줄', '실뭉치', '짧은 망토', '별무늬 망토'],
+  otter:   ['', '알에서 깨어났어', '첫 조약돌', '조개 목걸이', '조약돌 저글링', '물마루 관']
+}
+const MOTION_ALL = ['', '빠른 숨(2.4초) · 3.4초마다 깜빡 · 4초마다 알 흔들', '숨 3초 · 깜빡 4.6초 · 새싹 흔들', '숨 3.2초 · 소품 흔들기 더함', '숨 3.4초 · 7초마다 제자리 깡충', '숨 3.6초 · 6초마다 깡충 · 배경 소품 떠다님']
+const MOTION_SP = {
+  turtle:  ['', '—', '고개 끄덕(1.2px, 3.4초)', '+ 이끼 꽃 흔들', '+ 지팡이', '+ 등 나무 흔들(±2.5°)'],
+  squirrel:['', '꼬리 끝 살랑', '꼬리 흔들(±5°, 1.8초)', '+ 귀 쫑긋(5초마다)', '+ 목도리 끝 흔들', '꼬리 ±8° · 잎이 떨어짐'],
+  cat:     ['', '꼬리 끝 살랑', '꼬리 휘두름(±7°) · 귀 쫑긋', '+ 실뭉치', '+ 9초마다 고개 갸웃', '+ 별이 깜빡(투명도만)'],
+  otter:   ['', '—', '둥실 흔들 · 조약돌 톡(5초마다)', '조약돌 둘 번갈아', '조약돌 셋 저글링(1.5초)', '+ 거품이 올라감']
+}
+
+// ───────────────────────── 그림 ─────────────────────────
+const INK = '#3A3A3A', CHEEK = '#FF9FA8', LEAF = '#5DBB63', LEAF2 = '#4FA65A', GOLD = '#E2B65A', WHITE = '#FFFFFF'
+const PAL = {
+  turtle:  { skin:'#9BD3A0', foot:'#86C68C', shell:'#5E9E6B', shellD:'#4A8357', belly:'#EDE6B5', bellyL:'#D3C98E', tint:'#BFE3B4' },
+  squirrel:{ skin:'#E8B48A', foot:'#C98552', belly:'#F8E3CC', tail:'#C98552', tailL:'#EBC59C', inner:'#C98552', tint:'#F6D7B4' },
+  cat:     { skin:'#F2C9A0', foot:'#F2C9A0', belly:'#FFF1E0', dark:'#C98E5B', ear:'#F4A7A7', tint:'#C9D4EE' },
+  otter:   { skin:'#B89A7E', foot:'#7E6249', belly:'#E3CFB8', dark:'#7E6249', mask:'#EFE2D0', tint:'#BFDDF0' }
+}
+// 단계별 몸 비율: 머리 중심 hy · 머리 반지름 hr · 몸 중심 by · 몸 반지름 brx/bry · 눈 e
+const GEO = {
+  1:{ hy:66, hr:28,   by:96, brx:22, bry:12, e:5.4 },
+  2:{ hy:58, hr:27,   by:89, brx:21, bry:17, e:4.9 },
+  3:{ hy:52, hr:26,   by:86, brx:23, bry:21, e:4.6 },
+  4:{ hy:47, hr:25.5, by:83, brx:25, bry:24, e:4.5 },
+  5:{ hy:45, hr:25.5, by:82, brx:26, bry:25, e:4.5 }
+}
+const f = (n) => +n.toFixed(2)
+const star = (x, y, r, fill, cls = '') => { let p = ''; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .46 : r; p += (i ? 'L' : 'M') + f(x + rr * Math.cos(a)) + ' ' + f(y + rr * Math.sin(a)) } return `<path ${cls ? `class="${cls}"` : ''} d="${p}Z" fill="${fill}" stroke="${fill}" stroke-width="${r * .25}" stroke-linejoin="round"/>` }
+const crescent = (x, y, r, fill) => `<path d="M${x} ${y - r} A${r} ${r} 0 1 0 ${x} ${y + r} A${f(r * 1.25)} ${f(r * 1.25)} 0 0 1 ${x} ${y - r}Z" fill="${fill}"/>`
+const leafL = (x, y, k, c = LEAF) => `<path d="M${x} ${y} c${f(-4 * k)} ${f(-7 * k)} ${f(-12 * k)} ${f(-8 * k)} ${f(-14 * k)} ${f(-3 * k)} c${f(3 * k)} ${f(4 * k)} ${f(9 * k)} ${f(5 * k)} ${f(14 * k)} ${f(3 * k)}z" fill="${c}"/>`
+const leafR = (x, y, k, c = LEAF) => `<path d="M${x} ${y} c${f(4 * k)} ${f(-7 * k)} ${f(12 * k)} ${f(-8 * k)} ${f(14 * k)} ${f(-3 * k)} c${f(-3 * k)} ${f(4 * k)} ${f(-9 * k)} ${f(5 * k)} ${f(-14 * k)} ${f(3 * k)}z" fill="${c}"/>`
+const oval = (cx, cy, rx, ry, fill, rot = 0, extra = '') => `<ellipse cx="${f(cx)}" cy="${f(cy)}" rx="${f(rx)}" ry="${f(ry)}" fill="${fill}"${rot ? ` transform="rotate(${rot} ${f(cx)} ${f(cy)})"` : ''} ${extra}/>`
+
+function sprout(st, x, y) {
+  const h = [0, 8, 10, 11, 12, 12][st], t = y - h + 2
+  let s = `<g class="c-sprout" style="transform-origin:${x}px ${y}px"><path d="M${x} ${y} V${y - h}" stroke="${LEAF}" stroke-width="3" stroke-linecap="round" fill="none"/>`
+  if (st === 1) s += leafL(x, t, .8)
+  else if (st <= 3) s += leafL(x, t, st === 2 ? .9 : 1.05) + leafR(x, t - 1, st === 2 ? .9 : 1.05)
+  else if (st === 4) s += leafL(x, t, 1.1) + leafR(x, t - 1, 1.1) + leafR(x, y - h / 2 + 1, .7, LEAF2)
+  else {
+    s += leafL(x, t + 2, 1) + leafR(x, t + 1, 1)
+    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * 2 * Math.PI / 5; s += `<circle cx="${f(x + 3.6 * Math.cos(a))}" cy="${f(y - h - 2 + 3.6 * Math.sin(a))}" r="2.7" fill="#FF8FA3"/>` }
+    s += `<circle cx="${x}" cy="${y - h - 2}" r="2.2" fill="#FFD166"/>`
+  }
+  return s + '</g>'
+}
+
+function face(sp, P, cx, cy, e, mood, d, st) {
+  const lx = cx - 10.5, rx = cx + 10.5, ey = cy + 1
+  let s = ''
+  if (sp === 'otter') s += oval(cx, cy + 9, 12, 8, P.mask)
+  if (mood === 'sleepy') s += `<path d="M${lx - 5} ${ey} q5 4 10 0 M${rx - 5} ${ey} q5 4 10 0" stroke="${INK}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`
+  else if (mood === 'happy') s += `<path d="M${lx - 5} ${ey + 1} q5 -6 10 0 M${rx - 5} ${ey + 1} q5 -6 10 0" stroke="${INK}" stroke-width="2.6" fill="none" stroke-linecap="round"/>`
+  else s += `<g class="c-eyes"><circle cx="${lx}" cy="${ey}" r="${e}" fill="${INK}"/><circle cx="${rx}" cy="${ey}" r="${e}" fill="${INK}"/><circle cx="${f(lx + e * .35)}" cy="${f(ey - e * .38)}" r="${f(e * .32)}" fill="#fff"/><circle cx="${f(rx + e * .35)}" cy="${f(ey - e * .38)}" r="${f(e * .32)}" fill="#fff"/></g>`
+  s += `<circle cx="${cx - 18.5}" cy="${cy + 10}" r="4.6" fill="${CHEEK}" opacity=".55"/><circle cx="${cx + 18.5}" cy="${cy + 10}" r="4.6" fill="${CHEEK}" opacity=".55"/>`
+  let my = cy + 9.5
+  if (sp === 'otter') { s += oval(cx, cy + 6.3, 3.2, 2.2, '#5A4033'); my = cy + 10.5 }
+  if (sp === 'cat') { s += `<path d="M${cx - 2.4} ${cy + 5.4} h4.8 l-2.4 2.6z" fill="#E58F8F" stroke="#E58F8F" stroke-width="1" stroke-linejoin="round"/>`; my = cy + 9.8 }
+  if (sp === 'squirrel') { s += oval(cx, cy + 6.2, 2.2, 1.6, '#6B4630'); my = cy + 10 }
+  const nose = sp !== 'turtle'
+  if (mood === 'eat') s += oval(cx, my + 2, 4.5, 5, '#7A3B3B')
+  else if (mood === 'happy' || mood === 'smile') s += `<path d="M${cx - 6} ${my - .5} q6 7 12 0" stroke="${INK}" stroke-width="2" fill="none" stroke-linecap="round"/>`
+  else if (mood === 'sleepy') s += oval(cx, my + 1.5, 2, 2.2, INK, 0, 'opacity=".75"')
+  else s += nose ? `<path d="M${cx - 5} ${my - .5} q2.5 3 5 0 q2.5 3 5 0" stroke="${INK}" stroke-width="1.9" fill="none" stroke-linecap="round"/>` : `<path d="M${cx - 5} ${my} q5 4 10 0" stroke="${INK}" stroke-width="2" fill="none" stroke-linecap="round"/>`
+  if (d === 'full' && st >= 3 && (sp === 'otter' || sp === 'cat')) {
+    const wc = sp === 'otter' ? '#6E5641' : '#C2946A'
+    s += `<path d="M${cx - 13} ${cy + 7} l-9 -2 M${cx - 13} ${cy + 9.5} l-9 1.5 M${cx + 13} ${cy + 7} l9 -2 M${cx + 13} ${cy + 9.5} l9 1.5" stroke="${wc}" stroke-width="1.1" stroke-linecap="round" opacity=".8"/>`
+  }
+  return s
+}
+
+const eggBottom = () => `<path d="M30 84 L36 79 L42 85 L48 79 L54 85 L60 79 L66 85 L72 79 L78 85 L84 79 L90 84 C90 98 80 108 60 108 C40 108 30 98 30 84 Z" fill="#F3EBDD" stroke="#E0D3BC" stroke-width="2" stroke-linejoin="round"/><path d="M40 96 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4" stroke="#D8C7A8" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
+const eggTop = () => `<path d="M60 24 C80 24 90 56 90 84 L84 79 L78 85 L72 79 L66 85 L60 79 L54 85 L48 79 L42 85 L36 79 L30 84 C30 56 40 24 60 24 Z" fill="#F3EBDD" stroke="#E0D3BC" stroke-width="2" stroke-linejoin="round"/>`
+
+// ─ 종마다 부품 (back = 몸 뒤, ears = 머리 뒤, neck = 머리 앞 목, front = 팔·든 것, top = 머리 위) ─
+const SP = {
+  turtle(st, g, P, d) {
+    const { hy, hr, by, brx, bry } = g, cx = 60
+    let back = '', front = '', neck = '', top = '', ears = '', belly = ''
+    if (st === 1) {
+      back += oval(60, 84, 33, 14, P.shell)
+      if (d === 'full') back += `<circle cx="30" cy="80" r="3.4" fill="${P.shellD}"/><circle cx="90" cy="80" r="3.4" fill="${P.shellD}"/>`
+    } else {
+      const sx = brx + 11, sy = bry + 7, scy = by - 3
+      back += `<ellipse cx="60" cy="${scy}" rx="${sx}" ry="${sy}" fill="${P.shell}" ${st >= 3 ? `stroke="${st >= 5 ? GOLD : '#E9DDB0'}" stroke-width="3"` : ''}/>`
+      if (d === 'full') for (const [ox, oy] of [[-sx + 7, -2], [sx - 7, -2], [-sx + 12, -sy + 9], [sx - 12, -sy + 9], [-sx + 9, sy - 10], [sx - 9, sy - 10]])
+        back += `<path d="M${f(60 + ox - 4)} ${f(scy + oy)} l2 -3.4 h4 l2 3.4 l-2 3.4 h-4z" fill="${P.shellD}" stroke="${P.shellD}" stroke-width="1.2" stroke-linejoin="round"/>`
+      const moss = (x, y, big) => {
+        let m = `<circle cx="${x}" cy="${y}" r="${big ? 6.5 : 5.5}" fill="#6FB36A"/><circle cx="${x + 6}" cy="${y - 3}" r="${big ? 5.5 : 4.5}" fill="#86C66E"/><circle cx="${x - 5.5}" cy="${y - 3.5}" r="4.5" fill="#86C66E"/><circle cx="${x + 1}" cy="${y - 6.5}" r="4" fill="#6FB36A"/>`
+        return m
+      }
+      const flower = (x, y, c = WHITE) => `<g><circle cx="${x - 2}" cy="${y}" r="2" fill="${c}"/><circle cx="${x + 2}" cy="${y}" r="2" fill="${c}"/><circle cx="${x}" cy="${y - 2}" r="2" fill="${c}"/><circle cx="${x}" cy="${y + 2}" r="2" fill="${c}"/><circle cx="${x}" cy="${y}" r="1.5" fill="#FFD166"/></g>`
+      const Lx = 60 - sx + 9, Rx = 60 + sx - 9, my = scy - sy + 11
+      if (st >= 3) { back += moss(Lx, my, st >= 4); back += flower(Lx + 1, my - 8) }
+      if (st >= 4) { back += moss(Rx, my, true) + flower(Lx - 6, my - 2, '#FF8FA3') }
+      if (st === 4) back += `<rect x="${Rx + 1}" y="${my - 12}" width="3.4" height="7" rx="1.5" fill="#F5EBD8"/><path d="M${Rx - 4} ${my - 11} q6.7 -9 13.4 0z" fill="#E36A5A"/>` + (d === 'full' ? `<circle cx="${Rx}" cy="${my - 13}" r="1.1" fill="#fff"/><circle cx="${Rx + 5}" cy="${my - 14}" r="1" fill="#fff"/>` : '')
+      if (st >= 5) {
+        const bx = Rx + 1, byy = my - 4, tx = bx + 9, ty = hy - 20
+        back += `<g class="c-tree" style="transform-origin:${bx}px ${byy}px"><path d="M${bx} ${byy} Q${bx + 2} ${byy - 14} ${tx} ${ty}" stroke="#8B6B4A" stroke-width="4.2" fill="none" stroke-linecap="round"/><path d="M${bx + 3} ${byy - 12} q-6 -3 -8 -9" stroke="#8B6B4A" stroke-width="2.6" fill="none" stroke-linecap="round"/>`
+        back += `<circle cx="${tx}" cy="${ty - 4}" r="12" fill="${LEAF2}"/><circle cx="${tx - 9}" cy="${ty + 3}" r="8" fill="#63B86B"/><circle cx="${tx + 8}" cy="${ty + 5}" r="7.5" fill="#63B86B"/><circle cx="${bx - 6}" cy="${byy - 21}" r="5" fill="#63B86B"/>`
+        back += `<circle cx="${tx - 4}" cy="${ty - 8}" r="2.4" fill="#FF8FA3"/><circle cx="${tx + 5}" cy="${ty - 2}" r="2.4" fill="#FFD166"/><circle cx="${tx - 8}" cy="${ty + 4}" r="2.2" fill="#fff"/><circle cx="${tx + 7}" cy="${ty + 7}" r="2" fill="#FF8FA3"/></g>`
+      }
+      belly = `<ellipse cx="60" cy="${by + 2}" rx="${brx - 6}" ry="${bry - 4}" fill="${P.belly}"/>` + (d === 'full' ? `<path d="M${60 - brx + 9} ${by - 3} Q60 ${by - 1} ${60 + brx - 9} ${by - 3} M${60 - brx + 9} ${by + 6} Q60 ${by + 8} ${60 + brx - 9} ${by + 6}" stroke="${P.bellyL}" stroke-width="1.6" fill="none" stroke-linecap="round"/>` : '')
+      front += oval(60 - brx + 1, by - 3, 5, 7.5, P.skin, 25) + oval(60 + brx - 1, by - 3, 5, 7.5, P.skin, -25)
+      if (st === 4) front += `<path d="M${60 + brx + 3} ${by - 12} L${60 + brx + 8} ${by + bry + 1}" stroke="#8B6B4A" stroke-width="3" stroke-linecap="round"/>` + leafR(60 + brx + 3, by - 12, .6)
+    }
+    top = sprout(st, cx, hy - hr + 2)
+    return { back, ears, belly, front, neck, top, head: oval(cx, hy, hr, hr - 1, P.skin) }
+  },
+  squirrel(st, g, P, d) {
+    const { hy, hr, by, brx, bry } = g, cx = 60
+    let back = '', front = '', neck = '', top = '', ears = '', belly = ''
+    const k = [0, .45, .75, .95, 1.05, 1.1][st]
+    const bx = st === 1 ? 80 : cx + brx - 6, bY = st === 1 ? 90 : by + bry - 6
+    back += `<g class="c-tail" style="transform-origin:${bx}px ${bY}px"><g transform="translate(${bx} ${bY}) scale(${k})"><path d="M0 0 C26 -2 34 -30 22 -50 C14 -64 -6 -62 -4 -48 C8 -46 12 -36 6 -24 C0 -14 -8 -10 -10 -2 Z" fill="${P.tail}"/>`
+    if (st >= 3) back += `<path d="M2 -7 C16 -12 22 -30 15 -45" stroke="${P.tailL}" stroke-width="${st >= 4 ? 5 : 4}" fill="none" stroke-linecap="round"/>`
+    if (st >= 5) back += `<g transform="translate(-6 -56) rotate(-30)">${leafR(0, 0, .9, '#E8A33B')}</g>`
+    back += '</g></g>'
+    // 귀
+    const ear = (x, y, flip, cls) => {
+      if (st === 1) return `<g class="c-ear ${cls}" style="transform-origin:${x}px ${y + 6}px"><circle cx="${x}" cy="${y}" r="6" fill="${P.skin}"/><circle cx="${x}" cy="${y}" r="3" fill="${P.inner}" opacity=".55"/></g>`
+      const m = flip
+      let s = `<g class="c-ear ${cls}" style="transform-origin:${x}px ${y + 6}px"><path d="M${x - 6 * m} ${y + 5} Q${x - 5 * m} ${y - 13} ${x + 1 * m} ${y - 12} Q${x + 6 * m} ${y - 5} ${x + 6 * m} ${y + 5} Z" fill="${P.skin}"/><path d="M${x - 3 * m} ${y + 3} Q${x - 2.5 * m} ${y - 8} ${x + 1 * m} ${y - 7.5} Q${x + 3.5 * m} ${y - 3} ${x + 3.5 * m} ${y + 3} Z" fill="${P.inner}" opacity=".55"/>`
+      if (st >= 3) s += `<path d="M${x + 1 * m} ${y - 12} l${-1.5 * m} -5 M${x + 1 * m} ${y - 12} l${1.5 * m} -4.5" stroke="${P.inner}" stroke-width="2" stroke-linecap="round"/>`
+      return s + '</g>'
+    }
+    ears = ear(cx - hr * .6, hy - hr * .72, 1, 'c-ear-l') + ear(cx + hr * .6, hy - hr * .72, -1, 'c-ear-r')
+    if (st >= 2) {
+      belly = oval(cx, by + 3, brx - 7, bry - 4, P.belly)
+      if (st === 2) front += acorn(cx, by - 4) + oval(cx - 8, by - 2, 4.5, 4, P.skin) + oval(cx + 8, by - 2, 4.5, 4, P.skin)
+      else {
+        front += oval(cx - brx + 2, by - 2, 4.6, 7, P.skin, 20) + oval(cx + brx - 2, by - 2, 4.6, 7, P.skin, -20)
+        front += `<path d="M${cx - brx + 6} ${by - bry + 7} L${cx + brx - 8} ${by + 4}" stroke="#7A5236" stroke-width="2.6" stroke-linecap="round"/>`
+        const x0 = cx + brx - 17, y0 = by + 1
+        front += `<rect x="${x0}" y="${y0}" width="15" height="12" rx="3" fill="#A0704A"/>` + (d === 'full' ? acorn(x0 + 7.5, y0 - 2, .7) : '') + `<path d="M${x0} ${y0 + 1} h15 v4 q-7.5 5 -15 0z" fill="#7A5236"/>`
+      }
+      if (st >= 4) {
+        const ny = hy + hr - 5
+        neck += `<path d="M${cx - 17} ${ny - 1} Q${cx} ${ny + 8} ${cx + 17} ${ny - 1} L${cx + 18} ${ny + 4} Q${cx} ${ny + 14} ${cx - 18} ${ny + 4} Z" fill="#E07A5F"/>`
+        neck += `<g class="c-swing" style="transform-origin:${cx + 9}px ${ny + 7}px"><path d="M${cx + 6} ${ny + 7} l2 13 l7 -1 l-2 -13 z" fill="#D2654B"/>${d === 'full' ? `<path d="M${cx + 8.5} ${ny + 12} l5.5 -.8 M${cx + 9.2} ${ny + 16} l5.5 -.8" stroke="#F3A68E" stroke-width="1.6"/>` : ''}</g>`
+        if (d === 'full') neck += `<path d="M${cx - 12} ${ny + 4} l0 4 M${cx - 4} ${ny + 6.5} l0 4 M${cx + 4} ${ny + 6.5} l0 4 M${cx + 12} ${ny + 4} l0 4" stroke="#F3A68E" stroke-width="1.6" stroke-linecap="round"/>`
+      }
+    }
+    if (st >= 5) {
+      const cols = ['#E8A33B', '#D9663F', '#8DB255', '#D9663F', '#E8A33B']
+      ;[-162, -136, -112, -68, -44, -18].forEach((a, i) => {
+        const r = (a * Math.PI) / 180, x = cx + (hr + 1) * Math.cos(r), y = hy + (hr + 1) * Math.sin(r)
+        top += `<ellipse cx="${f(x)}" cy="${f(y)}" rx="3.6" ry="7" fill="${cols[i % 5]}" transform="rotate(${a + 90} ${f(x)} ${f(y)})"/>`
+      })
+    }
+    top += sprout(st, cx, hy - hr + 2)
+    return { back, ears, belly, front, neck, top, head: `<circle cx="${cx}" cy="${hy}" r="${hr}" fill="${P.skin}"/>` }
+  },
+  cat(st, g, P, d) {
+    const { hy, hr, by, brx, bry } = g, cx = 60
+    let back = '', front = '', neck = '', top = '', ears = '', belly = ''
+    const tk = [0, .55, .8, .95, 1, 1.05][st]
+    const bx = st === 1 ? 84 : cx + brx - 5, bY = st === 1 ? 86 : by + bry - 5
+    back += `<g class="c-tail" style="transform-origin:${bx}px ${bY}px"><g transform="translate(${bx} ${bY}) scale(${tk})"><path d="M0 0 C14 -2 19 -18 13 -30 C10 -37 14 -44 20 -42" stroke="${P.skin}" stroke-width="6.5" fill="none" stroke-linecap="round"/>${st >= 3 ? `<path d="M12.6 -33 C11 -38 14.5 -43.5 20 -42" stroke="${P.dark}" stroke-width="6.5" fill="none" stroke-linecap="round"/>` : ''}</g></g>`
+    if (st >= 4) {
+      const capeC = '#3E5C9A'
+      back += `<path d="M${cx - brx + 3} ${by - bry + 2} C${cx - brx - 10} ${by} ${cx - brx - 10} ${by + bry - 2} ${cx - brx - 6} ${by + bry + 1} Q${cx} ${by + bry + 6} ${cx + brx + 6} ${by + bry + 1} C${cx + brx + 10} ${by + bry - 2} ${cx + brx + 10} ${by} ${cx + brx - 3} ${by - bry + 2} Z" fill="${capeC}" ${st >= 5 ? `stroke="${GOLD}" stroke-width="2.2"` : ''}/>`
+      if (st >= 5 && d === 'full') back += star(cx - brx - 4, by + 2, 2.8, '#F2C94C') + star(cx + brx + 4, by, 2.8, '#F2C94C') + star(cx - brx - 2, by + bry - 5, 2.4, '#F2C94C') + star(cx + brx + 3, by + bry - 6, 2.4, '#F2C94C')
+    }
+    const ear = (side, cls) => {
+      const m = side, tipY = hy - hr - (st === 1 ? 4 : 9), tipX = cx - m * (hr - 5)
+      const b1x = cx - m * (hr - 1), b1y = hy - 10, b2x = cx - m * 7, b2y = hy - hr + 1
+      return `<g class="c-ear ${cls}" style="transform-origin:${f((b1x + b2x) / 2)}px ${f((b1y + b2y) / 2)}px"><path d="M${f(b1x)} ${b1y} L${f(tipX)} ${tipY} L${b2x} ${b2y} Z" fill="${P.skin}" stroke="${P.skin}" stroke-width="3" stroke-linejoin="round"/><path d="M${f(b1x + m * 4)} ${b1y - 2} L${f(tipX + m * 1.2)} ${tipY + 6} L${b2x - m * 3} ${b2y + 2} Z" fill="${P.ear}"/></g>`
+    }
+    ears = ear(1, 'c-ear-l') + ear(-1, 'c-ear-r')
+    if (st >= 2) {
+      belly = oval(cx, by + 3, brx - 7, bry - 4, P.belly)
+      if (st >= 3 && d === 'full') belly += `<path d="M${cx - brx + 2} ${by - 4} l5 1 M${cx - brx + 1} ${by + 3} l5 0 M${cx + brx - 2} ${by - 4} l-5 1 M${cx + brx - 1} ${by + 3} l-5 0" stroke="${P.dark}" stroke-width="2.2" stroke-linecap="round"/>`
+      if (st === 3) front += `<circle cx="${cx}" cy="${by - 2}" r="7.5" fill="#8FB3E8"/><path d="M${cx - 6} ${by - 5} q6 3 12 0 M${cx - 7} ${by} q7 3 14 0 M${cx - 3} ${by - 9} q-1 7 1 14" stroke="#5F8ED6" stroke-width="1.4" fill="none"/><path d="M${cx + 6} ${by + 2} q8 6 4 ${bry - 4}" stroke="#5F8ED6" stroke-width="1.4" fill="none" stroke-linecap="round"/>` + oval(cx - 8, by + 1, 4.5, 4, P.skin) + oval(cx + 8, by + 1, 4.5, 4, P.skin)
+      else front += oval(cx - brx + 2, by - 2, 4.6, 7, P.skin, 20) + oval(cx + brx - 2, by - 2, 4.6, 7, P.skin, -20)
+      const ny = hy + hr - 4
+      if (st >= 4) neck += `<path d="M${cx - 17} ${ny - 3} L${cx - 3} ${ny + 3} L${cx - 15} ${ny + 8}Z M${cx + 17} ${ny - 3} L${cx + 3} ${ny + 3} L${cx + 15} ${ny + 8}Z" fill="#3E5C9A" stroke="#3E5C9A" stroke-width="2" stroke-linejoin="round"/>`
+      else neck += `<path d="M${cx - 15} ${ny - 1} Q${cx} ${ny + 6} ${cx + 15} ${ny - 1}" stroke="#E0605A" stroke-width="4.5" fill="none" stroke-linecap="round"/>`
+      neck += `<circle cx="${cx}" cy="${ny + 4}" r="3.8" fill="#F2C14E"/><path d="M${cx - 2} ${ny + 5} h4" stroke="#B88A1E" stroke-width="1.2" stroke-linecap="round"/>`
+    }
+    if (st >= 3 && d === 'full') top += `<path d="M${cx} ${hy - hr + 4} v5 M${cx - 6} ${hy - hr + 5.5} l1 4 M${cx + 6} ${hy - hr + 5.5} l-1 4" stroke="${P.dark}" stroke-width="2.2" stroke-linecap="round"/>`
+    if (st >= 5) top += crescent(cx + 15, hy - hr + 9, 4.6, '#F2C94C')
+    top += sprout(st, cx, hy - hr + 2)
+    return { back, ears, belly, front, neck, top, head: oval(cx, hy, hr + 1.5, hr - .5, P.skin) }
+  },
+  otter(st, g, P, d) {
+    const { hy, hr, by, brx, bry } = g, cx = 60
+    let back = '', front = '', neck = '', top = '', ears = '', belly = ''
+    if (st >= 2) {
+      const k = [0, 0, .8, .95, 1.05, 1.1][st], bx = cx - brx + 5, bY = by + bry - 5
+      back += `<g class="c-tail" style="transform-origin:${bx}px ${bY}px"><g transform="translate(${bx} ${bY}) scale(${k})"><path d="M0 0 C-10 2 -24 0 -30 -7 C-27 -11 -14 -10 -1 -10 Z" fill="${P.dark}"/></g></g>`
+    }
+    ears = `<g class="c-ear c-ear-l" style="transform-origin:${cx - hr + 3}px ${hy - hr + 9}px"><circle cx="${cx - hr + 3}" cy="${hy - hr + 7}" r="5.4" fill="${P.skin}"/><circle cx="${cx - hr + 3}" cy="${hy - hr + 7}" r="2.6" fill="${P.dark}"/></g><g class="c-ear c-ear-r" style="transform-origin:${cx + hr - 3}px ${hy - hr + 9}px"><circle cx="${cx + hr - 3}" cy="${hy - hr + 7}" r="5.4" fill="${P.skin}"/><circle cx="${cx + hr - 3}" cy="${hy - hr + 7}" r="2.6" fill="${P.dark}"/></g>`
+    const pebble = (x, y, c, cls) => `<g class="c-pb ${cls}" style="transform-origin:${x}px ${y}px">${oval(x, y, 5.6, 4.3, c)}<ellipse cx="${x - 1.8}" cy="${y - 1.5}" rx="1.8" ry="1" fill="#fff" opacity=".55"/></g>`
+    if (st >= 2) {
+      belly = oval(cx, by + 3, brx - 6, bry - 4, P.belly)
+      front += oval(cx - 8, by + 1, 4.6, 4.2, P.skin) + oval(cx + 8, by + 1, 4.6, 4.2, P.skin)
+      if (st === 2) front += pebble(cx, by - 4, '#9AA5B1', 'c-pb1')
+      else if (st === 3) front += pebble(cx - 6, by - 4, '#9AA5B1', 'c-pb1') + pebble(cx + 6, by - 4, '#C7B7A3', 'c-pb2')
+      else front += pebble(cx, by - 6, '#9AA5B1', 'c-pb1') + pebble(cx, by - 6, '#C7B7A3', 'c-pb2') + pebble(cx, by - 6, '#8FB8C9', 'c-pb3')
+    }
+    if (st >= 3) {
+      const ny = hy + hr - 4
+      neck += `<path d="M${cx - 16} ${ny - 3} Q${cx} ${ny + 6} ${cx + 16} ${ny - 3}" stroke="#C9B48F" stroke-width="1.6" fill="none"/>`
+      const shell = (x, y, c) => `<path d="M${x - 3.6} ${y} l3.6 -5 l3.6 5 q-3.6 2.6 -7.2 0z" fill="${c}" stroke="${c}" stroke-width="1" stroke-linejoin="round"/>`
+      neck += shell(cx - 8, ny + 2.5, '#F6C7B6') + shell(cx, ny + 5, '#FFE7A8') + shell(cx + 8, ny + 2.5, '#F6C7B6')
+    }
+    if (st >= 5) {
+      const t = hy - hr
+      top += `<path d="M${cx - 22} ${t + 11} C${cx - 25} ${t - 1} ${cx - 15} ${t - 9} ${cx - 9} ${t - 2} C${cx - 6} ${t + 2} ${cx - 3} ${t + 3} ${cx} ${t + 2} C${cx + 3} ${t + 3} ${cx + 6} ${t + 2} ${cx + 9} ${t - 2} C${cx + 15} ${t - 9} ${cx + 25} ${t - 1} ${cx + 22} ${t + 11} Q${cx} ${t + 3} ${cx - 22} ${t + 11} Z" fill="#5FA8D8"/>`
+      top += `<path d="M${cx - 17} ${t - 1} q3 -4 6 -1 M${cx + 11} ${t - 2} q3 -3 6 1" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="${cx - 20}" cy="${t + 4}" r="1.5" fill="#fff"/><circle cx="${cx + 20}" cy="${t + 4}" r="1.5" fill="#fff"/>`
+    }
+    top += sprout(st, cx, hy - hr + 2)
+    return { back, ears, belly, front, neck, top, head: oval(cx, hy, hr + 1.5, hr - 1, P.skin) }
+  }
+}
+function acorn(x, y, k = 1) {
+  return `<g transform="translate(${x} ${y}) scale(${k})"><ellipse cx="0" cy="2.5" rx="5.6" ry="6.6" fill="#B07A45"/><path d="M-6.6 -.5 q6.6 -8 13.2 0 z" fill="#6E4A2A" stroke="#6E4A2A" stroke-width="1.4" stroke-linejoin="round"/><path d="M0 -4.5 v-3" stroke="#6E4A2A" stroke-width="1.8" stroke-linecap="round"/></g>`
+}
+
+function aura(sp, st, P) {
+  if (st === 4) return `<ellipse class="c-mat" cx="60" cy="109" rx="44" ry="7" fill="${P.tint}"/>`
+  if (st < 5) return ''
+  let s = `<g class="c-aura"><circle class="c-disc" cx="60" cy="62" r="52" fill="${P.tint}"/>`
+  if (sp === 'turtle') s += `<g class="c-float">${leafL(18, 46, .8)}</g><g class="c-float">${leafR(98, 86, .7, LEAF2)}</g><g class="c-float"><circle cx="16" cy="84" r="2.6" fill="#FF8FA3"/></g>`
+  if (sp === 'squirrel') s += `<g class="c-fall"><ellipse cx="18" cy="30" rx="3" ry="5.5" fill="#E8A33B"/></g><g class="c-fall d2"><ellipse cx="104" cy="36" rx="3" ry="5.5" fill="#D9663F"/></g><g class="c-fall d3"><ellipse cx="14" cy="70" rx="3" ry="5.5" fill="#8DB255"/></g>`
+  if (sp === 'cat') s += `<g>${crescent(22, 30, 9, '#F2E3A8')}</g><g class="c-twinkle">${star(104, 30, 3.4, '#F2C94C')}</g><g class="c-twinkle d2">${star(14, 70, 2.8, '#F2C94C')}</g><g class="c-twinkle d3">${star(106, 76, 2.6, '#F2C94C')}</g>`
+  if (sp === 'otter') s += `<path d="M6 100 q8 -6 16 0 t16 0 M82 100 q8 -6 16 0 t16 0" stroke="#7DBBE3" stroke-width="2.6" fill="none" stroke-linecap="round"/><g class="c-rise"><circle cx="18" cy="60" r="3.4" fill="none" stroke="#7DBBE3" stroke-width="1.6"/></g><g class="c-rise d2"><circle cx="102" cy="50" r="2.6" fill="none" stroke="#7DBBE3" stroke-width="1.6"/></g><g class="c-rise d3"><circle cx="108" cy="74" r="3" fill="none" stroke="#7DBBE3" stroke-width="1.6"/></g>`
+  return s + '</g>'
+}
+
+/** 새 그림. o: { mood, detail:'full'|'small'|'auto', size, crop:'full'|'bust', live, sil } */
+function art(sp, st, o = {}) {
+  const P = PAL[sp], g = GEO[st], mood = o.mood || 'default'
+  const d = o.detail && o.detail !== 'auto' ? o.detail : (o.size && o.size <= 40 ? 'small' : 'full')
+  const crop = o.crop || (o.size && o.size <= 40 ? 'bust' : 'full')
+  const L = SP[sp](st, g, P, d)
+  const cx = 60
+  let inner
+  const headG = (extra = '') => `<g class="c-head" style="transform-origin:60px ${g.hy + g.hr}px">${L.ears}${L.head}${face(sp, P, cx, g.hy, g.e, mood, d, st)}${L.top}${extra}</g>`
+  if (st === 1) {
+    const paw = sp === 'squirrel' || sp === 'otter' ? P.foot : P.skin
+    inner = L.back + headG() + eggBottom() + `<circle cx="${cx - 12}" cy="81" r="4.6" fill="${paw}"/><circle cx="${cx + 12}" cy="81" r="4.6" fill="${paw}"/>`
+  } else {
+    const feet = oval(cx - 11, g.by + g.bry - 2, 7, 4.5, P.foot) + oval(cx + 11, g.by + g.bry - 2, 7, 4.5, P.foot)
+    inner = L.back + `<ellipse cx="${cx}" cy="${g.by}" rx="${g.brx}" ry="${g.bry}" fill="${P.skin}"/>` + L.belly + feet + headG() + L.neck + L.front
+  }
+  const auraS = d === 'full' && crop === 'full' ? aura(sp, st, P) : ''
+  let vb = '0 0 120 120'
+  if (crop === 'bust') {
+    const t = g.hy - g.hr - 16, b = g.hy + g.hr + 10, h = b - t
+    vb = `${f(60 - h / 2)} ${f(t)} ${f(h)} ${f(h)}`
+  }
+  const cls = `chr sp-${sp} st-${st}${o.live ? ' live' : ''}${o.sil ? ' sil' : ''}`
+  const sz = o.size ? ` width="${o.size}" height="${o.size}"` : ''
+  return `<svg class="${cls}" viewBox="${vb}"${sz} role="img" aria-label="${SPECIES[sp].name} ${STAGES[st].name}">${auraS}<ellipse class="c-shadow" cx="60" cy="110" rx="${st === 1 ? 26 : 22 + st * 3}" ry="4.5" fill="rgba(0,0,0,.08)"/><g class="c-hop"><g class="c-sway"><g class="c-breath">${inner}</g></g></g></svg>`
+}
+function eggArt(o = {}) {
+  const cracks = o.cracks ?? 0
+  return `<svg class="chr egg" viewBox="0 0 120 120"${o.size ? ` width="${o.size}" height="${o.size}"` : ''} role="img" aria-label="알"><ellipse class="c-shadow" cx="60" cy="110" rx="24" ry="4.5" fill="rgba(0,0,0,.08)"/>
+  <g class="egg-top">${eggTop()}<path d="M60 31 V22" stroke="${LEAF}" stroke-width="3" stroke-linecap="round"/>${leafL(60, 24, .8)}</g><g class="egg-bot">${eggBottom()}</g>
+  <path class="crk crk1" d="M48 44 l6 8 l-4 6 l6 6" stroke="#B9A47F" stroke-width="2" fill="none" opacity="${cracks > 0 ? 1 : 0}"/><path class="crk crk2" d="M74 50 l-5 7 l5 5" stroke="#B9A47F" stroke-width="2" fill="none" opacity="${cracks > 1 ? 1 : 0}"/><path class="crk crk3" d="M62 64 l-4 -7 l6 -5" stroke="#B9A47F" stroke-width="2" fill="none" opacity="${cracks > 2 ? 1 : 0}"/></svg>`
+}
+
+// 지금 앱 그림(CharacterArt.tsx를 그대로 옮김) — A 비교용
+function oldArt(sp, st, size = 112) {
+  const C = { turtle: { body: '#9BD3A0', accent: '#5E9E6B' }, squirrel: { body: '#E8B48A', accent: '#B5764A' }, cat: { body: '#F2C9A0', accent: '#C98E5B' }, otter: { body: '#B89A7E', accent: '#7E6249' } }[sp]
+  const scale = .72 + st * .07, leaf = '#5DBB63'
+  let s = `<svg viewBox="0 0 120 120" width="${size}" height="${size}"><ellipse cx="60" cy="110" rx="${30 * scale}" ry="5" fill="rgba(0,0,0,0.08)"/><g transform="translate(60 ${108 - 50 * scale}) scale(${scale}) translate(-60 -58)">`
+  if (sp === 'turtle') s += `<ellipse cx="60" cy="74" rx="40" ry="26" fill="${C.accent}"/>`
+  if (sp === 'squirrel') s += `<path d="M88 84 C116 76 112 30 90 34 C104 46 96 64 84 70 Z" fill="${C.accent}"/>`
+  if (sp === 'otter') s += `<ellipse cx="60" cy="96" rx="34" ry="8" fill="${C.accent}" opacity="0.6"/>`
+  if (sp === 'cat') s += `<path d="M86 92 C104 92 108 74 100 66" stroke="${C.accent}" stroke-width="7" fill="none" stroke-linecap="round"/>`
+  s += `<ellipse cx="60" cy="66" rx="34" ry="32" fill="${C.body}"/>`
+  if (sp === 'cat') s += `<path d="M32 44 L36 22 L50 38 Z" fill="${C.body}"/><path d="M88 44 L84 22 L70 38 Z" fill="${C.body}"/>`
+  if (sp === 'squirrel' || sp === 'otter') s += `<circle cx="36" cy="40" r="7" fill="${C.body}"/><circle cx="84" cy="40" r="7" fill="${C.body}"/>`
+  if (sp === 'turtle') s += `<circle cx="30" cy="90" r="6" fill="${C.body}"/><circle cx="90" cy="90" r="6" fill="${C.body}"/>`
+  s += `<circle cx="49" cy="62" r="4.5" fill="#3A3A3A"/><circle cx="71" cy="62" r="4.5" fill="#3A3A3A"/><circle cx="50.5" cy="60.5" r="1.4" fill="#fff"/><circle cx="72.5" cy="60.5" r="1.4" fill="#fff"/>`
+  s += `<circle cx="41" cy="72" r="5" fill="#FF9FA8" opacity="0.55"/><circle cx="79" cy="72" r="5" fill="#FF9FA8" opacity="0.55"/><path d="M54 72 q6 7 12 0" stroke="#3A3A3A" stroke-width="2" fill="none" stroke-linecap="round"/>`
+  if (st >= 4) {
+    s += `<rect x="58" y="22" width="4" height="14" rx="2" fill="#8B6B4A"/><circle cx="60" cy="18" r="${st >= 5 ? 13 : 11}" fill="${leaf}"/>`
+    if (st >= 5) s += `<circle cx="54" cy="14" r="3.5" fill="#FFD166"/><circle cx="66" cy="16" r="3.5" fill="#FF8FA3"/><circle cx="60" cy="9" r="3.5" fill="#FFF"/>`
+  } else {
+    s += `<path d="M60 36 V24" stroke="${leaf}" stroke-width="3" stroke-linecap="round"/><path d="M60 26 C52 18 44 22 46 28 C52 30 57 29 60 26 Z" fill="${leaf}"/>`
+    if (st >= 2) s += `<path d="M60 24 C68 16 76 20 74 26 C68 28 63 27 60 24 Z" fill="${leaf}"/>`
+    if (st >= 3) s += `<path d="M60 30 C66 26 72 30 70 34 C66 35 62 33 60 30 Z" fill="${leaf}"/>`
+  }
+  return s + '</g></svg>'
+}
+
+// ───────────────────────── 상태 · 그리기 ─────────────────────────
+const $ = (q) => document.querySelector(q)
+const state = { sp: 'turtle', st: 4, theme: null, motion: 'full', mood: 'default' }
+const reduced = () => state.motion === 'reduce' || matchMedia('(prefers-reduced-motion: reduce)').matches
+function seg(id, items, key, after) {
+  const el = $(id)
+  if (items) el.innerHTML = items.map(([v, t]) => `<button data-v="${v}">${t}</button>`).join('')
+  const sync = () => el.querySelectorAll('button').forEach((b) => b.classList.toggle('on', String(state[key]) === b.dataset.v))
+  el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; state[key] = key === 'st' ? +b.dataset.v : b.dataset.v; sync(); after() })
+  sync()
+}
+function renderAll() {
+  const { sp, st } = state
+  document.querySelectorAll('.spname').forEach((e) => (e.textContent = SPECIES[sp].full))
+  // A
+  let a = `<div></div>` + [1, 2, 3, 4, 5].map((s) => `<div class="head">${STAGES[s].name}<small>${STAGES[s].lv} · ${STAGES[s].xp.toLocaleString()} XP</small></div>`).join('')
+  a += `<div class="lab">지금</div>` + [1, 2, 3, 4, 5].map((s) => `<div class="cell">${oldArt(sp, s)}<div class="cap">새싹${s >= 4 ? (s === 5 ? ' 나무 + 꽃' : ' → 나무') : ' 잎 ' + s + '장'} · ${Math.round((.72 + s * .07) * 100)}%</div></div>`).join('')
+  a += `<div class="lab">제안</div>` + [1, 2, 3, 4, 5].map((s) => `<div class="cell">${art(sp, s, { size: 112, mood: s >= 4 ? 'smile' : 'default' })}<div class="cap">${FEAT[sp][s]}</div></div>`).join('')
+  $('#abGrid').innerHTML = a
+  // C
+  $('#pen').innerHTML = `<div class="ch" id="bigCh" style="width:230px;height:230px">${art(sp, st, { live: true, mood: state.mood })}</div>`
+  $('#row5').innerHTML = [1, 2, 3, 4, 5].map((s) => `<div class="c">${art(sp, s, { live: true })}<b>${s}. ${STAGES[s].name}</b><span>${TITLE[sp][s]}</span></div>`).join('')
+  $('#spMotionHead').textContent = SPECIES[sp].name + '만'
+  $('#motionRows').innerHTML = [1, 2, 3, 4, 5].map((s) => `<tr><td>${s}. ${STAGES[s].name}</td><td>${MOTION_ALL[s]}</td><td>${MOTION_SP[sp][s]}</td></tr>`).join('')
+  // D
+  resetEvo()
+  // E
+  const size = 230 + 12 * (st - 1)
+  $('#gch').innerHTML = `<div class="ch" style="width:${size}px;height:${size}px">${art(sp, st, { live: true, mood: 'smile' })}</div>`
+  $('#hudName').textContent = SPECIES[sp].pet
+  $('#hudSub').textContent = `${SPECIES[sp].full} · Lv ${STAGES[st].from + 1} ${STAGES[st].name}`
+  $('#road').innerHTML = [1, 2, 3, 4, 5].map((s) => `<div class="dot${s === st ? ' now' : ''}${s > st ? ' lock' : ''}"><i>${art(sp, s, { size: 30 })}</i>${STAGES[s].name}</div>`).join('')
+  $('#asstBig').innerHTML = `<div class="ch" style="width:96px;height:96px">${art(sp, st, { mood: 'smile', size: 96 })}</div>`
+  $('#asstName').textContent = SPECIES[sp].pet
+  $('#asstSub').textContent = `${SPECIES[sp].full} · Lv ${STAGES[st].from + 1} ${STAGES[st].name}`
+  $('#asstSmall').innerHTML = art(sp, st, { size: 30, mood: 'happy' })
+  $('#asstWho').textContent = SPECIES[sp].pet
+  const avBg = { turtle: '#C6E7C8', squirrel: '#FCE2BB', cat: '#C2DFFD', otter: '#E4D0CE' }[sp]
+  $('#minis').innerHTML =
+    `<div class="m"><div class="av" style="width:34px;height:34px;background:${avBg}">${art(sp, st, { size: 34 })}</div>레일 34</div>` +
+    `<div class="m"><div class="av" style="width:72px;height:72px;background:${avBg}">${art(sp, st, { size: 72, crop: 'bust', detail: 'full' })}</div>설정 72</div>` +
+    `<div class="m"><div class="side">${art(sp, st, { size: 36 })}<div style="flex:1"><b>Lv ${STAGES[st].from + 1} ${SPECIES[sp].name}</b><div class="bar"><i style="width:42%"></i></div></div></div>사이드바 카드 36</div>` +
+    `<div class="m"><div style="display:flex;gap:6px;align-items:flex-end">${[18, 24, 30].map((z) => art(sp, st, { size: z })).join('')}</div>18 · 24 · 30</div>`
+}
+function renderLadder() {
+  let h = `<div></div>` + [1, 2, 3, 4, 5].map((s) => `<div class="hd">${s}. ${STAGES[s].name}<small>${STAGES[s].lv} · ${STAGES[s].xp.toLocaleString()} XP부터</small></div>`).join('')
+  for (const sp of Object.keys(SPECIES)) {
+    h += `<div class="sp">${SPECIES[sp].name}<small>${SPECIES[sp].full}</small></div>`
+    h += [1, 2, 3, 4, 5].map((s) => `<div class="c">${art(sp, s, { mood: s >= 4 ? 'smile' : 'default' })}<b>${TITLE[sp][s]}</b><span>${FEAT[sp][s]}</span></div>`).join('')
+  }
+  $('#ladder').innerHTML = h
+}
+
+// ───────────────────────── 반응 (C) ─────────────────────────
+const bigCh = () => $('#bigCh')
+function hop(el) { if (reduced()) return; el.animate([{ transform: 'none' }, { transform: 'scale(1.05,.94)', offset: .15 }, { transform: 'translateY(-14px) scale(.97,1.04)', offset: .45 }, { transform: 'scale(1.04,.96)', offset: .75 }, { transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.3,.7,.4,1)' }) }
+function float(el, html, cls, ms = 900) {
+  const d = document.createElement('div'); d.className = cls; d.innerHTML = html; el.appendChild(d)
+  const a = reduced() ? d.animate([{ opacity: 1 }, { opacity: 1, offset: .7 }, { opacity: 0 }], { duration: ms }) : d.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, offset: .2 }, { opacity: 0, transform: 'translateY(-18px)' }], { duration: ms, easing: 'ease-out' })
+  a.onfinish = () => d.remove()
+}
+function setMood(m) { state.mood = m; const c = bigCh(); c.innerHTML = art(state.sp, state.st, { live: true, mood: m }) }
+const LINES = ['오늘 하나만 더 해 볼까?', '나 조금 컸지?', '쓰다듬어 줘서 고마워', '천천히 가도 괜찮아']
+let li = 0
+$('#bTap').onclick = () => { const c = bigCh(); hop(c); const say = document.createElement('div'); say.className = 'say'; say.textContent = LINES[li++ % LINES.length]; c.appendChild(say); say.animate([{ opacity: 0 }, { opacity: 1, offset: .08 }, { opacity: 1, offset: .88 }, { opacity: 0 }], { duration: 2600 }).onfinish = () => say.remove() }
+$('#bDone').onclick = () => { const c = bigCh(); setMood('happy'); hop(c); float(c, '+1', 'xp'); clearTimeout(window._mt); window._mt = setTimeout(() => setMood('default'), 2200) }
+$('#bSleep').onclick = () => setMood(state.mood === 'sleepy' ? 'default' : 'sleepy')
+$('#bLv').onclick = () => {
+  const c = bigCh(); setMood('happy')
+  if (!reduced()) c.animate([{ transform: 'none' }, { transform: 'scale(.94,1.04)', offset: .2 }, { transform: 'translateY(-10px) scale(1.12)', offset: .5 }, { transform: 'scale(.98,1.02)', offset: .8 }, { transform: 'none' }], { duration: 600, easing: 'cubic-bezier(.2,1.2,.4,1)' })
+  burst(c, state.sp, 10, 90)
+  float(c, `Lv ${STAGES[state.st].from + 2}`, 'chip-lv', 1600)
+  clearTimeout(window._mt); window._mt = setTimeout(() => setMood('default'), 2200)
+}
+// 종 소품 조각
+function bitSvg(sp, i) {
+  const acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
+  if (i % 3 === 0) return `<svg viewBox="0 0 10 10"><rect x="2" y="2" width="6" height="6" rx="1.5" fill="${acc}"/></svg>`
+  if (sp === 'turtle') return `<svg viewBox="0 0 10 10"><ellipse cx="5" cy="5" rx="2.6" ry="4.6" fill="${i % 2 ? LEAF : '#FF8FA3'}"/></svg>`
+  if (sp === 'squirrel') return `<svg viewBox="0 0 10 10"><ellipse cx="5" cy="5" rx="2.6" ry="4.6" fill="${i % 2 ? '#E8A33B' : '#D9663F'}"/></svg>`
+  if (sp === 'cat') return `<svg viewBox="0 0 10 10">${star(5, 5, 4.4, '#F2C94C')}</svg>`
+  return `<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="3.6" fill="none" stroke="#5FA8D8" stroke-width="1.4"/></svg>`
+}
+function burst(host, sp, n, dist, delay = 0) {
+  if (reduced()) return
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement('div'); b.className = 'bit'; b.innerHTML = bitSvg(sp, i); host.appendChild(b)
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2 + (i % 2 ? .2 : -.1), r = dist * (.75 + (i % 3) * .15)
+    const an = b.animate([{ transform: 'translate(0,0) scale(.4) rotate(0)', opacity: 0 }, { opacity: 1, offset: .15 }, { transform: `translate(${Math.cos(a) * r}px,${Math.sin(a) * r + 16}px) scale(1) rotate(${i * 50}deg)`, opacity: 0 }], { duration: 760, delay, easing: 'cubic-bezier(.2,.8,.4,1)', fill: 'backwards' })
+    an.onfinish = () => b.remove()
+  }
+}
+
+// ───────────────────────── 진화 (D) ─────────────────────────
+const EV = 240
+let evoAnims = [], evoDone = null
+function resetEvo() {
+  const { sp, st } = state
+  $('#evoLayers').innerHTML = `<div class="evl" style="width:${EV}px;height:${EV}px;margin-left:${-EV / 2}px">${art(sp, st, { live: true, mood: 'smile' })}</div>`
+  $('#evoCard').style.opacity = 0; $('#evoDim').style.opacity = 0; $('#evo').classList.remove('playing')
+  $('#evoLabel').textContent = st === 1 ? `알 → ${TITLE[sp][1]} (알 깨기)` : `${TITLE[sp][st - 1]} → ${TITLE[sp][st]}`
+}
+function layer(html) { const d = document.createElement('div'); d.className = 'evl'; d.style.cssText = `width:${EV}px;height:${EV}px;margin-left:${-EV / 2}px`; d.innerHTML = html; $('#evoLayers').appendChild(d); return d }
+// 시각(ms) 표 → WAAPI 키프레임
+function tl(el, frames, total, extra = {}) { const k = frames.map(([t, p]) => ({ ...p, offset: t / total })); const a = el.animate(k, { duration: total, fill: 'forwards', ...extra }); evoAnims.push(a); return a }
+function showCard(sp, st, at) {
+  const c = $('#evoCard')
+  c.querySelector('.k').textContent = st === 1 ? '알이 깨졌어요' : `${STAGES[st].name}${st === 4 ? "으로" : "로"} 자랐어요`
+  c.querySelector('.n').textContent = TITLE[sp][st]
+  c.querySelector('.f').textContent = '+ 새 모습 · ' + NEWLINE[sp][st]
+  const r = reduced()
+  tl(c, [[0, { opacity: 0, transform: `translate(-50%, ${r ? 0 : 10}px)` }], [at, { opacity: 0, transform: `translate(-50%, ${r ? 0 : 10}px)` }], [at + 260, { opacity: 1, transform: 'translate(-50%, 0)' }], [at + 3300, { opacity: 1, transform: 'translate(-50%, 0)' }], [at + 3600, { opacity: 0, transform: 'translate(-50%, 0)' }]], at + 3600)
+}
+function finishEvo() { evoAnims.forEach((a) => { try { a.finish() } catch (e) {} }); evoAnims = []; if (evoDone) { const d = evoDone; evoDone = null; d() } }
+function playEvo() {
+  finishEvo()
+  const { sp, st } = state, box = $('#evoLayers'), dim = $('#evoDim')
+  box.innerHTML = ''; $('#evo').classList.add('playing')
+  const end = () => {
+    box.innerHTML = ''; layer(art(sp, st, { live: true, mood: 'smile' }))
+    $('#evo').classList.remove('playing'); dim.style.opacity = 0
+    const c = $('#evoCard'); c.style.opacity = 1; c.style.transform = 'translate(-50%,0)'
+    clearTimeout(window._ct); window._ct = setTimeout(() => { c.style.opacity = 0 }, 2500)
+  }
+  evoDone = end
+  const fromHtml = st === 1 ? eggArt() : art(sp, st - 1, {})
+  if (reduced()) {
+    const A = layer(fromHtml), B = layer(art(sp, st, { mood: 'smile' }))
+    tl(A, [[0, { opacity: 1 }], [300, { opacity: 0 }]], 300); tl(B, [[0, { opacity: 0 }], [300, { opacity: 1 }]], 300)
+    showCard(sp, st, 200)
+    evoAnims[evoAnims.length - 1].onfinish = () => { if (evoDone) { evoDone = null; end() } }
+    return
+  }
+  tl(dim, [[0, { opacity: 0 }], [250, { opacity: 1 }], [1900, { opacity: 1 }], [2300, { opacity: 0 }]], 2300)
+  if (st === 1) {
+    // 알 깨기: 흔들 3번 + 금 3개 → 윗껍질이 튀어 날아가고 아기가 톡
+    const E = layer(eggArt())
+    const cr = [...E.querySelectorAll('.crk')]
+    cr.forEach((p, i) => tl(p, [[0, { opacity: 0 }], [250 + i * 230, { opacity: 0 }], [300 + i * 230, { opacity: 1 }], [1300, { opacity: 1 }]], 1300))
+    tl(E, [[0, { transform: 'none', opacity: 1 }], [250, { transform: 'rotate(0)' }], [350, { transform: 'rotate(-6deg)' }], [450, { transform: 'rotate(6deg)' }], [550, { transform: 'rotate(0)' }], [650, { transform: 'rotate(-7deg)' }], [750, { transform: 'rotate(7deg)' }], [850, { transform: 'rotate(0)' }], [950, { transform: 'scale(1.05,.95)' }], [1080, { transform: 'scale(1.05,.95)', opacity: 1 }], [1090, { opacity: 0 }]], 1090)
+    const T = layer(`<svg viewBox="0 0 120 120">${eggTop()}<path d="M60 31 V22" stroke="${LEAF}" stroke-width="3" stroke-linecap="round"/>${leafL(60, 24, .8)}</svg>`)
+    tl(T, [[0, { opacity: 0 }], [1080, { opacity: 0, transform: 'none' }], [1090, { opacity: 1 }], [1600, { opacity: 0, transform: 'translate(-30px,-70px) rotate(-38deg)' }]], 1600, { easing: 'cubic-bezier(.2,.7,.4,1)' })
+    const B = layer(art(sp, 1, { mood: 'happy' }))
+    tl(B, [[0, { opacity: 0 }], [1080, { opacity: 0, transform: 'translateY(10px) scale(.92,1)' }], [1090, { opacity: 1 }], [1250, { transform: 'translateY(-10px) scale(.96,1.06)' }], [1420, { transform: 'scale(1.05,.95)' }], [1600, { transform: 'none', opacity: 1 }]], 1600)
+    burst(box, sp, 8, 110, 1090)
+    showCard(sp, 1, 1350)
+  } else {
+    const A = layer(fromHtml), As = layer(art(sp, st - 1, { sil: true })), Bs = layer(art(sp, st, { sil: true })), B = layer(art(sp, st, { mood: 'happy' }))
+    tl(A, [[0, { opacity: 1, transform: 'none' }], [120, { transform: 'scale(1.05,.94)' }], [250, { transform: 'none' }], [540, { opacity: 1 }], [560, { opacity: 0 }]], 560)
+    const sc = (t) => `scale(${1 + Math.min(1, Math.max(0, (t - 250) / 1070)) * .08})`
+    tl(As, [[0, { opacity: 0, transform: 'none' }], [250, { opacity: 0, transform: sc(250) }], [550, { opacity: 1, transform: sc(550) }], [650, { opacity: 1, transform: sc(650) }], [770, { opacity: 0, transform: sc(770) }], [950, { opacity: 0, transform: sc(950) }], [1070, { opacity: 1, transform: sc(1070) }], [1200, { opacity: 1, transform: sc(1200) }], [1320, { opacity: 0, transform: sc(1320) }]], 1320)
+    tl(Bs, [[0, { opacity: 0, transform: 'none' }], [650, { opacity: 0, transform: sc(650) }], [770, { opacity: 1, transform: sc(770) }], [950, { opacity: 1, transform: sc(950) }], [1070, { opacity: 0, transform: sc(1070) }], [1200, { opacity: 0, transform: sc(1200) }], [1320, { opacity: 1, transform: sc(1320) }], [1420, { opacity: 1, transform: 'scale(1.18)' }], [1560, { opacity: 0, transform: 'scale(1.02)' }]], 1560)
+    tl(B, [[0, { opacity: 0 }], [1420, { opacity: 0, transform: 'scale(1.12)' }], [1460, { opacity: 1 }], [1640, { transform: 'scale(.95,1.04)' }], [1800, { transform: 'scale(1.02,.98)' }], [1950, { transform: 'none', opacity: 1 }]], 1950)
+    burst(box, sp, 8, 120, 1420)
+    showCard(sp, st, 1550)
+  }
+  if (window._seek != null) { evoAnims.forEach((a) => { a.pause(); a.currentTime = window._seek }); document.getAnimations().forEach((a) => { if (a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('.bit')) { a.pause(); a.currentTime = window._seek } }); return }
+  setTimeout(() => { if (evoDone === end) { evoDone = null; end() } }, 2350)
+}
+$('#bEvo').onclick = (e) => { e.stopPropagation(); playEvo() }
+$('#evo').onclick = () => { if ($('#evo').classList.contains('playing')) finishEvo() }
+$('#evoSkip').onclick = (e) => { e.stopPropagation(); finishEvo() }
+
+// ───────────────────────── 시작 ─────────────────────────
+const applyTheme = () => { if (state.theme) document.documentElement.dataset.theme = state.theme }
+const applyMotion = () => { document.documentElement.dataset.motion = state.motion }
+state.theme = new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+const qs = new URLSearchParams(location.search)
+if (qs.get('sp')) state.sp = qs.get('sp'); if (qs.get('st')) state.st = +qs.get('st'); if (qs.get('motion')) state.motion = qs.get('motion')
+applyTheme(); applyMotion()
+seg('#segSp', Object.entries(SPECIES).map(([k, v]) => [k, v.name]), 'sp', renderAll)
+seg('#segSt', [1, 2, 3, 4, 5].map((s) => [s, `${s} ${STAGES[s].name}`]), 'st', renderAll)
+seg('#segTh', null, 'theme', () => { applyTheme(); renderAll() })
+seg('#segMo', null, 'motion', () => { applyMotion(); renderAll() })
+document.addEventListener('visibilitychange', () => document.getAnimations().forEach((a) => (document.hidden ? a.pause() : a.play())))
+renderLadder(); renderAll()
+// ?evo=1 → 진화 재생, ?evoAt=900 → 그 시각에 멈춘 장면(시안 확인용 스크린숏)
+if (qs.get('evoAt')) window._seek = +qs.get('evoAt')
+if (qs.get('evo') || qs.get('evoAt')) setTimeout(() => { playEvo() }, 100)
+</script>
+</body>
+</html>
