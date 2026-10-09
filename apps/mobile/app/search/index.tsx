@@ -20,6 +20,7 @@ import { SproutPot } from '../../src/ui/EmptyState'
 import { GlassButton } from '../../src/ui/Glass'
 import { GroupCard } from '../../src/ui/GroupCard'
 import { useToast } from '../../src/ui/Toast'
+import { tagShow } from '../../src/data/emojiLead'
 
 type Named = { id: string; name: string; emoji?: string | null; color?: string | null; kind?: string }
 type NoteHit = { id: string; content: string | null; link_title: string | null; url: string | null }
@@ -194,7 +195,7 @@ export default function SearchScreen() {
         ) : kind === 'list' ? (
           lists.length ? named(lists, (r) => (r.emoji ? <Text style={{ fontSize: 16 }}>{r.emoji}</Text> : <View style={[s.ldot, { backgroundColor: r.color ?? p.textQuaternary }]} />), (r) => goView(r.kind === 'inbox' ? 'smart:inbox' : `list:${r.id}`)) : empty('리스트를 찾지 못했어요')
         ) : kind === 'tag' ? (
-          tags.length ? named(tags, (r) => <Hash size={18} color={r.color ?? p.textSecondary} />, (r) => goView(`tag:${r.id}`)) : empty('태그를 찾지 못했어요')
+          tags.length ? named(tags.map((r) => ({ ...r, ...tagShow(r) })), (r) => (r.emoji ? <Text style={{ fontSize: 16 }}>{r.emoji}</Text> : <Hash size={18} color={r.color ?? p.textSecondary} />), (r) => goView(`tag:${r.id}`)) : empty('태그를 찾지 못했어요')
         ) : filters.length ? named(filters, (r) => (r.emoji ? <Text style={{ fontSize: 16 }}>{r.emoji}</Text> : <Funnel size={18} color={p.textSecondary} />), (r) => goView(`filter:${r.id}`)) : empty('필터를 찾지 못했어요')}
       </ScrollView>
     </View>

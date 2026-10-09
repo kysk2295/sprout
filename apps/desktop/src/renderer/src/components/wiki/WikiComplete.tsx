@@ -5,9 +5,9 @@ import { matchRank, parseAliases } from '@sprout/schema/wikiLink'
 import { useQuery } from '../../data/useQuery'
 import { getDb } from '../../data/db'
 import { ensureTags } from '../../data/organization'
-import { KIND_ICON, kindOf } from '../../data/wiki'
+import { kindOf } from '../../data/wiki'
 import { listView } from '../../data/types'
-import { splitEmoji } from '../../../../shared/emoji'
+import { splitEmoji, tagShow } from '../../../../shared/emoji'
 import './wiki.css'
 
 // 33 §6.2 `#`·`[[` 자동 완성 드롭다운(같은 부품). 입력칸·글 상자·contentEditable 어디에나 붙는다.
@@ -115,9 +115,9 @@ export function WikiComplete({ target, modes = ['#', '[['] }: { target: RefObjec
       .filter((x) => x.m.rank > 0)
       .sort((a, b) => b.m.rank - a.m.rank || b.t.c - a.t.c)
       .slice(0, GROUP_MAX)
-    const tagIcon = (k: string | null) => KIND_ICON[kindOf(k)] ?? <Hash size={14} />
+    const tagIcon = (k: string | null, name: string) => tagShow({ name, kind: kindOf(k) }).emoji ?? <Hash size={14} /> // 30 §A.5
     const out: Item[] = rankTags.map(({ t, m }) => ({
-      key: `tag:${t.id}`, group: open.mode === '[[' ? '태그' : undefined, icon: tagIcon(t.kind), label: t.name,
+      key: `tag:${t.id}`, group: open.mode === '[[' ? '태그' : undefined, icon: tagIcon(t.kind, t.name), label: tagShow(t).name,
       sub: [m.via ? `= ${m.via}` : '', t.c ? String(t.c) : ''].filter(Boolean).join(' · '), insert: t.name
     }))
     if (open.mode === '[[') {

@@ -111,5 +111,13 @@ assert.ok(openSql('smart:all').sql.includes("COALESCE(x.state,'accepted') = 'acc
   assert.deepEqual(listShow({ name: '💰가계부', emoji: null }), { emoji: '💰', name: '가계부' })
   assert.deepEqual(listShow({ name: '생활', emoji: '🏠' }), { emoji: '🏠', name: '생활' })
   assert.deepEqual(viewTitle('folder:f', [], [{ id: 'f', name: '🎓Study', sort_order: 1 }] as never), { title: 'Study', emoji: '🎓' })
+  // 태그도 같은 규칙(아이콘 하나): `🚀🎓 졸업 프로젝트` → 🎓 + 졸업 프로젝트
+  const { tagShow, tagText } = await import('./emojiLead.ts')
+  assert.deepEqual(tagShow({ name: '🚀🎓 졸업 프로젝트', kind: 'project' }), { emoji: '🎓', name: '졸업 프로젝트' })
+  assert.deepEqual(tagShow({ name: 'UniPort', kind: 'project' }), { emoji: '🚀', name: 'UniPort' })
+  assert.deepEqual(tagShow({ name: 'SQLD', kind: 'topic' }), { emoji: null, name: 'SQLD' })
+  assert.equal(tagText({ name: '🚀🎓 졸업 프로젝트' }), '🎓 졸업 프로젝트')
+  assert.deepEqual(viewTitle('tag:t1', [], [], { tags: [{ id: 't1', name: '🚀🎓 졸업 프로젝트', kind: 'project' }] }), { title: '졸업 프로젝트', emoji: '🎓' })
+  assert.deepEqual(viewTitle('tag:t1', [], [], { tags: [{ id: 't1', name: '🎓 졸업', kind: 'topic' }] }), { title: '졸업', emoji: '🎓' })
 }
 console.log('views+ ok')

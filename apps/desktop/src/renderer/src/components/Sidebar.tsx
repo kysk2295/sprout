@@ -14,7 +14,7 @@ import { MenuItem, Popover } from './Popover'
 import { Dialog } from './Dialog'
 import { OrganizationEditor } from './OrganizationEditor'
 import { ExtSidebarSection } from './calendars/ExtSidebar'
-import { splitEmoji } from '../../../shared/emoji'
+import { splitEmoji, tagShow } from '../../../shared/emoji'
 import './EmojiPicker.css'
 import { SidebarTagItems, TagKindIcon, TagSectionMenu, type TagMode } from './wiki/SidebarTags'
 const OPEN='t.status=0 AND t.deleted_at IS NULL AND t.parent_id IS NULL'
@@ -69,7 +69,7 @@ export function Sidebar({selected,onSelect,lists,tags,onGrowth}:{selected:string
   {archived.length>0&&<><button className="sidebar-archive" onClick={()=>toggle('archive')}><Archive size={16}/>보관 목록</button>{collapsed.includes('archive')&&archived.map(l=><div className="sidebar-archive-item" key={l.id}><button onClick={()=>onSelect(`list:${l.id}`)}>{l.name}</button><button onClick={()=>void perform(()=>archiveList(l.id,false))}>복원</button></div>)}</>}
   </>}
   {visible('filters',filters.length)&&<>{section('filters','필터',()=>setFilterEditor({}))}{!collapsed.includes('filters')&&filters.map(f=><div className="filter-sidebar-row" key={f.id} onContextMenu={e=>{e.preventDefault();setFilterMenu({item:f,point:{x:e.clientX,y:e.clientY}})}}>{item(`filter:${f.id}`,f.name,f.emoji||<SoftIcon name="filter"/>)}<button className="filter-row-menu" aria-label={`${f.name} 필터 메뉴`} onClick={e=>setFilterMenu({item:f,point:{x:e.clientX,y:e.clientY}})}><MoreHorizontal size={14}/></button></div>)}</>}
-  {visible('tags',allTags.length)&&<>{section('tags','태그',()=>setEditor({kind:'tag'}))}{!collapsed.includes('tags')&&<SidebarTagItems tags={allTags} mode={tagMode} render={t=>item(`tag:${t.id}`,t.name,<TagKindIcon kind={t.kind}/>,tagCounts.find(c=>c.tag_id===t.id)?.c,t.color,{kind:'tag',item:t})}/>}{!allTags.length&&<p className="sidebar-hint">#을 입력하여 태그를 선택할 수 있어요.</p>}</>}
+  {visible('tags',allTags.length)&&<>{section('tags','태그',()=>setEditor({kind:'tag'}))}{!collapsed.includes('tags')&&<SidebarTagItems tags={allTags} mode={tagMode} render={t=>item(`tag:${t.id}`,tagShow(t).name,<TagKindIcon kind={t.kind} name={t.name}/>,tagCounts.find(c=>c.tag_id===t.id)?.c,t.color,{kind:'tag',item:t})}/>}{!allTags.length&&<p className="sidebar-hint">#을 입력하여 태그를 선택할 수 있어요.</p>}</>}
   <ExtSidebarSection item={(key,label,icon,count)=>item(key,label,icon,count)} collapsed={collapsed} toggle={toggle}/>{/* 16 G2 구독 캘린더 */}
   <div className="sidebar__divider"/>{visible('completed',archives?.completed??0)&&item('smart:completed','완료',<SoftIcon name="done"/>,archives?.completed)}{visible('wontdo',archives?.wontdo??0)&&item('smart:wontdo','계획 취소',<SoftIcon name="cancel"/>,archives?.wontdo)}{visible('trash',archives?.trash??0)&&item('smart:trash','휴지통',<SoftIcon name="trash"/>,archives?.trash)}
   {error&&<p role="alert" className="form-error">{error}</p>}

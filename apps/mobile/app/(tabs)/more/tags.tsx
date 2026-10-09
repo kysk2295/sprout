@@ -14,6 +14,7 @@ import { BigTitle, NavRow } from '../../../src/ui/Header'
 import { useTabBarSpace } from '../../../src/ui/tabBarSpace'
 import { KIND_LABEL, kindOf, type TagKind } from '../../../src/wiki/data'
 import { KindGlyph } from '../../../src/wiki/RowBits'
+import { tagShow } from '../../../src/data/emojiLead'
 import { openView } from '../../../src/wiki/WikiIndex'
 
 type Row = { id: string; name: string; color: string | null; kind: string | null; aliases: string | null; n: number }
@@ -46,8 +47,8 @@ export default function TagList() {
                   <Cell
                     key={t.id}
                     first={i === 0}
-                    label={t.name}
-                    icon={<KindGlyph kind={t.kind} size={17} color={t.color ?? p.textSecondary} />}
+                    label={tagShow(t).name}
+                    icon={<KindGlyph kind={t.kind} name={t.name} size={17} color={t.color ?? p.textSecondary} />}
                     iconBg="transparent"
                     right={
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '45%' }}>

@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLists } from '../src/data/lists'
 import { syncTaskLinks, useLinkTaskCandidates, useTagMeta } from '../src/wiki/data'
 import { KindGlyph } from '../src/wiki/RowBits'
+import { tagShow } from '../src/data/emojiLead'
 import { createEvent, useMyCalColor } from '../src/data/calEvents'
 import { eventAddedToast, quickEventFields } from '../src/data/eventsModel'
 import { createTag, createTask } from '../src/data/tasks'
@@ -336,11 +337,11 @@ export default function QuickAdd() {
           <ScrollView horizontal keyboardShouldPersistTaps="always" showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, backgroundColor: p.bgInput }} contentContainerStyle={s.sugg}>
             {sugg.map((sg, i) => (
               <Pressable key={sg.key} accessibilityRole="button" onPress={() => void pickSuggestion(sg)} style={[s.sChip, { backgroundColor: i === 0 && !sg.create ? p.accentSubtle : p.cardBg }]}>
-                {trigger?.kind === '#' || sg.group === 'tag' ? <KindGlyph kind={sg.kind} size={13} color={i === 0 && !sg.create ? p.accent : p.textSecondary} />
+                {trigger?.kind === '#' || sg.group === 'tag' ? <KindGlyph kind={sg.kind} name={sg.create ? undefined : sg.label} size={13} color={i === 0 && !sg.create ? p.accent : p.textSecondary} />
                   : trigger?.kind === '~' || sg.group === 'list' ? <ListIcon size={13} color={p.textSecondary} />
                   : sg.group === 'task' ? <Square size={13} color={p.textSecondary} />
                   : <Flag size={13} color={priorityColor(p, sg.priority)} />}
-                <Text style={{ fontSize: 14, color: i === 0 && !sg.create ? p.accentInk : p.textPrimary, maxWidth: 200 }} numberOfLines={1}>{sg.label}</Text>
+                <Text style={{ fontSize: 14, color: i === 0 && !sg.create ? p.accentInk : p.textPrimary, maxWidth: 200 }} numberOfLines={1}>{(trigger?.kind === '#' || sg.group === 'tag') && !sg.create ? tagShow({ name: sg.label }).name : sg.label}</Text>
                 {sg.sub ? <Text style={{ fontSize: 12, color: p.textTertiary, maxWidth: 120 }} numberOfLines={1}>{sg.sub}</Text> : null}
               </Pressable>
             ))}

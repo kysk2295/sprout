@@ -9,6 +9,7 @@ import { usePalette } from '../theme/ThemeProvider'
 import { useToast } from '../ui/Toast'
 import { isAuto, removeTaskTags } from './data'
 import { KindGlyph } from './RowBits'
+import { tagShow } from '../data/emojiLead'
 import { openView } from './WikiIndex'
 
 type Row = { id: string; name: string; color: string | null; kind: string | null; source: string | null; confidence: number | null }
@@ -41,8 +42,8 @@ export function DetailTags({ taskId, onAdd }: { taskId: string; onAdd: () => voi
         <View key={t.id} style={[s.chip, { backgroundColor: p.accentSubtle }]}>
           <Pressable accessibilityRole="button" accessibilityLabel={`${t.auto ? 'AI가 붙인 ' : ''}태그 ${t.name} 페이지`} onPress={() => openView(router, `tag:${t.id}`)} style={s.name}>
             {t.auto ? <Text style={[s.ai, { color: p.accentInk }]}>✦</Text> : null}
-            <KindGlyph kind={t.kind} size={12} color={p.accent} />
-            <Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '500' }} numberOfLines={1}>{t.name}</Text>
+            <KindGlyph kind={t.kind} name={t.name} size={12} color={p.accent} />
+            <Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '500' }} numberOfLines={1}>{tagShow(t).name}</Text>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={`태그 ${t.name} 떼기`} hitSlop={8} onPress={() => void remove(t)} style={s.x}>
             <X size={13} color={p.accent} />

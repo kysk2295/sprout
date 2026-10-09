@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Svg, { Path, Rect } from 'react-native-svg'
 import { alpha, FONT, M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
+import { segColors } from '../ui/Segmented'
 import { chipsOf, isYoutube, monthDayKo, sentAt, timeKo, titleOf, type Chip, type CollectItem } from './core'
 
 /** 행 왼쪽 종류 표시: 할 일 = 강조색 점선 칸 · 볼 것 = 링크 · 위키 = 책 · 메모 = 문서 · 정리 전 = 시계 */
@@ -42,12 +43,13 @@ export function ChipView({ chip }: { chip: Chip }) {
 /** 세그먼트(키트 .m-seg): 좌우 16, 높이 32 */
 export function Segmented<T extends string>({ value, items, onChange }: { value: T; items: [T, string][]; onChange: (v: T) => void }) {
   const p = usePalette()
+  const c = segColors(p) // 44 §4.1 공용 세그먼트 색
   return (
-    <View style={[s.seg, { backgroundColor: p.dark ? 'rgba(118,118,128,0.24)' : 'rgba(120,120,128,0.12)' }]} accessibilityRole="tablist">
+    <View style={[s.seg, { backgroundColor: c.track, borderColor: c.trackLine, borderWidth: StyleSheet.hairlineWidth }]} accessibilityRole="tablist">
       {items.map(([k, label]) => {
         const on = k === value
         return (
-          <Pressable key={k} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => onChange(k)} style={[s.segItem, on && { backgroundColor: p.dark ? '#636366' : p.segOn, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } }]}>
+          <Pressable key={k} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => onChange(k)} style={[s.segItem, on && { backgroundColor: c.on, borderColor: c.onLine, borderWidth: StyleSheet.hairlineWidth, ...c.shadow }]}>
             <Text style={[s.segText, { color: on ? p.textPrimary : p.textSecondary, fontWeight: on ? '600' : '500' }]} numberOfLines={1}>{label}</Text>
           </Pressable>
         )

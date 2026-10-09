@@ -1165,9 +1165,13 @@ html:has(.mini), html:has(.mini) body { background: transparent; }
 .dp__day.is-selected { color: var(--color-on-accent); font-weight: 700; }
 .dp__pills button.is-on { color: var(--color-on-accent); font-weight: 650; }
 
-/* 세그먼트: 트랙 칸 면 + 고른 칸 흰 면(카드 그림자) */
-.dp__tabs, .dp__seg, .seg { padding: 3px; border-radius: 10px; background: var(--color-seg-track); }
-.dp__tabs button.is-on, .dp__seg button.is-on, .seg button.is-on { background: var(--color-seg-on); box-shadow: var(--shadow-card); font-weight: 600; border-radius: 8px; }
+/* 세그먼트: 트랙 칸 면 + 고른 칸 흰 면(카드 그림자)
+   44 §4.1(2026-10-10): 트랙 = 글자색 10%(다크 12%) + 안쪽 머리카락 선 — 예전 seg-track(#EBEFEA)은 바닥 #F6F8F4와 대비 1.08로 거의 안 보였다.
+   고른 칸 = 흰 면 + 머리카락 테두리 + 그림자(다크 = 글자색 16% 한 겹). 휴대폰 src/ui/Segmented segColors와 같은 값. */
+.dp__tabs, .dp__seg, .seg { padding: 3px; border-radius: 10px; background: color-mix(in srgb, var(--color-text-primary) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text-primary) 5%, transparent); }
+.dp__tabs button.is-on, .dp__seg button.is-on, .seg button.is-on { background: var(--color-seg-on); box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-text-primary) 7%, transparent), 0 1px 3px rgba(18, 40, 26, 0.12); font-weight: 600; border-radius: 8px; }
+[data-theme="dark"] .dp__tabs, [data-theme="dark"] .dp__seg, [data-theme="dark"] .seg { background: color-mix(in srgb, var(--color-text-primary) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text-primary) 6%, transparent); }
+[data-theme="dark"] .dp__tabs button.is-on, [data-theme="dark"] .dp__seg button.is-on, [data-theme="dark"] .seg button.is-on { background: color-mix(in srgb, var(--color-text-primary) 16%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-text-primary) 10%, transparent), 0 1px 3px rgba(0, 0, 0, 0.35); }
 
 /* 캘린더: 오늘 = 강조 옅은 원 + 강조 글자, 막대 모서리 4(06 §14.2 색 규칙은 그대로) */
 .cal-item { border-radius: var(--radius-xs); }

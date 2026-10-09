@@ -4,6 +4,7 @@ import { Dialog } from './Dialog'
 import { EMPTY_FILTER, readFilter, type FilterRow } from '../data/filters'
 import { insert, run, update, uuid } from '../data/mutations'
 import type { ListRow, TagRow } from '../data/types'
+import { tagText } from '../../../shared/emoji'
 
 // 07 사용자 필터 편집(filter-edit NOTES): 이름 줄 + 조건 행(왼쪽 라벨 · 오른쪽 입력) + 취소·저장
 const DATES = [['all', '전체'], ['today', '오늘'], ['tomorrow', '내일'], ['next7', '다음 7일'], ['overdue', '만료됨'], ['none', '날짜 없음']] as const
@@ -52,7 +53,7 @@ export function FilterEditor({ item, lists, tags, onClose, onSaved }: { item?: F
         </Row>
         <Row label="태그">
           <Pill on={!rule.tags.length} onClick={() => setRule((r) => ({ ...r, tags: [] }))}>전체</Pill>
-          {tags.map((t) => <Pill key={t.id} on={rule.tags.includes(t.id)} onClick={() => toggle('tags', t.id)}>{t.name}</Pill>)}
+          {tags.map((t) => <Pill key={t.id} on={rule.tags.includes(t.id)} onClick={() => toggle('tags', t.id)}>{tagText(t)}</Pill>)}
         </Row>
         <Row label="날짜">
           <select className="filter-select" aria-label="날짜" value={rule.date} onChange={(e) => setRule({ ...rule, date: e.target.value })}>

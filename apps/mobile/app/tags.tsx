@@ -6,7 +6,7 @@ import { Check, Hash, Plus } from 'lucide-react-native'
 import { useState } from 'react'
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTagsFull } from '../src/data/organization'
-import { KIND_ICON, kindOf } from '../src/wiki/data'
+import { tagShow } from '../src/data/emojiLead'
 import { createTag, setTag } from '../src/data/tasks'
 import { FONT, M } from '../src/theme/palette'
 import { usePalette } from '../src/theme/ThemeProvider'
@@ -53,8 +53,8 @@ export default function Tags() {
             <Cell
               key={t.id}
               first={i === 0 && !(name && !exact)}
-              label={t.name}
-              icon={KIND_ICON[kindOf(t.kind)] ? <Text style={{ fontSize: 16 }}>{KIND_ICON[kindOf(t.kind)]}</Text> : <Hash size={18} color={t.color ?? p.textSecondary} />}
+              label={tagShow(t).name}
+              icon={tagShow(t).emoji ? <Text style={{ fontSize: 16 }}>{tagShow(t).emoji}</Text> : <Hash size={18} color={t.color ?? p.textSecondary} />}
               iconBg="transparent"
               chevron={false}
               right={all.has(t.id) ? <Check size={18} color={p.accent} /> : null}

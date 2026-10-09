@@ -19,6 +19,7 @@ import type { Schedule } from '../lib/taskActions'
 import { tagState } from './TaskMenu'
 import { WikiComplete } from './wiki/WikiComplete'
 import { removeTaskTag } from '../data/wiki'
+import { tagText } from '../../../shared/emoji'
 import { useToast } from './Toast'
 import { PanelClose, panelEsc } from './PanelClose'
 
@@ -142,7 +143,7 @@ function DetailBody({ task, lists, tags, actions, onSelect, onClose, onHide }: O
               return (
                 <span key={t.id} className="tag-pill" title={tip} style={{ ['--tag-color' as string]: t.color ?? 'var(--color-priority-none)' }}>
                   {auto && <span className="tag-pill__ai" aria-label="AI가 붙인 태그">✦</span>}
-                  {t.name}
+                  {tagText(t)}
                   <button
                     className="tag-pill__x"
                     aria-label={`${t.name} 태그 빼기`}

@@ -8,11 +8,12 @@ import { alpha } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { createTag } from '../data/tasks'
 import { KIND_ICON, kindOf, syncTaskLinks } from './data'
+import { tagShow } from '../data/emojiLead'
 import { openView, useLinkSegments, useOpenTarget, useWikiIndex } from './WikiIndex'
 
-/** 종류 아이콘(👤🚀📍, 주제는 #) */
-export function KindGlyph({ kind, size = 12, color }: { kind: string | null | undefined; size?: number; color: string }) {
-  const e = KIND_ICON[kindOf(kind)]
+/** 종류 아이콘(👤🚀📍, 주제는 #). name을 주면 30 §A.5 규칙 — 이름 앞 이모지가 있으면 그 하나(이름 글은 tagShow(t).name으로 뗀다) */
+export function KindGlyph({ kind, name, size = 12, color }: { kind: string | null | undefined; name?: string; size?: number; color: string }) {
+  const e = name != null ? tagShow({ name, kind: kindOf(kind) }).emoji : KIND_ICON[kindOf(kind)]
   return e ? <Text style={{ fontSize: size - 1, lineHeight: size + 3 }}>{e}</Text> : <Hash size={size} color={color} />
 }
 
@@ -33,8 +34,8 @@ export function RowTagPills({ ids, hide }: { ids: string | null | undefined; hid
         return (
           <Pressable key={id} accessibilityRole="button" accessibilityLabel={`태그 ${t.name} 페이지`} hitSlop={6} onPress={() => openView(router, `tag:${id}`)}
             style={[s.pill, { backgroundColor: alpha(t.color ?? '#8a8f99', p.dark ? 0.22 : 0.14) }]}>
-            <KindGlyph kind={t.kind} size={10} color={c} />
-            <Text style={[s.pillText, { color: t.color ? c : p.textSecondary }]} numberOfLines={1}>{t.name}</Text>
+            <KindGlyph kind={t.kind} name={t.name} size={10} color={c} />
+            <Text style={[s.pillText, { color: t.color ? c : p.textSecondary }]} numberOfLines={1}>{tagShow(t).name}</Text>
           </Pressable>
         )
       })}

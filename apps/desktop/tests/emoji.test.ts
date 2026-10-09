@@ -1,7 +1,7 @@
 // 30 §A 이모지 선택기: 자료 읽기 · 한국어/영어 검색 · 자주 쓰는(최근 16개, 기기 저장) · 폴더 이름 앞 이모지 떼기/붙이기
 import assert from 'node:assert/strict'
 import { loadEmoji, parseEmojiData, pushRecent, saveRecent, loadRecent, searchEmoji, RECENT_MAX, EMOJI_GROUPS } from '../src/renderer/src/data/emoji'
-import { splitEmoji, joinEmoji } from '../src/shared/emoji'
+import { splitEmoji, joinEmoji, tagShow, tagText } from '../src/shared/emoji'
 const store = new Map<string, string>()
 Object.assign(globalThis, { localStorage: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v), removeItem: (k: string) => store.delete(k) } })
 
@@ -42,4 +42,14 @@ assert.deepEqual(splitEmoji('🎯'), { emoji: null, name: '🎯' })
 assert.equal(joinEmoji('🎓', ' Study '), '🎓Study')
 assert.equal(joinEmoji(null, 'Study'), 'Study')
 assert.deepEqual(splitEmoji(joinEmoji('🥺', 'Me')), { emoji: '🥺', name: 'Me' }, '붙였다 떼면 그대로')
+// 30 §A.5 태그도 같은 규칙: 아이콘은 하나만(이름 앞 이모지 → 종류 아이콘 → 주제는 #)
+assert.deepEqual(tagShow({ name: '🚀🎓 졸업 프로젝트', kind: 'project' }), { emoji: '🎓', name: '졸업 프로젝트' }, '앞 이모지 여럿 = 모두 떼고 종류 기본 아이콘이 아닌 것 하나')
+assert.deepEqual(tagShow({ name: '🚀🎓 졸업 프로젝트', kind: 'topic' }), { emoji: '🎓', name: '졸업 프로젝트' })
+assert.deepEqual(tagShow({ name: '🚀 해커톤', kind: 'project' }), { emoji: '🚀', name: '해커톤' })
+assert.deepEqual(tagShow({ name: 'UniPort', kind: 'project' }), { emoji: '🚀', name: 'UniPort' }, '이모지 없으면 종류 아이콘')
+assert.deepEqual(tagShow({ name: '교수님', kind: 'person' }), { emoji: '👤', name: '교수님' })
+assert.deepEqual(tagShow({ name: 'SQLD', kind: 'topic' }), { emoji: null, name: 'SQLD' }, '주제 = # 자리')
+assert.deepEqual(tagShow({ name: '🎯' }), { emoji: null, name: '🎯' }, '이모지뿐인 이름은 이름으로')
+assert.equal(tagText({ name: '🚀🎓 졸업 프로젝트' }), '🎓 졸업 프로젝트')
+assert.equal(tagText({ name: 'SQLD' }), 'SQLD')
 console.log('emoji.test ok')

@@ -2,6 +2,7 @@ import { Check, ChevronLeft, ChevronRight, Circle } from 'lucide-react'
 import { useState } from 'react'
 import { addDays, toDate } from '@sprout/schema/time'
 import { listView, type ListRow, type TagRow } from '../../data/types'
+import { tagShow } from '../../../../shared/emoji'
 import { calWeekHead, calWeekStart, weekHeadClass, weekendClass } from '../../lib/calendar'
 import type { WeekStart } from '@sprout/schema/weekStart'
 import { dayKey } from '../../lib/dates'
@@ -93,7 +94,7 @@ export function CalendarSide(p: Props) {
         ))}
         <Group label="태그" open={open.tags} onOpen={() => setOpen((o) => ({ ...o, tags: !o.tags }))} on={allTags} onCheck={() => p.onFilter(p.filterLists, allTags ? [] : p.tags.map((t) => t.id))} />
         {open.tags && p.tags.map((t) => (
-          <Row key={t.id} indent icon="#" label={t.name} on={p.filterTags.includes(t.id)} onClick={() => p.onFilter(p.filterLists, toggle(p.filterTags, t.id))} />
+          <Row key={t.id} indent icon={tagShow(t).emoji ?? '#'} label={tagShow(t).name} on={p.filterTags.includes(t.id)} onClick={() => p.onFilter(p.filterLists, toggle(p.filterTags, t.id))} />
         ))}
         {p.myCal && <MyCalRow on={p.myCal.on} color={p.myCal.color} onChange={p.myCal.onChange} />}
         <ExtPanelFilter open={open.subs} onOpen={() => setOpen((o) => ({ ...o, subs: !o.subs }))} cursor={p.calendarCursor ?? p.cursor} />

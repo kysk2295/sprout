@@ -29,6 +29,7 @@ import { FONT } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { PopMenu, type MenuItem, type Rect } from './Menu'
 import { ColorDot, FolderGlyph, ListGlyph, listShow, splitLead } from './OrgIcons'
+import { tagShow } from '../data/emojiLead'
 import { SwipeRow, type SwipeAction } from './SwipeRow'
 import { FilterEditSheet, FolderEditSheet, ListEditSheet, TagEditSheet } from './OrgSheets'
 import { useToast } from './Toast'
@@ -196,11 +197,11 @@ export function Drawer() {
   // 30 §A.5: 리스트 = 이모지 또는 ≡ (+ 오른쪽 색 점), 폴더 = 이름 앞 이모지 또는 폴더 그림, 프로젝트 태그 = 🚀
   const listIcon = (l: { name: string; emoji: string | null }) => <ListGlyph list={l} />
   const tagIcon = (t: { name: string; kind?: string | null; color: string | null }, size: number) => {
-    const k = t.kind === 'project' ? '🚀' : t.kind === 'person' ? '👤' : t.kind === 'place' ? '📍' : null
+    const k = tagShow(t).emoji // 이름 앞 이모지(여럿이면 하나) → 종류 아이콘 → 주제는 #
     if (!k) return <Hash size={size} color={t.color ?? p.textSecondary} />
-    return <Text style={{ fontSize: size - 3, width: size + 2, textAlign: 'center' }}>{splitLead(t.name).emoji ?? k}</Text>
+    return <Text style={{ fontSize: size - 3, width: size + 2, textAlign: 'center' }}>{k}</Text>
   }
-  const tagName = (t: { name: string; kind?: string | null }) => (t.kind && t.kind !== 'topic' ? splitLead(t.name).name : t.name)
+  const tagName = (t: { name: string; kind?: string | null }) => tagShow(t).name
   const show = (id: string, n?: number) => smartVisible(id, vis, n)
   const topTags = tags.filter((t) => !t.parent_id || !tags.some((x) => x.id === t.parent_id))
   const hr = <View style={[s.hr, { borderTopColor: p.borderDivider }]} />

@@ -77,8 +77,9 @@ export function projectish(word: string): boolean {
 const EMOJI_HEAD = /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|‍\p{Extended_Pictographic}|\p{Emoji_Modifier})*/u
 /** 카드 이모지(이름에서): 이름이 이모지로 시작하면 그것, 공모전·대회 🏆, 시험 📜, 창업·지원사업 🌱, 논문 📄, 그 밖 🚀 */
 export function projectEmoji(name: string): string {
-  const head = name.trim().match(EMOJI_HEAD)?.[0]
-  if (head) return head
+  const head = leadEmojis(name)
+  // 30 §A.5: 이름 앞 이모지가 여럿이면(`🚀🎓 졸업 프로젝트`) 아이콘은 하나 — 종류 기본 아이콘(🚀👤📍)이 아닌 것을 먼저
+  if (head.length) return head.find((e) => !KIND_DEFAULTS.has(e)) ?? head[0]
   const k = tagKey(name)
   if (/공모전|대회|해커톤|아이디어톤|챌린지/.test(k)) return '🏆'
   if (EXAMS.some((e) => k.includes(e)) || /시험|자격증|기사$/.test(k)) return '📜'
@@ -86,8 +87,20 @@ export function projectEmoji(name: string): string {
   if (/논문|학회/.test(k)) return '📄'
   return '🚀'
 }
-/** 이모지를 뗀 이름 */
-export const projectTitle = (name: string) => name.trim().replace(EMOJI_HEAD, '').trim()
+const KIND_DEFAULTS = new Set(['🚀', '👤', '📍'])
+/** 이름 앞 이모지들(이모지뿐인 이름이면 마지막 하나는 이름으로 남긴다) */
+function leadEmojis(name: string): string[] {
+  const out: string[] = []
+  let rest = name.trim()
+  for (let m = rest.match(EMOJI_HEAD); m && rest.slice(m[0].length).trim(); m = rest.match(EMOJI_HEAD)) { out.push(m[0]); rest = rest.slice(m[0].length).trim() }
+  return out
+}
+/** 이모지를 뗀 이름 — 앞 이모지가 여럿이면 모두 뗀다(30 §A.5) */
+export const projectTitle = (name: string) => {
+  let rest = name.trim()
+  for (let m = rest.match(EMOJI_HEAD); m && rest.slice(m[0].length).trim(); m = rest.match(EMOJI_HEAD)) rest = rest.slice(m[0].length).trim()
+  return rest.replace(EMOJI_HEAD, '').trim()
+}
 
 // ── 구성원 ──
 export type PTask = { id: string; title: string; list_id: string | null; parent_id?: string | null; status?: number | null; due_at?: string | null; start_at?: string | null; completed_at?: string | null; created_at?: string | null; deleted_at?: string | null }

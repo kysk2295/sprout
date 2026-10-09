@@ -24,7 +24,7 @@ export function searchSql(kind: SearchKind, q: string): { sql: string; params: u
     case 'list':
       return { sql: `SELECT id, name, emoji, color, kind FROM lists WHERE archived_at IS NULL AND (name LIKE ? ${E} OR (kind = 'inbox' AND '기본함' LIKE ? ${E})) ORDER BY sort_order LIMIT 100`, params: [like, like] }
     case 'tag':
-      return { sql: `SELECT id, name, color FROM tags WHERE name LIKE ? ${E} ORDER BY sort_order, name LIMIT 100`, params: [like] }
+      return { sql: `SELECT id, name, color, kind FROM tags WHERE name LIKE ? ${E} ORDER BY sort_order, name LIMIT 100`, params: [like] }
     case 'filter':
       return { sql: `SELECT id, name, emoji FROM filters WHERE name LIKE ? ${E} ORDER BY sort_order LIMIT 100`, params: [like] }
   }

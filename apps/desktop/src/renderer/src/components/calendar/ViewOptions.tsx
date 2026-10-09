@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { CalOptions, ColorBy, ItemStyle } from '../../lib/calendar'
 import { listLabel, type ListRow, type TagRow } from '../../data/types'
+import { tagShow } from '../../../../shared/emoji'
 import { run, update } from '../../data/mutations'
 import { ORG_COLORS } from '../../lib/orgColors'
 
@@ -44,7 +45,7 @@ export function ViewOptions({ opts, lists, tags, onChange, onClose }: { opts: Ca
             </div>
             {opts.color !== 'priority' && (
               <ColorCard
-                rows={opts.color === 'tag' ? tags.map((t) => ({ id: t.id, label: `#${t.name}`, color: t.color })) : lists.map((l) => ({ id: l.id, label: listLabel(l), color: l.color }))}
+                rows={opts.color === 'tag' ? tags.map((t) => ({ id: t.id, label: tagShow(t).emoji ? `${tagShow(t).emoji} ${tagShow(t).name}` : `#${t.name}`, color: t.color })) : lists.map((l) => ({ id: l.id, label: listLabel(l), color: l.color }))}
                 table={opts.color === 'tag' ? 'tags' : 'lists'}
               />
             )}

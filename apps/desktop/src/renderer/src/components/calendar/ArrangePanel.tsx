@@ -5,6 +5,7 @@ import { MenuItem, Popover } from '../Popover'
 import { useQuery } from '../../data/useQuery'
 import { TASK_COLUMNS } from '../../data/taskQueries'
 import type { ListRow, TagRow, TaskRow } from '../../data/types'
+import { tagText } from '../../../../shared/emoji'
 import type { TaskActions } from '../../lib/taskActions'
 import { calendarDropAt, outsideDrag, scheduledDrop } from '../../lib/calendarDrop'
 import { dragSession } from './dragSession'
@@ -21,7 +22,7 @@ export function ArrangePanel({lists,tags,actions,onClose}:{lists:ListRow[];tags:
  const cleanup=useRef<()=>void>(()=>{})
  useEffect(()=>()=>cleanup.current(),[])
  const rows=useQuery<TaskRow>(`SELECT ${TASK_COLUMNS} FROM tasks t LEFT JOIN lists l ON l.id=t.list_id WHERE t.status=0 AND t.deleted_at IS NULL AND (${noDate?'t.due_at IS NULL':'0'} OR ${overdue?'substr(t.due_at,1,10) < ?':'0'}) AND l.archived_at IS NULL ${filter?'AND t.list_id=?':''} ORDER BY t.sort_order`,[...(overdue?[dayKey()]:[]),...(filter?[filter]:[])])??[]
- const groups=group==='list'?lists.map(l=>({id:l.id,name:l.name,items:rows.filter(t=>t.list_id===l.id)})):group==='tag'?[...tags.map(t=>({id:t.id,name:t.name,items:rows.filter(r=>r.tag_ids?.split(',').includes(t.id))})),{id:'none',name:'태그 없음',items:rows.filter(r=>!r.tag_ids)}]:[3,2,1,0].map(p=>({id:String(p),name:['우선순위 없음','낮은 우선순위','중간 우선순위','높은 우선순위'][p],items:rows.filter(r=>r.priority===p)}))
+ const groups=group==='list'?lists.map(l=>({id:l.id,name:l.name,items:rows.filter(t=>t.list_id===l.id)})):group==='tag'?[...tags.map(t=>({id:t.id,name:tagText(t),items:rows.filter(r=>r.tag_ids?.split(',').includes(t.id))})),{id:'none',name:'태그 없음',items:rows.filter(r=>!r.tag_ids)}]:[3,2,1,0].map(p=>({id:String(p),name:['우선순위 없음','낮은 우선순위','중간 우선순위','높은 우선순위'][p],items:rows.filter(r=>r.priority===p)}))
  // 06 §9 끌어서 일정 잡기(틱틱 실측 research 17 §끌기): 행과 같은 모양의 막대가 잡은 자리 그대로 포인터를 따라가고(원래 행은 옅게),
  // 주·일 시간 칸·종일 영역 위에서는 캘린더가 놓일 칸에 붙은 미리 보기를 그리므로 떠 있는 막대를 숨긴다. 월 칸은 칸을 칠한다. Esc = 취소
  const start=(e:React.PointerEvent,t:TaskRow)=>{

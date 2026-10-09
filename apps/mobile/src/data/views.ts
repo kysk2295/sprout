@@ -1,7 +1,7 @@
 // 보기(서랍에서 고른 목록)마다의 조회 조건·묶음·정렬 — 21 §2·§6, 02 §0·§3·§11·§14(데스크톱 data/views.ts와 같은 범위 규칙)
 // 순수 모듈(시험: views.test.ts). 화면은 이 결과(묶음 카드 목록)를 그대로 그린다.
 // 2026-10-05 모바일 전체 기능: 전체·계획 취소·태그·필터 보기, 묶기·정렬(view_settings 동기화 — 데스크톱과 같은 키·값)
-import { listShow, splitLead } from './emojiLead.ts'
+import { listShow, splitLead, tagShow, tagText } from './emojiLead.ts'
 import { datePart, hasTime } from '@sprout/schema/time'
 import { dayKey, monthDay, timeGroup, TIME_GROUPS } from '../lib/dates.ts'
 import { filterScope } from './filters.ts'
@@ -52,7 +52,6 @@ export interface ListRow { id: string; name: string; emoji: string | null; color
 export interface FolderRow { id: string; name: string; sort_order: number }
 export interface SectionRow { id: string; list_id: string; name: string; sort_order: number }
 export interface TagLite { id: string; name: string; color?: string | null; parent_id?: string | null; kind?: string | null }
-const TAG_KIND_ICON: Record<string, string> = { person: '👤', project: '🚀', place: '📍' }
 
 export const SMART_IDS = ['today', 'tomorrow', 'next7', 'inbox', 'all', 'completed', 'wontdo', 'trash'] as const
 const ARCHIVE = ['smart:completed', 'smart:wontdo', 'smart:trash']
@@ -268,7 +267,7 @@ export function buildGroups(
         const ids = t.tag_ids?.split(',') ?? []
         return tags.find((g) => ids.includes(g.id))?.id ?? null
       }
-      for (const g of tags) push(`tg:${g.id}`, g.name, rest.filter((n) => first(n.task) === g.id))
+      for (const g of tags) push(`tg:${g.id}`, tagText(g), rest.filter((n) => first(n.task) === g.id))
       push('tg:none', '태그 없음', rest.filter((n) => first(n.task) === null))
       break
     }
@@ -304,8 +303,8 @@ export function viewTitle(
   if (kind === 'tag') {
     // 33 §4.1·§11: 종류 아이콘(사람 👤 · 프로젝트 🚀 · 장소 📍) + 이름, 주제는 `#이름`
     const g = more.tags?.find((x) => x.id === id)
-    const icon = g?.kind ? TAG_KIND_ICON[g.kind] : undefined
-    return icon ? { title: g?.name ?? '', emoji: icon } : { title: `#${g?.name ?? ''}` }
+    const v = tagShow({ name: g?.name ?? '', kind: g?.kind }) // 30 §A.5: 이름 앞 이모지 하나 → 종류 아이콘
+    return v.emoji ? { title: v.name, emoji: v.emoji } : { title: `#${v.name}` }
   }
   if (kind === 'filter') {
     const f = more.filters?.find((x) => x.id === id)

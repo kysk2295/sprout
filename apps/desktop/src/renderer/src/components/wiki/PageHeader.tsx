@@ -4,6 +4,7 @@ import { parseAliases, wrapMention, mentionsPlain } from '@sprout/schema/wikiLin
 import { useQuery } from '../../data/useQuery'
 import { contentOf, type WikiTopic } from '../../data/collect'
 import { listView, type ListRow } from '../../data/types'
+import { tagShow } from '../../../../shared/emoji'
 import {
   ACCEPTED, DESC_MAX, KIND_ICON, KIND_LABEL, ensureTagTopic, kindOf, linkMention, openLink, openTarget, openWikiTopic, setListDescription, setTagDescription, type TagMeta
 } from '../../data/wiki'
@@ -23,8 +24,8 @@ type Backlink = { from_type: string; from_id: string; title: string | null; stat
 type Mention = { id: string; title: string; list_id: string | null; list_name: string | null; list_emoji: string | null }
 
 /** 태그 종류 아이콘(👤🚀📍, 주제는 #) */
-export function KindIcon({ kind, size = 14 }: { kind: string | null | undefined; size?: number }) {
-  const e = KIND_ICON[kindOf(kind)]
+export function KindIcon({ kind, name, size = 14 }: { kind: string | null | undefined; name?: string; size?: number }) {
+  const e = name != null ? tagShow({ name, kind: kindOf(kind) }).emoji : KIND_ICON[kindOf(kind)] // 30 §A.5: 이름 앞 이모지 하나가 아이콘
   return e ? <span className="wiki-kind" style={{ fontSize: size - 1 }}>{e}</span> : <Hash className="wiki-kind is-topic" size={size} />
 }
 
@@ -35,8 +36,8 @@ export function TagHeading({ tagId, fallback }: { tagId: string; fallback: strin
   const sub = [kindOf(tag.kind) !== 'topic' ? KIND_LABEL[kindOf(tag.kind)] : '', ...parseAliases(tag.aliases).slice(0, 2)].filter(Boolean).join(' · ')
   return (
     <span className="wiki-heading">
-      <KindIcon kind={tag.kind} size={18} />
-      <span className="wiki-heading__name">{tag.name}</span>
+      <KindIcon kind={tag.kind} name={tag.name} size={18} />
+      <span className="wiki-heading__name">{tagShow(tag).name}</span>
       {sub && <small className="wiki-heading__sub">{sub}</small>}
     </span>
   )
@@ -142,7 +143,7 @@ function PageHeaderBody({ kind, id, lists, open, forced, onOpen, filter, onFilte
     const v = listView({ name: l?.name ?? n ?? '', emoji: l?.emoji ?? e })
     return `${v.emoji ? `${v.emoji} ` : ''}${v.name}`
   }
-  const tagLabel = (tid: string) => { const t = tagById.get(tid); return t ? <><KindIcon kind={t.kind} size={11} />{t.name}</> : null }
+  const tagLabel = (tid: string) => { const t = tagById.get(tid); return t ? <><KindIcon kind={t.kind} name={t.name} size={11} />{tagShow(t).name}</> : null }
   const clickPill = (tid: string, e: RMouseEvent) => {
     if (e.metaKey || e.ctrlKey) { openTarget({ view: `tag:${tid}` }); return }
     onFilter(filter.includes(tid) ? filter.filter((x) => x !== tid) : [...filter, tid])

@@ -17,6 +17,7 @@ import { GlassButton } from '../ui/Glass'
 import { useToast } from '../ui/Toast'
 import { ACCEPTED, DESC_MAX, ensureTagTopic, setListDescription, setTagDescription, type TagMeta } from './data'
 import { KindGlyph, LinkTitle } from './RowBits'
+import { tagShow } from '../data/emojiLead'
 import { openView } from './WikiIndex'
 
 const OPEN = 't.status = 0 AND t.deleted_at IS NULL'
@@ -82,7 +83,7 @@ function Body({ kind, id, lists, filter, onFilter, descOpen, onDescClose }: Para
     const l = lists.find((x) => x.id === lid)
     return l ? (l.kind === 'inbox' ? '기본함' : `${l.emoji ? `${l.emoji} ` : ''}${l.name}`) : ''
   }
-  const tagName = (tid: string) => tagById.get(tid)?.name ?? ''
+  const tagName = (tid: string) => { const t = tagById.get(tid); return t ? tagShow(t).name : '' } // 30 §A.5: 이름 앞 이모지는 아이콘 자리로
   const toggle = (tid: string) => onFilter(filter.includes(tid) ? filter.filter((x) => x !== tid) : [...filter, tid])
   const editor = (
     <DescriptionSheet open={descOpen || descLocal} value={description} onClose={() => { setDescLocal(false); onDescClose() }} onSave={(v) => (isList ? setListDescription(id, v) : setTagDescription(id, v))} />
@@ -97,7 +98,7 @@ function Body({ kind, id, lists, filter, onFilter, descOpen, onDescClose }: Para
         onPress={() => toggle(tid)} onLongPress={() => openView(router, `tag:${tid}`)} delayLongPress={350}
         style={[small ? s.pillSm : s.pill, { backgroundColor: on ? p.accent : p.bgSelected }]}>
         {ai ? <Text style={[s.ai, { color: on ? '#fff' : p.accent }]}>✦</Text> : null}
-        <KindGlyph kind={t?.kind} size={small ? 11 : 12} color={on ? '#fff' : p.textSecondary} />
+        <KindGlyph kind={t?.kind} name={t?.name} size={small ? 11 : 12} color={on ? '#fff' : p.textSecondary} />
         <Text style={[s.pillText, { color: on ? '#fff' : p.textPrimary }]} numberOfLines={1}>{tagName(tid)}</Text>
         {n !== undefined ? <Text style={[s.pillN, { color: on ? '#fff' : p.textTertiary }]}>{n}</Text> : null}
       </Pressable>
@@ -181,7 +182,7 @@ function Body({ kind, id, lists, filter, onFilter, descOpen, onDescClose }: Para
         <Row label="관련 태그" scroll>
           {relTags.map((r) => (
             <NavPill key={r.tag_id} label={tagName(r.tag_id)} onPress={() => openView(router, `tag:${r.tag_id}`)}>
-              <KindGlyph kind={tagById.get(r.tag_id)?.kind} size={12} color={p.textSecondary} />
+              <KindGlyph kind={tagById.get(r.tag_id)?.kind} name={tagById.get(r.tag_id)?.name} size={12} color={p.textSecondary} />
             </NavPill>
           ))}
         </Row>

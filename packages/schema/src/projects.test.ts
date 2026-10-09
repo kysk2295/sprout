@@ -1,7 +1,7 @@
 // 31 §12 자동 프로젝트(순수): 일의 종류 · 프로젝트 같은 말 · 이름 · 덩어리 찾기 · 구성원(집·하위·✕) · 마감 · 넓히기 · 다음 · 추정 선 · 쌓기
 import assert from 'node:assert/strict'
 import {
-  blockedSet, expandProject, findProjectClusters, fullProjectName, inferredChain, nextSteps, projectDeadline, deadlineWord, membersEndedBy, projectEmoji, projectish, projectMembers,
+  blockedSet, expandProject, findProjectClusters, fullProjectName, inferredChain, nextSteps, projectDeadline, deadlineWord, membersEndedBy, projectEmoji, projectish, projectMembers, projectTitle,
   projectSpan, stackRows, taskDay, upgradeToProject, workKind, nearSameName, planProjectCleanup, categoryOf, isBareCategory, specificName, sameInstance, findInstances, type FindCtx, type PTask
 } from './projects.ts'
 import { planAssign, type Ctx } from './autoTag.ts'
@@ -29,6 +29,9 @@ assert.equal(projectEmoji('SQLD'), '📜')
 assert.equal(projectEmoji('모두의창업'), '🌱')
 assert.equal(projectEmoji('UniPort'), '🚀')
 assert.equal(projectEmoji('🎸 밴드 공연'), '🎸')
+assert.equal(projectEmoji('🚀🎓 졸업 프로젝트'), '🎓', '30 §A.5 앞 이모지 여럿 = 하나, 종류 기본 아이콘이 아닌 것')
+assert.equal(projectTitle('🚀🎓 졸업 프로젝트'), '졸업 프로젝트')
+assert.equal(projectTitle('🎸 밴드 공연'), '밴드 공연')
 
 // ── 이름 ──
 assert.equal(fullProjectName('공모전', ['k 인공지능 제조 데이터 공모전 신청']), 'K 인공지능 제조 데이터 공모전', '제목 하나면 가장 긴 이름')

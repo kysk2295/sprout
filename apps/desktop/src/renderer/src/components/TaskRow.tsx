@@ -1,6 +1,7 @@
 import { AlarmClock, Check, ChevronDown, ChevronRight, GripVertical, ListChecks, MoreHorizontal, Repeat, X } from 'lucide-react'
 import type { MouseEvent, PointerEvent } from 'react'
 import type { TagRow, TaskRow } from '../data/types'
+import { tagText } from '../../../shared/emoji'
 import { rowDateLabel } from '../lib/dates'
 import { checkboxColor } from '../lib/priority'
 import { SuggestChip } from './listSuggest/ListSuggest'
@@ -105,7 +106,7 @@ export function TaskRowView(p: Props) {
         {p.bigChip && <BigTaskChip taskId={task.id} kind={p.bigChip} />}
         {task.list_kind === 'inbox' && task.status === 0 && !task.deleted_at && !task.parent_id && <SuggestChip taskId={task.id} />}
         {rowTags.map((t) => (
-          <span key={t.id} className="tag-pill" style={{ ['--tag-color' as string]: t.color ?? 'var(--color-priority-none)' }}>{t.name}</span>
+          <span key={t.id} className="tag-pill" style={{ ['--tag-color' as string]: t.color ?? 'var(--color-priority-none)' }}>{tagText(t)}</span>
         ))}
         {pillIds.more > 0 && <span className="tag-more">+{pillIds.more}</span>}
         {checklist && <span className="row__progress"><ListChecks className="row__icon" />{task.check_done}/{task.check_total}</span>}

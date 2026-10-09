@@ -2,6 +2,7 @@ import { Check, Flag, Plus, Search } from 'lucide-react'
 import { ensureTags } from '../data/organization'
 import { useState } from 'react'
 import { listView, type ListRow, type TagRow } from '../data/types'
+import { tagText } from '../../../shared/emoji'
 import { PRIORITIES } from '../lib/priority'
 import { MenuItem } from './Popover'
 
@@ -70,7 +71,7 @@ export function TagPickerBody({ tags, state, onToggle }: { tags: TagRow[]; state
             <MenuItem
               key={t.id}
               icon={<span className="sidebar__dot" style={{ background: t.color ?? 'var(--color-priority-none)' }} />}
-              label={t.name}
+              label={tagText(t)}
               onClick={() => onToggle(t.id, s !== 'all')}
               trail={s !== 'none' ? <Check className={`menu__check${s === 'some' ? ' is-partial' : ''}`} /> : undefined}
             />

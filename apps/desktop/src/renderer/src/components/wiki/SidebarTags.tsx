@@ -2,7 +2,8 @@ import { useState, type ReactNode } from 'react'
 import { Check, MoreHorizontal, Tag } from 'lucide-react'
 import { MenuItem, Popover } from '../Popover'
 import { useToast } from '../Toast'
-import { autoTag, KIND_ICON, KIND_LABEL, kindOf, TAG_KINDS } from '../../data/wiki'
+import { autoTag, KIND_LABEL, kindOf, TAG_KINDS } from '../../data/wiki'
+import { tagShow } from '../../../../shared/emoji'
 import './wiki.css'
 
 // 33 §4.2 사이드바 태그 구역: 틱틱 그대로(자리·순서·고정·2단계 부모·끌어 붙이기·우클릭) + 종류 아이콘 + `⋯ › 보기: 전부 · 종류별`
@@ -10,8 +11,9 @@ import './wiki.css'
 export type TagMode = 'all' | 'kind'
 type T = { id: string; name: string; parent_id?: string | null; kind?: string | null }
 
-export function TagKindIcon({ kind }: { kind?: string | null }) {
-  const e = KIND_ICON[kindOf(kind)]
+/** 태그 아이콘(30 §A.5): 이름 앞 이모지(여럿이면 하나) → 종류 아이콘(👤🚀📍) → 주제는 태그 그림. 이름 글은 tagShow(t).name */
+export function TagKindIcon({ kind, name = '' }: { kind?: string | null; name?: string }) {
+  const e = tagShow({ name, kind: kindOf(kind) }).emoji
   return e ? <span className="sidebar__emoji sidebar__kind">{e}</span> : <Tag />
 }
 
