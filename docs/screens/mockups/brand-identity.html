@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>꿈틀 브랜드 시안</title>
+<!-- 45 브랜드 아이덴티티 시안. 로고 6안 × 색 4안(+지금 초록 비교)을 섞어 본다.
+     외부 네트워크를 쓰지 않는다. 같은 폴더의 kkumteul-skin.css(44 껍데기)·kkumteul-art.js(캐릭터·장면 그림)만 읽는다.
+     주소 인자: ?logo=now|a|b|c|d|e|f · &pal=now|peach|mint|forest|sunny · &theme=light|dark · &only=<섹션 id> (diag·logos·detail·home·matrix·pal·screens·rec) -->
+<link rel="stylesheet" href="kkumteul-skin.css">
+<style>
+:root {
+  color-scheme: light;
+  --pg-bg: #F5F5F2; --pg-card: #FFFFFF; --pg-card-2: #F0F0EC; --pg-ink: #1B1D1A; --pg-ink-2: #5E625C; --pg-ink-3: #92968F;
+  --pg-line: #E3E4DF; --pg-sel: #1B1D1A; --pg-on-sel: #FFFFFF; --pg-good: #1E7F4B; --pg-warn: #A86A00; --pg-bad: #C33A32;
+  --pg-good-bg: #E3F4EA; --pg-warn-bg: #FFF1D6; --pg-bad-bg: #FDE6E3; --pg-rec: #FFF3D1; --pg-rec-line: #E9BF4C;
+  --pg-font: "Pretendard", "Pretendard Variable", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --pg-round: "SF Pro Rounded", ui-rounded, "Pretendard", -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --pg-bg: #111311; --pg-card: #1A1C1A; --pg-card-2: #222522; --pg-ink: #ECEEEA; --pg-ink-2: #A6AAA4; --pg-ink-3: #6F736D;
+    --pg-line: #2C2F2C; --pg-sel: #ECEEEA; --pg-on-sel: #111311; --pg-good: #6FD69B; --pg-warn: #F2B84B; --pg-bad: #FF8A80;
+    --pg-good-bg: rgba(111,214,155,.12); --pg-warn-bg: rgba(242,184,75,.13); --pg-bad-bg: rgba(255,138,128,.12); --pg-rec: rgba(242,184,75,.10); --pg-rec-line: #9C7A26;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --pg-bg: #111311; --pg-card: #1A1C1A; --pg-card-2: #222522; --pg-ink: #ECEEEA; --pg-ink-2: #A6AAA4; --pg-ink-3: #6F736D;
+  --pg-line: #2C2F2C; --pg-sel: #ECEEEA; --pg-on-sel: #111311; --pg-good: #6FD69B; --pg-warn: #F2B84B; --pg-bad: #FF8A80;
+  --pg-good-bg: rgba(111,214,155,.12); --pg-warn-bg: rgba(242,184,75,.13); --pg-bad-bg: rgba(255,138,128,.12); --pg-rec: rgba(242,184,75,.10); --pg-rec-line: #9C7A26;
+}
+* { box-sizing: border-box }
+body { margin: 0; background: var(--pg-bg); color: var(--pg-ink); font: 14px/1.55 var(--pg-font); -webkit-font-smoothing: antialiased }
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: 20px; padding-block: 0 80px }
+h1 { font: 800 30px/1.2 var(--pg-font); letter-spacing: -.03em; margin: 28px 0 6px }
+h2 { font: 800 22px/1.25 var(--pg-font); letter-spacing: -.02em; margin: 0 0 4px }
+h3 { font: 700 13px/1.3 var(--pg-font); color: var(--pg-ink-2); margin: 0 0 10px; letter-spacing: -.005em }
+p { margin: 0 0 8px }
+.lede { color: var(--pg-ink-2); max-width: 820px }
+.muted { color: var(--pg-ink-2) } .faint { color: var(--pg-ink-3) }
+code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--pg-card-2); padding: 1px 5px; border-radius: 4px }
+section.sec { background: var(--pg-card); border: 1px solid var(--pg-line); border-radius: 20px; padding: 24px; margin: 0 0 24px }
+.sec-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 18px }
+.sec-head .n { font: 800 12px/1 var(--pg-round); color: var(--pg-ink-3) }
+
+/* 상단 고르기 막대 */
+.bar-top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 100; background: color-mix(in srgb, var(--pg-bg) 88%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom: 1px solid var(--pg-line); margin-inline: -20px; padding: 10px 20px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center }
+.grp { display: flex; flex-wrap: wrap; gap: 4px; align-items: center }
+.grp > span { font: 700 11.5px/1 var(--pg-font); color: var(--pg-ink-3); margin-right: 4px }
+.pill { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 6px; border-radius: 999px; border: 1px solid var(--pg-line); background: var(--pg-card); color: var(--pg-ink); font: 600 12.5px/1 var(--pg-font); cursor: pointer; white-space: nowrap }
+.pill.t { padding: 0 11px }
+.pill:hover { border-color: var(--pg-ink-3) }
+.pill.on { background: var(--pg-sel); color: var(--pg-on-sel); border-color: var(--pg-sel) }
+.pill svg { width: 20px; height: 20px; flex: none }
+.pill .sw { width: 18px; height: 18px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.1) }
+.pill.rec::after { content: "추천"; font: 800 9.5px/1 var(--pg-font); padding: 3px 5px; border-radius: 6px; background: var(--pg-rec-line); color: #2B1F00; margin-left: 2px }
+
+/* 진단 */
+.diag { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px }
+@media (max-width: 900px) { .diag { grid-template-columns: 1fr } }
+.ladder { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px; padding: 18px; border-radius: 16px; background: var(--pg-card-2) }
+.ladder figure { margin: 0; text-align: center; font: 600 11px/1.3 var(--pg-round); color: var(--pg-ink-3) }
+.ladder figure svg { display: block; margin: 0 auto 6px }
+.ladder.dk { background: #0E100F }
+.issues { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px }
+.issues li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start }
+.issues b { display: block }
+.issues .k { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font: 800 12px/1 var(--pg-round); background: var(--pg-bad-bg); color: var(--pg-bad) }
+
+/* 로고 6안 */
+.logos { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 12px }
+.lg { border: 1px solid var(--pg-line); border-radius: 18px; padding: 16px; cursor: pointer; background: var(--pg-card); text-align: left; color: inherit; font: inherit; display: flex; flex-direction: column; gap: 10px }
+.lg:hover { border-color: var(--pg-ink-3) }
+.lg.on { border-color: var(--pg-sel); box-shadow: 0 0 0 2px var(--pg-sel) }
+.lg .row { display: flex; gap: 10px; align-items: flex-end }
+.lg b { font: 800 15px/1.25 var(--pg-font); letter-spacing: -.01em }
+.lg small { color: var(--pg-ink-2); font-size: 12.5px; line-height: 1.45 }
+.lg .tag { font: 800 11px/1 var(--pg-round); color: var(--pg-ink-3) }
+.lg.rec { background: var(--pg-rec); border-color: var(--pg-rec-line) }
+
+/* 고른 로고 자세히 */
+.detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px }
+.box { border: 1px solid var(--pg-line); border-radius: 16px; padding: 16px; background: var(--pg-card) }
+.box.tight { padding: 14px }
+.icons-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end }
+.icons-row figure { margin: 0; text-align: center; font: 600 11px/1.35 var(--pg-font); color: var(--pg-ink-3) }
+.icons-row figure svg { display: block; margin: 0 auto 6px }
+.plate { border-radius: 14px; padding: 14px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end }
+.plate figure { margin: 0; text-align: center; font: 600 11px/1.35 var(--pg-round) }
+.plate figure svg { display: block; margin: 0 auto 6px }
+.plate.lt { background: #EEF0EC } .plate.dk { background: #0F1110 }
+.plate.lt figure { color: #6A6E68 } .plate.dk figure { color: #8C908A }
+.lockup { display: flex; align-items: center; gap: 12px; padding: 18px; border-radius: 14px }
+.lockup.lt { background: #FFFFFF; border: 1px solid #E6E7E3; color: #1A1C1A } .lockup.dk { background: #121413; color: #F0F2EE }
+.wm-ko { font: 800 30px/1 var(--pg-font); letter-spacing: -.05em }
+.wm-en { font: 700 14px/1 var(--pg-round); letter-spacing: -.01em; opacity: .62; margin-top: 5px; display: block }
+.lockup.stack { flex-direction: column; text-align: center; gap: 10px }
+.lockup.stack .tag { font: 500 12px/1.3 var(--pg-font); opacity: .6 }
+.menubar { display: flex; align-items: center; gap: 14px; height: 26px; padding: 0 12px; border-radius: 8px; font: 600 12.5px/1 -apple-system, sans-serif }
+.menubar.lt { background: rgba(246,246,246,.92); color: #111; box-shadow: inset 0 0 0 1px #E2E2E2 } .menubar.dk { background: rgba(32,32,34,.92); color: #fff }
+.menubar .sp { flex: 1 }
+.menubar .on-ic { padding: 2px 4px; border-radius: 5px; background: rgba(127,127,127,.22) }
+.tab-mock { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px 10px 0 0; font: 500 12.5px/1 -apple-system, sans-serif; width: 230px }
+.tab-mock.lt { background: #FFFFFF; color: #222; box-shadow: 0 0 0 1px #DDD } .tab-mock.dk { background: #2A2B2D; color: #EEE }
+.adaptive { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end }
+.metric { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px }
+.badge { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 6px; font: 700 11.5px/1 var(--pg-round); white-space: nowrap }
+.badge.good { background: var(--pg-good-bg); color: var(--pg-good) } .badge.warn { background: var(--pg-warn-bg); color: var(--pg-warn) } .badge.bad { background: var(--pg-bad-bg); color: var(--pg-bad) }
+
+/* 홈 화면 */
+.homes { display: flex; flex-wrap: wrap; gap: 44px 40px; padding: 12px 0; justify-content: center }
+.homes figure { margin: 0; text-align: center }
+.homes figcaption { font: 600 12.5px/1.4 var(--pg-font); color: var(--pg-ink-2); margin-top: 10px }
+.hs { position: relative; width: 390px; height: 820px; border-radius: 54px; overflow: hidden; box-shadow: 0 0 0 10px #111, 0 0 0 11.5px #2B2E2C, 0 30px 60px rgba(0,0,0,.22); font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; flex: none }
+.hs.and { width: 412px; border-radius: 34px; font-family: Roboto, "Noto Sans KR", -apple-system, sans-serif }
+.hs .stat { height: 54px; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 34px 8px; color: #fff; font: 650 15px/1 -apple-system, sans-serif; position: relative; z-index: 2 }
+.hs.and .stat { height: 36px; align-items: center; padding: 0 22px; font-size: 13px }
+.hs .isl { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 120px; height: 34px; border-radius: 20px; background: #000; z-index: 3 }
+.hs.and .isl { width: 12px; height: 12px; top: 12px; border-radius: 50% }
+.hs .grid { display: grid; grid-template-columns: repeat(4, 60px); justify-content: space-between; row-gap: 26px; padding: 30px 27px 0 }
+.hs.and .grid { grid-template-columns: repeat(4, 64px); padding: 26px 28px 0; row-gap: 22px }
+.app { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 60px }
+.hs.and .app { width: 64px; gap: 7px }
+.app svg { display: block; width: 60px; height: 60px }
+.hs.and .app svg { width: 52px; height: 52px }
+.app span { font: 500 11.5px/1 inherit; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.45); white-space: nowrap; letter-spacing: -.01em }
+.hs.and .app span { font-size: 12px }
+.app.me span { font-weight: 700 }
+.hs .dock { position: absolute; left: 12px; right: 12px; bottom: 12px; height: 96px; border-radius: 38px; background: rgba(255,255,255,.28); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); display: flex; justify-content: space-around; align-items: center; padding: 0 14px }
+.hs.dkw .dock { background: rgba(60,60,64,.42) }
+.hs .dock .app span { display: none }
+.hs.and .dock { background: none; -webkit-backdrop-filter: none; backdrop-filter: none; bottom: 64px; height: auto; border-radius: 0; padding: 0 28px; justify-content: space-between }
+.hs.and .gbar { position: absolute; left: 22px; right: 22px; bottom: 136px; height: 50px; border-radius: 25px; background: rgba(255,255,255,.72); display: flex; align-items: center; padding: 0 18px; gap: 10px; color: #5F6368; font-size: 14px }
+.hs.and.dkw .gbar { background: rgba(48,52,58,.8); color: #C4C7CC }
+.hs .gbar i { width: 22px; height: 22px; border-radius: 50%; border: 3px solid currentColor; opacity: .55 }
+.hs .navh { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.75) }
+.hs.and .navh { width: 108px; height: 4px; bottom: 14px }
+.hs .pager { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); display: flex; gap: 7px }
+.hs .pager i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.45) } .hs .pager i:first-child { background: #fff }
+.hs.and .pager { bottom: 200px }
+.hs .clockw { color: #fff; text-align: center; padding-top: 18px }
+.hs .clockw b { display: block; font: 300 64px/1 Roboto, -apple-system, sans-serif; letter-spacing: -.02em }
+.hs .clockw span { font-size: 13px; opacity: .85 }
+.zoombox { display: flex; gap: 14px; align-items: center; justify-content: center; flex-wrap: wrap; margin-top: 18px }
+.zoombox .z { padding: 12px 16px; border-radius: 14px; display: flex; gap: 14px; align-items: center }
+
+/* 행렬 */
+.matrix-wrap { overflow-x: auto }
+table.mx { border-collapse: separate; border-spacing: 8px; margin: -8px }
+table.mx th { font: 700 12px/1.3 var(--pg-font); color: var(--pg-ink-2); text-align: center; white-space: nowrap; padding: 0 4px }
+table.mx th.r { text-align: right }
+table.mx td { padding: 0 }
+table.mx td button { border: 0; padding: 6px; border-radius: 16px; background: transparent; cursor: pointer; display: block }
+table.mx td button:hover { background: var(--pg-card-2) }
+table.mx td button.on { box-shadow: 0 0 0 2px var(--pg-sel); background: var(--pg-card-2) }
+table.mx td button.rec { box-shadow: 0 0 0 2px var(--pg-rec-line); background: var(--pg-rec) }
+table.mx svg { display: block }
+
+/* 팔레트 */
+.pals { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-bottom: 20px }
+.pal { border: 1px solid var(--pg-line); border-radius: 16px; padding: 14px; cursor: pointer; text-align: left; background: var(--pg-card); color: inherit; font: inherit }
+.pal:hover { border-color: var(--pg-ink-3) }
+.pal.on { border-color: var(--pg-sel); box-shadow: 0 0 0 2px var(--pg-sel) }
+.pal.rec { background: var(--pg-rec); border-color: var(--pg-rec-line) }
+.pal .strip { display: flex; height: 38px; border-radius: 10px; overflow: hidden; margin-bottom: 10px }
+.pal .strip i { flex: 1 } .pal .strip i:first-child { flex: 2.2 }
+.pal b { font: 800 15px/1.25 var(--pg-font) }
+.pal small { display: block; color: var(--pg-ink-2); font-size: 12.5px; line-height: 1.45; margin-top: 2px }
+.swgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px }
+.sw2 { border-radius: 12px; overflow: hidden; border: 1px solid var(--pg-line) }
+.sw2 .c { height: 56px; display: flex; align-items: flex-end; padding: 8px; font: 800 13px/1 var(--pg-font) }
+.sw2 .m { padding: 8px 10px; font: 600 11.5px/1.45 var(--pg-font); color: var(--pg-ink-2) }
+.sw2 .m b { color: var(--pg-ink); display: block; font-size: 12.5px }
+.sw2 .m code { background: none; padding: 0; font-size: 11px }
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr } }
+.tblw { overflow-x: auto }
+table.ct { width: 100%; border-collapse: collapse; font-size: 12.5px }
+table.ct th, table.ct td { padding: 8px 8px; border-bottom: 1px solid var(--pg-line); text-align: left; vertical-align: middle }
+table.ct th { font-weight: 700; color: var(--pg-ink-2); font-size: 11.5px; white-space: nowrap }
+table.ct .smp { display: inline-flex; align-items: center; justify-content: center; min-width: 54px; height: 26px; padding: 0 8px; border-radius: 7px; font: 800 12px/1 var(--pg-font) }
+.semrow { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px }
+.sem { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--pg-line); font: 600 12px/1.3 var(--pg-font) }
+.sem i { width: 22px; height: 22px; border-radius: 7px; flex: none }
+.sem i.ck { background: transparent; border: 2.4px solid }
+
+/* 앱 화면 미리보기 (44 껍데기 위에 팔레트 변수만 바꾼다) */
+.screens { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center }
+.screens .zw { zoom: .86 }
+.pv { font-family: var(--k-font); color: var(--k-ink); text-align: left }
+.pv .fill { flex: 1 }
+.pv .check.on::after { border-color: var(--k-on-accent) }
+.pv .t-h1 { color: var(--k-ink) }
+.pv-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 16px 0 }
+.pv-hb { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--k-surface); box-shadow: var(--k-sh-1); color: var(--k-ink-2) }
+.pv-me { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px 0 4px; border-radius: 999px; background: var(--k-surface); box-shadow: var(--k-sh-1); font: 700 12.5px/1 var(--k-num); color: var(--k-ink) }
+.pv-me .f { width: 26px; height: 26px; border-radius: 50%; overflow: hidden; background: var(--k-accent-soft); display: grid; place-items: center }
+.pv-me .f svg { width: 26px; height: 26px }
+.pv-title { padding: 10px 20px 6px }
+.pv-title .t-label { margin-top: 2px }
+.pv-sec { display: flex; justify-content: space-between; align-items: center; padding: 12px 22px 6px; font: 700 13px/1 var(--k-font); color: var(--k-ink-2) }
+.pv-sec span { color: var(--k-accent-ink); font-weight: 650 }
+.pv-grp { margin: 0 14px; padding: 2px 0 }
+.pv-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; position: relative }
+.pv-row + .pv-row::before { content: ""; position: absolute; left: 48px; right: 0; top: 0; height: 1px; background: var(--k-line) }
+.pv-row .tx { flex: 1; min-width: 0 }
+.pv-row .tx b { display: block; font: 550 15px/20px var(--k-font); letter-spacing: -.01em; color: var(--k-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.pv-row .tx small { display: flex; gap: 6px; align-items: center; font: 500 12px/16px var(--k-font); color: var(--k-ink-3); margin-top: 1px }
+.pv-row .tx small .od { color: var(--k-danger) }
+.pv-row .tx small .tm { color: var(--k-accent-ink) }
+.pv-row.done .tx b { color: var(--k-ink-3); text-decoration: line-through }
+.pv-fab { position: absolute; right: 18px; bottom: 100px; width: 58px; height: 58px; border-radius: 20px; background: var(--k-accent); color: var(--k-on-accent); display: grid; place-items: center; box-shadow: var(--k-sh-accent); z-index: 20 }
+.pv-tabs .ic-line { width: 23px; height: 23px }
+.pv-stage { position: relative; height: 420px; flex: none; overflow: hidden; background: #57B862; margin-top: -46px }
+.pv-stage .scene-svg { position: absolute; inset: 0; width: 100%; height: 100% }
+.pv.dk .pv-stage .scene-svg { filter: brightness(.82) saturate(.92) }
+.pv-stage .who { position: absolute; left: 50%; top: 150px; width: 170px; height: 170px; transform: translateX(-50%) }
+.pv-stage .who svg { width: 100%; height: 100% }
+.pv-stage .top { position: absolute; top: 56px; left: 18px; right: 18px; display: flex; justify-content: space-between; align-items: center }
+.pv-stage .top b { font: 800 26px/1 var(--k-font); color: #fff; letter-spacing: -.03em; text-shadow: 0 1px 8px rgba(0,40,10,.25) }
+.pv-stage .top .chips { display: flex; gap: 6px }
+.pv-stage .top .chip { background: var(--k-glass); color: var(--k-glass-ink); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px) }
+.pv-hud { position: relative; margin: -86px 14px 0; border-radius: 22px; padding: 14px 16px; z-index: 5 }
+.pv-hud .r1 { display: flex; align-items: center; gap: 8px; font: 700 14px/1.2 var(--k-font) }
+.pv-hud .lv { height: 22px; padding: 0 8px; border-radius: 7px; background: var(--k-accent); color: var(--k-on-accent); font: 800 11.5px/22px var(--k-num) }
+.pv-hud .r2 { display: flex; align-items: flex-end; justify-content: space-between; margin: 8px 0 10px }
+.pv-hud .num { font: 800 40px/1 var(--k-num); letter-spacing: -.045em }
+.pv-hud .num small { font-size: 20px; margin-left: 1px }
+.pv-hud .sub { font: 600 12px/1.2 var(--k-font); color: var(--k-ink-2); margin-top: 4px }
+.pv-hud .tip { background: var(--k-ink); color: var(--k-ground) }
+.pv-hud .xp { display: flex; justify-content: space-between; font: 600 11px/1 var(--k-num); color: var(--k-ink-3); margin-top: 7px }
+.pv-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 14px 0 }
+.pv-tiles > div { background: var(--k-surface); border-radius: 16px; padding: 10px 6px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; font: 650 12px/1 var(--k-font); box-shadow: var(--k-sh-1) }
+.pv-cal-h { display: flex; align-items: flex-end; justify-content: space-between; padding: 6px 18px 10px }
+.pv-cal-h .t-h1 small { font: 600 15px/1 var(--k-num); color: var(--k-ink-3); margin-left: 6px; letter-spacing: 0 }
+.pv-cal-h .nav { display: flex; gap: 6px }
+.pv-cal-h .nav i { width: 32px; height: 32px; border-radius: 50%; background: var(--k-surface); box-shadow: var(--k-sh-1); display: grid; place-items: center; font-style: normal; color: var(--k-ink-2); font-size: 15px }
+.pv-wk { display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 6px; font: 600 11px/22px var(--k-font); color: var(--k-ink-3); text-align: center }
+.pv-wk .sun { color: var(--k-danger) } .pv-wk .sat { color: var(--k-pri-low) }
+.pv-mo { display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 6px; background: var(--k-surface); border-top: 1px solid var(--k-line); border-bottom: 1px solid var(--k-line) }
+.pv-mo > div { height: 72px; border-top: 1px solid var(--k-line); padding: 3px 2px 0; overflow: hidden }
+.pv-mo > div:nth-child(-n+7) { border-top: 0 }
+.pv-mo .d { width: 22px; height: 22px; margin: 0 auto 2px; border-radius: 50%; display: grid; place-items: center; font: 650 11.5px/1 var(--k-num); color: var(--k-ink) }
+.pv-mo .out .d { color: var(--k-ink-4) }
+.pv-mo .sun .d, .pv-mo .hol .d { color: var(--k-danger) } .pv-mo .sat .d { color: var(--k-pri-low) }
+.pv-mo .today .d { background: var(--k-accent-soft); color: var(--k-accent-ink) }
+.pv-mo .sel .d { background: var(--k-accent); color: var(--k-on-accent) }
+.pv-mo .ev { height: 14px; border-radius: 4px; margin: 0 0 2px; padding: 0 3px; font: 700 9px/14px var(--k-font); color: #fff; white-space: nowrap; overflow: hidden }
+.pv-mo .ev.dn { color: var(--k-ink-3); font-weight: 600; text-decoration: line-through }
+.pv-mo .more { font: 700 9px/1 var(--k-num); color: var(--k-ink-3); padding-left: 3px }
+.pv-day { margin: 10px 14px 0; padding: 4px 0 }
+.pv-day .h { display: flex; justify-content: space-between; padding: 10px 14px 2px; font: 700 13px/1 var(--k-font) }
+.pv-day .h span { color: var(--k-ink-3); font-weight: 600 }
+
+/* 추천 */
+.rec-box { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: center; background: var(--pg-rec); border: 1px solid var(--pg-rec-line); border-radius: 20px; padding: 22px }
+@media (max-width: 760px) { .rec-box { grid-template-columns: 1fr } }
+.rec-box ul { margin: 6px 0 0; padding-left: 18px }
+.rec-box li { margin: 3px 0 }
+.btn-rec { margin-top: 12px; height: 38px; padding: 0 16px; border-radius: 12px; border: 0; background: var(--pg-sel); color: var(--pg-on-sel); font: 700 13.5px/1 var(--pg-font); cursor: pointer }
+.only-mode .bar-top { display: none }
+.only-mode .wrap > header { display: none }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>꿈틀 브랜드 시안 · 로고 × 색</h1>
+    <p class="lede">지금 아이콘(달력 새싹)과 초록을 다시 본다. 로고 6안과 색 4안(+ 지금 초록 비교)을 위 막대에서 마음대로 섞어 볼 수 있다. 모든 그림은 이 문서에서 새로 그렸다(틱틱·레퍼런스 자산 없음). 명세: <code>docs/screens/45-brand-identity.md</code></p>
+  </header>
+  <div class="bar-top" id="bar">
+    <div class="grp" id="gLogo"><span>로고</span></div>
+    <div class="grp" id="gPal"><span>색</span></div>
+    <div class="grp" id="gTheme"><span>테마</span></div>
+  </div>
+
+  <section class="sec" id="diag" style="margin-top:20px">
+    <div class="sec-head"><span class="n">0</span><h2>지금 아이콘 진단</h2><span class="muted">달력 새싹 · <code>#5CD08F → #1F9455</code> · 앱 강조 <code>#22A45D</code></span></div>
+    <div class="diag">
+      <div>
+        <h3>실제 크기 (iOS 설정 29 · 스포트라이트 40 · 홈 60 · 앱스토어 120)</h3>
+        <div class="ladder" id="dLadder"></div>
+        <div class="ladder dk" id="dLadderDk" style="margin-top:10px"></div>
+      </div>
+      <ul class="issues">
+        <li><span class="k">1</span><div><b>흔한 모양이다</b><span class="muted">흰 달력 + 새싹은 캘린더·플래너 앱 템플릿과 구별되지 않는다. "꿈틀"이라는 이름, 캐릭터가 자라는 앱이라는 핵심이 아이콘에 하나도 없다.</span></div></li>
+        <li><span class="k">2</span><div><b>모양이 작고 속이 비었다</b><span class="muted">기호가 판의 48%뿐이고 새싹은 흰 면을 파낸 선이다. 29·40px에서 새싹이 점 몇 개로 뭉개지고 남는 것은 "초록 판 위 흰 네모"다.</span></div></li>
+        <li><span class="k">3</span><div><b>초록이 평평하고 "친환경" 느낌</b><span class="muted">채도 중간 초록 + 위아래 그라데이션은 메시지·검색·가계부·환경 앱이 이미 많이 쓰는 자리다. 홈 화면에서 초록 아이콘 서너 개 사이에 묻힌다(§3). 할 일 앱보다 "식물·탄소 앱"으로 읽힌다.</span></div></li>
+        <li><span class="k">4</span><div><b>앱 안 색과 이야기가 없다</b><span class="muted">강조 <code>#22A45D</code> 위 흰 글자는 3.2:1 — 굵은 15px 이상에서만 통과한다. 따뜻한 캐릭터(크림 씨앗·분홍 볼)와 차가운 초록 UI가 따로 논다.</span></div></li>
+        <li><span class="k">5</span><div><b>다크·색조 아이콘에서 약하다</b><span class="muted">다크 판에서 진초록 위 연초록 달력은 대비가 낮고, iOS 색조(tinted)에서는 흰 네모만 남는다.</span></div></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="logos">
+    <div class="sec-head"><span class="n">1</span><h2>로고 방향 6안</h2><span class="muted">누르면 아래 전부가 그 로고로 바뀐다 · 색은 지금 고른 팔레트</span></div>
+    <div class="logos" id="logoCards"></div>
+  </section>
+
+  <section class="sec" id="detail">
+    <div class="sec-head"><span class="n">2</span><h2 id="dTitle">고른 로고 자세히</h2><span class="muted" id="dIdea"></span></div>
+    <div class="detail">
+      <div class="box">
+        <h3>iOS 앱 아이콘 — 기본 · 다크 · 색조</h3>
+        <div class="plate lt" id="dIos"></div>
+        <div class="metric" id="dMetric"></div>
+      </div>
+      <div class="box">
+        <h3>Android 적응형 — 원 · 둥근 네모 · 물방울 · 단색(테마 아이콘)</h3>
+        <div class="plate lt adaptive" id="dAnd"></div>
+        <p class="faint" style="font-size:12px;margin:8px 0 0">앞층은 가운데 66dp 안전 원 안에 그린다. 바깥 18dp는 런처가 잘라도 되는 여백.</p>
+      </div>
+      <div class="box">
+        <h3>크기 사다리 (180 → 16)</h3>
+        <div class="plate lt" id="dLadder2"></div>
+        <div class="plate dk" id="dLadder3" style="margin-top:8px"></div>
+      </div>
+      <div class="box">
+        <h3>글자 로고 (꿈틀 / Kkumteul)</h3>
+        <div style="display:grid;gap:10px" id="dWord"></div>
+      </div>
+      <div class="box">
+        <h3>작은 기호 — 파비콘 · 메뉴 막대(트레이) · 알림</h3>
+        <div style="display:grid;gap:10px" id="dSmall"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="home">
+    <div class="sec-head"><span class="n">3</span><h2>홈 화면에 놓아 보기</h2><span class="muted">실제 크기(iOS 60pt · Android 52dp). 옆 아이콘은 흔한 모양만 그린 가짜(실제 상표 아님) — 파랑 체크 "할 일"이 다른 할 일 앱 자리</span></div>
+    <div class="homes" id="homes"></div>
+    <div class="zoombox" id="zoom"></div>
+  </section>
+
+  <section class="sec" id="matrix">
+    <div class="sec-head"><span class="n">4</span><h2>섞어 보기 — 로고 × 색</h2><span class="muted">칸을 누르면 둘 다 고른다 · 노란 테두리 = 추천 조합</span></div>
+    <div class="matrix-wrap"><table class="mx" id="mx"></table></div>
+  </section>
+
+  <section class="sec" id="pal">
+    <div class="sec-head"><span class="n">5</span><h2>브랜드 색 4안 (+ 지금 초록)</h2><span class="muted">대비는 이 화면에서 바로 계산한다(WCAG 2.x)</span></div>
+    <div class="pals" id="palCards"></div>
+    <div class="split">
+      <div>
+        <h3 id="pTitle">고른 팔레트</h3>
+        <div class="swgrid" id="pSw"></div>
+        <div class="semrow" id="pSem"></div>
+      </div>
+      <div>
+        <h3>대비 확인 — 라이트 · 다크</h3>
+        <div class="tblw"><table class="ct" id="pCt"></table></div>
+        <p class="faint" style="font-size:12px;margin-top:8px">기준: 본문·작은 글자 4.5 · 굵은 15px 이상·아이콘·체크 테두리 3.0. 강조 채움 위 글자가 3.0~4.5면 버튼·배지(굵은 15px+)에만 쓴다.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="screens">
+    <div class="sec-head"><span class="n">6</span><h2>앱 화면에 입혀 보기</h2><span class="muted">44 껍데기(kkumteul-skin.css) 구조 그대로, <code>--k-*</code> 변수만 팔레트 값으로 바꿨다 · 테마 막대로 다크 확인</span></div>
+    <div class="screens" id="scr"></div>
+  </section>
+
+  <section class="sec" id="rec">
+    <div class="sec-head"><span class="n">7</span><h2>추천 조합</h2></div>
+    <div class="rec-box" id="recBox"></div>
+  </section>
+</div>
+
+<script src="kkumteul-art.js"></script>
+<script>
+'use strict'
+/* ───────── 색 계산 ───────── */
+function rgbOf(h) { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map((c) => c + c).join(''); const n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255] }
+function lum(h) { return rgbOf(h).map((v) => v / 255).map((v) => v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4).reduce((s, v, i) => s + v * [.2126, .7152, .0722][i], 0) }
+function cr(a, b) { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05) }
+function hue(h) { const [r, g, b] = rgbOf(h).map((v) => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return 0; let x = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; x *= 60; return x < 0 ? x + 360 : x }
+function blend(fg, bg) { // rgba(…) 를 바탕 위에 섞은 hex
+  const m = /rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/.exec(fg); if (!m) return fg
+  const B = rgbOf(bg), a = +m[4]; return '#' + [1, 2, 3].map((i) => Math.round(+m[i] * a + B[i - 1] * (1 - a)).toString(16).padStart(2, '0')).join('')
+}
+
+/* ───────── 팔레트 ─────────
+   ui: 앱 안 토큰(44 --k-* 자리) · dk: 다크 · ic: 아이콘 판 색 · icd: 다크 아이콘 */
+const PALS = [
+  { id: 'now', name: '지금 초록', tag: '비교용', mood: '44의 지금 값. 맑은 중간 초록 하나.',
+    ui: { primary: '#22A45D', ink: '#138548', on: '#FFFFFF', soft: '#E2F5E9', hi: '#5CD08F', secondary: '#FFB927', accent: '#FF7FA6', ground: '#F4F6F3', surface: '#FFFFFF', s2: '#EEF2EE', s3: '#E4EAE5', line: '#E5EAE6', lineS: '#D3DBD5', i1: '#16201A', i2: '#59665E', i3: '#8F9B93', i4: '#B6C0B9', danger: '#E5484D', warning: '#FFB927', ph: '#E5484D', pm: '#FFB927', pl: '#4E75F2', sky: '#5AB4F0' },
+    dk: { primary: '#3FC27A', ink: '#6FE09F', on: '#06210F', soft: 'rgba(63,194,122,.16)', hi: '#7BE8A8', ground: '#0C0F0D', surface: '#161A17', s2: '#1F2420', s3: '#282E29', line: '#232925', lineS: '#313833', i1: '#EEF3EF', i2: '#A2ADA5', i3: '#6E7A72', i4: '#4A544D', danger: '#FF6369', warning: '#FFC53D', ph: '#FF6369', pm: '#FFC53D', pl: '#6E8FF5' },
+    ic: { bg1: '#5CD08F', bg2: '#1F9455', fg: '#FFFFFF', fg2: '#CFF3DD', leaf: '#FFFFFF', leaf2: '#D9F7E4', husk: '#F7DDB0', eye: '#24302A', cheek: '#FF8FA3', body: '#FFFFFF', hole: '#38B26F' },
+    icd: { bg1: '#17291F', bg2: '#0B1611', fg: '#7BE5A8', fg2: '#34B771', leaf: '#7BE5A8', leaf2: '#4ACB86', husk: '#E9C893', eye: '#0B1611', cheek: '#E07A8C', body: '#DFF7E8', hole: '#123021' } },
+  { id: 'peach', name: '복숭아 정원', tag: '따뜻하게', mood: '살구·코랄 강조 + 잎 초록 포인트. 캐릭터(크림 씨앗·분홍 볼)와 한 가족.',
+    ui: { primary: '#E8603F', ink: '#C2452A', on: '#FFFFFF', soft: '#FFE9E1', hi: '#FF9A78', secondary: '#FFC9A8', accent: '#3BAA67', ground: '#FBF6F2', surface: '#FFFFFF', s2: '#F5EDE8', s3: '#ECE2DC', line: '#EFE6E0', lineS: '#E0D3CC', i1: '#241915', i2: '#6E5D56', i3: '#A39189', i4: '#C9BBB4', danger: '#D21F3C', warning: '#C98200', ph: '#D21F3C', pm: '#C98200', pl: '#4169E8', sky: '#5AB4F0' },
+    dk: { onDanger: '#2A0508', primary: '#FF7D5C', ink: '#FFA48C', on: '#2A0D05', soft: 'rgba(255,125,92,.16)', hi: '#FFAA8E', ground: '#120D0B', surface: '#1C1613', s2: '#261E1A', s3: '#302723', line: '#2B221E', lineS: '#3B302B', i1: '#F7EEEA', i2: '#B8A9A2', i3: '#80726B', i4: '#564A45', danger: '#FF5370', warning: '#FFC23D', ph: '#FF5370', pm: '#FFC23D', pl: '#7C9BFF' },
+    ic: { bg1: '#FFB494', bg2: '#EE5F3E', fg: '#FFFFFF', fg2: '#FFE1D3', leaf: '#FFFFFF', leaf2: '#C8F2CF', husk: '#FFF3E6', eye: '#3A221D', cheek: '#FF8A8A', body: '#FFF7EF', hole: '#E9603F' },
+    icd: { bg1: '#3B1C14', bg2: '#1A0D09', fg: '#FF9677', fg2: '#FFC9B2', leaf: '#FF9677', leaf2: '#8FE0A6', husk: '#FFD9C2', eye: '#1A0D09', cheek: '#E0706E', body: '#FFE7D9', hole: '#3B1C14' } },
+  { id: 'mint', name: '민트 라임', tag: '산뜻하게', mood: '푸른 민트 강조 + 라임 새잎. 가볍고 맑다.',
+    ui: { primary: '#0B9A70', ink: '#077A58', on: '#FFFFFF', soft: '#DDF5EC', hi: '#43D6A0', secondary: '#B4E14B', accent: '#3AAFEA', ground: '#F2F8F5', surface: '#FFFFFF', s2: '#E9F2EE', s3: '#DDE9E3', line: '#E1ECE7', lineS: '#CDDDD5', i1: '#10201A', i2: '#52675E', i3: '#8A9D95', i4: '#B3C3BC', danger: '#D9343A', warning: '#C98200', ph: '#D9343A', pm: '#C98200', pl: '#4169E8', sky: '#3AAFEA' },
+    dk: { onDanger: '#2A0508', primary: '#2ED39A', ink: '#6AF0C0', on: '#032217', soft: 'rgba(46,211,154,.15)', hi: '#8DF5CF', ground: '#08110E', surface: '#111A16', s2: '#1A241F', s3: '#232E29', line: '#1E2924', lineS: '#2C3832', i1: '#EAF5F0', i2: '#9FB3AA', i3: '#6A7D75', i4: '#45544D', danger: '#FF6369', warning: '#FFC53D', ph: '#FF6369', pm: '#FFC53D', pl: '#6E8FF5' },
+    ic: { bg1: '#8BF0C6', bg2: '#0FAE7C', fg: '#FFFFFF', fg2: '#E4FF8A', leaf: '#FFFFFF', leaf2: '#E4FF8A', husk: '#FFF6D6', eye: '#13302A', cheek: '#FF8FA3', body: '#FFFFFF', hole: '#12B383' },
+    icd: { bg1: '#0E2A21', bg2: '#06140F', fg: '#5BF0B8', fg2: '#C9F56A', leaf: '#5BF0B8', leaf2: '#C9F56A', husk: '#EEDDA8', eye: '#06140F', cheek: '#E07A8C', body: '#D9FBEA', hole: '#0E2A21' } },
+  { id: 'forest', name: '깊은 숲', tag: '깊게', mood: '짙은 숲 청록 강조 + 꿀색·살구 포인트. 차분하고 오래 봐도 덜 지친다.',
+    ui: { primary: '#12715E', ink: '#12715E', on: '#FFFFFF', soft: '#DCEFE9', hi: '#3DB79B', secondary: '#F2B84B', accent: '#F08A5D', ground: '#F3F5F1', surface: '#FFFFFF', s2: '#EBEFEA', s3: '#DFE5DF', line: '#E3E8E2', lineS: '#CFD8D0', i1: '#13201C', i2: '#56655F', i3: '#8D9A94', i4: '#B5C0BA', danger: '#D9343A', warning: '#C98200', ph: '#D9343A', pm: '#C98200', pl: '#4169E8', sky: '#5AB4F0' },
+    dk: { onDanger: '#2A0508', primary: '#3CC4A2', ink: '#6EE0C2', on: '#032119', soft: 'rgba(60,196,162,.15)', hi: '#86EBD0', ground: '#0A100E', surface: '#141B18', s2: '#1C2521', s3: '#25302B', line: '#202925', lineS: '#2E3934', i1: '#ECF4F0', i2: '#A0B0A9', i3: '#6B7C75', i4: '#46544E', danger: '#FF6369', warning: '#FFC23D', ph: '#FF6369', pm: '#FFC23D', pl: '#7090FF' },
+    ic: { bg1: '#167762', bg2: '#0A4337', fg: '#FFF4E2', fg2: '#F2B84B', leaf: '#8EE6A6', leaf2: '#C6F5A6', husk: '#F5C487', eye: '#2B1F18', cheek: '#FF8B86', body: '#FFF2DD', hole: '#0F5E4E' },
+    icd: { bg1: '#12261F', bg2: '#07110D', fg: '#FFE9C7', fg2: '#F2B84B', leaf: '#6FDCA0', leaf2: '#B3EE8F', husk: '#E8B474', eye: '#1B140F', cheek: '#E0706E', body: '#FFEBD0', hole: '#0B1A15' } },
+  { id: 'sunny', name: '햇살 잎', tag: '발랄하게', mood: '해바라기 노랑 채움 + 잎 초록 + 꽃잎 분홍. 가장 장난스럽다.',
+    ui: { primary: '#FFC21A', ink: '#8A6100', on: '#2B2100', soft: '#FFF3C9', hi: '#FFDA5E', secondary: '#2FAE5C', accent: '#FF6F9A', ground: '#FFFBF0', surface: '#FFFFFF', s2: '#F7F1E1', s3: '#EEE6D2', line: '#F0E9D8', lineS: '#E2D8C2', i1: '#221D10', i2: '#675E49', i3: '#9E957F', i4: '#C6BEAA', danger: '#D9343A', warning: '#D86F12', ph: '#D9343A', pm: '#D86F12', pl: '#4169E8', sky: '#5AB4F0' },
+    dk: { onDanger: '#2A0508', primary: '#FFCB3D', ink: '#FFD666', on: '#2B2100', soft: 'rgba(255,203,61,.14)', hi: '#FFE08A', ground: '#12100A', surface: '#1B1810', s2: '#252117', s3: '#2F2A1E', line: '#29251A', lineS: '#3A3426', i1: '#F7F2E4', i2: '#B5AC96', i3: '#7E7662', i4: '#554F40', danger: '#FF6369', warning: '#FFA54F', ph: '#FF6369', pm: '#FFA54F', pl: '#7090FF' },
+    ic: { bg1: '#FFE36E', bg2: '#FFB800', fg: '#1F8A4C', fg2: '#4CC46E', leaf: '#2FAE5C', leaf2: '#7FD68F', husk: '#F2A766', eye: '#2A1E10', cheek: '#FF7FA0', body: '#FFFFFF', hole: '#FFD33F' },
+    icd: { bg1: '#2A2310', bg2: '#120F06', fg: '#FFD24A', fg2: '#7BD88F', leaf: '#6FD487', leaf2: '#B2EA9A', husk: '#D9944F', eye: '#120F06', cheek: '#E0708C', body: '#FFF4D6', hole: '#2A2310' } }
+]
+const REC = { logo: 'b', pal: 'forest' }
+
+/* ───────── 로고 6안 (+ 지금) — 100 × 100 판 안에 그린다 ─────────
+   c: 색 자리(fg 주 모양 · fg2 둘째 면 · leaf/leaf2 잎 · husk 씨앗 껍질 · body 캐릭터 얼굴 · eye 눈·입 · cheek 볼 · hole 파낸 곳)
+   c.mono = 단색(색조 아이콘·트레이·적응형 단색). 단색에서는 eye·hole 이 구멍(검정), 나머지는 흰색으로 마스크에 그린다. s = 작은 크기(32 이하) */
+const MONO = { fg: '#fff', fg2: '#fff', leaf: '#fff', leaf2: '#fff', husk: '#fff', body: '#fff', eye: '#000', cheek: 'none', hole: '#000', mono: true }
+const sproutAt = (x, y, k, c, w = 4.6) => // 줄기 아래 (x, y+9k) → 위 (x, y), 잎 둘
+  `<path d="M${x} ${y + 10 * k} V${y + 1}" stroke="${c.leaf}" stroke-width="${w}" stroke-linecap="round"/>` +
+  `<path transform="translate(${x} ${y}) scale(${k})" d="M-1 1 C-8 1 -15 -3 -17 -12 C-8 -13 -2 -8 -1 1 Z" fill="${c.leaf2}"/>` +
+  `<path transform="translate(${x} ${y}) scale(${k})" d="M1 0 C2 -9 8 -15 18 -15 C18 -5 11 0 1 0 Z" fill="${c.leaf}"/>`
+const LOGOS = [
+  { id: 'now', name: '지금 — 달력 새싹', short: '지금', idea: '흰 달력 판을 파낸 새싹. 비교용.',
+    mark: (c, s) => `<rect x="26" y="35" width="48" height="44" rx="10" fill="${c.fg}"/><rect x="33.5" y="29" width="7" height="13" rx="3.5" fill="${c.fg}"/><rect x="59.5" y="29" width="7" height="13" rx="3.5" fill="${c.fg}"/><rect x="26" y="45.5" width="48" height="2.6" fill="${c.hole}"/>` +
+      `<path d="M50 73 V60" stroke="${c.hole}" stroke-width="4.4" stroke-linecap="round"/><path d="M49.5 62 C44 62 38 59 37.5 51.5 C45 51.5 49.5 55 49.5 62Z" fill="${c.hole}"/><path d="M50.5 60 C51 53 56 49 63 49 C63 56 57 60.5 50.5 60Z" fill="${c.hole}"/>` },
+  { id: 'a', name: '꿈틀 새싹', short: 'A 꿈틀 새싹', idea: '애벌레처럼 S자로 꿈틀대며 올라가는 줄기 + 두 잎. 이름을 그대로 그림으로. 가장 추상적이고 깔끔하다.',
+    mark: (c, s) => `<path d="M50 85 C37 79 37 70 50 64 C63 58 63 49 50 44 C44 41.5 44 38 47.5 35" stroke="${c.fg}" stroke-width="${s ? 14 : 11}" stroke-linecap="round" fill="none"/>` +
+      `<path d="M47 37 C36 38 24 32 21 19 C35 17 46 24 47 37 Z" fill="${c.fg2}"/><path d="M49 35 C50 22 61 13 78 13 C78 28 66 36 49 35 Z" fill="${c.leaf}"/>` },
+  { id: 'b', name: '씨앗 친구', short: 'B 씨앗 친구', idea: '머리에 새싹 난 씨앗 얼굴. 앱의 주인공(캐릭터) 자체가 로고 — 작은 크기에서도 "눈 두 개"가 가장 먼저 읽힌다.',
+    mark: (c, s) => `<g transform="translate(0 2)"><path d="M50 31 C69 31 81 45 81 61 C81 77 67 87 50 87 C33 87 19 77 19 61 C19 45 31 31 50 31 Z" fill="${c.husk}"/>` +
+      (c.mono || s ? '' : `<ellipse cx="35" cy="45" rx="7.5" ry="4" transform="rotate(-32 35 45)" fill="#fff" opacity=".5"/>`) +
+      (c.mono || s ? '' : `<ellipse cx="31" cy="69" rx="5.6" ry="3.4" fill="${c.cheek}" opacity=".8"/><ellipse cx="69" cy="69" rx="5.6" ry="3.4" fill="${c.cheek}" opacity=".8"/>`) +
+      `<ellipse cx="39.5" cy="60" rx="${s ? 5.6 : 4.4}" ry="${s ? 6.6 : 5.4}" fill="${c.eye}"/><ellipse cx="60.5" cy="60" rx="${s ? 5.6 : 4.4}" ry="${s ? 6.6 : 5.4}" fill="${c.eye}"/>` +
+      (s ? '' : `<circle cx="41.2" cy="58" r="1.6" fill="${c.mono ? '#fff' : '#fff'}"/><circle cx="62.2" cy="58" r="1.6" fill="#fff"/>`) +
+      (s ? '' : `<path d="M45.5 68.5 Q50 73 54.5 68.5" stroke="${c.eye}" stroke-width="2.6" stroke-linecap="round" fill="none"/>`) +
+      sproutAt(50, 21, s ? 1.15 : 1, c, s ? 6 : 4.8) + '</g>' },
+  { id: 'c', name: '달력 새싹 다듬기', short: 'C 달력 새싹 2', idea: '지금 로고를 키우고 다듬었다: 판을 꽉 채운 달력, 색 머리띠, 새싹이 달력 위로 뚫고 나온다. 바꾸는 폭이 가장 작다.',
+    mark: (c, s) => `<rect x="18" y="30" width="64" height="56" rx="15" fill="${c.fg}"/><path d="M18 45 C18 36.7 24.7 30 33 30 H67 C75.3 30 82 36.7 82 45 V46 H18 Z" fill="${c.fg2}"/>` +
+      (c.mono ? `<rect x="18" y="45" width="64" height="3" fill="#000"/>` : '') +
+      `<rect x="25" y="23" width="8" height="14" rx="4" fill="${c.fg}"/><rect x="67" y="23" width="8" height="14" rx="4" fill="${c.fg}"/>` +
+      (s ? '' : [[30, 58], [40, 58], [60, 58], [70, 58], [30, 70], [40, 70], [60, 70], [70, 70]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.6" fill="${c.hole}" opacity="${c.mono ? 1 : .22}"/>`).join('')) +
+      `<path d="M50 77 V22" stroke="${c.hole}" stroke-width="${s ? 7 : 5.4}" stroke-linecap="round"/>` +
+      `<path d="M49 22 C42 22 35 18 34 9 C43 8 48 13 49 22 Z" fill="${c.mono ? '#fff' : c.leaf2}"/><path d="M51 21 C52 12 58 7 68 7 C68 16 61 21 51 21 Z" fill="${c.mono ? '#fff' : c.leaf}"/>` },
+  { id: 'd', name: 'ㄲ 모노그램', short: 'D ㄲ', idea: '"꿈틀"의 첫 소리 ㄲ 두 획을 통통한 둥근 선으로. 오른쪽 ㄱ 위에 새싹. 한글다움이 가장 강하다.',
+    mark: (c, s) => `<path d="M20 36 H40 C45 36 47 39.5 46.2 44 C44 58 38 69 27.5 79" stroke="${c.fg}" stroke-width="${s ? 13 : 10.5}" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` +
+      `<path d="M55 36 H75 C80 36 82 39.5 81.2 44 C79 58 73 69 62.5 79" stroke="${c.fg}" stroke-width="${s ? 13 : 10.5}" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` +
+      sproutAt(66, 22, s ? 1 : .9, c, s ? 6 : 4.6) },
+  { id: 'e', name: '체크 새싹', short: 'E 체크 새싹', idea: '체크 표시의 긴 획이 그대로 줄기가 되어 잎을 낸다. "할 일을 끝내면 자란다"를 한 획에. 할 일 앱인 것이 바로 보인다.',
+    mark: (c, s) => `<g transform="translate(-2 5)"><path d="M23 55 L40 72 C49 60 57 48 66 37" stroke="${c.fg}" stroke-width="${s ? 14 : 11.5}" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` +
+      `<path d="M66 37 C57 37 49 31 47.5 20 C58 19.5 66 26 66 37 Z" fill="${c.fg2}"/><path d="M68 35 C69 24 77 15 89 15 C89 27 80 35 68 35 Z" fill="${c.leaf}"/></g>` },
+  { id: 'f', name: '빼꼼 씨앗', short: 'F 빼꼼', idea: '깨진 씨앗 껍질 위로 친구가 눈만 빼꼼. 부화(온보딩)·성장 이야기가 시작되는 장면. 가장 귀엽지만 작은 크기에서 지그재그가 흐려진다.',
+    mark: (c, s) => `<circle cx="50" cy="55" r="23" fill="${c.body}"/>` +
+      (c.mono || s ? '' : `<ellipse cx="34" cy="60" rx="4.6" ry="2.8" fill="${c.cheek}" opacity=".8"/><ellipse cx="66" cy="60" rx="4.6" ry="2.8" fill="${c.cheek}" opacity=".8"/>`) +
+      `<ellipse cx="41.5" cy="51.5" rx="${s ? 4.8 : 3.8}" ry="${s ? 5.6 : 4.6}" fill="${c.eye}"/><ellipse cx="58.5" cy="51.5" rx="${s ? 4.8 : 3.8}" ry="${s ? 5.6 : 4.6}" fill="${c.eye}"/>` +
+      (s ? '' : `<circle cx="43" cy="49.6" r="1.4" fill="#fff"/><circle cx="60" cy="49.6" r="1.4" fill="#fff"/>`) +
+      sproutAt(50, 24, s ? 1.05 : .95, c, s ? 6 : 4.6) +
+      `<path d="M15 61 L22.5 55 L30 61.5 L37.5 55 L45 61.5 L50 56.5 L55 61.5 L62.5 55 L70 61.5 L77.5 55 L85 61 C85 80 70 90 50 90 C30 90 15 80 15 61 Z" fill="${c.husk}"/>` +
+      (c.mono ? `<path d="M15 61 L22.5 55 L30 61.5 L37.5 55 L45 61.5 L50 56.5 L55 61.5 L62.5 55 L70 61.5 L77.5 55 L85 61" stroke="#000" stroke-width="3.4" stroke-linejoin="round" fill="none"/>` : `<ellipse cx="30" cy="72" rx="5" ry="3" fill="#fff" opacity=".4"/>`) }
+]
+const byId = (arr, id) => arr.find((x) => x.id === id) || arr[0]
+
+/* ───────── 아이콘 만들기 ───────── */
+let UID = 0
+const sq = (x, y, w, r) => { // 둥근 네모(초타원 비슷하게 — 꼭짓점 곡선을 길게)
+  const k = r * 1.28
+  return `M${x + k} ${y} H${x + w - k} C${x + w - r * .2} ${y} ${x + w} ${y + r * .2} ${x + w} ${y + k} V${y + w - k} C${x + w} ${y + w - r * .2} ${x + w - r * .2} ${y + w} ${x + w - k} ${y + w} H${x + k} C${x + r * .2} ${y + w} ${x} ${y + w - r * .2} ${x} ${y + w - k} V${y + k} C${x} ${y + r * .2} ${x + r * .2} ${y} ${x + k} ${y} Z`
+}
+function bgDef(ic, id) { return `<linearGradient id="${id}" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="${ic.bg1}"/><stop offset="1" stop-color="${ic.bg2}"/></linearGradient>` }
+/** iOS 판 아이콘. mode: color | dark | tinted */
+function iosIcon(logo, pal, size, mode = 'color', o = {}) {
+  const id = 'g' + (++UID), small = size <= 32
+  const ic = mode === 'dark' ? pal.icd : pal.ic
+  let body
+  if (mode === 'tinted') {
+    body = `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2E2F33"/><stop offset="1" stop-color="#121214"/></linearGradient><mask id="${id}m" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><rect width="100" height="100" fill="#000"/>${logo.mark(MONO, small)}</mask></defs>` +
+      `<path d="${sq(0, 0, 100, 22.4)}" fill="url(#${id})"/><rect width="100" height="100" fill="${o.tint || '#F5C66B'}" mask="url(#${id}m)"/>`
+  } else {
+    body = `<defs>${bgDef(ic, id)}<clipPath id="${id}c"><path d="${sq(0, 0, 100, 22.4)}"/></clipPath></defs><g clip-path="url(#${id}c)"><rect width="100" height="100" fill="url(#${id})"/>${logo.mark(ic, small)}</g>` +
+      (mode === 'dark' ? `<path d="${sq(.5, .5, 99, 22.3)}" fill="none" stroke="#fff" stroke-opacity=".08"/>` : '')
+  }
+  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" role="img" aria-label="꿈틀 ${logo.short}">${body}</svg>`
+}
+/** Android 적응형: 108 판, 보이는 곳 72(가운데), 안전 원 66 */
+function andIcon(logo, pal, size, shape = 'circle', mode = 'color', o = {}) {
+  const id = 'a' + (++UID), small = size <= 32
+  const clip = shape === 'circle' ? `<circle cx="54" cy="54" r="36"/>` : shape === 'squircle' ? `<path d="${sq(18, 18, 72, 22)}"/>` : `<path d="M54 18 H76 C84 18 90 24 90 32 V54 C90 74 74 90 54 90 C34 90 18 74 18 54 C18 34 34 18 54 18 Z"/>`
+  const place = (inner) => `<g transform="translate(54 54) scale(.66) translate(-50 -50)">${inner}</g>`
+  let body
+  if (mode === 'themed') {
+    const bg = o.bg || '#D7E3F7', fg = o.fg || '#23395B'
+    body = `<defs><clipPath id="${id}c">${clip}</clipPath><mask id="${id}m" maskUnits="userSpaceOnUse" x="0" y="0" width="108" height="108"><rect width="108" height="108" fill="#000"/>${place(logo.mark(MONO, small))}</mask></defs><g clip-path="url(#${id}c)"><rect width="108" height="108" fill="${bg}"/><rect width="108" height="108" fill="${fg}" mask="url(#${id}m)"/></g>`
+  } else {
+    const ic = mode === 'dark' ? pal.icd : pal.ic
+    body = `<defs>${bgDef(ic, id)}<clipPath id="${id}c">${clip}</clipPath></defs><g clip-path="url(#${id}c)"><rect width="108" height="108" fill="url(#${id})"/>${place(logo.mark(ic, small))}</g>`
+  }
+  return `<svg width="${size}" height="${size}" viewBox="18 18 72 72" role="img" aria-label="꿈틀 ${logo.short}">${body}</svg>`
+}
+/** 단색 기호(트레이·알림·글자 로고 옆) */
+function glyph(logo, size, color) {
+  const id = 'm' + (++UID), small = size <= 32
+  return `<svg width="${size}" height="${size}" viewBox="10 6 80 88" role="img" aria-label="꿈틀"><defs><mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><rect width="100" height="100" fill="#000"/>${logo.mark(MONO, small)}</mask></defs><rect width="100" height="100" fill="${color}" mask="url(#${id})"/></svg>`
+}
+
+/* ───────── 이웃 아이콘(흔한 모양만, 실제 상표 아님) ───────── */
+const NB = {
+  cal:   { l: '캘린더', bg: ['#FFFFFF', '#F2F2F2'], d: (f, k) => `<text x="30" y="17" text-anchor="middle" font-size="9" font-weight="600" fill="#F2453D" font-family="-apple-system,sans-serif">금요일</text><text x="30" y="47" text-anchor="middle" font-size="30" font-weight="300" fill="${k ? '#fff' : '#111'}" font-family="-apple-system,sans-serif">9</text>` },
+  photo: { l: '사진', bg: ['#FFFFFF', '#F4F4F4'], d: () => [['#FFB300', 30, 19], ['#34C759', 41, 30], ['#2F8CFF', 30, 41], ['#FF4D6D', 19, 30]].map(([c, x, y]) => `<ellipse cx="${x}" cy="${y}" rx="9" ry="9" fill="${c}" opacity=".82"/>`).join('') },
+  cam:   { l: '카메라', bg: ['#D9DCE1', '#A3A8B0'], d: (f, k) => `<rect x="12" y="20" width="36" height="25" rx="6" fill="${k ? '#8E949C' : '#3A3D42'}"/><circle cx="30" cy="32.5" r="8" fill="${k ? '#2A2C30' : '#9AA3AD'}" stroke="#fff" stroke-width="2"/>` },
+  wthr:  { l: '날씨', bg: ['#5BB0FF', '#1E6FD9'], d: (f) => `<circle cx="23" cy="24" r="9" fill="#FFD54A"/><path d="M19 44 h23 a7.5 7.5 0 0 0 0-15 a10 10 0 0 0-19 2.5 a6.3 6.3 0 0 0-4 12.5z" fill="${f}"/>` },
+  todo:  { l: '할 일', bg: ['#5B8CFF', '#3463E8'], d: (f) => `<path d="M17 31 L26 40 L44 21" stroke="${f}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` },
+  memo:  { l: '메모', bg: ['#FFFFFF', '#F5F5F5'], d: (f, k) => `<rect x="0" y="0" width="60" height="15" fill="#FFCC33"/><path d="M12 26 h36 M12 34 h36 M12 42 h24" stroke="${k ? '#555' : '#C8C8C8'}" stroke-width="2.2" stroke-linecap="round"/>` },
+  clock: { l: '시계', bg: ['#1C1C1E', '#0A0A0A'], d: () => `<circle cx="30" cy="30" r="19" fill="#fff"/><path d="M30 30 V17 M30 30 L39 35" stroke="#111" stroke-width="2.4" stroke-linecap="round"/><circle cx="30" cy="30" r="2" fill="#FF9500"/>` },
+  chat:  { l: '메신저', bg: ['#FFE34D', '#FFD60A'], d: (f, k) => `<ellipse cx="30" cy="28" rx="17" ry="13.5" fill="${k ? '#FFE34D' : '#3B2E25'}"/><path d="M20 37 l-2 7 l8 -4z" fill="${k ? '#FFE34D' : '#3B2E25'}"/>` },
+  srch:  { l: '검색', bg: ['#2FD27A', '#12B35C'], d: (f) => `<circle cx="27" cy="27" r="10.5" stroke="${f}" stroke-width="5" fill="none"/><path d="M35 35 L44 44" stroke="${f}" stroke-width="5.5" stroke-linecap="round"/>` },
+  bank:  { l: '은행', bg: ['#3F86FF', '#1A5BE0'], d: (f) => `<rect x="13" y="19" width="34" height="23" rx="5" fill="${f}"/><rect x="13" y="25" width="34" height="5" fill="#1A5BE0" opacity=".55"/><rect x="18" y="34" width="10" height="3.4" rx="1.7" fill="#1A5BE0" opacity=".5"/>` },
+  msg:   { l: '메시지', bg: ['#6BE37A', '#2CC144'], d: (f) => `<ellipse cx="30" cy="28" rx="18" ry="14" fill="${f}"/><path d="M15 40 q2 -4 5 -5 l3 3 q-4 2 -8 2z" fill="${f}"/>` },
+  wallet:{ l: '지갑', bg: ['#2A2A2E', '#0E0E10'], d: () => `<rect x="12" y="16" width="36" height="13" rx="3" fill="#FF9F0A"/><rect x="12" y="22" width="36" height="13" rx="3" fill="#30D158"/><rect x="12" y="28" width="36" height="17" rx="3" fill="#0A84FF"/>` },
+  map:   { l: '지도', bg: ['#EAF5E4', '#D7ECCF'], d: () => `<path d="M-2 46 L62 18" stroke="#F7C948" stroke-width="9"/><path d="M14 -2 L30 62" stroke="#fff" stroke-width="6"/><path d="M38 14 c-6 0 -9 4.5 -9 9 c0 6 9 15 9 15 s9 -9 9 -15 c0 -4.5 -3 -9 -9 -9z" fill="#FF3B30"/><circle cx="38" cy="23" r="3.2" fill="#fff"/>` },
+  shop:  { l: '쇼핑', bg: ['#FF9F4D', '#FF6B1A'], d: (f) => `<path d="M17 24 h26 l-2.5 21 h-21z" fill="${f}"/><path d="M24 25 v-5 a6 6 0 0 1 12 0 v5" stroke="${f}" stroke-width="3" fill="none"/>` },
+  deliv: { l: '배달', bg: ['#4FD8D2', '#1FB5AE'], d: (f) => `<rect x="15" y="20" width="22" height="18" rx="3" fill="${f}"/><path d="M37 26 h6 l4 6 v6 h-10z" fill="${f}"/><circle cx="22" cy="42" r="4" fill="#0F6E6A"/><circle cx="41" cy="42" r="4" fill="#0F6E6A"/>` },
+  taxi:  { l: '택시', bg: ['#2C2C30', '#111113'], d: () => `<path d="M14 36 l4 -11 q1 -3 4 -3 h16 q3 0 4 3 l4 11 v7 h-32z" fill="#FFD60A"/><circle cx="21" cy="43" r="3.6" fill="#111"/><circle cx="39" cy="43" r="3.6" fill="#111"/>` },
+  hlth:  { l: '건강', bg: ['#FFFFFF', '#F5F5F5'], d: () => `<path d="M30 46 C17 37 13 31 13 25 C13 19 17 16 22 16 C26 16 28.5 18 30 21 C31.5 18 34 16 38 16 C43 16 47 19 47 25 C47 31 43 37 30 46 Z" fill="#FF375F"/>` },
+  video: { l: '동영상', bg: ['#FF4D45', '#E5241C'], d: (f) => `<rect x="12" y="18" width="36" height="25" rx="7" fill="${f}"/><path d="M26 24 L36 30.5 L26 37z" fill="#E5241C"/>` },
+  mail:  { l: '메일', bg: ['#5AB8FF', '#1A7CF0'], d: (f) => `<rect x="12" y="19" width="36" height="23" rx="3.5" fill="${f}"/><path d="M13 21 L30 33 L47 21" stroke="#1A7CF0" stroke-width="2.4" fill="none"/>` },
+  set:   { l: '설정', bg: ['#A7ACB3', '#6E737A'], d: (f) => `<circle cx="30" cy="30" r="14" stroke="${f}" stroke-width="7" stroke-dasharray="5.5 3.3" fill="none"/><circle cx="30" cy="30" r="6" fill="${f}"/>` },
+  phone: { l: '전화', bg: ['#6BE37A', '#2CC144'], d: (f) => `<path d="M21 15 l6 0 l3 9 l-4 3 q3 7 9 10 l3 -4 l9 3 v6 q0 3 -3 3 q-18 -1 -26 -23 q0 -7 3 -7z" fill="${f}"/>` },
+  web:   { l: '브라우저', bg: ['#FFFFFF', '#EDEDED'], d: () => `<circle cx="30" cy="30" r="20" fill="#2F8CFF"/><path d="M30 30 L40 18 L33 33z" fill="#FF3B30"/><path d="M30 30 L20 42 L27 27z" fill="#fff"/>` },
+  music: { l: '음악', bg: ['#FF6B81', '#F7344F'], d: (f) => `<path d="M25 40 V19 l17 -4 v20" stroke="${f}" stroke-width="3.4" fill="none"/><circle cx="21.5" cy="40.5" r="4.8" fill="${f}"/><circle cx="38.5" cy="35.5" r="4.8" fill="${f}"/>` }
+}
+function nbIcon(key, size, mode = 'ios', dark = false, themed) {
+  const n = NB[key], id = 'n' + (++UID)
+  if (mode === 'and') {
+    if (themed) {
+      return `<svg width="${size}" height="${size}" viewBox="0 0 60 60"><circle cx="30" cy="30" r="30" fill="${themed.bg}"/><g transform="translate(30 30) scale(.78) translate(-30 -30)" style="filter:grayscale(1)"><g opacity="1">${n.d(themed.fg, true).replace(/fill="#[0-9A-Fa-f]{6}"/g, `fill="${themed.fg}"`).replace(/stroke="#[0-9A-Fa-f]{6}"/g, `stroke="${themed.fg}"`)}</g></g></svg>`
+    }
+    return `<svg width="${size}" height="${size}" viewBox="0 0 60 60"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${n.bg[0]}"/><stop offset="1" stop-color="${n.bg[1]}"/></linearGradient><clipPath id="${id}c"><circle cx="30" cy="30" r="30"/></clipPath></defs><g clip-path="url(#${id}c)"><rect width="60" height="60" fill="url(#${id})"/><g transform="translate(30 30) scale(.8) translate(-30 -30)">${n.d('#FFFFFF')}</g></g></svg>`
+  }
+  const bg = dark ? ['#2B2B2F', '#141416'] : n.bg
+  const fg = dark ? n.bg[1] === '#F2F2F2' || n.bg[0] === '#FFFFFF' ? '#FFFFFF' : n.bg[0] : '#FFFFFF'
+  return `<svg width="${size}" height="${size}" viewBox="0 0 60 60"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${bg[0]}"/><stop offset="1" stop-color="${bg[1]}"/></linearGradient><clipPath id="${id}c"><path d="${sq(0, 0, 60, 13.4)}"/></clipPath></defs><g clip-path="url(#${id}c)"><rect width="60" height="60" fill="url(#${id})"/>${n.d(fg, dark)}</g></svg>`
+}
+
+/* ───────── 상태 ───────── */
+const Q = new URLSearchParams(location.search)
+const S = { logo: Q.get('logo') || REC.logo, pal: Q.get('pal') || REC.pal, theme: Q.get('theme') || 'system' }
+const root = document.documentElement
+function effDark() { return S.theme === 'dark' || (S.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches) }
+function applyTheme() { if (S.theme === 'system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', S.theme) }
+
+/* ───────── 그리기 ───────── */
+const $ = (id) => document.getElementById(id)
+function renderBar() {
+  $('gLogo').innerHTML = '<span>로고</span>' + LOGOS.map((l) => `<button class="pill${S.logo === l.id ? ' on' : ''}${REC.logo === l.id ? ' rec' : ''}" data-logo="${l.id}">${iosIcon(l, byId(PALS, S.pal), 20)}${l.short}</button>`).join('')
+  $('gPal').innerHTML = '<span>색</span>' + PALS.map((p) => `<button class="pill${S.pal === p.id ? ' on' : ''}${REC.pal === p.id ? ' rec' : ''}" data-pal="${p.id}"><i class="sw" style="background:linear-gradient(135deg,${p.ui.primary} 0 55%,${p.ui.secondary} 55% 78%,${p.ui.accent} 78%)"></i>${p.name}</button>`).join('')
+  $('gTheme').innerHTML = '<span>테마</span>' + [['system', '시스템'], ['light', '라이트'], ['dark', '다크']].map(([k, t]) => `<button class="pill t${S.theme === k ? ' on' : ''}" data-theme-k="${k}">${t}</button>`).join('')
+}
+function renderDiag() {
+  const now = byId(LOGOS, 'now'), p = byId(PALS, 'now')
+  $('dLadder').innerHTML = [120, 60, 40, 29].map((s) => `<figure>${iosIcon(now, p, s)}${s}</figure>`).join('') + `<figure>${iosIcon(now, p, 60, 'tinted')}색조 60</figure>`
+  $('dLadderDk').innerHTML = [120, 60, 40, 29].map((s) => `<figure>${iosIcon(now, p, s, 'dark')}${s} 다크</figure>`).join('')
+}
+function renderLogos() {
+  const p = byId(PALS, S.pal)
+  $('logoCards').innerHTML = LOGOS.map((l) => `<button class="lg${S.logo === l.id ? ' on' : ''}${REC.logo === l.id ? ' rec' : ''}" data-logo="${l.id}"><div class="row">${iosIcon(l, p, 88)}${iosIcon(l, p, 40)}${iosIcon(l, p, 29)}</div><span class="tag">${l.id === 'now' ? '지금' : l.id.toUpperCase() + (REC.logo === l.id ? ' · 추천' : '')}</span><b>${l.name}</b><small>${l.idea}</small></button>`).join('')
+}
+function iconMetric(l, p) {
+  // 모양 대 바탕 대비: 주 모양 색 vs 판 위·아래 중 낮은 쪽
+  const main = l.id === 'b' ? p.ic.husk : l.id === 'f' ? p.ic.husk : p.ic.fg
+  const v = Math.min(cr(main, p.ic.bg1), cr(main, p.ic.bg2)), vd = Math.min(cr(l.id === 'b' || l.id === 'f' ? p.icd.husk : p.icd.fg, p.icd.bg1), cr(l.id === 'b' || l.id === 'f' ? p.icd.husk : p.icd.fg, p.icd.bg2))
+  const b = (x, t) => `<span class="badge ${x >= 3 ? 'good' : x >= 2 ? 'warn' : 'bad'}">${t} ${x.toFixed(1)}:1</span>`
+  return b(v, '모양/판') + b(vd, '다크 모양/판') + `<span class="badge ${['b', 'e', 'a'].includes(l.id) ? 'good' : l.id === 'f' ? 'warn' : 'warn'}">29px 판독 ${['b', 'e', 'a'].includes(l.id) ? '좋음' : l.id === 'f' ? '보통(지그재그 뭉개짐)' : l.id === 'now' ? '약함' : '보통'}</span>`
+}
+function renderDetail() {
+  const l = byId(LOGOS, S.logo), p = byId(PALS, S.pal), dark = effDark()
+  $('dTitle').textContent = `고른 로고 — ${l.name} × ${p.name}`
+  $('dIdea').textContent = l.idea
+  $('dIos').innerHTML = `<figure>${iosIcon(l, p, 120)}기본 120</figure><figure>${iosIcon(l, p, 120, 'dark')}다크 120</figure><figure>${iosIcon(l, p, 120, 'tinted')}색조 120</figure>`
+  $('dMetric').innerHTML = iconMetric(l, p)
+  $('dAnd').innerHTML = ['circle', 'squircle', 'drop'].map((s) => `<figure style="margin:0;text-align:center;font:600 11px/1.3 var(--pg-font);color:#6A6E68">${andIcon(l, p, 96, s)}${{ circle: '원', squircle: '둥근 네모', drop: '물방울' }[s]}</figure>`).join('') + `<figure style="margin:0;text-align:center;font:600 11px/1.3 var(--pg-font);color:#6A6E68">${andIcon(l, p, 96, 'circle', 'themed')}단색 테마</figure>`
+  $('dLadder2').innerHTML = [180, 120, 60, 40, 29, 20].map((s) => `<figure>${iosIcon(l, p, s)}${s}</figure>`).join('') + `<figure>${iosIcon(l, p, 16)}16</figure>`
+  $('dLadder3').innerHTML = [120, 60, 40, 29].map((s) => `<figure>${iosIcon(l, p, s, 'dark')}${s}</figure>`).join('') + [60, 29].map((s) => `<figure>${iosIcon(l, p, s, 'tinted')}색조 ${s}</figure>`).join('')
+  $('dWord').innerHTML =
+    `<div class="lockup lt">${iosIcon(l, p, 56)}<div><span class="wm-ko">꿈틀</span><span class="wm-en">Kkumteul</span></div></div>` +
+    `<div class="lockup dk">${glyph(l, 50, p.dk.primary)}<div><span class="wm-ko">꿈틀</span><span class="wm-en">Kkumteul</span></div></div>` +
+    `<div class="lockup lt stack">${iosIcon(l, p, 72)}<div><span class="wm-ko" style="font-size:26px">꿈틀</span><span class="wm-en">Kkumteul</span></div><span class="tag">할 일을 끝내면, 친구가 자라요</span></div>` +
+    `<div class="lockup lt" style="gap:8px">${glyph(l, 30, p.ui.primary)}<span class="wm-ko" style="font-size:22px;color:${p.ui.primary === '#FFC21A' ? p.ui.ink : p.ui.primary}">꿈틀</span><span class="faint" style="margin-left:8px;font-size:12px">한 색 · 사이트 머리</span></div>`
+  $('dSmall').innerHTML =
+    `<div style="display:flex;gap:8px;flex-wrap:wrap"><div class="tab-mock lt">${iosIcon(l, p, 16)}꿈틀 — 오늘<span style="margin-left:auto;opacity:.4">×</span></div><div class="tab-mock dk">${iosIcon(l, p, 16, 'dark')}꿈틀 — 오늘<span style="margin-left:auto;opacity:.4">×</span></div></div>` +
+    `<div class="menubar lt"><b></b><span>파일</span><span>편집</span><span class="sp"></span><span class="on-ic">${glyph(l, 17, '#111')}</span><span>⌁</span><span>▮</span><span>금 9:41</span></div>` +
+    `<div class="menubar dk"><b></b><span>파일</span><span>편집</span><span class="sp"></span><span class="on-ic">${glyph(l, 17, '#fff')}</span><span>⌁</span><span>▮</span><span>금 9:41</span></div>` +
+    `<div class="plate lt" style="gap:14px;align-items:center">${[48, 32, 24, 16].map((s) => `<figure style="margin:0;text-align:center;font:600 10.5px/1.3 var(--pg-round);color:#6A6E68">${glyph(l, s, '#111')}${s}</figure>`).join('')}<figure style="margin:0;text-align:center;font:600 10.5px/1.3 var(--pg-round);color:#6A6E68"><span style="display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:${p.ui.primary};margin:0 auto 4px">${glyph(l, 20, p.ui.on)}</span>알림</figure><figure style="margin:0;text-align:center;font:600 10.5px/1.3 var(--pg-round);color:#6A6E68">${iosIcon(l, p, 32)}파비콘 32</figure></div>`
+}
+function renderHomes() {
+  const l = byId(LOGOS, S.logo), p = byId(PALS, S.pal)
+  const rows = ['cal', 'photo', 'cam', 'wthr', 'todo', '@', 'memo', 'clock', 'chat', 'srch', 'bank', 'wallet', 'map', 'shop', 'deliv', 'taxi', 'hlth', 'video', 'mail', 'set']
+  const dock = ['phone', 'web', 'msg', 'music']
+  const ios = (dark) => {
+    const wall = dark ? 'radial-gradient(120% 80% at 20% 10%, #2B3A5A 0%, #141A2B 45%, #0B0D14 100%)' : 'linear-gradient(160deg, #9CC9F0 0%, #C9B8E8 48%, #F2B7C5 100%)'
+    const app = (k) => k === '@' ? `<div class="app me">${iosIcon(l, p, 60, dark ? 'dark' : 'color')}<span>꿈틀</span></div>` : `<div class="app">${nbIcon(k, 60, 'ios', dark)}<span>${NB[k].l}</span></div>`
+    return `<figure><div class="hs${dark ? ' dkw' : ''}" style="background:${wall}"><div class="isl"></div><div class="stat"><span>9:41</span><span>••• ▮</span></div><div class="grid">${rows.map(app).join('')}</div><div class="pager"><i></i><i></i><i></i></div><div class="dock">${dock.map((k) => `<div class="app">${nbIcon(k, 60, 'ios', dark)}</div>`).join('')}</div><div class="navh"></div></div><figcaption>iOS · ${dark ? '어두운 배경 + 다크 아이콘' : '밝은 배경 + 기본 아이콘'}</figcaption></figure>`
+  }
+  const and = (dark) => {
+    const wall = dark ? 'linear-gradient(180deg, #1E2630 0%, #0E1217 100%)' : 'linear-gradient(170deg, #F6E3C8 0%, #E8C9B0 40%, #B9C8D8 100%)'
+    const th = dark ? { bg: '#2C3440', fg: '#C9D8EE' } : null
+    const arows = ['photo', 'cam', 'wthr', 'clock', 'todo', '@', 'memo', 'cal', 'chat', 'srch', 'bank', 'shop']
+    const app = (k) => k === '@' ? `<div class="app me">${th ? andIcon(l, p, 52, 'circle', 'themed', th) : andIcon(l, p, 52)}<span>꿈틀</span></div>` : `<div class="app">${nbIcon(k, 52, 'and', dark, th)}<span>${NB[k].l}</span></div>`
+    return `<figure><div class="hs and${dark ? ' dkw' : ''}" style="background:${wall}"><div class="isl"></div><div class="stat"><span>9:41</span><span>▾ ▮</span></div><div class="clockw"><b>9:41</b><span>10월 9일 금요일</span></div><div class="grid">${arows.map(app).join('')}</div><div class="gbar"><i></i>검색</div><div class="dock">${['phone', 'msg', 'web', 'cam'].map((k) => `<div class="app">${nbIcon(k, 52, 'and', dark, th)}</div>`).join('')}</div><div class="navh"></div></div><figcaption>Android · ${dark ? '어두운 배경 + 단색 테마 아이콘(Material You)' : '밝은 배경 + 기본 아이콘'}</figcaption></figure>`
+  }
+  $('homes').innerHTML = ios(false) + ios(true) + and(false) + and(true)
+  // 지금 아이콘과 나란히 (작게)
+  const now = byId(LOGOS, 'now'), pn = byId(PALS, 'now')
+  $('zoom').innerHTML = `<div class="z" style="background:linear-gradient(160deg,#9CC9F0,#F2B7C5)">${nbIcon('srch', 40)}${nbIcon('msg', 40)}${iosIcon(now, pn, 40)}${nbIcon('todo', 40)}<span style="color:#fff;font:700 12px/1.3 var(--pg-font);text-shadow:0 1px 2px rgba(0,0,0,.3)">← 지금 (40px)</span></div>` +
+    `<div class="z" style="background:linear-gradient(160deg,#9CC9F0,#F2B7C5)">${nbIcon('srch', 40)}${nbIcon('msg', 40)}${iosIcon(l, p, 40)}${nbIcon('todo', 40)}<span style="color:#fff;font:700 12px/1.3 var(--pg-font);text-shadow:0 1px 2px rgba(0,0,0,.3)">← 고른 안 (40px)</span></div>` +
+    `<div class="z" style="background:#1B1F2A">${nbIcon('srch', 29, 'ios', true)}${nbIcon('msg', 29, 'ios', true)}${iosIcon(now, pn, 29, 'dark')}${iosIcon(l, p, 29, 'dark')}${nbIcon('todo', 29, 'ios', true)}<span style="color:#ccc;font:700 12px/1.3 var(--pg-font)">29px 다크: 지금 · 고른 안</span></div>`
+}
+function renderMatrix() {
+  $('mx').innerHTML = `<tr><th></th>${PALS.map((p) => `<th>${p.name}${REC.pal === p.id ? ' ★' : ''}</th>`).join('')}</tr>` +
+    LOGOS.map((l) => `<tr><th class="r">${l.short}${REC.logo === l.id ? ' ★' : ''}</th>${PALS.map((p) => `<td><button data-logo="${l.id}" data-pal="${p.id}" class="${S.logo === l.id && S.pal === p.id ? 'on' : REC.logo === l.id && REC.pal === p.id ? 'rec' : ''}" title="${l.name} × ${p.name}">${iosIcon(l, p, 64)}</button></td>`).join('')}</tr>`).join('')
+}
+function renderPal() {
+  const p = byId(PALS, S.pal), d = effDark(), u = d ? { ...p.ui, ...p.dk } : p.ui
+  $('palCards').innerHTML = PALS.map((x) => `<button class="pal${S.pal === x.id ? ' on' : ''}${REC.pal === x.id ? ' rec' : ''}" data-pal="${x.id}"><div class="strip">${[x.ui.primary, x.ui.secondary, x.ui.accent, x.ui.ground, x.dk.ground].map((c) => `<i style="background:${c}"></i>`).join('')}</div><b>${x.name}</b> <span class="faint" style="font-size:12px">${x.tag}${REC.pal === x.id ? ' · 추천' : ''}</span><small>${x.mood}</small></button>`).join('')
+  $('pTitle').textContent = `고른 팔레트 — ${p.name} (${d ? '다크' : '라이트'} 값)`
+  const sw = (name, c, note, ink) => { const hx = c.startsWith('rgba') ? blend(c, u.surface) : c; const tc = cr('#FFFFFF', hx) > cr('#111111', hx) ? '#fff' : '#111'; return `<div class="sw2"><div class="c" style="background:${c};color:${tc}">${ink || ''}</div><div class="m"><b>${name}</b><code>${c}</code><br>${note}</div></div>` }
+  $('pSw').innerHTML = [
+    sw('주색 primary', u.primary, '체크·버튼·선택·FAB', 'Aa'), sw('주색 글자', u.ink, '링크·작은 강조 글자', ''), sw('주색 옅은 면', u.soft, '고른 행·오늘 날짜', ''),
+    sw('보조 secondary', p.ui.secondary, '배지·하이라이트·리스트 색', ''), sw('포인트 accent', p.ui.accent, '캐릭터 소품·축하·리스트 색', ''),
+    sw('바닥 ground', u.ground, '앱 바닥', ''), sw('카드 surface', u.surface, '목록·카드 면', ''), sw('칸 surface-2', u.s2, '입력·칩·세그먼트', ''), sw('선 line', u.line, '구분선', ''),
+    sw('글자 ink', u.i1, '제목·본문', ''), sw('보조 글자 ink-2', u.i2, '날짜·설명', ''), sw('흐린 글자 ink-3', u.i3, '자리 글자', ''),
+    sw('라이트 바닥', p.ui.ground, '', ''), sw('다크 바닥', p.dk.ground, '', ''), sw('다크 카드', p.dk.surface, '', '')
+  ].join('')
+  $('pSem').innerHTML = [['위험(지난 일·삭제)', u.danger, 0], ['경고', u.warning, 0], ['우선순위 높음', u.ph, 1], ['우선순위 중간', u.pm, 1], ['우선순위 낮음', u.pl, 1]].map(([t, c, ck]) => `<span class="sem"><i class="${ck ? 'ck' : ''}" style="${ck ? 'border-color:' + c : 'background:' + c}"></i>${t}<code style="background:none">${c}</code></span>`).join('')
+  const L = p.ui, D = { ...p.ui, ...p.dk }
+  const rows = [
+    ['강조 채움 위 글자', (U) => [U.on, U.primary], 3, '굵은 15px+ 버튼·배지'],
+    ['강조 글자 / 카드', (U) => [U.ink, U.surface], 4.5, '링크·작은 글자'],
+    ['본문 / 바닥', (U) => [U.i1, U.ground], 4.5, ''],
+    ['보조 글자 / 카드', (U) => [U.i2, U.surface], 4.5, '날짜·설명'],
+    ['위험 글자 / 카드', (U) => [U.danger, U.surface], 4.5, '지난 날짜'],
+    ['글자 / 위험 채움', (U) => [U.onDanger || '#FFFFFF', U.danger], 3, '삭제 버튼(다크는 어두운 글자)'],
+    ['높음 체크 테두리', (U) => [U.ph, U.surface], 3, 'UI 3:1'],
+    ['중간 체크 테두리', (U) => [U.pm, U.surface], 3, 'UI 3:1'],
+    ['낮음 체크 테두리', (U) => [U.pl, U.surface], 3, 'UI 3:1'],
+    ['강조 채움 / 바닥', (U) => [U.primary, U.ground], 3, '체크·FAB 모양']
+  ]
+  const cell = (U, f, min) => { const [a, b] = f(U).map((c) => c.startsWith('rgba') ? blend(c, U.surface) : c), v = cr(a, b); const k = v >= Math.max(min, 4.5) ? 'good' : v >= min ? 'good' : v >= min - .6 ? 'warn' : 'bad'; return `<td><span class="smp" style="background:${b};color:${a};box-shadow:inset 0 0 0 1px rgba(127,127,127,.18)">가Aa</span> <span class="badge ${k}">${v.toFixed(2)}</span></td>` }
+  const hd = Math.abs(hue(L.primary) - hue(L.danger)), hd2 = Math.min(hd, 360 - hd)
+  $('pCt').innerHTML = `<tr><th>짝</th><th>라이트</th><th>다크</th><th>기준</th></tr>` + rows.map(([t, f, min, note]) => `<tr><td>${t}<div class="faint" style="font-size:11px">${note}</div></td>${cell(L, f, min)}${cell(D, f, min)}<td class="faint">${min}</td></tr>`).join('') +
+    `<tr><td>강조 ↔ 위험 색상 차이<div class="faint" style="font-size:11px">지난 일 빨강과 헷갈리지 않나</div></td><td colspan="2"><span class="badge ${hd2 >= 40 ? 'good' : hd2 >= 15 ? 'warn' : 'bad'}">색상각 ${Math.round(hd2)}°</span> <span class="faint">${hd2 >= 40 ? '확실히 다름' : hd2 >= 15 ? '가깝다 — 위험은 더 붉게(크림슨), 강조는 주황 쪽으로 벌렸다' : '헷갈림'}</span></td><td class="faint">40°</td></tr>` +
+    `<tr><td>우선순위 중간 ↔ 강조<div class="faint" style="font-size:11px">체크 테두리 색이 겹치나</div></td><td colspan="3">${(() => { const a = Math.abs(hue(L.primary) - hue(L.pm)), b = Math.min(a, 360 - a); return `<span class="badge ${b >= 25 ? 'good' : 'bad'}">색상각 ${Math.round(b)}°</span> <span class="faint">${b >= 25 ? '구분됨' : '겹침'}${p.id === 'sunny' ? ' — 노랑이 강조라 중간 우선순위를 주황으로 옮겼다' : ''}</span>` })()}</td></tr>`
+}
+function kvars(p, d) {
+  const U = d ? { ...p.ui, ...p.dk } : p.ui
+  const soft = (c, a) => d ? `${c}` : c
+  const lists = [U.primary, p.ui.secondary, p.ui.accent, p.ui.sky || '#5AB4F0', U.pl]
+  return { '--k-ground': U.ground, '--k-surface': U.surface, '--k-surface-2': U.s2, '--k-surface-3': U.s3, '--k-raised': U.surface, '--k-line': U.line, '--k-line-strong': U.lineS,
+    '--k-ink': U.i1, '--k-ink-2': U.i2, '--k-ink-3': U.i3, '--k-ink-4': U.i4, '--k-accent': U.primary, '--k-accent-ink': U.ink, '--k-accent-soft': U.soft, '--k-accent-hi': U.hi, '--k-on-accent': U.on,
+    '--k-danger': U.danger, '--k-pri-high': U.ph, '--k-pri-mid': U.pm, '--k-pri-low': U.pl,
+    '--k-sh-accent': d ? '0 6px 18px rgba(0,0,0,.3)' : `0 6px 18px ${hexA(U.primary, .32)}`,
+    '--k-glass': d ? 'rgba(18,22,20,.66)' : 'rgba(255,255,255,.76)', '--k-glass-ink': U.i1, '--k-glass-line': d ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.9)',
+    '--l0': lists[0], '--l1': lists[1], '--l2': lists[2], '--l3': lists[3], '--l4': lists[4] }
+}
+function hexA(h, a) { const [r, g, b] = rgbOf(h); return `rgba(${r},${g},${b},${a})` }
+const ICL = {
+  ham: '<svg class="ic-line" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>',
+  today: '<svg class="ic-line" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="16" rx="4"/><path d="M8 3v3M16 3v3M8.5 13l2.5 2.5 4.5-5"/></svg>',
+  cal: '<svg class="ic-line" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="16" rx="4"/><path d="M3.5 9.5h17M8 3v3M16 3v3"/><circle cx="8.5" cy="14" r=".6"/><circle cx="12" cy="14" r=".6"/><circle cx="15.5" cy="14" r=".6"/></svg>',
+  grow: '<svg class="ic-line" viewBox="0 0 24 24"><path d="M12 21v-8"/><path d="M12 14c-4 0-7-2.5-7-7 4 0 7 2.5 7 7zM12 12c0-4 2.5-7 7-7 0 4-2.5 7-7 7z"/></svg>',
+  proj: '<svg class="ic-line" viewBox="0 0 24 24"><path d="M3.5 8a2.5 2.5 0 0 1 2.5-2.5h4l2 2h6A2.5 2.5 0 0 1 20.5 10v7a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 17z"/></svg>',
+  more: '<svg class="ic-line" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="18" cy="12" r="1"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'
+}
+const tabs = (on) => `<div class="tabbar pv-tabs">${[['today', '오늘'], ['cal', '캘린더'], ['grow', '성장'], ['proj', '프로젝트'], ['more', '더보기']].map(([k, t]) => `<button class="${k === on ? 'on' : ''}">${ICL[k]}${t}</button>`).join('')}</div>`
+const ME = { sp: 'worm', st: 3, path: 'a', lv: 8 }
+function rowH(t, sub, pri, opts = {}) {
+  return `<div class="pv-row${opts.done ? ' done' : ''}"><span class="check${pri ? ' p' + pri : ''}${opts.done ? ' on' : ''}"></span><div class="tx"><b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</div>${opts.dot ? `<span class="dot" style="background:var(--l${opts.dot})"></span>` : ''}</div>`
+}
+function scrToday() {
+  return `<div class="phone"><div class="scr"><div class="island"></div><div class="sbar"><span>9:41</span><i>•••</i></div>
+    <div class="pv-head"><span class="pv-hb">${ICL.ham}</span><span class="pv-me"><span class="f">${KK.art(ME.sp, ME.st, { path: ME.path, lv: ME.lv, size: 26, crop: 'bust' })}</span>Lv 8</span></div>
+    <div class="pv-title"><div class="t-h1">오늘</div><div class="t-label muted">10월 9일 금요일 · 한글날</div></div>
+    <div class="pv-sec">지난 일 1<span>미루기</span></div>
+    <div class="card pv-grp">${rowH('주간 보고서 보내기', '<span class="od">10월 8일</span> · 회사', 3, { dot: 4 })}</div>
+    <div class="pv-sec">오늘 4</div>
+    <div class="card pv-grp">${rowH('디자인 시안 검토', '<span class="tm">오후 2:00</span> · 꿈틀', 3, { dot: 0 })}${rowH('운동 30분', '습관 · 3일 연속', 2, { dot: 2 })}${rowH('장보기 목록 정리', '집', 1, { dot: 1 })}${rowH('책 20쪽 읽기', '', 0, { dot: 3 })}${rowH('물 2L 마시기', '습관', 0, { done: true })}</div>
+    <div class="fill"></div><div class="pv-fab">${ICL.plus}</div>${tabs('today')}<div class="homebar"></div></div></div>`
+}
+function scrGrow(d) {
+  return `<div class="phone"><div class="scr"><div class="island"></div><div class="sbar" style="color:#fff"><span>9:41</span><i>•••</i></div>
+    <div class="pv-stage">${KK.scene({ bg: 'grass', decor: ['pot', 'mushlamp'], trophies: [{ k: 'cup' }, { k: 'medal', n: 7 }] })}<div class="top"><b>성장</b><span class="chips"><span class="chip">한 날 23일</span><span class="chip">오늘 1/4</span></span></div><div class="who">${KK.art(ME.sp, ME.st, { path: ME.path, lv: ME.lv, live: true, mood: 'happy' })}</div></div>
+    <div class="glass pv-hud"><div class="r1">꿈틀 <span class="faint" style="font-weight:600;font-size:12.5px">${KK.titleOf ? KK.titleOf(ME.sp, ME.st, ME.path) : '애벌레'}</span><span style="flex:1"></span><span class="lv">Lv 8</span></div>
+      <div class="r2"><div><div class="num">72<small>%</small></div><div class="sub">다음 레벨까지</div></div><span class="tip">Lv 9에 작은 배낭</span></div>
+      <div class="bar"><i style="width:72%"></i></div><div class="xp"><span>XP 1,440 / 2,000</span><span>4단계까지 Lv 12</span></div></div>
+    <div class="pv-tiles"><div>${KK.icon('heart', 30)}옷장</div><div>${KK.icon('book', 30)}도감</div><div>${KK.icon('trophy', 30)}트로피</div></div>
+    <div class="pv-sec">오늘 할 일<span>3개 남음</span></div>
+    <div class="card pv-grp">${rowH('디자인 시안 검토', '<span class="tm">오후 2:00</span>', 3)}</div>
+    <div class="fill"></div>${tabs('grow')}<div class="homebar"></div></div></div>`
+}
+function scrCal() {
+  // 2026년 10월: 1일 = 목요일, 일요일 시작. 3일 개천절 · 9일 한글날(오늘)
+  const ev = { 1: [[0, '디자인 리뷰']], 3: [[2, '가족 모임']], 5: [[1, '장보기'], [4, '팀 회의']], 7: [[0, '꿈틀 배포']], 8: [[4, '주간 보고', 'dn']], 9: [[0, '시안 검토'], [2, '운동'], [3, '독서']], 12: [[3, '병원']], 14: [[0, '사용자 인터뷰'], [1, '정리']], 16: [[2, '생일 🎂'.replace(' 🎂', '')]], 19: [[4, '회고']], 21: [[0, '출시 준비'], [1, '세탁']], 23: [[3, '여행']], 24: [[3, '여행']], 27: [[4, '스프린트']], 30: [[0, '월말 정리'], [2, '운동']] }
+  let cells = ''
+  for (let i = 0; i < 35; i++) {
+    const day = i - 3, dow = i % 7
+    let n = day, out = false
+    if (day < 1) { n = 30 + day; out = true } else if (day > 31) { n = day - 31; out = true }
+    const cls = [out ? 'out' : '', dow === 0 ? 'sun' : '', dow === 6 ? 'sat' : '', !out && (day === 3 || day === 9) ? 'hol' : '', !out && day === 9 ? 'sel' : '', !out && day === 14 ? 'today' : ''].join(' ')
+    const es = !out && ev[day] ? ev[day] : []
+    cells += `<div class="${cls}"><div class="d">${n}</div>${es.slice(0, 2).map(([c, t, dn]) => dn ? `<div class="ev dn" style="background:color-mix(in srgb, var(--l${c}) 18%, var(--k-surface))">${t}</div>` : `<div class="ev" style="background:var(--l${c})">${t}</div>`).join('')}${es.length > 2 ? `<div class="more">+${es.length - 2}</div>` : ''}</div>`
+  }
+  return `<div class="phone"><div class="scr"><div class="island"></div><div class="sbar"><span>9:41</span><i>•••</i></div>
+    <div class="pv-cal-h"><div class="t-h1">10월<small>2026</small></div><div class="nav"><i>‹</i><i>›</i></div></div>
+    <div class="pv-wk">${['일', '월', '화', '수', '목', '금', '토'].map((w, i) => `<span class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</span>`).join('')}</div>
+    <div class="pv-mo">${cells}</div>
+    <div class="card pv-day"><div class="h">10월 9일 금요일 · 한글날<span>3</span></div>${rowH('디자인 시안 검토', '<span class="tm">오후 2:00</span>', 3, { dot: 0 })}${rowH('운동 30분', '습관', 2, { dot: 2 })}</div>
+    <div class="fill"></div><div class="pv-fab" style="bottom:100px">${ICL.plus}</div>${tabs('cal')}<div class="homebar"></div></div></div>`
+}
+function renderScreens() {
+  const p = byId(PALS, S.pal), d = effDark(), v = kvars(p, d)
+  const style = Object.entries(v).map(([k, x]) => `${k}:${x}`).join(';')
+  $('scr').innerHTML = [scrToday(), scrGrow(d), scrCal()].map((h, i) => `<figure style="margin:0;text-align:center"><div class="zw"><div class="pv k${d ? ' dk' : ''}" style="${style}">${h}</div></div><figcaption class="muted" style="font:600 12.5px/1.4 var(--pg-font);margin-top:8px">${['오늘 목록', '성장 무대', '캘린더 월'][i]} · ${p.name}</figcaption></figure>`).join('')
+}
+function renderRec() {
+  const l = byId(LOGOS, REC.logo), p = byId(PALS, REC.pal)
+  $('recBox').innerHTML = `<div style="display:flex;gap:14px;align-items:flex-end">${iosIcon(l, p, 132)}${iosIcon(l, p, 60, 'dark')}${andIcon(l, p, 60)}</div>
+    <div><h2 style="margin-bottom:6px">B 씨앗 친구 × 깊은 숲</h2>
+    <p class="muted">앱의 이야기(씨앗에서 친구가 나와 자란다)를 아이콘 한 장에 담고, 색은 오래 쓰는 할 일 앱답게 차분하게 간다.</p>
+    <ul>
+      <li><b>홈 화면에서 눈에 띈다</b> — 짙은 청록 판 위 크림 씨앗 얼굴은 흔한 밝은 초록·파랑·노랑 아이콘 사이에서 바로 구별된다. 29px에서도 "눈 두 개"가 남는다.</li>
+      <li><b>캐릭터와 한 가족</b> — 씨앗 껍질·새싹·볼이 42/43의 아기 단계·온보딩 부화와 같은 그림 언어다. 로고 = 첫 화면에서 받는 친구.</li>
+      <li><b>대비가 넉넉하다</b> — 주색 <code>#12715E</code> 위 흰 글자 5.9:1(지금 초록 3.2:1). 작은 글자에도 주색을 그대로 쓸 수 있다.</li>
+      <li><b>할 일 화면이 조용하다</b> — 청록은 틱틱 파랑처럼 기능색으로 물러나고, 꿀색·살구 포인트는 캐릭터·축하 자리에만 쓴다(44 결정 ⓑ 경계 그대로).</li>
+      <li><b>대안</b> — 더 따뜻하고 귀엽게 가고 싶으면 <b>B × 복숭아 정원</b>(다만 강조 코랄이 지난 일 빨강에 가깝다), 할 일 앱인 게 먼저 보여야 하면 <b>E 체크 새싹 × 깊은 숲</b>.</li>
+    </ul>
+    <button class="btn-rec" data-logo="${REC.logo}" data-pal="${REC.pal}">추천 조합으로 보기</button></div>`
+}
+function renderAll() {
+  applyTheme(); renderBar(); renderDiag(); renderLogos(); renderDetail(); renderHomes(); renderMatrix(); renderPal(); renderScreens(); renderRec()
+  const u = new URL(location.href); u.searchParams.set('logo', S.logo); u.searchParams.set('pal', S.pal); if (S.theme !== 'system') u.searchParams.set('theme', S.theme); else u.searchParams.delete('theme'); history.replaceState(null, '', u)
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-logo],[data-pal],[data-theme-k]'); if (!b) return
+  if (b.dataset.logo) S.logo = b.dataset.logo
+  if (b.dataset.pal) S.pal = b.dataset.pal
+  if (b.dataset.themeK) S.theme = b.dataset.themeK
+  renderAll()
+})
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (S.theme === 'system') renderAll() })
+renderAll()
+const only = Q.get('only')
+if (only) { document.body.classList.add('only-mode'); document.querySelectorAll('section.sec').forEach((s) => { s.hidden = s.id !== only }); const t = $(only); if (t) t.style.marginTop = '20px' }
+</script>
+</body>
+</html>
