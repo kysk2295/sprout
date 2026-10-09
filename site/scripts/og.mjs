@@ -3,10 +3,10 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import cfg from '../site.config.mjs'
+import { KO, wordKo } from '../../scripts/brand/wordmark.mjs'
 const here = dirname(fileURLToPath(import.meta.url))
 const tmp = join(here, '.og.html')
-writeFileSync(tmp, readFileSync(join(here, 'og.html'), 'utf8').replace('NAME', cfg.name))
+writeFileSync(tmp, readFileSync(join(here, 'og.html'), 'utf8').replace('NAME', `<svg class="wm" viewBox="${KO.box.join(' ')}" role="img" aria-label="꿈틀">${wordKo({ ink: '#13201C', leaf: '#3DB79B', leaf2: '#8EE6A6' })}</svg>`)) // 45 글자 로고
 const chrome = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 execFileSync(chrome, ['--headless=new', '--hide-scrollbars', '--allow-file-access-from-files', `--screenshot=${join(here, '../public/og.png')}`, '--window-size=1200,630', '--virtual-time-budget=3000', 'file://' + tmp], { stdio: 'ignore' })
 rmSync(tmp)

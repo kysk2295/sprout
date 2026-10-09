@@ -179,7 +179,7 @@
   }
   function confetti(host, n) {
     if (reduced()) return
-    var colors = ['#2bae66', '#4e75f2', '#efab3e', '#e8798f', '#9b7be8']
+    var colors = ['#12715e', '#f2b84b', '#f08a5d', '#3db79b', '#4169e8'] // 45 브랜드: 청록·꿀·살구
     for (var i = 0; i < n; i++) {
       var p = h('i', { class: 'confetti', 'aria-hidden': 'true' })
       var a = (Math.PI * 2 * i) / n + Math.random() * 0.5, r = 70 + Math.random() * 70

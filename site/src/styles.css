@@ -1,20 +1,24 @@
-/* sprout 사이트 — 차분한 흰 바탕, 가는 선, 초록은 포인트에만 */
+/* 꿈틀 사이트 — 차분한 흰 바탕, 가는 선, 브랜드 청록(45)은 포인트에만 */
 :root {
   --bg: #ffffff;
-  --bg-soft: #f6f7f8;
+  --bg-soft: #f3f5f1;
   --surface: #ffffff;
-  --line: #e8eaed;
-  --line-strong: #d9dce1;
-  --text: #1b1d1f;
-  --text-2: #5b6168;
-  --text-3: #8b9097;
-  --brand: #2bae66;
-  --brand-ink: #1f8a50;
-  --brand-soft: #e9f7ef;
-  --brand-deep: #0f1e16;
+  --line: #e3e8e2;
+  --line-strong: #cfd8d0;
+  --text: #13201c;
+  --text-2: #56655f;
+  --text-3: #8d9a94;
+  /* 45 브랜드 깊은 숲(앱 기본 테마와 같은 값) — 꿀·살구는 캐릭터·축하 자리에만 */
+  --brand: #12715e;
+  --brand-ink: #12715e;
+  --brand-soft: #dcefe9;
+  --brand-deep: #0a4337;
+  --brand-leaf: #8ee6a6;
+  --honey: #f2b84b;
+  --apricot: #f08a5d;
   --mark: #fff3bf;
   --mark-ink: #6b5200;
-  --shadow: 0 1px 2px rgba(16, 24, 20, .04), 0 8px 28px rgba(16, 24, 20, .07);
+  --shadow: 0 1px 2px rgba(14, 40, 34, .04), 0 8px 28px rgba(14, 40, 34, .07);
   --radius: 14px;
   --max: 1120px;
   --font: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
@@ -22,17 +26,17 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0e1512; --bg-soft: #131c17; --surface: #16201b; --line: #223029; --line-strong: #2c3c34;
-    --text: #e7ede9; --text-2: #a9b5ae; --text-3: #7f8c85; --brand: #3cc47a; --brand-ink: #6fdc9e;
-    --brand-soft: #173325; --mark: #4a3d0a; --mark-ink: #ffe28a;
+    --bg: #0a100e; --bg-soft: #101614; --surface: #141b18; --line: #202925; --line-strong: #2e3934;
+    --text: #ecf4f0; --text-2: #a0b0a9; --text-3: #6b7c75; --brand: #3cc4a2; --brand-ink: #6ee0c2;
+    --brand-soft: #1a342d; --brand-leaf: #b3ee8f; --mark: #4a3d0a; --mark-ink: #ffe28a;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0e1512; --bg-soft: #131c17; --surface: #16201b; --line: #223029; --line-strong: #2c3c34;
-  --text: #e7ede9; --text-2: #a9b5ae; --text-3: #7f8c85; --brand: #3cc47a; --brand-ink: #6fdc9e;
-  --brand-soft: #173325; --mark: #4a3d0a; --mark-ink: #ffe28a;
+  --bg: #0a100e; --bg-soft: #101614; --surface: #141b18; --line: #202925; --line-strong: #2e3934;
+  --text: #ecf4f0; --text-2: #a0b0a9; --text-3: #6b7c75; --brand: #3cc4a2; --brand-ink: #6ee0c2;
+  --brand-soft: #1a342d; --brand-leaf: #b3ee8f; --mark: #4a3d0a; --mark-ink: #ffe28a;
   --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
   color-scheme: dark;
 }
@@ -66,6 +70,10 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text); font-weight: 700; font-size: 18px; letter-spacing: -.01em; }
 .brand:hover { text-decoration: none; }
 .brand img { width: 30px; height: 30px; }
+.brand .wm { display: block; height: 24px; width: auto; margin-top: -2px; }
+.brand .wm-en { height: 17px; margin-top: 2px; }
+.foot .brand .wm { height: 20px; }
+.foot .brand .wm-en { height: 14px; }
 .nav { display: flex; gap: 22px; margin-left: 12px; }
 .nav a { color: var(--text-2); font-size: 15px; }
 .nav a:hover { color: var(--text); text-decoration: none; }
@@ -117,8 +125,8 @@ section.tight { padding: 64px 0; }
 .dl-btn.is-primary { background: var(--brand); border-color: var(--brand); color: #fff; }
 .dl-btn.is-primary svg, .dl-btn.is-primary small { color: rgba(255,255,255,.88); }
 .dl-btn.is-primary:hover { background: var(--brand-ink); border-color: var(--brand-ink); }
-:root[data-theme-resolved="dark"] .dl-btn.is-primary { color: #06140c; }
-:root[data-theme-resolved="dark"] .dl-btn.is-primary svg, :root[data-theme-resolved="dark"] .dl-btn.is-primary small { color: rgba(6,20,12,.75); }
+:root[data-theme-resolved="dark"] .dl-btn.is-primary { color: #032119; }
+:root[data-theme-resolved="dark"] .dl-btn.is-primary svg, :root[data-theme-resolved="dark"] .dl-btn.is-primary small { color: rgba(3,33,25,.75); }
 :root[data-theme-resolved="dark"] .dl-btn.is-primary:hover { background: var(--brand-ink); }
 
 /* 설치 방법 */
@@ -172,14 +180,14 @@ section.tight { padding: 64px 0; }
 /* ───────── 체험 창: 앱 색(앱 기본 테마는 파랑 강조) ───────── */
 .app-win {
   --a-bg: #ffffff; --a-side: #f8f8f8; --a-line: #f0f0f1; --a-line2: #e6e6e8; --a-hover: #f5f5f5; --a-input: #f6f6f7;
-  --a-text: #191919; --a-text2: #7d7d7d; --a-text3: #a3a4a7; --a-accent: #4e75f2; --a-accent-soft: #ecf0fd;
-  --a-red: #e5484d; --a-sat: #3d74e0; --a-orange: #efab3e; --a-pop: #ffffff;
+  --a-text: #191919; --a-text2: #7d7d7d; --a-text3: #a3a4a7; --a-accent: #12715e; --a-accent-soft: #dcefe9;
+  --a-red: #d9343a; --a-sat: #3d74e0; --a-orange: #efab3e; --a-pop: #ffffff;
   --l-gray: #9a9a9e; --l-blue: #6f8ff5; --l-purple: #a083ea; --l-orange: #f0a44b; --l-green: #46b37a;
   color: var(--a-text); font-size: 14px; line-height: 1.45; text-align: left;
 }
 :root[data-theme-resolved="dark"] .app-win {
   --a-bg: #1c1c1e; --a-side: #222224; --a-line: #2a2a2d; --a-line2: #353538; --a-hover: #28282b; --a-input: #262628;
-  --a-text: #ececee; --a-text2: #9d9da3; --a-text3: #77777d; --a-accent: #6b8cf6; --a-accent-soft: rgba(107,140,246,.18);
+  --a-text: #ececee; --a-text2: #9d9da3; --a-text3: #77777d; --a-accent: #19856b; --a-accent-soft: rgba(60,196,162,.15);
   --a-red: #f0676b; --a-sat: #7aa2ff; --a-pop: #2a2a2d;
 }
 .demo { position: relative; background: var(--a-bg); }
@@ -544,3 +552,4 @@ section.tight { padding: 64px 0; }
 .more-link { text-align: center; margin-top: 28px; }
 .doc.nf { text-align: center; padding-top: 96px; }
 .doc.nf img { margin: 0 auto 12px; }
+:root[data-theme-resolved="dark"] .btn { color: #032119; }

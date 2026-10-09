@@ -6,6 +6,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import cfg from './site.config.mjs'
 import { landing, support, notFound } from './src/pages.mjs'
+import { KO, EN, wordKo, wordEn } from '../scripts/brand/wordmark.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const pub = join(here, 'public')
@@ -152,13 +153,15 @@ ${footer()}
 }
 const version = Date.now().toString(36)
 
+// 45 글자 로고(직접 그린 획, scripts/brand/wordmark.mjs) — 글자색은 currentColor, 새싹은 브랜드 색
+const wordmark = `<svg class="wm wm-ko" data-l="ko" viewBox="${KO.box.join(' ')}" aria-hidden="true">${wordKo({ ink: 'currentColor', leaf: 'var(--brand)', leaf2: 'var(--brand-leaf)' })}</svg><svg class="wm wm-en" data-l="en" viewBox="${EN.box.join(' ')}" aria-hidden="true">${wordEn({ ink: 'currentColor' })}</svg>`
 function header(path) {
   const home = path === '/'
   const nav = home
     ? `<nav class="nav" aria-label="${'페이지'}"><a href="#tasks">${T('할 일', 'Tasks')}</a><a href="#growth">${T('성장', 'Growth')}</a><a href="#map">${T('작업 지도', 'Work map')}</a><a href="#calendar">${T('캘린더', 'Calendar')}</a><a href="#privacy">${T('개인정보', 'Privacy')}</a><a href="#install">${T('설치', 'Install')}</a><a href="#faq">FAQ</a></nav>`
     : `<nav class="nav" aria-label="페이지"><a href="/">${T('홈', 'Home')}</a><a href="/support">${T('지원', 'Support')}</a></nav>`
   return `<header class="top"><div class="wrap">
-<a class="brand" href="/" aria-label="${esc(cfg.name)} 홈" data-aria-ko="${esc(cfg.name)} 홈" data-aria-en="${esc(cfg.nameEn)} home"><img src="/favicon.svg" alt="" width="30" height="30">${T(esc(cfg.name), esc(cfg.nameEn))}</a>
+<a class="brand" href="/" aria-label="${esc(cfg.name)} 홈" data-aria-ko="${esc(cfg.name)} 홈" data-aria-en="${esc(cfg.nameEn)} home"><img src="/favicon.svg" alt="" width="30" height="30">${wordmark}</a>
 ${nav}
 <div class="tools">
 <button class="tbtn" type="button" data-lang-toggle aria-label="Change language / 언어 바꾸기">${T('EN', '한국어')}</button>
@@ -168,7 +171,7 @@ ${nav}
 }
 function footer() {
   return `<footer class="foot"><div class="wrap">
-<div><a class="brand" href="/"><img src="/favicon.svg" alt="" width="24" height="24">${T(esc(cfg.name), esc(cfg.nameEn))}</a>
+<div><a class="brand" href="/" aria-label="${esc(cfg.name)}"><img src="/favicon.svg" alt="" width="24" height="24">${wordmark}</a>
 <div>${T(`운영: ${val(cfg.operator)}`, `Operated by ${val(cfg.operatorEn)}`)}</div>
 <div>© ${cfg.year} ${T(val(cfg.copyrightHolder), val(cfg.copyrightHolderEn))}</div>
 <div>${T('문의', 'Contact')}: ${val(cfg.supportEmail)}</div></div>
@@ -226,7 +229,7 @@ copyFileSync(join(here, 'src/styles.css'), join(pub, 'assets/styles.css'))
 copyFileSync(join(here, 'src/app.js'), join(pub, 'assets/app.js'))
 copyFileSync(join(here, 'src/demos.js'), join(pub, 'assets/demos.js'))
 writeFileSync(join(pub, 'site.webmanifest'), JSON.stringify({
-  name: cfg.name, short_name: cfg.name, start_url: '/', display: 'standalone', theme_color: '#2BAE66', background_color: '#ffffff',
+  name: cfg.name, short_name: cfg.name, start_url: '/', display: 'standalone', theme_color: '#12715E', background_color: '#ffffff',
   icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }, { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }]
 }, null, 2))
 writeFileSync(join(pub, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${cfg.baseUrl}/sitemap.xml\n`)
