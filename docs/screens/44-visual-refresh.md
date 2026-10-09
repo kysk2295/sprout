@@ -83,6 +83,10 @@
 | `micro` | 650 11/14 | 650 10.5/14 | 배지·탭 이름(쓸 때만) | 500 10.5/14 |
 | `num` | 800 46/1(성장 큰 숫자), 자간 −4.5%, 단위 `%`는 45% 크기 | 800 46/1 | 캐릭터 자리 큰 숫자, 오늘 `3/5` | — |
 - 휴대폰 행 제목은 지금 15에서 그대로(21 실측). 키운 것은 **제목·숫자·카드 머리**다.
+- **휴대폰도 Pretendard(2026-10-10):** 데스크톱과 같은 가족(SIL OFL 1.1, 원본 orioncactus/pretendard v1.3.9 — 데스크톱은 가변 woff2, 휴대폰은 정적 OTF).
+  - 파일: `apps/mobile/assets/fonts/Pretendard-{Regular,Medium,SemiBold,Bold,ExtraBold}.otf`(400·500·600·700·800, 개당 약 1.6MB) + `Pretendard-LICENSE.txt`(OFL 전문, 데스크톱 것과 같음). 650은 600(SemiBold)으로, 300 이하·900은 쓰지 않는다.
+  - 넣기: `app.json`의 `expo-font` 설정 플러그인 — iOS `UIAppFonts`+리소스(가족 이름 `Pretendard` 아래 5면), Android `res/font` xml 가족 `Pretendard`(굵기별 면) + `ReactFontManager.addCustomFont`. 실행 중 불러오기가 없어 스플래시를 붙잡지 않는다. **네이티브 다시 만들기(`npx expo prebuild`) 뒤 빌드해야 들어간다.** 글꼴 없는 옛 빌드는 시스템 글꼴로 돌아간다(오류 없음).
+  - 전역 적용: `src/theme/font.ts`를 `index.ts` 맨 처음에 불러 react-native `Text`·`TextInput`을 `style=[{ fontFamily: 'Pretendard' }, style]`로 감싼다. 화면 코드는 그대로 `fontWeight`만 쓴다(굵기마다 다른 이름 없음). 렌더마다 하는 일은 고정 객체 하나 앞에 두기뿐(39 §11.4). 화면이 `fontFamily`를 직접 주면 그쪽이 이긴다. react-native-svg `<Text>`는 해당 없음.
 - 큰 제목 굵기 800은 휴대폰 큰 제목이 접힐 때(39 큰 제목 접힘) 17/600으로 줄어드는 기존 움직임을 그대로 쓴다.
 
 ### 3.3 모서리

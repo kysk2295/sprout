@@ -16,7 +16,7 @@
 > | 우선순위 높음·중간 / 오류 채움 / 빨강 글자 | `#E5484D` · `#FFB927` / `#E5484D` / `#CF3E3E` | `#C53C31` · `#EFAB3E` / `#D44343` |
 > | 다크(`dark`) | 면 세 단계 바닥 `#0C0F0D` → 카드 `#161A17` → 칸 `#1F2420`, 떠 있는 것 `#1C211D`, 그림자 대신 1px 흰 3.5~6% 선. 강조 채움 `#22A45D`(흰 글자 3.2:1), 강조 글자 `#6FE09F` | `#1A1A1A` 계열 · `#545DFA` |
 > | 트루 블랙 · 다른 색 테마 11개 | 강조·레일·면은 각자 그대로(하늘 = 예전 기본 파랑 `#4E75F2`). 글자·선·모서리·그림자·글꼴은 v2.0을 받는다 | — |
-> | 글꼴 | **Pretendard 우선**(SIL OFL, 데스크톱 앱에 `PretendardVariable.woff2` 동봉). 휴대폰은 iOS 시스템 글꼴 그대로 [다음] | 시스템 우선 |
+> | 글꼴 | **Pretendard 우선**(SIL OFL, 데스크톱 앱에 `PretendardVariable.woff2` 동봉). 휴대폰도 Pretendard(2026-10-10, 정적 OTF 400·500·600·700·800을 앱에 넣음 — 44 §3.2) | 시스템 우선 |
 > | 글자 단계 | 새 `--text-display` 800 30/36 · `--text-h1` 800 28/34(= `--text-title`, 목록 머리) · `--text-h2` 700 18/24 · `--text-num` 800 46/1 · `--text-label` 500 12.5/18, `--text-group` 700 13/18, `--text-detail-title` 750 21/28 | 제목 700 20/26 |
 > | 체크 칸 | 데스크톱 17 · 모서리 5(`--radius-check`), 휴대폰 22 · 모서리 7 | 14 · 3 / 17 |
 > | 모서리 | `xs 4 · check 5 · sm 8 · md 10 · lg 16 · xl 20 · 2xl 28` (데스크톱 = 휴대폰보다 한 단계 작게) | `3 · 6 · 8 · 12` |
@@ -229,6 +229,7 @@ Default와 다른 토큰만 적는다.
 | `font.family` | `-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif` |
 | `font.family.numeric` | 같은 글꼴 + `font-variant-numeric: tabular-nums` (시간·개수) |
 - 틱틱은 OS 기본 글꼴을 쓴다. 한국어는 Pretendard를 앱에 넣어 Mac·Windows에서 같게 보이게 한다.
+- 휴대폰(2026-10-10): 가족 이름 `Pretendard` 하나(`apps/mobile/src/theme/font.ts` `FONT_FAMILY`), 굵기는 `fontWeight`로 고른다. 자세한 것은 [44 §3.2](44-visual-refresh.md).
 
 | 토큰 | 크기 / 굵기 / 줄 높이 | 쓰임 | 근거 |
 |---|---|---|---|
