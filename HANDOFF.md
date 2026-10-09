@@ -2,6 +2,13 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-09 캐릭터 키우기 구현 (42·43 "추천대로" 확정 — 데스크톱·휴대폰, 배포 전)
+- **그림 = 한 곳:** `packages/schema/src/characterArt.ts`(시안 kkumteul-art.js v3 그대로, 완결된 SVG 글) → 데스크톱 `CharacterArt`(innerHTML + `character.css` 부품 키프레임), 휴대폰 `CharacterArt`(`svgTree`로 react-native-svg 요소, ref·toDataURL 그대로), 맥 위젯 PNG(`main/widgetArt.ts`), 사이트 SVG(`site/scripts/gen-characters.mjs`). 크기: 무대·도감·진화 = `fit={false}`(단계 배율 0.7→1.45), 그 밖은 기본 fit(상자 채움). 입힌 옷은 `CharacterWearProvider`(데스크톱 `RaiseProvider`, 휴대폰 `RaiseRoot`)로 AI 비서·아바타·일기·위젯까지.
+- **데이터:** `wardrobe.ts`(옷 23·해금·트로피·look_json·하루 장면·성장 막대 문구), `raiseCore.ts`(옛 종 옮기기·끝낸 프로젝트·해금 넣기·모습 저장 문). 종 id `turtle/squirrel/cat/otter → snail/bee/worm/frog`(서버 마이그레이션 + 앱이 한 번 옮김 + `normalizeSpecies`·숨은 별칭으로 옛 값도 읽힘).
+- **배포 필요(아직 안 함):** `server/db/migrations/20261013-character-raising.sql`(characters.look_json, character_items 표 + publication, 종·아바타 id 옮기기 — 빈 Postgres에서 두 번 돌려 확인) → `server/powersync/sync-config.yaml`에 `character_items` 한 줄 추가됨(PowerSync 재시작) → API 재시작(TABLES 자동) → 앱. **앱이 먼저면 character_items·look_json 업로드가 409로 막혀 뒤 업로드도 밀린다.**
+- 화면: 데스크톱 `components/growth/`(Stage 무대·유리 HUD·만지기·하루 장면·RaisePanel 옷장/도감·EvolutionMoment), 휴대폰 `app/(tabs)/growth.tsx` + `app/growth/decorate.tsx`(옷장·도감) + `src/growth/`(EvolutionMoment 등). 캡처용 휴대폰 데모 `EXPO_PUBLIC_SPROUT_RAISE_DEMO=1`.
+- 남은 것: 실제 서버 동기화(@example.com) 확인, 실제 할 일 체크 → 진화 흐름 확인(데모·이벤트로만 봄), 휴대폰 선반 트로피 누르기 말풍선 없음(선반이 잘림), 휴대폰 시트에 시안의 "오늘 할 일" 목록 없음, 데스크톱 옛 `.gs-*`·`.levelup__art` CSS와 data/growth.ts 옛 DECOR 정리, 휴대폰 프레임 측정(39), Mac·iPhone 설치는 리드가.
+
 ## ★ 2026-10-09 시각 개편 껍데기 구현 (44 "추천대로" — 할 일·캘린더·지도·설정 쪽, 캐릭터 화면 제외)
 - **토큰 v2.0**(`packages/tokens/tokens.css` → `gen-tokens` → 휴대폰): 기본 테마 강조 꿈틀 초록 `#22A45D`(작은 글자는 `--color-accent-ink` `#117F44`), 새 `--color-bg-ground`(데스크톱 레일·목록 바닥) 위 흰 카드(`--color-bg-app`은 흰 면 그대로 — 44 §9와 이름만 다름), 초록 기운 회색 글자·선, 우선순위 높음·중간 `#E5484D`·`#FFB927`, 모서리 4/5/8/10/16/20/28, 그림자 card·float·popover·modal·accent, 스프링 곡선. 다크(`dark`) = 면 세 단계 `#0C0F0D/#161A17/#1F2420` + 선 + **초록 강조**(시스템 다크일 때 기본 테마의 짝이라 44 §3.1 다크 열을 따름 — 결정 ⑧의 "나머지 12개 그대로"와 엇갈리면 `[data-theme="dark"]` 강조 3줄만 되돌리면 됨). 하늘(= 예전 파랑)·색 테마 9개·트루 블랙은 강조색 그대로. 대비 시험 추가(theme.test). 00 v2.0.
 - **말랑 아이콘**: `packages/tokens/softIcons.ts`(그림 데이터, 직접 그림 33개) + 데스크톱 `components/SoftIcon.tsx`·휴대폰 `src/ui/SoftIcon.tsx`. 스마트 목록·리스트·설정·빈 상태·AI 제안에만, 탭 막대·도구 막대는 선 그대로.
