@@ -34,10 +34,12 @@ export const KEY = {
   /** 43 §4.2 하루 장면(하루 한 번) · 하루 다 함 — 캐릭터마다 */
   dayMoment: (day: string, cid = '') => `sprout.dayMoment.${cid ? `${cid}.` : ''}${day}`,
   dayDone: (day: string, cid = '') => `sprout.dayDone.${cid ? `${cid}.` : ''}${day}`,
+  /** 43 §19.3 연속 이정표 축하 — 캐릭터마다 `날짜:수`(같은 날 한 번) */
+  streakCheer: (cid: string) => `sprout.streakCheer.${cid}`,
   /** 43 §10 옷장 마지막 탭 */
   wardTab: 'sprout.wardTab'
 }
-export const keysFor = (cid: string | undefined, day?: string, uid?: string | null) => [KEY.greeted, KEY.motion, KEY.wardTab, ...(uid ? [KEY.surveyOffered(uid)] : []), ...(day ? [KEY.dayMoment(day, cid), KEY.dayDone(day, cid)] : []), ...(cid ? [KEY.seenLevel(cid), KEY.seenLevelAt(cid), KEY.seenAt(cid), KEY.room(cid)] : [])]
+export const keysFor = (cid: string | undefined, day?: string, uid?: string | null) => [KEY.greeted, KEY.motion, KEY.wardTab, ...(uid ? [KEY.surveyOffered(uid)] : []), ...(day ? [KEY.dayMoment(day, cid), KEY.dayDone(day, cid)] : []), ...(cid ? [KEY.seenLevel(cid), KEY.seenLevelAt(cid), KEY.seenAt(cid), KEY.room(cid), KEY.streakCheer(cid)] : [])]
 
 export function readRoomOff(cid: string): Set<string> {
   try { return new Set(JSON.parse(read(KEY.room(cid)) ?? '[]') as string[]) } catch { return new Set() }

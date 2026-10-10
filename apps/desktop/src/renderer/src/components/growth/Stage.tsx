@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { bitSvg, headTop3d, SCENES3D, sceneDark, sceneGlass, sceneKeyFor, titleOf } from '@sprout/schema/characterArt'
 import { SPECIES, STAGES, stageOf, XP, type Species } from '@sprout/schema/growth'
 import { addDays } from '@sprout/schema/time'
+import { cheerLine, cheerStamp, cheerToShow, streakOf } from '@sprout/schema/streak'
 import {
-  dayJustDone, decorOn, equipItem, giftsAt, isBusy, isNight, ITEM_BY_ID, momentLine, pickDayMoment, tapLines,
+  activeDayList, dayJustDone, decorOn, equipItem, giftsAt, isBusy, isNight, ITEM_BY_ID, momentLine, pickDayMoment, tapLines,
   TOUCH, TOUCH_LINES, type CharacterItemRow, type DayMoment, type Item, type Path
 } from '@sprout/schema/wardrobe'
 import { catchUpOf, isSleepy, levelOfTotal, readSeenAt, renameCharacter, setGrowthStageActive, stageLines, thisWeek, writeSeenAt, type CharacterRow, type StageStats, type XpRow } from '../../data/growth'
@@ -15,11 +16,14 @@ import { EvolutionMoment } from './EvolutionMoment'
 import { SeedPic, useDocDark } from './MakeFlow'
 import { ItemPic, LOOKS, RaisePanel } from './RaisePanel'
 import { SceneBackdrop } from './Scene3D'
+import { StreakChip } from './Flame'
+import { clampBubble, springStep } from './follow'
 import './raise.css'
 
 // 10 §3.2 무대(캐릭터 방) + 43 키우기 + 49 §6 v3: 3D 정원 장면이 끝까지(입은 배경 · 다크/늦은 밤 = 밤) · 이끼 돌 받침 위 캐릭터(숨쉬기) ·
 // 유리 주 달력 띠 · 유리 HUD(Lv 배지 · 이름 · 단계 이름 · 큰 % · 꼬리 칩 · 막대 14px · 옷장/도감/이번 주) · 방 장식 = 장면 위 3D 소품.
 // 만지기(누르기·쓰다듬기·간지럼·끌기·부르기) · 하루 장면 5 · 레벨업 → 선물 카드 → 입혀 보기 · 진화 순간(+두 갈래) · 옷장·도감 패널.
+// 칩 = 연속 불꽃(43 §19, 해금은 누적) · 말풍선은 머리를 따라간다(49 §7.2 — rAF가 따라가기 층 transform만, 다시 그리기 없음).
 // 트로피 선반은 장면에서 빼고 도감 트로피 목록에 남긴다. 움직임은 transform · opacity만(WAAPI). 만지기는 아무것도 주지 않는다(43 §1).
 type Progress = { total: number; level: number; into: number; toNext: number; stage: number }
 type Pt = { x: number; y: number }
@@ -114,15 +118,39 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
     const a = reduced ? d.animate([{ opacity: 1 }, { opacity: 1, offset: 0.7 }, { opacity: 0 }], { duration: ms }) : d.animate([{ opacity: 0, transform: 'translateY(6px) scale(.8)' }, { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.2 }, { opacity: 0, transform: 'translateY(-30px) scale(1)' }], { duration: ms, easing: 'ease-out' })
     a.onfinish = () => d.remove()
   }, [reduced])
+  // ── 말풍선 따라가기(49 §7.2): 따라가기 층(.gs2-follow)을 머리 점으로 스프링(살짝 늦게), 무대 안에 가둠, 꼬리는 머리 쪽으로 ──
+  const followEl = useRef<HTMLDivElement>(null)
+  const geoRef = useRef({ left: 0, top: 0, box: 0, headY: 0.2, w: 0, still: false })
+  const fol = useRef({ raf: 0, last: 0, snap: true, x: 0, y: 0, vx: 0, vy: 0, bw: 0, bh: 0, tail: 0 })
+  const followTick = useCallback((now: number) => {
+    const F = fol.current, el = followEl.current, b = el?.querySelector<HTMLElement>('.gs2-say')
+    if (!el || !b) { F.raf = 0; F.last = 0; if (el) el.style.transform = ''; return }
+    const d = pc.current?.headShift() ?? { x: 0, y: 0 }
+    const dt = F.last ? (now - F.last) / 1000 : 0
+    F.last = now
+    if (F.snap || geoRef.current.still) { F.x = d.x; F.y = d.y; F.vx = 0; F.vy = 0; F.snap = false }
+    else { const a = springStep(F.x, F.vx, d.x, dt), c = springStep(F.y, F.vy, d.y, dt); F.x = a.pos; F.vx = a.vel; F.y = c.pos; F.vy = c.vel }
+    const G = geoRef.current
+    const c = clampBubble(G.left + G.box / 2, G.top + G.headY * G.box - 6 - F.bh, F.x, F.y, F.bw, G.w, 8)
+    el.style.transform = `translate3d(${f(c.x)}px, ${f(c.y)}px, 0)`
+    if (Math.abs(c.tail - F.tail) > 0.4) { F.tail = c.tail; b.style.setProperty('--tail', `${f(c.tail)}px`) }
+    F.raf = requestAnimationFrame(followTick)
+  }, [])
+  useEffect(() => () => { if (fol.current.raf) cancelAnimationFrame(fol.current.raf) }, [])
   const say = useCallback((text: string, ms: number = TOUCH.sayMs) => {
-    const host = charEl.current
+    const host = followEl.current ?? charEl.current
     if (!host) return
     host.querySelectorAll('.gs2-say').forEach((s) => s.remove())
     const b = document.createElement('div'); b.className = 'gs2-say'; b.textContent = text; host.appendChild(b)
+    if (host === followEl.current) {
+      const F = fol.current
+      F.bw = b.offsetWidth; F.bh = b.offsetHeight; F.tail = 0
+      if (!F.raf) { F.snap = true; F.last = 0; F.raf = requestAnimationFrame(followTick) }
+    }
     setLive(text)
     if (text.startsWith('일기')) b.onclick = (e) => { e.stopPropagation(); onDiary() }
-    b.animate(reduced ? [{ opacity: 0 }, { opacity: 1, offset: 0.08 }, { opacity: 1, offset: 0.88 }, { opacity: 0 }] : [{ opacity: 0, transform: 'translateX(-50%) translateY(6px) scale(.9)' }, { opacity: 1, transform: 'translateX(-50%) scale(1)', offset: 0.08 }, { opacity: 1, transform: 'translateX(-50%) scale(1)', offset: 0.88 }, { opacity: 0, transform: 'translateX(-50%) scale(1)' }], { duration: ms, easing: 'cubic-bezier(.34,1.56,.64,1)' }).onfinish = () => b.remove()
-  }, [reduced, onDiary])
+    b.animate(reduced ? [{ opacity: 0 }, { opacity: 1, offset: 0.08 }, { opacity: 1, offset: 0.88 }, { opacity: 0 }] : [{ opacity: 0, transform: 'translateX(-50%) translateY(6px) scale(.9)', easing: 'cubic-bezier(.34,1.56,.64,1)' }, { opacity: 1, transform: 'translateX(-50%) scale(1)', offset: 0.08 }, { opacity: 1, transform: 'translateX(-50%) scale(1)', offset: 0.88 }, { opacity: 0, transform: 'translateX(-50%) scale(1)' }], { duration: ms }).onfinish = () => b.remove() // 튀는 곡선은 나타날 때만(전체에 걸면 0.9초 만에 사라졌다)
+  }, [reduced, onDiary, followTick])
   const burst = useCallback((n: number, dist: number) => {
     const host = charEl.current
     if (reduced || !host || !species) return
@@ -355,6 +383,31 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
   const eq = tempHand ? { ...raise.worn, hand: tempHand } : raise.worn
   const seed = raise.look.seed ?? 0
   const head = species ? headTop3d(species, stage, raise.look.path, seed) : { x: 0.5, y: 0.2 }
+  geoRef.current = { left: dims.w / 2 - box / 2 + geo.shift, top: geo.footY - box * 0.9, box, headY: head.y, w: dims.w, still: reduced }
+
+  // ── 연속 불꽃(43 §19): 오늘 아직이면 어제까지. 이정표 3·7·14·30은 오늘 닿은 날 한 번(기기 저장) — 칩 톡 + 반짝이 + 깡충 + 한 줄 ──
+  const streak = useMemo(() => streakOf(activeDayList(events), dayKey()), [events, hour]) // eslint-disable-line react-hooks/exhaustive-deps
+  const chipEl = useRef<HTMLSpanElement>(null)
+  const cheer = useCallback((n: number) => {
+    const chip = chipEl.current
+    if (chip && !reduced) {
+      chip.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.16)', offset: 0.3 }, { transform: 'scale(.97)', offset: 0.65 }, { transform: 'scale(1)' }], { duration: 520, easing: 'cubic-bezier(.3,1.4,.5,1)' })
+      for (let i = 0; i < 5; i++) {
+        const d = document.createElement('i'); d.className = 'gs3-spark'; d.style.background = i % 2 ? '#FFD36B' : '#FF9A45'; chip.appendChild(d)
+        const a = -Math.PI / 2 + (i - 2) * 0.55, r = 20 + (i % 2) * 8
+        d.animate([{ transform: 'translate(-50%,-50%) scale(1.2)', opacity: 0 }, { opacity: 1, offset: 0.15 }, { transform: `translate(calc(-50% + ${f(Math.cos(a) * r)}px), calc(-50% + ${f(Math.sin(a) * r)}px)) scale(.6)`, opacity: 0 }], { duration: 900, easing: 'cubic-bezier(.2,.8,.4,1)', fill: 'both' }).onfinish = () => d.remove()
+      }
+    }
+    feel('happy', 2200); hop(); say(cheerLine(n), 3200)
+  }, [reduced, feel, hop, say])
+  useEffect(() => {
+    if (!ready || !character || !species || evo) return
+    const today = dayKey(), key = `sprout.streakCheer.${character.id}`
+    const n = cheerToShow(streak, today, ls.get(key))
+    if (!n) return
+    ls.set(key, cheerStamp(today, n))
+    later(() => cheer(n), 1600)
+  }, [ready, character, species, evo, streak, later, cheer])
 
   // HUD
   const toNext = shown.toNext
@@ -398,7 +451,7 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
         })}
       </div>
       <div className="gs3-chips">
-        <span className="gs3-pill gs3-glass" title="할 일을 한 날 누적(끊겨도 줄지 않아요)">한 날 <b>{stats.activeDays ?? raise.state.days}</b>일</span>
+        <StreakChip ref={chipEl} streak={streak} />
         <span className="gs3-pill gs3-glass" title={`할 일 XP는 하루 ${XP.taskDailyCap}까지`}>오늘 <b>{stats.todayDone}</b>/{stats.todayDone + stats.todayOpen}</span>
       </div>
       {banner && <div className="gs2-banner" role="status">{banner}</div>}
@@ -440,6 +493,7 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
           wear={{ lv: level, path: raise.look.path, eq, seed }} label={`${name} ${stName}`}
           custom={species ? undefined : <span className="gs3-egg"><SeedPic seed={seed} cracks={Math.min(2, cracks)} size={box * 0.78} /></span>}
         />
+        <div ref={followEl} className="gs2-follow" style={{ ['--head' as string]: `${Math.round((1 - head.y) * 100)}%` }} aria-hidden="true" />
       </div>
       <div className="gs-live" aria-live="polite">{live}</div>
 

@@ -2,6 +2,15 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-10 탭 순서 · 연속 불꽃 · 말풍선 따라가기 · 목표 행 정렬 (20 머리 · 43 §19 · 49 §7.2 · 10 §4.6.1)
+- **탭 순서(20 머리):** 휴대폰 탭 = 할 일 · 캘린더 · **성장 · 수집함** · 더보기(`(tabs)/_layout.tsx` Tabs.Screen 순서만). 데스크톱 레일은 이미 성장(4) → AI 비서 → 수집함(6)이라 **그대로**(같은 앞뒤 — 바꾸면 휴대폰과 거꾸로), iPad ⌘1–7(46, 아직 시안)도 그대로. 딥 링크·위젯·알림·둘러보기는 탭 이름으로 가서 영향 없음.
+- **연속 불꽃(43 §19):** 보이는 칩만 `한 날 N일` → 직접 그린 불꽃 SVG + `N일 연속`(오늘 아직이면 꺼진 불꽃 + `· 오늘 하면 N+1일`, 하루 통째로 건너뛰면 조용히 `오늘 하면 1일`). **봐주는 날·얼음 없음**(오늘 아직이면 어제 숫자 그대로가 이미 하루 여유 — 결정 이유 §19.1). 해금·조건 글·트로피는 누적 그대로, 끊겨도 잃는 것 없음. 이정표 3·7·14·30 = 하루 한 번(기기 저장 `sprout.streakCheer.<캐릭터>`) 알약 톡 + 반짝이 + 깡충 + 한 줄. 공용 `@sprout/schema/streak`(streakOf·streakText·cheerToShow·cheerLine·FLAME·flameSvg, 시험 `streak.test.ts` — 시간대 경계·오늘 아직·끊김·이정표·완료 취소·누적 유지). 휴대폰 `src/growth/Flame.tsx`, 데스크톱 `components/growth/Flame.tsx`. 휴대폰 데모 `raise-demo.txt`에 `st=7&stt=0` · `act=cheer&st=7`.
+- **말풍선 따라가기(49 §7.2):** 머리 꼭대기를 캐릭터를 움직이는 같은 값으로 계산 → 스프링(260·0.7)으로 살짝 늦게, 회전 없음, 좌우 12 안·위로 가둠 + 꼬리가 머리 쪽으로. 휴대폰 = `PlayableCharacter` `values`(usePlayValues) + 무대 감싸개 값 → `useFrameCallback`(말풍선 있을 때만) → translate만(`art/follow.ts` worklet, 시험 `follow.test.ts`). 데스크톱 = `handle.headShift()`(rAF 자세 + 감싸개·끌기의 지금 transform) → 따라가기 층 `.gs2-follow`를 rAF로(`components/growth/follow.ts`). **고친 옛 버그:** 데스크톱 말풍선 WAAPI 전체에 튀는 곡선이 걸려 2.6초가 아니라 0.9초 만에 사라졌다 → 나타날 때만.
+- **목표 행(10 §4.6.1):** 휴대폰 `이번 주` 팝업 행 = 체크가 제목 첫 줄 가운데 · 제목 flex · ⋯ 제목 줄 · 둘째 줄 왼쪽 맞춤 `목표 − n번 +`(28, 누름 44). 목표 수를 바꾸면 제목 속 같은 숫자 `N번/회/개`도 같이(공용 `goalCore.retitleForTarget` — 두 앱). 만들 때도 `운동 2번 하기`처럼 가운데 `N번/회/개`가 하나뿐이면 목표 수 N(`parseGoal`).
+- **worklet 주의(앱이 멈췄던 것):** worklet 함수의 기본 인자 식이 바깥 값을 쓰면 UI 스레드로 안 넘어가 Release에서 SIGABRT(로그 없이 앱 종료)였다 → `follow.ts`는 기본 인자 없이 숫자를 안에 둔다.
+- **확인:** 데스크톱(SPROUT_PROFILE=streak-test, CDP 9471) 꺼진 불꽃 → 할 일 체크 → `3일 연속` + 축하, 끌기 따라감. 휴대폰 Release(따로 만든 시뮬레이터 17 Pro·SE, 따로 derivedData) 탭 순서·알약·3일 축하·끌기/깡충 따라감·목표 행 라이트/다크·제목 숫자 맞추기. 시험 계정 streak-1010@example.com 삭제, 시뮬레이터·프로필 지움.
+- **배포:** 휴대폰 JS만(새 네이티브 없음 — prebuild 필요 없음), 맥 앱은 렌더러만. 서버·마이그레이션 없음.
+
 ## ★ 2026-10-10 이번 주 목표 편집(10 v1.7 §4.6 — 사용자 요청 "이번 주 목표를 레이아웃에서 수정하고 만들 수 있게 해줘")
 - **공용 쓰기:** `@sprout/schema/goalCore`(새) — 만들기(검사: 빈 제목·60자·같은 주 같은 제목·5개)·이름·목표 수(1~99, 닿으면 그 순간 달성/올리면 풀림)·세는 방법(`kpis.link_kind` `none`·`tasks`·`tag`·`list` + `link_id`)·삭제(XP 되돌림) + 되돌리기(같은 id로 되살려 다시 판정)·순서(`sort_order` 1,2,3…)·연결 진행 맞추기(`syncLinkedGoals`). 데스크톱 `data/growth.ts`·휴대폰 `src/growth/goalCore.ts`가 이것을 부른다(예전 휴대폰 TODO 공용화 끝). 시험 `packages/schema/src/goalCore.test.ts` + 데스크톱 `tests/growth.test.ts` 끝부분.
 - **마이그레이션 없음** — 모두 있던 칸(`link_kind` 값 `tasks`만 새로 씀, text). 서버·PowerSync 손댈 것 없음.

@@ -4,6 +4,8 @@
 // TODO(공용화): DECOR·stageLines·greetingLine·catchUpOf·levelOfTotal·streakOf·gainedSince·SURVEY_DESC·surveyQueue·typeCodeOf
 //   는 두 앱이 똑같이 쓰므로 packages/schema/src/growth.ts로 옮긴다(이 작업은 packages/를 고치지 않는 범위라 여기 둔다).
 import { addDays } from '@sprout/schema/time'
+import { streakOf as sharedStreak } from '@sprout/schema/streak'
+import { activeDayList } from '@sprout/schema/wardrobe'
 import {
   cumulativeXp, levelsToNextStage, QUESTIONS, readTextJson, scoreSurvey, SPECIES, STAGES, stageOf, XP, xpToNext,
   type GoalDraft, type Pick2, type Species, type WeeklyStats
@@ -81,13 +83,9 @@ export function bowlOf(todayTaskXp: number) {
     line: full ? '오늘은 배불러! 남은 건 내일 먹을게' : `오늘 할 일로 ${filled} XP 먹었어. ${XP.taskDailyCap - filled} 더 먹을 수 있어`
   }
 }
-/** 연속 일수: 오늘(없으면 어제)부터 거꾸로 할 일 XP가 있는 날이 이어진 수 */
+/** 연속 일수(43 §19 — 공용 @sprout/schema/streak): 오늘(아직이면 어제)부터 거꾸로 한 날(할 일 XP 순합 ≥ 1)이 이어진 수 */
 export function streakOf(events: Pick<XpRow, 'kind' | 'amount' | 'day'>[], today: string): number {
-  const days = new Set(events.filter((e) => e.kind === 'task' && e.amount > 0).map((e) => e.day))
-  let d = days.has(today) ? today : addDays(today, -1)
-  let n = 0
-  while (days.has(d)) { n++; d = addDays(d, -1) }
-  return n
+  return sharedStreak(activeDayList(events), today).days
 }
 /** 마지막으로 +XP를 받은 날부터 오늘까지 며칠(없으면 0 — 처음 쓰는 사람은 졸지 않는다) */
 export function idleDaysOf(events: Pick<XpRow, 'amount' | 'day'>[], today: string): number {

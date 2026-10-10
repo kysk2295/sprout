@@ -12,7 +12,7 @@
 .gs2-char:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 4px; border-radius: 20px; }
 .gs2-char__in { display: block; width: 100%; height: 100%; transform-origin: 50% 90%; }
 .gs2-say { position: absolute; left: 50%; bottom: calc(var(--head, 100%) + 6px); transform: translateX(-50%); background: #fff; color: #16201A; padding: 9px 13px; border-radius: 16px; font: 650 13px/1.35 var(--font-family); white-space: nowrap; box-shadow: 0 6px 20px rgba(15, 35, 22, .16); z-index: 6; }
-.gs2-say::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; background: #fff; transform: translateX(-50%) rotate(45deg); border-radius: 2px; }
+.gs2-say::after { content: ""; position: absolute; left: calc(50% + var(--tail, 0px)); bottom: -5px; width: 10px; height: 10px; background: #fff; transform: translateX(-50%) rotate(45deg); border-radius: 2px; }
 .gs2-heart, .gs2-xp, .gs2-chiplv, .gs2-zz { position: absolute; left: 50%; top: calc(100% - var(--head, 82%)); pointer-events: none; z-index: 7; }
 .gs2-heart svg { width: 18px; height: 18px; margin-left: -9px; display: block; }
 .gs2-xp { font: 800 15px/1 var(--font-family); color: #fff; background: var(--color-accent); padding: 5px 9px; border-radius: 999px; margin-left: -24px; }
@@ -120,6 +120,14 @@
 .gs3-chips { position: absolute; top: 18px; right: 18px; z-index: 4; display: flex; gap: 6px; }
 .gs3-pill { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 12px; border-radius: 999px; font: 650 13px/1 var(--font-family); white-space: nowrap; }
 .gs3-pill b { font-weight: 800; font-variant-numeric: tabular-nums; }
+/* 43 §19 연속 불꽃 칩 · 이정표 반짝이 */
+.gs3-streak { position: relative; gap: 5px; padding-left: 9px; }
+.gs3-streak em { font-style: normal; font-weight: 600; font-size: 12px; opacity: .62; }
+.gs3-flame { display: block; flex: none; }
+.gs3-spark { position: absolute; left: 17px; top: 10px; width: 5px; height: 5px; border-radius: 50%; pointer-events: none; opacity: 0; }
+/* 49 §7.2 말풍선 따라가기 층(캐릭터 상자와 같은 자리, rAF가 transform만) */
+.gs2-follow { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+.gs2-follow .gs2-say { pointer-events: auto; }
 .gs3 .gs2-banner { top: 60px; }
 .gs3-hud { position: absolute; left: 18px; bottom: 18px; width: 340px; box-sizing: border-box; z-index: 5; padding: 16px 18px 14px; border-radius: 26px; transition: opacity .25s, transform .25s; }
 .gs3.is-panel .gs3-hud { opacity: 0; transform: translateY(8px); pointer-events: none; }

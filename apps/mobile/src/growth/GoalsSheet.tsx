@@ -278,46 +278,51 @@ function GoalLine({ p, g, xpIds, names, editing, cheer, onEdit, onRename, onProg
   const saved = useRef(false)
   useEffect(() => { saved.current = false }, [editing])
   const save = () => { if (saved.current) return; saved.current = true; onRename(draft) }
+  // 틱틱 행처럼(10 §4.6.1): 체크 = 제목 첫 줄 가운데 · 제목(flex) · 보상 칩 · ⋯ 이 제목 줄에 / 둘째 줄 = 제목 왼쪽 끝에 맞춘 `목표 − n번 +` · 진행
+  const progress = linked ? (
+    <View style={[s.tag, { backgroundColor: p.bgSelected }]}>
+      {g.link_kind === 'tag' ? <Hash size={11} color={p.textSecondary} /> : g.link_kind === 'list' ? <FolderClosed size={11} color={p.textSecondary} /> : <ListTodo size={11} color={p.textSecondary} />}
+      <Text style={[s.tagT, { color: p.textSecondary }]} numberOfLines={1}>{linkLabel(g, names).replace(/^#/, '')} · {g.progress}/{g.target}</Text>
+    </View>
+  ) : g.target > 1 && g.target <= 10 && !achieved ? (
+    <View style={s.dots} accessibilityLabel={`${g.progress}/${g.target}`}>
+      {Array.from({ length: g.target }, (_, k) => (
+        <Pressable key={k} hitSlop={{ top: 10, bottom: 10, left: 3, right: 3 }} accessibilityRole="button" accessibilityLabel={`${k + 1}번`} onPress={() => onProgress(dotTarget(g.progress, k))}>
+          <View style={[s.dot, { borderColor: p.accent }, k < g.progress && { backgroundColor: p.accent }]} />
+        </Pressable>
+      ))}
+    </View>
+  ) : g.target > 10 && !achieved ? (
+    <View style={s.count}>
+      <Pressable hitSlop={8} accessibilityLabel="하나 빼기" onPress={() => onProgress(g.progress - 1)}><Text style={[s.countBtn, { color: p.accent }]}>−</Text></Pressable>
+      <Text style={{ color: p.textSecondary, fontSize: 13 }}>{g.progress}/{g.target}</Text>
+      <Pressable hitSlop={8} accessibilityLabel="하나 더하기" onPress={() => onProgress(g.progress + 1)}><Text style={[s.countBtn, { color: p.accent }]}>+</Text></Pressable>
+    </View>
+  ) : badge.note ? <Text style={[s.note, { color: p.textTertiary }]} numberOfLines={1}>{badge.note}</Text> : null
   return (
     <View style={s.row}>
-      <Checkbox priority={0} done={achieved} flash={cheer} label={achieved ? `${g.title} 달성 취소` : `${g.title} 달성`} onPress={() => onProgress(checkTarget(g))} />
-      <View style={{ flex: 1, paddingVertical: 8, gap: 4 }}>
-        {editing ? (
-          <TextInput value={draft} onChangeText={setDraft} autoFocus maxLength={GOAL_TITLE_MAX} returnKeyType="done" selectTextOnFocus
-            onSubmitEditing={save} onBlur={save} style={[s.title, s.titleInput, { color: p.textPrimary, borderColor: p.accent }]} accessibilityLabel="목표 이름" />
-        ) : (
-          <Pressable onPress={onEdit} hitSlop={{ top: 6, bottom: 4 }} accessibilityRole="button" accessibilityLabel={`${g.title}, 이름 바꾸기`}>
-            <Text style={[s.title, { color: achieved ? p.textTertiary : p.textPrimary }]} numberOfLines={2}>{g.title}</Text>
-          </Pressable>
-        )}
-        <View style={s.sub}>
-          {linked ? (
-            <View style={[s.tag, { backgroundColor: p.bgSelected }]}>
-              {g.link_kind === 'tag' ? <Hash size={11} color={p.textSecondary} /> : g.link_kind === 'list' ? <FolderClosed size={11} color={p.textSecondary} /> : <ListTodo size={11} color={p.textSecondary} />}
-              <Text style={[s.tagT, { color: p.textSecondary }]} numberOfLines={1}>{linkLabel(g, names).replace(/^#/, '')} · {g.progress}/{g.target}</Text>
-            </View>
-          ) : g.target > 1 && g.target <= 10 && !achieved ? (
-            <View style={s.dots} accessibilityLabel={`${g.progress}/${g.target}`}>
-              {Array.from({ length: g.target }, (_, k) => (
-                <Pressable key={k} hitSlop={{ top: 10, bottom: 10, left: 3, right: 3 }} accessibilityRole="button" accessibilityLabel={`${k + 1}번`} onPress={() => onProgress(dotTarget(g.progress, k))}>
-                  <View style={[s.dot, { borderColor: p.accent }, k < g.progress && { backgroundColor: p.accent }]} />
-                </Pressable>
-              ))}
-            </View>
-          ) : g.target > 10 && !achieved ? (
-            <View style={s.count}>
-              <Pressable hitSlop={8} accessibilityLabel="하나 빼기" onPress={() => onProgress(g.progress - 1)}><Text style={[s.countBtn, { color: p.accent }]}>−</Text></Pressable>
-              <Text style={{ color: p.textSecondary, fontSize: 13 }}>{g.progress}/{g.target}</Text>
-              <Pressable hitSlop={8} accessibilityLabel="하나 더하기" onPress={() => onProgress(g.progress + 1)}><Text style={[s.countBtn, { color: p.accent }]}>+</Text></Pressable>
-            </View>
-          ) : badge.note ? <Text style={[s.note, { color: p.textTertiary }]}>{badge.note}</Text> : null}
-          <View style={{ flex: 1 }} />
-          <Stepper p={p} value={g.target} onChange={onTarget} />
-        </View>
+      <View style={s.checkCol}>
+        <Checkbox priority={0} done={achieved} flash={cheer} label={achieved ? `${g.title} 달성 취소` : `${g.title} 달성`} onPress={() => onProgress(checkTarget(g))} />
       </View>
-      {badge.reward ? <View style={[s.reward, { backgroundColor: p.accentSubtle }]}><Text style={[s.rewardT, { color: p.accent }]}>{badge.reward}</Text></View> : null}
-      <View ref={moreRef} collapsable={false}>
-        <Pressable onPress={onMore} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${g.title} 메뉴`} style={s.more}><MoreHorizontal size={18} color={p.textTertiary} /></Pressable>
+      <View style={s.body}>
+        <View style={s.titleRow}>
+          {editing ? (
+            <TextInput value={draft} onChangeText={setDraft} autoFocus maxLength={GOAL_TITLE_MAX} returnKeyType="done" selectTextOnFocus
+              onSubmitEditing={save} onBlur={save} style={[s.title, s.titleInput, { color: p.textPrimary, borderColor: p.accent }]} accessibilityLabel="목표 이름" />
+          ) : (
+            <Pressable onPress={onEdit} hitSlop={{ top: 6, bottom: 4 }} style={{ flex: 1 }} accessibilityRole="button" accessibilityLabel={`${g.title}, 이름 바꾸기`}>
+              <Text style={[s.title, { color: achieved ? p.textTertiary : p.textPrimary }]} numberOfLines={2}>{g.title}</Text>
+            </Pressable>
+          )}
+          {badge.reward ? <View style={[s.reward, { backgroundColor: p.accentSubtle }]}><Text style={[s.rewardT, { color: p.accent }]}>{badge.reward}</Text></View> : null}
+          <View ref={moreRef} collapsable={false}>
+            <Pressable onPress={onMore} hitSlop={11} accessibilityRole="button" accessibilityLabel={`${g.title} 메뉴`} style={s.more}><MoreHorizontal size={18} color={p.textTertiary} /></Pressable>
+          </View>
+        </View>
+        <View style={s.sub}>
+          <Stepper p={p} value={g.target} onChange={onTarget} />
+          {progress}
+        </View>
       </View>
       {cheer ? <View style={s.cheer} pointerEvents="none"><Confetti count={14} spread={60} /></View> : null}
     </View>
@@ -333,11 +338,11 @@ function Stepper({ p, value, onChange }: { p: Palette; value: number; onChange: 
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(e) => onChange(value + (e.nativeEvent.actionName === 'increment' ? 1 : -1))}>
       <Text style={[s.stepLbl, { color: p.textTertiary }]}>목표</Text>
-      <Pressable disabled={minus} hitSlop={8} onPress={() => onChange(value - 1)} style={[s.stepBtn, { backgroundColor: p.bgSelected }, minus && { opacity: 0.35 }]} accessibilityLabel="목표 수 줄이기">
+      <Pressable disabled={minus} hitSlop={8}  onPress={() => onChange(value - 1)} style={[s.stepBtn, { backgroundColor: p.bgSelected }, minus && { opacity: 0.35 }]} accessibilityLabel="목표 수 줄이기">
         <Text style={[s.stepBtnT, { color: p.textPrimary }]}>−</Text>
       </Pressable>
       <Text style={[s.stepN, { color: p.textPrimary }]}>{value}번</Text>
-      <Pressable disabled={plus} hitSlop={8} onPress={() => onChange(value + 1)} style={[s.stepBtn, { backgroundColor: p.bgSelected }, plus && { opacity: 0.35 }]} accessibilityLabel="목표 수 늘리기">
+      <Pressable disabled={plus} hitSlop={8}  onPress={() => onChange(value + 1)} style={[s.stepBtn, { backgroundColor: p.bgSelected }, plus && { opacity: 0.35 }]} accessibilityLabel="목표 수 늘리기">
         <Text style={[s.stepBtnT, { color: p.textPrimary }]}>+</Text>
       </Pressable>
     </View>
@@ -395,10 +400,13 @@ const s = StyleSheet.create({
   tabs: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 4 },
   range: { flex: 1, fontSize: 12, textAlign: 'right' },
   card: { marginHorizontal: 12, marginTop: 10, borderRadius: 14, overflow: 'hidden' },
-  row: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 16, paddingVertical: 11 },
+  checkCol: { height: 22, justifyContent: 'center' },
+  body: { flex: 1, gap: 7 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   title: { fontSize: 16, lineHeight: 22 },
-  titleInput: { paddingVertical: 2, paddingHorizontal: 6, marginHorizontal: -6, borderWidth: 1.5, borderRadius: 8 },
-  sub: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 24 },
+  titleInput: { flex: 1, paddingVertical: 0, paddingHorizontal: 6, marginHorizontal: -6, borderWidth: 1.5, borderRadius: 8 },
+  sub: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 28, flexWrap: 'wrap' },
   note: { fontSize: 12 },
   tag: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, maxWidth: 150 },
   tagT: { fontSize: 12, fontWeight: '500' },
@@ -408,13 +416,13 @@ const s = StyleSheet.create({
   countBtn: { fontSize: 20, fontWeight: '600', paddingHorizontal: 4 },
   step: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   stepLbl: { fontSize: 11.5 },
-  stepBtn: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  stepBtn: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   stepBtnT: { fontSize: 16, lineHeight: 18, fontWeight: '600' },
   stepN: { fontSize: 13, fontWeight: '600', minWidth: 30, textAlign: 'center', fontVariant: ['tabular-nums'] },
-  reward: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  reward: { height: 22, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 9 },
   rewardT: { fontSize: 12, fontWeight: '600' },
-  more: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  cheer: { position: 'absolute', left: 14, top: 0, bottom: 0, width: 20 },
+  more: { width: 24, height: 22, alignItems: 'center', justifyContent: 'center' },
+  cheer: { position: 'absolute', left: 16, top: 11, height: 22, width: 20 },
   aiRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 14, paddingVertical: 12 },
   aiMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   aiText: { flex: 1, fontSize: 15 },

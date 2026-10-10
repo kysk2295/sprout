@@ -1,22 +1,26 @@
-// 49 §6 휴대폰 성장 홈(시안 character-v3 B): 3D 정원 장면이 상태 막대 뒤까지 화면 끝까지 + 위 `꿈틀`·유리 알약 `한 날 N일`·⋯ +
+// 49 §6 휴대폰 성장 홈(시안 character-v3 B): 3D 정원 장면이 상태 막대 뒤까지 화면 끝까지 + 위 `꿈틀`·유리 알약 불꽃 `N일 연속`(43 §19)·⋯ +
 // 유리 주 달력 띠(오늘 = 강조색 원, 한 날 = 옅은 원) + 받침(perch) 위 캐릭터(숨쉬기) + 아래 유리 카드(Lv 배지 · 큰 % · 꼬리 칩 · 14px 막대 · 옷장·도감·이번 주).
 // v1.2(49 §6.0): 이 무대 전체가 고정 화면 한 장(스크롤 없음). `이번 주` 칸 = 이번 주 목표 진행(누르면 팝업), Lv 카드 윗줄·%를 누르면 진화 길 팝업.
 // 만지기 v3(49 §7.1 — PlayableCharacter full): 누르기 = 깡충 + 유리 말풍선 한 줄 · 두 번/3번째 = 공중 한 바퀴 · 빠르게 4번 = 간지럼 · 길게 = 쓰다듬기 ·
 // 끌었다 놓기(받침 반경 안에서 따라옴) · 가만히 두면 8~15초마다 딴짓 · 이름 = 부르기.
 // 만지기는 아무것도 주지 않는다(XP·아이템 없음). 움직임은 감싸개의 transform·opacity만, UI 스레드(39 §11). 반복 움직임 캐릭터는 이 무대 하나.
 // 트로피 선반은 장면에서 뺐다(49 §6) — 트로피는 도감 화면 목록에 있다.
+// 말풍선(49 §7.2): 무대 감싸개 + 만지기 공유 값으로 머리 점을 구해 UI 스레드 스프링으로 따라간다(회전 없음, 화면 안에 가둠, 다시 그리기 없음).
 import { FOOT, headTop3d, sceneDark, sceneLayout, standOnPerch, titleOf } from '@sprout/schema/characterArt'
 import { XP, type Species } from '@sprout/schema/growth'
 import { decorOn, ITEMS, TOUCH, TOUCH_LINES, type Equip } from '@sprout/schema/wardrobe'
 import type { PlayKind } from '@sprout/schema/charPlay'
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import Animated, { cancelAnimation, Easing, FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
+import Animated, { cancelAnimation, Easing, FadeIn, FadeOut, useAnimatedStyle, useFrameCallback, useSharedValue, withDelay, withRepeat, withSequence, withTiming, type SharedValue } from 'react-native-reanimated'
+import type { Streak } from '@sprout/schema/streak'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 import { hx } from '../ui/haptics'
 import type { Palette } from '../theme/palette'
 import { CharacterArt } from './art/CharacterArt'
-import { PlayableCharacter, type PlayHandle } from './art/PlayableCharacter'
+import { PlayableCharacter, usePlayValues, type PlayHandle, type PlayValues } from './art/PlayableCharacter'
+import { clampBubble, headShift, springStep } from './art/follow'
+import { StreakPill, type StreakPillHandle } from './Flame'
 import { SceneBackdrop } from './art/Scene3D'
 import { FloatChip, SpeciesBurst } from './Bits'
 import { DEX_TOTAL } from './home/dex'
@@ -35,6 +39,8 @@ export type StageHandle = {
   holdFor: (hand: string, ms: number) => void
   /** 만지기 반응 하나(데모·확인용) — 49 §7.1 */
   play: (kind: 'hop' | 'spin' | 'giggle' | 'wobble' | 'pet' | 'dizzy') => void
+  /** 연속 이정표 축하(43 §19.3): 알약 톡 + 반짝이 + 깡충 + 한 줄 */
+  cheer: (line: string) => void
 }
 type StageMood = 'default' | 'smile' | 'happy' | 'pet' | 'giggle' | 'wow' | 'sleepy' | 'eat'
 /** 주 달력 띠 한 칸 */
@@ -51,6 +57,8 @@ export const RaiseStage = forwardRef<StageHandle, {
   sceneKey: string; reduced: boolean; live: boolean
   night: boolean; calm: boolean; lines: () => string; onEgg?: () => void
   week: WeekCell[]; dexN: number; freshDot?: boolean
+  /** 머리 알약 = 연속 불꽃(43 §19) */
+  streak: Streak
   /** 이번 주 목표 진행(49 §6.0 고정 카드 `이번 주` 칸) */
   goals?: { done: number; total: number; /** 진행 합 평균 0~1(10 §4.6) */ ratio?: number }
   onWard?: () => void; onDex?: () => void; onWeek?: () => void
@@ -58,8 +66,8 @@ export const RaiseStage = forwardRef<StageHandle, {
   onRoad?: () => void
   /** 머리 오른쪽(⋯ 메뉴) */
   menu?: ReactNode
-}>(function RaiseStage({ p, raise, name, width, height, topInset, bottomClear, sceneKey, reduced, live, night, calm, lines, onEgg, week, dexN, freshDot, goals, onWard, onDex, onWeek, onRoad, menu }, ref) {
-  const { species, progress, look, worn, state, owned } = raise
+}>(function RaiseStage({ p, raise, name, width, height, topInset, bottomClear, sceneKey, reduced, live, night, calm, lines, onEgg, week, dexN, freshDot, streak, goals, onWard, onDex, onWeek, onRoad, menu }, ref) {
+  const { species, progress, look, worn, owned } = raise
   const lv = progress.level
   const st = progress.stage
   const seed = look.seed ?? 0
@@ -114,6 +122,7 @@ export const RaiseStage = forwardRef<StageHandle, {
       { scaleX: sx.value * (1 + breath.value * 0.018) }, { scaleY: sy.value * (1 - breath.value * 0.028) }
     ]
   }))
+  const wrapV = useMemo(() => ({ hopY, rot, sx, sy, breath }), [hopY, rot, sx, sy, breath])
   const hop = useCallback((times = 1, h = 14) => {
     if (reduced) return
     const one = [withTiming(3, { duration: 70 }), withTiming(-h, { duration: 150, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 200, easing: Easing.in(Easing.quad) })]
@@ -142,8 +151,11 @@ export const RaiseStage = forwardRef<StageHandle, {
       burst(10, 90); chip(`Lv ${level}`, 'lv')
     },
     holdFor: (hand, ms) => { setHold(hand); later(() => setHold(null), ms) },
-    play: (kind) => pc.current?.play(kind)
+    play: (kind) => pc.current?.play(kind),
+    cheer: (line) => { pill.current?.cheer(); feel('happy', 2200); hop(); say(line, 3200) }
   }), [hop, say, feel, burst, wave, chip, reduced, sx, sy, hopY, later])
+  const pill = useRef<StreakPillHandle>(null)
+  const pv = usePlayValues()
 
   // ── 만지기(49 §7.1 — 움직임·조각·진동은 PlayableCharacter, 말·얼굴은 여기) ──
   const pc = useRef<PlayHandle>(null)
@@ -187,9 +199,7 @@ export const RaiseStage = forwardRef<StageHandle, {
       <View style={[s.head, { top: topInset + 6 }]} pointerEvents="box-none">
         <Text style={[s.logo, { color: t.ink }]} accessibilityRole="header" accessibilityLabel="성장">꿈틀</Text>
         <View style={{ flex: 1 }} />
-        <Glass dark={sd} radius={16} style={s.pill}>
-          <Text style={[s.pillT, { color: t.ink }]}>한 날 <Text style={s.pillB}>{state.days}</Text>일</Text>
-        </Glass>
+        <StreakPill ref={pill} streak={streak} dark={sd} ink={t.ink} reduced={reduced} />
         {menu}
       </View>
 
@@ -210,18 +220,12 @@ export const RaiseStage = forwardRef<StageHandle, {
       {/* 받침 위 캐릭터 */}
       <Animated.View style={[{ position: 'absolute', left: pos.left, top: pos.top, width: size, height: size }, wrap]} pointerEvents="box-none">
         <PlayableCharacter ref={pc} species={species} stage={st} size={size} mood={species ? faceMood : undefined} seed={seed}
-          wear={species ? { lv, path: look.path, eq, seed } : undefined} level="full" reduced={reduced} active={live} idle={!sleepy}
+          wear={species ? { lv, path: look.path, eq, seed } : undefined} level="full" reduced={reduced} active={live} idle={!sleepy} values={pv}
           onTap={onTap} onSay={onSay} onPetStart={petStart} onDragStart={dragStart} onDrop={drop}
           accessibilityLabel={species ? `${name}, Lv ${lv} ${title}. 눌러서 말 걸기` : '아직 모르는 씨앗. 눌러서 깨우기'} />
       </Animated.View>
-      {bubble ? (
-        <View style={[s.sayBox, { left: perchX - 150, top: headY }]} pointerEvents="none">
-          <Animated.View key={bubble.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(180)} style={[s.say, { backgroundColor: t.bubble, borderColor: t.line }]}>
-            <Text style={[s.sayT, { color: t.ink }]} numberOfLines={2} accessibilityLiveRegion="polite">{bubble.text}</Text>
-            <View style={[s.sayTail, { backgroundColor: t.bubble }]} />
-          </Animated.View>
-        </View>
-      ) : null}
+      <FollowBubble bubble={bubble} bg={t.bubble} line={t.line} ink={t.ink} reduced={reduced} pv={pv} wrapV={wrapV}
+        size={size} headLocal={size * headFrac} foot={FOOT.y} cx={perchX} headY={headY} screenW={width} minTop={topInset + 4} />
       <View style={[s.fx, { left: perchX, top: headY + 6 }]} pointerEvents="none">
         {chips.map((c) => <FloatChip key={c.id} text={c.text} kind={c.kind} dx={c.kind === 'xp' ? 34 : c.dx} reduced={reduced} />)}
       </View>
@@ -263,6 +267,58 @@ export const RaiseStage = forwardRef<StageHandle, {
         </Glass>
       </View>
     </View>
+  )
+})
+
+type WrapValues = { hopY: SharedValue<number>; rot: SharedValue<number>; sx: SharedValue<number>; sy: SharedValue<number>; breath: SharedValue<number> }
+
+/**
+ * 49 §7.2 말풍선: 꼬리 끝 = 지금 머리 꼭대기. 무대 감싸개(wrapV)와 만지기(pv) 공유 값으로 머리가 옮겨 간 양을 구해
+ * useFrameCallback 스프링으로 살짝 늦게 쫓는다(말풍선이 떠 있을 때만 켬). 좌우 12 안 · 위 minTop 아래로 가두고, 가둔 만큼 꼬리가 머리 쪽으로.
+ * 쓰는 것은 감싸개·꼬리 translate뿐(39 §11). 크기는 뜰 때 onLayout 한 번.
+ */
+const FollowBubble = memo(function FollowBubble({ bubble, bg, line, ink, reduced, pv, wrapV, size, headLocal, foot, cx, headY, screenW, minTop }: {
+  bubble: { text: string; id: number } | null; bg: string; line: string; ink: string; reduced: boolean
+  pv: PlayValues; wrapV: WrapValues; size: number; headLocal: number; foot: number; cx: number; headY: number; screenW: number; minTop: number
+}) {
+  const bx = useSharedValue(0), by = useSharedValue(0), vx = useSharedValue(0), vy = useSharedValue(0)
+  const bw = useSharedValue(0), bh = useSharedValue(0), snap = useSharedValue(1)
+  const still = useSharedValue(reduced ? 1 : 0)
+  useEffect(() => { still.value = reduced ? 1 : 0 }, [reduced, still])
+  const frame = useFrameCallback((fi) => {
+    const { y, sx, sy, rot, dx, dy, drot } = pv
+    const b = wrapV.breath.value
+    const d = headShift(size, headLocal, foot,
+      { tx: 0, ty: y.value * size, rot: rot.value, sx: sx.value, sy: sy.value },
+      { tx: dx.value, ty: dy.value, rot: drot.value, sx: 1, sy: 1 },
+      { tx: 0, ty: wrapV.hopY.value, rot: wrapV.rot.value, sx: wrapV.sx.value * (1 + b * 0.018), sy: wrapV.sy.value * (1 - b * 0.028) })
+    if (snap.value || still.value) { bx.value = d.x; by.value = d.y; vx.value = 0; vy.value = 0; snap.value = 0; return }
+    const dt = (fi.timeSincePreviousFrame ?? 16) / 1000
+    const nx = springStep(bx.value, vx.value, d.x, dt), ny = springStep(by.value, vy.value, d.y, dt)
+    bx.value = nx.pos; vx.value = nx.vel; by.value = ny.pos; vy.value = ny.vel
+  }, false)
+  const on = !!bubble
+  useEffect(() => {
+    if (on) { snap.value = 1; frame.setActive(true) } else frame.setActive(false)
+    return () => frame.setActive(false)
+  }, [on]) // eslint-disable-line react-hooks/exhaustive-deps
+  const box = useAnimatedStyle(() => {
+    const c = clampBubble(cx, headY - 8 - bh.value, bx.value, by.value, bw.value, bh.value, screenW, minTop)
+    return { transform: [{ translateX: c.x }, { translateY: c.y }] }
+  })
+  const tail = useAnimatedStyle(() => {
+    const c = clampBubble(cx, headY - 8 - bh.value, bx.value, by.value, bw.value, bh.value, screenW, minTop)
+    return { transform: [{ translateX: c.tail }, { rotate: '45deg' }] }
+  })
+  if (!bubble) return null
+  return (
+    <Animated.View style={[s.sayBox, { left: cx - 150, top: headY }, box]} pointerEvents="none">
+      <Animated.View key={bubble.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(180)} style={[s.say, { backgroundColor: bg, borderColor: line }]}
+        onLayout={(e) => { bw.value = e.nativeEvent.layout.width; bh.value = e.nativeEvent.layout.height }}>
+        <Text style={[s.sayT, { color: ink }]} numberOfLines={2} accessibilityLiveRegion="polite">{bubble.text}</Text>
+        <Animated.View style={[s.sayTail, { backgroundColor: bg }, tail]} />
+      </Animated.View>
+    </Animated.View>
   )
 })
 
@@ -327,9 +383,6 @@ function Quick({ label, a11y, bg, ink, dot, onPress, children }: { label: string
 const s = StyleSheet.create({
   head: { position: 'absolute', left: 18, right: 18, height: 32, flexDirection: 'row', alignItems: 'center', gap: 8 },
   logo: { fontSize: 21, fontWeight: '800', letterSpacing: -0.85 },
-  pill: { height: 32, paddingHorizontal: 12, justifyContent: 'center' },
-  pillT: { fontSize: 13, fontWeight: '700' },
-  pillB: { fontWeight: '800' },
   week: { position: 'absolute', left: 14, right: 14 },
   weekRow: { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 6 },
   wcol: { flex: 1, alignItems: 'center' },
@@ -340,7 +393,7 @@ const s = StyleSheet.create({
   sayBox: { position: 'absolute', width: 300, height: 0, alignItems: 'center' },
   say: { position: 'absolute', bottom: 8, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 10, maxWidth: 230, shadowColor: '#0F2316', shadowOpacity: 0.14, shadowRadius: 10, shadowOffset: { width: 0, height: 6 } },
   sayT: { fontSize: 14, lineHeight: 19, fontWeight: '600', textAlign: 'center' },
-  sayTail: { position: 'absolute', bottom: -6, left: '50%', marginLeft: -7, width: 14, height: 14, transform: [{ rotate: '45deg' }], borderRadius: 3 },
+  sayTail: { position: 'absolute', bottom: -6, left: '50%', marginLeft: -7, width: 14, height: 14, borderRadius: 3 },
   hud: { position: 'absolute', left: 14, right: 14 },
   hudIn: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 14 },
   lvRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

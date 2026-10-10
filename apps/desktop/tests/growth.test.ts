@@ -244,16 +244,17 @@ assert.equal(isWeeklyCap(new Error('지금은 AI를 쓰는 사람이 많아요. 
   const xp0 = xpSum()
   await setGoalTarget(of()[0], 2) // 진행 2에 닿아 그 순간 달성
   assert.equal(of()[0].status, 'achieved')
+  assert.equal(of()[0].title, '헬스 2번') // 제목 숫자도 목표 수를 따라감(10 §4.6.1)
   assert.ok(xpSum() > xp0)
   // 지우기 → 되돌리기: 같은 id·진행·순서, XP도 다시
   const undo = await removeGoal(gym.id)
   assert.equal(of().length, 1)
   assert.equal(xpSum(), xp0)
   await undo()
-  assert.deepEqual(of().map((g) => [g.id, g.title, g.status]), [[gym.id, '헬스 3번', 'achieved'], [of()[1].id, '정리하기', 'active']])
+  assert.deepEqual(of().map((g) => [g.id, g.title, g.status]), [[gym.id, '헬스 2번', 'achieved'], [of()[1].id, '정리하기', 'active']])
   assert.equal(xpSum() > xp0, true)
   await reorderGoal(of().map((g) => g.id), of()[1].id, of()[0].id)
-  assert.deepEqual(of().map((g) => g.title), ['정리하기', '헬스 3번'])
+  assert.deepEqual(of().map((g) => g.title), ['정리하기', '헬스 2번'])
   // 세는 방법 = 리스트: 그 주에 끝낸 그 리스트 할 일 수로 맞춘다
   await setGoalLink(of()[0], { kind: 'list', id: 'l1' })
   assert.equal(of()[0].link_kind, 'list')

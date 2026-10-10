@@ -1,5 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { addDays } from '@sprout/schema/time'
+import { streakOf as sharedStreak } from '@sprout/schema/streak'
+import { activeDayList } from '@sprout/schema/wardrobe'
 import type { XpRow } from '../../data/growth'
 import { motionReduced, thisWeek } from '../../data/growth'
 import { dayKey } from '../../lib/dates'
@@ -43,11 +45,7 @@ export function WeekChart({ events }: { events: XpRow[] }) {
   )
 }
 
-/** 연속 일수: 오늘(없으면 어제)부터 거꾸로 할 일 XP가 있는 날이 이어진 수 */
+/** 연속 일수(43 §19 — 공용 @sprout/schema/streak): 오늘(아직이면 어제)부터 거꾸로 한 날(할 일 XP 순합 ≥ 1)이 이어진 수 */
 export function streakOf(events: XpRow[], today = dayKey()): number {
-  const days = new Set(events.filter((e) => e.kind === 'task' && e.amount > 0).map((e) => e.day))
-  let d = days.has(today) ? today : addDays(today, -1)
-  let n = 0
-  while (days.has(d)) { n++; d = addDays(d, -1) }
-  return n
+  return sharedStreak(activeDayList(events), today).days
 }

@@ -5,7 +5,7 @@ import { TABLES } from './index.ts'
 import { insertStmt, type CoreDb, type Stmt } from './taskCore.ts'
 import {
   checkGoalTitle, goalsRatio, GOAL_COLS, GOAL_TEMPLATES, linkedCount, linkLabel, moveGoal, parseGoal, planCreateGoal, planRemoveGoal, planRenameGoal,
-  planReorderGoals, planRestoreGoal, planSetGoalLink, planSetGoalProgress, planSetGoalTarget, syncLinkedGoals, weekBounds, type GoalEnv, type GoalRow
+  planReorderGoals, planRestoreGoal, planSetGoalLink, planSetGoalProgress, planSetGoalTarget, retitleForTarget, syncLinkedGoals, weekBounds, type GoalEnv, type GoalRow
 } from './goalCore.ts'
 
 const SQL = await initSqlJs()
@@ -30,6 +30,9 @@ const create = async (title: string, target = 1, link?: { kind: 'none' | 'tasks'
 
 // ── 글: parseGoal · 검사 ──
 assert.deepEqual(parseGoal('  운동   3번 '), { title: '운동 3번', target: 3 })
+assert.equal(parseGoal('운동 2번 하기').target, 2) // 가운데 숫자도 하나뿐이면
+assert.equal(parseGoal('2번 보고 3번 쓰기').target, 1) // 여럿이면 모름
+assert.equal(parseGoal('2026년 목표').target, 1)
 assert.deepEqual(parseGoal('물 8회'), { title: '물 8회', target: 8 })
 assert.deepEqual(parseGoal('논문 하나 읽기'), { title: '논문 하나 읽기', target: 1 })
 assert.deepEqual(checkGoalTitle('   ', []), { ok: false, error: 'empty' })
@@ -60,11 +63,21 @@ await run(r.stmts)
 assert.equal(r.gained, 30)
 assert.equal(goal(gym).status, 'achieved')
 assert.equal(goal(gym).target, 2)
+assert.equal(goal(gym).title, '운동 2번') // 제목 숫자 = 지난 목표 수(3)라 같이 바뀜(10 §4.6)
 r = await planSetGoalTarget(db, env, goal(gym), 4)
 await run(r.stmts)
 assert.equal(goal(gym).status, 'active')
 assert.equal(goal(gym).target, 4)
+assert.equal(goal(gym).title, '운동 4번')
 assert.equal(xpSum(), 0)
+// 제목 숫자 맞추기: 지난 목표 수와 같을 때만, 하나일 때만
+assert.equal(retitleForTarget('운동 2번 하기', 2, 1), '운동 1번 하기')
+assert.equal(retitleForTarget('책 3권 · 10회 달리기', 10, 12), '책 3권 · 12회 달리기')
+assert.equal(retitleForTarget('운동 2번 하기', 3, 1), null) // 숫자가 지난 목표 수와 다르면 그대로
+assert.equal(retitleForTarget('논문 읽기', 1, 2), null)
+assert.equal(retitleForTarget('2번 보고 2번 쓰기', 2, 3), null) // 어느 것인지 모르면 그대로
+assert.equal(retitleForTarget('2026년 12번 출근', 12, 13), '2026년 13번 출근') // 2026은 번이 아니다
+assert.equal(retitleForTarget('물 8개', 8, 8), null)
 assert.equal((await planSetGoalTarget(db, env, goal(gym), 0)).stmts.find((s) => s.sql.startsWith('UPDATE kpis'))!.params![0], 1) // 1 아래로 안 간다
 r = await planSetGoalTarget(db, env, goal(gym), 120)
 assert.equal(r.stmts.find((s) => s.sql.startsWith('UPDATE kpis'))!.params![0], 99) // 99까지
@@ -121,7 +134,7 @@ assert.equal(linkLabel({ link_kind: 'list', link_id: 'gone' }, { tags: new Map()
 assert.deepEqual(moveGoal(['a', 'b', 'c'], 'c', 'a'), ['c', 'a', 'b'])
 assert.deepEqual(moveGoal(['a', 'b', 'c'], 'a', null), ['b', 'c', 'a'])
 await run(planReorderGoals(env, moveGoal(all('SELECT id FROM kpis WHERE week_start = ? ORDER BY sort_order', [week]).map((x) => x.id as string), tasks2, read)))
-assert.deepEqual(order(), ['할 일 2개 끝내기', '논문 하나 읽기', '운동 3번'])
+assert.deepEqual(order(), ['할 일 3개 끝내기', '논문 하나 읽기', '운동 4번']) // 목표 수를 바꾸면 제목 숫자도(10 §4.6)
 // 새 목표는 순서를 바꾼 뒤에도 맨 아래
 const book = (await create('책 한 권 읽기')) as string
 assert.deepEqual(order().at(-1), '책 한 권 읽기')
@@ -140,7 +153,7 @@ await run(r.stmts)
 assert.equal(r.gained, 30)
 assert.equal(goal(read).title, '논문 하나 읽기')
 assert.equal(goal(read).status, 'achieved')
-assert.deepEqual(order(), ['할 일 2개 끝내기', '논문 하나 읽기', '운동 3번', '책 한 권 읽기'])
+assert.deepEqual(order(), ['할 일 3개 끝내기', '논문 하나 읽기', '운동 4번', '책 한 권 읽기'])
 assert.equal(xpSum(), 30)
 
 // ── 모두 달성 보너스: 넷 다 이루면 +20, 하나 지우면(남은 것 다 이룸·2개 이상) 보너스 유지, 못 이룬 것만 남으면 되돌림 ──

@@ -17,6 +17,7 @@ import { usePalette } from '../theme/ThemeProvider'
 import { tabBarSpace } from '../ui/tabBarSpace'
 import { sceneKeyFor } from '@sprout/schema/characterArt'
 import { CompanionFace } from '../ui/CompanionFace'
+import { cheerLine } from '@sprout/schema/streak'
 
 export const RAISE_DEMO = process.env.EXPO_PUBLIC_SPROUT_RAISE_DEMO === '1'
 
@@ -62,6 +63,8 @@ export function RaiseDemo() {
       if (q.say) stage.current?.say(q.say, 60000)
       if (q.act === 'levelup') stage.current?.levelUp(raise.progress.level)
       if (q.act === 'xp') stage.current?.xp(1)
+      // 43 §19.3 이정표 축하 확인: act=cheer&st=7
+      if (q.act === 'cheer') stage.current?.cheer(cheerLine(Number(q.st ?? 3)))
       // 49 §7.1 만지기 확인: act=hop|spin|giggle|wobble|pet|dizzy (spin은 회전 띠가 없으면 깡충)
       if (q.act && ['hop', 'spin', 'giggle', 'wobble', 'pet', 'dizzy'].includes(q.act)) stage.current?.play(q.act as 'hop')
     }, 600)
@@ -71,6 +74,9 @@ export function RaiseDemo() {
   const name = q.name ?? '꿈틀'
   const sceneKey = sceneKeyFor(raise.worn.bg, p.dark || q.night === '1')
   const frame = { p, raise, width: win.width, height: win.height, topInset: ins.top, bottomInset: ins.bottom, sceneKey, seg: (v === 'dex' ? 'dex' : 'ward') as 'ward' | 'dex', onSeg: () => {}, onBack: () => {} }
+  // 43 §19 알약: st=연속 수, stt=1이면 오늘 함(켜진 불꽃)
+  const stN = Number(q.st ?? 5), stToday = q.stt !== '0'
+  const streak = { days: stN, today: stToday && stN > 0, next: stToday && stN > 0 ? stN : stN + 1, milestone: null }
   const week = Array.from({ length: 7 }, (_, i) => ({ day: `2026-10-${String(5 + i).padStart(2, '0')}`, label: ['월', '화', '수', '목', '금', '토', '일'][i], num: 5 + i, did: i < 3, today: i === 3 }))
   return (
     <CharacterWearProvider value={wear}>
@@ -78,7 +84,7 @@ export function RaiseDemo() {
         {v === 'stage' || v === 'toast' ? (
           <ScrollView>
             <RaiseStage ref={stage} p={p} raise={raise} name={name} width={win.width} height={win.height} topInset={ins.top} bottomClear={tabBarSpace(ins.bottom).clear} sceneKey={sceneKey}
-              reduced={q.reduced === '1'} live night={q.night === '1'} calm={false} lines={() => '오늘 3개 남았어. 하나만 같이 할까?'} week={week} dexN={raise.progress.stage} freshDot />
+              reduced={q.reduced === '1'} live night={q.night === '1'} calm={false} lines={() => '오늘 3개 남았어. 하나만 같이 할까?'} week={week} dexN={raise.progress.stage} freshDot streak={streak} />
           </ScrollView>
         ) : null}
         {v === 'toast' ? <NewItemToast rows={[{ id: 'x', character_id: 'c', item_id: 'backpack', kind: 'item', source: 'level', ref_id: null, title: '' } as CharacterItemRow]} level={9} bottom={110} reduced={false} onWear={() => {}} onClose={() => {}} /> : null}

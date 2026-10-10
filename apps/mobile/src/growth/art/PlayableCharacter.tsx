@@ -25,6 +25,18 @@ export type PlayHandle = {
   hop: () => void
 }
 export type PlayLevel = 'full' | 'light'
+/** 움직임 공유 값 — 부르는 쪽이 만들어 넘기면(values) 말풍선 등이 같은 값을 UI 스레드에서 읽는다(49 §7.2) */
+export type PlayValues = {
+  /** 몸: 위아래(상자 높이 비율) · 기울기(°) · 늘기 — 기준 50% · FOOT.y */
+  y: SharedValue<number>; sx: SharedValue<number>; sy: SharedValue<number>; rot: SharedValue<number>
+  /** 끌기: 감싸개 이동(px) · 기울기(°) — 기준 가운데 */
+  dx: SharedValue<number>; dy: SharedValue<number>; drot: SharedValue<number>
+}
+export function usePlayValues(): PlayValues {
+  const y = useSharedValue(0), sx = useSharedValue(1), sy = useSharedValue(1), rot = useSharedValue(0)
+  const dx = useSharedValue(0), dy = useSharedValue(0), drot = useSharedValue(0)
+  return useMemo(() => ({ y, sx, sy, rot, dx, dy, drot }), [y, sx, sy, rot, dx, dy, drot])
+}
 
 type Props = Pick<CharacterArtProps, 'species' | 'stage' | 'size' | 'mood' | 'seed' | 'crop' | 'style'> & {
   wear?: CharacterWear | null
@@ -41,6 +53,8 @@ type Props = Pick<CharacterArtProps, 'species' | 'stage' | 'size' | 'mood' | 'se
   /** 움직임 줄이기(안 주면 OS·성장 설정) */
   reduced?: boolean
   disabled?: boolean
+  /** 움직임 공유 값을 바깥에서(말풍선 따라가기 — 49 §7.2). 없으면 안에서 만든다 */
+  values?: PlayValues
   /** 누를 때마다(판정 결과 · 실제로 움직였는지) — 말풍선 한 줄은 부르는 쪽이 */
   onTap?: (kind: PlayKind, started: boolean) => void
   /** 반응이 말하는 한 줄(간지럼 `히히, 간지러워!` · 쓰다듬기 끝 `헤헤, 고마워`) */
@@ -105,9 +119,9 @@ export const PlayableCharacter = memo(forwardRef<PlayHandle, Props>(function Pla
   cb.current = props
 
   // ── 공유 값 ──
-  const y = useSharedValue(0), sx = useSharedValue(1), sy = useSharedValue(1), rot = useSharedValue(0)
+  const own = usePlayValues()
+  const { y, sx, sy, rot, dx, dy, drot } = props.values ?? own
   const t = useSharedValue(0), sFrom = useSharedValue(2), sTo = useSharedValue(2)
-  const dx = useSharedValue(0), dy = useSharedValue(0), drot = useSharedValue(0)
 
   // ── 얼굴 · 조각 ──
   const [face, setFace] = useState<Face | null>(null)

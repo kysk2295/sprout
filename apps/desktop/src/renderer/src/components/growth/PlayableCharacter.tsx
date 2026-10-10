@@ -10,6 +10,7 @@ import { HEART_SVG, headTop3d, spinOf } from '@sprout/schema/characterArt'
 import { normalizeSpecies, stageOf } from '@sprout/schema/growth'
 import { TOUCH } from '@sprout/schema/wardrobe'
 import { artUrl } from './art3dUrls'
+import { applyEl } from './follow'
 import { CharacterArt, useCharacterWear, type CharacterArtProps } from './CharacterArt'
 import './playable.css'
 
@@ -22,6 +23,8 @@ export type PlayHandle = {
   readonly host: HTMLElement | null
   /** 부모가 WAAPI로 따로 움직일 감싸개(레벨업·부르기 등 — rAF 감싸개와 겹치지 않게 한 겹 바깥) */
   readonly inner: HTMLElement | null
+  /** 49 §7.2 머리 꼭대기가 쉬는 자리에서 지금 얼마나 옮겨 갔나(px, 감싸개 부모 좌표) — 만지기 rAF 자세 + 감싸개·끌기의 지금 transform(WAAPI 포함) */
+  headShift: () => { x: number; y: number }
 }
 
 const NAMED: Partial<Record<PlayKind, Motion>> = { hop: HOP, spin: SPIN, giggle: GIGGLE, pet: PET, wobble: WOBBLE, pulse: PULSE, ...IDLE }
@@ -221,12 +224,25 @@ export function PlayableCharacter(props: PlayableCharacterProps) {
     L.onReact?.(m.kind === 'spin' && !L.spinOn ? 'hop' : m.kind)
   }, [full, play])
 
+  const headY = useRef(head.y)
+  headY.current = head.y
+  const headShift = useCallback(() => {
+    const s = live.current.size, p = pose.current
+    const x0 = s / 2, y0 = headY.current * s, oy = 0.9 * s
+    // 몸(.ply-move, 기준 50% 90%): scale → rotate → translateY
+    const vx = 0, vy = (y0 - oy) * p.sy, r = (p.rot * Math.PI) / 180
+    let q = { x: x0 + vx * Math.cos(r) - vy * Math.sin(r), y: oy + vx * Math.sin(r) + vy * Math.cos(r) + p.y * s }
+    q = applyEl(innerEl.current, q.x, q.y, x0, oy) // 바깥 WAAPI(레벨업 통통·부르기), 기준 50% 90%
+    q = applyEl(hostEl.current, q.x, q.y, x0, s / 2) // 끌기·놓기(기준 가운데)
+    return { x: q.x - x0, y: q.y - y0 }
+  }, [])
   useImperativeHandle(handle, () => ({
     play: (m) => play(m),
     tap,
+    headShift,
     get host() { return hostEl.current },
     get inner() { return innerEl.current }
-  }), [play, tap])
+  }), [play, tap, headShift])
 
   // ── 누르고 있기(쓰다듬기) · 끌었다 놓기 ──
   const drag = useRef({ down: false, on: false, pet: false, sx: 0, sy: 0, x: 0, y: 0, petT: 0, bitT: 0, n: 0 })

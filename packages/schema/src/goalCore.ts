@@ -45,7 +45,10 @@ export const sameGoalTitle = (a: string, b: string) => key(a) === key(b)
 export function parseGoal(raw: string): { title: string; target: number } {
   const title = raw.trim().replace(/\s+/g, ' ')
   const m = title.match(/^(.*\S)\s*(\d{1,2})\s*(번|회|개)$/)
-  return { title, target: m ? Math.max(1, Math.min(GOAL_TARGET_MAX, Number(m[2]))) : 1 }
+  // 끝이 아니어도 `N번/회/개`가 하나뿐이면 그 수(`운동 2번 하기` = 2 — 10 §4.6.1, 제목과 목표 수가 어긋나지 않게)
+  const mid = m ? null : [...title.matchAll(/(^|[^\d])(\d{1,2})\s*(번|회|개)/g)]
+  const n = m ? Number(m[2]) : mid && mid.length === 1 ? Number(mid[0][2]) : 1
+  return { title, target: Math.max(1, Math.min(GOAL_TARGET_MAX, n)) }
 }
 export type GoalTitleError = 'empty' | 'long' | 'dup'
 export const GOAL_TITLE_ERROR: Record<GoalTitleError, string> = {
@@ -142,11 +145,28 @@ export async function planRenameGoal(db: CoreDb, env: GoalEnv, goal: Pick<GoalRo
   if (!c.ok) return { error: c.error }
   return [upd(env, 'kpis', goal.id, { title: c.title })]
 }
-/** 목표 수를 바꾼다(1~99). 진행이 새 목표 수에 닿으면 그 순간 달성, 이룬 목표의 수를 올려 진행보다 커지면 달성 풀림(같은 주 XP 되돌림) */
+/** 10 §4.6: 제목 속 `N번`·`N회`·`N개`의 N이 지난 목표 수와 같으면 새 목표 수로(`운동 2번 하기` 2 → 1 = `운동 1번 하기`). 아니면 null */
+export function retitleForTarget(title: string, prev: number, next: number): string | null {
+  if (prev === next) return null
+  const re = /(^|[^\d])(\d{1,2})(\s*)(번|회|개)/g
+  const hits = [...title.matchAll(re)].filter((m) => Number(m[2]) === prev)
+  if (hits.length !== 1) return null // 없거나 여럿이면(어느 것인지 모름) 그대로
+  const m = hits[0], at = m.index! + m[1].length
+  return title.slice(0, at) + String(next) + title.slice(at + m[2].length)
+}
+/** 목표 수를 바꾼다(1~99). 진행이 새 목표 수에 닿으면 그 순간 달성, 이룬 목표의 수를 올려 진행보다 커지면 달성 풀림(같은 주 XP 되돌림).
+ *  제목의 숫자가 지난 목표 수와 같으면 같이 바꾼다(retitleForTarget — 같은 주 같은 제목이 생기면 제목은 그대로) */
 export async function planSetGoalTarget(db: CoreDb, env: GoalEnv, goal: GoalRow, target: number): Promise<{ stmts: Stmt[]; gained: number }> {
   const t = clampTarget(target)
   const counted = isLinked(goal) ? await linkedCount(db, goal) : goal.progress
-  return planSetGoalProgress(db, env, { ...goal, target: t }, counted, { target: t })
+  const patch: Record<string, unknown> = { target: t }
+  const nt = retitleForTarget(goal.title, goal.target, t)
+  if (nt) {
+    const others = await db.getAll<{ id: string; title: string }>('SELECT id, title FROM kpis WHERE week_start = ?', [goal.week_start])
+    const c = checkGoalTitle(nt, others, goal.id)
+    if (c.ok) patch.title = c.title
+  }
+  return planSetGoalProgress(db, env, { ...goal, target: t }, counted, patch)
 }
 /** 세는 방법(10 §4.6 연결). 연결하면 센 수로 진행을 맞추고, 직접 체크로 되돌리면 지금 진행을 그대로 둔다 */
 export async function planSetGoalLink(db: CoreDb, env: GoalEnv, goal: GoalRow, link: { kind: GoalLinkKind; id?: string | null }): Promise<{ stmts: Stmt[]; gained: number }> {

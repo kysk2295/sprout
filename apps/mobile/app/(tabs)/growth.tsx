@@ -2,7 +2,7 @@
 // (Lv · 큰 % · 꼬리 칩 · 막대 · 옷장·도감·이번 주). v1.2(49 §6.0): 이 화면은 한 장 고정(스크롤·시트 없음). 나머지는 단추로 여는 팝업 시트:
 // 이번 주 칸 = 이번 주 목표, Lv 카드 = 진화 길, 머리 `기록` = 이번 주 XP · 점검 · 리포트. 오늘 할 일 목록은 뺐다(할 일 탭과 같은 목록).
 // 레벨업(무대에서 1.3초) · 진화(전체 화면 2.5초, 꼬마 → 친구 고르기)는 앱이 앞으로 올 때·이 탭을 열 때 확인한다(23 §4) → 0.7초 뒤 새 옷 카드.
-// 하루 장면(43 §4.2)은 이 탭을 그날 처음 볼 때 한 번. 연속 칩은 없다(한 날 누적 칩만). 휴대폰은 AI·주간 마감을 하지 않는다(M-G2).
+// 하루 장면(43 §4.2)은 이 탭을 그날 처음 볼 때 한 번. 머리 알약 = 연속 불꽃(43 §19 — 해금은 누적 그대로), 이정표 3·7·14·30은 하루 한 번 작은 축하. 휴대폰은 AI·주간 마감을 하지 않는다(M-G2).
 import { ReviewEntry } from '../../src/map/v2/ReviewEntry'
 import { useStatus } from '@powersync/react-native'
 import { loadProjectDeadlineToday } from '@sprout/schema/raiseCore'
@@ -10,6 +10,7 @@ import { sceneDark } from '@sprout/schema/characterArt'
 import { SPECIES, type Species } from '@sprout/schema/growth'
 import { activeDayList, dayJustDone, equipItem, isBusy, isNight, ITEM_BY_ID, momentLine, pickDayMoment, tapLines, TOUCH_LINES, trophyLine, type CharacterItemRow, type DayMoment } from '@sprout/schema/wardrobe'
 import { addDays } from '@sprout/schema/time'
+import { cheerLine, cheerStamp, cheerToShow, streakOf } from '@sprout/schema/streak'
 import { useIsFocused, useRouter } from 'expo-router'
 import { MoreHorizontal, ScrollText } from 'lucide-react-native'
 import { StatusBar } from 'expo-status-bar'
@@ -216,6 +217,17 @@ export default function Growth() {
     return Array.from({ length: 7 }, (_, i) => { const d = addDays(start, i); return { day: d, label: WEEKDAY_KO[new Date(`${d}T12:00`).getDay()], num: Number(d.slice(8)), did: did.has(d), today: d === today } })
   }, [g.events, today])
 
+  // 43 §19 연속 불꽃(오늘 아직이면 어제까지) — 이정표는 오늘 닿은 날 이 탭을 볼 때 한 번(기기 저장)
+  const streak = useMemo(() => streakOf(activeDayList(g.events), today), [g.events, today])
+  useEffect(() => {
+    if (!ready || !live || !species || evo || !cid || !status.hasSynced) return
+    const n = cheerToShow(streak, today, read(KEY.streakCheer(cid)))
+    if (!n) return
+    write(KEY.streakCheer(cid), cheerStamp(today, n))
+    const t = setTimeout(() => stage.current?.cheer(cheerLine(n)), 900)
+    return () => clearTimeout(t)
+  }, [ready, live, species, evo, cid, status.hasSynced, streak, today])
+
   const menuBtn = (
     <View ref={menu.ref} collapsable={false} style={{ flexDirection: 'row', gap: 8 }}>
       {species ? (
@@ -245,7 +257,7 @@ export default function Growth() {
       {/* 49 §6.0 고정 화면 한 장 — 스크롤·시트 없음 */}
       <RaiseStage ref={stage} p={p} raise={raise} name={name} width={win.width} height={H} topInset={ins.top} bottomClear={space.clear} sceneKey={sceneKey}
         reduced={reduced} live={live && !evo && !pop} night={night} calm={calm} lines={lines} onEgg={() => router.push('/growth/survey')}
-        week={week} dexN={dexCount(species, g.progress.stage)} freshDot={freshDot} menu={menuBtn}
+        week={week} dexN={dexCount(species, g.progress.stage)} freshDot={freshDot} streak={streak} menu={menuBtn}
         goals={{ done: g.goals.filter((x) => x.status === 'achieved').length, total: g.goals.length, ratio: goalsRatio(g.goals) }}
         onWard={() => router.push('/growth/decorate')}
         onDex={() => router.push({ pathname: '/growth/decorate', params: { tab: 'dex' } })}
