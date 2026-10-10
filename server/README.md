@@ -236,4 +236,5 @@ docker compose logs api | grep -E 'push (on|off)|\[push\]'                      
   1. MacBook 터미널: `rclone authorize "drive" "$(printf '{"scope":"drive.file"}' | base64)"` → 브라우저에서 백업용 구글 계정으로 허용 → 터미널에 나온 `{"access_token":…}` 한 덩어리를 복사.
   2. `ssh macmini` → `/opt/homebrew/bin/rclone config create gdrive drive scope drive.file token '<복사한 덩어리>'`
   3. 바로 올려 보기: `sh ~/sprout/server/backup/offsite.sh` → 마지막 줄 `드라이브 N개`.
+- **연결됨(2026-10-10):** Mac mini `gdrive` 원격 — SSH 터널(`ssh -L 53682:127.0.0.1:53682 macmini rclone config create gdrive drive scope drive.file`)로 MacBook 브라우저에서 허용(토큰이 MacBook을 거치지 않음). 첫 업로드 7개, 복호화 `PGDMP` 확인. ⚠ rclone 공용 client_id가 2026년 중 막힌다 → 자체 OAuth 클라이언트로 바꿀 것.
 - 복원: `rclone copy gdrive:sprout-backups/sprout-<날짜>.dump.age .` → `age -d -i ~/.config/sprout/backup-age.key … > x.dump` → `pg_restore`.

@@ -166,7 +166,7 @@
 | 항목 | 상태 | 메모 |
 |---|---|---|
 | 일일 백업(pg_dump, 14일 보관, Mac mini 디스크) | [완료] | `server/backup/run.sh` |
-| 외부 백업(age 암호화 → 구글 드라이브, 30일) | [완료] 스크립트·예약 / [사용자] 구글 연결 | `server/backup/offsite.sh` · launchd `app.sprout.backup-offsite` |
+| 외부 백업(age 암호화 → 구글 드라이브, 30일) | [완료] 2026-10-10 연결·첫 업로드·복호화 확인 | `server/backup/offsite.sh` · launchd `app.sprout.backup-offsite` |
 | **외부 백업 (CLAUDE.md 필수)** | [할 일] + [사용자] 저장소 가입 | 암호화(age/gpg) 후 R2(10GB 무료)·Backblaze B2 등으로. **복원 연습 1회** 기록. 처리방침의 백업 보관 기간과 맞춘다 |
 | 모니터링·알림 | [할 일] | 같은 기계 안의 감시는 기계가 꺼지면 무용 → 바깥 무료 업타임 감시(API `/health`, PowerSync) + 백업 작업 하트비트. 디스크 여유 경고 |
 | 전원·재시작 | [사용자] | Mac mini 정전 후 자동 켜짐(`pmset autorestart 1`), Docker·Funnel/Tunnel 로그인 없이 자동 시작, macOS 자동 업데이트 재부팅 시간 관리, (선택) UPS |
