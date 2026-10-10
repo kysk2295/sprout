@@ -1,8 +1,9 @@
 import { ipcMain } from 'electron'
 import { isIP } from 'node:net'
 import { isYoutube } from '../shared/collect'
+import { pageFromHtml, youtubeFromHtml, type LinkPage } from '@sprout/schema/linkSummary'
 
-// 11 v3-3: 볼 것 링크의 제목만 가져온다(요약하지 않는다). 유튜브는 oEmbed, 그 밖은 페이지 <title>
+// 11 v3-3: 볼 것 링크의 제목(유튜브는 oEmbed, 그 밖은 페이지 <title>) · v3-8: 요약할 페이지 글(linkPage)
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', '#39': "'" }
 const decode = (s: string) =>
   s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+|#39);/gi, (m, e: string) =>
@@ -19,7 +20,7 @@ function allowed(url: URL) {
   return true
 }
 
-async function readHead(res: Response, limit = 256 * 1024) {
+async function readHead(res: Response, limit = 256 * 1024, whole = false) {
   const reader = res.body?.getReader()
   if (!reader) return ''
   const decoder = new TextDecoder()
@@ -29,7 +30,7 @@ async function readHead(res: Response, limit = 256 * 1024) {
       const { done, value } = await reader.read()
       if (done) break
       text += decoder.decode(value, { stream: true })
-      if (/<\/head>/i.test(text)) break
+      if (!whole && /<\/head>/i.test(text)) break
     }
   } finally { await reader.cancel().catch(() => {}) }
   return text
@@ -56,6 +57,22 @@ export async function linkTitle(raw: string): Promise<string> {
   } catch { return '' }
 }
 
+/** 11 v3-8: 요약할 글. 못 읽으면 null(내부망·로그인 벽·HTML 아님). 리다이렉트 뒤 주소도 내부망이면 버린다. 원문은 저장하지 않는다 */
+export async function linkPage(raw: string): Promise<LinkPage | null> {
+  let url: URL
+  try { url = new URL(raw) } catch { return null }
+  if (!allowed(url)) return null
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000), redirect: 'follow', headers: { accept: 'text/html', 'accept-language': 'ko,en;q=0.8', 'user-agent': 'Mozilla/5.0 (Macintosh) sprout-link-summary' } })
+    let final: URL
+    try { final = new URL(res.url || url.href) } catch { return null }
+    if (!res.ok || !allowed(final) || !/text\/html|application\/xhtml/i.test(res.headers.get('content-type') ?? '')) return null
+    const html = await readHead(res, 768 * 1024, true)
+    return isYoutube(final.href) ? youtubeFromHtml(html) : pageFromHtml(html)
+  } catch { return null }
+}
+
 export function registerCollect() {
   ipcMain.handle('collect:link-title', (_e, url: unknown) => (typeof url === 'string' && url.length <= 2000 ? linkTitle(url) : ''))
+  ipcMain.handle('collect:link-page', (_e, url: unknown) => (typeof url === 'string' && url.length <= 2000 ? linkPage(url) : null))
 }

@@ -1,4 +1,4 @@
-// 11 v3-3 수집함 뒤에서 정리: AI 네 갈래 분류(묶음 ≤4) + 링크 제목 가져오기. App에 항상 붙어 있다
+// 11 v3-3 수집함 뒤에서 정리: AI 네 갈래 분류(묶음 ≤4) + 링크 제목 가져오기 + v3-8 링크 요약. App에 항상 붙어 있다
 import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { classifySchema, dateRef, parseClassified, type ClassifyItem, type Classified } from '../../../shared/collect'
 import { aiChat, isUnavailable } from './ai'
@@ -6,6 +6,30 @@ import { applyToWiki, autoClassify, setAutoClassify, type CollectItem } from './
 import { getDb } from './db'
 import { run, update } from './mutations'
 import type { ListRow } from './types'
+import { pageHasText, parseSummary, readLinkSummary, SUMMARY_DAILY_AUTO, SUMMARY_SCHEMA, summaryPrompt, withLinkSummary, type LinkSummary } from '@sprout/schema/linkSummary'
+
+// ── 11 v3-8 링크 요약: 이 기기 하루 자동 상한 ────────────────────────────
+const sumKey = () => `sprout.linkSummary.${new Date().toLocaleDateString('sv')}`
+const sumCount = () => { try { return Number(localStorage.getItem(sumKey()) || 0) } catch { return 0 } }
+const sumBump = () => { try { localStorage.setItem(sumKey(), String(sumCount() + 1)) } catch { /* 저장 못 하면 상한 없이 */ } }
+/** 링크 하나 요약 → notes.suggestion.linkSummary. 상세 [요약하기]도 이걸 부른다(하루 상한 밖). 'fail' = AI가 답을 못 함(다시 시도 가능) */
+export async function summarizeLink(id: string, url: string, signal: AbortSignal): Promise<'done' | 'none' | 'fail'> {
+  const api = window.sprout?.collect
+  if (!api?.linkPage) return 'fail'
+  const page = await api.linkPage(url).catch(() => null)
+  const at = new Date().toISOString()
+  const save = async (s: LinkSummary) => {
+    const cur = (await (await getDb()).getAll<{ suggestion: string | null }>('SELECT suggestion FROM notes WHERE id=?', [id]))[0]?.suggestion ?? null
+    await run({ sql: 'UPDATE notes SET suggestion=?, modified_at=? WHERE id=?', params: [withLinkSummary(cur, s), at, id] })
+  }
+  if (!page) { await save({ none: 'blocked', at, url }); return 'none' }
+  if (!pageHasText(page)) { await save({ none: 'empty', at, url }); return 'none' }
+  const raw = await aiChat({ purpose: 'classify', priority: 'background', format: SUMMARY_SCHEMA as never, messages: [{ role: 'user', content: summaryPrompt(page) }] }, signal)
+  const lines = parseSummary(raw)
+  if (!lines.length) return 'fail'
+  await save({ lines, from: page.from, at, url })
+  return 'done'
+}
 
 // ── 진행 상태(진행 띠의 멈추기·AI 없음 표시용) ──────────────────────────
 export interface CollectorStatus { paused: boolean; aiDown: boolean; working: boolean; auto: boolean }
@@ -169,6 +193,19 @@ export function useCollector(lists: ListRow[]): void {
       return todo.length > 0
     }
 
+    /** 11 v3-8: 제목이 생긴 볼 것을 하나씩 요약(자동 분류가 켜져 있고 오늘 상한 안). 한 실행에서 같은 항목은 한 번만 */
+    const summarized = new Set<string>()
+    async function summariesOnce(): Promise<boolean> {
+      if (!status.auto || status.paused || status.aiDown || !window.sprout?.collect || sumCount() >= SUMMARY_DAILY_AUTO) return false
+      const rows = await (await getDb()).getAll<{ id: string; url: string; suggestion: string | null }>("SELECT id, url, suggestion FROM notes WHERE kind='link' AND url IS NOT NULL AND link_title IS NOT NULL ORDER BY created_at DESC LIMIT 40")
+      const r = rows.find((x) => !summarized.has(`${x.id} ${x.url}`) && !readLinkSummary(x.suggestion, x.url))
+      if (!r || life.signal.aborted) return false
+      summarized.add(`${r.id} ${r.url}`)
+      const res = await summarizeLink(r.id, r.url, life.signal).catch((e) => { if (isUnavailable(e)) set({ aiDown: true }); return 'fail' as const })
+      if (res === 'done') sumBump()
+      return res !== 'fail'
+    }
+
     async function drain() {
       if (running) { again = true; return }
       running = true
@@ -177,8 +214,8 @@ export function useCollector(lists: ListRow[]): void {
           again = false
           let busy = true
           while (busy && !life.signal.aborted) {
-            const [a, b] = await Promise.all([classifyOnce().catch((e) => { console.error('[collector]', e); return false }), titlesOnce().catch(() => false)])
-            busy = a || b
+            const [a, b, c] = await Promise.all([classifyOnce().catch((e) => { console.error('[collector]', e); return false }), titlesOnce().catch(() => false), summariesOnce().catch((e) => { console.error('[collector] summary', e); return false })])
+            busy = a || b || c
           }
         } while (again && !life.signal.aborted)
       } finally { running = false }
@@ -189,7 +226,7 @@ export function useCollector(lists: ListRow[]): void {
     let stopWatch: (() => void) | undefined
     void getDb().then((db) => {
       if (life.signal.aborted) return
-      stopWatch = db.watch("SELECT COUNT(*) AS n FROM notes WHERE ai_state='pending' OR (url IS NOT NULL AND link_title IS NULL)", [], () => kick(), (e) => console.error('[collector] watch', e))
+      stopWatch = db.watch("SELECT COUNT(*) AS n FROM notes WHERE ai_state='pending' OR (url IS NOT NULL AND link_title IS NULL) OR (kind='link' AND link_title IS NOT NULL AND (suggestion IS NULL OR suggestion NOT LIKE '%linkSummary%'))", [], () => kick(), (e) => console.error('[collector] watch', e))
     })
     return () => {
       life.abort()

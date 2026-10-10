@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { CollectKind } from '../../../../shared/collect'
 import { domainOf } from '../../../../shared/collect'
 import { editItem, reclassify, registerSuggestion, setKind, setSeen, suggestionOf, type CollectItem } from '../../data/collect'
-import { collector, useCollectorStatus } from '../../data/collector'
+import { collector, summarizeLink, useCollectorStatus } from '../../data/collector'
+import { readLinkSummary, summarySourceLabel } from '@sprout/schema/linkSummary'
 import { listLabel, type ListRow } from '../../data/types'
 import { dayKey, detailDateLabel } from '../../lib/dates'
 import { useToast } from '../Toast'
@@ -192,6 +193,7 @@ function AiCard({ item, lists, onTopic }: { item: CollectItem; lists: ListRow[];
         <h4><Link2 />{by ? '볼 것으로 정했어요' : 'AI가 볼 것으로 봤어요'}</h4>
         <div className="collect-card__f"><span>제목</span><span>{item.link_title || (item.url && item.link_title === null ? '제목을 가져오는 중…' : item.url ?? '링크 없음')}</span></div>
         {item.url && <div className="collect-card__f"><span>사이트</span><span>{domainOf(item.url)}</span></div>}
+        {item.url && item.link_title !== null && <LinkSummaryBlock item={item} />}
         <div className="collect-card__acts">
           {item.url && <a className="is-primary" href={item.url} target="_blank" rel="noreferrer">링크 열기</a>}
           {item.url && <button onClick={() => void setSeen(item.id, !item.seen_at)}>{item.seen_at ? '안 본 것으로' : '봤어요'}</button>}
@@ -214,6 +216,39 @@ function AiCard({ item, lists, onTopic }: { item: CollectItem; lists: ListRow[];
     <div className="collect-card">
       <h4><FileText />{by ? '메모로 두었어요' : 'AI가 메모로 봤어요'}</h4>
       <Other />
+    </div>
+  )
+}
+
+/** 11 v3-8 링크 요약: 점 3줄 + 출처 · 없으면 [요약하기] · 못 읽었으면 안내 + [다시 시도] */
+function LinkSummaryBlock({ item }: { item: CollectItem }) {
+  const s = readLinkSummary(item.suggestion, item.url)
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => { setBusy(false); setFailed(false) }, [item.id])
+  const go = async () => {
+    if (busy || !item.url) return
+    setBusy(true); setFailed(false)
+    const ctl = new AbortController()
+    const r = await summarizeLink(item.id, item.url, ctl.signal).catch(() => 'fail' as const)
+    setBusy(false)
+    if (r === 'fail') setFailed(true)
+  }
+  if (s && 'lines' in s) {
+    return (
+      <div className="collect-summary">
+        <div className="collect-summary__h">요약</div>
+        <ul>{s.lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
+        <div className="collect-summary__src">{summarySourceLabel(s)}</div>
+      </div>
+    )
+  }
+  const canRun = !!window.sprout?.collect
+  return (
+    <div className="collect-summary is-empty">
+      <div className="collect-summary__h">요약</div>
+      <p>{busy ? '요약하는 중…' : s ? '요약할 내용을 찾지 못했어요' : failed ? 'AI가 답하지 못했어요' : canRun ? '아직 요약하지 않았어요' : '앱에서 요약해요'}</p>
+      {canRun && !busy && <button onClick={() => void go()}>{s || failed ? '다시 시도' : '요약하기'}</button>}
     </div>
   )
 }

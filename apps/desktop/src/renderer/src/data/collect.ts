@@ -73,7 +73,7 @@ export async function deleteItem(id: string) {
 export async function setKind(item: CollectItem, kind: CollectKind) {
   const stmts: Stmt[] = []
   if (item.topic_id && kind !== 'wiki') stmts.push(...(await dropFromTopic(item.topic_id, item.id)))
-  stmts.push(update('notes', item.id, { kind, kind_source: 'user', ai_state: kind === 'wiki' || (kind === 'task' && !item.suggestion) ? 'pending' : 'done', ...(kind !== 'wiki' ? { topic_id: null } : {}) }))
+  stmts.push(update('notes', item.id, { kind, kind_source: 'user', ai_state: kind === 'wiki' || (kind === 'task' && !suggestionOf(item)) ? 'pending' : 'done', ...(kind !== 'wiki' ? { topic_id: null } : {}) }))
   await run(...stmts)
 }
 export const reclassify = (id: string) => run(update('notes', id, { ai_state: 'pending', kind_source: null }))

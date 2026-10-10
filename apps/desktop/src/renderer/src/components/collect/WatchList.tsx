@@ -1,6 +1,7 @@
 import { ChevronDown, ExternalLink, Link2 } from 'lucide-react'
 import { useState } from 'react'
 import { domainOf } from '../../../../shared/collect'
+import { summaryFirstLine } from '@sprout/schema/linkSummary'
 import { setSeen, type CollectItem } from '../../data/collect'
 import { Empty, Highlight, SiteMark, sentAt, shortDay } from './shared'
 
@@ -54,6 +55,7 @@ export function WatchList({ items, query, selected, onSelect, onContextMenu }: P
                 <SiteMark url={n.url!} />
                 <div className="row__main">
                   <span className="row__title"><Highlight text={n.link_title || n.url!} query={query} /><span className="watch-row__domain">{domainOf(n.url!)}</span></span>
+                  {summaryFirstLine(n.suggestion, n.url) && <span className="watch-row__summary">{summaryFirstLine(n.suggestion, n.url)}</span>}
                 </div>
                 <a className="watch-row__open" href={n.url!} target="_blank" rel="noreferrer" aria-label="링크 열기" onClick={(e) => e.stopPropagation()}><ExternalLink /></a>
                 <span className="row__meta"><span className="row__date">{shortDay(sentAt(n))}</span></span>

@@ -118,7 +118,7 @@ const calendarsApi = {
   onToast: (cb: (t: CalendarToast) => void) => on('calendars:toast', cb)
 }
 export type SproutCalendarsApi = typeof calendarsApi
-const collectApi = { linkTitle: (url: string) => ipcRenderer.invoke('collect:link-title', url) as Promise<string> }
+const collectApi = { linkTitle: (url: string) => ipcRenderer.invoke('collect:link-title', url) as Promise<string>, linkPage: (url: string) => ipcRenderer.invoke('collect:link-page', url) as Promise<import('@sprout/schema/linkSummary').LinkPage | null> }
 export type SproutCollectApi = typeof collectApi
 const desktopApi = {
   openSettings: () => ipcRenderer.send('desktop:settings'),

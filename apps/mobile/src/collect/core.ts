@@ -191,7 +191,7 @@ export function suggestionInput(n: CollectItem, lists: { id: string; kind: strin
 
 /** 종류 바꾸기(데스크톱 setKind와 같은 칸). 위키·제안 없는 할 일은 데스크톱이 다시 정리하도록 대기 */
 export function kindPatch(n: Pick<CollectItem, 'suggestion'>, kind: CollectKind) {
-  return { kind, kind_source: 'user', ai_state: kind === 'wiki' || (kind === 'task' && !n.suggestion) ? 'pending' : 'done', ...(kind !== 'wiki' ? { topic_id: null } : {}) }
+  return { kind, kind_source: 'user', ai_state: kind === 'wiki' || (kind === 'task' && !suggestionOf(n)) ? 'pending' : 'done', ...(kind !== 'wiki' ? { topic_id: null } : {}) }
 }
 
 // ── 위키 ──────────────────────────────────────────────────────────────

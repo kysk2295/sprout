@@ -20,10 +20,11 @@ import { PopMenu, useAnchor, type Rect } from '../ui/Menu'
 import { closeOpenRow, SwipeRow } from '../ui/SwipeRow'
 import { useToast } from '../ui/Toast'
 import {
-  domainOf, groupItems, isBareLink, isKakao, ITEMS_SQL, KIND_NAME, KINDS, localDay, monthDayKo, ro, sentAt, shortDay, timeKo, titleOf, watchGroups,
+  domainOf, groupItems, isBareLink, isKakao, ITEMS_SQL, KIND_NAME, KINDS, localDay, monthDayKo, ro, sentAt, shortDay, suggestionOf, timeKo, titleOf, watchGroups,
   type CollectItem, type WikiTopic
 } from './core'
 import { deleteItem, registerSuggestion, saveItem, setKind, setSeen } from './data'
+import { summaryFirstLine } from '@sprout/schema/linkSummary'
 import { openItem, takeItem } from './events'
 import { ItemSheet } from './ItemSheet'
 import { ChipView, CollectEmpty, ItemRow, Segmented, SiteMark } from './parts'
@@ -84,7 +85,7 @@ export default function CollectScreen() {
   const toTask = (item: CollectItem) => {
     if (item.task_id) return router.push(`/task/${item.task_id}`)
     // 할 일 제안이면 바로 등록, 아니면 시트에서 날짜를 고르고 등록(26 §4)
-    if (item.kind === 'task' && item.ai_state === 'done' && item.suggestion) return void register(item)
+    if (item.kind === 'task' && item.ai_state === 'done' && suggestionOf(item)) return void register(item)
     setSheet({ id: item.id, convert: true })
   }
   const remove = async (item: CollectItem) => {
@@ -229,6 +230,7 @@ function WatchRow({ item, today, onToggle, onMenu }: { item: CollectItem; today:
         <SiteMark url={item.url!} />
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
           <Text style={[FONT.body, { color: on ? p.textTertiary : p.textPrimary }]} numberOfLines={1}>{item.link_title || titleOf(item) || item.url}</Text>
+          {summaryFirstLine(item.suggestion, item.url) ? <Text style={[FONT.sub, { color: on ? p.textTertiary : p.textSecondary }]} numberOfLines={1}>{summaryFirstLine(item.suggestion, item.url)}</Text> : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={[FONT.meta, { color: p.textTertiary, flexShrink: 1 }]} numberOfLines={1}>{domainOf(item.url!)} · {shortDay(sentAt(item), today)}</Text>
             {isKakao(item) ? <ChipView chip={{ text: '카톡', tone: 'line' }} /> : null}

@@ -225,3 +225,16 @@
 .notes .wiki__blank { margin: 18px 0 6px; padding: 16px 18px; border: 1px dashed var(--color-border-divider); border-radius: 8px; }
 .notes .wiki__blank-title { margin: 0 0 4px; font: var(--text-body-strong); color: var(--color-text-secondary); }
 .notes .wiki__blank-hint { margin: 0; font: var(--text-meta); color: var(--color-text-tertiary); }
+
+/* 11 v3-8 링크 요약: 볼 것 행 둘째 줄(첫 줄 요약) · 상세 요약 구역 */
+.watch-row:has(.watch-row__summary) { height: auto; min-height: var(--row-height, 40px); padding-top: 6px; padding-bottom: 6px; }
+.watch-row:has(.watch-row__summary) .row__main { flex-direction: column; align-items: stretch; justify-content: center; gap: 1px; }
+.watch-row__summary { display: block; font: 400 12.5px/17px var(--font-family); color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.notes .watch-row.is-seen .watch-row__summary { color: var(--color-text-tertiary); }
+.collect-summary { margin: 2px 0 4px; padding: 10px 12px; border-radius: 8px; background: var(--color-bg-selected); }
+.collect-summary__h { font: 600 12px/16px var(--font-family); color: var(--color-text-tertiary); margin-bottom: 4px; }
+.collect-summary ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
+.collect-summary li { font: 400 13px/19px var(--font-family); color: var(--color-text-primary); }
+.collect-summary__src { margin-top: 6px; font: var(--text-meta); color: var(--color-text-tertiary); }
+.collect-summary.is-empty p { margin: 0 0 6px; font: 400 13px/18px var(--font-family); color: var(--color-text-secondary); }
+.collect-summary.is-empty button { font: 500 12px/18px var(--font-family); padding: 4px 10px; border-radius: 6px; background: var(--color-bg-app); color: var(--color-text-primary); border: 1px solid var(--color-border-divider, rgba(0,0,0,0.08)); cursor: pointer; }

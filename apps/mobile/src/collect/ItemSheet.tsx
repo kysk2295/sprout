@@ -22,6 +22,7 @@ import {
   type CollectItem, type CollectKind
 } from './core'
 import { convertItem, deleteItem, editItem, registerSuggestion, setKind, setSeen } from './data'
+import { readLinkSummary, summarySourceLabel } from '@sprout/schema/linkSummary'
 
 const ONE_SQL = ITEMS_SQL.replace("WHERE instr(lower(n.content || ' ' || COALESCE(n.link_title, '')), lower(?)) > 0", 'WHERE n.id = ?')
 const split = (s: string) => { const i = s.indexOf('\n'); return i < 0 ? [s, ''] : [s.slice(0, i), s.slice(i + 1)] }
@@ -247,6 +248,7 @@ function AiCard({ item, onTopic, onConvert, onRegistered }: { item: CollectItem;
       <Card icon={<Link2 size={16} color={p.accent} />} title={by ? '볼 것으로 정했어요' : 'AI가 볼 것으로 봤어요'}>
         <Field k="제목" v={item.link_title || item.url || '링크 없음'} />
         {item.url ? <Field k="사이트" v={domainOf(item.url)} /> : null}
+        {item.url ? <LinkSummaryView suggestion={item.suggestion} url={item.url} /> : null}
         {item.url ? (
           <View style={s.acts}>
             <Btn label="링크 열기" primary onPress={() => void Linking.openURL(item.url!)} />
@@ -355,4 +357,26 @@ const s = StyleSheet.create({
   convTitle: { fontSize: 17, lineHeight: 22, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
   convCard: { marginTop: 12, borderRadius: 12, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth },
   convRow: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 }
+})
+
+/** 11 v3-8 · 26 §2.3 링크 요약: 점 3줄 + 출처. 휴대폰은 AI를 부르지 않는다(M-C5) — 없으면 안내만 */
+function LinkSummaryView({ suggestion, url }: { suggestion: string | null; url: string }) {
+  const p = usePalette()
+  const sm = readLinkSummary(suggestion, url)
+  return (
+    <View style={[ls.box, { backgroundColor: p.bgSelected }]}>
+      <Text style={[ls.h, { color: p.textTertiary }]}>요약</Text>
+      {sm && 'lines' in sm ? (
+        <>
+          {sm.lines.map((l, i) => <Text key={i} style={[ls.line, { color: p.textPrimary }]}>{'•  '}{l}</Text>)}
+          <Text style={[FONT.meta, { color: p.textTertiary, marginTop: 4 }]}>{summarySourceLabel(sm)}</Text>
+        </>
+      ) : <Text style={[ls.line, { color: p.textSecondary }]}>{sm ? '요약할 내용을 찾지 못했어요' : '컴퓨터에서 꿈틀을 열면 요약해요'}</Text>}
+    </View>
+  )
+}
+const ls = StyleSheet.create({
+  box: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, gap: 3, marginTop: 2 },
+  h: { fontSize: 12, fontWeight: '600', marginBottom: 2 },
+  line: { fontSize: 14, lineHeight: 20 }
 })
