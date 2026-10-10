@@ -7,6 +7,7 @@ const I = {
   phone: svg('<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/>', ''),
   inbox: svg('<path d="M3 13l2.5-7.5A2 2 0 0 1 7.4 4h9.2a2 2 0 0 1 1.9 1.5L21 13v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Z"/><path d="M3 13h5l1.5 2.5h5L16 13h5"/>'),
   book: svg('<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5"/><path d="M9 7.5h7"/>'),
+  cal: svg('<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/>'),
   diary: svg('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v18"/><path d="M12.5 9.5c.6-1 2.4-1 2.8.3.4 1.4-1.6 2.6-2.8 3.4-1.2-.8-3.2-2-2.8-3.4.4-1.3 2.2-1.3 2.8-.3Z" transform="translate(1 0)"/>'),
   widget: svg('<rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="17" height="7" rx="1.8"/>'),
   bell: svg('<path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>'),
@@ -100,27 +101,37 @@ ${proof(shot(T, 'map-plan', '작업 지도 — 날짜가 있는 큰 일을 프�
 </div>
 </section>
 
-<section id="calendar" aria-labelledby="cal-title">
+<section id="assistant" aria-labelledby="ai-title">
 <div class="wrap">
-${head('cal-title', '캘린더', 'Calendar', '할 일과 일정을<br>한 달력에서', 'Tasks and events<br>on one calendar', '할 일을 다른 날로 끌어 보세요. 공휴일은 인터넷 없이도 표시돼요.', 'Drag a task to another day. Holidays show up even offline.')}
-<div class="demo-wrap reveal">${demo('cal', `${N} — 캘린더`, `${NE} — Calendar`, 'wide')}</div>
-${tries([['막대를 다른 날짜로 끌기', 'Drag a bar to another day'], ['모두 · 할 일 · 일정 바꿔 보기', 'Switch All, Tasks and Events'], ['키보드: 막대에서 ← → ↑ ↓', 'Keyboard: arrow keys on a bar']])}
-${proof(shot(T, 'calendar', '할 일과 일정이 함께 보이는 주간 캘린더', 'Week view with tasks and events together', { dark: 'calendar-dark', w: 1600, h: 1000 }), `<h3 class="proof-h">${T('일 · 주 · 월, 끌어서 옮기기', 'Day, week and month, drag to reschedule')}</h3>${ticks([
-  ['한국 공휴일 · 대체공휴일 내장 — 인터넷 없이도 표시', 'Korean public holidays built in, even offline'],
-  ['일요일 · 공휴일은 빨강, 토요일은 파랑', 'Sundays and holidays in red, Saturdays in blue'],
-  ['Google 캘린더 · 맥 캘린더 일정도 함께 보고 고치기', 'See and edit Google Calendar and Mac calendar events too'],
-  ['음력 · 주 번호 표시 선택', 'Optional lunar dates and week numbers']
+${head('ai-title', 'AI 비서', 'AI assistant', '말로 시키면<br>꿈틀이가 정리해요', 'Just say it,<br>and Kkumteul sorts it out', '할 일을 말로 넣고, 지난 기록을 묻고, 이번 주 급한 일을 같이 골라요.', 'Add tasks by talking, ask about your past, and pick this week’s priorities together.')}
+${proof(shot(T, 'assistant', 'AI 비서 — 무엇을 도와줄까? 정원 위 꿈틀이와 추천 질문', 'AI assistant: Kkumteul in the garden with suggested questions', { dark: 'assistant-dark', w: 1600, h: 1000 }), `<h3 class="proof-h">${T('물어보면 내 할 일·일정에서 찾아 답해요', 'Answers from your own tasks and events')}</h3>${ticks([
+  ['“내일 오후 3시 회의 잡아 줘” — 말로 할 일·일정 만들기', '“Book a meeting tomorrow at 3pm” — create tasks and events by talking'],
+  ['“미용실 간 지 얼마나 지났지?” — 지난 기록 찾아보기', '“How long since my last haircut?” — look things up in your history'],
+  ['저장하기 전엔 늘 카드로 보여 주고, 되돌릴 수 있어요', 'Always shows a card before saving, and you can undo'],
+  ['꿈틀 서버에서만 돌아가요 — 인터넷은 보지 않아요', 'Runs only on Kkumteul’s server and never browses the web']
 ])}`)}
 </div>
 </section>
 
-<section class="soft" aria-labelledby="more-title">
+<section id="diary" class="soft" aria-labelledby="diary-title">
+<div class="wrap">
+${head('diary-title', '일기', 'Journal', '하루 끝에<br>꿈틀이와 이야기해요', 'End the day<br>with a little chat', '질문에 답하다 보면 일기가 돼요. 기분도 한 번에 남겨요.', 'Answer a few questions and it becomes a journal entry. Log your mood in one tap.')}
+${proof(shot(T, 'diary', '일기 — 달력과 꿈틀이와의 대화, 기분 고르기', 'Journal: calendar, a chat with your character and mood picker', { dark: 'diary-dark', w: 1600, h: 1000 }), `<h3 class="proof-h">${T('말하듯 쓰고, 일기로 정리', 'Write like you talk, keep it as a journal')}</h3>${ticks([
+  ['오늘 한 일을 보고 캐릭터가 먼저 말을 걸어요', 'Your character starts the chat from what you did today'],
+  ['나눈 이야기를 버튼 하나로 일기로 정리', 'Turn the conversation into a journal entry with one button'],
+  ['기분 다섯 가지 — 달력에서 한눈에', 'Five moods, seen at a glance on the calendar'],
+  ['그냥 쓰고 싶은 날은 자유롭게 쓰기', 'Prefer to just write? Free writing is there too']
+])}`)}
+</div>
+</section>
+
+<section aria-labelledby="more-title">
 <div class="wrap">
 <div class="sec-head center reveal"><h2 id="more-title">${T('그 밖에도', 'And more')}</h2><p>${T('매일 쓰는 앱이라 작은 것까지 챙겼어요.', 'Small things that matter when you use it every day.')}</p></div>
 <div class="grid3 reveal">
 ${card(I.inbox, '수집함', 'Inbox', '메모·링크를 일단 던져 두면 할 일 · 메모 · 볼 것으로 나눠 줘요. iPhone에선 공유하기로 바로 모아요.', 'Drop in notes and links; they get sorted into tasks, notes and things to read. Share straight from other apps on iPhone.')}
 ${card(I.book, 'LLM 위키', 'LLM wiki', '태그가 곧 위키 페이지예요. 사람 · 프로젝트 · 주제별로 모인 내용을 AI가 한 쪽으로 정리해요.', 'Every tag is a wiki page. AI summarises what you have collected about each person, project or topic.')}
-${card(I.diary, '일기 캐릭터', 'Journal buddy', '하루를 적으면 캐릭터가 짧게 말을 걸어요. 기분도 같이 남겨요.', 'Write about your day and your character chats back briefly. Log your mood alongside.')}
+${card(I.cal, '캘린더', 'Calendar', '할 일과 일정을 한 달력에서 끌어 옮겨요. 한국 공휴일은 인터넷 없이도 보이고, 구글 · 맥 캘린더도 함께 봐요.', 'Drag tasks and events on one calendar. Korean holidays show offline, alongside Google and Mac calendars.')}
 ${card(I.widget, '위젯', 'Widgets', '맥 데스크톱 · 휴대폰 홈 화면 위젯에서 오늘 할 일을 바로 보고 체크해요.', 'See and check off today’s tasks from desktop and home-screen widgets.')}
 ${card(I.bell, '알림', 'Reminders', '할 일 알림, 하루 요약, 레벨업 소식을 놓치지 않게 알려 줘요.', 'Task reminders, a daily summary and level-up news.')}
 ${card(I.sync, '오프라인에서도', 'Works offline', '기기에 먼저 저장해서 바로 반응하고, 인터넷이 돌아오면 모든 기기에 맞춰요.', 'Saved on your device first so it feels instant, then synced to every device when you are back online.')}

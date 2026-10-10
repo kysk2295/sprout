@@ -158,7 +158,7 @@ const wordmark = `<svg class="wm wm-ko" data-l="ko" viewBox="${KO.box.join(' ')}
 function header(path) {
   const home = path === '/'
   const nav = home
-    ? `<nav class="nav" aria-label="${'페이지'}"><a href="#tasks">${T('할 일', 'Tasks')}</a><a href="#growth">${T('성장', 'Growth')}</a><a href="#map">${T('작업 지도', 'Work map')}</a><a href="#calendar">${T('캘린더', 'Calendar')}</a><a href="#privacy">${T('개인정보', 'Privacy')}</a><a href="#install">${T('설치', 'Install')}</a><a href="#faq">FAQ</a></nav>`
+    ? `<nav class="nav" aria-label="${'페이지'}"><a href="#tasks">${T('할 일', 'Tasks')}</a><a href="#growth">${T('성장', 'Growth')}</a><a href="#map">${T('작업 지도', 'Work map')}</a><a href="#assistant">${T('AI 비서', 'AI')}</a><a href="#diary">${T('일기', 'Journal')}</a><a href="#privacy">${T('개인정보', 'Privacy')}</a><a href="#install">${T('설치', 'Install')}</a><a href="#faq">FAQ</a></nav>`
     : `<nav class="nav" aria-label="페이지"><a href="/">${T('홈', 'Home')}</a><a href="/support">${T('지원', 'Support')}</a></nav>`
   return `<header class="top"><div class="wrap">
 <a class="brand" href="/" aria-label="${esc(cfg.name)} 홈" data-aria-ko="${esc(cfg.name)} 홈" data-aria-en="${esc(cfg.nameEn)} home"><img src="/favicon.svg" alt="" width="30" height="30">${wordmark}</a>
