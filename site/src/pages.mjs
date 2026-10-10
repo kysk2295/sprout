@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 // 첫 화면·지원·404 본문. 문구를 고칠 땐 여기만 본다(한국어가 기본, 영어는 옆에 같이).
 const svg = (d, cls = 'ic') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
 const I = {
@@ -18,8 +20,10 @@ const I = {
   quiz: svg('<circle cx="12" cy="12" r="8.5"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.6 2.4c-.7.3-1.1.9-1.1 1.6v.5"/><path d="M12 17h.01"/>')
 }
 
+// 그림 주소 = 파일 내용 해시(?v=) — 캡처를 바꾸면 주소가 바뀌어 브라우저·Caddy 7일 캐시가 옛 그림을 주지 않는다
+const imgV = (n) => { try { return createHash('sha1').update(readFileSync(new URL(`../public/assets/img/${n}.webp`, import.meta.url))).digest('hex').slice(0, 8) } catch { return '0' } }
 const shot = (T, src, ko, en, { dark, w, h, lazy = true } = {}) =>
-  `<img src="/assets/img/${src}.webp"${dark ? ` data-dark="/assets/img/${dark}.webp"` : ''} alt="${ko}" data-alt-ko="${ko}" data-alt-en="${en}" width="${w}" height="${h}"${lazy ? ' loading="lazy"' : ' fetchpriority="high"'} decoding="async">`
+  `<img src="/assets/img/${src}.webp?v=${imgV(src)}"${dark ? ` data-dark="/assets/img/${dark}.webp?v=${imgV(dark)}"` : ''} alt="${ko}" data-alt-ko="${ko}" data-alt-en="${en}" width="${w}" height="${h}"${lazy ? ' loading="lazy"' : ' fetchpriority="high"'} decoding="async">`
 const win = (inner) => `<div class="win"><div class="win-bar" aria-hidden="true"><i></i><i></i><i></i></div>${inner}</div>`
 
 export function landing({ cfg, T, esc, val, page }) {
@@ -74,7 +78,7 @@ ${proof(shot(T, 'tasks', `${N} 데스크톱 앱 — 오늘 할 일과 AI가 붙�
 ${head('growth-title', '성장', 'Growth', '끝낸 일이<br>캐릭터를 키워요', 'Finished tasks<br>grow your character', '퀘스트를 하나씩 끝내 보세요. 알이 깨어나고, 레벨이 오르면 다음 모습으로 자라요.', 'Finish a few quests. The egg hatches, and as you level up your character evolves.')}
 <div class="demo-wrap reveal">${demo('growth', `${N} — 성장`, `${NE} — Growth`, 'wide')}</div>
 ${tries([['퀘스트 체크하기', 'Check off quests'], ['캐릭터 눌러 쓰다듬기', 'Tap the character'], ['종 바꿔 보기', 'Switch species']])}
-${proof(shot(T, 'growth', '캐릭터 방 — 레벨, 이번 주 퀘스트, 주간 점검', 'Character room with level, weekly quests and review', { dark: 'growth-dark', w: 1600, h: 1000 }), `<h3 class="proof-h">${T('한 주는 퀘스트로 정하고, 주말엔 같이 돌아봐요', 'Set the week as quests, then look back together')}</h3>${ticks([
+${proof(shot(T, 'growth', '성장 — 마스코트 꿈틀이와 이번 주 퀘스트', 'Growth room with the Kkumteul mascot and weekly quests', { dark: 'growth-dark', w: 1600, h: 1000 }), `<h3 class="proof-h">${T('한 주는 퀘스트로 정하고, 주말엔 같이 돌아봐요', 'Set the week as quests, then look back together')}</h3>${ticks([
   ['처음에 짧은 성향 질문으로 나에게 맞는 종이 알에서 나와요', 'A few quick questions pick the species that hatches'],
   ['할 일 1 XP · 퀘스트 30 XP · 주간 점검 30 XP · 정리 20 XP', '1 XP per task, 30 per quest, 30 per weekly review, 20 per tidy-up'],
   ['레벨이 오르면 방을 꾸밀 장식이 하나씩 열려요', 'Each level unlocks a decoration for the room'],
@@ -88,7 +92,7 @@ ${proof(shot(T, 'growth', '캐릭터 방 — 레벨, 이번 주 퀘스트, 주�
 ${head('map-title', '작업 지도', 'Work map', '큰 일은 단계로 나눠<br>지도처럼 봐요', 'Break big work into steps<br>and see it as a map', '캐릭터와 짧게 이야기하면 단계가 지도에 바로 생겨요. 순서는 끌어서 바꿔요.', 'A short chat with your character puts steps straight onto the map. Drag to reorder.')}
 <div class="demo-wrap reveal">${demo('map', `${N} — 작업 지도`, `${NE} — Work map`, 'wide')}</div>
 ${tries([['대화에서 대답 고르기', 'Pick answers in the chat'], ['카드를 끌어 순서 바꾸기 — 화살표가 따라와요', 'Drag a card; the arrows follow'], ['동그라미로 단계 끝내기', 'Finish a step with the circle']])}
-${proof(shot(T, 'map-plan', '프로젝트 단계 보드와 캐릭터와 같이 계획 짜기', 'Project step board with the plan-together chat', { dark: 'map-plan-dark', w: 1600, h: 1000 }), `<h3 class="proof-h">${T('흩어진 할 일을 프로젝트로 묶어 보기', 'Scattered tasks, gathered into projects')}</h3>${ticks([
+${proof(shot(T, 'map-plan', '작업 지도 — 날짜가 있는 큰 일을 프로젝트로', 'Work map: turn big dated work into a project', { dark: 'map-plan-dark', w: 1600, h: 1000 }), `<h3 class="proof-h">${T('흩어진 할 일을 프로젝트로 묶어 보기', 'Scattered tasks, gathered into projects')}</h3>${ticks([
   ['AI가 관련된 할 일을 찾아 프로젝트로 묶어요', 'AI finds related tasks and groups them into a project'],
   ['단계 보드 — 끝난 단계와 지금 할 단계', 'Step board: what is done and what is next'],
   ['타임라인 · 관계도 — 끌어서 날짜와 순서 바꾸기', 'Timeline and relationship map, drag to change dates and order']
@@ -101,7 +105,7 @@ ${proof(shot(T, 'map-plan', '프로젝트 단계 보드와 캐릭터와 같이 �
 ${head('cal-title', '캘린더', 'Calendar', '할 일과 일정을<br>한 달력에서', 'Tasks and events<br>on one calendar', '할 일을 다른 날로 끌어 보세요. 공휴일은 인터넷 없이도 표시돼요.', 'Drag a task to another day. Holidays show up even offline.')}
 <div class="demo-wrap reveal">${demo('cal', `${N} — 캘린더`, `${NE} — Calendar`, 'wide')}</div>
 ${tries([['막대를 다른 날짜로 끌기', 'Drag a bar to another day'], ['모두 · 할 일 · 일정 바꿔 보기', 'Switch All, Tasks and Events'], ['키보드: 막대에서 ← → ↑ ↓', 'Keyboard: arrow keys on a bar']])}
-${proof(shot(T, 'calendar', '공휴일이 표시된 월간 캘린더', 'Month view with public holidays', { dark: 'calendar-dark', w: 1600, h: 1000 }), `<h3 class="proof-h">${T('일 · 주 · 월, 끌어서 옮기기', 'Day, week and month, drag to reschedule')}</h3>${ticks([
+${proof(shot(T, 'calendar', '할 일과 일정이 함께 보이는 주간 캘린더', 'Week view with tasks and events together', { dark: 'calendar-dark', w: 1600, h: 1000 }), `<h3 class="proof-h">${T('일 · 주 · 월, 끌어서 옮기기', 'Day, week and month, drag to reschedule')}</h3>${ticks([
   ['한국 공휴일 · 대체공휴일 내장 — 인터넷 없이도 표시', 'Korean public holidays built in, even offline'],
   ['일요일 · 공휴일은 빨강, 토요일은 파랑', 'Sundays and holidays in red, Saturdays in blue'],
   ['Google 캘린더 · 맥 캘린더 일정도 함께 보고 고치기', 'See and edit Google Calendar and Mac calendar events too'],
