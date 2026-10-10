@@ -8,25 +8,27 @@ import { useLiveQuery } from '../data/rows'
 import { useRouter } from 'expo-router'
 import { ArrowDown, ArrowUp, BarChart3, CalendarDays, Check, History, List, RefreshCw, RotateCcw, Square, TriangleAlert } from 'lucide-react-native'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { AccessibilityInfo, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
+import { AccessibilityInfo, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 import { XP } from '@sprout/schema/growth'
 import { daysBetween, dayWord, ymdOf, type RecallHit, type RecallResult } from '@sprout/schema/recall'
 import { openInCalendarApp } from '../calendars/device'
-import { answerFace, answerKindOf, COMPANION_SIZE, companionLabel, companionName, EGG_TAP_LINE, errorFace, levelLine, pickLine, quickReplies, tapSpeaks, TAP_LINES, WAITING_FACE, type CompanionFace as Face, type CompanionMove } from '@sprout/schema/companion'
+import { answerFace, answerKindOf, COMPANION_SIZE, companionLabel, companionName, EGG_TAP_LINE, errorFace, pickLine, quickReplies, tapSpeaks, TAP_LINES, WAITING_FACE, type CompanionFace as Face, type CompanionMove } from '@sprout/schema/companion'
 import { completeTasks } from '../data/tasks'
 import { useBuddy } from '../diary/data'
 import { CompanionFace, SayBubble, StaticFace, XpPop } from '../ui/CompanionFace'
 import { dayKey, rowDateLabel } from '../lib/dates'
 import { FONT, shadow } from '../theme/palette'
-import { SoftIcon, type SoftIconName } from '../ui/SoftIcon'
 import { usePalette } from '../theme/ThemeProvider'
 import { Checkbox } from '../ui/Checkbox'
 import { OFFLINE, type AssistantProgress, type AssistantResult } from './core'
 import { cancel, cancelAgentCard, refresh, saveAgentCard, send, setAgentLine, setBuddyName, setDraft, toggleTarget, undo, undoAgentCard, type AssistantState, type Message } from './store'
 import { AgentCards, Bands, editParams, LiveText, ToolChips } from './AgentParts'
-import { SceneBand } from '../growth/art/Scene3D'
-import { useMyBandScene } from '../growth/home/glass'
+import { SceneBackdrop } from '../growth/art/Scene3D'
+import { Glass, myScene, sceneTone, type GlassTone } from '../growth/home/glass'
+import { useCharacterWear } from '../growth/art/CharacterArt'
+import { FOOT, sceneDark, sceneLayout } from '@sprout/schema/characterArt'
+import { iGa } from '@sprout/schema/josa'
 import { leftLine } from './core'
 import { isConfirm, type ConfirmCard } from '@sprout/schema/assistantExec'
 
@@ -34,7 +36,6 @@ import { isConfirm, type ConfirmCard } from '@sprout/schema/assistantExec'
 const shortRange = (range: string) => range.split(' ~ ').map((d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`).join('–')
 // 40 §3.3: 빈 대화 예시는 회색 테두리 알약(색·아이콘 없음). 글은 13 그대로(누르면 바로 보냄)
 const SUGGESTIONS = ['내일 오후 3시에 기획 회의 한 시간 잡아줘', '이번 주 남은 할 일 보여줘', '이번 주에 완료한 거 몇 개야?']
-const SUG_ICONS: SoftIconName[] = ['today', 'week', 'done']
 // 47 §5.4 B안 빈 대화 예시(회색 테두리 알약 — 누르면 바로 보냄)
 const AGENT_SUGGESTIONS = ['미용실 간 지 얼마나 지났지', '이번 주 뭐가 제일 급해?', '내일 3시에 교수님 면담 잡아줘']
 const STEPS: { key: AssistantProgress['phase'][]; label: string }[] = [{ key: ['connecting'], label: '연결' }, { key: ['generating'], label: '해석' }, { key: ['validating', 'saving', 'querying'], label: '확인' }]
@@ -152,8 +153,17 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
       onPress={key === 'last' ? () => setPlay((o) => ({ move: 'hop', n: o.n + 1 })) : undefined} label={key === 'last' ? companionLabel(buddy.species, buddy.name, buddy.level, buddy.stage) : undefined} />
     : <StaticFace species={buddy.species} stage={buddy.stage} size={COMPANION_SIZE.chat} mood={f?.mood ?? 'smile'} dim={f?.dim} />
 
+  // 49 §8 표 · 시안 character-v3 wAsst: 빈 대화 = 장면 끝까지(고른 배경, 다크 = 밤 짝) + 받침 위 캐릭터 + 무엇을 도와줄까? + 유리 칩 + 입력칸.
+  // 대화가 시작되면 장면은 사라지고 말풍선은 흰 바탕(긴 글 읽기)
+  const empty = !a.messages.length && !a.busy && !errShown
+  const wear = useCharacterWear()
+  const sceneKey = myScene(wear?.species ? wear.wear.eq?.bg : null, p.dark)
+  const tone = sceneTone(sceneKey)
+  const [area, setArea] = useState({ w: 0, h: 0 })
+  const [barTop, setBarTop] = useState(0)
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1 }} onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setArea((o) => (o.w === width && o.h === height ? o : { w: width, h: height })) }}>
+      {empty && area.w ? <SceneBackdrop sceneKey={sceneKey} width={area.w} height={area.h} style={StyleSheet.absoluteFill} /> : null}
       <ScrollView
         ref={scroll}
         keyboardShouldPersistTaps="handled"
@@ -173,7 +183,7 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
         scrollEventThrottle={100}
         accessibilityLabel="AI 대화 기록"
       >
-        {!a.messages.length ? <EmptyChat a={a} variant={variant} onPick={(t) => void submit(t)} /> : null}
+
         {a.messages.map((m, i) => m.role === 'user' ? (
           <View key={m.id} style={[s.me, { backgroundColor: p.accent }]}><Text style={[s.text, { color: p.onAccent }]}>{m.text}</Text></View>
         ) : (
@@ -248,20 +258,23 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
         </Pressable>
       ) : null}
       {notice ? <Text style={[s.notice, { backgroundColor: p.toastBg }]}>{notice}</Text> : null}
+      {empty && area.w && barTop ? <EmptyChat a={a} variant={variant} sceneKey={sceneKey} tone={tone} area={area} barTop={barTop} onPick={(t) => void submit(t)} /> : null}
+      <View onLayout={(e) => setBarTop(e.nativeEvent.layout.y)} pointerEvents="box-none">
       <Composer a={a} autoFocus={autoFocus} onSubmit={() => void submit()} />
-      {a.agent ? <Text style={[s.foot, { color: p.textTertiary }]}>{[variant === 'full' ? '꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요' : 'Mac mini에서 돌아가요 · 인터넷은 못 봐요', left].filter(Boolean).join(' · ')}</Text>
-        : variant === 'full' ? <Text style={[s.foot, { color: p.textTertiary }]}>결과는 카드에서 되돌릴 수 있어요</Text> : null}
+      {a.agent ? <Text style={[s.foot, { color: empty ? tone.sub : p.textTertiary }]}>{[variant === 'full' ? '꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요' : 'Mac mini에서 돌아가요 · 인터넷은 못 봐요', left].filter(Boolean).join(' · ')}</Text>
+        : variant === 'full' ? <Text style={[s.foot, { color: empty ? tone.sub : p.textTertiary }]}>결과는 카드에서 되돌릴 수 있어요</Text> : null}
+      </View>
     </View>
   )
 }
 
-/** 40 §3.1 빈 대화: 캐릭터 L 96(반 시트 64, 숨쉬기) · 이름 · `종 · Lv · 단계` · 13 문장 · 예시 알약. 캐릭터를 누르면 깡충 + 말풍선 */
-function EmptyChat({ a, variant, onPick }: { a: AssistantState; variant: 'full' | 'sheet'; onPick: (text: string) => void }) {
-  const p = usePalette()
+/** 빈 대화(49 §8 표 · 시안 wAsst): 위 `무엇을 도와줄까?` + 한 줄, 받침 위 캐릭터(전체 180 · 반 시트 120 — 칩과 겹치면 줄임),
+ *  입력칸 바로 위 유리 추천 칩 3개(세로). 캐릭터를 누르면 깡충 + 말풍선(40 §3.1 그대로) */
+function EmptyChat({ a, variant, sceneKey, tone, area, barTop, onPick }: { a: AssistantState; variant: 'full' | 'sheet'; sceneKey: string; tone: GlassTone; area: { w: number; h: number }; barTop: number; onPick: (text: string) => void }) {
   const buddy = useBuddy()
-  const size = variant === 'sheet' ? COMPANION_SIZE.sheet : COMPANION_SIZE.l
   const [play, setPlay] = useState<{ move: CompanionMove; n: number }>({ move: null, n: 0 })
   const [say, setSay] = useState({ text: '', n: 0 })
+  const [chipsH, setChipsH] = useState(0)
   const prev = useRef(-1)
   const taps = useRef<number[]>([])
   const tap = () => {
@@ -272,41 +285,35 @@ function EmptyChat({ a, variant, onPick }: { a: AssistantState; variant: 'full' 
     prev.current = i
     setSay((o) => ({ text: TAP_LINES[i], n: o.n + 1 }))
   }
-  // 49 §6.1 · §8.1: 전체 화면 빈 대화는 고른 배경(look eq.bg) 장면이 캐릭터 뒤에 깔리고 아래로 화면 바탕에 녹는다(할 일 화면 띠와 같은 규칙 — 다크 = 밤 짝)
-  const { width } = useWindowDimensions()
-  const band = useMyBandScene(p.dark)
-  const top = variant === 'sheet' ? 16 : 56
+  const sheet = variant === 'sheet'
+  const name = companionName(buddy.species, buddy.name)
+  const sugs = (a.agent ? AGENT_SUGGESTIONS : SUGGESTIONS).slice(0, variant === 'sheet' ? 2 : 3) // 반 시트는 낮아서 2개(캐릭터 자리)
+  const titleBottom = sheet ? 64 : 96
+  const chipsTop = barTop - 10 - (chipsH || sugs.length * 52)
+  // 받침 자리(장면 지도) — 칩 위로 올라오게 막고, 위 글과 겹치면 줄인다
+  const L = sceneLayout(sceneKey, area.w, area.h, 'bottom')
+  const feet = Math.min(L.perchY, chipsTop - 4)
+  const size = Math.max(72, Math.min(sheet ? 120 : 180, (feet - titleBottom) / FOOT.y))
+  const left = L.perchX - size * FOOT.x, top = feet - size * FOOT.y
   return (
-    <View style={[s.empty, { paddingTop: top }]}>
-      {variant === 'full' && buddy.species ? <SceneBand dark={p.dark} sceneKey={band} width={width} height={12 + top + size + 64} bg={p.cardBg} fade={0.42} style={{ position: 'absolute', top: -12, left: -16 }} /> : null}
-      <View style={{ alignItems: 'center' }}>
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      <View style={{ paddingTop: sheet ? 10 : 28, paddingHorizontal: 20, alignItems: 'center' }} pointerEvents="none">
+        <Text style={[s.heroT, sheet && s.heroTs, { color: tone.ink }]} accessibilityRole="header">무엇을 도와줄까?</Text>
+        <Text style={[s.heroS, { color: tone.sub }]}>{`${iGa(name)} 오늘 할 일을 같이 봐 줄게`}</Text>
+      </View>
+      <View style={{ position: 'absolute', left, top, width: size, height: size }}>
         <SayBubble text={say.text} n={say.n} style={{ bottom: size * 0.86 }} />
         <CompanionFace species={buddy.species} stage={buddy.stage} size={size} mood="smile" loop="breathe" play={play} onPress={tap} label={companionLabel(buddy.species, buddy.name, buddy.level, buddy.stage)} />
       </View>
-      <Text style={[s.emptyName, { color: p.textPrimary }]}>{companionName(buddy.species, buddy.name)}</Text>
-      <Text style={[s.emptyLv, { color: p.textTertiary }]}>{levelLine(buddy.species, buddy.level, buddy.stage)}</Text>
-      {a.agent ? (
-        <>
-          <Text style={[s.emptyOne, { color: p.textPrimary }]}>뭐든 물어봐. 내 할 일도, 그냥 수다도.</Text>
-          <Text style={[FONT.meta, { color: p.textTertiary, marginTop: 4 }]}>할 일·일정은 찾아보고 답해요 · 인터넷은 못 봐요</Text>
-          <View style={[s.chips, { justifyContent: 'center', marginTop: 16, paddingHorizontal: 8 }]}>
-            {AGENT_SUGGESTIONS.map((text) => (
-              <Pressable key={text} accessibilityRole="button" disabled={a.busy || !a.model} onPress={() => onPick(text)} style={({ pressed }) => [s.chip, { borderColor: p.borderDivider, backgroundColor: pressed ? p.bgSelected : p.cardBg }, (!a.model || a.busy) && { opacity: 0.5 }]}>
-                <Text style={[s.chipText, { color: p.textPrimary }]}>{text}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </>
-      ) : <Text style={[s.emptyOne, { color: p.textSecondary }]}>할 일을 말로 등록하거나, 내 일정과 완료 기록을 물어보세요.</Text>}
-      {a.agent ? null : <View style={s.emptyChips}>
-        {SUGGESTIONS.slice(0, variant === 'sheet' ? 2 : 4).map((text, i) => (
-          // 44 §6.7: 제안 = 2열 카드(말랑 아이콘 + 두 줄)
-          <Pressable key={text} accessibilityRole="button" disabled={a.busy || !a.model} onPress={() => onPick(text)} style={({ pressed }) => [s.sug, { backgroundColor: pressed ? p.bgSelected : p.bgInput }, (!a.model || a.busy) && { opacity: 0.5 }]}>
-            <SoftIcon name={SUG_ICONS[i % SUG_ICONS.length]} size={28} />
-            <Text style={[s.sugText, { color: p.textPrimary }]} numberOfLines={2}>{text}</Text>
+      <View style={{ position: 'absolute', left: 16, right: 16, top: chipsTop, gap: 8 }} onLayout={(e) => setChipsH(e.nativeEvent.layout.height)}>
+        {sugs.map((text) => (
+          <Pressable key={text} accessibilityRole="button" disabled={a.busy || !a.model} onPress={() => onPick(text)} style={({ pressed }) => [(!a.model || a.busy) && { opacity: 0.5 }, pressed && { transform: [{ scale: 0.98 }] }]}>
+            <Glass dark={sceneDark(sceneKey)} radius={18} style={s.heroChip}>
+              <Text style={[s.heroChipT, { color: tone.ink }]} numberOfLines={1}>{text}</Text>
+            </Glass>
           </Pressable>
         ))}
-      </View>}
+      </View>
     </View>
   )
 }
@@ -478,13 +485,11 @@ const s = StyleSheet.create({
   chip: { height: 34, borderRadius: 17, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
   chipWide: { alignSelf: 'stretch' },
   chipText: { fontSize: 14, lineHeight: 18 },
-  empty: { alignItems: 'center' },
-  emptyName: { marginTop: 6, fontSize: 15, lineHeight: 22, fontWeight: '600' },
-  emptyLv: { fontSize: 12, lineHeight: 16 },
-  emptyOne: { marginTop: 10, fontSize: 14, lineHeight: 20, textAlign: 'center', paddingHorizontal: 20 },
-  emptyChips: { alignSelf: 'stretch', flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16, paddingHorizontal: 4 },
-  sug: { width: '48.5%', minHeight: 64, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 },
-  sugText: { flex: 1, fontSize: 13.5, lineHeight: 18, fontWeight: '600' },
+  heroT: { fontSize: 25, lineHeight: 32, fontWeight: '800', letterSpacing: -0.6, textAlign: 'center' },
+  heroTs: { fontSize: 21, lineHeight: 27 },
+  heroS: { fontSize: 14, lineHeight: 20, fontWeight: '500', marginTop: 6, textAlign: 'center' },
+  heroChip: { paddingHorizontal: 16, paddingVertical: 13 },
+  heroChipT: { fontSize: 14.5, fontWeight: '600' },
   me: { alignSelf: 'flex-end', maxWidth: '80%', borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomLeftRadius: 18, borderBottomRightRadius: 6, paddingHorizontal: 14, paddingVertical: 9 },
   text: { fontSize: 15.5, lineHeight: 22 },
   undo: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' },

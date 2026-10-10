@@ -12,7 +12,8 @@ import { agentFeatures, agentWrites, askAgent, askAssistant, assistantDiaryOn, e
 import { AgentUnsupportedError, pendingCard, saveCard, savedFromEditor, undoCard, type TurnEvent } from '@sprout/schema/assistantAgent'
 import { savedLine, type Card, type Chip, type ConfirmCard } from '@sprout/schema/assistantExec'
 import { emptyMemory, type AgentMemory } from '@sprout/schema/assistantRouter'
-import { BackSceneBand } from './ListSceneBand'
+import { BackSceneBand, CoverScene } from './ListSceneBand'
+import { iGa } from '@sprout/schema/josa'
 import { createTextStream } from '@sprout/schema/diaryTalk'
 import { useMotionReduced } from '../data/growth'
 import { StreamText } from './diary/Stream'
@@ -269,6 +270,19 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
   const phaseIndex = STEPS.findIndex((s) => s.key.includes(a.progress.phase))
   const size = COMPANION_SIZE.chat
   // 빈 대화 캐릭터 누르기(40 §3.4): 깡충 + 말풍선(바로 전 문장 빼고), 10초에 다섯 번 넘게 누르면 깡충만
+  // 장면 받침을 캐릭터 발 자리에 맞춘다(칸 높이 대비 비율)
+  const bodyEl = useRef<HTMLDivElement>(null), heroChar = useRef<HTMLDivElement>(null)
+  const [foot, setFoot] = useState(0.62)
+  const heroOn = variant === 'full' && !a.messages.length && !a.busy
+  useEffect(() => {
+    const b = bodyEl.current, c = heroChar.current
+    if (!heroOn || !b || !c) return
+    const on = () => { const br = b.getBoundingClientRect(), cr = c.getBoundingClientRect(); if (br.height > 0) setFoot(Math.min(0.92, Math.max(0.3, (cr.bottom - cr.height * 0.1 - br.top) / br.height))) }
+    on()
+    const ro = new ResizeObserver(on)
+    ro.observe(b)
+    return () => ro.disconnect()
+  }, [heroOn])
   const tapEmpty = () => {
     setBump((b) => ({ id: 'empty', move: 'hop', n: (b?.n ?? 0) + 1 }))
     if (!tapSpeaks(taps.current, Date.now())) return
@@ -287,12 +301,29 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
   const chips = !tail && lastMsg?.role === 'assistant' && !lastMsg.agent && answerKindOf(lastMsg.result) === 'reply' && !draft.trim()
     ? quickReplies({ request: lastMsg.request ?? a.messages.at(-2)?.text ?? '', question: lastMsg.text, lists: (recentLists ?? []).map((l) => l.name) })
     : []
+  // 49 §8 표 · 시안 wAsst: 전체 보기 빈 대화 = 칸 전체 장면 + 받침 위 캐릭터 180 + 무엇을 도와줄까? + 유리 칩 세로. 빠른 창(좁음)은 지금 모양(띠)
+  const hero = variant === 'full' && !a.messages.length && !a.busy
   return (
-    <div className={`assistant-body assistant-v2 is-${variant}`}>
+    <div ref={bodyEl} className={`assistant-body assistant-v2 is-${variant}${hero ? ' is-scene' : ''}`} style={hero ? { ['--aa-foot' as string]: foot } : undefined}>
+      {hero && <CoverScene foot={foot} />}
       <div className="assistant-scroll-wrap">
         <div ref={scroll} className="assistant-messages" role="log" aria-label="AI 대화 기록" aria-live="polite" onScroll={() => { const el = scroll.current; if (el) { follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 70; setShowLatest(!follow.current) } }}>
           <div className="assistant-col">
-            {!a.messages.length && (
+            {hero && (
+              <div className="aa-hero">
+                <h2 className="aa-hero__title">무엇을 도와줄까?</h2>
+                <p className="aa-hero__sub">{`${iGa(me.name)} 오늘 할 일을 같이 봐 줄게`}</p>
+                <div ref={heroChar} className="aa-hero__char">
+                  <CompanionFace species={me.species} stage={me.stage} size={180} mood="smile" loop={me.egg ? 'wiggle' : 'breathe'} play={bump?.id === 'empty' ? bump : null} onPress={tapEmpty} label={me.label}>
+                    {say && <CompanionSay key={say.n} text={say.text} />}
+                  </CompanionFace>
+                </div>
+                <div className="aa-hero__chips">
+                  {(a.agent ? AGENT_SUGGESTIONS : SUGGESTIONS).map((text) => <button key={text} className="aa-hero__chip" disabled={a.busy || !a.model} onClick={() => void submit(text)}>{text}</button>)}
+                </div>
+              </div>
+            )}
+            {!a.messages.length && !hero && (
               <div className={`assistant-empty${variant !== 'quick' && me.species ? ' has-band' : ''}`}>
                 {/* 49 §6.1: 고른 배경 장면이 캐릭터 뒤에(전체 보기만 — 빠른 창은 좁아 그대로) */}
                 {variant !== 'quick' && me.species ? <BackSceneBand height={300} /> : null}

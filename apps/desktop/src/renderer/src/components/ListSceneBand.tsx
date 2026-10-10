@@ -1,7 +1,7 @@
 // 49 §8.2 할 일 화면 "은은하게"(결정 ②) — 큰 제목 뒤 장면 띠. 자리를 차지하지 않는 배경이라 목록 첫 줄 높이는 그대로다.
 // 49 §6.1: 띠 = 내 배경 장면(look.eq.bg)을 BAND_CROP으로 가로로 자른 것. 낮 짝·밤 짝(sceneKeyFor(bg, true))을 둘 다 깔고 테마(data-theme)로 하나만 보인다(다크 = 밤). 스크롤하면 띠가 위로 밀리며 옅어진다 — transform·opacity만, 리렌더 없음.
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import { SCENE_LOW_PX, SCENE_PX, sceneKeyFor } from '@sprout/schema/characterArt'
+import { SCENE_LOW_PX, SCENE_PX, SCENE_TINT, SCENES3D, sceneDark, sceneKeyFor } from '@sprout/schema/characterArt'
 import { artUrl } from './growth/art3dUrls'
 import { useRaise } from '../data/raise'
 import { SceneBand } from './growth/Scene3D'
@@ -79,6 +79,43 @@ export function SoftSceneBack({ className }: { className?: string }) {
     <div className={`softscene${className ? ` ${className}` : ''}`} aria-hidden="true">
       {day ? <img className="lband__day" src={day} alt="" draggable={false} /> : null}
       {night ? <img className="lband__night" src={night} alt="" draggable={false} /> : null}
+    </div>
+  )
+}
+
+/** 49 §8 표 AI 비서 빈 대화: 칸 전체에 깐 장면(로그인 LoginScene과 같은 계산 — 세로 장면을 넓은 칸에 cover로 깔면 나무만 크게 보이므로
+ *  하늘~받침이 칸 높이에 들어오게 가운데 선명한 한 장 + 뒤에 같은 장면을 흐리게 cover로). 낮 짝·밤 짝을 둘 다 깔고 테마로 하나만 보인다.
+ *  라이트에서 고른 장면이 어두우면(별밤 등) 글자가 묻혀서 새벽 장면으로 둔다(띠 규칙과 같음) */
+export function CoverScene({ foot = 0.62 }: { foot?: number }) {
+  const sc = useBandScenes()
+  const ref = useRef<HTMLDivElement>(null)
+  const [box, setBox] = useState({ w: 0, h: 0 })
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setBox({ w: el.clientWidth, h: el.clientHeight }))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const day = sceneDark(sc.day) ? 'scene-dawn' : sc.day
+  return (
+    <div ref={ref} className="cscene" aria-hidden="true">
+      {box.w ? <><CoverLayer sceneKey={day} box={box} foot={foot} className="lband__day" /><CoverLayer sceneKey={sc.night} box={box} foot={foot} className="lband__night" /></> : null}
+    </div>
+  )
+}
+function CoverLayer({ sceneKey, box, foot, className }: { sceneKey: string; box: { w: number; h: number }; foot: number; className: string }) {
+  const m = SCENES3D[sceneKey]
+  const url = artUrl(sceneKey, SCENE_PX)
+  const tint = SCENE_TINT[sceneKey] ?? SCENE_TINT['scene-dawn']
+  if (!m || !url) return <div className={`cscene__layer ${className}`} style={{ background: `linear-gradient(${tint.top}, ${tint.bottom})` }} />
+  const top0 = 0.16
+  const h = (box.h * foot) / (m.perch[1] - top0), w = h / m.aspect
+  const cw = Math.max(w, box.w), ch = cw * m.aspect
+  return (
+    <div className={`cscene__layer ${className}`} style={{ background: tint.bottom }}>
+      <img className="cscene__blur" src={url} alt="" draggable={false} style={{ width: cw, height: ch, left: (box.w - cw) / 2, top: box.h * foot - m.perch[1] * ch }} />
+      <img className={`cscene__img${w < box.w ? ' is-faded' : ''}`} src={url} alt="" draggable={false} style={{ width: w, height: h, left: (box.w - w) / 2, top: box.h * foot - m.perch[1] * h }} />
     </div>
   )
 }
