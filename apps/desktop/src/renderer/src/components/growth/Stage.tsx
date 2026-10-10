@@ -15,7 +15,7 @@ import { PlayableCharacter, type PlayHandle } from './PlayableCharacter'
 import { EvolutionMoment } from './EvolutionMoment'
 import { SeedPic, useDocDark } from './MakeFlow'
 import { ItemPic, LOOKS, RaisePanel } from './RaisePanel'
-import { SceneBackdrop } from './Scene3D'
+import { SceneBackdrop, wideKey } from './Scene3D'
 import { StreakChip } from './Flame'
 import { clampBubble, springStep } from './follow'
 import './raise.css'
@@ -42,7 +42,10 @@ function stageGeo(w: number, h: number, sceneKey: string, panel: boolean) {
   const xOpen = Math.max(box / 2 + 8, (w - PANEL_W) / 2)
   const footY = narrow ? Math.max(box * 0.95, h - 238) : Math.round(h * 0.76)
   const maxShift = Math.max(Math.abs(xClosed - w / 2), Math.abs(xOpen - w / 2))
-  const imgW = Math.max(w + 2 * maxShift, 420), imgH = imgW * m.aspect
+  // 위아래가 비지 않게(가로 장면은 세로가 짧다 — 받침이 footY에 오면서 칸을 덮을 만큼 키운다)
+  const py = m.perch[1]
+  const imgH = Math.max(Math.max(w + 2 * maxShift, 420) * m.aspect, footY / Math.max(0.05, py), (h - footY) / Math.max(0.05, 1 - py))
+  const imgW = imgH / m.aspect
   const shift = (panel ? xOpen : xClosed) - w / 2
   return { narrow, box, footY, shift, img: { left: w / 2 - m.perch[0] * imgW, top: footY - m.perch[1] * imgH, width: imgW, height: imgH } }
 }
@@ -377,7 +380,7 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
     const t = window.setTimeout(() => setSc((x) => ({ ...x, prev: null })), 320)
     return () => window.clearTimeout(t)
   }, [sc.prev, sc.cur])
-  const geo = stageGeo(dims.w, dims.h, sceneKey, !!panel)
+  const geo = stageGeo(dims.w, dims.h, wideKey(sceneKey), !!panel) // 49 §8.1 v1.4: 넓은 칸은 가로로 구운 장면(늘려서 뭉개지지 않게)
   const box = geo.box
   const footX = dims.w / 2 + geo.shift
   const eq = tempHand ? { ...raise.worn, hand: tempHand } : raise.worn
@@ -423,7 +426,7 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
   const days = Array.from({ length: 7 }, (_, i) => addDays(week, i))
   const shiftStyle = { transform: `translateX(${Math.round(geo.shift)}px)` }
   const decor = species ? decorOn(level, raise.look) : []
-  const prevGeo = sc.prev ? stageGeo(dims.w, dims.h, sc.prev, !!panel) : null
+  const prevGeo = sc.prev ? stageGeo(dims.w, dims.h, wideKey(sc.prev), !!panel) : null
   // 유리 HUD · 글자 톤을 장면마다(49 §6.1 sceneGlass)
   const toneStyle = {
     ['--g-glass' as string]: glass.fill, ['--g-line' as string]: glass.line, ['--g-ink' as string]: glass.ink, ['--g-sub' as string]: glass.sub,
@@ -434,11 +437,11 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
     <div ref={stageEl} className={`gs2-stage gs3${dark ? ' is-dark' : ''}${reduced ? ' is-still' : ''}${geo.narrow ? ' is-narrow' : ''}${panel ? ' is-panel' : ''}`} style={toneStyle}>
       {sc.prev && prevGeo && dims.w > 0 && (
         <div className="gs3-scene" style={shiftStyle} aria-hidden="true">
-          <SceneBackdrop sceneKey={sc.prev} decor={decor} style={{ position: 'absolute', ...prevGeo.img }} />
+          <SceneBackdrop sceneKey={wideKey(sc.prev)} decor={decor} style={{ position: 'absolute', ...prevGeo.img }} />
         </div>
       )}
       <div key={sceneKey} className={`gs3-scene${sc.prev ? ' is-in' : ''}`} style={shiftStyle}>
-        {dims.w > 0 && <SceneBackdrop sceneKey={sceneKey} decor={decor} style={{ position: 'absolute', ...geo.img }} />}
+        {dims.w > 0 && <SceneBackdrop sceneKey={wideKey(sceneKey)} decor={decor} style={{ position: 'absolute', ...geo.img }} />}
       </div>
 
       {/* 유리 주 달력 띠 */}

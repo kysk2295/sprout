@@ -275,13 +275,17 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
   const [foot, setFoot] = useState(0.62)
   const heroOn = variant === 'full' && !a.messages.length && !a.busy
   useEffect(() => {
-    const b = bodyEl.current, c = heroChar.current
+    // 장면은 전체 보기 칸(머리 포함 — .assistant-view)에 깔린다 → 받침 비율도 그 칸 기준
+    const b = (bodyEl.current?.closest('.assistant-view') as HTMLElement | null) ?? bodyEl.current, c = heroChar.current
     if (!heroOn || !b || !c) return
     const on = () => { const br = b.getBoundingClientRect(), cr = c.getBoundingClientRect(); if (br.height > 0) setFoot(Math.min(0.92, Math.max(0.3, (cr.bottom - cr.height * 0.1 - br.top) / br.height))) }
     on()
+    const raf = requestAnimationFrame(on) // 첫 배치(글꼴·그림)가 끝난 뒤 한 번 더
     const ro = new ResizeObserver(on)
     ro.observe(b)
-    return () => ro.disconnect()
+    const col = c.closest('.aa-hero')
+    if (col) ro.observe(col) // 칸 안 배치(제목·칩 높이)가 바뀌어 캐릭터가 움직일 때도
+    return () => { cancelAnimationFrame(raf); ro.disconnect() }
   }, [heroOn])
   const tapEmpty = () => {
     setBump((b) => ({ id: 'empty', move: 'hop', n: (b?.n ?? 0) + 1 }))

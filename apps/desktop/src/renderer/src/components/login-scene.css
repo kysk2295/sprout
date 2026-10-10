@@ -20,5 +20,3 @@
 :root[data-motion="reduce"] .login--scene .login__seed { animation: none; }
 .login__scene { overflow: hidden; }
 .login__scene img { position: absolute; display: block; max-width: none; pointer-events: none; user-select: none; }
-.login__scene-blur { filter: blur(28px) saturate(1.05); transform: scale(1.08); }
-.login__scene-img.is-faded { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%); }

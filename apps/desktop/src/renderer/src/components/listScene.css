@@ -35,23 +35,28 @@
 [data-theme="dark"] .diary.has-soft .diary__editor, [data-theme="dark"] .diary.has-soft .dhead { background: color-mix(in srgb, var(--color-bg-ground) 76%, transparent); }
 
 /* AI 비서 빈 대화 v2(49 §8 표 · 시안 wAsst): 칸 전체 장면(받침 = 캐릭터 발 자리, --aa-foot) + 받침 위 캐릭터 180 + 유리 칩 세로 */
-.assistant-body.is-scene { position: relative; isolation: isolate; }
+/* 장면은 머리까지 덮는다(사용자 "위에 흰색으로 구분되어 있는 거 배경으로 덮어 줘"): 기준 칸 = .assistant-view, 머리는 투명 */
+.assistant-view:has(> .assistant-body.is-scene) { position: relative; isolation: isolate; }
+.assistant-view:has(> .assistant-body.is-scene) > .pane-header { background: transparent; border-bottom-color: transparent; position: relative; z-index: 1; }
+.assistant-view:has(> .assistant-body.is-scene) .assistant-view__title { text-shadow: 0 0 16px rgba(255, 255, 255, 0.75); }
+[data-theme="dark"] .assistant-view:has(> .assistant-body.is-scene) .assistant-view__title { text-shadow: 0 0 16px rgba(0, 0, 0, 0.5); }
+.assistant-body.is-scene { position: static; }
 .assistant-body.is-scene :is(.assistant-scroll-wrap, .assistant-messages, .assistant-col) { background: transparent; }
 .cscene { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
 .cscene__layer { position: absolute; inset: 0; overflow: hidden; }
 .cscene img { position: absolute; display: block; max-width: none; user-select: none; }
-.cscene__blur { filter: blur(28px) saturate(1.05); transform: scale(1.08); }
-.cscene__img.is-faded { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%); }
-.aa-hero { display: flex; flex-direction: column; align-items: center; padding: 7vh 16px 24px; text-align: center; }
-.aa-hero__title { margin: 0; font: 800 28px/1.3 var(--font-family); letter-spacing: -0.03em; color: #1F2A24; }
-.aa-hero__sub { margin: 6px 0 0; font: 500 14px/1.5 var(--font-family); color: rgba(31, 42, 36, 0.7); }
-.aa-hero__char { margin-top: 5vh; width: 180px; height: 180px; }
+/* 제목은 위(하늘), 캐릭터·칩은 아래로 모은다 — 받침이 칸 아래쪽에 와야 장면을 덜 키워 하늘이 보인다 */
+.assistant-body.is-scene .assistant-col { min-height: 100%; display: flex; flex-direction: column; }
+.aa-hero { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 5vh 16px 12px; text-align: center; }
+.aa-hero__title { margin: 0; font: 800 28px/1.3 var(--font-family); letter-spacing: -0.03em; color: #1F2A24; text-shadow: 0 0 18px rgba(255, 255, 255, 0.7); }
+.aa-hero__sub { margin: 6px 0 0; font: 600 14px/1.5 var(--font-family); color: rgba(31, 42, 36, 0.78); text-shadow: 0 0 12px rgba(255, 255, 255, 0.8); }
+.aa-hero__char { margin-top: auto; width: 180px; height: 180px; }
 .aa-hero__chips { margin-top: 22px; width: min(420px, 100%); display: flex; flex-direction: column; gap: 8px; }
 .aa-hero__chip { padding: 13px 16px; border-radius: 18px; text-align: left; font: 600 14.5px/1.3 var(--font-family); color: #1F2A24; background: rgba(255, 255, 255, 0.62); border: 1px solid rgba(255, 255, 255, 0.7); -webkit-backdrop-filter: blur(22px) saturate(1.2); backdrop-filter: blur(22px) saturate(1.2); cursor: pointer; transition: background 0.12s ease-out, transform 0.12s ease-out; }
 .aa-hero__chip:hover:not(:disabled) { background: rgba(255, 255, 255, 0.8); }
 .aa-hero__chip:active:not(:disabled) { transform: scale(0.98); }
 .aa-hero__chip:disabled { opacity: 0.5; cursor: default; }
-[data-theme="dark"] .aa-hero__title { color: #fff; }
-[data-theme="dark"] .aa-hero__sub { color: rgba(255, 255, 255, 0.75); }
+[data-theme="dark"] .aa-hero__title { color: #fff; text-shadow: 0 0 18px rgba(0, 0, 0, 0.45); }
+[data-theme="dark"] .aa-hero__sub { color: rgba(255, 255, 255, 0.8); text-shadow: 0 0 12px rgba(0, 0, 0, 0.5); }
 [data-theme="dark"] .aa-hero__chip { color: #fff; background: rgba(22, 28, 40, 0.58); border-color: rgba(255, 255, 255, 0.14); }
 [data-theme="dark"] .aa-hero__chip:hover:not(:disabled) { background: rgba(22, 28, 40, 0.72); }

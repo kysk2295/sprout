@@ -4,7 +4,9 @@ import { useEffect, useRef, useState, type RefObject } from 'react'
 import { SCENE_LOW_PX, SCENE_PX, SCENE_TINT, SCENES3D, sceneDark, sceneKeyFor } from '@sprout/schema/characterArt'
 import { artUrl } from './growth/art3dUrls'
 import { useRaise } from '../data/raise'
-import { SceneBand } from './growth/Scene3D'
+import { SceneBand, scenePx, wideKey } from './growth/Scene3D'
+export { wideKey }
+export const coverPx = scenePx
 import './listScene.css'
 
 export const LIST_BAND_HEIGHT = 176
@@ -83,8 +85,8 @@ export function SoftSceneBack({ className }: { className?: string }) {
   )
 }
 
-/** 49 §8 표 AI 비서 빈 대화: 칸 전체에 깐 장면(로그인 LoginScene과 같은 계산 — 세로 장면을 넓은 칸에 cover로 깔면 나무만 크게 보이므로
- *  하늘~받침이 칸 높이에 들어오게 가운데 선명한 한 장 + 뒤에 같은 장면을 흐리게 cover로). 낮 짝·밤 짝을 둘 다 깔고 테마로 하나만 보인다.
+/** 49 §8 표 AI 비서 빈 대화: 칸 전체에 깐 장면 — 성장 화면(Stage stageGeo)과 같은 계산: 장면을 칸 폭에 맞춰 크게 깔고(세로가 남는 만큼 위아래는 잘림)
+ *  받침이 foot(칸 높이 비율 = 캐릭터 발 자리)에 오게 올리고 내린다. 흐린 채우기 없음. 낮 짝·밤 짝을 둘 다 깔고 테마로 하나만 보인다.
  *  라이트에서 고른 장면이 어두우면(별밤 등) 글자가 묻혀서 새벽 장면으로 둔다(띠 규칙과 같음) */
 export function CoverScene({ foot = 0.62 }: { foot?: number }) {
   const sc = useBandScenes()
@@ -104,18 +106,24 @@ export function CoverScene({ foot = 0.62 }: { foot?: number }) {
     </div>
   )
 }
-function CoverLayer({ sceneKey, box, foot, className }: { sceneKey: string; box: { w: number; h: number }; foot: number; className: string }) {
+/** 장면을 W×H 칸에 덮어 깔 자리 — 받침이 칸 높이의 foot에 정확히 오도록(위아래로 비지 않게 필요하면 조금 더 키운다), 가로는 받침이 가운데 */
+export function coverGeo(m: { perch: number[]; aspect: number }, W: number, H: number, foot: number) {
+  const px = m.perch[0], py = m.perch[1]
+  const h = Math.max(W * m.aspect, (H * (1 - foot)) / Math.max(0.05, 1 - py), (H * foot) / Math.max(0.05, py))
+  const w = h / m.aspect
+  return { w, h, left: Math.min(0, Math.max(W - w, W / 2 - px * w)), top: H * foot - py * h }
+}
+
+function CoverLayer({ sceneKey: key0, box, foot, className }: { sceneKey: string; box: { w: number; h: number }; foot: number; className: string }) {
+  const sceneKey = wideKey(key0)
   const m = SCENES3D[sceneKey]
-  const url = artUrl(sceneKey, SCENE_PX)
-  const tint = SCENE_TINT[sceneKey] ?? SCENE_TINT['scene-dawn']
-  if (!m || !url) return <div className={`cscene__layer ${className}`} style={{ background: `linear-gradient(${tint.top}, ${tint.bottom})` }} />
-  const top0 = 0.16
-  const h = (box.h * foot) / (m.perch[1] - top0), w = h / m.aspect
-  const cw = Math.max(w, box.w), ch = cw * m.aspect
+  const tint = SCENE_TINT[key0] ?? SCENE_TINT['scene-dawn']
+  const g = m ? coverGeo(m, box.w, box.h, foot) : null
+  const url = g ? artUrl(sceneKey, coverPx(sceneKey, g.w)) : null
+  if (!m || !g || !url) return <div className={`cscene__layer ${className}`} style={{ background: `linear-gradient(${tint.top}, ${tint.bottom})` }} />
   return (
     <div className={`cscene__layer ${className}`} style={{ background: tint.bottom }}>
-      <img className="cscene__blur" src={url} alt="" draggable={false} style={{ width: cw, height: ch, left: (box.w - cw) / 2, top: box.h * foot - m.perch[1] * ch }} />
-      <img className={`cscene__img${w < box.w ? ' is-faded' : ''}`} src={url} alt="" draggable={false} style={{ width: w, height: h, left: (box.w - w) / 2, top: box.h * foot - m.perch[1] * h }} />
+      <img className="cscene__img" src={url} alt="" draggable={false} style={{ width: g.w, height: g.h, left: g.left, top: g.top }} />
     </div>
   )
 }

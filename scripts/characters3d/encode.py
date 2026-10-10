@@ -227,10 +227,11 @@ for name, m in sm.items():
     p = os.path.join(B, 'scene', name + '.png')
     if not os.path.exists(p): continue
     im = Image.open(p).convert('RGB')
-    w = 1170
+    wide = name.startswith('wide-')  # 데스크톱 넓은 칸 장면(49 §8.1 v1.4): 굽은 크기 그대로 2880 + 1440(작은 창)
+    w = im.width if wide else 1170
     a = np.asarray(im.resize((w, round(im.height * w / im.width)), Image.LANCZOS)).astype(np.float32) / 255
     a = np.concatenate([a, np.ones_like(a[..., :1])], -1)
-    save(a, name, [w, 390] if name.startswith('scene') else [w], Q['scene'], 'scene')  # 390 = 배경 묶음 받기 전 미리보기
+    save(a, name, [w, 1440] if wide else [w, 390] if name.startswith('scene') else [w], Q['scene'], 'scene')  # 390 = 배경 묶음 받기 전 미리보기
     SCENE[name] = {'perch': m['perch'], 'unit': round(m['unit_px'] / m['w'], 4), 'aspect': round(m['h'] / m['w'], 4)}
 
 # ── 방 장식 ──
@@ -277,6 +278,7 @@ def tier(fn):
     m = re.match(r'^(.+)@(\d+)\.webp$', fn)
     if not m: return 'none'
     key, px = m.group(1), int(m.group(2))
+    if key.startswith('wide-'): return 'none'  # 데스크톱 전용
     if key.startswith('scene-'): return 'base' if px == 390 or re.match(r'^scene-(day|dawn|dusk|sunset)$', key) else 'bg'
     if re.match(r'^(seed|band|decor)', key): return 'base'
     if key.endswith('-spin'): return 'pack'

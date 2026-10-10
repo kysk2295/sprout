@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { authApi, authErrorText, useAuth } from '../data/auth'
-import { SCENE_PX, SCENE_TINT, SCENES3D, sceneDark } from '@sprout/schema/characterArt'
+import { SCENE_TINT, SCENES3D, sceneDark } from '@sprout/schema/characterArt'
 import { CharacterArt } from './growth/CharacterArt'
+import { coverGeo, coverPx, wideKey } from './ListSceneBand'
 import { artUrl } from './growth/art3dUrls'
 import { useDocDark } from './growth/MakeFlow'
 import './login-social.css'
@@ -129,23 +130,21 @@ export function LoginScreen() {
   )
 }
 
-/** 49 §8.1 로그인 장면: 세로 장면(1:2)을 넓은 창에 cover로 깔면 나무만 크게 보이므로, 하늘~받침(장면 높이 0.16~받침)이 창 높이에 들어오게
- *  가운데 선명한 장면 한 장(좌우 끝은 녹임) + 그 뒤 같은 장면을 흐리게 cover로(빈 옆을 채움). 창 크기는 resize로 */
-function LoginScene({ sceneKey }: { sceneKey: string }) {
+/** 49 §8.1 로그인 장면 — 성장 화면(stageGeo)·AI 비서(CoverScene)와 같은 계산: 장면을 창 폭에 맞춰 크게 깔고 받침을 창 아래(foot)에 맞춘다.
+ *  (예전: 가운데 선명한 세로 한 장 + 양옆 흐린 cover — 사용자 "양옆이 왜 블러" 2026-10-10 → 뺌) */
+function LoginScene({ sceneKey: key0 }: { sceneKey: string }) {
   const [vw, setVw] = useState(() => window.innerWidth)
   const [vh, setVh] = useState(() => window.innerHeight)
   useEffect(() => { const on = () => { setVw(window.innerWidth); setVh(window.innerHeight) }; window.addEventListener('resize', on); return () => window.removeEventListener('resize', on) }, [])
+  const sceneKey = wideKey(key0)
   const m = SCENES3D[sceneKey]
-  const url = artUrl(sceneKey, SCENE_PX)
-  const tint = SCENE_TINT[sceneKey] ?? SCENE_TINT['scene-dawn']
-  if (!m || !url) return <div className="login__scene" style={{ background: `linear-gradient(${tint.top}, ${tint.bottom})` }} aria-hidden="true" />
-  const top0 = 0.16, foot = 0.94 // 장면에서 보일 위 끝 · 받침이 올 창 높이 비율
-  const h = (vh * foot) / (m.perch[1] - top0), w = h / m.aspect
-  const cw = Math.max(w, vw), ch = cw * m.aspect
+  const tint = SCENE_TINT[key0] ?? SCENE_TINT['scene-dawn']
+  const g = m ? coverGeo(m, vw, vh, 0.97) : null // 받침 = 창 아래쪽
+  const url = g ? artUrl(sceneKey, coverPx(sceneKey, g.w)) : null
+  if (!m || !g || !url) return <div className="login__scene" style={{ background: `linear-gradient(${tint.top}, ${tint.bottom})` }} aria-hidden="true" />
   return (
     <div className="login__scene" style={{ background: tint.bottom }} aria-hidden="true">
-      <img className="login__scene-blur" src={url} alt="" draggable={false} style={{ width: cw, height: ch, left: (vw - cw) / 2, top: vh * foot - m.perch[1] * ch }} />
-      <img className={`login__scene-img${w < vw ? ' is-faded' : ''}`} src={url} alt="" draggable={false} style={{ width: w, height: h, left: (vw - w) / 2, top: vh * foot - m.perch[1] * h }} />
+      <img className="login__scene-img" src={url} alt="" draggable={false} style={{ width: g.w, height: g.h, left: g.left, top: g.top }} />
     </div>
   )
 }

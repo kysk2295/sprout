@@ -237,6 +237,7 @@ export function mobileTier(file: string): ArtTier {
   if (!m) return 'none'
   const [, key, pxs] = m
   const px = Number(pxs)
+  if (/^wide-/.test(key)) return 'none' // 데스크톱 넓은 칸 장면(49 §8.1 v1.4) — 휴대폰은 안 쓴다
   // 장면: 낮·새벽·밤(자동이 쓰는 셋)과 띠·모든 장면의 390 미리보기는 앱 안, 나머지 1170은 배경 묶음(고를 때 내려받기)
   if (/^scene-/.test(key)) return px === SCENE_LOW_PX || /^scene-(day|dawn|dusk|sunset)$/.test(key) ? 'base' : 'bg'
   if (/^(seed|band|decor)/.test(key)) return 'base'

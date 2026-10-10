@@ -65,6 +65,8 @@ if PREVIEW: seeds = [x for x in seeds if x['name'] in ('seed0-t00', 'seed0-crack
 write(pre + 'seeds', {'out': out('seed'), 'size': 560, 'samples': 48 if not PREVIEW else 16, 'skip_existing': not PREVIEW, 'items': seeds})
 scenes = [{'kind': 'scene', 'time': t, 'w': 1170, 'h': 2340, 'name': f'scene-{t}'} for t in ('day', 'dawn', 'dusk', 'sunset', 'moon', 'snow', 'rain', 'rain-n', 'flowers', 'flowers-n', 'pond', 'pond-n', 'study', 'study-n')]
 scenes += [{'kind': 'scene', 'time': t, 'w': 1170, 'h': 420, 'band': True, 'cz': 1.4, 'tz': 1.6, 'lens': 40, 'name': f'band-{t}'} for t in ('day', 'dusk')]
+# 데스크톱 넓은 칸(로그인·AI 비서 빈 대화, 49 §8.1 v1.4 — 세로 장면을 넓은 창에 늘리면 뭉개져서): 같은 정원을 가로로, 하늘을 넉넉히(tz 2.1) — 데스크톱 전용(휴대폰 묶음 없음)
+scenes += [{'kind': 'scene', 'time': t, 'w': 2880, 'h': 2160, 'tz': 2.1, 'lens': 32, 'name': f'wide-{t}'} for t in ('day', 'dawn', 'dusk', 'sunset', 'moon', 'snow', 'rain', 'rain-n', 'flowers', 'flowers-n', 'pond', 'pond-n', 'study', 'study-n')]
 if PREVIEW:
     for s in scenes: s['w'] //= 3; s['h'] //= 3
 write(pre + 'scenes', {'out': out('scene'), 'samples': 64 if not PREVIEW else 16, 'skip_existing': not PREVIEW, 'items': scenes})

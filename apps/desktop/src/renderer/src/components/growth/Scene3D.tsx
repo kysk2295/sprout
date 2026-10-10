@@ -8,6 +8,14 @@ import './scene3d.css'
 
 export type SceneLayout = ReturnType<typeof sceneLayout>
 
+/** 넓은 칸용 장면(49 §8.1 v1.4): 가로로 구운 `wide-<시간>`(데스크톱 전용 2880)이 있으면 그것, 없으면 세로 장면 그대로 */
+export const wideKey = (sceneKey: string) => { const w = sceneKey.replace(/^scene-/, 'wide-'); return SCENES3D[w] ? w : sceneKey }
+/** 장면 그림 폭(px) — 가로 장면은 레티나에서 늘리지 않는 가장 작은 판(1440 · 2880) */
+export const scenePx = (key: string, w: number) => (key.startsWith('wide-') ? (w * (window.devicePixelRatio || 1) > 1440 ? 2880 : 1440) : SCENE_PX)
+/** 방 장식 자리 기준 폭: DECOR_SPOTS는 세로 장면 폭 비율이라, 장면마다 다른 화각을 1단위 길이(unit)로 맞춘다(세로 장면이면 그대로 L.w) */
+const UNIT_PORTRAIT = SCENES3D['scene-day']?.unit ?? 0.2
+const decorScale = (L: SceneLayout) => L.unitPx / UNIT_PORTRAIT
+
 export function useBoxSize<T extends HTMLElement>() {
   const ref = useRef<T>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
@@ -29,10 +37,11 @@ export const SceneBackdrop = memo(function SceneBackdrop({ sceneKey, align = 'bo
   const [ref, size] = useBoxSize<HTMLDivElement>()
   const L = useMemo(() => sceneLayout(sceneKey, size.w || 1, size.h || 1, align), [sceneKey, size.w, size.h, align])
   const tint = SCENE_TINT[sceneKey] ?? SCENE_TINT['scene-day']
-  const url = artUrl(sceneKey, SCENE_PX)
+  const url = artUrl(sceneKey, scenePx(sceneKey, L.w))
+  const S = decorScale(L)
   const spots = (decor ?? []).filter((d) => DECOR3D[decorKey(d)] && DECOR_SPOTS[d]).map((d) => {
-    const sp = DECOR_SPOTS[d], w = sp.w * L.w
-    return { id: d, w, left: L.perchX + sp.dx * L.w - w / 2, top: L.perchY + sp.dy * L.w - w * 0.9, back: sp.dy < 0 }
+    const sp = DECOR_SPOTS[d], w = sp.w * S
+    return { id: d, w, left: L.perchX + sp.dx * S - w / 2, top: L.perchY + sp.dy * S - w * 0.9, back: sp.dy < 0 }
   })
   const deco = (x: (typeof spots)[number]) => { const u = artUrl(decorKey(x.id), 256); return u ? <img key={x.id} className="s3-decor" src={u} alt="" style={{ left: x.left, top: x.top, width: x.w, height: x.w }} draggable={false} /> : null }
   return (
