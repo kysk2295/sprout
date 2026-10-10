@@ -31,3 +31,13 @@ assert.ok(toStatement({ op: 'PATCH', table: 'task_tags', id: 'tt', data: { sourc
 assert.ok(toStatement({ op: 'PATCH', table: 'tags', id: 'g', data: { kind: 'person', aliases: '["지도교수님"]', description: 'd', topic_id: 'w', home_type: 'folder', home_id: 'f', source: 'ai', run_id: 'r' } }, me).sql.startsWith('UPDATE tags'))
 assert.ok(toStatement({ op: 'PATCH', table: 'lists', id: 'l', data: { description: '설명' } }, me).sql.startsWith('UPDATE lists'))
 console.log('upload: ok')
+
+// 트로피 id(88자)도 받는다 — 64자 상한일 때 묶음째 거절됐다(2026-10-11 Codex 리뷰)
+{
+  const u = '00000000-0000-4000-8000-000000000000'
+  const id = `trophy:${u}:project:${u}`
+  assert.equal(id.length, 88)
+  assert.doesNotThrow(() => toStatement({ op: 'PUT', table: 'character_items', id, data: { title: 'x' } } as never, u))
+  assert.throws(() => toStatement({ op: 'PUT', table: 'character_items', id: 'x'.repeat(201), data: {} } as never, u), UploadError)
+  console.log('upload long id ok')
+}

@@ -108,13 +108,20 @@ const connector: PowerSyncBackendConnector = {
       id: op.id,
       data: op.opData
     }))
+    const send = (b: typeof ops) => api('/sync/upload', { body: { batch: b }, token })
     try {
-      await api('/sync/upload', { body: { batch: ops }, token })
+      await send(ops)
     } catch (e) {
-      // 400(형식이 깨진 연산)은 다시 보내도 같다 → 이 묶음은 버리고 진행(로그 남김).
+      // 400(형식이 깨진 연산)은 다시 보내도 같다. 하지만 묶음째 버리면 같이 든 정상 변경까지 사라진다
+      // (2026-10-11 Codex 리뷰) → 한 건씩 다시 보내 깨진 연산만 버린다.
       // 409(서버가 모르는 테이블·칸 = 서버가 앱보다 오래됨)·네트워크·5xx는 버리지 않고 다시 시도한다
-      if (e instanceof ApiError && e.status === 400) console.error('[sync] upload rejected, skipping batch:', e.message)
-      else throw e
+      if (!(e instanceof ApiError && e.status === 400)) throw e
+      for (const op of ops) {
+        try { await send([op]) } catch (e1) {
+          if (e1 instanceof ApiError && e1.status === 400) console.error('[sync] upload rejected, skipping op:', op.table, op.id, e1.message)
+          else throw e1
+        }
+      }
     }
     await batch.complete()
   }

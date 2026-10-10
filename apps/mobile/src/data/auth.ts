@@ -127,14 +127,21 @@ export const connector: PowerSyncBackendConnector = {
       id: op.id,
       data: op.opData
     }))
+    // 32 §6: 올린 기기는 조용한 동기화·지우기·성장 소식 대상에서 뺀다
+    const device = await deviceId().catch(() => null)
+    const send = (b: typeof ops) => api('/sync/upload', { body: { batch: b }, token, headers: device ? { 'x-sprout-device': device } : undefined })
     try {
-      // 32 §6: 올린 기기는 조용한 동기화·지우기·성장 소식 대상에서 뺀다
-      const device = await deviceId().catch(() => null)
-      await api('/sync/upload', { body: { batch: ops }, token, headers: device ? { 'x-sprout-device': device } : undefined })
+      await send(ops)
     } catch (e) {
-      // 400(형식이 깨진 연산)은 다시 보내도 같다 → 이 묶음은 버리고 진행. 나머지는 다시 시도
-      if (e instanceof ApiError && e.status === 400) console.warn('[sync] upload rejected, skipping batch:', e.message)
-      else throw e
+      // 400(형식이 깨진 연산)은 다시 보내도 같다. 묶음째 버리면 정상 변경까지 사라지니(2026-10-11 Codex 리뷰)
+      // 한 건씩 다시 보내 깨진 연산만 버린다. 나머지 오류는 다시 시도
+      if (!(e instanceof ApiError && e.status === 400)) throw e
+      for (const op of ops) {
+        try { await send([op]) } catch (e1) {
+          if (e1 instanceof ApiError && e1.status === 400) console.warn('[sync] upload rejected, skipping op:', op.table, op.id, e1.message)
+          else throw e1
+        }
+      }
     }
     await batch.complete()
   }
