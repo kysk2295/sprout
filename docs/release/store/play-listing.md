@@ -72,7 +72,7 @@
 |---|---|---|
 | 앱 아이콘 | `docs/release/store/play-assets/icon-512.png` (45 확정 로고 씨앗 친구 × 깊은 숲, 2026-10-09 교체 — `node scripts/brand/build-icons.mjs seed --apply`로 다시 만든다) | 512×512 PNG, 32비트(RGBA) |
 | 그래픽 이미지(Feature graphic) | `docs/release/store/play-assets/feature-graphic-1024x500.png` (깊은 숲 판 + 씨앗 친구 + 직접 그린 글자 로고 "꿈틀" + 한 줄 소개, 2026-10-09 교체 — `node scripts/brand/build-marketing.mjs`). 글자 없는 판: `brand/out/seed/store/play-feature-graphic-1024x500.png`(git 제외 폴더) | 1024×500, 투명 없음 |
-| 휴대전화 스크린샷 | `docs/release/store/screenshots/android/` 6장, 번호 순서대로: 01 오늘 · 02 캘린더(월) · 03 성장(캐릭터) · 04 리스트(제주 여행) · 05 할 일 상세(체크리스트) · 06 캘린더 다크. 릴리스 빌드(1.0.0) + 데모 계정(가짜 데이터, 촬영 뒤 삭제), 상태 표시줄 데모 모드 9:41 | 1080×2400(9:20), 2~8장 |
+| 휴대전화 스크린샷 | `docs/release/store/screenshots/android/` 6장(2026-10-10 새 디자인), 번호 순서대로: 01 오늘 · 02 캘린더(월) · 03 성장(3D 정원·캐릭터) · 04 AI 비서 · 05 할 일 상세 · 06 캘린더 다크. 릴리스 빌드(빌드 3) + 스크린숏용 시험 계정(예시 데이터, 촬영 뒤 삭제), 에뮬레이터 Pixel 6a, 상태 표시줄 데모 모드 9:41 | 1080×2400(9:20), 2~8장 |
 | 태블릿 스크린샷 | 올리지 않음(선택 항목) | |
 | 동영상(YouTube) | 없음 | |
 
