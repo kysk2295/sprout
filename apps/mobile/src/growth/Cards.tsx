@@ -1,12 +1,11 @@
 // 23 §2 ③~⑦: 요약 칩 · 진화 길 · 이번 주 목표 · 이번 주 XP · 주간 리포트 목록 (시안 B1·B2, 공용 키트 묶음 카드)
-import { COMPANION_SIZE, QUEST_LIMIT_LINE, QUEST_LIMIT_NOTE } from '@sprout/schema/companion'
-import { STAGES, weekLabel, XP, type GoalDraft, type Species } from '@sprout/schema/growth'
+import { STAGES, weekLabel, XP, type Species } from '@sprout/schema/growth'
 import { DECOR, ITEMS } from '@sprout/schema/wardrobe'
 import { addDays } from '@sprout/schema/time'
 import { useRouter } from 'expo-router'
-import { BarChart3, Check, ChevronRight, Lock, Plus, Sparkles, Target, X } from 'lucide-react-native'
+import { BarChart3, Check, ChevronRight, Lock, Target } from 'lucide-react-native'
 import { useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
 import { Checkbox } from '../ui/Checkbox'
 import { useToast } from '../ui/Toast'
@@ -14,14 +13,8 @@ import { completeTasks } from '../data/tasks'
 import { useLiveQuery } from '../data/rows'
 import type { Palette } from '../theme/palette'
 import { CharacterArt } from './art/CharacterArt'
-import { useBuddy } from '../diary/data'
-import { StaticFace } from '../ui/CompanionFace'
-import { Confetti } from './Bits'
-import { addGoal, dismissDraft, setGoalProgress, useRefTitles } from './data'
-import {
-  checkTarget, dotTarget, goalBadge, signed, weekBars, weekRange, xpDayGroups, xpLabel, weekTotal,
-  type GoalRow, type ReportRow, type XpRow
-} from './logic'
+import { useRefTitles } from './data'
+import { signed, weekBars, xpDayGroups, xpLabel, weekTotal, type ReportRow, type XpRow } from './logic'
 
 const card = (p: Palette) => ({ backgroundColor: p.cardBg })
 /** 진화 길 미리보기: 그 단계 레벨(from~to)에 열리는 옷·장식 이름(43 §6 해금표 — 옛 10 §3.2.7 장식 표가 아니라 wardrobe) */
@@ -104,97 +97,7 @@ export function TodayCard({ p, today }: { p: Palette; today: string }) {
   )
 }
 
-/** ⑤ 이번 주 목표: 체크·횟수 점·AI 초안 +/× (휴대폰에서 새로 적기·고쳐 받기·삭제는 없음 — 23 §4, D7) */
-export function GoalsCard({ p, today, week, goals, xpIds, drafts, draftUsed, reduced }: {
-  p: Palette; today: string; week: string; goals: GoalRow[]; xpIds: Set<string>; drafts: GoalDraft[]; draftUsed?: boolean; reduced: boolean
-}) {
-  const buddy = useBuddy()
-  const toast = useToast()
-  const [cheer, setCheer] = useState<string>()
-  const done = goals.filter((g) => g.status === 'achieved').length
-  const progressTo = async (g: GoalRow, n: number) => {
-    const reaching = g.status !== 'achieved' && n >= g.target
-    await setGoalProgress(today, g, n)
-    if (reaching) { setCheer(g.id); setTimeout(() => setCheer((c) => (c === g.id ? undefined : c)), 1300) }
-  }
-  const accept = async (d: GoalDraft) => {
-    const r = await addGoal(today, week, d.title, d.target, 'ai')
-    if (r === 'full') toast.show(`이번 주는 ${XP.goalsPerWeek}개까지 적을 수 있어요`, { error: true })
-  }
-  return (
-    <View style={[s.card, card(p)]}>
-      <View style={s.head}>
-        <Text style={[s.headTitle, { color: p.textPrimary }]}>이번 주 목표 <Text style={[s.headMeta, { color: p.textTertiary }]}>{weekRange(week)}</Text></Text>
-        {goals.length ? <Text style={[s.headRight, { color: p.textSecondary }]}>{done}/{goals.length}</Text> : null}
-      </View>
-      {goals.map((g, i) => {
-        const achieved = g.status === 'achieved'
-        const badge = goalBadge(g, xpIds)
-        return (
-          <View key={g.id} style={[s.row, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderRow }]}>
-            <Checkbox priority={0} done={achieved} flash={cheer === g.id} label={achieved ? '달성 취소' : '달성'} onPress={() => void progressTo(g, checkTarget(g))} />
-            <View style={s.rowText}>
-              <Text style={[s.rowTitle, { color: achieved ? p.textTertiary : p.textPrimary }]} numberOfLines={1}>{g.title}</Text>
-              {badge.note ? <Text style={[s.rowSub, { color: p.textTertiary }]}>{badge.note}</Text> : null}
-            </View>
-            {g.target > 1 && g.target <= 10 && !achieved ? (
-              <View style={s.dots} accessibilityLabel={`${g.progress}/${g.target}`}>
-                {Array.from({ length: g.target }, (_, k) => (
-                  <Pressable key={k} hitSlop={{ top: 12, bottom: 12, left: 3, right: 3 }} accessibilityRole="button" accessibilityLabel={`${k + 1}번`} onPress={() => void progressTo(g, dotTarget(g.progress, k))}>
-                    <View style={[s.dot, { borderColor: p.accent }, k < g.progress && { backgroundColor: p.accent }]} />
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-            {g.target > 10 && !achieved ? (
-              <View style={s.count}>
-                <Pressable hitSlop={8} accessibilityLabel="하나 빼기" onPress={() => void progressTo(g, g.progress - 1)}><Text style={[s.countBtn, { color: p.accent }]}>−</Text></Pressable>
-                <Text style={{ color: p.textSecondary, fontSize: 13 }}>{g.progress}/{g.target}</Text>
-                <Pressable hitSlop={8} accessibilityLabel="하나 더하기" onPress={() => void progressTo(g, g.progress + 1)}><Text style={[s.countBtn, { color: p.accent }]}>+</Text></Pressable>
-              </View>
-            ) : null}
-            {badge.reward ? <View style={[s.chip, { backgroundColor: p.accentSubtle }]}><Text style={[s.chipText, { color: p.accent }]}>{badge.reward}</Text></View> : null}
-            {cheer === g.id && !reduced ? <View style={s.cheer} pointerEvents="none"><Confetti count={14} spread={60} /></View> : null}
-          </View>
-        )
-      })}
-      {drafts.map((d) => (
-        <View key={d.title} style={s.aiRow}>
-          <View style={s.dash} pointerEvents="none"><View style={[s.dashLine, { borderColor: p.borderDivider }]} /></View>
-          <Pressable style={s.aiMain} onPress={() => toast.show('고쳐서 받기는 컴퓨터에서 할 수 있어요', { icon: false })} accessibilityRole="button" accessibilityLabel={`AI 제안: ${d.title}`}>
-            <Sparkles size={16} color={p.accent} />
-            <Text style={[s.aiText, { color: p.textSecondary }]} numberOfLines={1}>{d.title}</Text>
-          </Pressable>
-          <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel={`${d.title} 목표로 추가`} onPress={() => void accept(d)}><Plus size={20} color={p.accent} /></Pressable>
-          <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel={`${d.title} 제안 숨기기`} onPress={() => void dismissDraft(today, addDays(week, -7), d.title)}><X size={18} color={p.textTertiary} /></Pressable>
-        </View>
-      ))}
-      {draftUsed && !drafts.length && goals.length < XP.goalsPerWeek ? (
-        // 40 §5.2 주간 한도: 캐릭터 S 18 sleepy + 한 줄(반말), 아래 3차 시스템 문장(해요체)
-        <View style={s.limit}>
-          <View style={s.limitRow}>
-            <StaticFace species={buddy.species} stage={buddy.stage} size={COMPANION_SIZE.quest} mood="sleepy" />
-            <Text style={[s.limitLine, { color: p.textSecondary }]}>{QUEST_LIMIT_LINE}</Text>
-          </View>
-          <Text style={[s.limitNote, { color: p.textTertiary }]}>{QUEST_LIMIT_NOTE}</Text>
-        </View>
-      ) : null}
-      {!goals.length ? (
-        <View style={s.empty}>
-          <Text style={[s.emptyTitle, { color: p.textSecondary }]}>이번 주 목표가 아직 없어요</Text>
-          <Text style={[s.emptySub, { color: p.textTertiary }]}>컴퓨터의 성장 화면에서 적을 수 있어요</Text>
-        </View>
-      ) : null}
-      {drafts.length ? <Text style={[s.fnote, { color: p.textTertiary }]}>✦ AI 제안은 <Text style={{ fontWeight: '700' }}>+</Text>를 눌러야 목표가 돼요 · 새로 적기는 컴퓨터에서</Text> : null}
-      {goals.length >= 2 ? (
-        <View style={s.bonus}>
-          <Text style={[s.bonusText, { color: p.textTertiary }]}>{done === goals.length ? `모두 이뤘어요 · 보너스 +${XP.kpiAll}` : `2개 이상 모두 이루면 +${XP.kpiAll}`}</Text>
-          <View style={[s.bonusBar, { backgroundColor: p.bgSelected }]}><View style={{ height: 4, borderRadius: 2, backgroundColor: p.accent, width: `${(done / goals.length) * 100}%` }} /></View>
-        </View>
-      ) : null}
-    </View>
-  )
-}
+// ⑤ 이번 주 목표 = GoalsSheet.tsx(10 §4.6 편집기)
 
 /** ⑥ 이번 주 XP: 7일 막대(누르면 "수 · 40 XP") + 날짜 묶음 */
 export function XpCard({ p, events, week, today }: { p: Palette; events: XpRow[]; week: string; today: string }) {

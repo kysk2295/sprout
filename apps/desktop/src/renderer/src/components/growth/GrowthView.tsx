@@ -5,9 +5,11 @@ import { activeDayList } from '@sprout/schema/wardrobe'
 import { RAISE_PANEL } from '../../data/raise'
 import { addDays } from '@sprout/schema/time'
 import {
-  addGoal, carryOver, dismissDraft, nextWeek, readLogOpen, removeGoal, setGoalProgress, thisWeek, useGoalDraft, useGrowth, useMotionReduced, useWeeklyClose,
-  useWeeklyReports, writeLogOpen, writeMotionPref, type GoalRow, type StageStats, type XpRow
+  addGoal, carryOver, createGoal, dismissDraft, nextWeek, parseGoal, readLogOpen, removeGoal, renameGoal, reorderGoal, setGoalLink, setGoalProgress, setGoalTarget, thisWeek,
+  useGoalDraft, useGrowth, useMotionReduced, useWeeklyClose, useWeeklyReports, writeLogOpen, writeMotionPref, type GoalRow, type StageStats, type XpRow
 } from '../../data/growth'
+import { GOAL_COLS, GOAL_TARGET_MAX, GOAL_TEMPLATES, GOAL_TITLE_ERROR, GOAL_TITLE_MAX, isLinked, linkLabel, type NewGoal } from '@sprout/schema/goalCore'
+import { useToast } from '../Toast'
 import { useQuery } from '../../data/useQuery'
 import { OPEN_SCREEN, takeScreen } from '../../data/mapMoments'
 import type { ListRow } from '../../data/types'
@@ -130,15 +132,25 @@ function GrowthHome({ onSurvey, onReview }: { onSurvey: () => void; onReview: ()
   )
 }
 
-/** 이번 주 퀘스트 = 주간 목표(10 §3.2.8, 규칙은 §4 그대로) */
+/** 이번 주 퀘스트 = 주간 목표(10 §3.2.8, 규칙은 §4 그대로) + §4.6 고치기: 제목 누르면 그 자리 이름 바꾸기 · `[−] n번 [+]` 목표 수 ·
+ *  ⋯ 세는 방법(직접 · 끝낸 할 일 · 태그 · 리스트) · 삭제(토스트 되돌리기 · ⌘Z) · 끌어서 순서. 쓰기는 공용 goalCore(휴대폰과 같음) */
 function GoalsCard({ sectionRef, inputRef, species, stage, name }: { sectionRef: React.RefObject<HTMLElement | null>; inputRef: React.RefObject<HTMLInputElement | null>; species: Species | null; stage: number; name: string }) {
+  const toast = useToast()
   const [tab, setTab] = useState<'this' | 'next'>('this')
   const week = tab === 'this' ? thisWeek() : nextWeek()
-  const goals = useQuery<GoalRow>('SELECT id, week_start, title, target, progress, status, source, achieved_at, sort_order FROM kpis WHERE week_start = ? ORDER BY sort_order', [week]) ?? []
+  const goals = useQuery<GoalRow>(`SELECT ${GOAL_COLS} FROM kpis WHERE week_start = ? ORDER BY sort_order`, [week]) ?? []
   // 한 주 5개가 차면 입력 줄이 막히고 안내 문구로 바뀐다(10 §4.1)
   const full = goals.length >= XP.goalsPerWeek
   const [rowMenu, setRowMenu] = useState<{ goal: GoalRow; anchor: HTMLElement }>()
+  const [linkMenu, setLinkMenu] = useState<{ goal: GoalRow; anchor: HTMLElement }>()
+  const [editing, setEditing] = useState<string>()
+  const [addErr, setAddErr] = useState<string>()
+  const [dragId, setDragId] = useState<string>()
+  const [dropAt, setDropAt] = useState<{ id: string | null; after: boolean }>()
   const [cheer, setCheer] = useState<string>()
+  const tags = useQuery<{ id: string; name: string }>('SELECT id, name FROM tags ORDER BY sort_order, name') ?? []
+  const lists = useQuery<{ id: string; name: string; kind: string | null }>("SELECT id, name, kind FROM lists WHERE archived_at IS NULL ORDER BY kind = 'inbox' DESC, sort_order, name") ?? []
+  const names = useMemo(() => ({ tags: new Map(tags.map((t) => [t.id, t.name])), lists: new Map(lists.map((l) => [l.id, l.kind === 'inbox' ? '기본함' : l.name])) }), [tags, lists])
   // 10 §4.3 AI 초안: 회색 제안 줄 — 누르면 입력 줄에 넣어 고친 뒤 확정, +는 그대로 추가, ×는 숨김
   const draft = useGoalDraft(week)
   const [pending, setPending] = useState<string>()
@@ -152,13 +164,51 @@ function GoalsCard({ sectionRef, inputRef, species, stage, name }: { sectionRef:
     el.focus()
     el.setSelectionRange(title.length, title.length)
   }
+  const fail = (e: unknown) => { console.warn('[growth] 목표', e); toast.show('저장하지 못했어요') }
+  const celebrate = (id: string) => { setCheer(id); window.setTimeout(() => setCheer((c) => (c === id ? undefined : c)), 1300) }
   /** 목표에 닿으면 그 행 체크박스에서 캐릭터로 큰 방울이 날아간다(10 §3.2.5) */
   const progressTo = async (g: GoalRow, n: number, from?: HTMLElement) => {
+    if (isLinked(g)) { toast.show('할 일을 끝내면 저절로 세요'); return }
     const before = g.status === 'achieved'
     const reaching = !before && n >= g.target
     if (reaching && from) { const r = from.getBoundingClientRect(); window.dispatchEvent(new CustomEvent('sprout:growth-feed', { detail: { x: r.left + r.width / 2, y: r.top + r.height / 2 } })) }
-    await setGoalProgress(g, n)
-    if (reaching) { setCheer(g.id); window.setTimeout(() => setCheer((c) => (c === g.id ? undefined : c)), 1300) }
+    await setGoalProgress(g, n).catch(fail)
+    if (reaching) celebrate(g.id)
+  }
+  const changeTarget = async (g: GoalRow, n: number) => {
+    const t = Math.max(1, Math.min(GOAL_TARGET_MAX, n))
+    if (t === g.target) return
+    await setGoalTarget(g, t).catch(fail)
+    if (g.status !== 'achieved' && g.progress >= t) celebrate(g.id)
+  }
+  const del = async (g: GoalRow) => {
+    try {
+      const undo = await removeGoal(g.id)
+      toast.show('목표를 지웠어요', () => undo().catch(fail))
+    } catch (e) { fail(e) }
+  }
+  const rename = async (g: GoalRow, v: string) => {
+    setEditing(undefined)
+    if (v.trim() === g.title) return
+    const r = await renameGoal(g, v).catch((e) => { fail(e); return 'ok' as const })
+    if (r !== 'ok' && r !== 'empty') toast.show(GOAL_TITLE_ERROR[r])
+  }
+  const create = async (input: NewGoal) => {
+    const r = await createGoal(week, input).catch((e) => { fail(e); return 'error' as const })
+    if (r === 'ok' || r === 'error') { setAddErr(undefined); return r }
+    setAddErr(r === 'full' ? `${tab === 'this' ? '이번' : '다음'} 주는 ${XP.goalsPerWeek}개까지 적을 수 있어요` : GOAL_TITLE_ERROR[r])
+    return r
+  }
+  // 끌어서 순서(10 §4.6): 놓을 자리에 강조색 선
+  const drop = () => {
+    const id = dragId
+    const at = dropAt
+    setDragId(undefined); setDropAt(undefined)
+    if (!id || !at || at.id === id) return
+    const ids = goals.map((g) => g.id)
+    const rest = ids.filter((x) => x !== id)
+    const before = at.id === null ? null : at.after ? (rest[rest.indexOf(at.id) + 1] ?? null) : at.id
+    void reorderGoal(ids, id, before).catch(fail)
   }
   // XP는 그 주 3개까지 — 실제로 XP를 갖고 있는 목표(원장 순합 > 0)에만 "+30 ✓"
   const earned = useQuery<{ ref_id: string }>(
@@ -177,22 +227,34 @@ function GoalsCard({ sectionRef, inputRef, species, stage, name }: { sectionRef:
         <div className="gs-quests__title">
           <h3 className="growth-card__title">{tab === 'this' ? '이번 주' : '다음 주'} 퀘스트</h3>
           <div className="seg">
-            <button className={tab === 'this' ? 'is-on' : ''} onClick={() => setTab('this')}>이번 주</button>
-            <button className={tab === 'next' ? 'is-on' : ''} onClick={() => setTab('next')}>다음 주</button>
+            <button className={tab === 'this' ? 'is-on' : ''} onClick={() => { setTab('this'); setAddErr(undefined) }}>이번 주</button>
+            <button className={tab === 'next' ? 'is-on' : ''} onClick={() => { setTab('next'); setAddErr(undefined) }}>다음 주</button>
           </div>
         </div>
         <span className="growth-card__meta">{md(week)} – {md(addDays(week, 6))}{goals.length ? ` · ${done}/${goals.length}` : ''}</span>
       </div>
+      <div onDragOver={(e) => { if (dragId) e.preventDefault() }} onDrop={(e) => { e.preventDefault(); drop() }}>
       {goals.map((g) => {
         const achieved = g.status === 'achieved'
+        const linked = isLinked(g)
+        const line = dropAt && dragId && dropAt.id === g.id ? (dropAt.after ? ' is-drop-after' : ' is-drop-before') : ''
         return (
-          <div key={g.id} className={`row goal${achieved ? ' is-done' : ''}${cheer === g.id ? ' is-cheer' : ''}`}>
-            <button className={`checkbox${achieved ? ' is-checked' : ''}`} aria-label={achieved ? '달성 취소' : '달성'}
+          <div key={g.id} className={`row goal${achieved ? ' is-done' : ''}${cheer === g.id ? ' is-cheer' : ''}${dragId === g.id ? ' is-dragging' : ''}${line}`}
+            draggable={editing !== g.id}
+            onDragStart={(e) => { setDragId(g.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', g.id) }}
+            onDragEnd={() => { setDragId(undefined); setDropAt(undefined) }}
+            onDragOver={(e) => { if (!dragId) return; e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); setDropAt({ id: g.id, after: e.clientY > r.top + r.height / 2 }) }}>
+            <button className={`checkbox${achieved ? ' is-checked' : ''}${linked ? ' is-linked' : ''}`} aria-label={achieved ? '달성 취소' : '달성'} title={linked ? '할 일을 끝내면 저절로 세요' : undefined}
               onClick={(e) => void progressTo(g, achieved ? (g.target > 1 ? g.target - 1 : 0) : g.target, e.currentTarget)}>
               {achieved && <Check strokeWidth={3} />}
             </button>
-            <span className="row__title goal__title">{g.title}</span>
-            {g.target > 1 && g.target <= 10 && (
+            {editing === g.id ? (
+              <GoalTitleInput title={g.title} onDone={(v) => void rename(g, v)} onCancel={() => setEditing(undefined)} />
+            ) : (
+              <span className="row__title goal__title is-editable" title="눌러서 이름 바꾸기" onClick={() => setEditing(g.id)}>{g.title}</span>
+            )}
+            {linked && <span className="goal__link">{linkLabel(g, names)} · {g.progress}/{g.target}</span>}
+            {!linked && g.target > 1 && g.target <= 10 && (
               <span className="goal__dots" aria-label={`${g.progress}/${g.target}`}>
                 {Array.from({ length: g.target }, (_, k) => (
                   <button key={k} className={k < g.progress ? 'is-on' : ''} aria-label={`${k + 1}번`} onClick={(e) => void progressTo(g, k + 1 === g.progress ? k : k + 1, e.currentTarget)} />
@@ -200,19 +262,25 @@ function GoalsCard({ sectionRef, inputRef, species, stage, name }: { sectionRef:
                 <span className="goal__dots-n">{g.progress}/{g.target}</span>
               </span>
             )}
-            {g.target > 10 && (
+            {!linked && g.target > 10 && (
               <span className="goal__count">
                 <button aria-label="하나 빼기" onClick={() => void progressTo(g, g.progress - 1)}>−</button>
                 {g.progress}/{g.target}
                 <button aria-label="하나 더하기" onClick={(e) => void progressTo(g, g.progress + 1, e.currentTarget)}>+</button>
               </span>
             )}
+            <span className="goal__target" aria-label="목표 수">
+              <button aria-label="목표 수 줄이기" disabled={g.target <= 1} onClick={() => void changeTarget(g, g.target - 1)}>−</button>
+              <span>{g.target}번</span>
+              <button aria-label="목표 수 늘리기" disabled={g.target >= GOAL_TARGET_MAX} onClick={() => void changeTarget(g, g.target + 1)}>+</button>
+            </span>
             {cheer === g.id && <span className="goal__cheer"><Confetti count={14} spread={60} /></span>}
             {reward(g)}
             <button className="goal__more" aria-label="목표 메뉴" onClick={(e) => setRowMenu({ goal: g, anchor: e.currentTarget })}><MoreHorizontal /></button>
           </div>
         )
       })}
+      </div>
       {drafts.map((d) => (
         <div key={d.title} className="row goal-draft" title="눌러서 고친 뒤 Enter로 퀘스트에 넣어요" onClick={() => editDraft(d.title)}>
           <span className="gs-draft-face"><CharacterArt species={species} stage={stage} size={18} /></span>
@@ -233,9 +301,29 @@ function GoalsCard({ sectionRef, inputRef, species, stage, name }: { sectionRef:
         </>
       )}
       {rowMenu && (
-        <Popover anchor={rowMenu.anchor} align="end" width={160} className="menu" onClose={() => setRowMenu(undefined)}>
+        <Popover anchor={rowMenu.anchor} align="end" width={180} className="menu" onClose={() => setRowMenu(undefined)}>
+          <MenuItem label="세는 방법…" onClick={() => { const m = rowMenu; setRowMenu(undefined); window.setTimeout(() => setLinkMenu(m), 0) }} />
+          <MenuItem label="이름 바꾸기" onClick={() => { setEditing(rowMenu.goal.id); setRowMenu(undefined) }} />
           {tab === 'this' && rowMenu.goal.status !== 'achieved' && <MenuItem label="다음 주로 넘기기" onClick={() => { void carryOver(rowMenu.goal); setRowMenu(undefined) }} />}
-          <MenuItem label="삭제" onClick={() => { void removeGoal(rowMenu.goal.id); setRowMenu(undefined) }} />
+          <MenuItem label="삭제" danger onClick={() => { void del(rowMenu.goal); setRowMenu(undefined) }} />
+        </Popover>
+      )}
+      {linkMenu && (
+        <Popover anchor={linkMenu.anchor} align="end" width={220} className="menu goal-linkmenu" onClose={() => setLinkMenu(undefined)}>
+          {([['none', null, '직접 체크'], ['tasks', null, '끝낸 할 일 모두']] as const).map(([k, id, label]) => (
+            <MenuItem key={k} label={label} active={(linkMenu.goal.link_kind ?? 'none') === k} trail={(linkMenu.goal.link_kind ?? 'none') === k ? <Check className="menu__check" /> : undefined}
+              onClick={() => { void setGoalLink(linkMenu.goal, { kind: k, id }).catch(fail); setLinkMenu(undefined) }} />
+          ))}
+          {tags.length > 0 && <div className="menu__group">태그</div>}
+          {tags.map((t) => {
+            const on = linkMenu.goal.link_kind === 'tag' && linkMenu.goal.link_id === t.id
+            return <MenuItem key={t.id} label={`#${t.name}`} active={on} trail={on ? <Check className="menu__check" /> : undefined} onClick={() => { void setGoalLink(linkMenu.goal, { kind: 'tag', id: t.id }).catch(fail); setLinkMenu(undefined) }} />
+          })}
+          {lists.length > 0 && <div className="menu__group">리스트</div>}
+          {lists.map((l) => {
+            const on = linkMenu.goal.link_kind === 'list' && linkMenu.goal.link_id === l.id
+            return <MenuItem key={l.id} label={names.lists.get(l.id) ?? l.name} active={on} trail={on ? <Check className="menu__check" /> : undefined} onClick={() => { void setGoalLink(linkMenu.goal, { kind: 'list', id: l.id }).catch(fail); setLinkMenu(undefined) }} />
+          })}
         </Popover>
       )}
       <div className="goal-add">
@@ -243,6 +331,7 @@ function GoalsCard({ sectionRef, inputRef, species, stage, name }: { sectionRef:
         <input
           ref={inputRef}
           className="addbar__input"
+          maxLength={GOAL_TITLE_MAX}
           placeholder={full ? `${tab === 'this' ? '이번' : '다음'} 주는 ${XP.goalsPerWeek}개까지 적을 수 있어요` : `${tab === 'this' ? '이번' : '다음'} 주에 하고 싶은 일 추가`}
           disabled={full}
           onKeyDown={async (e) => {
@@ -251,16 +340,22 @@ function GoalsCard({ sectionRef, inputRef, species, stage, name }: { sectionRef:
             if (!v) return
             const input = e.currentTarget
             // AI 제안을 고쳐 넣은 것이면 source 'ai', 그 제안 줄은 숨긴다
-            const r = await addGoal(week, v, pending ? 'ai' : 'manual')
+            const r = await create({ ...parseGoal(v), source: pending ? 'ai' : 'manual' })
             if (r === 'ok') {
               input.value = ''
               if (pending) { void dismissDraft(draft.reportWeek, pending); setPending(undefined) }
             }
           }}
-          onChange={(e) => { if (!e.currentTarget.value) setPending(undefined) }}
+          onChange={(e) => { setAddErr(undefined); if (!e.currentTarget.value) setPending(undefined) }}
         />
       </div>
-      {!goals.length && !drafts.length && <p className="growth-card__empty">예: 논문 하나 읽기 · 운동 3번 · 포트폴리오 첫 장 쓰기</p>}
+      {addErr && <p className="goal-add__err" role="alert">{addErr}</p>}
+      {!goals.length && !drafts.length && (
+        <div className="goal-templates">
+          <span className="growth-card__empty">날짜 없이 이 주 안에 이루고 싶은 일을 적어요</span>
+          {GOAL_TEMPLATES.map((t) => <button key={t.title} className="goal-template" onClick={() => void create(t)}><Plus />{t.title}</button>)}
+        </div>
+      )}
       {goals.length >= 2 && (
         <div className="gs-bonus">
           <span>{done === goals.length ? <>퀘스트를 모두 이뤘어요 · 보너스 <b>+{XP.kpiAll}</b></> : <>퀘스트 2개 이상 모두 이루면 <b>+{XP.kpiAll}</b></>}</span>
@@ -270,6 +365,22 @@ function GoalsCard({ sectionRef, inputRef, species, stage, name }: { sectionRef:
       )}
       <p className="goal-note">주간 KPI·리포트를 만들 때 이번 주 할 일 제목을 AI에 보내요.</p>
     </section>
+  )
+}
+
+/** 그 자리 이름 바꾸기: Enter·바깥 누르기 = 저장, Esc = 취소 */
+function GoalTitleInput({ title, onDone, onCancel }: { title: string; onDone: (v: string) => void; onCancel: () => void }) {
+  const done = useRef(false)
+  const finish = (v: string) => { if (done.current) return; done.current = true; onDone(v) }
+  return (
+    <input className="goal__title-input" defaultValue={title} autoFocus maxLength={GOAL_TITLE_MAX} aria-label="목표 이름"
+      onFocus={(e) => e.currentTarget.select()}
+      onBlur={(e) => finish(e.currentTarget.value)}
+      onKeyDown={(e) => {
+        if (e.nativeEvent.isComposing) return
+        if (e.key === 'Enter') finish(e.currentTarget.value)
+        if (e.key === 'Escape') { done.current = true; e.stopPropagation(); onCancel() }
+      }} />
   )
 }
 

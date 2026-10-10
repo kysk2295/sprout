@@ -2,6 +2,14 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-10 이번 주 목표 편집(10 v1.7 §4.6 — 사용자 요청 "이번 주 목표를 레이아웃에서 수정하고 만들 수 있게 해줘")
+- **공용 쓰기:** `@sprout/schema/goalCore`(새) — 만들기(검사: 빈 제목·60자·같은 주 같은 제목·5개)·이름·목표 수(1~99, 닿으면 그 순간 달성/올리면 풀림)·세는 방법(`kpis.link_kind` `none`·`tasks`·`tag`·`list` + `link_id`)·삭제(XP 되돌림) + 되돌리기(같은 id로 되살려 다시 판정)·순서(`sort_order` 1,2,3…)·연결 진행 맞추기(`syncLinkedGoals`). 데스크톱 `data/growth.ts`·휴대폰 `src/growth/goalCore.ts`가 이것을 부른다(예전 휴대폰 TODO 공용화 끝). 시험 `packages/schema/src/goalCore.test.ts` + 데스크톱 `tests/growth.test.ts` 끝부분.
+- **마이그레이션 없음** — 모두 있던 칸(`link_kind` 값 `tasks`만 새로 씀, text). 서버·PowerSync 손댈 것 없음.
+- **휴대폰:** 고정 칸 `이번 주` = 목표 없으면 `+ 목표 만들기`(누르면 팝업 + 입력 커서), 막대 = 진행 합 평균. 팝업 = `src/growth/GoalsSheet.tsx` 편집기([이번 주|다음 주] · 제목 누르면 이름 · `목표 [−] n번 [+]` · ⋯ 세는 방법/이름/다음 주로/삭제 · 왼쪽 밀어 삭제 + 팝업 안 되돌리기 · 길게 눌러 끌어 순서 · AI 초안 고쳐 받기 · 바닥 입력 줄). 공용 `BottomSheet`에 `overlay` 칸 추가(끄는 사본용). 옛 `Cards.tsx GoalsCard` 지움.
+- **데스크톱:** 성장 화면 퀘스트 카드에 같은 편집(제목 누르기 · 행에 올리면 `[−] n번 [+]` · ⋯ 세는 방법 팝오버 · 삭제 토스트 되돌리기 · HTML 끌어 순서 · 검사 줄 · 빈 상태 칩). 연결 진행은 앱에 늘 붙은 `LevelUpWatcher`의 `useLinkedGoalSync`, 주간 마감 판정 전에도 한 번.
+- **AI 초안:** 새 단추는 만들지 않음(원래 단추가 없고 초안은 주간 마감 때 한 번 — 주 2회 상한 그대로). 휴대폰에서도 초안 줄을 눌러 고쳐 받기 됨.
+- **배포:** 휴대폰 JS만(새 네이티브 없음), 맥 앱은 렌더러만.
+
 ## ★ 2026-10-10 캐릭터 v3 마무리 + 휴대폰 성장 홈 v1.2 (49 v1.1 §14.1 · §6.0)
 - **그림(49 §14.1):** 손 6 · 등 3 옷 층을 그 자리 기준으로 키우고 카메라 쪽으로 내밀며 3/4로 돌려 다시 구움(`kk3d.py` `HAND_POSE_SP`·`BACK_POSE_SP`, 풍선·초롱 예외). 꿀벌 날개 알갱이 = Cycles 확률 알파(OIDN은 색만) → `encode.py` `clean_translucent`(반투명 영역만 마스크 정규화 흐림). 예산: 기본 1.80 MB, 종 묶음 1.21/1.48/1.22/1.27 MB(꿀벌 포함 모두 ≤ 1.5) — 종 묶음은 내 씨앗 것만 받는다(`packFiles(sp, seed)`). 손 굽기용 `jobs/pose-*.json`은 일회용(커밋 안 함).
 - **사이트 배포 필요:** `packages/schema/art3d` 그림이 바뀜(옷 층·꿀벌 몸·회전 띠) → `cd site && npm run deploy`(`--no-gitignore`). 파일 이름이 같아 Caddy 변경 불가 캐시가 옛것을 줄 수 있음 — 이미 받은 기기는 옛 그림이 남는다(`ART3D_VERSION` 올리기는 [다음], 판단 필요).

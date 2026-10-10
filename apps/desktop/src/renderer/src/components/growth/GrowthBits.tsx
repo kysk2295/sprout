@@ -5,7 +5,7 @@ import { equipItem, giftsAt, type Item } from '@sprout/schema/wardrobe'
 import { saveLook, useRaise } from '../../data/raise'
 import { EvolutionMoment } from './EvolutionMoment'
 import { ItemPic } from './RaisePanel'
-import { isGrowthStageActive, motionReduced, useGrowth, useWeeklyClose, type XpRow } from '../../data/growth'
+import { isGrowthStageActive, motionReduced, useGrowth, useLinkedGoalSync, useWeeklyClose, type XpRow } from '../../data/growth'
 const motionReducedNow = motionReduced
 import { CharacterArt } from './CharacterArt'
 import { iGa, ro } from '../../lib/josa'
@@ -42,6 +42,7 @@ export function LevelUpWatcher() {
   const { character, progress, events } = useGrowth()
   // 10 §5 새 주 첫 실행 때 지난주 마감(앱에 늘 붙어 있는 이 감시자에서 부른다)
   useWeeklyClose()
+  useLinkedGoalSync() // 10 §4.6 연결 목표: 끝낸 할 일이 바뀌면 진행·XP를 맞춘다
   const [shown, setShown] = useState<{ level: number; prevLevel: number; stage: number; prevStage: number; gained: { label: string; amount: number }[] }>()
   const raise = useRaise()
   const [worn, setWorn] = useState<string | null>(null)

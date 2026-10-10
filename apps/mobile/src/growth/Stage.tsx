@@ -52,7 +52,7 @@ export const RaiseStage = forwardRef<StageHandle, {
   night: boolean; calm: boolean; lines: () => string; onEgg?: () => void
   week: WeekCell[]; dexN: number; freshDot?: boolean
   /** 이번 주 목표 진행(49 §6.0 고정 카드 `이번 주` 칸) */
-  goals?: { done: number; total: number }
+  goals?: { done: number; total: number; /** 진행 합 평균 0~1(10 §4.6) */ ratio?: number }
   onWard?: () => void; onDex?: () => void; onWeek?: () => void
   /** Lv 카드(%·막대)를 누르면 — 진화 길 팝업(49 §6.0) */
   onRoad?: () => void
@@ -251,8 +251,8 @@ export const RaiseStage = forwardRef<StageHandle, {
             <View style={s.quick}>
               <Quick label="옷장" bg={t.soft} ink={t.ink} dot={freshDot ? p.accent : undefined} onPress={onWard}><AccThumb id={wardIcon} size={34} /></Quick>
               <Quick label={`도감 ${dexN}/${DEX_TOTAL}`} bg={t.soft} ink={t.ink} onPress={onDex}><CharacterArt species={species} stage={st} size={34} crop="bust" /></Quick>
-              <Quick label={goals?.total ? `이번 주 ${goals.done}/${goals.total}` : '이번 주'} bg={t.soft} ink={t.ink} onPress={onWeek}>
-                <GoalMini done={goals?.done ?? 0} total={goals?.total ?? 0} track={t.track} fill={p.accent} ink={t.ink} />
+              <Quick label={goals?.total ? `이번 주 ${goals.done}/${goals.total}` : '이번 주'} a11y={goals?.total ? undefined : '이번 주 목표 만들기'} bg={t.soft} ink={t.ink} onPress={onWeek}>
+                <GoalMini ratio={goals?.ratio ?? (goals?.total ? goals.done / goals.total : 0)} total={goals?.total ?? 0} track={t.track} fill={p.accent} ink={t.ink} />
               </Quick>
             </View>
           ) : (
@@ -292,21 +292,31 @@ const XpBar = memo(function XpBar({ pct, live, reduced, track, from, to, into, t
   )
 })
 
-/** 이번 주 칸 그림: 목표 진행 막대(없으면 '목표 적기' 대신 빈 칸 표시) — 34 높이에 맞춘다 */
-function GoalMini({ done, total, track, fill, ink }: { done: number; total: number; track: string; fill: string; ink: string }) {
+/** 이번 주 칸 그림: 목표 진행 막대(진행 합 평균 — 10 §4.6). 목표가 없으면 `+ 목표 만들기`(누르면 팝업 + 입력 커서) — 34 높이에 맞춘다 */
+function GoalMini({ ratio, total, track, fill, ink }: { ratio: number; total: number; track: string; fill: string; ink: string }) {
+  if (!total) {
+    return (
+      <View style={{ height: 34, justifyContent: 'center', alignItems: 'center', width: '92%' }} accessibilityElementsHidden>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, borderRadius: 9, borderWidth: 1.2, borderStyle: 'dashed', borderColor: fill, paddingHorizontal: 6, paddingVertical: 3 }}>
+          <Text style={{ fontSize: 11.5, fontWeight: '800', color: fill }}>+</Text>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: fill }} numberOfLines={1}>목표 만들기</Text>
+        </View>
+      </View>
+    )
+  }
   return (
     <View style={{ height: 34, justifyContent: 'center', alignItems: 'center', width: '82%' }} accessibilityElementsHidden>
-      <Text style={{ fontSize: 11, fontWeight: '700', color: ink, opacity: 0.62, marginBottom: 4 }}>{total ? '목표' : '목표 없음'}</Text>
+      <Text style={{ fontSize: 11, fontWeight: '700', color: ink, opacity: 0.62, marginBottom: 4 }}>목표</Text>
       <View style={{ height: 6, borderRadius: 3, backgroundColor: track, width: '100%', overflow: 'hidden' }}>
-        <View style={{ height: 6, borderRadius: 3, backgroundColor: fill, width: `${total ? (done / total) * 100 : 0}%` }} />
+        <View style={{ height: 6, borderRadius: 3, backgroundColor: fill, width: `${Math.round(Math.max(0, Math.min(1, ratio)) * 100)}%` }} />
       </View>
     </View>
   )
 }
 
-function Quick({ label, bg, ink, dot, onPress, children }: { label: string; bg: string; ink: string; dot?: string; onPress?: () => void; children: ReactNode }) {
+function Quick({ label, a11y, bg, ink, dot, onPress, children }: { label: string; a11y?: string; bg: string; ink: string; dot?: string; onPress?: () => void; children: ReactNode }) {
   return (
-    <Pressable onPress={() => { hx.tick(); onPress?.() }} style={({ pressed }) => [s.qb, { backgroundColor: bg }, pressed && { transform: [{ scale: 0.96 }] }]} accessibilityRole="button" accessibilityLabel={label}>
+    <Pressable onPress={() => { hx.tick(); onPress?.() }} style={({ pressed }) => [s.qb, { backgroundColor: bg }, pressed && { transform: [{ scale: 0.96 }] }]} accessibilityRole="button" accessibilityLabel={a11y ?? label}>
       {children}
       <Text style={[s.qbT, { color: ink }]} numberOfLines={1}>{label}</Text>
       {dot ? <View style={[s.qbDot, { backgroundColor: dot }]} /> : null}

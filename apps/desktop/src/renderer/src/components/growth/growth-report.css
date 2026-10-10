@@ -54,3 +54,28 @@
 .levelup__gained { list-style: none; margin: 14px 0 0; padding: 10px 14px; border-radius: 8px; background: var(--color-bg-hover); text-align: left; }
 .levelup__gained li { display: flex; justify-content: space-between; font: var(--text-meta); color: var(--color-text-secondary); padding: 2px 0; }
 .levelup__gained b { color: var(--color-accent); font-weight: 600; }
+
+/* 10 §4.6 목표 고치기: 제목 누르면 그 자리 입력 · 목표 수 [−] n번 [+](행에 올리면) · 연결 꼬리표 · 끌어서 순서 · 검사 줄 · 빈 상태 칩 */
+.goal__title.is-editable { cursor: text; }
+.goal__title-input { flex: 1; min-width: 0; height: 28px; box-sizing: border-box; padding: 0 6px; margin-left: -6px; font: var(--text-body); color: var(--color-text-primary); background: var(--color-bg-app); border: 1.5px solid var(--color-border-input-focus); border-radius: var(--radius-sm); outline: none; }
+.goal__link { flex-shrink: 0; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--text-meta); color: var(--color-text-secondary); background: var(--color-bg-hover); border-radius: var(--radius-sm); padding: 1px 6px; font-variant-numeric: tabular-nums; }
+.goal .checkbox.is-linked { cursor: default; }
+.goal__target { display: flex; align-items: center; gap: 2px; font: var(--text-meta); color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 0.12s; }
+.goal:hover .goal__target, .goal:focus-within .goal__target { opacity: 1; }
+.goal__target > span { min-width: 28px; text-align: center; }
+.goal__target button { width: 20px; height: 20px; border-radius: var(--radius-sm); color: var(--color-text-tertiary); }
+.goal__target button:hover:not(:disabled) { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.goal__target button:disabled { opacity: 0.35; cursor: default; }
+.goal[draggable="true"] { cursor: grab; }
+.goal.is-dragging { opacity: 0.4; }
+.goal.is-drop-before::before, .goal.is-drop-after::before { content: ""; position: absolute; left: 12px; right: 4px; height: 2px; border-radius: 1px; background: var(--color-accent); z-index: 1; }
+.goal.is-drop-before::before { top: -1px; }
+.goal.is-drop-after::before { bottom: -1px; }
+.goal-add__err { margin: 6px 0 0 12px; font: var(--text-meta); color: var(--color-danger, #e5484d); }
+.goal-templates { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.goal-templates .growth-card__empty { flex-basis: 100%; margin: 0 0 2px; }
+.goal-template { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border-radius: 13px; font: var(--text-meta); font-weight: 600; color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
+.goal-template:hover { background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
+.goal-template svg { width: 13px; height: 13px; }
+.goal-linkmenu { max-height: 360px; overflow-y: auto; }
+.menu__group { padding: 8px 12px 4px; font: 600 11.5px/16px var(--font-family); color: var(--color-text-tertiary); }

@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { addDays } from '@sprout/schema/time'
 import {
-  aiLeft, kpiEarnsXp, parseGoalDraft, parseReportText, progressFromEvents, readTextJson, SPECIES, weekHasActivity, weekLabel, weeklyStats, XP, xpEventId, xpToNext,
+  aiLeft, parseGoalDraft, parseReportText, progressFromEvents, readTextJson, SPECIES, weekHasActivity, weekLabel, weeklyStats, XP, xpEventId, xpToNext,
   type GoalDraft, type ReportTextJson, type Species, type WeeklyStats, type WeekTask
 } from '@sprout/schema/growth'
 import { planGrantTaskXp, planReviewXp, planRevokeTaskXp, planTidyXp } from '@sprout/schema/taskCore'
+import {
+  GOAL_COLS, moveGoal, parseGoal as parseGoalCore, planCreateGoal, planRemoveGoal, planRenameGoal, planReorderGoals, planRestoreGoal, planSetGoalLink,
+  planSetGoalProgress, planSetGoalTarget, syncLinkedGoals, weekBounds, type GoalEnv, type GoalLinkKind, type GoalRow as CoreGoalRow, type GoalTitleError, type NewGoal
+} from '@sprout/schema/goalCore'
 import { askGrowthAi } from './growth-ai'
 import { getDb } from './db'
 import { insert, run, update, uuid } from './mutations'
@@ -16,7 +20,7 @@ import { weekStart } from '../lib/calendar'
 // 10 성장 — XP 원장·캐릭터·주간 목표. 레벨은 원장에서 계산한다.
 export type XpRow = { id: string; kind: string; amount: number; ref_id: string; day: string; created_at: string }
 export type CharacterRow = { id: string; name: string | null; species: Species | null; type_code: string | null; assessed_at: string | null; look_json?: string | null }
-export type GoalRow = { id: string; week_start: string; title: string; target: number; progress: number; status: string; source: string; achieved_at: string | null; sort_order: number }
+export type GoalRow = CoreGoalRow
 
 export const thisWeek = () => weekStart(dayKey())
 export const nextWeek = () => addDays(thisWeek(), 7)
@@ -76,13 +80,11 @@ export async function grantTidyXp(): Promise<number> {
   return granted
 }
 
-// ── 주간 목표 (10 §4) ──
+// ── 주간 목표 (10 §4 · §4.6) — 쓰기는 공용 @sprout/schema/goalCore(휴대폰과 같은 문장·같은 XP id) ──
+const goalEnv = (): GoalEnv => ({ today: dayKey() })
 /** "운동 3번" → 목표 3 [임시] */
-export function parseGoal(raw: string): { title: string; target: number } {
-  const m = raw.trim().match(/^(.*\S)\s*(\d{1,2})\s*(번|회)$/)
-  return m ? { title: raw.trim(), target: Math.max(1, Math.min(99, Number(m[2]))) } : { title: raw.trim(), target: 1 }
-}
-/** source 'ai' = AI 초안을 사용자가 확정한 목표(10 §4.3) */
+export const parseGoal = parseGoalCore
+/** source 'ai' = AI 초안을 사용자가 확정한 목표(10 §4.3). 검사 없이 넣는다(점검·초안·넘기기 — 예전 동작) */
 export async function addGoal(week: string, raw: string, source: 'manual' | 'ai' = 'manual'): Promise<'ok' | 'full'> {
   const { title, target } = parseGoal(raw)
   return addGoalRow(week, title, target, source)
@@ -94,69 +96,64 @@ async function addGoalRow(week: string, title: string, target: number, source: s
   await run(insert('kpis', { id: uuid(), week_start: week, title, target, progress: 0, link_kind: 'none', link_id: null, status: 'active', source, achieved_at: null, sort_order: Date.now() }))
   return 'ok'
 }
-/** 목표 삭제. 그 목표로 받은 XP는 되돌린다 — 안 그러면 "적고·이루고·지우기"로 주 3개 상한을 넘겨 XP를 벌 수 있다.
- *  모두 달성 보너스는 남은 목표가 2개 미만이거나 다 이룬 상태가 아니게 되면 되돌린다 */
-export async function removeGoal(id: string) {
-  const db = await getDb()
-  const goal = await db.get<{ week_start: string }>('SELECT week_start FROM kpis WHERE id = ?', [id])
-  const stmts: Stmt[] = [{ sql: 'DELETE FROM kpis WHERE id = ?', params: [id] }]
-  if (goal) {
-    const day = dayKey()
-    if ((await netOf(id)) > 0) stmts.push(insert('xp_events', { id: xpEventId.kpi(id, await seqOf(id)), kind: 'kpi_revoke', amount: -XP.kpi, ref_id: id, day }))
-    const bonusRef = `bonus:${goal.week_start}`
-    if ((await netOf(bonusRef)) > 0) {
-      const rest = await db.getAll<{ status: string }>('SELECT status FROM kpis WHERE week_start = ? AND id != ?', [goal.week_start, id])
-      if (rest.length < 2 || rest.some((g) => g.status !== 'achieved')) {
-        const character = await ensureCharacter()
-        stmts.push(insert('xp_events', { id: `${xpEventId.kpiAll(character.id, goal.week_start)}:${await seqOf(bonusRef)}`, kind: 'kpi_all', amount: -XP.kpiAll, ref_id: bonusRef, day }))
-      }
-    }
-  }
-  await run(...stmts)
+/** 10 §4.6 만들기: 검사(빈 제목·60자·같은 제목·5개). 'ok' 또는 이유 */
+export async function createGoal(week: string, input: NewGoal): Promise<'ok' | GoalTitleError | 'full'> {
+  const r = await planCreateGoal(await getDb(), goalEnv(), week, input)
+  if ('error' in r) return r.error
+  await run(...r.stmts)
+  return 'ok'
 }
-
-/** 그 목표로 받은 XP 합계(지급·되돌림) */
-const netOf = async (ref: string) => (await (await getDb()).get<{ n: number | null }>('SELECT sum(amount) n FROM xp_events WHERE ref_id = ?', [ref]))?.n ?? 0
-const seqOf = async (ref: string) => (await (await getDb()).get<{ n: number }>('SELECT count(*) n FROM xp_events WHERE ref_id = ?', [ref]))?.n ?? 0
-
+export async function renameGoal(goal: GoalRow, title: string): Promise<'ok' | GoalTitleError> {
+  const r = await planRenameGoal(await getDb(), goalEnv(), goal, title)
+  if (!Array.isArray(r)) return r.error
+  await run(...r)
+  return 'ok'
+}
+const runGained = async (r: { stmts: Stmt[]; gained: number }) => { await run(...r.stmts); announce(r.gained); return r.gained }
+/** 목표 수(1~99) — 진행이 닿으면 그 순간 달성, 올려서 진행보다 커지면 풀림 */
+export const setGoalTarget = async (goal: GoalRow, target: number) => runGained(await planSetGoalTarget(await getDb(), goalEnv(), goal, target))
+/** 세는 방법(직접 · 끝낸 할 일 · 태그 · 리스트) */
+export const setGoalLink = async (goal: GoalRow, link: { kind: GoalLinkKind; id?: string | null }) => runGained(await planSetGoalLink(await getDb(), goalEnv(), goal, link))
+/** 끈 목표를 before 앞(없으면 맨 아래)으로 */
+export const reorderGoal = async (ids: string[], id: string, before: string | null) => run(...planReorderGoals(goalEnv(), moveGoal(ids, id, before)))
+/** 목표 삭제. 그 목표로 받은 XP는 되돌린다(10 §9). 되돌리기 함수를 돌려준다(같은 id·진행으로 되살리고 다시 판정) */
+export async function removeGoal(id: string): Promise<() => Promise<void>> {
+  const { stmts, row } = await planRemoveGoal(await getDb(), goalEnv(), id)
+  await run(...stmts)
+  return async () => {
+    if (!row) return
+    const back = planRestoreGoal(goalEnv(), row)
+    await run(...back.stmts)
+    await runGained(await planSetGoalProgress(await getDb(), goalEnv(), back.goal, row.progress))
+  }
+}
 /** 진행을 바꾼다. 목표에 닿으면 달성(+30, 그 주 3개까지 + 모두 달성 보너스), 내려가면 되돌린다 */
 export async function setGoalProgress(goal: GoalRow, progress: number) {
-  const db = await getDb()
-  const p = Math.max(0, Math.min(goal.target, progress))
-  const reached = p >= goal.target
-  const stmts: Stmt[] = [update('kpis', goal.id, { progress: p, status: reached ? 'achieved' : 'active', achieved_at: reached ? (goal.achieved_at ?? new Date().toISOString()) : null })]
-  const day = dayKey()
-  const character = await ensureCharacter()
-  const bonusRef = `bonus:${goal.week_start}`
-  let gained = 0
-  if (reached && goal.status !== 'achieved') {
-    // 이번 주에 지금 XP를 갖고 있는 목표 수(이 목표 제외)로 XP 대상인지 본다 — "달성 수"로 세면
-    // 4·5번째를 이룬 뒤 앞 목표를 취소했다 다시 이룰 때 XP 받는 목표가 3개 아래로 줄어든다
-    const before = (await db.get<{ n: number }>(
-      'SELECT count(*) n FROM (SELECT k.id FROM kpis k JOIN xp_events x ON x.ref_id = k.id WHERE k.week_start = ? AND k.id != ? GROUP BY k.id HAVING sum(x.amount) > 0)',
-      [goal.week_start, goal.id]
-    ))?.n ?? 0
-    if (kpiEarnsXp(before) && (await netOf(goal.id)) <= 0) {
-      stmts.push(insert('xp_events', { id: xpEventId.kpi(goal.id, await seqOf(goal.id)), kind: 'kpi', amount: XP.kpi, ref_id: goal.id, day }))
-      gained += XP.kpi
-    }
-    const all = await db.getAll<{ id: string; status: string }>('SELECT id, status FROM kpis WHERE week_start = ?', [goal.week_start])
-    const allDone = all.length >= 2 && all.every((g) => g.id === goal.id || g.status === 'achieved')
-    if (allDone && (await netOf(bonusRef)) <= 0) {
-      const seq = await seqOf(bonusRef)
-      stmts.push(insert('xp_events', { id: seq ? `${xpEventId.kpiAll(character.id, goal.week_start)}:${seq}` : xpEventId.kpiAll(character.id, goal.week_start), kind: 'kpi_all', amount: XP.kpiAll, ref_id: bonusRef, day }))
-      gained += XP.kpiAll
-    }
-  } else if (!reached && goal.status === 'achieved') {
-    if ((await netOf(goal.id)) > 0) stmts.push(insert('xp_events', { id: xpEventId.kpi(goal.id, await seqOf(goal.id)), kind: 'kpi_revoke', amount: -XP.kpi, ref_id: goal.id, day }))
-    if ((await netOf(bonusRef)) > 0) stmts.push(insert('xp_events', { id: `${xpEventId.kpiAll(character.id, goal.week_start)}:${await seqOf(bonusRef)}`, kind: 'kpi_all', amount: -XP.kpiAll, ref_id: bonusRef, day }))
-  }
-  await run(...stmts)
-  announce(gained)
+  await runGained(await planSetGoalProgress(await getDb(), goalEnv(), goal, progress))
+}
+/** 10 §4.6 연결 목표를 센 수로 맞춘다(한 번에 하나씩 — 겹치지 않게 줄 세움) */
+let syncing: Promise<unknown> = Promise.resolve()
+export function syncLinked(week = thisWeek()): Promise<unknown> {
+  const go = async () => announce(await syncLinkedGoals(await getDb(), goalEnv(), week, (stmts) => run(...stmts)))
+  syncing = syncing.then(go, go).catch((e) => console.warn('[growth] 연결 목표', e))
+  return syncing
+}
+/** 앱에 늘 붙은 감시자(LevelUpWatcher)에서: 이번 주 끝낸 할 일·연결 목표가 바뀌면 맞춘다 */
+export function useLinkedGoalSync() {
+  const week = thisWeek()
+  const [from, to] = weekBounds(week)
+  const sig = useQuery<{ n: number; m: string | null; g: number }>(
+    'SELECT count(*) n, max(t.modified_at) m, (SELECT count(*) FROM task_tags) g FROM tasks t WHERE t.status = 1 AND t.deleted_at IS NULL AND t.completed_at >= ? AND t.completed_at < ?', [from, to]
+  )?.[0]
+  const linked = useQuery<{ k: string | null }>(
+    "SELECT group_concat(id || ':' || link_kind || ':' || COALESCE(link_id, '') || ':' || target || ':' || progress || ':' || status, '|') k FROM kpis WHERE week_start = ? AND link_kind IS NOT NULL AND link_kind != 'none'", [week]
+  )?.[0]?.k
+  const key = `${sig?.n ?? 0}|${sig?.m ?? ''}|${sig?.g ?? 0}|${linked ?? ''}`
+  useEffect(() => { if (linked) void syncLinked(week) }, [key, week]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 /** 다음 주로 넘기기(10 §4.5) */
-export const carryOver = (goal: GoalRow) => run(update('kpis', goal.id, { week_start: addDays(goal.week_start, 7), status: 'active', progress: 0, achieved_at: null }))
+export const carryOver = (goal: GoalRow) => run(update('kpis', goal.id, { week_start: addDays(goal.week_start, 7), status: 'active', progress: 0, achieved_at: null, sort_order: Date.now() }))
 
 // ── 주간 마감 · AI 주간 리포트 · KPI 초안 (10 §4.3, §5) ──
 export type ReportRow = { id: string; week_start: string; stats_json: string; text_json: string | null; xp_total: number; seen_at: string | null }
@@ -186,7 +183,7 @@ async function weekData(week: string) {
   const tasks: WeekTask[] = rows.map((r) => ({
     title: r.title ?? '', list: r.list, tags: tags.filter((t) => t.task_id === r.id).map((t) => t.name), day: dayKey(0, new Date(r.completed_at)), start_at: r.start_at, due_at: r.due_at
   }))
-  const goals = await db.getAll<GoalRow>('SELECT id, week_start, title, target, progress, status, source, achieved_at, sort_order FROM kpis WHERE week_start = ? ORDER BY sort_order', [week])
+  const goals = await db.getAll<GoalRow>(`SELECT ${GOAL_COLS} FROM kpis WHERE week_start = ? ORDER BY sort_order`, [week])
   const xp = await db.getAll<{ kind: string; amount: number; day: string }>('SELECT kind, amount, day FROM xp_events WHERE day >= ? AND day < ?', [week, end])
   const open = await db.getAll<{ title: string }>("SELECT title FROM tasks WHERE status = 0 AND deleted_at IS NULL AND due_at >= ? AND due_at < ? ORDER BY due_at LIMIT 15", [week, end])
   return { tasks, goals, xp, open: open.map((t) => t.title) }
@@ -195,7 +192,9 @@ async function weekData(week: string) {
 /** ① 목표 판정: until 이전 주의 진행 중 목표 — 목표 수에 닿았으면 §6 규칙대로 달성(XP 한 번만), 아니면 missed */
 async function settleGoals(until: string) {
   const db = await getDb()
-  const open = await db.getAll<GoalRow>("SELECT id, week_start, title, target, progress, status, source, achieved_at, sort_order FROM kpis WHERE week_start < ? AND status = 'active'", [until])
+  // 10 §4.6: 판정 전에 지난주 연결 목표를 한 번 센 수로 맞춘다(그 전 주는 이미 닫혔거나 그때 맞춘 진행 그대로)
+  await syncLinked(addDays(until, -7))
+  const open = await db.getAll<GoalRow>(`SELECT ${GOAL_COLS} FROM kpis WHERE week_start < ? AND status = 'active'`, [until])
   for (const g of open) {
     if (g.progress >= g.target) await setGoalProgress(g, g.progress)
     else await run(update('kpis', g.id, { status: 'missed' }))

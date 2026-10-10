@@ -27,6 +27,8 @@ export function BottomSheet(props: {
   /** 바닥 고정 줄(입력창·도구 줄). 키보드 위에 붙는다 */
   footer?: ReactNode
   label?: string
+  /** 화면 전체 좌표 위에 띄울 것(끄는 행 사본 — DragGhost는 measureInWindow 좌표라 시트 판 밖, 창 전체에 둔다) */
+  overlay?: ReactNode
 }) {
   const p = usePalette()
   const insets = useSafeAreaInsets()
@@ -90,6 +92,7 @@ export function BottomSheet(props: {
           <View style={{ flex: 1, marginBottom: hidden + (props.footer ? 0 : 40) }}>{props.children}</View>
           {props.footer ? <Animated.View style={[{ paddingBottom: (kb ? 8 : Math.max(insets.bottom, 12)) + 40 }, footStyle]}>{props.footer}</Animated.View> : null}
         </Animated.View>
+        {props.overlay}
       </GestureHandlerRootView>
     </Modal>
   )

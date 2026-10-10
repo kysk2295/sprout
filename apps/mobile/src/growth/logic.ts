@@ -10,7 +10,7 @@ import {
 } from '@sprout/schema/growth'
 
 export type XpRow = { id: string; kind: string; amount: number; ref_id: string; day: string; created_at: string }
-export type GoalRow = { id: string; week_start: string; title: string; target: number; progress: number; status: string; source: string; achieved_at: string | null; sort_order: number }
+export type GoalRow = { id: string; week_start: string; title: string; target: number; progress: number; status: string; source: string; achieved_at: string | null; sort_order: number; link_kind?: string | null; link_id?: string | null }
 export type ReportRow = { id: string; week_start: string; stats_json: string; text_json: string | null; xp_total: number; seen_at: string | null }
 export type CharacterRow = { id: string; name: string | null; species: Species | null; type_code: string | null; assessed_at: string | null }
 

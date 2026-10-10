@@ -5,7 +5,7 @@ import { TABLES } from '@sprout/schema'
 import { addDays } from '@sprout/schema/time'
 import { readTextJson, type WeeklyStats } from '@sprout/schema/growth'
 import {
-  addGoal, carryMissed, closeWeek, dismissDraft, draftGoals, ensureCharacter, isWeeklyCap, removeGoal, runWeeklyClose, setGoalProgress, thisWeek, writeReportText, type GoalRow
+  addGoal, carryMissed, closeWeek, createGoal, dismissDraft, draftGoals, ensureCharacter, isWeeklyCap, removeGoal, renameGoal, reorderGoal, runWeeklyClose, setGoalLink, setGoalProgress, setGoalTarget, syncLinked, thisWeek, writeReportText, type GoalRow
 } from '../src/renderer/src/data/growth'
 import { insert, run } from '../src/renderer/src/data/mutations'
 import { dayKey } from '../src/renderer/src/lib/dates'
@@ -227,5 +227,38 @@ assert.equal(isWeeklyCap(new Error('지금은 AI를 쓰는 사람이 많아요. 
   setGrowthStageActive(false)
   setGrowthStageActive(false)
   assert.equal(isGrowthStageActive(), false)
+}
+
+// ── 10 §4.6 목표 고치기(데스크톱 경로 = 공용 goalCore): 검사 · 목표 수 · 연결 진행 · 지우기 되돌리기 · 순서 ──
+{
+  const FW = addDays(thisWeek(), 70) // 다른 시험과 겹치지 않는 주
+  const of = () => all(`SELECT id, title, target, progress, status, link_kind, link_id, sort_order, week_start, source, achieved_at FROM kpis WHERE week_start = ? ORDER BY sort_order`, [FW]) as unknown as GoalRow[]
+  assert.equal(await createGoal(FW, { title: '  ' }), 'empty')
+  assert.equal(await createGoal(FW, { title: '운동 3번', target: 3 }), 'ok')
+  assert.equal(await createGoal(FW, { title: '운동3번' }), 'dup')
+  assert.equal(await createGoal(FW, { title: '정리하기' }), 'ok')
+  const gym = of()[0]
+  assert.equal(await renameGoal(gym, '정리하기'), 'dup')
+  assert.equal(await renameGoal(gym, '헬스 3번'), 'ok')
+  await setGoalProgress(of()[0], 2)
+  const xp0 = xpSum()
+  await setGoalTarget(of()[0], 2) // 진행 2에 닿아 그 순간 달성
+  assert.equal(of()[0].status, 'achieved')
+  assert.ok(xpSum() > xp0)
+  // 지우기 → 되돌리기: 같은 id·진행·순서, XP도 다시
+  const undo = await removeGoal(gym.id)
+  assert.equal(of().length, 1)
+  assert.equal(xpSum(), xp0)
+  await undo()
+  assert.deepEqual(of().map((g) => [g.id, g.title, g.status]), [[gym.id, '헬스 3번', 'achieved'], [of()[1].id, '정리하기', 'active']])
+  assert.equal(xpSum() > xp0, true)
+  await reorderGoal(of().map((g) => g.id), of()[1].id, of()[0].id)
+  assert.deepEqual(of().map((g) => g.title), ['정리하기', '헬스 3번'])
+  // 세는 방법 = 리스트: 그 주에 끝낸 그 리스트 할 일 수로 맞춘다
+  await setGoalLink(of()[0], { kind: 'list', id: 'l1' })
+  assert.equal(of()[0].link_kind, 'list')
+  await run(insert('tasks', { id: 'fw1', list_id: 'l1', title: '그 주 일', status: 1, completed_at: at(addDays(FW, 1)) }))
+  await syncLinked(FW)
+  assert.equal(of()[0].status, 'achieved')
 }
 console.log('growth: ok')
