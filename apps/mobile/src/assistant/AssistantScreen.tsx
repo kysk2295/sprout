@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { FONT, M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { GlassButton } from '../ui/Glass'
-import { AssistantChat, StatusPill } from './AssistantChat'
+import { AssistantChat, StatusPill, useChatScene } from './AssistantChat'
 import { clear, setDraft, useAssistant } from './store'
 
 export default function AssistantScreen() {
@@ -19,25 +19,29 @@ export default function AssistantScreen() {
   // 빠른 입력 ✦ "AI에게": /assistant?draft=… 로 쓴 글을 넘긴다(27 M-A1 ②)
   const { draft } = useLocalSearchParams<{ draft?: string }>()
   useEffect(() => { if (draft) setDraft(draft) }, [draft])
+  // 49 §8 표: 빈 대화는 장면이 상태 막대·머리 뒤부터 홈 표시줄까지 끝까지 깔린다 — 머리는 투명(선 없음), 글자는 장면 밝기 색
+  const sc = useChatScene(a)
+  const ink = sc.empty ? sc.tone.ink : p.textPrimary
+  const bottom = Math.max(insets.bottom, 8)
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: p.cardBg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[s.nav, { marginTop: insets.top, borderBottomColor: p.borderDivider }]}>
+      <View style={[s.nav, { marginTop: insets.top, borderBottomColor: sc.empty ? 'transparent' : p.borderDivider }]}>
         <GlassButton label="뒤로" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>
         <View style={s.mid}>
-          <Text style={[FONT.nav, { color: p.textPrimary }]}>AI 비서</Text>
+          <Text style={[FONT.nav, { color: ink }]}>AI 비서</Text>
           <StatusPill a={a} />
         </View>
         <GlassButton label="새 대화" disabled={a.busy || !a.messages.length} onPress={clear} style={a.busy || !a.messages.length ? { opacity: 0.4 } : undefined}>
           <SquarePen size={19} color={p.accent} />
         </GlassButton>
       </View>
-      <View style={{ flex: 1, paddingBottom: Math.max(insets.bottom, 8) }}>
-        <AssistantChat a={a} variant="full" />
+      <View style={{ flex: 1, paddingBottom: bottom, zIndex: 1 }}>
+        <AssistantChat a={a} variant="full" bleed={{ top: insets.top + M.navH, bottom }} />
       </View>
     </KeyboardAvoidingView>
   )
 }
 const s = StyleSheet.create({
-  nav: { height: M.navH, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  nav: { zIndex: 2, height: M.navH, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   mid: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }
 })

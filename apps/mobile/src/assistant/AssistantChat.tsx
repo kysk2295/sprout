@@ -55,7 +55,17 @@ export function StatusPill({ a }: { a: AssistantState }) {
   )
 }
 
-export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; variant: 'full' | 'sheet'; autoFocus?: boolean }) {
+/** 빈 대화 장면(49 §8 표) — 감싸는 화면(전체 화면 머리 · 반 시트)도 같은 값으로 머리를 투명하게·글자색을 장면에 맞춘다 */
+export function useChatScene(a: AssistantState) {
+  const p = usePalette()
+  const wear = useCharacterWear()
+  const empty = !a.messages.length && !a.busy && !(a.error && !a.busy)
+  const sceneKey = myScene(wear?.species ? wear.wear.eq?.bg : null, p.dark)
+  return { empty, sceneKey, tone: sceneTone(sceneKey) }
+}
+
+/** bleed = 장면을 대화 칸 밖으로 넓힐 길이(전체 화면: 위 = 상태 막대 + 머리, 아래 = 홈 표시줄 여백) — 흰 띠 없이 화면 끝까지 */
+export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantState; variant: 'full' | 'sheet'; autoFocus?: boolean; bleed?: { top?: number; bottom?: number } }) {
   const p = usePalette()
   const scroll = useRef<ScrollView>(null)
   const follow = useRef(true)
@@ -155,15 +165,13 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
 
   // 49 §8 표 · 시안 character-v3 wAsst: 빈 대화 = 장면 끝까지(고른 배경, 다크 = 밤 짝) + 받침 위 캐릭터 + 무엇을 도와줄까? + 유리 칩 + 입력칸.
   // 대화가 시작되면 장면은 사라지고 말풍선은 흰 바탕(긴 글 읽기)
-  const empty = !a.messages.length && !a.busy && !errShown
-  const wear = useCharacterWear()
-  const sceneKey = myScene(wear?.species ? wear.wear.eq?.bg : null, p.dark)
-  const tone = sceneTone(sceneKey)
+  const { empty, sceneKey, tone } = useChatScene(a)
+  const bt = bleed?.top ?? 0, bb = bleed?.bottom ?? 0
   const [area, setArea] = useState({ w: 0, h: 0 })
   const [barTop, setBarTop] = useState(0)
   return (
     <View style={{ flex: 1 }} onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setArea((o) => (o.w === width && o.h === height ? o : { w: width, h: height })) }}>
-      {empty && area.w ? <SceneBackdrop sceneKey={sceneKey} width={area.w} height={area.h} style={StyleSheet.absoluteFill} /> : null}
+      {empty && area.w ? <SceneBackdrop sceneKey={sceneKey} width={area.w} height={area.h + bt + bb} style={{ position: 'absolute', left: 0, top: -bt, width: area.w, height: area.h + bt + bb }} /> : null}
       <ScrollView
         ref={scroll}
         keyboardShouldPersistTaps="handled"
@@ -258,7 +266,7 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
         </Pressable>
       ) : null}
       {notice ? <Text style={[s.notice, { backgroundColor: p.toastBg }]}>{notice}</Text> : null}
-      {empty && area.w && barTop ? <EmptyChat a={a} variant={variant} sceneKey={sceneKey} tone={tone} area={area} barTop={barTop} onPick={(t) => void submit(t)} /> : null}
+      {empty && area.w && barTop ? <EmptyChat a={a} variant={variant} sceneKey={sceneKey} tone={tone} area={area} bleed={{ top: bt, bottom: bb }} barTop={barTop} onPick={(t) => void submit(t)} /> : null}
       <View onLayout={(e) => setBarTop(e.nativeEvent.layout.y)} pointerEvents="box-none">
       <Composer a={a} autoFocus={autoFocus} onSubmit={() => void submit()} />
       {a.agent ? <Text style={[s.foot, { color: empty ? tone.sub : p.textTertiary }]}>{[variant === 'full' ? '꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요' : 'Mac mini에서 돌아가요 · 인터넷은 못 봐요', left].filter(Boolean).join(' · ')}</Text>
@@ -270,7 +278,7 @@ export function AssistantChat({ a, variant, autoFocus }: { a: AssistantState; va
 
 /** 빈 대화(49 §8 표 · 시안 wAsst): 위 `무엇을 도와줄까?` + 한 줄, 받침 위 캐릭터(전체 180 · 반 시트 120 — 칩과 겹치면 줄임),
  *  입력칸 바로 위 유리 추천 칩 3개(세로). 캐릭터를 누르면 깡충 + 말풍선(40 §3.1 그대로) */
-function EmptyChat({ a, variant, sceneKey, tone, area, barTop, onPick }: { a: AssistantState; variant: 'full' | 'sheet'; sceneKey: string; tone: GlassTone; area: { w: number; h: number }; barTop: number; onPick: (text: string) => void }) {
+function EmptyChat({ a, variant, sceneKey, tone, area, bleed, barTop, onPick }: { a: AssistantState; variant: 'full' | 'sheet'; sceneKey: string; tone: GlassTone; area: { w: number; h: number }; bleed: { top: number; bottom: number }; barTop: number; onPick: (text: string) => void }) {
   const buddy = useBuddy()
   const [play, setPlay] = useState<{ move: CompanionMove; n: number }>({ move: null, n: 0 })
   const [say, setSay] = useState({ text: '', n: 0 })
@@ -291,8 +299,8 @@ function EmptyChat({ a, variant, sceneKey, tone, area, barTop, onPick }: { a: As
   const titleBottom = sheet ? 64 : 96
   const chipsTop = barTop - 10 - (chipsH || sugs.length * 52)
   // 받침 자리(장면 지도) — 칩 위로 올라오게 막고, 위 글과 겹치면 줄인다
-  const L = sceneLayout(sceneKey, area.w, area.h, 'bottom')
-  const feet = Math.min(L.perchY, chipsTop - 4)
+  const L = sceneLayout(sceneKey, area.w, area.h + bleed.top + bleed.bottom, 'bottom') // 넓힌 장면 기준 → 대화 칸 좌표로
+  const feet = Math.min(L.perchY - bleed.top, chipsTop - 4)
   const size = Math.max(72, Math.min(sheet ? 120 : 180, (feet - titleBottom) / FOOT.y))
   const left = L.perchX - size * FOOT.x, top = feet - size * FOOT.y
   return (

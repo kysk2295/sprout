@@ -36,7 +36,7 @@ export function AssistantSheet({ visible, onClose }: { visible: boolean; onClose
   return (
     <BottomSheet visible={visible} onClose={onClose} mid={0.62} head={head} label="AI 비서">
       <View style={{ flex: 1, paddingBottom: kb ? 10 : Math.max(insets.bottom, 10) }}>
-        <AssistantChat a={a} variant="sheet" autoFocus />
+        <AssistantChat a={a} variant="sheet" autoFocus bleed={{ bottom: kb ? 10 : Math.max(insets.bottom, 10) }} />
       </View>
     </BottomSheet>
   )
