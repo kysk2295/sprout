@@ -69,3 +69,15 @@ assert.ok(eventMatches({ title: 'x', notes: null, location: 'Gangnam' }, 'gang')
 assert.ok(!eventMatches({ title: 'x', notes: null, location: null }, ' '))
 
 console.log('events: ok')
+
+// 오래된 반복 일정도 오늘 기간에 보인다(2026-10-11 Codex 리뷰: 시작일부터 400회까지만 세서 사라졌다)
+{
+  const old = { start_at: '2025-01-01T09:00', end_at: '2025-01-01T10:00', repeat_rule: 'FREQ=DAILY' }
+  const got = occurrences(old, '2026-10-11', '2026-10-17')
+  assert.equal(got.length, 7)
+  assert.equal(got[0].start, '2026-10-11T09:00')
+  assert.equal(occurrences(old, '2026-10-11', '2027-12-31', 5).length, 5) // max = 보여 줄 회차 상한
+  const counted = { start_at: '2025-01-01', end_at: '2025-01-01', repeat_rule: 'FREQ=DAILY;COUNT=10' }
+  assert.equal(occurrences(counted, '2026-10-11', '2026-10-17').length, 0) // 횟수가 끝난 반복은 여전히 없음
+  console.log('events old repeat ok')
+}

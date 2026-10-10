@@ -49,6 +49,9 @@ export function parseReminders(json: string | null | undefined): string[] {
 }
 export const stringifyReminders = (list: string[]) => (list.length ? JSON.stringify([...new Set(list)]) : null)
 
+/** 기간 앞 회차 건너뛰기 안전 상한(occurrences) */
+const SKIP_GUARD = 20000
+
 export interface Occurrence { start: string; end: string; date: string; virtual: boolean }
 /**
  * 보이는 기간 [from, to](날짜)와 겹치는 회차들. 첫 회차 = 저장된 값(virtual false), 나머지는 계산(virtual true).
@@ -64,14 +67,17 @@ export function occurrences(e: Pick<EventRecord, 'start_at' | 'end_at' | 'repeat
   const spanDays = daysBetween(e.start_at, e.end_at)
   let cur = datePart(e.start_at)
   let count = rule.count
-  for (let i = 0; i < max; i++) {
+  // max는 "보여 줄 회차" 상한이다. 조회 기간 앞 회차까지 세면 오래된 반복 일정(예: 2025-01-01부터 매일)이
+  // 오늘 화면에서 통째로 사라진다(2026-10-11 Codex 리뷰) → 기간 앞 회차는 건너뛰기만 하고 세지 않는다.
+  // 건너뛰기에도 안전 상한(무한 반복 방지 — 매일 반복 약 55년)
+  for (let shown = 0, steps = 0; shown < max && steps < SKIP_GUARD + max; steps++) {
     const next = nextOccurrence({ ...rule, count }, cur, 'due')
     if (!next || next > to) break
     if (count !== undefined) count -= 1
     cur = next
     const s = hasTime(e.start_at) ? `${next}T${timePart(e.start_at)}` : next
     const en = hasTime(e.start_at) ? addMinutes(s, len) : addDays(next, spanDays)
-    if (overlaps(s, en)) out.push({ start: s, end: en, date: next, virtual: true })
+    if (overlaps(s, en)) { out.push({ start: s, end: en, date: next, virtual: true }); shown++ }
   }
   return out
 }
