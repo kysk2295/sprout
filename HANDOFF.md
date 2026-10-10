@@ -7,6 +7,9 @@
 - **기본 캐릭터(49 §15):** 종 없음 + 씨앗 컷 없음 → 두 앱 `CharacterArt`·`PlayableCharacter`가 마스코트(공용 `MASCOT`·`MASCOT_NAME '꿈틀이'`·`MASCOT_LINES`). 성장 화면·AI 비서(`톡톡…` 뺌)·아바타·위젯(`art/v6-mascot-…`)·로그인(`FloatingMascot`). 만들기 흐름·부화는 씨앗 그대로. 데이터 변경 없음.
 - **리드가 할 것:** ① 휴대폰 `npx expo prebuild` 후 기기 빌드(새 아이콘·위젯 이름) ② 맥 위젯 `npm run widget:build` ③ 사이트 배포(파비콘·PWA 아이콘) ④ Play Console 아이콘·대표 이미지 다시 올리기. 확인 못 한 것: 데스크톱 로그인 화면 실물(웹 미리보기는 늘 로그인 상태), 휴대폰 시뮬레이터 화면.
 - **결정 대기:** 마스코트 이름 `꿈틀이`는 임시.
+- **빌드(2026-10-10 오후):** 아이폰 = Release를 고윤서 iPhone 14 Pro에 직접 설치(개인 팀 BU697KN34B라 로컬 `ios/app/app.entitlements`에서 aps-environment·applesignin을 뺌 → 이 설치본은 Apple 로그인·푸시 없음, 출시 빌드는 iOS 기여자 계정으로). Android = versionCode 3 AAB `~/Desktop/kkumteul-1.0.0-3.aab`(Play 업로드는 사용자). 맥 = 위젯 다시 빌드 + `~/Desktop/Kkumteul-1.0.0-arm64.dmg`(Apple Development 서명, 공증 없음 — dist 스크립트가 끝에 exit 1을 냈지만 dmg 검사·codesign 통과). x64 맥·윈도우·사이트 다운로드 파일(GitHub Release) 교체는 안 함.
+- **사이트(같은 날):** 앱 화면 캡처 12장 새 디자인(데스크톱 웹 미리보기 1440×900 2배 → 1600×1000 WebP, 그림 주소 ?v=내용 해시), 캘린더 구역 → AI 비서 · 일기 구역, 배포됨. 성장 캡처는 마스코트(미리보기에서 씨앗 단계가 안 넘어감 — 미리보기 저장소 문제로 보임, 확인 안 함).
+- **결정 대기:** 연속 불꽃 꺼진 상태 색(지금 회색 — 사용자가 "회색으로 되어 있어"). 추천 = 연한 주황.
 - **이어서 한 것(같은 날):** 사이트 다시 빌드·배포(Railway + GitHub Pages, 새 아이콘·og.png — 6cb0aee) · **캘린더 구독 칸**(16 §2.4.1 · 38 §2.6 — 데스크톱 사이드바 늘 보임·Apple = 내장 캘린더, 휴대폰 서랍 칸 + `ext:device` 앞으로 3개월 목록 — 0dfa2cd) · **AI 비서 빈 대화 시안대로**(49 v1.4 — 장면 끝까지 + 받침 위 캐릭터 + 유리 칩 세로, 데스크톱 `CoverScene` — 00bd0f0).
 - **확인:** iOS 시뮬레이터 Release(따로 만든 시뮬레이터·derivedData, 끝나고 지움) + Mac mini, 시험 계정 mascot-1010@example.com(앱에서 삭제함) — 로그인 마스코트, 오늘 빈 상태, 성장 `꿈틀이 · 안내 달팽이`, 서랍 캘린더 구독(연결 전 안내), AI 비서 반 시트·전체. 데스크톱 웹 미리보기 — 성장 마스코트, 사이드바 캘린더 구독, AI 비서 라이트·다크. **휴대폰 `apps/mobile/ios`는 expo prebuild로 다시 만들어짐(새 아이콘).** 못 본 것: 데스크톱 로그인 실물, 캘린더를 연결한 상태의 내장 캘린더 목록, Android.
 
