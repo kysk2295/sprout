@@ -4,6 +4,7 @@
 // - 월 칸 = 캘린더 탭 월 보기와 같은 항목·순서(itemsOf + 일정 eventItems → itemsOnDay), 색 = 리스트 색/일정 색
 import { normalizeSpecies, progressFromEvents, SPECIES, STAGES } from '@sprout/schema/growth'
 import { addDays, daysBetween } from '@sprout/schema/time'
+import { MASCOT_NAME } from '@sprout/schema/art3d'
 import type { CoreDb } from '@sprout/schema/taskCore'
 import {
   buildWidgetCalendar, isoLocal, widgetAccents, widgetArtPath, widgetCalendarRange, widgetLookKey, widgetSceneKey, WIDGET_MAX_APPLIED, WIDGET_MAX_TASKS,
@@ -95,7 +96,7 @@ export function growthOf(character: WidgetData['character'], events: XpRow[], to
   const species = normalizeSpecies(character?.species) // 옛 종 id도 새 종으로(43 결정 ⑥)
   return {
     hasCharacter: !!species,
-    name: character?.name || (species ? SPECIES[species].name : null),
+    name: species ? character?.name || SPECIES[species].name : MASCOT_NAME, // 성향 조사 전 = 마스코트(49 §15)
     species,
     level: p.level,
     stage: p.stage,

@@ -6,7 +6,7 @@
 import { ReviewEntry } from '../../src/map/v2/ReviewEntry'
 import { useStatus } from '@powersync/react-native'
 import { loadProjectDeadlineToday } from '@sprout/schema/raiseCore'
-import { sceneDark } from '@sprout/schema/characterArt'
+import { MASCOT_NAME, sceneDark } from '@sprout/schema/characterArt'
 import { SPECIES, type Species } from '@sprout/schema/growth'
 import { activeDayList, dayJustDone, equipItem, isBusy, isNight, ITEM_BY_ID, momentLine, pickDayMoment, tapLines, TOUCH_LINES, trophyLine, type CharacterItemRow, type DayMoment } from '@sprout/schema/wardrobe'
 import { addDays } from '@sprout/schema/time'
@@ -76,7 +76,7 @@ export default function Growth() {
   const species: Species | null = raise.species
   const cid = raise.character?.id
   const lv = g.progress.level
-  const name = species ? (raise.character?.name || SPECIES[species].name.split(' ').pop()!) : '씨앗'
+  const name = species ? (raise.character?.name || SPECIES[species].name.split(' ').pop()!) : MASCOT_NAME
 
   // 오늘 마감(하루 장면·칩) · 일정 합
   const dueTotal = useLiveQuery<{ n: number }>('SELECT count(*) n FROM tasks WHERE deleted_at IS NULL AND status IN (0, 1) AND due_at >= ? AND due_at < ?', [today, addDays(today, 1)]).data[0]?.n ?? 0

@@ -17,7 +17,7 @@ import { AppleMark, GoogleMark } from '../ui/BrandMarks'
 import { sceneDark } from '@sprout/schema/characterArt'
 import { SceneBackdrop } from '../growth/art/Scene3D'
 import { Glass, sceneTone } from '../growth/home/glass'
-import { FloatingSeed } from '../growth/make/parts'
+import { FloatingMascot } from '../growth/make/parts'
 import { useMotionReduced } from '../growth/motion'
 import { GlassButton } from '../ui/Glass'
 
@@ -104,10 +104,10 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
         ) : null}
         <Text accessibilityRole="header" style={[s.title, { color: tone.ink }]}>{signupMode ? '씨앗 하나로\n시작해요' : '할 일을 끝낼 때마다\n함께 자라는 친구'}</Text>
         <Text style={[s.lead, { color: tone.sub }]}>
-          {signupMode ? '이메일과 비밀번호만 있으면 돼요. 가입하면 씨앗에서 닮은 친구가 깨어나요.' : '컴퓨터와 같은 계정으로 들어가면 할 일과 캐릭터가 그대로 이어져요.'}
+          {signupMode ? '이메일과 비밀번호만 있으면 돼요. 가입하면 꿈틀이가 나를 닮은 친구를 찾아 줘요.' : '컴퓨터와 같은 계정으로 들어가면 할 일과 캐릭터가 그대로 이어져요.'}
         </Text>
         <View style={s.mark} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <FloatingSeed seed={0} size={signupMode ? 104 : 132} reduced={reduced} />
+          <FloatingMascot size={signupMode ? 104 : 132} reduced={reduced} />
         </View>
         <Glass dark={darkScene} radius={26} style={s.card}>
         <View style={s.stack}>

@@ -4,7 +4,7 @@
 // 컷 번호는 useAnimatedStyle 안(UI 스레드)에서 계산, 도는 동안 층 그림(옷 포함)은 opacity 0. 띠가 없으면(종 묶음 전) 한 바퀴 대신 깡충.
 // 반응 하나가 진행 중이면 새 누르기는 판정만 하고, 더 센 반응(한 바퀴·간지럼)만 끊고 들어간다. 딴짓은 보일 때만(active + 앱 앞).
 // 보상 없음(43 §4.1) — 만지기는 아무것도 주지 않고 세지도 않는다. 말풍선은 부르는 쪽이 그린다(onTap·onSay).
-import { artFile, FOOT, headTop3d, spinOf } from '@sprout/schema/characterArt'
+import { artFile, FOOT, headTop3d, MASCOT, spinOf } from '@sprout/schema/characterArt'
 import { DIZZY, GIGGLE, HOP, landAt, newTapState, nextIdleMs, onTap as judgeTap, PET, pickIdle, PULSE, SPIN, WOBBLE, type Motion, type PlayKind } from '@sprout/schema/charPlay'
 import { normalizeSpecies } from '@sprout/schema/growth'
 import { TOUCH, TOUCH_LINES } from '@sprout/schema/wardrobe'
@@ -95,13 +95,15 @@ export const PlayableCharacter = memo(forwardRef<PlayHandle, Props>(function Pla
   const appOn = useAppActive()
   const ctx = useCharacterWear()
   useArtPackVersion()
-  const sp = normalizeSpecies(species ?? null)
-  const st = Math.min(5, Math.max(1, stage))
+  // 종이 없으면 = 성향 조사 전 → 마스코트(아기 달팽이, 49 §15)를 달팽이 1단계 그대로 만지게 한다
+  const mascot = !normalizeSpecies(species ?? null)
+  const sp = mascot ? MASCOT.sp : normalizeSpecies(species ?? null)
+  const st = mascot ? MASCOT.st : Math.min(5, Math.max(1, stage))
   const full = level === 'full' && !!sp
   const draggable = (props.draggable ?? full) && full
-  const w = wear === null ? undefined : wear ?? (ctx && sp && ctx.species === sp ? ctx.wear : undefined)
+  const w = mascot || wear === null ? undefined : wear ?? (ctx && sp && ctx.species === sp ? ctx.wear : undefined)
   const path = w?.path ?? 'a'
-  const seedNo = seed ?? w?.seed ?? ctx?.wear.seed ?? 0
+  const seedNo = mascot ? MASCOT.seed : seed ?? w?.seed ?? ctx?.wear.seed ?? 0
 
   // 회전 띠(종 묶음 — 없으면 null → 깡충)
   const strip = useMemo(() => {
@@ -304,7 +306,7 @@ export const PlayableCharacter = memo(forwardRef<PlayHandle, Props>(function Pla
   const art = (
     <Animated.View style={[s.fill, { transformOrigin: `50% ${FOOT.y * 100}%` }, body]}>
       <Animated.View style={[s.fill, artOp]}>
-        <CharacterArt species={species} stage={st} size={size} mood={face ?? mood} seed={seed} crop={crop} wear={wear} blink={full ? blink : undefined} />
+        <CharacterArt species={sp} stage={st} size={size} mood={face ?? mood} seed={mascot ? MASCOT.seed : seed} crop={crop} wear={mascot ? null : wear} blink={full ? blink : undefined} />
       </Animated.View>
       {strip ? (
         <Animated.View style={[s.fill, s.clip, stripOp]} pointerEvents="none">

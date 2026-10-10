@@ -81,7 +81,7 @@ assert.deepEqual(widgetAccents('dark'), { accentLight: '#12715E', accentDark: '#
 assert.deepEqual(widgetAccents('모름|이상'), { accentLight: '#12715E', accentDark: '#19856B' })
 assert.equal(widgetArtPath('worm', 2, 'happy'), 'art/v6-worm-2-day-happy@2x.png')
 assert.equal(widgetArtPath('worm', 2, 'happy', 'abc', 'scene-rain'), 'art/v6-worm-2-abc-rain-happy@2x.png')
-assert.equal(widgetArtPath(null, 1, 'default'), 'art/v6-egg-day@2x.png')
+assert.equal(widgetArtPath(null, 1, 'default'), 'art/v6-mascot-day-default@2x.png') // 성향 조사 전 = 마스코트(49 §15), 표정마다
 // 49 §6.1 위젯 배경 = 고른 배경의 낮 짝(자동 = 정원 낮)
 assert.equal(widgetSceneKey(null), 'scene-day')
 assert.equal(widgetSceneKey(JSON.stringify({ eq: { bg: 'auto' } })), 'scene-day')

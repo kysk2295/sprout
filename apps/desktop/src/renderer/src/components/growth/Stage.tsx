@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { bitSvg, headTop3d, SCENES3D, sceneDark, sceneGlass, sceneKeyFor, titleOf } from '@sprout/schema/characterArt'
+import { bitSvg, headTop3d, MASCOT, MASCOT_LINES, MASCOT_NAME, SCENES3D, sceneDark, sceneGlass, sceneKeyFor, titleOf } from '@sprout/schema/characterArt'
 import { SPECIES, STAGES, stageOf, XP, type Species } from '@sprout/schema/growth'
 import { addDays } from '@sprout/schema/time'
 import { cheerLine, cheerStamp, cheerToShow, streakOf } from '@sprout/schema/streak'
@@ -29,7 +29,8 @@ type Progress = { total: number; level: number; into: number; toNext: number; st
 type Pt = { x: number; y: number }
 type Evo = { from: number; to: number; level: number; prev: number }
 
-const EGG_LINES = ['톡톡… 누가 날 깨워 줄래?', '씨앗 깨우기를 누르면 내가 깨어나!']
+// 성향 조사 전 마스코트(아기 달팽이, 49 §15)의 말
+const EGG_LINES = MASCOT_LINES
 const HUD_W = 340, PANEL_W = 312
 /** 무대 배치: 장면 그림을 칸보다 넓게 깔고(가로로 밀 여유) 받침이 캐릭터 발밑 자리에 오게 한다.
  *  넓은 칸 = 캐릭터가 HUD 오른쪽 빈 곳 가운데, 좁은 칸 = 가운데(HUD는 아래 전체), 옷장·도감이 열리면 패널 왼쪽 가운데 */
@@ -55,7 +56,7 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
 }) {
   const raise = useRaise()
   const species: Species | null = raise.species
-  const name = species ? (character?.name || SPECIES[species].name) : '아직 모르는 씨앗'
+  const name = species ? (character?.name || SPECIES[species].name) : MASCOT_NAME
   const stageEl = useRef<HTMLDivElement>(null)
   const charEl = useRef<HTMLElement | null>(null)
   const pc = useRef<PlayHandle>(null)
@@ -86,7 +87,6 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
   const [wave, setWave] = useState(false)
   const [tempHand, setTempHand] = useState<string | null>(null)
   const [woke, setWoke] = useState(false)
-  const [cracks, setCracks] = useState(0)
   const [banner, setBanner] = useState<string>()
   const [evo, setEvo] = useState<Evo>()
   const [toast, setToast] = useState<{ items: Item[]; why: string; id: number }>()
@@ -338,7 +338,7 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
 
   // ── 만지기(43 §4.1 · 49 §7.1 v3) — 움직임은 PlayableCharacter(깡충 · 한 바퀴 · 간지럼 · 쓰다듬기 · 끌기 · 딴짓), 여기서는 말풍선 · 씨앗 · 졸음 ──
   const intercept = () => {
-    if (!species) { setCracks((c) => Math.min(3, c + 1)); anim([0, -6, 6, -4, 0].map((r) => ({ transform: `rotate(${r}deg)` })), { duration: 600 }); say(nextLine()); return true }
+    if (!species) { hop(); say(nextLine()); return true }
     if (sleepy) { setWoke(true); feel('default', TOUCH.wakeMs); hop(8); say(TOUCH_LINES.wake); return true }
     return false
   }
@@ -382,7 +382,7 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
   const footX = dims.w / 2 + geo.shift
   const eq = tempHand ? { ...raise.worn, hand: tempHand } : raise.worn
   const seed = raise.look.seed ?? 0
-  const head = species ? headTop3d(species, stage, raise.look.path, seed) : { x: 0.5, y: 0.2 }
+  const head = species ? headTop3d(species, stage, raise.look.path, seed) : headTop3d(MASCOT.sp, MASCOT.st, 'a', MASCOT.seed)
   geoRef.current = { left: dims.w / 2 - box / 2 + geo.shift, top: geo.footY - box * 0.9, box, headY: head.y, w: dims.w, still: reduced }
 
   // ── 연속 불꽃(43 §19): 오늘 아직이면 어제까지. 이정표 3·7·14·30은 오늘 닿은 날 한 번(기기 저장) — 칩 톡 + 반짝이 + 깡충 + 한 줄 ──
@@ -458,7 +458,7 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
 
       {/* 유리 HUD(49 §6) */}
       <div className="gs3-hud gs3-glass" aria-hidden={!!panel}>
-        <div className="lv"><em>Lv {shown.level}</em><HudName name={name} editable={!!species} onCall={callName} /><span className="ttl">{species ? `· ${titleOf(species, stage, raise.look.path)}` : '· 아직 씨앗이에요'}</span></div>
+        <div className="lv"><em>Lv {shown.level}</em><HudName name={name} editable={!!species} onCall={callName} /><span className="ttl">{species ? `· ${titleOf(species, stage, raise.look.path)}` : "· 안내 달팽이"}</span></div>
         {species ? (
           <>
             <div className="row2">
@@ -487,11 +487,10 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
           level="full" handle={pc} hostRef={charEl} reduced={reduced} disabled={!!evo}
           buttonClass="gs2-char" innerClass="gs2-char__in"
           style={{ ['--head' as string]: `${Math.round((1 - head.y) * 100)}%` }}
-          buttonLabel={species ? `${name}, Lv ${level} ${stName}. 눌러서 말 걸기` : '아직 모르는 씨앗. 눌러서 두드리기'}
+          buttonLabel={species ? `${name}, Lv ${level} ${stName}. 눌러서 말 걸기` : `${MASCOT_NAME}, 꿈틀 안내 달팽이. 눌러서 말 걸기`}
           intercept={intercept} onReact={onReact} onPetEnd={onPetEnd} onDrop={onDrop}
           species={species} stage={stage} size={box} mood={curMood} motion="idle" calm={calm} wave={wave}
           wear={{ lv: level, path: raise.look.path, eq, seed }} label={`${name} ${stName}`}
-          custom={species ? undefined : <span className="gs3-egg"><SeedPic seed={seed} cracks={Math.min(2, cracks)} size={box * 0.78} /></span>}
         />
         <div ref={followEl} className="gs2-follow" style={{ ['--head' as string]: `${Math.round((1 - head.y) * 100)}%` }} aria-hidden="true" />
       </div>

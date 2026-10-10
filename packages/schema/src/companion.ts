@@ -3,6 +3,7 @@
 // 사실(무슨 일이 났고 무엇을 할 수 있는지)은 늘 기존 해요체 문구로 따로 둔다 — 이 파일의 말은 그 위에 얹는 한 줄뿐(40 §0.1).
 import { eunNeun, iGa, ro } from './josa.ts'
 import { SPECIES, STAGES, type Species } from './growth.ts'
+import { MASCOT_NAME } from './art3d.ts'
 
 /** 40 §6: 캐릭터 얼굴(기존 6종 중 쓰는 것 + 새 얼굴 think·puzzled) */
 export type CompanionMood = 'smile' | 'happy' | 'content' | 'think' | 'puzzled' | 'sleepy'
@@ -14,7 +15,8 @@ export type CompanionFace = { mood: CompanionMood; move: CompanionMove; line: st
 export const COMPANION_SIZE = { chat: 30, quest: 18, banner: 24, m: 64, mPhone: 56, l: 96, sheet: 64 } as const
 
 /** 성향 조사 전(알)이면 앱이 고른 한 줄 앞에 붙인다(§2.3) */
-export const EGG_PREFIX = '톡톡… '
+// 성향 조사 전에는 마스코트 꿈틀이(49 §15)가 그대로 말한다 — 예전 알의 '톡톡… '은 뺐다
+export const EGG_PREFIX = ''
 const egged = (line: string, egg?: boolean) => (egg ? EGG_PREFIX + line : line)
 
 // ── 날짜·시각 말 ───────────────────────────────────────────────
@@ -162,7 +164,7 @@ export function quickReplies({ request, question, now = new Date(), lists = [] }
 
 // ── 빈 대화 · 누르기(40 §3.4) ─────────────────────────────────────
 export const TAP_LINES = ['말로 적어 주면 내가 넣을게', '"내일 3시 회의"처럼 말해 봐', '오늘 할 일 물어봐도 돼', '잠깐 쉬어도 괜찮아'] as const
-export const EGG_TAP_LINE = '톡톡… 성향 조사를 하면 깨어나!'
+export const EGG_TAP_LINE = '나는 꿈틀이야! 성향 조사를 하면 너를 닮은 친구가 태어나'
 /** 바로 전 문장은 다시 고르지 않는다 */
 export function pickLine(pool: readonly string[], prev: number, rand: () => number = Math.random): number {
   if (pool.length < 2) return 0
@@ -180,11 +182,11 @@ export function tapSpeaks(times: number[], now: number): boolean {
 /** 이름 · 종 · 레벨 · 단계 */
 export const stageLabel = (stage: number) => STAGES.find((s) => s.stage === stage)?.name ?? ''
 /** 빈 대화 둘째 줄 `차곡차곡 다람쥐 · Lv 7 친구` — 알이면 `성향 조사를 하면 깨어나요` */
-export const levelLine = (species: Species | null, level: number, stage: number) => (species ? `${SPECIES[species].name} · Lv ${level} ${stageLabel(stage)}` : '성향 조사를 하면 깨어나요')
-/** 대화 이름 줄 — 알이면 `아직 모르는 알` */
-export const companionName = (species: Species | null, name: string) => (species ? name : '아직 모르는 알')
+export const levelLine = (species: Species | null, level: number, stage: number) => (species ? `${SPECIES[species].name} · Lv ${level} ${stageLabel(stage)}` : '안내 달팽이 · 성향 조사를 하면 내 친구가 깨어나요')
+/** 대화 이름 줄 — 성향 조사 전이면 마스코트 이름 */
+export const companionName = (species: Species | null, name: string) => (species ? name : MASCOT_NAME)
 /** 캐릭터 버튼 이름(스크린 리더) */
-export const companionLabel = (species: Species | null, name: string, level: number, stage: number) => (species ? `${name}, Lv ${level} ${stageLabel(stage)}. 눌러서 말 걸기` : '아직 모르는 알. 눌러 보기')
+export const companionLabel = (species: Species | null, name: string, level: number, stage: number) => (species ? `${name}, Lv ${level} ${stageLabel(stage)}. 눌러서 말 걸기` : `${MASCOT_NAME}, 꿈틀 안내 달팽이. 눌러서 말 걸기`)
 
 // ── 빈 상태 한 줄(40 §4) ─────────────────────────────────────────
 const isNight = (h: number) => h >= 23 || h < 6

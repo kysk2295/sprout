@@ -6,7 +6,7 @@
 // level 'full' = 전부(성장 홈 · 만들기 흐름) · 'light' = 누르기 = 깡충만(AI 비서 빈 대화처럼 캐릭터가 큰 자리 — 딴짓 없음).
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type CSSProperties, type MutableRefObject, type ReactNode, type Ref } from 'react'
 import { GIGGLE, HOP, IDLE, landAt, newTapState, nextIdleMs, onTap, PET, pickIdle, PULSE, sample, SPIN, spinFrame, WOBBLE, type Motion, type PlayKind } from '@sprout/schema/charPlay'
-import { HEART_SVG, headTop3d, spinOf } from '@sprout/schema/characterArt'
+import { HEART_SVG, MASCOT, headTop3d, spinOf } from '@sprout/schema/characterArt'
 import { normalizeSpecies, stageOf } from '@sprout/schema/growth'
 import { TOUCH } from '@sprout/schema/wardrobe'
 import { artUrl } from './art3dUrls'
@@ -66,10 +66,12 @@ export function PlayableCharacter(props: PlayableCharacterProps) {
   const { species, stage = 1, size = 120, mood, wear, seed, crop, tight } = art
   const full = level === 'full'
   const ctx = useCharacterWear()
-  const sp = custom ? null : normalizeSpecies(species ?? null)
-  const st = Math.min(5, Math.max(1, stage))
-  const w = wear === null ? undefined : wear ?? (ctx && sp && ctx.species === sp && stageOf(ctx.level) === st ? ctx.wear : undefined)
-  const seedNo = seed ?? w?.seed ?? ctx?.wear.seed ?? 0
+  // 종이 없으면 = 성향 조사 전 → 마스코트(아기 달팽이, 49 §15)를 달팽이 1단계 그대로 만지게 한다. 씨앗 컷(cracks·turn)을 넘기면 씨앗 그대로
+  const mascot = !custom && !normalizeSpecies(species ?? null) && art.cracks == null && art.turn == null
+  const sp = custom ? null : mascot ? MASCOT.sp : normalizeSpecies(species ?? null)
+  const st = mascot ? MASCOT.st : Math.min(5, Math.max(1, stage))
+  const w = mascot || wear === null ? undefined : wear ?? (ctx && sp && ctx.species === sp && stageOf(ctx.level) === st ? ctx.wear : undefined)
+  const seedNo = mascot ? MASCOT.seed : seed ?? w?.seed ?? ctx?.wear.seed ?? 0
   const fullCrop = !tight && crop !== 'bust' && (crop === 'full' || size > 40)
   const spin = useMemo(() => (full && sp && fullCrop ? spinOf(sp, st, w?.path, seedNo) : null), [full, sp, fullCrop, st, w?.path, seedNo])
   const spinUrl = spin ? artUrl(spin.key, spin.px) : null
@@ -325,7 +327,7 @@ export function PlayableCharacter(props: PlayableCharacterProps) {
   const body = (
     <span ref={innerEl} className={`ply-in${innerClass ? ` ${innerClass}` : ''}`}>
       <span ref={moveEl} className="ply-move">
-        <span ref={artEl} className="ply-art">{custom ?? <CharacterArt {...art} mood={face ?? mood} />}</span>
+        <span ref={artEl} className="ply-art">{custom ?? <CharacterArt {...art} {...(mascot ? { species: MASCOT.sp, stage: MASCOT.st, seed: MASCOT.seed, wear: null } : null)} mood={face ?? mood} />}</span>
         {spinUrl && spin ? (
           <span ref={spinEl} className="ply-spin" aria-hidden="true">
             <img ref={spinImg} src={spinUrl} alt="" draggable={false} decoding="async" style={{ width: size * spin.frames, height: size }} />

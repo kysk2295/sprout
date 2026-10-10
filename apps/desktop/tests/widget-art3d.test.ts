@@ -16,11 +16,10 @@ const DIR = resolve('packages/schema/art3d')
 { // 표정 3개가 mood5 이름으로
   for (const m of ['default', 'happy', 'sleepy'] as const) assert.ok(widgetArtPlan('bee', 2, m).files.some((f) => f.includes(`-face-${m}@`)))
 }
-{ // 씨앗(종 모름) = 앞모습 한 장 · 없는 껍질은 0번으로
-  const p = widgetArtPlan(null, 1, 'default', JSON.stringify({ seed: 3 }))
-  assert.equal(p.files.length, 1)
-  assert.match(p.files[0], /^seed\d-t00@512\.webp$/)
-  assert.ok(existsSync(resolve(DIR, p.files[0])), p.files[0])
+{ // 종 모름(성향 조사 전) = 마스코트 아기 달팽이(49 §15) — 고른 씨앗·옷·단계와 상관없이 snail-1s0 + 얼굴
+  const p = widgetArtPlan(null, 4, 'happy', JSON.stringify({ seed: 3, eq: { hat: 'beanie' } }))
+  assert.deepEqual(p.files, ['snail-1s0@384.webp', 'snail-1-face-happy@384.webp'])
+  if (existsSync(DIR)) for (const f of p.files) assert.ok(existsSync(resolve(DIR, f)), f)
 }
 { // 모든 종·단계: 몸 층 파일이 있다(패키지 extraResources 필터 *@512 · seed*-t00@320과 맞는지)
   for (const sp of ['snail', 'frog', 'bee', 'worm'] as const) for (let st = 1; st <= 5; st++) {

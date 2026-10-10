@@ -1,6 +1,7 @@
 import { Check, ChevronRight, MoreHorizontal, Plus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { normalizeSpecies, SPECIES, XP, type Species } from '@sprout/schema/growth'
+import { MASCOT_NAME } from '@sprout/schema/art3d'
 import { activeDayList } from '@sprout/schema/wardrobe'
 import { RAISE_PANEL } from '../../data/raise'
 import { addDays } from '@sprout/schema/time'
@@ -50,7 +51,7 @@ function GrowthHome({ onSurvey, onReview }: { onSurvey: () => void; onReview: ()
   const goalInputRef = useRef<HTMLInputElement>(null)
   const diaryRef = useRef<HTMLElement>(null)
   const species = normalizeSpecies(character?.species)
-  const name = species ? (character?.name || SPECIES[species].name) : '알'
+  const name = species ? (character?.name || SPECIES[species].name) : MASCOT_NAME
   const today = dayKey()
   const week = thisWeek()
 

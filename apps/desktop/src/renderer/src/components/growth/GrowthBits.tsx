@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cumulativeXp, normalizeSpecies, SPECIES, STAGES } from '@sprout/schema/growth'
+import { MASCOT_NAME } from '@sprout/schema/art3d'
 import { equipItem, giftsAt, type Item } from '@sprout/schema/wardrobe'
 import { saveLook, useRaise } from '../../data/raise'
 import { EvolutionMoment } from './EvolutionMoment'
@@ -24,7 +25,7 @@ export function SidebarCharacter({ onOpen }: { onOpen: () => void }) {
   }, [])
   useEffect(() => { if (!pop) return; const t = window.setTimeout(() => setPop(0), 900); return () => window.clearTimeout(t) }, [pop])
   const species = character?.species ?? null
-  const name = species ? (character?.name || SPECIES[species].name) : '아직 모르는 알'
+  const name = species ? (character?.name || SPECIES[species].name) : MASCOT_NAME
   return (
     <button className="side-character" onClick={onOpen} title="성장">
       <CharacterArt species={species} stage={progress.stage} size={36} mood={pop ? 'happy' : 'default'} />
@@ -58,7 +59,7 @@ export function LevelUpWatcher() {
       // 01 §3.3 알림 패널 기록(레벨업 창·무대로 바로 보니 읽음으로)
       {
         const prev = STAGES.filter((s) => seen >= s.from).pop()!.stage
-        const who = character.species ? (character.name || SPECIES[character.species].name) : '알'
+        const who = character.species ? (character.name || SPECIES[character.species].name) : MASCOT_NAME
         const stageName = STAGES.find((s) => s.stage === progress.stage)!.name
         addNotice({ kind: 'levelup', key: `levelup:${character.id}:${progress.level}`, title: progress.stage > prev ? `${iGa(who)} ${ro(stageName)} 자랐어요` : `레벨 ${iGa(String(progress.level))} 됐어요`, body: `Lv ${progress.level} · ${stageName}`, target: { view: 'growth' }, read: true })
       }
@@ -83,7 +84,7 @@ export function LevelUpWatcher() {
   const evolved = shown.stage > shown.prevStage
   const stageName = STAGES.find((s) => s.stage === shown.stage)!.name
   const prevName = STAGES.find((s) => s.stage === shown.prevStage)!.name
-  const who = species ? (character.name || SPECIES[species].name) : '알'
+  const who = species ? (character.name || SPECIES[species].name) : MASCOT_NAME
   return createPortal(
     <div className="modal-scrim" onMouseDown={(e) => e.target === e.currentTarget && setShown(undefined)}>
       <div className="levelup" role="dialog" aria-label="레벨업">

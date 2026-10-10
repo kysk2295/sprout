@@ -14,6 +14,7 @@ import { holidayMap } from '@sprout/schema/holidays'
 import { toWeekStart, type WeekStart } from '@sprout/schema/weekStart'
 import { addDays, datePart, daysBetween, hasTime } from '@sprout/schema/time'
 import { widgetArtPath, widgetLookKey, widgetSceneKey } from '@sprout/schema/widget'
+import { MASCOT_NAME } from '@sprout/schema/art3d'
 import { colorOf, DEFAULT_OPTIONS, itemsOf, rangeOf, type CalOptions } from '../renderer/src/lib/calendar'
 import { TASK_COLUMNS } from '../renderer/src/data/taskQueries'
 import type { ExtEvent } from '../shared/calendars'
@@ -134,7 +135,7 @@ export function growthOf(character: { name: string | null; species: string | nul
   const species = normalizeSpecies(character?.species) // 옛 종 id도 새 종으로(43 결정 ⑥)
   return {
     hasCharacter: !!species,
-    name: character?.name || (species ? SPECIES[species].name : null),
+    name: species ? character?.name || SPECIES[species].name : MASCOT_NAME, // 성향 조사 전 = 마스코트(49 §15)
     species,
     level: p.level,
     stage: p.stage,

@@ -305,7 +305,7 @@ object WidgetRender {
     val art = WidgetStore.safe(ctx, g.optString("art"))
     val bmp = if (art != null && art.exists()) BitmapFactory.decodeFile(art.path) else null
     if (bmp != null) rv.setImageViewBitmap(R.id.sw_art, bmp) else rv.setImageViewResource(R.id.sw_art, ctx.applicationInfo.icon)
-    rv.setTextViewText(R.id.sw_name, if (g.isNull("name")) "알" else g.optString("name"))
+    rv.setTextViewText(R.id.sw_name, if (g.isNull("name")) "꿈틀이" else g.optString("name"))
     rv.setTextViewText(R.id.sw_level, "Lv ${g.optInt("level")} · ${g.optString("stageName")}")
     val into = g.optInt("xpInto")
     val toNext = g.optInt("xpToNext").coerceAtLeast(1)

@@ -117,8 +117,8 @@ export function SeedStill({ src, size }: { src: ImageSourcePropType | null; size
   )
 }
 
-/** 0단계 둥실(3.6초, ±10px · ±2°) */
-export function FloatingSeed({ seed, size, reduced }: { seed: number; size: number; reduced: boolean }) {
+/** 둥실(3.6초, ±10px · ±2°) — 움직임 줄이기면 멈춤 */
+function useFloat(reduced: boolean) {
   const v = useSharedValue(0)
   useEffect(() => {
     if (reduced) { v.value = 0.5; return }
@@ -126,8 +126,23 @@ export function FloatingSeed({ seed, size, reduced }: { seed: number; size: numb
     v.value = withRepeat(withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.sin) }), -1, true)
     return () => cancelAnimation(v)
   }, [reduced, v])
-  const a = useAnimatedStyle(() => ({ transform: [{ translateY: -10 * v.value }, { rotate: `${-2 + 4 * v.value}deg` }] }))
+  return useAnimatedStyle(() => ({ transform: [{ translateY: -10 * v.value }, { rotate: `${-2 + 4 * v.value}deg` }] }))
+}
+
+/** 0단계 둥실 씨앗 */
+export function FloatingSeed({ seed, size, reduced }: { seed: number; size: number; reduced: boolean }) {
+  const a = useFloat(reduced)
   return <Animated.View style={a}><SeedStill src={seedSrc(seed, 0)} size={size} /></Animated.View>
+}
+
+/** 둥실 마스코트 꿈틀이(아기 달팽이) — 로그인(45 v1.1 · 49 §15) */
+export function FloatingMascot({ size, reduced }: { size: number; reduced: boolean }) {
+  const a = useFloat(reduced)
+  return (
+    <Animated.View style={a}>
+      <View style={{ width: size, height: size }} pointerEvents="none"><SeedShadow size={size} /><CharacterArt species={null} size={size} mood="happy" /></View>
+    </Animated.View>
+  )
 }
 
 /** 회전 컷 한 장 — 지금 컷일 때만 보인다 */

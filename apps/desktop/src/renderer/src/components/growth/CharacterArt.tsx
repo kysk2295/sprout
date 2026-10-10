@@ -4,7 +4,7 @@
 // 실루엣·잠김 = 같은 층 모양(CSS mask)에 한 색 — 따로 구운 그림·filter 없음(40 §7).
 // 입힌 옷: wear를 넘기지 않으면 CharacterWearProvider(내 캐릭터의 모습·레벨)를 쓴다 — 같은 종·같은 단계일 때만.
 import { createContext, memo, useContext, useMemo, type CSSProperties, type ReactNode } from 'react'
-import { SEED_PX, cropBox, layers3d, pickPx, seedCrackKey, seedTurnKey, type Box, type Crop, type Detail } from '@sprout/schema/characterArt'
+import { MASCOT, SEED_PX, cropBox, layers3d, mascotLayers, pickPx, seedCrackKey, seedTurnKey, type Box, type Crop, type Detail } from '@sprout/schema/characterArt'
 import { normalizeSpecies, stageOf, type Species } from '@sprout/schema/growth'
 import type { Equip, Path } from '@sprout/schema/wardrobe'
 import { artUrl } from './art3dUrls'
@@ -71,7 +71,14 @@ export const CharacterArt = memo(function CharacterArt({ species, stage = 1, siz
   const cr = tight ? 'bust' : crop === 'bust' || (crop !== 'full' && size <= 40) ? 'bust' : 'full'
   const tint = silhouette ? (typeof silhouette === 'string' ? silhouette : '#FFFFFF') : lock ? (typeof lock === 'string' ? lock : LOCK) : null
   const idle = motion === 'idle'
+  // 종이 없고 씨앗 컷(cracks·turn)도 안 넘기면 = 성향 조사 전 기본 캐릭터 → 마스코트(49 §15)
+  const mascot = !sp && cracks == null && turn == null
   const { keys, box, sleepy } = useMemo(() => {
+    if (mascot) {
+      const L = mascotLayers(mood, size)
+      const face = L.find((l) => l.kind === 'face')!.key
+      return { keys: L.map((l) => l.key), box: cropBox(MASCOT.sp, MASCOT.st, cr, 'a', MASCOT.seed), sleepy: tint ? null : face.replace(/-face-[a-z]+$/, '-face-sleepy') }
+    }
     if (!sp) {
       const k = cracks ? seedCrackKey(seedNo, cracks) : seedTurnKey(seedNo, turn ?? 0)
       return { keys: [k], box: (cr === 'bust' ? { x: 0.12, y: 0.06, w: 0.76, h: 0.76 } : { x: 0, y: 0, w: 1, h: 1 }) as Box, sleepy: null as string | null }
@@ -79,14 +86,14 @@ export const CharacterArt = memo(function CharacterArt({ species, stage = 1, siz
     const L = layers3d(sp, st, { path: w?.path, seed: seedNo, eq: w?.eq, mood, size })
     const face = L.find((l) => l.kind === 'face')!.key
     return { keys: L.map((l) => l.key), box: cropBox(sp, st, cr, w?.path, seedNo), sleepy: tint ? null : face.replace(/-face-[a-z]+$/, '-face-sleepy') }
-  }, [sp, st, w?.path, w?.eq?.hat, w?.eq?.neck, w?.eq?.hand, w?.eq?.back, seedNo, mood, size, cracks, turn, cr, tint])
+  }, [sp, st, w?.path, w?.eq?.hat, w?.eq?.neck, w?.eq?.hand, w?.eq?.back, seedNo, mood, size, cracks, turn, cr, tint, mascot])
   const full = size / box.w
-  const px = sp ? pickPx(full, 2) : SEED_PX
+  const px = sp || mascot ? pickPx(full, 2) : SEED_PX
   const pos: CSSProperties = { width: full, height: full, left: -box.x * full, top: -box.y * full }
   const showBlink = !!sleepy && (blink || idle)
-  const cls = `character c3${sp ? ` sp-${sp} st-${st}` : ' egg'}${idle ? ' live' : ''}${calm ? ' calm' : ''}${wave ? ' wave' : ''}${blink ? ' blink' : ''}${tint ? ' tinted' : ''}${className ? ` ${className}` : ''}`
+  const cls = `character c3${sp ? ` sp-${sp} st-${st}` : mascot ? ' mascot' : ' egg'}${idle ? ' live' : ''}${calm ? ' calm' : ''}${wave ? ' wave' : ''}${blink ? ' blink' : ''}${tint ? ' tinted' : ''}${className ? ` ${className}` : ''}`
   return (
-    <span className={cls} style={{ width: size, height: size }} role="img" aria-label={label ?? (sp ? undefined : '아직 모르는 씨앗')} aria-hidden={label ? undefined : true}>
+    <span className={cls} style={{ width: size, height: size }} role="img" aria-label={label ?? (sp ? undefined : mascot ? '꿈틀 아기 달팽이' : '아직 모르는 씨앗')} aria-hidden={label ? undefined : true}>
       <span className="c3-move">
         {keys.map((k) => {
           const url = artUrl(k, px)

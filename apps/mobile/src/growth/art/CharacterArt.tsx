@@ -7,7 +7,7 @@ import { createContext, createElement, memo, useContext, useEffect, useMemo, typ
 import { Image, StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native'
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg'
 import { parseSvg, rnProps, type SvgNode } from '@sprout/schema/svgTree'
-import { BIG_PX, MID_PX, SCENE_LOW_PX, SCENE_PX, SEED_PX, SMALL_PX, artFile, cropBox, layers3d, pickPx, seedCrackKey, seedTurnKey, type Box, type Crop, type Detail } from '@sprout/schema/characterArt'
+import { BIG_PX, MASCOT, MID_PX, SCENE_LOW_PX, SCENE_PX, SEED_PX, SMALL_PX, artFile, cropBox, layers3d, mascotLayers, pickPx, seedCrackKey, seedTurnKey, type Box, type Crop, type Detail } from '@sprout/schema/characterArt'
 import { normalizeSpecies, stageOf, type Species } from '@sprout/schema/growth'
 import type { Equip, Path as LookPath } from '@sprout/schema/wardrobe'
 import { ART_FILES } from './art3dFiles'
@@ -108,7 +108,14 @@ export const CharacterArt = memo(function CharacterArt({ species, stage = 1, siz
   const seedNo = seed ?? w?.seed ?? (ctx?.wear.seed ?? 0)
   const cr = tight ? 'bust' : crop === 'bust' || (crop !== 'full' && size <= 40) ? 'bust' : 'full'
   const tint = silhouette ? (typeof silhouette === 'string' ? silhouette : '#FFFFFF') : lock ? (typeof lock === 'string' ? lock : LOCK) : undefined
+  // 종이 없고 씨앗 컷(cracks·turn)도 안 넘기면 = 성향 조사 전 기본 캐릭터 → 마스코트(49 §15)
+  const mascot = !sp && cracks == null && turn == null
   const { keys, box, sleepy } = useMemo(() => {
+    if (mascot) {
+      const L = mascotLayers(mood, size)
+      const sl = blink !== undefined && !tint ? L.find((l) => l.kind === 'face')!.key.replace(/-face-[a-z]+$/, '-face-sleepy') : null
+      return { keys: L.map((l) => l.key), box: cropBox(MASCOT.sp, MASCOT.st, cr, 'a', MASCOT.seed), sleepy: sl }
+    }
     if (!sp) {
       const k = cracks ? seedCrackKey(seedNo, cracks) : seedTurnKey(seedNo, turn ?? 0)
       return { keys: [k], box: cr === 'bust' ? { x: 0.12, y: 0.06, w: 0.76, h: 0.76 } : { x: 0, y: 0, w: 1, h: 1 }, sleepy: null as string | null }
@@ -116,9 +123,9 @@ export const CharacterArt = memo(function CharacterArt({ species, stage = 1, siz
     const L = layers3d(sp, st, { path: w?.path, seed: seedNo, eq: w?.eq, mood, size })
     const sl = blink !== undefined && !tint ? L.find((l) => l.kind === 'face')!.key.replace(/-face-[a-z]+$/, '-face-sleepy') : null
     return { keys: L.map((l) => l.key), box: cropBox(sp, st, cr, w?.path, seedNo), sleepy: sl }
-  }, [sp, st, w?.path, w?.eq?.hat, w?.eq?.neck, w?.eq?.hand, w?.eq?.back, seedNo, mood, size, cracks, turn, cr, blink !== undefined, !!tint]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sp, st, w?.path, w?.eq?.hat, w?.eq?.neck, w?.eq?.hand, w?.eq?.back, seedNo, mood, size, cracks, turn, cr, blink !== undefined, !!tint, mascot]) // eslint-disable-line react-hooks/exhaustive-deps
   const full = size / box.w
-  const px = sp ? pickPx(full) : SEED_PX
+  const px = sp || mascot ? pickPx(full) : SEED_PX
   const sleepySrc = sleepy ? artSource(sleepy, px) : null
   const img = { position: 'absolute', width: full, height: full, left: -box.x * full, top: -box.y * full, ...(tint ? { tintColor: tint } : null) } as ImageStyle
   return (

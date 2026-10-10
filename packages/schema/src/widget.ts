@@ -193,7 +193,7 @@ export function widgetSceneKey(raw: string | null | undefined): string {
 }
 /** 저장 칸 안 캐릭터 그림 경로(25 §8.4) — 조합마다 한 장. 그림 판 v6(49 3D 스프라이트 + 고른 배경 장면) + 입은 모습 열쇠(43 §17 6 — wardrobe.lookKey) + 장면 */
 export const widgetArtPath = (species: string | null, stage: number, mood: WidgetMood, look = '', scene = 'scene-day') =>
-  species ? `art/v6-${species}-${stage}${look ? `-${look}` : ''}-${scene.replace(/^scene-/, '')}-${mood}@2x.png` : `art/v6-egg-${scene.replace(/^scene-/, '')}@2x.png`
+  species ? `art/v6-${species}-${stage}${look ? `-${look}` : ''}-${scene.replace(/^scene-/, '')}-${mood}@2x.png` : `art/v6-mascot-${scene.replace(/^scene-/, '')}-${mood}@2x.png`
 
 /** "2026-10-04T09:12:03+09:00" — 로컬 시각 + 오프셋 */
 export function isoLocal(d: Date): string {

@@ -6,7 +6,7 @@
 // 만지기는 아무것도 주지 않는다(XP·아이템 없음). 움직임은 감싸개의 transform·opacity만, UI 스레드(39 §11). 반복 움직임 캐릭터는 이 무대 하나.
 // 트로피 선반은 장면에서 뺐다(49 §6) — 트로피는 도감 화면 목록에 있다.
 // 말풍선(49 §7.2): 무대 감싸개 + 만지기 공유 값으로 머리 점을 구해 UI 스레드 스프링으로 따라간다(회전 없음, 화면 안에 가둠, 다시 그리기 없음).
-import { FOOT, headTop3d, sceneDark, sceneLayout, standOnPerch, titleOf } from '@sprout/schema/characterArt'
+import { FOOT, headTop3d, MASCOT, MASCOT_LINES, MASCOT_NAME, sceneDark, sceneLayout, standOnPerch, titleOf } from '@sprout/schema/characterArt'
 import { XP, type Species } from '@sprout/schema/growth'
 import { decorOn, ITEMS, TOUCH, TOUCH_LINES, type Equip } from '@sprout/schema/wardrobe'
 import type { PlayKind } from '@sprout/schema/charPlay'
@@ -82,9 +82,9 @@ export const RaiseStage = forwardRef<StageHandle, {
   const L = useMemo(() => sceneLayout(sceneKey, width, fit.height, 'bottom'), [sceneKey, width, fit.height])
   const perchX = L.perchX, perchY = fit.top + L.perchY
   const weekBottom = topInset + 50 + 66
-  const headFrac = species ? headTop3d(species, st, look.path, seed).y - (worn.hat ? 0.07 : 0) : 0.22
+  const headFrac = species ? headTop3d(species, st, look.path, seed).y - (worn.hat ? 0.07 : 0) : headTop3d(MASCOT.sp, MASCOT.st, 'a', MASCOT.seed).y
   const box = Math.round(Math.max(120, Math.min(250, (perchY - weekBottom - 10) / (FOOT.y - headFrac))))
-  const size = species ? box : Math.round(Math.min(box, 190))
+  const size = box
   const pos = standOnPerch(perchX, perchY, size)
   const headY = pos.top + size * headFrac
 
@@ -159,8 +159,9 @@ export const RaiseStage = forwardRef<StageHandle, {
 
   // ── 만지기(49 §7.1 — 움직임·조각·진동은 PlayableCharacter, 말·얼굴은 여기) ──
   const pc = useRef<PlayHandle>(null)
+  const mascotLine = useRef(0)
   const onTap = useCallback((kind: PlayKind) => {
-    if (!species) { onEgg?.(); return }
+    if (!species) { feel('happy', 1500); say(MASCOT_LINES[mascotLine.current++ % MASCOT_LINES.length]); return } // 마스코트(49 §15) — 깨우기는 아래 단추
     if (sleepy) { setWoke(true); feel('default', TOUCH.wakeMs); say(TOUCH_LINES.wake); later(() => setWoke(false), TOUCH.wakeMs); return }
     if (kind === 'giggle') { feel('giggle', 1800); return } // 한 줄은 onSay
     feel('happy', 1500)
@@ -186,7 +187,7 @@ export const RaiseStage = forwardRef<StageHandle, {
   // ── 카드 ──
   const pct = Math.floor(Math.min(100, (progress.into / Math.max(1, progress.toNext)) * 100))
   const left = Math.max(1, Math.ceil((progress.toNext - progress.into) / XP.task))
-  const title = species ? titleOf(species, st, look.path) : '아직 모르는 씨앗'
+  const title = species ? titleOf(species, st, look.path) : `${MASCOT_NAME} · 안내 달팽이`
   const tailBg = sd ? '#EEF3F0' : '#13211B', tailInk = sd ? '#13211B' : '#FFFFFF'
   const wardIcon = wardIconOf(worn, owned)
   const doneDays = week.filter((c) => c.did).length
@@ -222,7 +223,7 @@ export const RaiseStage = forwardRef<StageHandle, {
         <PlayableCharacter ref={pc} species={species} stage={st} size={size} mood={species ? faceMood : undefined} seed={seed}
           wear={species ? { lv, path: look.path, eq, seed } : undefined} level="full" reduced={reduced} active={live} idle={!sleepy} values={pv}
           onTap={onTap} onSay={onSay} onPetStart={petStart} onDragStart={dragStart} onDrop={drop}
-          accessibilityLabel={species ? `${name}, Lv ${lv} ${title}. 눌러서 말 걸기` : '아직 모르는 씨앗. 눌러서 깨우기'} />
+          accessibilityLabel={species ? `${name}, Lv ${lv} ${title}. 눌러서 말 걸기` : `${MASCOT_NAME}, 꿈틀 안내 달팽이. 눌러서 말 걸기`} />
       </Animated.View>
       <FollowBubble bubble={bubble} bg={t.bubble} line={t.line} ink={t.ink} reduced={reduced} pv={pv} wrapV={wrapV}
         size={size} headLocal={size * headFrac} foot={FOOT.y} cx={perchX} headY={headY} screenW={width} minTop={topInset + 4} />

@@ -2,6 +2,12 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-10 마스코트 꿈틀이 — 로고·성향 조사 전 기본 캐릭터·로그인 (45 v1.1 · 49 §15)
+- **로고(45 §9):** 사용자 "이 친구를 마스코트로" → D안. 3D `snail-1s0`(알껍질 아기 달팽이)을 평면+명암으로 다시 그린 기호 `scripts/brand/glyphs.mjs` `CONCEPTS.snail`(RECOMMENDED). `node scripts/brand/build-icons.mjs snail --apply` + `build-marketing.mjs`로 데스크톱·휴대폰·사이트·스토어 아이콘·배너 교체(커밋 35e3980). 시안 `docs/screens/mockups/brand-tadpole.html`.
+- **기본 캐릭터(49 §15):** 종 없음 + 씨앗 컷 없음 → 두 앱 `CharacterArt`·`PlayableCharacter`가 마스코트(공용 `MASCOT`·`MASCOT_NAME '꿈틀이'`·`MASCOT_LINES`). 성장 화면·AI 비서(`톡톡…` 뺌)·아바타·위젯(`art/v6-mascot-…`)·로그인(`FloatingMascot`). 만들기 흐름·부화는 씨앗 그대로. 데이터 변경 없음.
+- **리드가 할 것:** ① 휴대폰 `npx expo prebuild` 후 기기 빌드(새 아이콘·위젯 이름) ② 맥 위젯 `npm run widget:build` ③ 사이트 배포(파비콘·PWA 아이콘) ④ Play Console 아이콘·대표 이미지 다시 올리기. 확인 못 한 것: 데스크톱 로그인 화면 실물(웹 미리보기는 늘 로그인 상태), 휴대폰 시뮬레이터 화면.
+- **결정 대기:** 마스코트 이름 `꿈틀이`는 임시.
+
 ## ★ 2026-10-10 탭 순서 · 연속 불꽃 · 말풍선 따라가기 · 목표 행 정렬 (20 머리 · 43 §19 · 49 §7.2 · 10 §4.6.1)
 - **탭 순서(20 머리):** 휴대폰 탭 = 할 일 · 캘린더 · **성장 · 수집함** · 더보기(`(tabs)/_layout.tsx` Tabs.Screen 순서만). 데스크톱 레일은 이미 성장(4) → AI 비서 → 수집함(6)이라 **그대로**(같은 앞뒤 — 바꾸면 휴대폰과 거꾸로), iPad ⌘1–7(46, 아직 시안)도 그대로. 딥 링크·위젯·알림·둘러보기는 탭 이름으로 가서 영향 없음.
 - **연속 불꽃(43 §19):** 보이는 칩만 `한 날 N일` → 직접 그린 불꽃 SVG + `N일 연속`(오늘 아직이면 꺼진 불꽃 + `· 오늘 하면 N+1일`, 하루 통째로 건너뛰면 조용히 `오늘 하면 1일`). **봐주는 날·얼음 없음**(오늘 아직이면 어제 숫자 그대로가 이미 하루 여유 — 결정 이유 §19.1). 해금·조건 글·트로피는 누적 그대로, 끊겨도 잃는 것 없음. 이정표 3·7·14·30 = 하루 한 번(기기 저장 `sprout.streakCheer.<캐릭터>`) 알약 톡 + 반짝이 + 깡충 + 한 줄. 공용 `@sprout/schema/streak`(streakOf·streakText·cheerToShow·cheerLine·FLAME·flameSvg, 시험 `streak.test.ts` — 시간대 경계·오늘 아직·끊김·이정표·완료 취소·누적 유지). 휴대폰 `src/growth/Flame.tsx`, 데스크톱 `components/growth/Flame.tsx`. 휴대폰 데모 `raise-demo.txt`에 `st=7&stt=0` · `act=cheer&st=7`.

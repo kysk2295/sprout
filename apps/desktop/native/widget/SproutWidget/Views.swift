@@ -336,7 +336,7 @@ struct CharacterCard: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack { Spacer(); CharacterArtView(growth: growth, size: artSize, mono: pal.mono); Spacer() }
             HStack(spacing: 5) {
-                Text(growth.name ?? "알").font(.system(size: 13, weight: .bold)).foregroundStyle(pal.primary).lineLimit(1)
+                Text(growth.name ?? "꿈틀이").font(.system(size: 13, weight: .bold)).foregroundStyle(pal.primary).lineLimit(1)
                 Text("Lv \(growth.level) · \(growth.stageName)").font(.system(size: 11)).foregroundStyle(pal.secondary).lineLimit(1)
                     .contentTransition(.numericText())
             }

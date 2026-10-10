@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { authApi, authErrorText, useAuth } from '../data/auth'
-import { SCENE_PX, SCENE_TINT, SCENES3D, SEED_PX, sceneDark, seedTurnKey } from '@sprout/schema/characterArt'
+import { SCENE_PX, SCENE_TINT, SCENES3D, sceneDark } from '@sprout/schema/characterArt'
+import { CharacterArt } from './growth/CharacterArt'
 import { artUrl } from './growth/art3dUrls'
 import { useDocDark } from './growth/MakeFlow'
 import './login-social.css'
@@ -66,7 +67,6 @@ export function LoginScreen() {
 
   const dark = useDocDark()
   const sceneKey = dark ? 'scene-dusk' : 'scene-dawn'
-  const seedUrl = artUrl(seedTurnKey(0, 0), SEED_PX)
   const switchMode = () => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setPassword('') }
 
   return (
@@ -75,10 +75,11 @@ export function LoginScreen() {
       <div className="login__drag" />
       {toast && <div className="toast" role="status"><span>{toast}</span></div>}
       <div className="login__mark">
-        {seedUrl ? <img className="login__seed" src={seedUrl} alt="" draggable={false} /> : null}
+        {/* 마스코트 꿈틀이(아기 달팽이, 45 v1.1 · 49 §15) — 예전 씨앗 자리 */}
+        <CharacterArt species={null} size={132} mood="happy" className="login__seed" />
         {/* 49 §1: 31/800 두 줄 + 회색 한 줄 */}
         <h2 className="login__hero">할 일을 끝낼 때마다<br />함께 자라는 친구</h2>
-        <p className="login__sub">{mode === 'signup' ? '가입하면 이 씨앗에서 닮은 친구가 깨어나요.' : '끝낸 일만큼 친구가 자라요.'}</p>
+        <p className="login__sub">{mode === 'signup' ? '가입하면 꿈틀이가 나를 닮은 친구를 찾아 줘요.' : '끝낸 일만큼 친구가 자라요.'}</p>
       </div>
       <form className="login__card" noValidate onSubmit={(e) => { e.preventDefault(); void submit() }}>
         <h1 className="login__title">{mode === 'login' ? '로그인' : '등록하기'}</h1>

@@ -119,6 +119,15 @@ export function sceneBehind(sceneKey: string, charFrac = 0.62): { x: number; y: 
 
 /** 옷장 칸 그림: 옷 층을 그 옷 자리로 확대해 자른 상자(49 §7). 기준 몸 = 꿀벌 친구(둥근 몸이라 모든 옷이 가운데) */
 export const ICON_BASE: { sp: Species; st: number } = { sp: 'bee', st: 3 }
+/** 꿈틀 마스코트(45 v1.1 · 49 §15) — 알껍질 아기 달팽이(흙빛 씨앗). 성향 조사 전 기본 캐릭터·로그인·앱 아이콘이 이 친구다.
+ *  만들기 흐름(씨앗 고르기·부화)은 그대로 씨앗을 그린다(cracks·turn을 넘기는 곳). */
+export const MASCOT: { sp: Species; st: 1; seed: 0 } = { sp: 'snail', st: 1, seed: 0 }
+/** 마스코트 이름(성향 조사 전 캐릭터 이름 칸·위젯) */
+export const MASCOT_NAME = '꿈틀이'
+/** 성향 조사 전 성장 화면에서 마스코트를 누르면 하는 말(차례로) */
+export const MASCOT_LINES = ['안녕! 나는 꿈틀이야. 정원을 안내해 줄게', '씨앗 깨우기를 누르면 너를 닮은 친구가 태어나!', '할 일을 끝낼 때마다 우리 정원이 자라']
+/** 마스코트 층(얼굴 표정만 바뀜, 옷 없음) */
+export const mascotLayers = (mood?: string | null, size?: number) => layers3d(MASCOT.sp, MASCOT.st, { seed: MASCOT.seed, mood, size })
 export function accIcon(id: string): { key: string; box: Box } | null {
   const key = accKey(ICON_BASE.sp, ICON_BASE.st, id)
   const bb = ACCS[key]

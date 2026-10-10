@@ -2,6 +2,7 @@
 // 열면 seen_at을 쓴다. 휴대폰엔 [다시 시도] 없음(M-G2 — 데스크톱이 다시 시도).
 import { useLiveQuery } from '../../../src/data/rows'
 import { progressFromEvents, readTextJson, SPECIES, weekLabel, XP, type Species } from '@sprout/schema/growth'
+import { MASCOT_NAME } from '@sprout/schema/art3d'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Check, ChevronLeft, Circle } from 'lucide-react-native'
 import { useEffect, useRef } from 'react'
@@ -38,7 +39,7 @@ export default function Report() {
   const stats = row ? parseStats(row.stats_json) : null
   const text = readTextJson(row?.text_json)
   const lead = stats ? reportLead(stats) : ''
-  const name = species ? (ch?.name || SPECIES[species].name) : '알'
+  const name = species ? (ch?.name || SPECIES[species].name) : MASCOT_NAME
 
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>

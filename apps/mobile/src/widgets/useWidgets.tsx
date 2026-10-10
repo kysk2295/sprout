@@ -8,7 +8,7 @@ import { parseLook, type Look } from '@sprout/schema/wardrobe'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { AppState, View } from 'react-native'
 import Svg, { ClipPath, Defs, G, Image as SvgImage, Rect } from 'react-native-svg'
-import { bodyBox, bodyKey, layers3d, sceneBehind, SCENE_LOW_PX, SCENES3D, seedTurnKey, type Box } from '@sprout/schema/characterArt'
+import { bodyBox, bodyKey, layers3d, MASCOT, sceneBehind, SCENE_LOW_PX, SCENES3D, type Box } from '@sprout/schema/characterArt'
 import { widgetSceneKey } from '@sprout/schema/widget'
 import type { Species } from '@sprout/schema/growth'
 import { useAuth } from '../data/auth'
@@ -128,7 +128,6 @@ export function useWidgets() {
 }
 
 /** 굽는 그림 층(뒤 → 앞)과 꽉 채울 상자 — 앱 CharacterArt와 같은 층(공용 layers3d), 몸 테두리(bodyBox)로 192 칸을 채운다 */
-const EGG_BOX: Box = { x: 0.12, y: 0.06, w: 0.76, h: 0.76 }
 type ArtSrc = NonNullable<ReturnType<typeof artSource>>
 /** 49 §6.1: 캐릭터 뒤 장면(고른 배경의 낮 짝 — 공용 widgetSceneKey) 390 미리보기 + 자리(sceneBehind, 캔버스 비율). 둥근 칸으로 자른다(모서리 = 칸의 20%) */
 type SceneBack = { src: ArtSrc; at: { x: number; y: number; w: number; h: number } }
@@ -137,15 +136,15 @@ function sceneBack(job: ArtJob): SceneBack | null {
   return src ? { src, at: sceneBehind(job.scene) } : null
 }
 function widgetLayers(job: ArtJob): { srcs: ArtSrc[]; box: Box; scene: SceneBack | null } {
-  const seed = job.look.seed ?? 0
   const scene = sceneBack(job)
-  if (!job.species) {
-    const src = artSource(seedTurnKey(seed, 0), 512)
-    return { srcs: src ? [src] : [], box: EGG_BOX, scene }
-  }
-  const L = layers3d(job.species, job.stage, { path: job.look.path, seed, eq: job.look.eq, mood: job.mood, size: 192 })
+  // 종 모름(성향 조사 전) = 마스코트 아기 달팽이(49 §15) — 옷·고른 씨앗 없이
+  const sp = job.species ?? MASCOT.sp
+  const st = job.species ? job.stage : MASCOT.st
+  const seed = job.species ? job.look.seed ?? 0 : MASCOT.seed
+  const path = job.species ? job.look.path : 'a'
+  const L = layers3d(sp, st, { path, seed, eq: job.species ? job.look.eq : undefined, mood: job.mood, size: 192 })
   const srcs = L.map((l) => artSource(l.key, 768)).filter((x): x is ArtSrc => x != null)
-  return { srcs, box: bodyBox(bodyKey(job.species, job.stage, job.look.path, seed)), scene }
+  return { srcs, box: bodyBox(bodyKey(sp, st, path, seed)), scene }
 }
 
 /** §7.3 캐릭터 그림 굽기: 굽기 요청이 있을 때만 화면 밖에 192pt로 그려 PNG(base64)로 저장 칸에 쓴다.

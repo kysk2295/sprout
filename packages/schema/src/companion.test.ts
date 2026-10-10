@@ -22,7 +22,7 @@ assert.equal(answerFace({ kind: 'create', count: 1, first: { start_at: null, due
 assert.equal(answerFace({ kind: 'create', count: 1, first: { start_at: null, due_at: '2026-10-06T09:30' }, now }).line, '넣어 뒀어. 오늘 오전 9시 30분이야.')
 assert.equal(answerFace({ kind: 'create', count: 1, first: { start_at: null, due_at: null }, now }).line, '넣어 뒀어.')
 assert.equal(answerFace({ kind: 'create', count: 3, now }).line, '3개 넣어 뒀어.')
-// 알이면 톡톡…
+// 성향 조사 전(마스코트)도 같은 말
 assert.equal(answerFace({ kind: 'create', count: 3, egg: true, now }).line, `${EGG_PREFIX}3개 넣어 뒀어.`)
 
 // 조회·집계
@@ -82,7 +82,7 @@ assert.equal(tapSpeaks(taps, 16000), true)
 
 // 이름·단계
 assert.equal(levelLine('bee', 7, 3), '차곡차곡 꿀벌 · Lv 7 친구')
-assert.equal(levelLine(null, 1, 1), '성향 조사를 하면 깨어나요')
+assert.equal(levelLine(null, 1, 1), '안내 달팽이 · 성향 조사를 하면 내 친구가 깨어나요')
 assert.equal(companionLabel('bee', '도토리', 7, 3), '도토리, Lv 7 친구. 눌러서 말 걸기')
 
 // 빈 상태 한 줄(실제 숫자)
