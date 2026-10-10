@@ -13,6 +13,7 @@
 파일 이름에 버전이 없다 — 사이트 링크가 `releases/latest/download/<이름>`이라 **이름을 바꾸면 사이트 버튼이 깨진다.** `latest`는 가장 최근의 정식(프리릴리스 아님) 릴리스를 가리키므로, 이 저장소에 다른 종류의 릴리스(모바일 등)를 올릴 땐 `--latest=false`로 올린다.
 
 ## 지금 올라간 것
+- **desktop-v1.0.1** (2026-10-10, latest): https://github.com/kysk2295/sprout/releases/tag/desktop-v1.0.1 — 이 Mac에서 `dist:public`(mac arm64·x64 + win)으로 만들어 `gh release create`(Actions 결제 잠금 그대로). 마스코트 아이콘·로그인, 가로 고해상도 장면, AI 비서 빈 대화, 캘린더 구독 칸. 공개 주소 arm64 dmg 크기·SHA256 일치 확인.
 - **desktop-v1.0.0** (2026-10-05): https://github.com/kysk2295/sprout/releases/tag/desktop-v1.0.0 — 세 파일 모두 **이 Mac에서 만들어** `gh release create`로 올렸다. 그때 GitHub Actions가 계정 결제 문제("account is locked due to a billing issue")로 잡을 시작하지 못했기 때문. 결제 문제가 풀리면 다음 버전부터 아래 CI로 만든다.
 - 확인: 공개 주소에서 받은 dmg·exe 체크섬이 SHA256SUMS와 같음, arm64·x64(Rosetta) dmg를 열어 꺼낸 앱이 `SPROUT_PROFILE` 시험 프로필로 로그인 화면까지 뜨고 PowerSync 확장(0.5.3)·구글 클라이언트·Apple 캘린더 도우미 확인. Windows 설치 파일은 실행해 보지 못함(win-unpacked 안에 win32 PowerSync dll·better-sqlite3 win32-x64 프리빌드·tray.ico 들어 있는 것만 확인).
 

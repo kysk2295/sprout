@@ -227,3 +227,13 @@ docker compose logs api | grep -E 'push (on|off)|\[push\]'                      
 - [x] AI 프록시(`/ai/*`) + 대기열·상한 (코드·시험 완료, 배포·마이그레이션 적용은 승인 뒤)
 - [ ] 앱 AI(비서·수집함·지도·일기·성장)를 SSH 포워딩 대신 프록시로(배포판)
 - [ ] Mac mini 부하 측정(동시 요청·응답 시간)으로 상한 값 정하기
+
+## 외부 백업 — 구글 드라이브 (2026-10-10)
+매일 `backup` 컨테이너의 pg_dump(`backups/sprout-*.dump`) → `backup/offsite.sh`가 **age로 암호화**(`backups/offsite/*.dump.age`) → **rclone으로 구글 드라이브 `sprout-backups`** 폴더, 30일 지난 것은 지움. Mac mini launchd `app.sprout.backup-offsite`(매일 09:30, 로그 `backups/offsite.log`).
+- 공개 키 `~/.config/sprout/backup-age.pub`(Mac mini) · **비밀 키 `~/.config/sprout/backup-age.key`는 운영자 MacBook에만** — 잃으면 백업을 못 푼다. 비밀번호 관리자 등 두 곳 이상에 따로 보관.
+- 구글 권한 = `drive.file`(이 백업이 만든 파일만 보고 씀).
+- **처음 한 번(운영자, 토큰이라 직접):**
+  1. MacBook 터미널: `rclone authorize "drive" "$(printf '{"scope":"drive.file"}' | base64)"` → 브라우저에서 백업용 구글 계정으로 허용 → 터미널에 나온 `{"access_token":…}` 한 덩어리를 복사.
+  2. `ssh macmini` → `/opt/homebrew/bin/rclone config create gdrive drive scope drive.file token '<복사한 덩어리>'`
+  3. 바로 올려 보기: `sh ~/sprout/server/backup/offsite.sh` → 마지막 줄 `드라이브 N개`.
+- 복원: `rclone copy gdrive:sprout-backups/sprout-<날짜>.dump.age .` → `age -d -i ~/.config/sprout/backup-age.key … > x.dump` → `pg_restore`.

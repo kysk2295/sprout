@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 외부 백업 예약(매일 09:30, 서버 백업 08:37 뒤). 설치: server/README.md "외부 백업" — __HOME__을 실제 홈으로 바꿔 ~/Library/LaunchAgents에 두고 launchctl bootstrap -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>app.sprout.backup-offsite</string>
+  <key>ProgramArguments</key>
+  <array><string>/bin/sh</string><string>__HOME__/sprout/server/backup/offsite.sh</string></array>
+  <key>StartCalendarInterval</key>
+  <dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>30</integer></dict>
+  <key>RunAtLoad</key><true/>
+  <key>StandardOutPath</key><string>__HOME__/sprout/server/backups/offsite.log</string>
+  <key>StandardErrorPath</key><string>__HOME__/sprout/server/backups/offsite.log</string>
+</dict>
+</plist>
