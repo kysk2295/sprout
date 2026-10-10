@@ -75,12 +75,65 @@ CONCEPTS.seed = {
   box: [7, 4, 86, 86]
 }
 
-export const RECOMMENDED = 'seed'
+// ── 45 v1.1 확정(2026-10-10, 사용자 "D안으로"): 알껍질 아기 달팽이 = 꿈틀 마스코트 ─────────────
+// 3D 그림 snail-1s0(달팽이 1단계 · 흙빛 씨앗)을 평면 + 부드러운 명암으로 옮겼다. 32px 이하(small)는 알껍질을 빼고 몸을 키운다(시안 F).
+// 시안: docs/screens/mockups/brand-tadpole.html (scripts/brand/tadpole-mockup.mjs)
+export const SN = { body1: '#FFF6E6', body2: '#F3DDBF', body3: '#D8B791', shell1: '#F0A88E', shell2: '#C9705C', cup1: '#E9AE80', cup2: '#C27F55', eye: '#221A14', sprout: { stem: '#9ED8A6', leaf: '#A9E3B0', leaf2: '#D2F2C4' } }
+export const SN_DARK = { ...SN, body1: '#F2E6D2', body2: '#E0C7A6', body3: '#BF9C77', cup1: '#D69C70', cup2: '#A86A44' }
+
+const leafPair = (x, y, k, c, w) =>
+  `<path d="M${x} ${y + 9 * k} V${y + 1}" stroke="${c.stem}" stroke-width="${w}" stroke-linecap="round"/>` +
+  `<path transform="translate(${x} ${y}) scale(${k})" d="M-1 1 C-8 1 -15 -3 -17 -12 C-8 -13 -2 -8 -1 1 Z" fill="${c.leaf2}"/>` +
+  `<path transform="translate(${x} ${y}) scale(${k})" d="M1 0 C2 -9 8 -15 18 -15 C18 -5 11 0 1 0 Z" fill="${c.leaf}"/>`
+let uid = 0
+export /** 아기 달팽이 — 몸 중심 (48, 60) r 21. cup = 아래 깨진 알껍질 컵 */
+function snail(c, { small = false, mono = false, cup = true } = {}) {
+  const s = c.sn
+  const id = `s${++uid}`
+  const W = '#fff', K = '#000'
+  const defs = mono ? '' : `<defs>
+    <radialGradient id="${id}b" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="${s.body1}"/><stop offset=".6" stop-color="${s.body2}"/><stop offset="1" stop-color="${s.body3}"/></radialGradient>
+    <radialGradient id="${id}s" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="${s.shell1}"/><stop offset="1" stop-color="${s.shell2}"/></radialGradient>
+    <linearGradient id="${id}c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${s.cup1}"/><stop offset="1" stop-color="${s.cup2}"/></linearGradient></defs>`
+  const body = mono ? W : `url(#${id}b)`
+  const sw = small ? 3.6 : 2.6
+  const stalk = (x1, y1, x2, y2) =>
+    `<path d="M${x1} ${y1} L${x2} ${y2}" stroke="${mono ? W : s.body2}" stroke-width="${sw}" stroke-linecap="round"/><circle cx="${x2}" cy="${y2}" r="${small ? 4.4 : 3.6}" fill="${mono ? W : s.body1}"/>`
+  const er = small ? [3.2, 3.9] : [2.3, 2.9]
+  const ink = mono ? K : s.eye
+  // 깨진 알껍질 컵: 들쭉날쭉한 윗선 + 둥근 바닥
+  const cupD = 'M18 70 L23 66.5 L27 70.5 L32 67 L36 71 L42 68 L47 72 L53 68.5 L58 72 L63 67.5 L68 71 L73 66.5 L77 70 L82 67 C83 80 70 90 50 90 C30 90 17 81 18 70 Z'
+  return defs +
+    (mono ? '' : `<circle cx="70" cy="45" r="10" fill="url(#${id}s)"/>`) +
+    (mono ? `<circle cx="70" cy="45" r="10" fill="${W}"/>` : '') +
+    stalk(41, 44, 31, 35.5) + stalk(55, 44, 65, 35.5) +
+    `<circle cx="48" cy="60" r="21" fill="${body}"/>` +
+    (mono || small ? '' : `<ellipse cx="39" cy="49" rx="6" ry="3.4" transform="rotate(-30 39 49)" fill="#fff" opacity=".45"/>`) +
+    `<ellipse cx="40.5" cy="61" rx="${er[0]}" ry="${er[1]}" fill="${ink}"/><ellipse cx="55.5" cy="61" rx="${er[0]}" ry="${er[1]}" fill="${ink}"/>` +
+    (mono || small ? '' : `<circle cx="41.3" cy="59.8" r=".85" fill="#fff"/><circle cx="56.3" cy="59.8" r=".85" fill="#fff"/>`) +
+    (small ? '' : `<path d="M45.5 67.5 Q48 70 50.5 67.5" stroke="${ink}" stroke-width="1.6" stroke-linecap="round" fill="none"/>`) +
+    (cup ? (mono ? `<path d="${cupD}" fill="${K}" stroke="${K}" stroke-width="4" stroke-linejoin="round"/><path d="${cupD}" fill="${W}"/>`
+      : `<path d="${cupD}" fill="url(#${id}c)"/><path d="M24 75 C30 83 40 86 50 86" stroke="#fff" stroke-opacity=".28" stroke-width="2" stroke-linecap="round" fill="none"/>`) : '') +
+    leafPair(48, 31.5, small ? 0.95 : 0.78, mono ? { stem: W, leaf: W, leaf2: W } : s.sprout, small ? 4.6 : 3.6)
+}
+
+CONCEPTS.snail = {
+  id: 'snail',
+  name: '아기 달팽이 (Baby Snail)',
+  nameEn: 'Baby Snail',
+  idea: '깨진 알껍질에서 막 나온 아기 달팽이 — 앱 마스코트(성향 조사 전 기본 캐릭터)가 곧 로고.',
+  mark: (c, s = false) => (s
+    ? `<g transform="translate(-12 -16) scale(1.26)">${snail(c, { small: true, mono: !!c.mono, cup: false })}</g>`
+    : snail(c, { mono: !!c.mono, cup: true })),
+  box: [10, 12, 80, 80]
+}
+
+export const RECOMMENDED = 'snail'
 
 /** 45 §3 깊은 숲 — 아이콘 판·기호 색(시안 PALS forest ic / icd) */
 export const SEED_COLORS = {
-  light: { bg1: '#167762', bg2: '#0A4337', husk: '#F5C487', eye: '#2B1F18', cheek: '#FF8B86', leaf: '#8EE6A6', leaf2: '#C6F5A6' },
-  dark: { bg1: '#12261F', bg2: '#07110D', husk: '#E8B474', eye: '#1B140F', cheek: '#E0706E', leaf: '#6FDCA0', leaf2: '#B3EE8F' }
+  light: { bg1: '#167762', bg2: '#0A4337', husk: '#F5C487', eye: '#2B1F18', cheek: '#FF8B86', leaf: '#8EE6A6', leaf2: '#C6F5A6', sn: SN },
+  dark: { bg1: '#12261F', bg2: '#07110D', husk: '#E8B474', eye: '#1B140F', cheek: '#E0706E', leaf: '#6FDCA0', leaf2: '#B3EE8F', sn: SN_DARK }
 }
 export const MONO = { husk: '#fff', leaf: '#fff', leaf2: '#fff', eye: '#000', cheek: 'none', mono: true }
 

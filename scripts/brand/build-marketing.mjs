@@ -9,7 +9,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { CONCEPTS, MONO, PALETTE, SEED_COLORS } from './glyphs.mjs'
+import { CONCEPTS, MONO, PALETTE, RECOMMENDED, SEED_COLORS } from './glyphs.mjs'
 import { variantSvg } from './compose.mjs'
 import { chromePath } from './render.mjs'
 import { execFileSync } from 'node:child_process'
@@ -18,7 +18,7 @@ import { EN, KO, enSvg, koSvg, wordEn, wordKo } from './wordmark.mjs'
 const require = createRequire(import.meta.url)
 const { PNG } = require('pngjs')
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const k = CONCEPTS.seed
+const k = CONCEPTS[RECOMMENDED]
 const L = SEED_COLORS.light
 const D = SEED_COLORS.dark
 const INK = '#13201C'
@@ -47,7 +47,7 @@ const monoGlyph = (color) => {
 // ── 1) 원본 SVG ───────────────────────────────────────
 const dir = 'docs/release/brand/kkumteul'
 for (const [v, name] of [['ios-light', 'icon'], ['ios-dark', 'icon-ios-dark'], ['ios-tinted', 'icon-ios-tinted'], ['mac-light', 'icon-mac'], ['mac-dark', 'icon-mac-dark'], ['favicon', 'icon-rounded'], ['favicon-small', 'icon-rounded-small'], ['android-fg', 'android-foreground'], ['android-bg', 'android-background'], ['android-mono', 'android-monochrome'], ['mono', 'glyph-mono'], ['mono-small', 'glyph-mono-small'], ['splash-light', 'glyph-color'], ['splash-dark', 'glyph-color-dark']])
-  made.push(out(`${dir}/${name}.svg`, variantSvg('seed', v)))
+  made.push(out(`${dir}/${name}.svg`, variantSvg(RECOMMENDED, v)))
 made.push(out(`${dir}/wordmark-ko.svg`, koSvg({ ink: INK, leaf: '#3DB79B', leaf2: '#8EE6A6' })))
 made.push(out(`${dir}/wordmark-ko-white.svg`, koSvg({ ink: '#FFFFFF', leaf: '#8EE6A6', leaf2: '#C6F5A6' })))
 made.push(out(`${dir}/wordmark-ko-mono.svg`, koSvg({ ink: '#000000', leaf: '#000000' })))
