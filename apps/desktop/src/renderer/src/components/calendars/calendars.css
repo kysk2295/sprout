@@ -81,6 +81,7 @@
 
 /* 사이드바 목록(G2) */
 .ext-sidebar__item .sidebar__icon svg { width: 18px; height: 18px; }
+.ext-sidebar__hint { margin: 0; padding: 4px 12px 8px; font-size: 12px; line-height: 1.4; color: var(--color-text-quaternary); }
 .ext-agenda__warn { display: flex; align-items: center; gap: 6px; margin: 0 var(--space-list-gutter, 20px) 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--color-text-danger) 10%, transparent); color: var(--color-text-danger); font: var(--text-meta); }
 .ext-agenda__warn svg { width: 14px; height: 14px; }
 .ext-agenda__warn button { margin-left: auto; border: 0; background: none; color: var(--color-accent); font: inherit; }

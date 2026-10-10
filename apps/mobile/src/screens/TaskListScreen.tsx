@@ -5,7 +5,7 @@
 import { useRouter, useScrollToTop } from 'expo-router'
 import { Calendar, Check, Ellipsis, FolderInput, Menu, Pin, Plus, RotateCcw, Search, Trash2, Undo2 } from 'lucide-react-native'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native'
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native'
 import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
 import { SceneBand } from '../growth/art/Scene3D'
 import { useMyBandScene } from '../growth/home/glass'
@@ -48,6 +48,8 @@ import { useEvents, useMyCalColor } from '../data/calEvents'
 import { eventItems, eventListRange, eventsByGroup, mergeEventGroups } from '../data/eventsModel'
 import { useEventMenu } from '../ui/EventMenu'
 import { EventRowView } from '../ui/EventRow'
+import { useDeviceActions } from '../calendars/actions'
+import { EXT_DEVICE_TITLE, EXT_DEVICE_VIEW, upcomingGroups, useDeviceUpcoming } from '../calendars/upcoming'
 import { DrawerEdge } from '../ui/Drawer'
 import { afterMenu } from '../ui/Drawer'
 import { FilterEditSheet, ListEditSheet, TagEditSheet, TextPrompt } from '../ui/OrgSheets'
@@ -67,6 +69,47 @@ function useToday() {
 }
 
 export default function TaskListScreen() {
+  const { view } = useTasksView()
+  return view === EXT_DEVICE_VIEW ? <ExtDeviceList /> : <TaskListMain />
+}
+
+/** 38 §2.6 서랍 캘린더 구독 › 내장 캘린더: 앞으로 3개월 휴대폰 일정(오늘 / 다음 7일 / 나중에), 읽기만. 누르면 휴대폰 일정 시트 */
+function ExtDeviceList() {
+  const p = usePalette()
+  const v = useTasksView()
+  const router = useRouter()
+  const space = useTabBarSpace()
+  const today = useToday()
+  const collapse = useCollapsingTitle()
+  const up = useDeviceUpcoming(today)
+  const devAct = useDeviceActions()
+  const groups = upcomingGroups(up.items, today)
+  const motion = useListMotion(EXT_DEVICE_VIEW, up.items.length)
+  return (
+    <View style={{ flex: 1, backgroundColor: p.pageBg }}>
+      <NavRow left={<GlassButton label="리스트 서랍" onPress={() => v.setDrawerOpen(true)}><Menu size={22} color={p.textPrimary} /></GlassButton>} smallTitle={EXT_DEVICE_TITLE} smallStyle={collapse.small} />
+      <BigTitle title={EXT_DEVICE_TITLE} style={collapse.big} />
+      <Animated.ScrollView onScroll={collapse.onScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingTop: 4, paddingBottom: space.padFab }}>
+        {!up.active ? (
+          <View>
+            <EmptyState icon="week" title="휴대폰 캘린더를 연결하면 여기에 보여요" sub="설정 › 캘린더 연동에서 연결할 수 있어요" />
+            <Pressable accessibilityRole="button" onPress={() => router.push('/settings/calendars')} style={({ pressed }) => [s.extBtn, { backgroundColor: p.accent, opacity: pressed ? 0.85 : 1 }]}>
+              <Text style={s.extBtnT}>캘린더 연동 열기</Text>
+            </Pressable>
+          </View>
+        ) : !groups.length ? (
+          <EmptyState icon="week" title="앞으로 3개월 동안 일정이 없어요." />
+        ) : groups.map((g) => (
+          <TaskGroup key={g.id} view={EXT_DEVICE_VIEW} gid={g.id} byDefault={g.id === 'later'} motion={motion} title={g.title} count={g.items.length}>
+            {g.items.map((it) => <EventRowView key={it.key} evt={it.evt} start={it.start} end={it.end} color={it.color} calName={it.task.list_name} onPress={() => devAct.open(it.task.id)} />)}
+          </TaskGroup>
+        ))}
+      </Animated.ScrollView>
+    </View>
+  )
+}
+
+function TaskListMain() {
   const p = usePalette()
   const bandScene = useMyBandScene(p.dark) // 49 §6.1 큰 제목 뒤 띠 = 내 배경 장면을 가로로 잘라
   const space = useTabBarSpace()
@@ -561,6 +604,8 @@ const motionExit = rowExit
 const BAND_H = 200
 const s = StyleSheet.create({
   band: { position: 'absolute', left: 0, right: 0, top: 0, height: BAND_H },
+  extBtn: { alignSelf: 'center', height: 44, paddingHorizontal: 20, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  extBtnT: { color: '#fff', fontSize: 15, fontWeight: '700' },
   status: { fontSize: 13, lineHeight: 18, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   skel: { marginHorizontal: M.cardInset, borderRadius: M.radiusCard, paddingVertical: 8 },
   skelRow: { height: M.rowH, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14 },

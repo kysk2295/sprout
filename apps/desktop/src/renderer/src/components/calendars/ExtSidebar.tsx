@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarDays, ChevronDown, PanelLeft, Plus } from 'lucide-react'
+import { AlertTriangle, CalendarDays, Cast, ChevronDown, PanelLeft, Plus } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { addDaysStr, statusText } from '../../../../shared/calendars'
 import { askGrant, calendarsApi, connectCalendar, eventWhen, useCalendarsStatus, useCalendarTargets, useExtCounts, useExtEvents, type ExtEvent } from '../../data/calendars'
@@ -12,7 +12,7 @@ import { MenuItem, Popover } from '../Popover'
 import { ExtEventCard } from './ExtEventCard'
 import './calendars.css'
 
-// 16 §2.4 (G2) 사이드바 "구독 캘린더" 구역 + 계정을 누르면 가운데 목록(오늘 / 다음 7일 / 나중에, 앞으로 3개월)
+// 16 §2.4 (G2) · §2.4.1 사이드바 "캘린더 구독" 구역(계정이 없어도 늘 보임, Apple = 내장 캘린더) + 계정을 누르면 가운데 목록(오늘 / 다음 7일 / 나중에, 앞으로 3개월)
 export function ExtSidebarSection({ item, collapsed, toggle }: {
   item: (key: string, label: string, icon: ReactNode, count?: number) => ReactNode
   collapsed: string[]
@@ -21,22 +21,24 @@ export function ExtSidebarSection({ item, collapsed, toggle }: {
   const s = useCalendarsStatus()
   const counts = useExtCounts()
   const [add, setAdd] = useState<HTMLElement>()
-  if (!s?.accounts.length) return null
+  const accounts = s?.accounts ?? [] // 상태를 읽기 전(웹 미리보기 포함)에도 머리·안내는 보인다
   const closed = collapsed.includes('ext')
   return (
     <>
       <div className="sidebar__section">
-        <button className="sidebar-section-toggle" onClick={() => toggle('ext')} aria-expanded={!closed}>구독 캘린더<ChevronDown size={12} style={{ transform: closed ? 'rotate(-90deg)' : undefined }} /></button>
+        <button className="sidebar-section-toggle" onClick={() => toggle('ext')} aria-expanded={!closed}>캘린더 구독<ChevronDown size={12} style={{ transform: closed ? 'rotate(-90deg)' : undefined }} /></button>
         <span className="sidebar__section-actions"><button aria-label="캘린더 구독 추가" onClick={(e) => setAdd(e.currentTarget)}><Plus /></button></span>
       </div>
-      {!closed && s.accounts.map((a) => {
+      {!closed && !accounts.length && <p className="ext-sidebar__hint">캘린더를 연결하면 여기에 보여요</p>}
+      {!closed && accounts.map((a) => {
         const st = statusText(a)
-        return <div key={a.id} className="ext-sidebar__item" title={st.danger ? st.text : undefined}>{item(`ext:${a.id}`, a.label, st.danger ? <AlertTriangle className="ext-panel__warn" /> : <CalendarDays />, counts[a.id] ?? 0)}</div>
+        const local = a.provider === 'apple' // 틱틱 "내장 캘린더"(Local Calendars) — 사이드바만 이 이름
+        return <div key={a.id} className="ext-sidebar__item" title={st.danger ? st.text : undefined}>{item(`ext:${a.id}`, local ? '내장 캘린더' : a.label, st.danger ? <AlertTriangle className="ext-panel__warn" /> : local ? <Cast /> : <CalendarDays />, counts[a.id] ?? 0)}</div>
       })}
       {add && (
         <Popover anchor={add} className="menu" width={180} onClose={() => setAdd(undefined)}>
-          <MenuItem icon={<CalendarDays />} label="구글 캘린더" disabled={!s.providers.google.configured} onClick={() => { setAdd(undefined); void connectCalendar('google') }} />
-          {s.providers.apple.available && <MenuItem icon={<CalendarDays />} label="Apple 캘린더" disabled={s.accounts.some((a) => a.provider === 'apple')} onClick={() => { setAdd(undefined); void connectCalendar('apple') }} />}
+          <MenuItem icon={<CalendarDays />} label="구글 캘린더" disabled={!s?.providers.google.configured} onClick={() => { setAdd(undefined); void connectCalendar('google') }} />
+          {s?.providers.apple.available && <MenuItem icon={<CalendarDays />} label="Apple 캘린더" disabled={accounts.some((a) => a.provider === 'apple')} onClick={() => { setAdd(undefined); void connectCalendar('apple') }} />}
         </Popover>
       )}
     </>
@@ -71,7 +73,7 @@ export function ExtAgenda({ accountId, onToggleSidebar, detailWidth }: { account
       <main className="list ext-agenda">
         <header className="pane-header">
           <button className="icon-btn" onClick={onToggleSidebar} aria-label="사이드바 접기 (⌘\)"><PanelLeft /></button>
-          <h1 className="pane-header__title">{account?.label ?? ''}</h1>
+          <h1 className="pane-header__title">{account ? (account.provider === 'apple' ? '내장 캘린더' : account.label) : ''}</h1>
         </header>
         {account && <AddBar accountId={account.id} label={account.label} />}
         {st?.danger && <p className="ext-agenda__warn"><AlertTriangle />{st.text}{st.action === 'reconnect' && account && <button onClick={() => void connectCalendar(account.provider)}>다시 연결</button>}{st.action === 'settings' && <button onClick={() => void calendarsApi()?.openPrivacy()}>시스템 설정 열기</button>}</p>}

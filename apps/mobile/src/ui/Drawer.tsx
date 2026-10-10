@@ -6,8 +6,9 @@
 // 고르면 같은 목록 화면에 그 목록. 스마트 목록·보관함 아이콘은 말랑 아이콘(44 §4, 직접 그림), 나머지는 Lucide(오픈 라이선스).
 import { useRouter } from 'expo-router'
 import {
-  ArrowUpToLine, Funnel, Hash, Pencil, Plus, Settings, SlidersHorizontal, Trash2
+  ArrowUpToLine, Cast, Funnel, Hash, Pencil, Plus, Settings, SlidersHorizontal, Trash2
 } from 'lucide-react-native'
+import { EXT_DEVICE_TITLE, EXT_DEVICE_VIEW, useDeviceUpcoming } from '../calendars/upcoming'
 import { useEffect, useState, type ReactNode } from 'react'
 import { BlurView } from 'expo-blur'
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native'
@@ -66,7 +67,7 @@ export function Drawer() {
   const arch = useArchiveCounts()
   const vis = useSmartVisibility()
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({})
-  const [openSec, setOpenSec] = useState<Record<string, boolean>>({ filters: true, tags: true })
+  const [openSec, setOpenSec] = useState<Record<string, boolean>>({ filters: true, tags: true, subs: true })
   const [menu, setMenu] = useState<{ rect: Rect; items: MenuItem[] } | null>(null)
   const [edit, setEdit] = useState<Edit>(null)
   const [avatarOpen, setAvatarOpen] = useState(false) // 35 §4: 계정 줄 아바타 → 고르기 시트
@@ -203,6 +204,7 @@ export function Drawer() {
   }
   const tagName = (t: { name: string; kind?: string | null }) => tagShow(t).name
   const show = (id: string, n?: number) => smartVisible(id, vis, n)
+  const devUp = useDeviceUpcoming()
   const topTags = tags.filter((t) => !t.parent_id || !tags.some((x) => x.id === t.parent_id))
   const hr = <View style={[s.hr, { borderTopColor: p.borderDivider }]} />
 
@@ -275,6 +277,13 @@ export function Drawer() {
                 )) : <Text style={[s.hint, { color: p.textQuaternary }]}>할 일에 #태그를 붙이면 여기에 보여요</Text>}</FoldBody>
               </Animated.View>
             ) : null}
+            {/* 38 §2.6 · 16 §2.4.1: 캘린더 구독 — 늘 보인다. + = 설정 › 캘린더 연동 */}
+            <Animated.View layout={groupLayout} style={s.fold}>
+              <Section id="subs" label="캘린더 구독" onAdd={() => { setDrawerOpen(false); router.push('/settings/calendars') }} />
+              <FoldBody open={!!openSec.subs}>{devUp.active
+                ? <Row v={EXT_DEVICE_VIEW} icon={<Cast size={20} color={p.textSecondary} />} label={EXT_DEVICE_TITLE} n={devUp.items.length} />
+                : <Text style={[s.hint, { color: p.textQuaternary }]}>휴대폰 캘린더를 연결하면 여기에 보여요</Text>}</FoldBody>
+            </Animated.View>
             <Animated.View layout={groupLayout}>
               {hr}
               {show('completed', arch.completed) ? <Row v="smart:completed" icon={<SoftIcon name="done" size={22} />} label="완료" /> : null}
