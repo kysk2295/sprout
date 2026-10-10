@@ -5,6 +5,7 @@ import { PowerSyncContext } from '@powersync/react-native'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as SystemUI from 'expo-system-ui'
+import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -27,9 +28,23 @@ import { PERF, PerfProbe, seedPerfTasks } from '../src/dev/perfProbe'
 
 export const unstable_settings = { anchor: '(tabs)' }
 
+// 20 §스플래시(사용자 "1초도 안 돼서 바로 생략돼 이상해 보여" 2026-10-10): 첫 화면이 준비될 때까지 붙잡고,
+// 최소 SPLASH_MIN_MS는 보여 준 뒤 SPLASH_FADE_MS 동안 녹아 사라진다. 준비가 늦어도 SPLASH_MAX_MS에는 닫는다.
+const LAUNCHED = Date.now()
+const SPLASH_MIN_MS = 1000, SPLASH_FADE_MS = 450, SPLASH_MAX_MS = 4000
+SplashScreen.preventAutoHideAsync().catch(() => undefined)
+try { SplashScreen.setOptions({ duration: SPLASH_FADE_MS, fade: true }) } catch { /* 옛 런타임 */ }
+const hideSplash = () => { SplashScreen.hideAsync().catch(() => undefined) }
+setTimeout(hideSplash, SPLASH_MAX_MS)
+
 export default function Root() {
   useEffect(() => { void startAuth() }, [])
   const { status } = useAuth()
+  useEffect(() => {
+    if (status === 'loading') return
+    const t = setTimeout(hideSplash, Math.max(0, SPLASH_MIN_MS - (Date.now() - LAUNCHED)))
+    return () => clearTimeout(t)
+  }, [status])
   useShareInbox() // 24: 공유 확장 토큰 건네기 + 대기열 비우기
   useWidgets() // 36: 홈 화면 위젯 저장 파일·체크 대기열
   if (status === 'loading') return null
