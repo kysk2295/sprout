@@ -481,7 +481,7 @@ export function AssistantBody({ draft, onDraft, assistant: a, onOpen, variant = 
           onCreated={(id) => void a.editedConfirm(editing.msgId, c, id, 'task')}
           onCreatedEvent={(id) => void a.editedConfirm(editing.msgId, c, id, 'event')} />
       })()}
-      {variant === 'full' && <p className="assistant-footnote">{a.agent ? '꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요' : '등록 결과는 카드에서 확인하고 되돌릴 수 있어요'}</p>}
+      {variant === 'full' && <p className="assistant-footnote">{a.agent ? '꿈틀 AI는 꿈틀 서버에서만 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요' : '등록 결과는 카드에서 확인하고 되돌릴 수 있어요'}</p>}
     </div>
   )
 }

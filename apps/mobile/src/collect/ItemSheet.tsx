@@ -368,15 +368,17 @@ function LinkSummaryView({ suggestion, url }: { suggestion: string | null; url: 
       <Text style={[ls.h, { color: p.textTertiary }]}>요약</Text>
       {sm && 'lines' in sm ? (
         <>
+          {sm.head ? <Text style={[ls.head, { color: p.textPrimary }]}>{sm.head}</Text> : null}
           {sm.lines.map((l, i) => <Text key={i} style={[ls.line, { color: p.textPrimary }]}>{'•  '}{l}</Text>)}
           <Text style={[FONT.meta, { color: p.textTertiary, marginTop: 4 }]}>{summarySourceLabel(sm)}</Text>
         </>
-      ) : <Text style={[ls.line, { color: p.textSecondary }]}>{sm ? '요약할 내용을 찾지 못했어요' : '컴퓨터에서 꿈틀을 열면 요약해요'}</Text>}
+      ) : <Text style={[ls.line, { color: p.textSecondary }]}>{sm ? '요약할 내용을 찾지 못했어요' : '요약하는 중이에요'}</Text>}
     </View>
   )
 }
 const ls = StyleSheet.create({
   box: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, gap: 3, marginTop: 2 },
   h: { fontSize: 12, fontWeight: '600', marginBottom: 2 },
-  line: { fontSize: 14, lineHeight: 20 }
+  line: { fontSize: 14, lineHeight: 20 },
+  head: { fontSize: 15, lineHeight: 21, fontWeight: '600', marginBottom: 4 }
 })

@@ -25,9 +25,9 @@ export async function summarizeLink(id: string, url: string, signal: AbortSignal
   if (!page) { await save({ none: 'blocked', at, url }); return 'none' }
   if (!pageHasText(page)) { await save({ none: 'empty', at, url }); return 'none' }
   const raw = await aiChat({ purpose: 'classify', priority: 'background', format: SUMMARY_SCHEMA as never, messages: [{ role: 'user', content: summaryPrompt(page) }] }, signal)
-  const lines = parseSummary(raw)
+  const { head, lines } = parseSummary(raw)
   if (!lines.length) return 'fail'
-  await save({ lines, from: page.from, at, url })
+  await save({ head, lines, from: page.from, at, url })
   return 'done'
 }
 

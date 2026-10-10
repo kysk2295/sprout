@@ -269,7 +269,7 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
       {empty && area.w && barTop ? <EmptyChat a={a} variant={variant} sceneKey={sceneKey} tone={tone} area={area} bleed={{ top: bt, bottom: bb }} barTop={barTop} onPick={(t) => void submit(t)} /> : null}
       <View onLayout={(e) => setBarTop(e.nativeEvent.layout.y)} pointerEvents="box-none">
       <Composer a={a} autoFocus={autoFocus} onSubmit={() => void submit()} />
-      {a.agent ? <Text style={[s.foot, { color: empty ? tone.sub : p.textTertiary }]}>{[variant === 'full' ? '꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요' : 'Mac mini에서 돌아가요 · 인터넷은 못 봐요', left].filter(Boolean).join(' · ')}</Text>
+      {a.agent ? <Text style={[s.foot, { color: empty ? tone.sub : p.textTertiary }]}>{[variant === 'full' ? '꿈틀 AI는 꿈틀 서버에서만 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요' : '꿈틀 서버에서 돌아가요 · 인터넷은 못 봐요', left].filter(Boolean).join(' · ')}</Text>
         : variant === 'full' ? <Text style={[s.foot, { color: empty ? tone.sub : p.textTertiary }]}>결과는 카드에서 되돌릴 수 있어요</Text> : null}
       </View>
     </View>

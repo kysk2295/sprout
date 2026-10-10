@@ -17,10 +17,12 @@ assert.equal(yt.title, '영상 제목')
 assert.equal(yt.description, '첫 줄\n둘째 줄 "따옴표" 설명이 충분히 길어서 요약할 만하다고 봐도 되는 정도의 글')
 assert.equal(pageHasText(yt), true)
 
-// AI 답 읽기: 점·번호 빼고, 겹침·빈 줄 빼고, 3줄까지
-assert.deepEqual(parseSummary('{"lines":["- 첫째","2. 둘째","둘째","","넷째","다섯째"]}'), ['첫째', '둘째', '넷째'])
-assert.deepEqual(parseSummary('앞말 {"lines":["하나"]} 뒷말'), ['하나'])
-assert.deepEqual(parseSummary('엉망'), [])
+// AI 답 읽기: 한 줄 + 요점(점·번호 빼고, 겹침·빈 줄 빼고, 5줄까지)
+assert.deepEqual(parseSummary('{"head":"한 줄","lines":["- 첫째","2. 둘째","둘째","","넷째","다섯째","여섯째","일곱째"]}'), { head: '한 줄', lines: ['첫째', '둘째', '넷째', '다섯째', '여섯째'] })
+assert.deepEqual(parseSummary('앞말 {"lines":["하나"]} 뒷말'), { head: '하나', lines: ['하나'] })
+assert.deepEqual(parseSummary('엉망'), { head: '', lines: [] })
+// 목록 줄 = head(없으면 첫 요점)
+assert.equal(summaryFirstLine(withLinkSummary(null, { head: '요약', lines: ['a'], from: 'page', at: 't' })), '요약')
 
 // 저장·읽기: 다른 키는 그대로
 const s1 = withLinkSummary('{"title":"x"}', { lines: ['a', 'b'], from: 'page', at: '2026-10-10T10:00:00Z' })
@@ -35,3 +37,7 @@ const s2 = withLinkSummary(null, { lines: ['x'], from: 'page', at: 't', url: 'ht
 assert.equal(summaryFirstLine(s2, 'https://a.com'), 'x')
 assert.equal(readLinkSummary(s2, 'https://b.com'), null)
 console.log('linkSummary ok')
+import { isPublicHttpUrl } from './linkSummary.ts'
+assert.equal(isPublicHttpUrl('https://ko.wikipedia.org/wiki/x'), true)
+for (const bad of ['http://192.168.0.1/', 'http://localhost:3000', 'http://10.0.0.5', 'ftp://a.com', 'https://u:p@a.com', 'http://[::1]/', 'http://printer.local']) assert.equal(isPublicHttpUrl(bad), false, bad)
+console.log('linkSummary url ok')

@@ -18,7 +18,7 @@ export function createRemoteOllama(){
    try{const response=await fetch(`${base}/api/version`,{signal:AbortSignal.timeout(500)});if(response.ok)return base}catch{}
    await new Promise(resolve=>setTimeout(resolve,200))
   }
-  proc.kill();throw new Error('맥미니에 연결하지 못했어요. SSH macmini 연결과 맥미니의 Ollama 실행 상태를 확인해 주세요.')
+  proc.kill();throw new Error('꿈틀 AI 서버에 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요.')
  })().catch(error=>{endpoint=undefined;throw error})
  return {close,models:async()=>localModels(undefined,await connect()),chat:async(input:ChatInput,signal:AbortSignal,onDelta?:(text:string)=>void)=>{const base=await connect();signal.throwIfAborted();return localChat(input,signal,base,onDelta)}}
 }

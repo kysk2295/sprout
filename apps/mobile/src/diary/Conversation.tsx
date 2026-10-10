@@ -392,7 +392,7 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
             <Animated.View entering={reduced ? FadeIn.duration(150) : FadeInDown.duration(220)} style={[st.card, { backgroundColor: p.cardBg, borderColor: p.borderDivider }]}>
               <Text style={[st.cardTitle, { color: p.textPrimary }]}>{josa(name, '와', '과')} 편하게 이야기하고 일기로 정리할까?</Text>
               <Text style={[st.fact, { color: p.textSecondary }]}>대화를 일기로 정리하려면 꿈틀 AI가 읽어야 해요.</Text>
-              {['꿈틀 서버(우리 Mac mini)에서만 처리하고, 원문은 남기지 않아요', '나만 보기로 둔 날은 보내지 않아요', `혼자 쓰면 ${josa(name, '가', '이')} 정해진 질문만 하고, 일기는 내 말 그대로 남아요`].map((f) => (
+              {['꿈틀 서버에서만 처리하고, 원문은 남기지 않아요', '나만 보기로 둔 날은 보내지 않아요', `혼자 쓰면 ${josa(name, '가', '이')} 정해진 질문만 하고, 일기는 내 말 그대로 남아요`].map((f) => (
                 <Text key={f} style={[st.fact, { color: p.textSecondary }]}>· {f}</Text>
               ))}
               <View style={st.btns}>

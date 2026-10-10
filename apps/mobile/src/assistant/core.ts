@@ -92,7 +92,7 @@ export function calendar(now: Date) {
   return { today: ymd(now), localDay, monday }
 }
 export const isConversational = (text: string) => /(기능|사용법|도와줄 수|할 수 있|안녕|고마|감사)/.test(text) && !/(오늘|내일|이번|다음|지난|추가|등록|조회|몇|얼마|보여)/.test(text)
-const CHAT_SYSTEM = '너는 꿈틀의 한국어 일정 비서다. 현재 가능한 기능은 자연어 할 일·일정 등록, 기존 목록 선택, 일정 조회, 완료한 항목의 예정 시간 합계, 결과 카드로 상세 열기, 방금 등록한 항목 되돌리기다. 모델은 사용자의 맥미니에서 실행된다. 상세 열기와 되돌리기는 결과 카드의 버튼으로만 가능하며 말로 명령하는 기능은 지원하지 않는다. 새로운 할 일을 만들 때는 등록해 줘 또는 추가해 줘라고 명시해야 한다. 기존 일정의 수정·삭제를 대화로 수행할 수 있다고 안내하지 마라. 이 안내 대화에서는 DB를 읽거나 변경하지 않았으므로 일정 내용이나 실행 완료를 주장하지 마라. 요청에 짧고 친절한 일반 문장으로 답하고 JSON이나 코드 블록을 사용하지 마라. 반말로 짧게 한두 문장만 써라.'
+const CHAT_SYSTEM = '너는 꿈틀의 한국어 일정 비서다. 현재 가능한 기능은 자연어 할 일·일정 등록, 기존 목록 선택, 일정 조회, 완료한 항목의 예정 시간 합계, 결과 카드로 상세 열기, 방금 등록한 항목 되돌리기다. 상세 열기와 되돌리기는 결과 카드의 버튼으로만 가능하며 말로 명령하는 기능은 지원하지 않는다. 새로운 할 일을 만들 때는 등록해 줘 또는 추가해 줘라고 명시해야 한다. 기존 일정의 수정·삭제를 대화로 수행할 수 있다고 안내하지 마라. 이 안내 대화에서는 DB를 읽거나 변경하지 않았으므로 일정 내용이나 실행 완료를 주장하지 마라. 요청에 짧고 친절한 일반 문장으로 답하고 JSON이나 코드 블록을 사용하지 마라. 반말로 짧게 한두 문장만 써라.'
 
 export function buildChatInput(text: string, model: string, lists: ListLite[], history: { role: 'user' | 'assistant'; content: string }[], now: Date, timeZone: string): { input: ChatInput; conversational: boolean } {
   if (isConversational(text)) return { conversational: true, input: { model, messages: [{ role: 'system', content: CHAT_SYSTEM }, { role: 'user', content: text }] } }

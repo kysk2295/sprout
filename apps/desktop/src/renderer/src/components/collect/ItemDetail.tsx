@@ -238,6 +238,7 @@ function LinkSummaryBlock({ item }: { item: CollectItem }) {
     return (
       <div className="collect-summary">
         <div className="collect-summary__h">요약</div>
+        {s.head && <p className="collect-summary__head">{s.head}</p>}
         <ul>{s.lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
         <div className="collect-summary__src">{summarySourceLabel(s)}</div>
       </div>

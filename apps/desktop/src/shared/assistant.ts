@@ -41,7 +41,7 @@ export async function localChat(input:ChatInput,signal?:AbortSignal,base='/api/a
  if(!input||typeof input.model!=='string'||!Array.isArray(input.messages)||input.messages.length>30||input.messages.some(m=>!['system','user','assistant'].includes(m.role)||typeof m.content!=='string'||m.content.length>30000))throw new Error('요청이 너무 크거나 올바르지 않아요.')
  if(!(await localModels(signal,base)).includes(input.model))throw new Error('설치된 로컬 모델을 선택해 주세요.')
  const res=await fetch(`${base}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({...input,purpose:undefined,priority:undefined,mode:undefined,temperature:undefined,stream:!!onDelta,think:false,keep_alive:'5m',options:{temperature:input.temperature??0,num_ctx:4096,num_predict:input.purpose==='tag'?1600:700}})})
- if(!res.ok){const error=await res.json().catch(()=>null);throw new Error(typeof error?.error==='string'?error.error:`맥미니 모델 요청 실패 (${res.status})`)}
+ if(!res.ok){const error=await res.json().catch(()=>null);throw new Error(typeof error?.error==='string'?error.error:`AI 요청 실패 (${res.status})`)}
  if(onDelta)return readChatStream(res,onDelta,signal)
  const json=await res.json()
  if(typeof json.message?.content!=='string')throw new Error('모델 응답이 비어 있어요.')

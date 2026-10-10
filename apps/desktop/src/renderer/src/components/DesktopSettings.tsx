@@ -253,6 +253,6 @@ function AiPane() {
       <div className="settings-row"><span>AI 비서가 일기도 볼 수 있게<small className="od-set__hint">{consent ? '켜면 일기를 물을 때 일기 글을 찾아봐요 · 나만 보기 날은 보지 않아요 · 일기 대화 원문은 보내지 않아요' : '일기에서 AI 대화를 먼저 켜 주세요'}</small></span>
         <button className={`dp__switch${active ? ' is-on' : ''}`} role="switch" aria-checked={active} aria-label="AI 비서가 일기도 볼 수 있게" disabled={!consent} onClick={() => { setAssistantDiary(account, !on); setOn(!on) }}><span /></button></div>
     </div>
-    <p className="od-set__hint">꿈틀 AI는 운영자의 Mac mini에서 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요</p>
+    <p className="od-set__hint">꿈틀 AI는 꿈틀 서버에서만 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요</p>
   </>
 }

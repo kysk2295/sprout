@@ -375,7 +375,7 @@ export function Talk({ t, inline }: { t: TalkState; inline: boolean }) {
             <b>{josa(name, '와', '과')} 편하게 이야기하고 일기로 정리할까?</b>
             <p>대화를 일기로 정리하려면 꿈틀 AI가 읽어야 해요.</p>
             <ul>
-              <li>꿈틀 서버(우리 Mac mini)에서만 처리하고, 원문은 남기지 않아요</li>
+              <li>꿈틀 서버에서만 처리하고, 원문은 남기지 않아요</li>
               <li>나만 보기로 둔 날은 보내지 않아요</li>
               <li>혼자 쓰면 {josa(name, '가', '이')} 정해진 질문만 하고, 일기는 내 말 그대로 남아요</li>
             </ul>
