@@ -50,5 +50,6 @@ export function parseRouteDecision(value: unknown): RouteDecision {
  * actions are excluded so an actual task request keeps the normal route. */
 export function assistantSelfQuestion(text: string): boolean {
   if (/(할\s*일|일정|메모|통계|기록|추가|등록|생성|완료|삭제|지워|찾아|조회|보여|옮겨|미뤄)/.test(text)) return false
-  return /(?:너|네|니)(?:는|의|가|도)?\s*(?:수달(?:의)?\s*)?(?:취미|취향|이름|정체)/.test(text)
+  // 50 §5.4: 옛 종 이름(수달) 대신 지금 종·마스코트 이름. '어머니·친구네'처럼 앞 글자에 붙은 니·네는 다른 사람이라 뺀다
+  return /(?:^|[\s,.!?~])(?:너|네|니)(?:는|의|가|도)?\s*(?:(?:달팽이|꿀벌|벌|애벌레|나비|올챙이|개구리|꿈틀이)(?:의)?\s*)?(?:취미|취향|이름|정체)/.test(text)
 }

@@ -1,5 +1,6 @@
 // 27 AI 비서 대화 상태 — 한 곳(모듈)에 둔다: 오늘 ✦ 반 시트와 전체 화면이 같은 대화·같은 초안을 본다(27 §2.2).
 // 화면이 닫혀도 요청은 계속되고 돌아오면 이어서 보인다(M-A4). 기록은 기기·계정별 파일(M-A5, 최근 100개).
+import type { PersonaId } from '@sprout/schema/persona'
 import { useEffect, useSyncExternalStore } from 'react'
 import { currentUserId } from '../data/auth'
 import { readJson, writeJson } from '../collect/localStore'
@@ -144,7 +145,7 @@ async function agentTurn(ask: string, id: string, abort: AbortController) {
   }
   const r = await askAgent({
     text: ask, model: s.model, turn: id.replace(/[^A-Za-z0-9_-]/g, ''), signal: abort.signal, history: agentHistory(s.messages.filter((m) => !m.agent?.error)),
-    memory: s.memory, pending: pendingCard(s.messages.map((m) => m.agent?.cards ?? [])), name: buddyName, onEvent
+    memory: s.memory, pending: pendingCard(s.messages.map((m) => m.agent?.cards ?? [])), name: buddyName, persona: buddyPersona, onEvent
   })
   if (request !== abort) return
   // 말로 확인(결정 ②): 떠 있는 카드의 넣기/취소를 누른 것과 같다
@@ -169,8 +170,9 @@ async function agentTurn(ask: string, id: string, abort: AbortController) {
   void aiStatus().then((st) => set({ daily: st.assistantDaily })).catch(() => {})
 }
 let buddyName = ''
+let buddyPersona: PersonaId = 'mascot' // 50: 성격 카드(종 · 조사 전 꿈틀이)
 /** 캐릭터 이름(지시문 칸) — 화면이 알려 준다 */
-export const setBuddyName = (n: string) => { buddyName = n }
+export const setBuddyName = (n: string, persona: PersonaId = 'mascot') => { buddyName = n; buddyPersona = persona }
 
 const patchCard = (msgId: string, key: string, f: (c: ConfirmCard) => ConfirmCard) =>
   set((o) => ({ messages: o.messages.map((m) => (m.id === msgId && m.agent ? { ...m, agent: { ...m.agent, cards: m.agent.cards.map((c) => (isConfirm(c) && c.key === key ? f(c) : c)) } } : m)) }))

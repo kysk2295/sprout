@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { createAi, aiConfigFromEnv, memoryUsageStore } from './ai.ts'
 import { routeRequest, parseRouteDecision, assistantSelfQuestion } from '../../../packages/schema/src/assistantDecision.ts'
-for (const text of ['너는 취미가 뭐니','아니 너 취미 있잖아','내 취미 말고, 너 수달의 취미가 뭐야?']) assert.equal(assistantSelfQuestion(text),true)
-for (const text of ['내 취미 관련 메모 찾아줘','너 내 할 일 보여줘','너는 취미가 뭐니? 내일 운동 추가해줘']) assert.equal(assistantSelfQuestion(text),false)
+for (const text of ['너는 취미가 뭐니','아니 너 취미 있잖아','내 취미 말고, 너 개구리의 취미가 뭐야?','꿈틀이 너 이름이 뭐야']) assert.equal(assistantSelfQuestion(text),true)
+for (const text of ['내 취미 관련 메모 찾아줘','너 내 할 일 보여줘','너는 취미가 뭐니? 내일 운동 추가해줘','어머니 이름이 뭐였지','친구네 이름 기억나?']) assert.equal(assistantSelfQuestion(text),false)
 const bodies: Record<string, unknown>[] = []
 const store = memoryUsageStore()
 let malformed = false
@@ -33,7 +33,7 @@ try {
  }
  assert.equal((await call({mode:'agent',messages:[{role:'user',content:'hello'}],tools:[],stream:false})).status,429)
  assert.equal(bodies[1].sprout_assistant,true)
- assert.match((bodies[1].messages as {content:string}[])[0].content,/사용자와 이야기/)
+ assert.match((bodies[1].messages as {content:string}[])[0].content,/아래 성격대로/)
  assert.ok(!(bodies[1].messages as {content:string}[])[0].content.includes('propose_'))
  assert.equal(await store.count('route-test','2000-01-01'),1,'classification plus four calls count as one turn')
  r=await call(routeRequest('아니 너 취미 있잖아',[]),'self-guard-123');assert.equal(r.status,200);const guarded=parseRouteDecision(JSON.parse((await r.json()).message.content));assert.equal(guarded.intent,'chat');assert.equal(guarded.source,'self_reference_guard')

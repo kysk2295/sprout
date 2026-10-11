@@ -1,6 +1,7 @@
 // 10 §4.3·§5 성장 AI 호출을 한 곳에 모은다. 경로는 data/ai → 메인 → 서버 AI 프록시(POST /ai/kpi-draft · /ai/weekly-report, 주 1회씩).
 // 보내는 것: 할 일 제목·태그·리스트 이름·앱이 계산한 숫자·성향 유형. 메모(notes)는 보내지 않는다(10 §7).
 import { DRAFT_FORMAT, REPORT_FORMAT } from '@sprout/schema/growth'
+import { personaOf, personaToneLine, type PersonaId } from '@sprout/schema/persona'
 import { aiChat } from './ai'
 
 export type GrowthAiKind = 'weekly_report' | 'kpi_draft'
@@ -24,12 +25,16 @@ const SYSTEM: Record<GrowthAiKind, string> = {
 }
 
 /** 한 번 묻고 원문(JSON 문자열)을 돌려준다. 검사는 부르는 쪽(data/growth)이 schema 함수로 한다 */
-export async function askGrowthAi(kind: GrowthAiKind, payload: unknown, signal: AbortSignal): Promise<string> {
+/** 50 §4: 리포트는 캐릭터 말투 한 줄, 목표 초안은 그 캐릭터의 돕는 방식 한 줄을 붙인다 */
+const personaLine = (kind: GrowthAiKind, persona?: PersonaId) =>
+  !persona ? '' : kind === 'weekly_report' ? `\n${personaToneLine(persona)}` : `\n이 캐릭터가 돕는 방식(초안에 반영): ${personaOf(persona).help}`
+
+export async function askGrowthAi(kind: GrowthAiKind, payload: unknown, signal: AbortSignal, persona?: PersonaId): Promise<string> {
   return aiChat({
     purpose: kind === 'weekly_report' ? 'weekly-report' : 'kpi-draft',
     format: kind === 'weekly_report' ? REPORT_FORMAT : DRAFT_FORMAT,
     messages: [
-      { role: 'system', content: SYSTEM[kind] },
+      { role: 'system', content: SYSTEM[kind] + personaLine(kind, persona) },
       { role: 'user', content: `${kind === 'weekly_report' ? '이번 주 기록' : '지난주 기록'}(JSON):\n${JSON.stringify(payload)}` }
     ]
   }, signal)

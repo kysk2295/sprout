@@ -5,6 +5,7 @@ import { agentContext, NUDGE, PROPOSE_TOOLS, toolsFor, ymd, type ToolName } from
 import { createCard, createdChip, failedRun, isConfirm, listsOf, pickList, runTool, runningChip, updateCard, undoStmts, moveStmts, deleteStmts, words, type AssistantDb, type Card, type Chip, type ConfirmCard, type Facts, type Stmt, type ToolRun } from './assistantExec.ts'
 import { claimsSearched, ground, offersToSearch } from './assistantGround.ts'
 import { memoryBlock, route, userContent, type AgentMemory, type Band, type Route } from './assistantRouter.ts'
+import type { PersonaId } from './persona.ts'
 import { decisionPolicy, effectiveIntent, type RouteDecision } from './assistantDecision.ts'
 import { draftWithoutMutation, taskReference, type TaskLookup } from './assistantTarget.ts'
 
@@ -14,7 +15,7 @@ export type AgentMessage =
   | { role: 'tool'; tool_name: string; content: string }
 export type ChatReply = { content: string; tool_calls: { name: string; args: Record<string, unknown> }[]; prompt_tokens?: number }
 /** 모델 한 번(서버 /ai/assistant mode agent, 같은 턴 id). tools 빈 배열 = 답만 */
-export type ChatFn = (req: { messages: AgentMessage[]; tools: ToolName[]; turn: string; call: number }, h: { signal: AbortSignal; onDelta: (s: string) => void; onQueue: (position: number) => void }) => Promise<ChatReply>
+export type ChatFn = (req: { messages: AgentMessage[]; tools: ToolName[]; turn: string; call: number; persona?: PersonaId }, h: { signal: AbortSignal; onDelta: (s: string) => void; onQueue: (position: number) => void }) => Promise<ChatReply>
 
 export type TurnEvent =
   | { type: 'phase'; phase: 'tools' | 'model' | 'answer' }
@@ -47,6 +48,8 @@ export type TurnInput = {
   onEvent?: (e: TurnEvent) => void
   limits?: Partial<TurnLimits>
   newKey?: () => string
+  /** 50: 캐릭터 성격 카드 id(종 · 조사 전 mascot). 서버가 지시문을 고른다 */
+  persona?: PersonaId
   /** Experimental routing decision; absent means the unchanged baseline policy. */
   classify?: (text: string, history: TurnInput['history'], signal: AbortSignal) => Promise<RouteDecision | undefined>
   routeDecision?: RouteDecision
@@ -239,7 +242,7 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
   const callModel = async (offer: ToolName[]) => {
     calls++
     emit({ type: 'phase', phase: offer.length ? 'model' : 'answer' })
-    const reply = await i.chat({ messages, tools: offer, turn: i.turn, call: calls }, {
+    const reply = await i.chat({ messages, tools: offer, turn: i.turn, call: calls, ...(i.persona ? { persona: i.persona } : {}) }, {
       signal,
       // Provisional tokens can be revised by tool retries or grounding. Publish only the final answer.
       onDelta: () => {},

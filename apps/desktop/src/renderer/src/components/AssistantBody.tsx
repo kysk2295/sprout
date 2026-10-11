@@ -1,4 +1,5 @@
 import { SoftIcon } from './SoftIcon'
+import { personaIdOf } from '@sprout/schema/persona'
 import type { SoftIconName } from '@sprout/tokens/softIcons'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { ArrowDown, ArrowUp, ArrowUpRight, BarChart3, CalendarDays, Check, Cpu, History, List, MoreHorizontal, Plus, RefreshCw, RotateCcw, Square, Trash2 } from 'lucide-react'
@@ -105,7 +106,7 @@ export function useAssistant(account: string) {
       else if (e.type === 'phase') setProgress({ phase: e.phase === 'tools' ? 'querying' : 'connecting' })
     }
     const msgs = latestMessages.current
-    const r = await askAgent({ text: prompt, model, history: pairsOf(msgs), memory, pending: pendingCard(msgs.map((m) => m.agent?.cards ?? [])), diary: assistantDiaryOn(account), name: me.name, signal, onEvent })
+    const r = await askAgent({ text: prompt, model, history: pairsOf(msgs), memory, pending: pendingCard(msgs.map((m) => m.agent?.cards ?? [])), diary: assistantDiaryOn(account), name: me.name, persona: personaIdOf(me.species), signal, onEvent })
     await stream.whenShown(600)
     setMemory(r.memory)
     if (r.grounding.hits > 0) reportGround(r.grounding.hits) // 47 §19.4 숫자만(실패해도 그만)

@@ -72,7 +72,7 @@ function createServerAi() {
     },
     /** 47 agent 한 번(같은 턴 id). 글 조각·대기열은 IPC로, 끝나면 {content, tool_calls} */
     agent: async (input: AgentInput & { model?: string; call?: number }, signal: AbortSignal, onDelta: (text: string) => void, onQueue: (position: number) => void) => {
-      const body = JSON.stringify({ mode: 'agent', ...(input.model ? { model: input.model } : {}), messages: input.messages, tools: input.tools, stream: true })
+      const body = JSON.stringify({ mode: 'agent', ...(input.model ? { model: input.model } : {}), ...(typeof input.persona === 'string' ? { persona: input.persona } : {}), messages: input.messages, tools: input.tools, stream: true })
       const init = { method: 'POST', body, signal, headers: { 'x-sprout-turn': input.turn }, agentFirst: input.call === 1 } as RequestInit & { signal: AbortSignal }
       const res = await server('/ai/assistant', init)
       return readAgentStream(res, onDelta, signal, (q) => onQueue(q.position))

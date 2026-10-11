@@ -1,4 +1,5 @@
 import { intentSchema, localChat, parseIntent, replyPreview, type AssistantProgress, type ChatInput, type Intent } from '../../../shared/assistant'
+import type { PersonaId } from '@sprout/schema/persona'
 import { getDb } from './db'
 import { insert, run, now, taskListId, withDescendants } from './mutations'
 import { eventFieldsOf } from '@sprout/schema/assistantExec'
@@ -149,7 +150,7 @@ export function agentChat(model: string): ChatFn {
     const cancel = () => api.cancel(id)
     h.signal.addEventListener('abort', cancel, { once: true })
     try {
-      return await api.agent(id, { messages: req.messages, tools: req.tools, turn: req.turn, call: req.call, ...(model ? { model } : {}) })
+      return await api.agent(id, { messages: req.messages, tools: req.tools, turn: req.turn, call: req.call, ...(req.persona ? { persona: req.persona } : {}), ...(model ? { model } : {}) })
     } catch (e) {
       if (h.signal.aborted) throw Object.assign(new Error('aborted'), { name: 'AbortError' })
       const msg = e instanceof Error ? e.message : String(e)
@@ -233,7 +234,7 @@ export async function editedRow(id: string, kind: 'task' | 'event') {
 }
 /** 47 §19.4 근거 검사가 뺀 문장 수만 서버로(메인 IPC, 응답 안 기다림) */
 export const reportGround = (hits: number) => { try { window.sprout?.assistant?.ground?.(Math.min(20, Math.max(1, Math.round(hits)))) } catch { /* 숫자 하나 — 잃어도 됨 */ } }
-export type AgentAsk = { text: string; model: string; history: { user: string; assistant: string }[]; memory: AgentMemory; pending: ConfirmCard | null; diary: boolean; name: string; signal: AbortSignal; onEvent?: (e: TurnEvent) => void; chat?: ChatFn }
+export type AgentAsk = { text: string; model: string; history: { user: string; assistant: string }[]; memory: AgentMemory; pending: ConfirmCard | null; diary: boolean; name: string; persona?: PersonaId; signal: AbortSignal; onEvent?: (e: TurnEvent) => void; chat?: ChatFn }
 export async function askAgent(a: AgentAsk): Promise<TurnResult> {
   const db = await getDb()
   const turn = newTurnId()
@@ -248,7 +249,7 @@ export async function askAgent(a: AgentAsk): Promise<TurnResult> {
     },
     text: a.text, history: a.history, memory: a.memory, pending: a.pending, diary: a.diary, name: a.name,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, db: { getAll: (sql, args) => db.getAll(sql, args) },
-    chat: a.chat ?? agentChat(a.model), turn, signal: a.signal, onEvent: a.onEvent
+    chat: a.chat ?? agentChat(a.model), turn, signal: a.signal, onEvent: a.onEvent, ...(a.persona ? { persona: a.persona } : {})
   })
 }
 /** 47 §8.4: AI 비서가 일기도 볼 수 있게(기본 꺼짐, 이 기기·계정). 일기 AI 동의(28 §5)가 있어야 켜진다 */

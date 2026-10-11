@@ -26,7 +26,8 @@ import { routeRequest, parseRouteDecision, assistantSelfQuestion } from '../../.
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AiBackend } from './ai-backend.ts'
 import { COMPANION_RULES, DIARY_GROUNDING, DISTILL_SCHEMA, DISTILL_SYSTEM } from '../../../packages/schema/src/diaryPrompts.ts'
-import { AGENT_CONTEXT_MAX, AGENT_SYSTEM, CHAT_SYSTEM, isToolName, NUDGE, TOOL_SPECS, type ToolName } from '../../../packages/schema/src/assistantTools.ts'
+import { isPersonaId, type PersonaId } from '../../../packages/schema/src/persona.ts'
+import { AGENT_CONTEXT_MAX, agentSystemFor, chatSystemFor, isToolName, NUDGE, TOOL_SPECS, type ToolName } from '../../../packages/schema/src/assistantTools.ts'
 export { COMPANION_RULES, DIARY_GROUNDING, DISTILL_SYSTEM }
 
 export const ENDPOINTS = ['assistant', 'classify', 'map', 'diary', 'kpi-draft', 'weekly-report', 'breakdown', 'tag', 'diary-chat', 'diary-distill'] as const
@@ -531,7 +532,7 @@ export type AgentMsg = {
   tool_calls?: { function: { name: ToolName; arguments: Record<string, unknown> } }[]
   tool_name?: ToolName
 }
-export type AgentInput = { messages: AgentMsg[]; tools: ToolName[]; model?: string; stream: boolean; temperature: number }
+export type AgentInput = { messages: AgentMsg[]; tools: ToolName[]; model?: string; stream: boolean; temperature: number; persona?: PersonaId }
 /** body.mode — 'agent'만 새 경로, 없으면 예전 경로, 그 밖은 잘못된 요청 */
 export function assistantModeOf(body: unknown): 'agent' | 'route' | null {
   const mode = isObj(body) ? body.mode : undefined
@@ -599,11 +600,14 @@ export function validateAgentInput(body: unknown, cfg: AiConfig): AgentInput {
     if (t !== undefined && (typeof t !== 'number' || !(t >= 0 && t <= 2))) throw new AiError('bad_request')
     if (typeof t === 'number') temperature = t
   }
-  return { messages: prepareAgentMessages(messages), tools, model: body.model as string | undefined, stream: body.stream === true, temperature }
+  // 50 §5: 앱은 성격 글이 아니라 종 id만 보낸다 — 목록에 있는 것만(없으면 예전 앱 = 공통 지시문)
+  if (body.persona !== undefined && body.persona !== null && !isPersonaId(body.persona)) throw new AiError('bad_request')
+  const persona = isPersonaId(body.persona) ? body.persona : undefined
+  return { messages: prepareAgentMessages(messages, persona), tools, model: body.model as string | undefined, stream: body.stream === true, temperature, ...(persona ? { persona } : {}) }
 }
 /** 지시문은 서버 것만: 앱 system을 모두 버리고 system = AGENT_SYSTEM(고정). 앱 칸(오늘·날짜표·이름·이어 받을 것 — 규칙이 아닌 사실, 자름)은
  *  이번 질문(재촉 줄이 아닌 마지막 user) 앞에 붙인다 — system + 도구 정의가 늘 같아야 Ollama가 그 앞부분(약 1,000토큰)을 캐시에서 읽는다(47 §14, 실측 research 39 §8). 끝은 user 또는 tool */
-export function prepareAgentMessages(messages: AgentMsg[]): AgentMsg[] {
+export function prepareAgentMessages(messages: AgentMsg[], persona?: PersonaId): AgentMsg[] {
   const ctx = (messages.find((m) => m.role === 'system')?.content ?? '').trim().slice(0, AGENT_CONTEXT_MAX)
   const rest = messages.filter((m) => m.role !== 'system')
   const last = rest.at(-1)?.role
@@ -613,7 +617,7 @@ export function prepareAgentMessages(messages: AgentMsg[]): AgentMsg[] {
     while (i >= 0 && !(rest[i].role === 'user' && rest[i].content !== NUDGE)) i--
     if (i >= 0) rest[i] = { ...rest[i], content: `[앱 정보]\n${ctx}\n\n[질문]\n${rest[i].content}` }
   }
-  return [{ role: 'system', content: AGENT_SYSTEM }, ...rest]
+  return [{ role: 'system', content: agentSystemFor(persona) }, ...rest]
 }
 
 // ── 일기(28 §8): 서버가 정하는 지시 ──
@@ -868,7 +872,7 @@ export function createAi(deps: AiDeps) {
     }
 
     if (agentInput && turnKey && turns.get(turnKey)?.chat && agentInput.tools.length === 0 && !agentInput.messages.some(m => m.role === 'tool' || m.tool_calls?.length)) {
-      messages[0] = { role: 'system', content: CHAT_SYSTEM }
+      messages[0] = { role: 'system', content: chatSystemFor(agentInput.persona) }
       // Persona facts come from current app context, not earlier erroneous AI replies.
       if (turns.get(turnKey)?.selfReference && messages.at(-1)?.role === 'user') messages.splice(1, messages.length - 2)
     }

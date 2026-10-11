@@ -4,6 +4,7 @@
 // 내 말 = 오른쪽 회색 면 · AI = 왼쪽 캐릭터 + 이름 + 본문 · 결과 카드(할 일 행: 체크 = 완료(XP) · 누름 = 상세) · 집계 카드 · ↶ 되돌리기
 // · 받는 중(글자 + 깜빡이는 커서, 단계 줄 `● 연결 › ● 해석 › ● 확인 · N초`, 대기열이면 `순서를 기다리는 중…`) · 오류 상자(13 §6 문구)
 // · ↓ 최신으로 · 입력창(1줄 44 → 최대 6줄, Return = 보내기, 처리 중 = ■ 정지)
+import { personaIdOf } from '@sprout/schema/persona'
 import { useLiveQuery } from '../data/rows'
 import { useRouter } from 'expo-router'
 import { ArrowDown, ArrowUp, BarChart3, CalendarDays, Check, History, List, RefreshCw, RotateCcw, Square, TriangleAlert } from 'lucide-react-native'
@@ -76,7 +77,7 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
   const buddy = useBuddy()
   const egg = !buddy.species
   const who = companionName(buddy.species, buddy.name)
-  useEffect(() => { setBuddyName(buddy.species ? buddy.name : '') }, [buddy.species, buddy.name])
+  useEffect(() => { setBuddyName(buddy.species ? buddy.name : '', personaIdOf(buddy.species)) }, [buddy.species, buddy.name])
   const router = useRouter()
   const today = dayKey()
   // 결과 카드에서 완료할 때 오늘 할 일 XP가 상한 아래였을 때만 +1(10 §6 — 등록만으로는 XP 없음, 40 결정 ④)

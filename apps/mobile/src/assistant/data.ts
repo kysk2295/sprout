@@ -1,4 +1,5 @@
 import { routeRequest, parseRouteDecision } from '@sprout/schema/assistantDecision'
+import type { PersonaId } from '@sprout/schema/persona'
 // 27 AI 비서 — 서버 AI 프록시(POST {API}/ai/assistant, NDJSON 스트림)와 로컬 DB 실행.
 // 데스크톱 main/assistant.ts(서버 호출·오류) + renderer/data/assistant.ts(askAssistant·executeIntent·undoAssistant)와 같은 흐름.
 // 스트림은 expo/fetch(ReadableStream 지원). 사용자가 직접 보낸 요청만 부른다 — 수집함 분류는 부르지 않는다(26 M-C5).
@@ -199,7 +200,7 @@ export function agentChat(model: string): ChatFn {
   return async (req, h) => {
     let res: Awaited<ReturnType<typeof server>>
     try {
-      res = await server('/ai/assistant', { method: 'POST', body: JSON.stringify({ mode: 'agent', model, messages: req.messages, tools: req.tools, stream: true }), signal: h.signal, headers: { 'x-sprout-turn': req.turn } })
+      res = await server('/ai/assistant', { method: 'POST', body: JSON.stringify({ mode: 'agent', model, ...(req.persona ? { persona: req.persona } : {}), messages: req.messages, tools: req.tools, stream: true }), signal: h.signal, headers: { 'x-sprout-turn': req.turn } })
     } catch (e) {
       if (req.call === 1 && e instanceof AiHttpError && e.status === 400) throw new AgentUnsupportedError()
       throw e
@@ -267,7 +268,7 @@ export async function assistantDiaryOn() {
   return diaryForAssistant(getAssistantDiary(), getConsent())
 }
 
-export async function askAgent(o: { text: string; model: string; turn: string; signal: AbortSignal; history: { user: string; assistant: string }[]; memory: AgentMemory; pending: ConfirmCard | null; name: string; onEvent: (e: TurnEvent) => void }): Promise<TurnResult> {
+export async function askAgent(o: { text: string; model: string; turn: string; signal: AbortSignal; history: { user: string; assistant: string }[]; memory: AgentMemory; pending: ConfirmCard | null; name: string; persona?: PersonaId; onEvent: (e: TurnEvent) => void }): Promise<TurnResult> {
   return runTurn({
     classify: async (text, history, signal) => {
       const status = await (await server('/ai/status', { signal })).json()
@@ -277,6 +278,6 @@ export async function askAgent(o: { text: string; model: string; turn: string; s
     },
     text: o.text, history: o.history, memory: o.memory, pending: o.pending, diary: await assistantDiaryOn(), name: o.name,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, db: { getAll: (sql, args) => db.getAll(sql, args ?? []) }, chat: agentChat(o.model),
-    turn: o.turn, signal: o.signal, onEvent: o.onEvent
+    turn: o.turn, signal: o.signal, onEvent: o.onEvent, ...(o.persona ? { persona: o.persona } : {})
   })
 }

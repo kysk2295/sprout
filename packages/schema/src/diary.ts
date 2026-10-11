@@ -1,6 +1,7 @@
 // 15·28 일기 — 두 앱(데스크톱 data/diary.ts · 휴대폰 src/diary/logic.ts)이 같이 쓰는 순수 계산. DB·AI 호출은 각 앱.
 // 기분 5단계(28 §8.2 v2 색) · 캐릭터 말투 · AI 입력(나만 보기·동의 전에는 만들지 않음) · 연속·질문·한 줄 발견 · 달력 계산 · 미리보기.
 // 시험: 휴대폰 src/diary/logic.test.ts · 데스크톱 tests/diary.test.ts.
+import { personaIdOf, personaOf } from './persona.ts'
 import { addDays } from './time.ts'
 import { firstLineOf } from './diaryPrompts.ts'
 import { SPECIES, type Species } from './growth.ts'
@@ -29,13 +30,8 @@ export const MOODS = [
 export const moodOf = (v: number | null | undefined) => MOODS.find((m) => m.value === v)
 
 // ── 캐릭터 ──
-const TONE: Record<Species, string> = {
-  snail: '느긋하고 차분하게, 서두르지 않는 말투',
-  bee: '밝고 생기 있게, 작은 일도 같이 기뻐하는 말투',
-  worm: '담백하고 군더더기 없이, 그래도 다정한 말투',
-  frog: '다정하고 포근하게, 마음을 먼저 살피는 말투'
-}
-export const toneOf = (species: Species | null) => (species ? TONE[species] : '다정하고 짧은 말투')
+// 50 §4: 말투는 성격 카드 한 곳(persona.ts)에서 — AI 비서·주간 리포트와 같은 성격. 조사 전은 꿈틀이
+export const toneOf = (species: Species | null) => personaOf(personaIdOf(species)).tone
 export function buddyOf(c: { name: string | null; species: Species | null } | undefined): Buddy {
   const species = c?.species ?? null
   const fallback = species ? SPECIES[species].name.split(' ').at(-1)! : '새싹'
@@ -64,7 +60,7 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s
 export function buildBuddyMessages(input: { buddy: Buddy; entry: Pick<DiaryEntry, 'date' | 'mood' | 'content' | 'private'>; messages: Pick<DiaryMessage, 'role' | 'content' | 'safety'>[]; memory?: Memory[] }): ChatMessage[] | null {
   const { buddy, entry } = input
   if (entry.private) return null
-  const tone = buddy.species ? TONE[buddy.species] : '다정하고 짧은 말투'
+  const tone = toneOf(buddy.species)
   const system = [
     `너는 할 일 앱 꿈틀에서 사용자와 같이 자라는 성장 캐릭터 "${buddy.name}"야. 친구처럼 사용자의 일기를 읽고 이야기를 들어 줘.`,
     `말투: 존댓말 없이 친구처럼 반말(~했구나, ~겠다, ~어?), ${tone}.`,
