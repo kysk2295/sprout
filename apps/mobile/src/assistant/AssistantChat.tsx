@@ -106,6 +106,7 @@ export function AssistantChat({ a, variant, autoFocus, bleed, onHeader, contentT
   const submit = async (text = a.draft, prompt?: string) => {
     if (a.busy || !a.model || !text.trim()) return
     if (text === a.draft) setDraft('')
+    Keyboard.dismiss() // 사용자 "한번 채팅하면 키보드를 내리는 게 기본" — 보내면 캐릭터·답이 보이게
     latest()
     await send(text, prompt)
   }
