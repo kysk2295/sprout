@@ -24,7 +24,6 @@ import type { CalHandlers, Change, Draft, Rect } from './types'
 import { ArrangePanel } from './ArrangePanel'
 import { ViewOptions } from './ViewOptions'
 import './calendar.css'
-import { HeaderSceneBand } from '../ListSceneBand'
 import { calendarsApi, deleteExt, editExt, openCalendarSettings, useExtEvents, type ExtEvent } from '../../data/calendars'
 import { eventSpan } from '@sprout/schema/events'
 import { extItems, extOf, isPastExt } from '../../lib/calendarExt'
@@ -328,8 +327,7 @@ export function CalendarView({ lists, tags, inboxId, actions }: Props) {
         </div>
       )}
       <main className="cal__main">
-        <header className="cal__header has-band">
-          <HeaderSceneBand />{/* 49 §8.2 은은하게: 월 이름 뒤 같은 띠(얕게) */}
+        <header className="cal__header">{/* 머리 뒤 장면 띠는 뺐다(사용자 2026-10-12 "데탑은 이런 배경 지워 줘") */}
           <button className="icon-btn" onClick={() => setPanelOpen(!panelOpen)} aria-label="왼쪽 패널 (⌘\)"><PanelLeft /></button>
           <button className="cal__title" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setPop({ kind: 'months', rect: { left: r.left, top: r.bottom + 6, right: r.left, bottom: r.bottom + 6 } }) }}>
             {titleOf(view, cursor)}

@@ -21,7 +21,6 @@ import { checkboxColor } from '../lib/priority'
 import type { TaskActions } from '../lib/taskActions'
 import { childrenMap, flattenTree, MAX_DEPTH, type FlatRow } from '../lib/tree'
 import { EmptyState } from './EmptyState'
-import { ListSceneBand } from './ListSceneBand'
 import { AllDoneEmpty, OfflineBand, TodayEmpty } from './companion/CompanionStates'
 import { MenuItem, Popover, SubMenu } from './Popover'
 import { PriorityRow } from './Pickers'
@@ -599,8 +598,8 @@ export function TaskListView(props: Props) {
 
   return (
     <LinkIndexProvider tags={tags} lists={lists}>
-    <main ref={mainRef} tabIndex={-1} onPointerDownCapture={(e)=>{if(!(e.target as HTMLElement).closest('input,textarea,select,[contenteditable],button'))mainRef.current?.focus({preventScroll:true})}} className={`list${archive ? '' : ' has-band'}`} data-list-target={view.startsWith('list:')?view.slice(5):undefined}>
-      {!archive && <ListSceneBand scrollRef={scrollRef} />}{/* 49 §8.2 은은하게: 큰 제목 뒤 장면 띠(자리 없음) */}
+    <main ref={mainRef} tabIndex={-1} onPointerDownCapture={(e)=>{if(!(e.target as HTMLElement).closest('input,textarea,select,[contenteditable],button'))mainRef.current?.focus({preventScroll:true})}} className="list" data-list-target={view.startsWith('list:')?view.slice(5):undefined}>
+      {/* 큰 제목 뒤 장면 띠는 뺐다(사용자 2026-10-12 "데탑은 이런 배경 지워 줘") */}
       <header className="pane-header">
         <button className="icon-btn" onClick={onToggleSidebar} aria-label="사이드바 접기 (⌘\)"><PanelLeft /></button>
         <h1 className="pane-header__title">
