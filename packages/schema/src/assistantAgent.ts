@@ -122,9 +122,17 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
   const lists = await listsOf(i.db).catch(() => [])
   const preliminary = route(i.text, { now, pending: i.pending, diary: i.diary, memory, lists })
   if (i.classify && !i.routeDecision && !['confirm', 'cancel', 'fixed'].includes(preliminary.route.kind)) {
-    const signal = AbortSignal.any([...(i.signal ? [i.signal] : []), AbortSignal.timeout(L.turnMs)])
-    i = { ...i, routeDecision: await i.classify(i.text, i.history, signal) }
-    signal.throwIfAborted()
+    // 휴대폰(Hermes)에는 AbortSignal.any·AbortSignal.timeout·throwIfAborted가 없다 → 직접 묶는다(2026-10-11: 이것 때문에
+    // 휴대폰에서 분류를 거치는 모든 질문이 TypeError로 끝났다 — '미용실 간 지…' 등). 분류가 실패해도 턴은 분류 없이 이어 간다
+    const timeout = new AbortController()
+    const timer = setTimeout(() => timeout.abort(new Error('turn-timeout')), L.turnMs)
+    const signal = anySignal(timeout.signal, i.signal)
+    let decision: RouteDecision | undefined
+    try { decision = await i.classify(i.text, i.history, signal) } catch (e) {
+      if (i.signal?.aborted) throw e // 사용자가 멈춤
+    } finally { clearTimeout(timer) }
+    if (i.signal?.aborted) throw i.signal.reason ?? new Error('aborted')
+    i = { ...i, routeDecision: decision }
   }
   const routingText = i.routeDecision?.resolution === 'lookup' ? i.text.replace(/완료\s*해\s*줘([.!?~]*)$/, '완료로 해줘$1') : i.text
   const decision = i.routeDecision?.resolution === 'lookup' && i.routeDecision.intent === 'write' && draftWithoutMutation(i.text) ? { ...i.routeDecision, intent: 'chat' as const } : i.routeDecision

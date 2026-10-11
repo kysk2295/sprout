@@ -1,6 +1,7 @@
 // 11 v3-8 · 26 §2.3 볼 것 링크 요약 — 휴대폰도 만든다(사용자 2026-10-10 "휴대폰에서도 하게 해 줘", 26 M-C5의 예외).
 // 페이지는 이 휴대폰이 읽고(내부망 금지), 요약은 꿈틀 AI(/ai/classify, background — 데스크톱 수집기와 같은 길)로.
 // 제목이 아직 없으면(휴대폰만 쓰는 사람) 페이지 제목도 같이 채운다. 하루 자동 20개(이 기기).
+import { timeoutSignal } from '../lib/timeoutSignal'
 import * as SecureStore from 'expo-secure-store'
 import { useEffect, useRef } from 'react'
 import { AppState } from 'react-native'
@@ -18,7 +19,7 @@ const isYoutube = (u: string) => /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.b
 export async function readLinkPage(url: string, signal?: AbortSignal): Promise<LinkPage | null> {
   if (!isPublicHttpUrl(url)) return null
   try {
-    const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(8000), headers: { accept: 'text/html', 'accept-language': 'ko,en;q=0.8' } })
+    const res = await fetch(url, { signal: signal ?? timeoutSignal(8000), headers: { accept: 'text/html', 'accept-language': 'ko,en;q=0.8' } })
     const final = res.url || url
     if (!res.ok || !isPublicHttpUrl(final) || !/text\/html|application\/xhtml/i.test(res.headers.get('content-type') ?? '')) return null
     const html = (await res.text()).slice(0, 768 * 1024)

@@ -1,5 +1,6 @@
 // 28 모바일 일기 — DB 읽기·쓰기와 캐릭터 대화(데스크톱 data/diary.ts와 같은 순서·같은 규칙).
 // 동의 전·나만 보기·오늘은 혼자에서는 /ai/diary를 부르지 않는다. 일기로 XP 없음(15 §4).
+import { timeoutSignal } from '../lib/timeoutSignal'
 import { useMemo } from 'react'
 import { COUNT_THROTTLE, useLiveQuery, useRows } from '../data/rows'
 import { addDays } from '@sprout/schema/time'
@@ -152,7 +153,7 @@ export type ReplyOpts = { buddy: Buddy; signal: AbortSignal; onDelta?: (visible:
 const touched = new Set<string>()
 export const touchEntry = (date: string) => { touched.add(date) }
 export function flushSummaries() {
-  for (const d of touched) void summarizeEntry(d, AbortSignal.timeout(180000)).catch(() => {})
+  for (const d of touched) void summarizeEntry(d, timeoutSignal(180000)).catch(() => {})
   touched.clear()
 }
 /** 기억하기용 짧은 요약 — 기억하기를 켠 사람의, 나만 보기가 아닌 날만 */
