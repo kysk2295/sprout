@@ -21,11 +21,11 @@ export default function AssistantScreen() {
   useEffect(() => { if (draft) setDraft(draft) }, [draft])
   // 49 §8 표: 빈 대화는 장면이 상태 막대·머리 뒤부터 홈 표시줄까지 끝까지 깔린다 — 머리는 투명(선 없음), 글자는 장면 밝기 색
   const sc = useChatScene(a)
-  const ink = sc.empty ? sc.tone.ink : p.textPrimary
+  const ink = sc.tone.ink // 장면이 늘 깔린다(대화 중에도) — 머리 글자는 장면 밝기 색
   const bottom = Math.max(insets.bottom, 8)
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: p.cardBg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[s.nav, { marginTop: insets.top, borderBottomColor: sc.empty ? 'transparent' : p.borderDivider }]}>
+      <View style={[s.nav, { marginTop: insets.top, borderBottomColor: 'transparent' }]}>
         <GlassButton label="뒤로" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>
         <View style={s.mid}>
           <Text style={[FONT.nav, { color: ink }]}>AI 비서</Text>

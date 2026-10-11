@@ -47,7 +47,9 @@ export function StatusPill({ a }: { a: AssistantState }) {
   const waiting = a.busy && (a.progress.queue ?? 0) > 0
   const state = a.connecting || waiting ? 'wait' : a.models.length ? 'ok' : 'off'
   const color = state === 'ok' ? '#2fb36b' : state === 'wait' ? '#f29a2e' : p.textTertiary
-  const label = a.connecting ? '연결 중…' : waiting ? `대기 중 · 앞에 ${a.progress.queue}명` : a.models.length ? '연결됨' : '지금은 쓸 수 없어요'
+  // 사용자 2026-10-11 "연결됨 이것도 UI에서 지워 줘": 잘 연결돼 있으면 알약을 그리지 않는다(연결 중·대기·못 씀일 때만)
+  if (state === 'ok') return null
+  const label = a.connecting ? '연결 중…' : waiting ? `대기 중 · 앞에 ${a.progress.queue}명` : '지금은 쓸 수 없어요'
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`${label}, 다시 연결`} disabled={a.connecting || a.busy} onPress={() => void refresh()} style={[s.pill, { backgroundColor: p.bgSelected }]}>
       <View style={[s.pillDot, { backgroundColor: color }]} />
@@ -165,14 +167,14 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
     : <StaticFace species={buddy.species} stage={buddy.stage} size={COMPANION_SIZE.chat} mood={f?.mood ?? 'smile'} dim={f?.dim} />
 
   // 49 §8 표 · 시안 character-v3 wAsst: 빈 대화 = 장면 끝까지(고른 배경, 다크 = 밤 짝) + 받침 위 캐릭터 + 무엇을 도와줄까? + 유리 칩 + 입력칸.
-  // 대화가 시작되면 장면은 사라지고 말풍선은 흰 바탕(긴 글 읽기)
+  // 대화가 시작돼도 장면은 그대로(사용자 2026-10-11 "이 화면에서 그대로 채팅하면서") — 캐릭터 답은 반투명 카드 말풍선(긴 글 읽기)
   const { empty, sceneKey, tone } = useChatScene(a)
   const bt = bleed?.top ?? 0, bb = bleed?.bottom ?? 0
   const [area, setArea] = useState({ w: 0, h: 0 })
   const [barTop, setBarTop] = useState(0)
   return (
     <View style={{ flex: 1 }} onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setArea((o) => (o.w === width && o.h === height ? o : { w: width, h: height })) }}>
-      {empty && area.w ? <SceneBackdrop sceneKey={sceneKey} width={area.w} height={area.h + bt + bb} style={{ position: 'absolute', left: 0, top: -bt, width: area.w, height: area.h + bt + bb }} /> : null}
+      {area.w ? <SceneBackdrop sceneKey={sceneKey} width={area.w} height={area.h + bt + bb} style={{ position: 'absolute', left: 0, top: -bt, width: area.w, height: area.h + bt + bb }} /> : null}
       <ScrollView
         ref={scroll}
         keyboardShouldPersistTaps="handled"
@@ -270,8 +272,8 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
       {empty && area.w && barTop ? <EmptyChat a={a} variant={variant} sceneKey={sceneKey} tone={tone} area={area} bleed={{ top: bt, bottom: bb }} barTop={barTop} onPick={(t) => void submit(t)} /> : null}
       <View onLayout={(e) => setBarTop(e.nativeEvent.layout.y)} pointerEvents="box-none">
       <Composer a={a} autoFocus={autoFocus} onSubmit={() => void submit()} />
-      {a.agent ? <Text style={[s.foot, { color: empty ? tone.sub : p.textTertiary }]}>{[variant === 'full' ? '꿈틀 AI는 꿈틀 서버에서만 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요' : '꿈틀 서버에서 돌아가요 · 인터넷은 못 봐요', left].filter(Boolean).join(' · ')}</Text>
-        : variant === 'full' ? <Text style={[s.foot, { color: empty ? tone.sub : p.textTertiary }]}>결과는 카드에서 되돌릴 수 있어요</Text> : null}
+      {a.agent ? <Text style={[s.foot, { color: tone.sub }]}>{[variant === 'full' ? '꿈틀 AI는 꿈틀 서버에서만 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요' : '꿈틀 서버에서 돌아가요 · 인터넷은 못 봐요', left].filter(Boolean).join(' · ')}</Text>
+        : variant === 'full' ? <Text style={[s.foot, { color: tone.sub }]}>결과는 카드에서 되돌릴 수 있어요</Text> : null}
       </View>
     </View>
   )
@@ -333,7 +335,8 @@ function Ai({ face, name, xp = 0, children }: { face: ReactNode; name: string; x
   return (
     <View style={s.ai}>
       <View style={s.who}>{face}<XpPop n={xp} style={{ top: -8, right: -10 }} /></View>
-      <View style={{ flex: 1, gap: 8, minWidth: 0 }}>
+      {/* 장면 위 말풍선 — 글자는 늘 카드 위라 기존 글자색 그대로 읽힌다 */}
+      <View style={[s.aiCard, { backgroundColor: p.dark ? 'rgba(28,28,30,0.92)' : 'rgba(255,255,255,0.93)' }]}>
         <Text style={[s.name, { color: p.textTertiary }]} numberOfLines={1}>{name}</Text>
         {children}
       </View>
@@ -499,6 +502,7 @@ const s = StyleSheet.create({
   heroS: { fontSize: 14, lineHeight: 20, fontWeight: '500', marginTop: 6, textAlign: 'center' },
   heroChip: { paddingHorizontal: 16, paddingVertical: 13 },
   heroChipT: { fontSize: 14.5, fontWeight: '600' },
+  aiCard: { flex: 1, gap: 8, minWidth: 0, borderTopLeftRadius: 6, borderTopRightRadius: 18, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, paddingHorizontal: 13, paddingVertical: 10 },
   me: { alignSelf: 'flex-end', maxWidth: '80%', borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomLeftRadius: 18, borderBottomRightRadius: 6, paddingHorizontal: 14, paddingVertical: 9 },
   text: { fontSize: 15.5, lineHeight: 22 },
   undo: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' },

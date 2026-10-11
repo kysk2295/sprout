@@ -173,7 +173,9 @@ const isLimit = (e: unknown) => /너무 잦아요|한도|처리 중인 AI 요청
 export function AssistantStatus({ assistant: a, short }: { assistant: AssistantController; short?: boolean }) {
   const waiting = a.busy && (a.progress.queue ?? 0) > 0
   const state = a.connecting || waiting ? 'wait' : a.models.length ? 'ok' : 'off'
-  const label = a.connecting ? '연결 중…' : waiting ? `대기 중 · 앞에 ${a.progress.queue}명` : a.models.length ? (short ? '연결됨' : '꿈틀 AI · 연결됨') : '지금은 쓸 수 없어요'
+  // 사용자 2026-10-11 "연결됨 이것도 UI에서 지워 줘": 잘 연결돼 있으면 그리지 않는다(연결 중·대기·못 씀일 때만)
+  if (state === 'ok') return null
+  const label = a.connecting ? '연결 중…' : waiting ? `대기 중 · 앞에 ${a.progress.queue}명` : '지금은 쓸 수 없어요'
   return <button className={`assistant-status is-${state}`} title="다시 연결" disabled={a.connecting || a.busy} onClick={() => void a.refresh()}><i /><span>{label}</span></button>
 }
 
