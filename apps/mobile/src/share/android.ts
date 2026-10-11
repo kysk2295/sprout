@@ -25,29 +25,33 @@ export const canReceiveShare = Platform.OS === 'ios' || !!native
 // take()는 모듈 대기열을 비운다 → 넣기 전에 앱 파일(localStore)에 먼저 옮겨 두고, 한 건 넣을 때마다 지운다.
 // 넣다가 DB 오류·앱 종료가 나도 남은 것은 다음 drain에서 다시. id는 옮길 때 정해 두어 "넣었는데 파일은 못 지움"이면 건너뛴다.
 const STASH = 'android-share-pending'
-type Stashed = { id: string; content: string; at: string }
+// 옮긴 항목은 그때 로그인한 사람 것(owner) — 로그아웃·다른 계정 로그인 뒤에는 넣지 않고 그 사람이 다시 들어올 때까지 둔다
+type Stashed = { id: string; content: string; at: string; owner: string }
 
 /** 쌓인 공유를 수집함에 넣는다. 넣은 개수 */
 async function drain(): Promise<number> {
   if (!native) return 0
+  const me = currentUserId()
   let stash = readJson<Stashed[]>(STASH, [])
   let items: Shared[] = []
   try { items = native.take() } catch (e) { console.warn('[share] take failed:', e) }
   for (const it of items) {
     const content = androidShareContent(it.subject, it.text)
-    if (content) stash.push({ id: crypto.randomUUID(), content, at: new Date(typeof it.at === 'number' ? it.at : Date.now()).toISOString() })
+    if (content) stash.push({ owner: me, id: crypto.randomUUID(), content, at: new Date(typeof it.at === 'number' ? it.at : Date.now()).toISOString() })
   }
   if (items.length) writeJson(STASH, stash)
   let n = 0
-  while (stash.length) {
-    const it = stash[0]
+  const others = stash.filter((it) => it.owner !== me) // 다른 계정 것(옛 형식 owner 없음 포함)은 손대지 않는다
+  let mine = stash.filter((it) => it.owner === me)
+  const save = () => { const rest = [...others, ...mine]; if (rest.length) writeJson(STASH, rest); else removeJson(STASH) }
+  while (mine.length) {
+    const it = mine[0]
     if (!(await coreDb.get('SELECT id FROM notes WHERE id = ?', [it.id]))) {
-      await run([insertStmt('notes', { owner_id: currentUserId(), id: it.id, ...shareRow(it.content, it.at) })])
+      await run([insertStmt('notes', { owner_id: me, id: it.id, ...shareRow(it.content, it.at) })])
       n++
     }
-    stash = stash.slice(1)
-    if (stash.length) writeJson(STASH, stash)
-    else removeJson(STASH)
+    mine = mine.slice(1)
+    save()
   }
   return n
 }
