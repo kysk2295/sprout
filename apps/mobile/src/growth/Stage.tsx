@@ -11,6 +11,7 @@ import { XP, type Species } from '@sprout/schema/growth'
 import { decorOn, ITEMS, TOUCH, TOUCH_LINES, type Equip } from '@sprout/schema/wardrobe'
 import type { PlayKind } from '@sprout/schema/charPlay'
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Info } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { cancelAnimation, Easing, FadeIn, FadeOut, useAnimatedStyle, useFrameCallback, useSharedValue, withDelay, withRepeat, withSequence, withTiming, type SharedValue } from 'react-native-reanimated'
 import type { Streak } from '@sprout/schema/streak'
@@ -64,9 +65,11 @@ export const RaiseStage = forwardRef<StageHandle, {
   onWard?: () => void; onDex?: () => void; onWeek?: () => void
   /** Lv 카드(%·막대)를 누르면 — 진화 길 팝업(49 §6.0) */
   onRoad?: () => void
+  /** 이름 줄 끝 정보 단추 → 캐릭터 소개 시트(50 §8.1). 캐릭터 행이 없으면(로그인 전) 단추 없음 */
+  onPersona?: () => void
   /** 머리 오른쪽(⋯ 메뉴) */
   menu?: ReactNode
-}>(function RaiseStage({ p, raise, name, width, height, topInset, bottomClear, sceneKey, reduced, live, night, calm, lines, onEgg, week, dexN, freshDot, streak, goals, onWard, onDex, onWeek, onRoad, menu }, ref) {
+}>(function RaiseStage({ p, raise, name, width, height, topInset, bottomClear, sceneKey, reduced, live, night, calm, lines, onEgg, week, dexN, freshDot, streak, goals, onWard, onDex, onWeek, onRoad, onPersona, menu }, ref) {
   const { species, progress, look, worn, owned } = raise
   const lv = progress.level
   const st = progress.stage
@@ -240,6 +243,12 @@ export const RaiseStage = forwardRef<StageHandle, {
             <Pressable onPress={() => species && wave()} hitSlop={8} disabled={!species} accessibilityRole="button" accessibilityLabel={species ? `${name} 부르기` : title} style={{ flexShrink: 1 }}>
               <Text style={[s.who, { color: t.ink }]} numberOfLines={1}>{species ? `${name} · ${title}` : title}</Text>
             </Pressable>
+            {raise.character && onPersona ? (
+              <Pressable onPress={() => { hx.tick(); onPersona() }} hitSlop={13} accessibilityRole="button" accessibilityLabel="캐릭터 소개"
+                style={({ pressed }) => [s.info, pressed && { opacity: 0.5 }]}>
+                <Info size={18} color={t.ink} style={{ opacity: 0.7 }} />
+              </Pressable>
+            ) : null}
           </View>
           <Pressable onPress={() => { if (species && onRoad) { hx.tick(); onRoad() } }} disabled={!species || !onRoad} accessibilityRole="button" accessibilityLabel={`다음 레벨까지 ${pct}퍼센트. 진화 길 보기`} accessibilityHint="다음 모습과 열리는 레벨을 봐요">
           <View style={s.row2}>
@@ -401,6 +410,7 @@ const s = StyleSheet.create({
   lvb: { borderRadius: 7, paddingHorizontal: 7, paddingVertical: 2 },
   lvbT: { color: '#fff', fontSize: 11.5, fontWeight: '800' },
   who: { fontSize: 13, fontWeight: '700', opacity: 0.82 },
+  info: { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' }, // 50 §8.1 — 18 + hitSlop 13 = 누르는 칸 44
   row2: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 },
   big: { fontSize: 54, lineHeight: 58, fontWeight: '800', letterSpacing: -2.7, marginTop: 6, includeFontPadding: false },
   bigPct: { fontSize: 28, letterSpacing: -0.5 },

@@ -12,6 +12,7 @@ import { isProjectDeadlineToday, RAISE_FRESH, RAISE_PANEL, saveLook, useRaise } 
 import { dayKey } from '../../lib/dates'
 import { CharacterArt, type CharacterMood } from './CharacterArt'
 import { PlayableCharacter, type PlayHandle } from './PlayableCharacter'
+import { PersonaTitle } from './PersonaCard'
 import { EvolutionMoment } from './EvolutionMoment'
 import { SeedPic, useDocDark } from './MakeFlow'
 import { ItemPic, LOOKS, RaisePanel } from './RaisePanel'
@@ -461,7 +462,13 @@ export function GrowthStage({ character, events, progress, ready, stats, reduced
 
       {/* 유리 HUD(49 §6) */}
       <div className="gs3-hud gs3-glass" aria-hidden={!!panel}>
-        <div className="lv"><em>Lv {shown.level}</em><HudName name={name} editable={!!species} onCall={callName} /><span className="ttl">{species ? `· ${titleOf(species, stage, raise.look.path)}` : "· 안내 달팽이"}</span></div>
+        <div className="lv"><em>Lv {shown.level}</em><HudName name={name} editable={!!species} onCall={callName} />
+          {/* 50 §8 종·단계 글 = 캐릭터 소개 단추(캐릭터 없음 = 로그인 전이면 그리지 않는다) */}
+          {character ? (
+            <><span className="dot" aria-hidden="true">·</span><PersonaTitle species={species} stage={stage} title={species ? titleOf(species, stage, raise.look.path) : '안내 달팽이'} name={name}
+              wear={{ path: raise.look.path, eq: raise.worn, seed }} answersJson={character.answers_json} toneStyle={toneStyle} dark={dark} reduced={reduced} disabled={!!panel} /></>
+          ) : <span className="ttl">{species ? `· ${titleOf(species, stage, raise.look.path)}` : '· 안내 달팽이'}</span>}
+        </div>
         {species ? (
           <>
             <div className="row2">

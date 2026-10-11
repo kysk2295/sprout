@@ -1,0 +1,50 @@
+/* 50 §8 캐릭터 소개 — HUD 종 글 단추 + 유리 팝오버. 글자·유리 톤은 무대의 --g-* (장면마다, 49 §6.1 sceneGlass)를 그대로 받는다 */
+
+/* 가운뎃점은 단추 밖(알약이 글만 감싸게) */
+.gs3-hud .lv .dot { flex: none; opacity: .72; font-weight: 600; margin-right: -3px; }
+/* 단추: 기존 .ttl 글(흐린 굵기 600) 그대로, 호버 = 알약 배경(밑줄 없음) — 50 §8.1 */
+.gs3-hud .lv .gs-persona-btn { display: inline-flex; align-items: center; gap: 4px; min-width: 0; border: 0; background: none; margin: -3px 0 -3px -4px; padding: 3px 6px 3px 4px; border-radius: 999px; color: inherit; font: inherit; font-weight: 600; cursor: pointer; transition: background-color .12s; }
+.gs3-hud .lv .gs-persona-btn .tx { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs3-hud .lv .gs-persona-btn svg { flex: none; color: var(--g-sub, currentColor); }
+.gs3-hud .lv .gs-persona-btn:hover, .gs3-hud .lv .gs-persona-btn[aria-expanded="true"] { background: color-mix(in srgb, var(--g-ink) 10%, transparent); }
+.gs3-hud .lv .gs-persona-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+/* 팝오버(50 §8.3): 유리 = HUD와 같은 .gs3-glass · 320px · 창 높이 − 120 넘으면 안에서 스크롤 · 열기 120ms 페이드 + 4px 위로 */
+.gs-persona {
+  --pc-3: color-mix(in srgb, var(--g-ink) 55%, transparent); --pc-track: rgba(127, 127, 127, .24); --pc-fillbar: var(--color-accent); --pc-chip: rgba(127, 127, 127, .13); --pc-me: var(--color-accent); --pc-me-ink: #fff; --pc-it: rgba(127, 127, 127, .14);
+  position: fixed; z-index: 60; width: 320px; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain;
+  padding: 16px 16px 14px; border-radius: 20px; box-shadow: 0 12px 36px rgba(15, 35, 22, .18), 0 2px 6px rgba(15, 35, 22, .08);
+  font-family: var(--font-family); color: var(--g-ink); word-break: keep-all; user-select: text; -webkit-user-select: text; outline: none;
+  animation: gs-persona-in .12s ease-out both;
+}
+.gs-persona.is-dark { --pc-fillbar: var(--color-accent-hi, #3DB79B); --pc-track: rgba(255, 255, 255, .16); --pc-chip: rgba(255, 255, 255, .1); --pc-me: #2E8F79; --pc-it: rgba(255, 255, 255, .1); box-shadow: 0 12px 36px rgba(0, 0, 0, .4); }
+@keyframes gs-persona-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes gs-persona-fade { from { opacity: 0; } to { opacity: 1; } }
+.gs-persona.is-still { animation-name: gs-persona-fade; }
+@media (prefers-reduced-motion: reduce) { .gs-persona { animation-name: gs-persona-fade; } }
+
+.gs-persona .hd { display: flex; align-items: center; gap: 12px; }
+.gs-persona .pic { flex: none; width: 64px; height: 64px; border-radius: 16px; background: var(--pc-chip); overflow: hidden; display: grid; place-items: center; }
+.gs-persona .who { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.gs-persona .who b { font: 750 15px/1.25 var(--font-family); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-persona .who span { font: 500 12px/1.3 var(--font-family); color: var(--g-sub); }
+.gs-persona .intro { margin: 12px 0 0; font: 500 13px/1.55 var(--font-family); }
+
+.gs-persona .axes { display: flex; flex-direction: column; gap: 9px; margin-top: 14px; }
+.gs-persona .ax .lb { font: 600 12px/1.2 var(--font-family); color: var(--g-sub); font-variant-numeric: tabular-nums; }
+.gs-persona .ax .track { height: 6px; margin-top: 5px; border-radius: 3px; background: var(--pc-track); overflow: hidden; }
+.gs-persona .ax .track i { display: block; height: 100%; border-radius: 3px; background: var(--pc-fillbar); }
+
+.gs-persona section { margin-top: 14px; }
+.gs-persona h4 { margin: 0 0 5px; font: 600 11px/1.2 var(--font-family); color: var(--pc-3); letter-spacing: .01em; }
+.gs-persona section p { margin: 0; font: 500 13px/1.45 var(--font-family); }
+.gs-persona .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.gs-persona .chips span { padding: 4px 9px; border-radius: 999px; background: var(--pc-chip); font: 550 12px/1.3 var(--font-family); }
+
+/* 예시 대화 — AI 비서 말풍선 축소판(오른쪽 사용자 · 왼쪽 캐릭터) */
+.gs-persona .talk { display: flex; flex-direction: column; gap: 6px; }
+.gs-persona .talk div { max-width: 82%; padding: 7px 11px; border-radius: 14px; font: 500 12.5px/1.45 var(--font-family); }
+.gs-persona .talk .me { align-self: flex-end; background: var(--pc-me); color: var(--pc-me-ink); border-bottom-right-radius: 5px; }
+.gs-persona .talk .it { align-self: flex-start; background: var(--pc-it); border-bottom-left-radius: 5px; }
+
+.gs-persona .foot { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--pc-track); font: 500 12px/1.4 var(--font-family); color: var(--g-sub); }

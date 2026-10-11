@@ -34,6 +34,7 @@ import { levelChange, minutesToday, weekStartOf, WEEKDAY_KO } from '../../src/gr
 import { useMotionReduced, writeMotionPref } from '../../src/growth/motion'
 import { NewItemToast } from '../../src/growth/NewItemToast'
 import { onFresh, saveLook, takeFresh, useRaise } from '../../src/growth/raise'
+import { PersonaSheet } from '../../src/growth/PersonaSheet'
 import { RenameModal } from '../../src/growth/RenameModal'
 import { RaiseStage, type StageHandle, type WeekCell } from '../../src/growth/Stage'
 import { KEY, keysFor, preload, read, write } from '../../src/growth/store'
@@ -205,7 +206,7 @@ export default function Growth() {
   const win = useWindowDimensions()
   const H = win.height
   // 49 §6.0 팝업(누르면 열리는 시트 — 39 §4.4 BottomSheet: 아래로 끌기·바깥 누르기·✕로 닫힘)
-  const [pop, setPop] = useState<'week' | 'road' | 'log' | null>(null)
+  const [pop, setPop] = useState<'week' | 'road' | 'log' | 'persona' | null>(null)
   const [weekEmpty, setWeekEmpty] = useState(false) // 고정 칸이 `+ 목표 만들기`였으면 팝업을 열자마자 입력 커서
   const darkTop = sceneDark(sceneKey)
   const tone = glassTone(sceneDark(sceneKey)) // 49 §6.1 유리 톤 = 장면 밝기
@@ -261,14 +262,14 @@ export default function Growth() {
         goals={{ done: g.goals.filter((x) => x.status === 'achieved').length, total: g.goals.length, ratio: goalsRatio(g.goals) }}
         onWard={() => router.push('/growth/decorate')}
         onDex={() => router.push({ pathname: '/growth/decorate', params: { tab: 'dex' } })}
-        onWeek={() => { setWeekEmpty(!g.goals.length); setPop('week') }} onRoad={() => setPop('road')} />
+        onWeek={() => { setWeekEmpty(!g.goals.length); setPop('week') }} onRoad={() => setPop('road')} onPersona={() => setPop('persona')} />
       {/* 10 §4.6 `이번 주` 팝업 = 목표 편집기(만들기·이름·목표 수·세는 방법·삭제 되돌리기·순서) */}
       <GoalsSheet p={p} visible={pop === 'week' && ready} onClose={() => setPop(null)} today={today} week={g.week} drafts={g.drafts} draftUsed={g.draftUsed} reduced={reduced} focusAdd={weekEmpty} />
       <BottomSheet visible={pop === 'road' || pop === 'log'} onClose={() => { setPop(null); setRoad(null) }} mid={pop === 'log' ? 0.72 : 0.6}
         label={pop === 'road' ? '진화 길' : '기록'}
         head={<SheetHead compact title={pop === 'road' ? '진화 길' : '기록'} onClose={() => { setPop(null); setRoad(null) }} />}>
         <ScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: ins.bottom + 24 }} onScrollBeginDrag={() => setRoad(null)}>
-          {ready && pop && pop !== 'week' ? (
+          {ready && (pop === 'road' || pop === 'log') ? (
             pop === 'road' ? <EvolutionRoad p={p} species={species} level={lv} stage={g.progress.stage} open={road} onOpen={setRoad} />
                 : <>
                   <XpCard p={p} events={g.events} week={g.week} today={today} />
@@ -278,6 +279,9 @@ export default function Growth() {
           ) : null}
         </ScrollView>
       </BottomSheet>
+      {/* 50 §8 캐릭터 소개(HUD 이름 줄 끝 정보 단추) */}
+      <PersonaSheet p={p} visible={pop === 'persona'} onClose={() => setPop(null)} characterId={cid} species={species} stage={raise.progress.stage} name={name}
+        wear={species ? { lv: raise.progress.level, path: raise.look.path, eq: raise.worn, seed: raise.look.seed ?? 0 } : undefined} />
       {toast ? <NewItemToast rows={toast} level={lv} bottom={space.clear + 12} reduced={reduced} onWear={wear} onClose={() => setToast(null)} /> : null}
       <EvolutionMoment evo={evo} reduced={reduced} onPick={(path) => { if (cid) void saveLook(cid, { ...raise.look, path }) }} onDone={evoDone} />
       <RenameModal p={p} visible={rename} initial={name} today={today} onClose={() => setRename(false)} />

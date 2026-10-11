@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { personaIdOf } from '@sprout/schema/persona'
 import { addDays } from '@sprout/schema/time'
 import {
   aiLeft, parseGoalDraft, parseReportText, progressFromEvents, readTextJson, SPECIES, weekHasActivity, weekLabel, weeklyStats, XP, xpEventId, xpToNext,
@@ -19,7 +20,7 @@ import { weekStart } from '../lib/calendar'
 
 // 10 성장 — XP 원장·캐릭터·주간 목표. 레벨은 원장에서 계산한다.
 export type XpRow = { id: string; kind: string; amount: number; ref_id: string; day: string; created_at: string }
-export type CharacterRow = { id: string; name: string | null; species: Species | null; type_code: string | null; assessed_at: string | null; look_json?: string | null }
+export type CharacterRow = { id: string; name: string | null; species: Species | null; type_code: string | null; assessed_at: string | null; look_json?: string | null; answers_json?: string | null }
 export type GoalRow = CoreGoalRow
 
 export const thisWeek = () => weekStart(dayKey())
@@ -30,7 +31,7 @@ const announce = (amount: number) => { if (amount) window.dispatchEvent(new Cust
 
 // ── 캐릭터 ──
 // 행이 여러 개면(두 기기가 따로 만든 경우 등) 배정된 캐릭터, 그다음 먼저 만든 것을 쓴다
-const CHARACTER_SQL = 'SELECT id, name, species, type_code, assessed_at, look_json FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1'
+const CHARACTER_SQL = 'SELECT id, name, species, type_code, assessed_at, look_json, answers_json FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1'
 let creating: Promise<CharacterRow> | undefined
 export async function ensureCharacter(): Promise<CharacterRow> {
   const db = await getDb()
@@ -227,7 +228,7 @@ export const isWeeklyCap = (e: unknown) => /이번 주에는 이미 사용/.test
 async function callAi<T>(kind: 'weekly_report' | 'kpi_draft', payload: unknown, signal: AbortSignal, parse: (raw: string) => T): Promise<{ result: AiResult; value?: T }> {
   let raw: string
   try {
-    raw = await askGrowthAi(kind, payload, signal)
+    raw = await askGrowthAi(kind, payload, signal, personaIdOf((await ensureCharacter()).species))
   } catch (e) {
     // 서버 프록시의 주간 상한(429 weekly: "이번 주에는 이미 사용했어요…")만 시도로 친다.
     // 하루 상한·잦은 요청·대기열·연결 실패는 잠깐 문제라 다음 실행 때 다시 한다
