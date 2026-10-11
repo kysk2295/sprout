@@ -71,8 +71,9 @@ export function useChatScene(a: AssistantState) {
 }
 
 /** bleed = 장면을 대화 칸 밖으로 넓힐 길이(전체 화면: 위 = 상태 막대 + 머리, 아래 = 홈 표시줄 여백) — 흰 띠 없이 화면 끝까지 */
-export function AssistantChat({ a, variant, autoFocus, bleed, onHeader }: { a: AssistantState; variant: 'full' | 'sheet'; autoFocus?: boolean; bleed?: { top?: number; bottom?: number }; onHeader?: (show: boolean) => void }) {
+export function AssistantChat({ a, variant, autoFocus, bleed, onHeader, contentTop = 0 }: { a: AssistantState; variant: 'full' | 'sheet'; autoFocus?: boolean; bleed?: { top?: number; bottom?: number }; onHeader?: (show: boolean) => void; contentTop?: number }) {
   const lastY = useRef(0)
+  const dragging = useRef(false)
   const p = usePalette()
   const scroll = useRef<ScrollView>(null)
   const follow = useRef(true)
@@ -272,17 +273,18 @@ export function AssistantChat({ a, variant, autoFocus, bleed, onHeader }: { a: A
         ref={scroll}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 + (!empty ? buddyRoom : 0), gap: 14 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12 + contentTop, paddingBottom: 16 + (!empty ? buddyRoom : 0), gap: 14 }}
         onScroll={(e) => {
           const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent
           box.current = { content: contentSize.height, view: layoutMeasurement.height, y: contentOffset.y }
           measure()
-          // 사용자 "스크롤하면 앱바가 사라지게": 지난 대화 쪽(위)으로 올리면 숨기고, 최신 쪽으로 내리거나 맨 아래면 보인다
+          // 사용자 "스크롤하면 앱바가 올라가야지": 손으로 끌어 내리면(내용이 위로) 머리가 위로 사라지고, 끌어 올리거나 맨 위면 돌아온다.
+          // 새 답이 와서 저절로 내려가는 스크롤은 무시(손으로 끌 때만)
           const dy = contentOffset.y - lastY.current
           lastY.current = contentOffset.y
-          const atBottom = contentSize.height - contentOffset.y - layoutMeasurement.height < 40
-          if (atBottom || dy > 6) onHeader?.(true)
-          else if (dy < -6) onHeader?.(false)
+          if (contentOffset.y < 8) onHeader?.(true)
+          else if (dragging.current && dy > 6) onHeader?.(false)
+          else if (dragging.current && dy < -6) onHeader?.(true)
         }}
         onLayout={(e) => {
           const wasFollowing = follow.current
@@ -290,7 +292,10 @@ export function AssistantChat({ a, variant, autoFocus, bleed, onHeader }: { a: A
           if (wasFollowing) { scroll.current?.scrollToEnd({ animated: false }); follow.current = true; setShowLatest(false) } else measure()
         }}
         onContentSizeChange={(_, h) => { box.current.content = h; if (follow.current) scroll.current?.scrollToEnd({ animated: false }); else measure() }}
-        scrollEventThrottle={100}
+        onScrollBeginDrag={() => { dragging.current = true }}
+        onMomentumScrollEnd={() => { dragging.current = false }}
+        onScrollEndDrag={(e) => { if (!e.nativeEvent.velocity?.y) dragging.current = false }}
+        scrollEventThrottle={16}
         accessibilityLabel="AI 대화 기록"
       >
 
@@ -335,7 +340,7 @@ export function AssistantChat({ a, variant, autoFocus, bleed, onHeader }: { a: A
         <ChatBuddy a={a} size={buddySize} left={(L0?.perchX ?? area.w / 2) - buddySize * FOOT.x} top={buddyTop}
           face={errFace ?? (lastAi >= 0 ? faces[lastAi] : null)} hopN={typing ? speakN : 0} listening={drafting} speaking={speaking} />
       ) : null}
-      {empty && area.w && barTop ? <EmptyChat a={a} variant={variant} sceneKey={sceneKey} tone={tone} area={area} bleed={{ top: bt, bottom: bb }} barTop={barTop} onPick={(t) => void submit(t)} /> : null}
+      {empty && area.w && barTop ? <EmptyChat a={a} variant={variant} sceneKey={sceneKey} tone={tone} area={area} bleed={{ top: bt, bottom: bb }} barTop={barTop} onPick={(t) => void submit(t)} contentTop={contentTop} /> : null}
       <View onLayout={(e) => setBarTop(e.nativeEvent.layout.y)} pointerEvents="box-none">
       <Composer a={a} autoFocus={autoFocus} onSubmit={() => void submit()} />
       {a.agent ? <Text style={[s.foot, { color: tone.sub }]}>{[variant === 'full' ? '꿈틀 AI는 꿈틀 서버에서만 돌아가요 · 인터넷은 볼 수 없어요 · 저장 전엔 늘 물어봐요' : '꿈틀 서버에서 돌아가요 · 인터넷은 못 봐요', left].filter(Boolean).join(' · ')}</Text>
@@ -347,7 +352,7 @@ export function AssistantChat({ a, variant, autoFocus, bleed, onHeader }: { a: A
 
 /** 빈 대화(49 §8 표 · 시안 wAsst): 위 `무엇을 도와줄까?` + 한 줄, 받침 위 캐릭터(전체 180 · 반 시트 120 — 칩과 겹치면 줄임),
  *  입력칸 바로 위 유리 추천 칩 3개(세로). 캐릭터를 누르면 깡충 + 말풍선(40 §3.1 그대로) */
-function EmptyChat({ a, variant, sceneKey, tone, area, bleed, barTop, onPick }: { a: AssistantState; variant: 'full' | 'sheet'; sceneKey: string; tone: GlassTone; area: { w: number; h: number }; bleed: { top: number; bottom: number }; barTop: number; onPick: (text: string) => void }) {
+function EmptyChat({ a, variant, sceneKey, tone, area, bleed, barTop, onPick, contentTop = 0 }: { a: AssistantState; variant: 'full' | 'sheet'; sceneKey: string; tone: GlassTone; area: { w: number; h: number }; bleed: { top: number; bottom: number }; barTop: number; onPick: (text: string) => void; contentTop?: number }) {
   const buddy = useBuddy()
   const [play, setPlay] = useState<{ move: CompanionMove; n: number }>({ move: null, n: 0 })
   const [say, setSay] = useState({ text: '', n: 0 })
@@ -365,7 +370,7 @@ function EmptyChat({ a, variant, sceneKey, tone, area, bleed, barTop, onPick }: 
   const sheet = variant === 'sheet'
   const name = companionName(buddy.species, buddy.name)
   const sugs = (a.agent ? AGENT_SUGGESTIONS : SUGGESTIONS).slice(0, variant === 'sheet' ? 2 : 3) // 반 시트는 낮아서 2개(캐릭터 자리)
-  const titleBottom = sheet ? 64 : 96
+  const titleBottom = (sheet ? 64 : 96) + contentTop
   const chipsTop = barTop - 10 - (chipsH || sugs.length * 52)
   // 받침 자리(장면 지도) — 칩 위로 올라오게 막고, 위 글과 겹치면 줄인다
   const L = sceneLayout(sceneKey, area.w, area.h + bleed.top + bleed.bottom, 'bottom') // 넓힌 장면 기준 → 대화 칸 좌표로
@@ -374,7 +379,7 @@ function EmptyChat({ a, variant, sceneKey, tone, area, bleed, barTop, onPick }: 
   const left = L.perchX - size * FOOT.x, top = feet - size * FOOT.y
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      <View style={{ paddingTop: sheet ? 10 : 28, paddingHorizontal: 20, alignItems: 'center' }} pointerEvents="none">
+      <View style={{ paddingTop: (sheet ? 10 : 28) + contentTop, paddingHorizontal: 20, alignItems: 'center' }} pointerEvents="none">
         <Text style={[s.heroT, sheet && s.heroTs, { color: tone.ink }]} accessibilityRole="header">무엇을 도와줄까?</Text>
         <Text style={[s.heroS, { color: tone.sub }]}>{`${iGa(name)} 오늘 할 일을 같이 봐 줄게`}</Text>
       </View>

@@ -34,7 +34,8 @@ export default function AssistantScreen() {
   const onHeader = (show: boolean) => { const v = show ? 0 : 1; if (hide.value !== v) hide.value = withTiming(v, { duration: 220 }) }
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: p.cardBg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Animated.View style={[s.nav, { marginTop: insets.top, borderBottomColor: 'transparent' }, navSt]}>
+      {/* 머리는 대화 위에 투명하게 떠 있다 — 대화가 머리 뒤로 비쳐 지나간다(사용자 "여기가 투명해야지") */}
+      <Animated.View style={[s.nav, { position: 'absolute', top: insets.top, left: 0, right: 0, borderBottomColor: 'transparent' }, navSt]}>
         <GlassButton label="뒤로" style={btn} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}><ChevronLeft size={22} color={g.ink} /></GlassButton>
         <View style={s.mid}>
           <Text style={[FONT.nav, { color: ink }]}>AI 비서</Text>
@@ -45,12 +46,12 @@ export default function AssistantScreen() {
         </GlassButton>
       </Animated.View>
       <View style={{ flex: 1, paddingBottom: bottom, zIndex: 1 }}>
-        <AssistantChat a={a} variant="full" bleed={{ top: insets.top + M.navH, bottom }} onHeader={onHeader} />
+        <AssistantChat a={a} variant="full" bleed={{ top: 0, bottom }} contentTop={insets.top + M.navH} onHeader={onHeader} />
       </View>
     </KeyboardAvoidingView>
   )
 }
 const s = StyleSheet.create({
-  nav: { zIndex: 2, height: M.navH, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  nav: { zIndex: 3, height: M.navH, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   mid: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }
 })
