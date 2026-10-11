@@ -42,7 +42,7 @@ async function once() {
     // §6.2 다시 설치: 옛 연결 id인데 그 일정이 이 휴대폰 같은 캘린더에 그대로 있으면 이 휴대폰 것
     if (!mine && row.ext_id && isActive(s) && !adoptChecked.has(row.id)) {
       adoptChecked.add(row.id)
-      const ev = await Dev.getEvent(row.ext_id)
+      const ev = await Dev.findEvent(row.ext_id).catch(() => { adoptChecked.delete(row.id); return null }) // 조회 실패면 다음에 다시 본다
       if (ev && calHash(ev.calendarId) === row.ext_calendar) {
         await db.execute('UPDATE events SET ext_account = ? WHERE id = ?', [account, row.id])
         row.ext_account = account
@@ -63,7 +63,8 @@ async function handle(row: LinkedRow) {
   if (s.perm?.state !== 'granted') { if (waiting) await setError(row, '캘린더 접근을 다시 허용해 주세요', true); return }
   const cal = calendarByHash(row.ext_calendar)
   if (!cal) { if (waiting) await setError(row, '휴대폰에서 이 캘린더를 찾을 수 없어요', true); return }
-  const dev: DevEvent | null = row.ext_id ? await Dev.getEvent(row.ext_id) : null
+  // 조회 실패는 던진다(once가 '잠시 뒤 다시' — 기준·내용은 그대로). null은 정말 없을 때만
+  const dev: DevEvent | null = row.ext_id ? await Dev.findEvent(row.ext_id) : null
   const devFields = dev ? fieldsFromDevice(dev, Dev.PF, minutes(row)) : null
   const devFp = devFields ? fingerprint(devFields) : null
   const devModified = Dev.PF === 'ios' ? iso(dev?.lastModifiedDate) : null
@@ -91,24 +92,35 @@ async function handle(row: LinkedRow) {
       return record(row, row.ext_id, iso(after?.lastModifiedDate), cur, ruleLost ? RULE_LOST : null)
     }
     case 'delete':
-      await Dev.deleteEvent(row.ext_id!, { span: 'all' }).catch(() => {}) // 이미 없으면 그대로
+      try { await Dev.deleteEvent(row.ext_id!, { span: 'all' }) } catch (e) {
+        if ((await Dev.findEvent(row.ext_id!)) !== null) throw e // 이미 없으면 지운 것으로, 남아 있으면(확인 못 해도) 기록하지 않고 다음에 다시
+      }
       return record(row, row.ext_id, null, cur, null)
     case 'pull': {
       const f = devFields!
-      await db.execute(
-        'UPDATE events SET title = ?, notes = ?, location = ?, start_at = ?, end_at = ?, is_all_day = ?, repeat_rule = ?, deleted_at = NULL, modified_at = ?, ext_updated = ?, ext_hash = ?, ext_error = NULL WHERE id = ?',
-        [f.title, f.notes, f.location, f.start_at, f.end_at, f.is_all_day, f.repeat_rule, new Date().toISOString(), devModified, fingerprint(f), row.id]
-      )
-      return
+      return pullWrite(row,
+        'title = ?, notes = ?, location = ?, start_at = ?, end_at = ?, is_all_day = ?, repeat_rule = ?, deleted_at = NULL, modified_at = ?, ext_updated = ?, ext_hash = ?, ext_error = NULL',
+        [f.title, f.notes, f.location, f.start_at, f.end_at, f.is_all_day, f.repeat_rule, new Date().toISOString(), devModified, fingerprint(f)])
     }
     case 'remoteDeleted': {
       const at = new Date().toISOString()
-      await db.execute('UPDATE events SET deleted_at = ?, modified_at = ?, ext_hash = ?, ext_error = NULL WHERE id = ?', [at, at, fingerprint(row, true), row.id])
-      return
+      return pullWrite(row, 'deleted_at = ?, modified_at = ?, ext_hash = ?, ext_error = NULL', [at, at, fingerprint(row, true)])
     }
   }
 }
 
+/** 휴대폰 → 꿈틀 쓰기는 읽은 그대로일 때만(OS를 기다리는 사이 사용자가 고치거나 지웠으면 덮지 않고 최신 행으로 한 번 더 돈다) */
+// PowerSync 테이블은 뷰라 UPDATE의 rowsAffected가 0일 수 있다 → 같은 쓰기 트랜잭션 안에서 다시 읽어 비교한다
+async function pullWrite(row: LinkedRow, set: string, params: unknown[]) {
+  const same = await db.writeTransaction(async (tx) => {
+    const cur = await tx.getOptional<{ modified_at: string | null; deleted_at: string | null; ext_hash: string | null }>(
+      'SELECT modified_at, deleted_at, ext_hash FROM events WHERE id = ?', [row.id])
+    if (!cur || cur.modified_at !== row.modified_at || cur.deleted_at !== row.deleted_at || cur.ext_hash !== row.ext_hash) return false
+    await tx.execute(`UPDATE events SET ${set} WHERE id = ?`, [...params, row.id])
+    return true
+  })
+  if (!same) again = true
+}
 async function record(row: LinkedRow, id: string | null, updated: string | null, hash: string, error: string | null) {
   if (row.ext_id === id && row.ext_hash === hash && row.ext_updated === updated && row.ext_error === error) return
   await db.execute('UPDATE events SET ext_id = ?, ext_updated = ?, ext_hash = ?, ext_error = ? WHERE id = ?', [id, updated, hash, error, row.id])

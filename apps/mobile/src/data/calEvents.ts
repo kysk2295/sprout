@@ -82,7 +82,8 @@ export async function duplicateEvent(id: string): Promise<Undo> {
   const copy = uuid()
   const { id: _i, owner_id: _o, created_at: _c, modified_at: _m, ext_id: _x, ext_etag: _t, ext_updated: _u, ext_hash: _h, ext_error: _r, ...rest } = e
   await run([insert('events', { ...rest, id: copy })]) // 연결 정보는 남기고 외부 id는 빼서 새로 만든다(데스크톱과 같음)
-  return () => run([deleteStmt('events', copy)])
+  // 연결된 일정이면 다리가 이미 휴대폰 캘린더에 만들었을 수 있다 — 지움 표시로 남겨 다리가 그쪽도 지우게 한다
+  return () => run([e.ext_provider ? update('events', copy, { deleted_at: now() }) : deleteStmt('events', copy)])
 }
 
 /** 삭제 = deleted_at(되돌리기로 살린다 — 06 §14.4.5) */

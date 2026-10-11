@@ -52,12 +52,24 @@ export async function listEvents(calendarIds: string[], from: Date, to: Date): P
   if (!calendarIds.length) return []
   return (await Cal.getEventsAsync(calendarIds, from, to)).map(devOf)
 }
-/** 일정 하나(반복이면 첫 회차 — instanceStart를 주면 그 회차). 없으면 null */
-export async function getEvent(id: string, instanceStart?: string | Date): Promise<DevEvent | null> {
+/** OS가 '그런 일정 없음'이라고 답한 오류(iOS ERR_EVENT_NOT_FOUND · Android E_EVENT_NOT_FOUND)인가 — 그 밖의 실패는 일시 오류로 본다 */
+export const isNotFound = (e: unknown) => {
+  const x = e as { code?: unknown; message?: unknown } | null
+  return /EVENT_NOT_FOUND/.test(String(x?.code ?? '')) || /could not be found/i.test(String(x?.message ?? ''))
+}
+/** 일정 하나(반복이면 첫 회차 — instanceStart를 주면 그 회차). 정말 없으면 null, 조회가 실패하면(권한·OS 일시 오류) 던진다 — 다리는 이것으로만 '휴대폰에서 지움'을 판단한다 */
+export async function findEvent(id: string, instanceStart?: string | Date): Promise<DevEvent | null> {
   try {
     const e = await Cal.getEventAsync(id, instanceStart ? { instanceStartDate: instanceStart } : undefined)
     return e && e.id ? devOf(e) : null
-  } catch { return null }
+  } catch (e) {
+    if (isNotFound(e)) return null
+    throw e
+  }
+}
+/** 화면용: 없거나 조회가 실패하면 null */
+export async function getEvent(id: string, instanceStart?: string | Date): Promise<DevEvent | null> {
+  try { return await findEvent(id, instanceStart) } catch { return null }
 }
 export async function createEvent(calendarId: string, input: Record<string, unknown>): Promise<string> {
   return Cal.createEventAsync(calendarId, input as never)
