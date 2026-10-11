@@ -868,7 +868,8 @@ export function createAi(deps: AiDeps) {
         followup = true
       }
     }
-    if (agentInput && turnKey && turns.get(turnKey)?.chat && agentInput.tools.length) throw new AiError('bad_request')
+    // 앱 길잡이가 규칙으로 기록 조회를 찾으면(prefetch) Jev chat이어도 도구를 쓴다 — 거절하지 않고 이 턴은 도구 대화로
+    if (agentInput && turnKey && agentInput.tools.length) { const t = turns.get(turnKey); if (t?.chat) t.chat = false }
     const { day, at } = followup ? await reserveFollowup(userId, cls) : await reserve(userId, endpoint, cls)
     if (turnKey) {
       const t = turns.get(turnKey)

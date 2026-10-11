@@ -19,7 +19,10 @@ export function effectiveIntent(decision: RouteDecision): DecisionIntent | undef
 
 export function decisionPolicy(legacy: Routed, decision?: RouteDecision) {
   const protectedRoute = ['confirm', 'cancel', 'fixed'].includes(legacy.route.kind)
-  const intent = decision && !protectedRoute ? effectiveIntent(decision) : undefined
+  let intent = decision && !protectedRoute ? effectiveIntent(decision) : undefined
+  // 길잡이가 규칙으로 찾은 기록 조회(마지막으로 한 날·기간 — prefetch)는 Jev 'chat'보다 우선한다.
+  // 실측(2026-10-11): '미용실 간지 얼마나 됐어'(띄어쓰기 없음)를 Jev가 chat 0.90으로 봐서 도구 없이 "확인할 수 없어"
+  if ((intent === 'chat' || intent === 'clarify') && legacy.route.kind === 'prefetch') intent = 'read'
   let routed = legacy
   if (intent === 'chat') routed = { ...legacy, route: { kind: 'model' }, dataQuestion: false }
   if (intent === 'read') routed = { ...legacy, route: legacy.route.kind === 'prefetch' ? legacy.route : { kind: 'model' }, dataQuestion: true }

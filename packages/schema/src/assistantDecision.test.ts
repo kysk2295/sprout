@@ -49,5 +49,13 @@ for (const persona of ['snail', 'bee', 'worm', 'frog', 'mascot'] as const) {
     return { content: '응, 듣고 있어.', tool_calls: [] }
   } })
 }
+// 길잡이 규칙이 찾은 기록 조회는 Jev chat보다 우선(실측: 띄어쓰기 없는 '간지'를 chat 0.90)
+{
+  const { route: routeOf } = await import('./assistantRouter.ts')
+  const legacy = routeOf('미용실 간지 얼마나 됐어', { now: new Date(), pending: null, diary: false, memory: { aliases: {}, recent: [] }, lists: [] })
+  const p = decisionPolicy(legacy, { intent: 'chat', confidence: 0.9, resolution: 'lookup' })
+  assert.equal(p.routed.route.kind, 'prefetch')
+  assert.ok(p.allows('when_last'))
+}
 database.close()
 console.log('assistantDecision: policy, retry, tool enforcement, diary, read, write and clarify passed')
