@@ -189,6 +189,12 @@ export const SCENE_TINT: Record<string, { top: string; bottom: string }> = {
   'scene-study': { top: '#EFE4D2', bottom: '#C9A77E' }, 'scene-study-n': { top: '#2A2838', bottom: '#4C3E3A' },
   'band-day': { top: '#9CCBE4', bottom: '#6DAE5F' }, 'band-dusk': { top: '#1F2846', bottom: '#2F4A45' }
 }
+/** 장면 그림 맨 윗줄의 실제 색 — 그림을 아래로 내렸을 때 위 빈자리를 이어 칠한다(SCENE_TINT.top과 달라 띠가 보였다). 390px 그림 위 4줄 평균 */
+export const SCENE_EDGE: Record<string, string> = {
+  'scene-dawn': '#d9c1b0', 'scene-day': '#b6c7ca', 'scene-dusk': '#353550', 'scene-flowers': '#c1cac9', 'scene-flowers-n': '#353550',
+  'scene-moon': '#3a4264', 'scene-pond': '#b8cacd', 'scene-pond-n': '#323652', 'scene-rain': '#a9b3bb', 'scene-rain-n': '#2b3141',
+  'scene-snow': '#c8cfd8', 'scene-study': '#b19c83', 'scene-study-n': '#151011', 'scene-sunset': '#dfb699'
+}
 /** 장면 위 유리 카드 색(글자 대비 — 밝은 장면 = 흰 유리 + 짙은 글자, 어두운 장면 = 짙은 유리 + 흰 글자) */
 export const sceneGlass = (key: string) => (sceneDark(key) ? { fill: 'rgba(22,28,40,0.58)', line: 'rgba(255,255,255,0.14)', ink: '#F4F6F8', sub: 'rgba(244,246,248,0.72)' } : { fill: 'rgba(255,255,255,0.62)', line: 'rgba(255,255,255,0.7)', ink: '#1F2A24', sub: 'rgba(31,42,36,0.62)' })
 

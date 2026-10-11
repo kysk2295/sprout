@@ -30,7 +30,8 @@ import { Glass, myScene, sceneTone, type GlassTone } from '../growth/home/glass'
 import { useCharacterWear } from '../growth/art/CharacterArt'
 import { PlayableCharacter, type PlayHandle } from '../growth/art/PlayableCharacter'
 import { useMotionReduced } from '../growth/motion'
-import { FOOT, SCENE_TINT, sceneDark, sceneLayout } from '@sprout/schema/characterArt'
+import { FOOT, SCENE_EDGE, SCENE_TINT, sceneDark, sceneLayout } from '@sprout/schema/characterArt'
+import Svg, { Defs, LinearGradient as SvgGradient, Rect, Stop } from 'react-native-svg'
 import { iGa } from '@sprout/schema/josa'
 import { leftLine } from './core'
 import { isConfirm, type ConfirmCard } from '@sprout/schema/assistantExec'
@@ -70,7 +71,8 @@ export function useChatScene(a: AssistantState) {
 }
 
 /** bleed = 장면을 대화 칸 밖으로 넓힐 길이(전체 화면: 위 = 상태 막대 + 머리, 아래 = 홈 표시줄 여백) — 흰 띠 없이 화면 끝까지 */
-export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantState; variant: 'full' | 'sheet'; autoFocus?: boolean; bleed?: { top?: number; bottom?: number } }) {
+export function AssistantChat({ a, variant, autoFocus, bleed, onHeader }: { a: AssistantState; variant: 'full' | 'sheet'; autoFocus?: boolean; bleed?: { top?: number; bottom?: number }; onHeader?: (show: boolean) => void }) {
+  const lastY = useRef(0)
   const p = usePalette()
   const scroll = useRef<ScrollView>(null)
   const follow = useRef(true)
@@ -212,6 +214,7 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
   useEffect(() => { shiftV.value = withTiming(sceneShift, { duration: 420 }) }, [sceneShift, shiftV])
   const shiftSt = useAnimatedStyle(() => ({ transform: [{ translateY: shiftV.value }] }))
   const tint = SCENE_TINT[sceneKey] ?? SCENE_TINT['scene-day']
+  const edge = SCENE_EDGE[sceneKey] ?? tint.top // 그림 맨 윗줄 실제 색
   // ── 49 v1.7 "이 친구와 실제로 대화하는 느낌"(사용자): 최신 답·진행 상황은 캐릭터 머리 위 큰 말풍선(글자가 써지듯), 지난 대화는 그 위로
   const aiBody = (m: Message, i: number, typed = false) => (
     <>
@@ -244,18 +247,25 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
   const thinkingLine = (a.progress.queue ?? 0) > 0 ? `앞에 ${a.progress.queue}명` : a.live?.chips.some((c) => c?.state === 'running') ? '찾는 중' : ''
   const liveBody = a.busy ? (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} accessibilityLabel={thinkingLine || '생각 중'}>
-      {thinkingLine ? <Text style={{ fontSize: 12, color: p.textSecondary }}>{thinkingLine}</Text> : null}
-      <ThinkingDots color={p.textTertiary} />
+      {thinkingLine ? <Text style={[s.thinkText, { color: tone.ink }]}>{thinkingLine}</Text> : null}
+      <ThinkingDots color={tone.ink} />
     </View>
   ) : null
   const speechBody = a.busy ? liveBody : null
   const perchX = L0?.perchX ?? area.w / 2
   return (
     <View style={{ flex: 1 }} onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setArea((o) => (o.w === width && o.h === height ? o : { w: width, h: height })) }}>
-      {area.w ? <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: -bt, width: area.w, height: sceneH, backgroundColor: tint.top }} /> : null}
+      {area.w ? <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: -bt, width: area.w, height: sceneH, backgroundColor: edge }} /> : null}
       {area.w ? (
         <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: -bt, width: area.w, height: sceneH }, shiftSt]}>
           <SceneBackdrop sceneKey={sceneKey} width={area.w} height={sceneH} />
+          {/* 그림 위 경계를 위 빈자리 색으로 부드럽게 섞기(띠 없이) */}
+          {L0 ? (
+            <Svg pointerEvents="none" width={area.w} height={90} style={{ position: 'absolute', left: 0, top: L0.y }}>
+              <Defs><SvgGradient id="edge" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={edge} stopOpacity={1} /><Stop offset="1" stopColor={edge} stopOpacity={0} /></SvgGradient></Defs>
+              <Rect x="0" y="0" width={area.w} height={90} fill="url(#edge)" />
+            </Svg>
+          ) : null}
         </Animated.View>
       ) : null}
       <ScrollView
@@ -267,13 +277,19 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
           const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent
           box.current = { content: contentSize.height, view: layoutMeasurement.height, y: contentOffset.y }
           measure()
+          // 사용자 "스크롤하면 앱바가 사라지게": 지난 대화 쪽(위)으로 올리면 숨기고, 최신 쪽으로 내리거나 맨 아래면 보인다
+          const dy = contentOffset.y - lastY.current
+          lastY.current = contentOffset.y
+          const atBottom = contentSize.height - contentOffset.y - layoutMeasurement.height < 40
+          if (atBottom || dy > 6) onHeader?.(true)
+          else if (dy < -6) onHeader?.(false)
         }}
         onLayout={(e) => {
           const wasFollowing = follow.current
           box.current.view = e.nativeEvent.layout.height
           if (wasFollowing) { scroll.current?.scrollToEnd({ animated: false }); follow.current = true; setShowLatest(false) } else measure()
         }}
-        onContentSizeChange={(_, h) => { box.current.content = h; if (!follow.current) measure() }}
+        onContentSizeChange={(_, h) => { box.current.content = h; if (follow.current) scroll.current?.scrollToEnd({ animated: false }); else measure() }}
         scrollEventThrottle={100}
         accessibilityLabel="AI 대화 기록"
       >
@@ -302,17 +318,17 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
         ) : null}
       </ScrollView>
       {showLatest ? (
-        <Pressable accessibilityRole="button" onPress={latest} style={[s.latest, { backgroundColor: p.bgPopover, borderColor: p.borderDivider }]}>
+        <Pressable accessibilityRole="button" onPress={latest} style={[s.latest, { bottom: Math.max(12, area.h - barTop + 10), backgroundColor: p.bgPopover, borderColor: p.borderDivider }]}>
           <ArrowDown size={14} color={p.textPrimary} /><Text style={[FONT.meta, { color: p.textPrimary, fontWeight: '600' }]}>최신으로</Text>
         </Pressable>
       ) : null}
       {notice ? <Text style={[s.notice, { backgroundColor: p.toastBg }]}>{notice}</Text> : null}
       {!empty && speechBody && area.w && barTop ? (
         <View pointerEvents="none" style={{ position: 'absolute', left: perchX - 80, width: 160, bottom: area.h - headY, alignItems: 'center' }}>
-          <Animated.View entering={FadeIn.duration(150)} style={[s.think, { backgroundColor: p.dark ? 'rgba(40,40,44,0.92)' : 'rgba(255,255,255,0.94)' }]} accessibilityLiveRegion="polite">
+          {/* 사용자 "말풍선은 없애고 …만 움직이게": 배경·꼬리 없이 머리 위 점 세 개만(장면 글자색 + 옅은 그림자) */}
+          <Animated.View entering={FadeIn.duration(150)} style={s.think} accessibilityLiveRegion="polite">
             {speechBody}
           </Animated.View>
-          <View style={[s.thinkTail, { backgroundColor: p.dark ? 'rgba(40,40,44,0.92)' : 'rgba(255,255,255,0.94)' }]} />
         </View>
       ) : null}
       {!empty && area.w && barTop ? (
@@ -436,7 +452,7 @@ const riseIn = () => {
 function ThinkingDots({ color }: { color: string }) {
   const reduced = useMotionReduced()
   return (
-    <View style={{ flexDirection: 'row', gap: 4, paddingVertical: 3 }} accessibilityLabel="생각하는 중">
+    <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 3 }} accessibilityLabel="생각하는 중">
       {[0, 1, 2].map((i) => <Dot key={i} delay={i * 140} color={color} still={reduced} />)}
     </View>
   )
@@ -449,7 +465,7 @@ function Dot({ delay, color, still }: { delay: number; color: string; still: boo
     return () => cancelAnimation(y)
   }, [delay, still, y])
   const st = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }))
-  return <Animated.View style={[{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }, st]} />
+  return <Animated.View style={[{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }, st]} />
 }
 
 /** 글자가 써지듯(새 답만) — 움직임 줄이기면 바로 다 */
@@ -643,8 +659,8 @@ const s = StyleSheet.create({
   heroS: { fontSize: 14, lineHeight: 20, fontWeight: '500', marginTop: 6, textAlign: 'center' },
   heroChip: { paddingHorizontal: 16, paddingVertical: 13 },
   heroChipT: { fontSize: 14.5, fontWeight: '600' },
-  think: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 14, shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
-  thinkTail: { width: 8, height: 8, borderRadius: 4, marginTop: 3, marginLeft: 10 },
+  think: { paddingBottom: 6, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
+  thinkText: { fontSize: 12, fontWeight: '600' },
   speech: { position: 'absolute', borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 4 } },
   speechText: { fontSize: 16.5, lineHeight: 24 },
   tail: { position: 'absolute', bottom: -7, width: 14, height: 14, transform: [{ rotate: '45deg' }] },
@@ -658,7 +674,7 @@ const s = StyleSheet.create({
   err: { borderRadius: 12, padding: 12, gap: 8 },
   errActs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' },
   btn: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 32, borderRadius: 9, paddingHorizontal: 11, borderWidth: StyleSheet.hairlineWidth },
-  latest: { position: 'absolute', alignSelf: 'center', bottom: 70, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 16, paddingHorizontal: 12, height: 32, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  latest: { position: 'absolute', right: 14, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 16, paddingHorizontal: 12, height: 32, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   notice: { position: 'absolute', alignSelf: 'center', bottom: 72, color: '#fff', fontSize: 13.5, borderRadius: 10, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 9 },
   composer: { marginHorizontal: 12, marginTop: 4, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'flex-end', paddingLeft: 16, paddingRight: 6, paddingVertical: 6, minHeight: 44 },
   input: { flex: 1, fontSize: 16, lineHeight: 21, maxHeight: 6 * 21 + 12, paddingTop: 6, paddingBottom: 6 },

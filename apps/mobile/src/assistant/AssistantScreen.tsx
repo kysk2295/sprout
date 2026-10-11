@@ -4,6 +4,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft, SquarePen } from 'lucide-react-native'
 import { useEffect } from 'react'
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native'
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+import { sceneGlass } from '@sprout/schema/characterArt'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { FONT, M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
@@ -23,20 +25,27 @@ export default function AssistantScreen() {
   const sc = useChatScene(a)
   const ink = sc.tone.ink // 장면이 늘 깔린다(대화 중에도) — 머리 글자는 장면 밝기 색
   const bottom = Math.max(insets.bottom, 8)
+  // 머리 버튼 = 장면 유리(어두운 장면 = 짙은 유리 + 흰 아이콘) — 앱 기본 유리는 장면과 안 맞았다(사용자)
+  const g = sceneGlass(sc.sceneKey)
+  const btn = { backgroundColor: g.fill, borderColor: g.line }
+  // 스크롤로 지난 대화를 보면 머리를 위로 숨긴다(장면이 머리 뒤까지 깔려 있어 빈 띠 없음)
+  const hide = useSharedValue(0)
+  const navSt = useAnimatedStyle(() => ({ opacity: 1 - hide.value, transform: [{ translateY: -hide.value * (insets.top + M.navH) }] }))
+  const onHeader = (show: boolean) => { const v = show ? 0 : 1; if (hide.value !== v) hide.value = withTiming(v, { duration: 220 }) }
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: p.cardBg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[s.nav, { marginTop: insets.top, borderBottomColor: 'transparent' }]}>
-        <GlassButton label="뒤로" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>
+      <Animated.View style={[s.nav, { marginTop: insets.top, borderBottomColor: 'transparent' }, navSt]}>
+        <GlassButton label="뒤로" style={btn} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}><ChevronLeft size={22} color={g.ink} /></GlassButton>
         <View style={s.mid}>
           <Text style={[FONT.nav, { color: ink }]}>AI 비서</Text>
           <StatusPill a={a} />
         </View>
-        <GlassButton label="새 대화" disabled={a.busy || !a.messages.length} onPress={clear} style={a.busy || !a.messages.length ? { opacity: 0.4 } : undefined}>
-          <SquarePen size={19} color={p.accent} />
+        <GlassButton label="새 대화" disabled={a.busy || !a.messages.length} onPress={clear} style={{ ...btn, ...(a.busy || !a.messages.length ? { opacity: 0.4 } : null) }}>
+          <SquarePen size={19} color={g.ink} />
         </GlassButton>
-      </View>
+      </Animated.View>
       <View style={{ flex: 1, paddingBottom: bottom, zIndex: 1 }}>
-        <AssistantChat a={a} variant="full" bleed={{ top: insets.top + M.navH, bottom }} />
+        <AssistantChat a={a} variant="full" bleed={{ top: insets.top + M.navH, bottom }} onHeader={onHeader} />
       </View>
     </KeyboardAvoidingView>
   )
