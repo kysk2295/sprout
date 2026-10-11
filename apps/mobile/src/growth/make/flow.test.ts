@@ -1,15 +1,20 @@
 // 49 §5 만들기 흐름 순수 계산 시험: 단계·회전 컷·성향 카드 진행(동점 문항 포함)·흔들림 빨라짐·두드림·유형 카드·이름·조사
 import assert from 'node:assert/strict'
+import { SPECIES } from '@sprout/schema/growth'
+import { PERSONAS } from '@sprout/schema/persona'
 import { MAIN_QUESTIONS } from '../logic.ts'
 import {
-  answerQuiz, backQuiz, canSkip, cleanName, dotOf, firstTitle, HATCH0, nameChips, nameCount, nextStep, QUIZ0, quizCard, quizSpecies,
+  answerQuiz, backQuiz, canSkip, cleanName, DOT_COUNT, dotOf, firstTitle, HATCH0, introOf, LAST_STEP, nameChips, nameCount, nextStep, QUIZ0, quizCard, quizSpecies, STEP,
   seedA11yLabel, tapSeed, turnFromDrag, typeCardOf, waGwa, wakeSeed, wobbleMs, wrapTurn, type Quiz
 } from './flow.ts'
 
 // 단계
-assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map((s) => canSkip(s as never)), [true, true, true, false, false, false, false])
-assert.equal(dotOf(0), 0); assert.equal(dotOf(5), 5); assert.equal(dotOf(6), -1)
-assert.equal(nextStep(5), 6); assert.equal(nextStep(6), 6)
+assert.deepEqual([0, 1, 2, 3, 4, 5, 6, 7].map((s) => canSkip(s as never)), [true, true, true, false, false, false, false, false])
+assert.equal(DOT_COUNT, 7)
+assert.equal(dotOf(0), 0); assert.equal(dotOf(STEP.intro), 5); assert.equal(dotOf(STEP.first), 6); assert.equal(dotOf(STEP.garden), -1)
+// 50 §9: 이름 → 소개 → 첫 할 일 → 정원
+assert.equal(nextStep(STEP.name), STEP.intro); assert.equal(nextStep(STEP.intro), STEP.first); assert.equal(nextStep(STEP.first), STEP.garden)
+assert.equal(LAST_STEP, 7); assert.equal(nextStep(7), 7)
 
 // 회전: 18px당 한 컷, 왼쪽으로 끌면 다음 컷, 0~11로 감김
 assert.equal(turnFromDrag(0, 0), 0)
@@ -93,5 +98,21 @@ assert.equal(waGwa('몽글'), '몽글과')
 assert.equal(waGwa('퐁'), '퐁과')
 assert.equal(waGwa('Kim'), 'Kim와')
 assert.equal(firstTitle('꿀이'), '꿀이와 함께\n첫 할 일 하나만')
+
+// 소개(50 §9): 을/를 · 부제 · 카드 글은 PERSONAS 그대로
+const si = introOf('snail', '도토')
+assert.equal(si.title, '도토를\n소개할게요')
+assert.equal(si.sub, '꾸준한 달팽이 · 계획·몰입형')
+assert.equal(si.greet, PERSONAS.snail.greet)
+assert.deepEqual([si.intro, si.tone, si.help], [PERSONAS.snail.ui.intro, PERSONAS.snail.ui.toneLabel, PERSONAS.snail.ui.help])
+assert.equal(si.likes.length, 3)
+assert.equal(introOf('worm', '몽글').title, '몽글을\n소개할게요')
+assert.equal(introOf('frog', '퐁').title, '퐁을\n소개할게요')
+assert.equal(introOf('bee', '꿀이').title, '꿀이를\n소개할게요')
+for (const sp of ['snail', 'bee', 'worm', 'frog'] as const) {
+  const v = introOf(sp, 'x')
+  assert.ok(v.greet && v.intro && v.tone && v.help && v.likes.length === 3, sp)
+  assert.ok(v.sub.startsWith(SPECIES[sp].name), sp)
+}
 
 console.log('make flow ok')

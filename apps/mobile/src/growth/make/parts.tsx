@@ -15,7 +15,7 @@ import { CharacterArt, artSource } from '../art/CharacterArt'
 import { PlayableCharacter, type PlayHandle } from '../art/PlayableCharacter'
 import { PressableScale } from '../../ui/Pressables'
 import type { Palette } from '../../theme/palette'
-import { INTRO_SPIN_MS, turnFromDrag, wrapTurn } from './flow'
+import { DOT_COUNT, INTRO_SPIN_MS, turnFromDrag, wrapTurn } from './flow'
 
 // ── 색(시안 :root · [data-theme=dark]) ──
 export function makeColors(p: Palette) {
@@ -84,7 +84,7 @@ export function Chip({ c, label, onPress, a11y }: { c: MakeColors; label: string
 export const Dots = memo(function Dots({ c, on }: { c: MakeColors; on: number }) {
   return (
     <View style={s.dots} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {Array.from({ length: 6 }, (_, i) => <View key={i} style={[s.dot, { backgroundColor: c.ink }, i === on ? s.dotOn : null]} />)}
+      {Array.from({ length: DOT_COUNT }, (_, i) => <View key={i} style={[s.dot, { backgroundColor: c.ink }, i === on ? s.dotOn : null]} />)}
     </View>
   )
 })

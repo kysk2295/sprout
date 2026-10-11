@@ -1,5 +1,5 @@
 // 49 §5 캐릭터 만들기 흐름(휴대폰, 시안 character-v3.html A "만들기 흐름 — 끝까지 눌러짐"):
-// 0 시작 → 1 씨앗 고르기 → 2 성향 카드(10 §2.2 문항 그대로) → 3 부화(두드림 세 번) → 4 이름 → 5 첫 할 일 → 6 정원(성장 탭으로 페이드).
+// 0 시작 → 1 씨앗 고르기 → 2 성향 카드(10 §2.2 문항 그대로) → 3 부화(두드림 세 번) → 4 이름 → 5 소개(50 §9) → 6 첫 할 일 → 7 정원(성장 탭으로 페이드).
 // 저장: 4단계 `좋아요`에서 characters(species·type_code·answers_json·assessed_at·name — 데스크톱 assignCharacter와 같은 칸) + look_json.seed(병합).
 // 첫 할 일 = 보통 tasks 행(오늘, 받은편지함) + 앱의 완료 경로(completeTasks — XP는 taskCore 규칙 그대로).
 // 0·1·2단계 `나중에` = 닫기(성장 화면에 씨앗이 남고 같은 흐름을 다시 연다). 순수 계산은 src/growth/make/flow.ts.
@@ -7,16 +7,16 @@ import { SEED_NAMES } from '@sprout/schema/characterArt'
 import { XP, type Pick2, type Species } from '@sprout/schema/growth'
 import { useIsFocused, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { AccessibilityInfo, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native'
-import Animated, { Easing, FadeIn, FadeOut, Keyframe, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated'
+import { AccessibilityInfo, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native'
+import Animated, { Easing, FadeIn, FadeOut, Keyframe, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { SceneBackdrop } from '../../src/growth/art/Scene3D'
 import { useCharacterWear } from '../../src/growth/art/CharacterArt'
 import { myScene } from '../../src/growth/home/glass'
 import { assignCharacter } from '../../src/growth/data'
 import {
-  answerQuiz, backQuiz, canSkip, cleanName, cleanTask, dotOf, FIRST_DONE_LINE, firstTitle, HATCH0, HATCH_T, NAME_MAX, nameChips, nameCount, PET_NAME,
-  QUIZ0, quizCard, seedA11yLabel, TASK_CHIPS, tapSeed, typeCardOf, wakeSeed, wobbleMs, type Hatch, type MakeStep, type Quiz
+  answerQuiz, backQuiz, canSkip, cleanName, cleanTask, dotOf, FIRST_DONE_LINE, firstTitle, HATCH0, HATCH_T, INTRO_T, introOf, NAME_MAX, nameChips, nameCount, PET_NAME,
+  QUIZ0, quizCard, seedA11yLabel, STEP, TASK_CHIPS, tapSeed, typeCardOf, wakeSeed, wobbleMs, type Hatch, type MakeStep, type Quiz
 } from '../../src/growth/make/flow'
 import {
   AxisBar, Baby, BigButton, CheckCircle, Chip, Copy, crackSrc, Dots, FlashFill, FloatingSeed, Glass, HaloFill, makeColors, once, SeedStill, seedSrc,
@@ -55,9 +55,9 @@ export default function MakeCharacter() {
   const root = useSharedValue(1)
   const rootStyle = useAnimatedStyle(() => ({ opacity: root.value }))
   const close = () => { if (router.canGoBack()) router.back(); else router.dismissTo('/growth') }
-  // 6 정원: 성장 탭으로 페이드
+  // 7 정원: 성장 탭으로 페이드
   const toGarden = () => {
-    setStep(6)
+    setStep(STEP.garden)
     root.value = withTiming(0, { duration: reduced ? 200 : 380 })
     setTimeout(() => router.dismissTo('/growth'), reduced ? 200 : 380)
   }
@@ -69,16 +69,16 @@ export default function MakeCharacter() {
     try {
       await assignCharacter(dayKey(), { species, typeCode: typeCardOf(species, answers).typeCode, answers, name: nm, seed })
       setName(nm)
-      setStep(5)
+      setStep(STEP.intro) // 50 §9: 이름 → 소개
     } catch (e) {
       console.warn('[make] save failed:', e)
       toast.show('저장하지 못했어요. 다시 눌러 주세요')
     } finally { saving.current = false }
   }
 
-  // 만들기 흐름 = 새벽(다크 = 별밤), 6 정원 도착 = 내 배경 장면(49 §6.1, 기본 `자동`) — 0.3초 교차 페이드
+  // 만들기 흐름 = 새벽(다크 = 별밤), 7 정원 도착 = 내 배경 장면(49 §6.1, 기본 `자동`) — 0.3초 교차 페이드
   const myBg = useCharacterWear()?.wear.eq?.bg
-  const sceneKey = step >= 6 ? myScene(myBg, p.dark) : p.dark ? 'scene-dusk' : 'scene-dawn'
+  const sceneKey = step >= STEP.garden ? myScene(myBg, p.dark) : p.dark ? 'scene-dusk' : 'scene-dawn'
   const dot = dotOf(step)
   return (
     <Animated.View style={[{ flex: 1, backgroundColor: p.dark ? '#1F2846' : '#EDC4B1' }, rootStyle]}>
@@ -97,7 +97,8 @@ export default function MakeCharacter() {
         {step === 2 && <StepQuiz c={c} seed={seed} width={width} reduced={reduced} onDone={(sp, a) => { setAnswers(a); setSpecies(sp); setStep(3) }} />}
         {step === 3 && species && <StepHatch c={c} seed={seed} species={species} answers={answers} width={width} height={height} size={seedSize} reduced={reduced} onNext={() => setStep(4)} />}
         {step === 4 && species && <StepName c={c} seed={seed} species={species} reduced={reduced} onSave={saveCharacter} />}
-        {step >= 5 && species && <StepFirst c={c} seed={seed} species={species} name={name || PET_NAME[species]} reduced={reduced} onNext={toGarden} />}
+        {step === STEP.intro && species && <StepIntro c={c} seed={seed} species={species} name={name || PET_NAME[species]} height={height} reduced={reduced} onNext={() => setStep(STEP.first)} />}
+        {step >= STEP.first && species && <StepFirst c={c} seed={seed} species={species} name={name || PET_NAME[species]} reduced={reduced} onNext={toGarden} />}
       </Animated.View>
     </Animated.View>
   )
@@ -378,7 +379,82 @@ function StepName({ c, seed, species, reduced, onSave }: { c: MakeColors; seed: 
   )
 }
 
-// ── 5 첫 할 일 ──
+// ── 5 소개(50 §9 — 49 §5.1 4.5단계) ──
+// 제목 페이드 → 0.25초 뒤 말풍선 팝(0.9 → 1.04 → 1) + 깡충 + 웃는 얼굴 → 0.45초 뒤 카드가 12px 올라오며 페이드(부화 유형 카드 스프링). 움직임 줄이기 = 페이드만.
+// 건너뛰기·이전 없음(50 §9.2). 저장 없음(이름은 4단계에서 이미 저장 — 50 §9.3).
+function StepIntro({ c, seed, species, name, height, reduced, onNext }: { c: MakeColors; seed: number; species: Species; name: string; height: number; reduced: boolean; onNext: () => void }) {
+  const v = useMemo(() => introOf(species, name), [species, name])
+  const [box, setBox] = useState(190)
+  const [happy, setHappy] = useState(false)
+  const baby = useRef<BabyHandle>(null)
+  const focused = useIsFocused()
+  const [line, sayLine] = useLine()
+  const copy = useSharedValue(0), bub = useSharedValue(0), bubSc = useSharedValue(reduced ? 1 : 0.9), cardOp = useSharedValue(0), cardY = useSharedValue(reduced ? 0 : INTRO_T.cardRise)
+  useEffect(() => {
+    const tms: ReturnType<typeof setTimeout>[] = []
+    if (reduced) {
+      const f = { duration: INTRO_T.reduced }
+      copy.value = withTiming(1, f)
+      bub.value = withDelay(INTRO_T.bubble, withTiming(1, f))
+      cardOp.value = withDelay(INTRO_T.card, withTiming(1, f))
+      tms.push(setTimeout(() => setHappy(true), INTRO_T.bubble))
+    } else {
+      const e = Easing.out(Easing.quad)
+      copy.value = withTiming(1, { duration: 300 })
+      bub.value = withDelay(INTRO_T.bubble, withTiming(1, { duration: 150 }))
+      bubSc.value = withDelay(INTRO_T.bubble, withSequence(withTiming(1.04, { duration: 150, easing: e }), withTiming(1, { duration: 230, easing: e })))
+      cardOp.value = withDelay(INTRO_T.card, withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) }))
+      cardY.value = withDelay(INTRO_T.card, withSpring(0, { damping: 11, stiffness: 140, mass: 0.8 }))
+      tms.push(setTimeout(() => { setHappy(true); baby.current?.hop() }, INTRO_T.bubble))
+    }
+    tms.push(setTimeout(() => AccessibilityInfo.announceForAccessibility(v.greet), INTRO_T.bubble))
+    return () => tms.forEach(clearTimeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 들어올 때 한 번
+  }, [reduced, copy, bub, bubSc, cardOp, cardY])
+  const copyA = useAnimatedStyle(() => ({ opacity: copy.value }))
+  const bubA = useAnimatedStyle(() => ({ opacity: bub.value, transform: [{ scale: bubSc.value }] }))
+  const cardA = useAnimatedStyle(() => ({ opacity: cardOp.value, transform: [{ translateY: cardY.value }] }))
+  const label = (t: string) => <Text style={[st.introK, { color: c.ink }]}>{t}</Text>
+  return (
+    <>
+      <Animated.View style={copyA}><Copy c={c} style={st.copy} title={v.title} sub={v.sub} /></Animated.View>
+      {/* 이름 단계와 같은 크기(170~200) — 작은 휴대폰은 남은 높이만큼 */}
+      <Middle onLayout={(e) => setBox(Math.max(90, Math.min(200, Math.floor(e.nativeEvent.layout.height - 96))))}>
+        <View style={{ alignItems: 'center' }}>
+          <Animated.View style={[bubA, { marginBottom: 8 }]}>
+            <Glass c={c} blur={false} radius={18} style={[st.speech, st.greet]}><Text style={[st.speechText, { color: c.ink }]} accessibilityLiveRegion="polite">{v.greet}</Text></Glass>
+          </Animated.View>
+          <View>
+            <Baby ref={baby} species={species} seed={seed} size={box} mood={happy ? 'happy' : 'default'} reduced={reduced} play active={focused} onSay={sayLine} label={`${name}. 눌러서 만지기`} />
+            <LineBubble c={c} line={line} />
+          </View>
+        </View>
+      </Middle>
+      <View style={st.bottom}>
+        {/* 50 §8.2 축약: 소개 · 말투 · 좋아하는 것 · 이렇게 도와줘요(성향 막대는 부화에서 이미 보여 줌). 길면 카드 안에서 스크롤 */}
+        <Animated.View style={[cardA, { marginBottom: 12 }]}>
+          <Glass c={c} blur={false} style={{ maxHeight: Math.max(150, Math.round(height * (height < 720 ? 0.28 : 0.34))) }}>
+            <ScrollView contentContainerStyle={st.introCard} showsVerticalScrollIndicator={false} bounces={false}>
+              <Text style={[st.introBody, { color: c.ink }]}>{v.intro}</Text>
+              <View style={st.introSec}>{label('말투')}<Text style={[st.introBody, { color: c.ink }]}>{v.tone}</Text></View>
+              <View style={st.introSec}>
+                {label('좋아하는 것')}
+                <View style={st.likeRow}>
+                  {v.likes.map((l) => <View key={l} style={[st.like, { backgroundColor: c.optBg }]}><Text style={[st.likeText, { color: c.optInk }]}>{l}</Text></View>)}
+                </View>
+              </View>
+              <View style={st.introSec}>{label('이렇게 도와줘요')}<Text style={[st.introBody, { color: c.ink }]}>{v.help}</Text></View>
+            </ScrollView>
+          </Glass>
+        </Animated.View>
+        <BigButton c={c} label="같이 시작하기" onPress={onNext} />
+        <Text style={[st.introFoot, { color: c.ink }]}>성장 화면에서 언제든 다시 볼 수 있어요</Text>
+      </View>
+    </>
+  )
+}
+
+// ── 6 첫 할 일 ──
 function StepFirst({ c, seed, species, name, reduced, onNext }: { c: MakeColors; seed: number; species: Species; name: string; reduced: boolean; onNext: () => void }) {
   const toast = useToast()
   const [task, setTask] = useState<{ id: string; title: string } | null>(null)
@@ -501,6 +577,15 @@ const st = StyleSheet.create({
   taskInput: { padding: 0 },
   taskWhen: { fontSize: 12, fontWeight: '600', opacity: 0.6 },
   speech: { paddingHorizontal: 14, paddingVertical: 10, maxWidth: 230 },
+  greet: { maxWidth: 290 },
+  introCard: { paddingVertical: 16, paddingHorizontal: 18 },
+  introSec: { marginTop: 12 },
+  introK: { fontSize: 11.5, fontWeight: '700', opacity: 0.6, marginBottom: 4 },
+  introBody: { fontSize: 14, lineHeight: 20.5, fontWeight: '500' },
+  likeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  like: { borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 },
+  likeText: { fontSize: 12.5, fontWeight: '600' },
+  introFoot: { textAlign: 'center', fontSize: 12, fontWeight: '500', opacity: 0.6, marginTop: 10 },
   lineBox: { position: 'absolute', left: -60, right: -60, top: -8, alignItems: 'center' },
   speechText: { fontSize: 14, lineHeight: 19, fontWeight: '600' },
   xp: { position: 'absolute', right: -36, top: 0, fontSize: 22, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.25)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 2 } }

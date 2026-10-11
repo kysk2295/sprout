@@ -1,17 +1,22 @@
 // 49 §5 캐릭터 만들기 흐름(휴대폰) — 화면이 쓰는 순수 계산(시험: flow.test.ts).
-// 단계 전이·씨앗 회전 컷·성향 카드 진행·두드림 상태·추천 이름/할 일 칩·문구. 문항·점수·종은 10 §2.2 그대로(@sprout/schema/growth + ../logic).
+// 단계 전이·씨앗 회전 컷·성향 카드 진행·두드림 상태·추천 이름/할 일 칩·소개 카드·문구. 문항·점수·종은 10 §2.2 그대로(@sprout/schema/growth + ../logic).
 import { scoreSurvey, SPECIES, speciesFrom, type Pick2, type Species } from '@sprout/schema/growth'
+import { eulReul } from '@sprout/schema/josa'
+import { PERSONAS } from '@sprout/schema/persona'
 import { SEED_COUNT, SEED_FRAMES, SEED_NAMES } from '@sprout/schema/characterArt'
 import { axisView, surveyQueue, typeCodeOf } from '../logic.ts'
 
 // ── 단계 ──
-/** 0 시작 · 1 씨앗 고르기 · 2 성향 카드 · 3 부화 · 4 이름 · 5 첫 할 일 · 6 정원 */
-export type MakeStep = 0 | 1 | 2 | 3 | 4 | 5 | 6
-export const LAST_STEP: MakeStep = 6
-/** 오른쪽 위 `나중에`(18 그대로) — 0·1·2단계만 */
-export const canSkip = (step: MakeStep) => step <= 2
-/** 위 진행 점 6개 중 켜진 것(정원 단계에서는 점을 감춘다) */
-export const dotOf = (step: MakeStep) => (step >= 6 ? -1 : Math.min(step, 5))
+/** 0 시작 · 1 씨앗 고르기 · 2 성향 카드 · 3 부화 · 4 이름 · 5 소개(49 §5.1 4.5단계 = 50 §9) · 6 첫 할 일 · 7 정원 */
+export type MakeStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+export const STEP = { start: 0, seed: 1, quiz: 2, hatch: 3, name: 4, intro: 5, first: 6, garden: 7 } as const satisfies Record<string, MakeStep>
+export const LAST_STEP: MakeStep = STEP.garden
+/** 오른쪽 위 `나중에`(18 그대로) — 0·1·2단계만(소개는 건너뛰기 없음 — 50 §9.2) */
+export const canSkip = (step: MakeStep) => step <= STEP.quiz
+/** 위 진행 점 수 = 정원 앞 단계 수(시작~첫 할 일 7개) */
+export const DOT_COUNT = STEP.garden
+/** 위 진행 점 중 켜진 것(정원 단계에서는 점을 감춘다) */
+export const dotOf = (step: MakeStep) => (step >= STEP.garden ? -1 : Math.min(step, DOT_COUNT - 1))
 export const nextStep = (step: MakeStep): MakeStep => Math.min(LAST_STEP, step + 1) as MakeStep
 
 // ── 1 씨앗 회전: 30°씩 12컷, 18px당 한 컷(왼쪽으로 끌면 다음 컷) ──
@@ -107,7 +112,24 @@ export const nameChips = (sp: Species) => [PET_NAME[sp], '몽글', '새싹']
 export const cleanName = (s: string) => Array.from(s.replace(/\s+/g, ' ').trim()).slice(0, NAME_MAX).join('')
 export const nameCount = (s: string) => `${Array.from(s).length}/${NAME_MAX}`
 
-// ── 5 첫 할 일 ──
+// ── 5 소개(50 §9 — 카드 글은 50 §8.2 축약: 성향 막대·말 예시 없음) ──
+/** 제목 `도토를\n소개할게요`(받침 따라 을/를) · 부제 `꾸준한 달팽이 · 계획·몰입형` · 첫인사 · 카드 */
+export function introOf(species: Species, name: string) {
+  const pr = PERSONAS[species]
+  return {
+    title: `${eulReul(name)}\n소개할게요`,
+    sub: `${SPECIES[species].name} · ${pr.ui.kind}`,
+    greet: pr.greet,
+    intro: pr.ui.intro,
+    tone: pr.ui.toneLabel,
+    likes: pr.likes.slice(0, 3),
+    help: pr.ui.help
+  }
+}
+/** 소개 들어오기 시각표(ms) — 0.25초 뒤 말풍선 팝 + 깡충, 0.45초 뒤 카드(50 §9.2) */
+export const INTRO_T = { bubble: 250, card: 450, cardRise: 12, reduced: 200 } as const
+
+// ── 6 첫 할 일 ──
 export const TASK_CHIPS = ['물 한 잔 마시기', '책상 5분 정리', '내일 일정 보기'] as const
 export const FIRST_DONE_LINE = '하나 끝! 같이 자랐어'
 /** 와/과 — 받침 있으면 '과'(@sprout/schema/josa에 와/과가 없어 여기 둔다) */
