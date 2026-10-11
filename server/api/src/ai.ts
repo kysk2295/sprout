@@ -699,7 +699,7 @@ export function createAi(deps: AiDeps) {
   const counter = (cls: Priority) => (cls === 'background' ? bgInflight : inflight)
   const locks = new Map<string, Promise<unknown>>()
   /** 47 §9 턴 셈: `${사용자}:${턴 id}` → 호출 수·첫 호출 시각(숫자만) */
-  const turns = new Map<string, { calls: number; firstAt: number; chat?: boolean; selfReference?: boolean }>()
+  const turns = new Map<string, { calls: number; firstAt: number; chat?: boolean }>()
   const sweepTurns = (t: number) => { for (const [k, v] of turns) if (t - v.firstAt > cfg.turnTtlMs) turns.delete(k) }
 
   // 같은 사용자의 상한 확인 + 예약을 한 번에 하나씩(동시 요청으로 주간 상한을 넘지 못하게)
@@ -874,8 +874,7 @@ export function createAi(deps: AiDeps) {
 
     if (agentInput && turnKey && turns.get(turnKey)?.chat && agentInput.tools.length === 0 && !agentInput.messages.some(m => m.role === 'tool' || m.tool_calls?.length)) {
       messages[0] = { role: 'system', content: CHAT_SYSTEM + '\n\n' + assistantPersona(agentInput.species) }
-      // Persona facts come from current app context, not earlier erroneous AI replies.
-      if (turns.get(turnKey)?.selfReference && messages.at(-1)?.role === 'user') messages.splice(1, messages.length - 2)
+      // Keep dialogue facts even for persona questions; server identity rules correct old mistakes.
     }
 
     // 클라이언트가 끊으면 대기열에서 빠지고 Ollama 요청도 멈춘다
@@ -974,7 +973,6 @@ export function createAi(deps: AiDeps) {
           const turn = turnKey && turns.get(turnKey)
           if (turn) {
             turn.chat = decision.intent === 'chat'
-            turn.selfReference = decision.source === 'self_reference_guard'
           }
         } catch { throw new AiError('unavailable', 30) }
       }
