@@ -1,0 +1,19 @@
+{
+  "app": "/Applications/Kkumteul.app",
+  "image": "sprout-api:conversation-personas-20261011",
+  "characterName": "수달",
+  "identity": "frog (existing legacy otter mapping)",
+  "turns": [
+    {
+      "question": "너는 취미가 뭐니?",
+      "answer": "나 취미는 서로 다른 장면을 이어 새로운 모험 이야기를 만드는 거야.",
+      "newToolChips": 0
+    },
+    {
+      "question": "그 취미에서 뭐가 제일 좋아?",
+      "answer": "가장 좋아하는 건 서로 다른 장면을 이어 붙여 엉뚱한 상상력을 펼치는 거야. 마치 마법 같은 모험을 만들어내는 게 가장 재밌거든.",
+      "newToolChips": 0
+    }
+  ],
+  "note": "CUA AX observed final answers in existing conversation; UI end-to-end timing not measured. Initial typeText Korean input failed and sent spaces/question-mark; excluded from requested-question evaluation. Startup structured AI work preceded that request."
+}

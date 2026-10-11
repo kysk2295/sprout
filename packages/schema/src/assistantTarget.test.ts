@@ -42,4 +42,6 @@ const events: unknown[]=[]
 const checked=await runTurn({...input,text:'안녕',routeDecision:{intent:'chat',confidence:.99,resolution:'lookup'},onEvent:e=>events.push(e),chat:async(req,h)=>{assert.ok(!req.messages[0].content.includes('날짜표'));h.onDelta('안녕! 할 일이 20개 있어.');return {content:'안녕! 할 일이 20개 있어.',tool_calls:[]}}})
 assert.equal(checked.text,'안녕!');assert.ok(checked.grounding.hits>0)
 assert.ok(!events.some((e:any)=>e.type==='delta'),'unchecked answer must never reach the UI')
+const uncertain=await runTurn({...input,text:'보고서 최종본 제출 삭제해줘',routeDecision:{intent:'write',confidence:.4,resolution:'lookup'},chat:async req=>{assert.deepEqual(req.tools,[]);return {content:'어떤 보고서를 말하는지 알려 줄래?',tool_calls:[]}}})
+assert.equal(uncertain.cards.length,0);assert.equal(uncertain.chips.length,0);assert.equal(uncertain.calls,1)
 db.close();console.log('lookup routing: F11/F13/F14/F15, real lookup snapshot, unique/multiple/ordinal/missing/stale/deleted/duplicate targets passed')

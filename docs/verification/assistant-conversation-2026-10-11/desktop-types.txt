@@ -1,0 +1,4 @@
+
+> @sprout/desktop@1.0.1 typecheck
+> tsc --noEmit -p tsconfig.json
+

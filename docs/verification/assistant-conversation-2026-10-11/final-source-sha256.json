@@ -1,0 +1,8 @@
+{
+  "packages/schema/src/assistantPersona.ts": "eefa02fdba22e11213f6a3d4fa9fbf8c4e548752c99eb807ae1dec36226e2d9d",
+  "packages/schema/src/assistantTools.ts": "8a23f72a4b52460cc6d1c85b406629389e58d291e397af0c548776d34c5edc28",
+  "packages/schema/src/assistantDecision.ts": "e44872579ecd07e256d78f92695aa62dce5cd2dc64d01990308f6516364b9e0c",
+  "packages/schema/src/assistantAgent.ts": "d52931d9d3a235d437a8bcf5e20576fa85378a48b4868fd6f266a0bc574a8f6e",
+  "server/api/src/ai.ts": "2582ce414e315577d6947a805810717667f5742a21b915b12fab68dbc6d63261",
+  "scripts/assistant-conversation-eval.ts": "3e223dc1b99704bb85aad5b3f21eed6d5ccded3407a5953211ce169c3dc13e8f"
+}

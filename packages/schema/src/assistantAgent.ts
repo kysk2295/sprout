@@ -14,7 +14,7 @@ export type AgentMessage =
   | { role: 'tool'; tool_name: string; content: string }
 export type ChatReply = { content: string; tool_calls: { name: string; args: Record<string, unknown> }[]; prompt_tokens?: number }
 /** 모델 한 번(서버 /ai/assistant mode agent, 같은 턴 id). tools 빈 배열 = 답만 */
-export type ChatFn = (req: { messages: AgentMessage[]; tools: ToolName[]; turn: string; call: number }, h: { signal: AbortSignal; onDelta: (s: string) => void; onQueue: (position: number) => void }) => Promise<ChatReply>
+export type ChatFn = (req: { messages: AgentMessage[]; tools: ToolName[]; turn: string; call: number; species?: string | null }, h: { signal: AbortSignal; onDelta: (s: string) => void; onQueue: (position: number) => void }) => Promise<ChatReply>
 
 export type TurnEvent =
   | { type: 'phase'; phase: 'tools' | 'model' | 'answer' }
@@ -39,6 +39,7 @@ export type TurnInput = {
   pending?: ConfirmCard | null
   diary: boolean
   name: string
+  species?: string | null
   timeZone?: string
   db: AssistantDb
   chat: ChatFn
@@ -239,7 +240,7 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
   const callModel = async (offer: ToolName[]) => {
     calls++
     emit({ type: 'phase', phase: offer.length ? 'model' : 'answer' })
-    const reply = await i.chat({ messages, tools: offer, turn: i.turn, call: calls }, {
+    const reply = await i.chat({ messages, tools: offer, turn: i.turn, call: calls, species: i.species }, {
       signal,
       // Provisional tokens can be revised by tool retries or grounding. Publish only the final answer.
       onDelta: () => {},

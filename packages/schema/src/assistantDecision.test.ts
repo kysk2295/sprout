@@ -41,5 +41,12 @@ assert.equal(write.confirm, undefined)
 const clarify = await runTurn({ ...input, text: '그걸 처리해', routeDecision: { intent: 'clarify', confidence: 0.99 } })
 assert.equal(clarify.calls, 0)
 assert.equal(clarify.chips.length, 0)
+for (const species of ['snail', 'bee', 'worm', 'frog', null]) {
+  await runTurn({ ...input, species, chat: async req => {
+    assert.equal(req.species, species, 'each turn carries its own selected character')
+    assert.deepEqual(req.tools, [])
+    return { content: '응, 듣고 있어.', tool_calls: [] }
+  } })
+}
 database.close()
 console.log('assistantDecision: policy, retry, tool enforcement, diary, read, write and clarify passed')

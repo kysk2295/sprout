@@ -149,7 +149,7 @@ export function agentChat(model: string): ChatFn {
     const cancel = () => api.cancel(id)
     h.signal.addEventListener('abort', cancel, { once: true })
     try {
-      return await api.agent(id, { messages: req.messages, tools: req.tools, turn: req.turn, call: req.call, ...(model ? { model } : {}) })
+      return await api.agent(id, { messages: req.messages, tools: req.tools, species: req.species, turn: req.turn, call: req.call, ...(model ? { model } : {}) })
     } catch (e) {
       if (h.signal.aborted) throw Object.assign(new Error('aborted'), { name: 'AbortError' })
       const msg = e instanceof Error ? e.message : String(e)
@@ -237,13 +237,15 @@ export type AgentAsk = { text: string; model: string; history: { user: string; a
 export async function askAgent(a: AgentAsk): Promise<TurnResult> {
   const db = await getDb()
   const turn = newTurnId()
+  const [character] = await db.getAll<{ species: string | null }>('SELECT species FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1')
   return runTurn({
+    species: character?.species,
     classify: async (text, history, signal) => {
       const api = window.sprout?.assistant
       if (!api?.route) return undefined
       const id = crypto.randomUUID(), cancel = () => api.cancel(id)
       signal.throwIfAborted(); signal.addEventListener('abort', cancel, { once: true })
-      try { return await api.route(id, { text, history, turn }) }
+      try { return await api.route(id, { text, history, turn, name: a.name }) }
       finally { signal.removeEventListener('abort', cancel) }
     },
     text: a.text, history: a.history, memory: a.memory, pending: a.pending, diary: a.diary, name: a.name,

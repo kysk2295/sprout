@@ -1,4 +1,4 @@
-import { routeRequest, parseRouteDecision, assistantSelfQuestion } from '../../../packages/schema/src/assistantDecision.ts'
+import { routeRequest, parseRouteDecision, conversationalDecision } from '../../../packages/schema/src/assistantDecision.ts'
 // AI 프록시: 앱 → (JWT) → 여기(대기열·상한) → 백엔드(ai-backend.ts: 직접 URL 또는 Mac mini 워커) → Ollama. PRD "AI 사용 원칙"
 //   GET  /ai/status                       → 쓸 수 있는지·모델·대기열·내 사용량
 //   POST /ai/assistant|classify|map|diary|kpi-draft|weekly-report|breakdown|tag
@@ -26,6 +26,8 @@ import { routeRequest, parseRouteDecision, assistantSelfQuestion } from '../../.
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AiBackend } from './ai-backend.ts'
 import { COMPANION_RULES, DIARY_GROUNDING, DISTILL_SCHEMA, DISTILL_SYSTEM } from '../../../packages/schema/src/diaryPrompts.ts'
+import { assistantPersona } from '../../../packages/schema/src/assistantPersona.ts'
+import { normalizeSpecies } from '../../../packages/schema/src/growth.ts'
 import { AGENT_CONTEXT_MAX, AGENT_SYSTEM, CHAT_SYSTEM, isToolName, NUDGE, TOOL_SPECS, type ToolName } from '../../../packages/schema/src/assistantTools.ts'
 export { COMPANION_RULES, DIARY_GROUNDING, DISTILL_SYSTEM }
 
@@ -531,7 +533,7 @@ export type AgentMsg = {
   tool_calls?: { function: { name: ToolName; arguments: Record<string, unknown> } }[]
   tool_name?: ToolName
 }
-export type AgentInput = { messages: AgentMsg[]; tools: ToolName[]; model?: string; stream: boolean; temperature: number }
+export type AgentInput = { species?: string | null; messages: AgentMsg[]; tools: ToolName[]; model?: string; stream: boolean; temperature: number }
 /** body.mode — 'agent'만 새 경로, 없으면 예전 경로, 그 밖은 잘못된 요청 */
 export function assistantModeOf(body: unknown): 'agent' | 'route' | null {
   const mode = isObj(body) ? body.mode : undefined
@@ -560,6 +562,8 @@ export function validateAgentInput(body: unknown, cfg: AiConfig): AgentInput {
   if (!isObj(body) || !Array.isArray(body.messages) || !body.messages.length) throw new AiError('bad_request')
   if (body.messages.length > cfg.agentMaxMessages) throw new AiError('too_large')
   if (body.format !== undefined && body.format !== null) throw new AiError('bad_request')
+  if (body.species !== undefined && body.species !== null && (typeof body.species !== 'string' || !normalizeSpecies(body.species))) throw new AiError('bad_request')
+  const species = typeof body.species === 'string' ? normalizeSpecies(body.species) : null
   const tools = toolNamesOf(body.tools)
   let total = 0
   const messages: AgentMsg[] = body.messages.map((m: unknown) => {
@@ -599,11 +603,11 @@ export function validateAgentInput(body: unknown, cfg: AiConfig): AgentInput {
     if (t !== undefined && (typeof t !== 'number' || !(t >= 0 && t <= 2))) throw new AiError('bad_request')
     if (typeof t === 'number') temperature = t
   }
-  return { messages: prepareAgentMessages(messages), tools, model: body.model as string | undefined, stream: body.stream === true, temperature }
+  return { species, messages: prepareAgentMessages(messages, species), tools, model: body.model as string | undefined, stream: body.stream === true, temperature }
 }
 /** 지시문은 서버 것만: 앱 system을 모두 버리고 system = AGENT_SYSTEM(고정). 앱 칸(오늘·날짜표·이름·이어 받을 것 — 규칙이 아닌 사실, 자름)은
  *  이번 질문(재촉 줄이 아닌 마지막 user) 앞에 붙인다 — system + 도구 정의가 늘 같아야 Ollama가 그 앞부분(약 1,000토큰)을 캐시에서 읽는다(47 §14, 실측 research 39 §8). 끝은 user 또는 tool */
-export function prepareAgentMessages(messages: AgentMsg[]): AgentMsg[] {
+export function prepareAgentMessages(messages: AgentMsg[], species?: string | null): AgentMsg[] {
   const ctx = (messages.find((m) => m.role === 'system')?.content ?? '').trim().slice(0, AGENT_CONTEXT_MAX)
   const rest = messages.filter((m) => m.role !== 'system')
   const last = rest.at(-1)?.role
@@ -613,7 +617,7 @@ export function prepareAgentMessages(messages: AgentMsg[]): AgentMsg[] {
     while (i >= 0 && !(rest[i].role === 'user' && rest[i].content !== NUDGE)) i--
     if (i >= 0) rest[i] = { ...rest[i], content: `[앱 정보]\n${ctx}\n\n[질문]\n${rest[i].content}` }
   }
-  return [{ role: 'system', content: AGENT_SYSTEM }, ...rest]
+  return [{ role: 'system', content: AGENT_SYSTEM + '\n\n' + assistantPersona(species) }, ...rest]
 }
 
 // ── 일기(28 §8): 서버가 정하는 지시 ──
@@ -832,8 +836,8 @@ export function createAi(deps: AiDeps) {
     if (routing && !deps.routing) throw new AiError('not_found')
     let routingState: ReturnType<typeof routeRequest> | null = null
     if (routing) {
-      if (!isObj(body) || typeof body.text !== 'string' || !Array.isArray(body.history) || body.history.length > 2 || body.history.some((h: unknown) => !isObj(h) || typeof h.user !== 'string' || typeof h.assistant !== 'string' || h.user.length > 300 || h.assistant.length > 300) || Object.keys(body).some(k => !['mode', 'text', 'history', 'stream'].includes(k)) || body.stream !== false) throw new AiError('bad_request')
-      try { routingState = routeRequest(body.text, body.history) } catch { throw new AiError('bad_request') }
+      if (!isObj(body) || typeof body.text !== 'string' || !Array.isArray(body.history) || body.history.length > 2 || body.history.some((h: unknown) => !isObj(h) || typeof h.user !== 'string' || typeof h.assistant !== 'string' || h.user.length > 300 || h.assistant.length > 300) || Object.keys(body).some(k => !['mode', 'text', 'history', 'stream', 'name'].includes(k)) || body.stream !== false) throw new AiError('bad_request')
+      try { routingState = routeRequest(body.text, body.history, body.name) } catch { throw new AiError('bad_request') }
     }
     const agent = mode === 'agent'
     const turnId = agent || routing ? turnIdOf(req.headers[TURN_HEADER]) : null
@@ -860,6 +864,7 @@ export function createAi(deps: AiDeps) {
         followup = true
       }
     }
+    if (agentInput && turnKey && turns.get(turnKey)?.chat && agentInput.tools.length) throw new AiError('bad_request')
     const { day, at } = followup ? await reserveFollowup(userId, cls) : await reserve(userId, endpoint, cls)
     if (turnKey) {
       const t = turns.get(turnKey)
@@ -868,7 +873,7 @@ export function createAi(deps: AiDeps) {
     }
 
     if (agentInput && turnKey && turns.get(turnKey)?.chat && agentInput.tools.length === 0 && !agentInput.messages.some(m => m.role === 'tool' || m.tool_calls?.length)) {
-      messages[0] = { role: 'system', content: CHAT_SYSTEM }
+      messages[0] = { role: 'system', content: CHAT_SYSTEM + '\n\n' + assistantPersona(agentInput.species) }
       // Persona facts come from current app context, not earlier erroneous AI replies.
       if (turns.get(turnKey)?.selfReference && messages.at(-1)?.role === 'user') messages.splice(1, messages.length - 2)
     }
@@ -962,7 +967,16 @@ export function createAi(deps: AiDeps) {
       } finally { await reader.cancel().catch(() => {}) }
       if (!done) throw new AiError('unavailable', 30)
       if (routing) {
-        try { const predicted = parseRouteDecision(JSON.parse(content)); const decision = routingState && assistantSelfQuestion(routingState.text) ? { intent: 'chat' as const, confidence: 1, resolution: 'lookup' as const, source: 'self_reference_guard' as const } : predicted; content = JSON.stringify(decision); const turn = turnKey && turns.get(turnKey); if (turn) { turn.chat = decision.intent === 'chat' && decision.confidence >= .65; turn.selfReference = decision.source === 'self_reference_guard' } } catch { throw new AiError('unavailable', 30) }
+        try {
+          const predicted = parseRouteDecision(JSON.parse(content))
+          const decision = conversationalDecision(predicted, routingState!.text, routingState!.name, routingState!.history)
+          content = JSON.stringify(decision)
+          const turn = turnKey && turns.get(turnKey)
+          if (turn) {
+            turn.chat = decision.intent === 'chat'
+            turn.selfReference = decision.source === 'self_reference_guard'
+          }
+        } catch { throw new AiError('unavailable', 30) }
       }
       if (input.stream) res.end()
       else {
@@ -974,9 +988,20 @@ export function createAi(deps: AiDeps) {
       }
       ok = true
     } catch (e) {
-      if (turnKey && !followup) turns.delete(turnKey) // 첫 호출 실패 = 턴도 없던 일(다시 시도는 새 턴)
-      if (client.signal.aborted) throw new AiError('aborted')
+      if (client.signal.aborted) { if (turnKey && !followup) turns.delete(turnKey); throw new AiError('aborted') }
       const err = toAiError(e, 'server')
+      // Only an admitted classifier request may degrade to tool-free conversation.
+      // Authentication, quotas, queue rejection and user cancellation retain their errors.
+      if (routing && release && turnKey && ['unavailable', 'timeout'].includes(err.code)) {
+        const turn = turns.get(turnKey)
+        if (turn) turn.chat = true
+        const decision = { intent: 'chat', confidence: 0, resolution: 'lookup', source: 'routing_fallback' }
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
+        res.end(JSON.stringify({ model, message: { role: 'assistant', content: JSON.stringify(decision) }, done: true }))
+        usage.failures = 1; ok = true
+        return
+      }
+      if (turnKey && !followup) turns.delete(turnKey)
       if (!release && LOAD_CODES.has(err.code)) refundMinute(userId, at)
       throw err
     } finally {

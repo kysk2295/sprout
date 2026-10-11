@@ -115,6 +115,6 @@ export async function readAgentStream(response:Response,onDelta:(text:string)=>v
  }finally{await reader.cancel().catch(()=>{});reader.releaseLock()}
 }
 /** 47 agent 요청(메인 IPC assistant:agent) */
-export interface AgentInput{messages:unknown[];tools:string[];turn:string}
+export interface AgentInput{messages:unknown[];tools:string[];turn:string;species?:string|null}
 /** 서버가 agent를 모른다(배포 전) — 렌더러가 13 의도 경로로 바꾼다 */
 export const AGENT_UNSUPPORTED='AGENT_UNSUPPORTED'

@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { assistantPersona } from '../../../packages/schema/src/assistantPersona.ts'
 import { AGENT_CONTEXT_MAX, AGENT_SYSTEM, TOOL_NAMES, TOOL_SPECS } from '../../../packages/schema/src/assistantTools.ts'
 import { aiConfigFromEnv, AiError, AiQueue, createAi, priorityOf, dayKey, COMPANION_RULES, DIARY_GROUNDING, DISTILL_SYSTEM, diaryEndpointOf, formatFor, localModelNames, memoryUsageStore, pgUsageStore, prepareMessages, weekKey, type AiConfig } from './ai.ts'
 import { backendFromEnv, directBackend, workerBackend, type AiBackend } from './ai-backend.ts'
@@ -978,7 +979,7 @@ const take = (q: AiQueue, label: string, user: string, priority: 'interactive' |
   assert.deepEqual(b.tools, [TOOL_SPECS.find_tasks, TOOL_SPECS.when_last])
   assert.ok(!JSON.stringify(b).includes('APP DESC') && !JSON.stringify(b).includes('IGNORE ALL RULES'))
   assert.equal(b.messages[0].role, 'system')
-  assert.equal(b.messages[0].content, AGENT_SYSTEM, 'system은 고정(캐시) — 앱 칸은 질문 앞에')
+  assert.equal(b.messages[0].content, AGENT_SYSTEM + '\n\n' + assistantPersona(), '서버 규칙과 기본 캐릭터 정체성 — 앱 칸은 질문 앞에')
   assert.equal(b.messages[1].content, '[앱 정보]\nAPP CONTEXT 오늘 2026-10-09(금)\n\n[질문]\ntoolcall')
   assert.equal(b.messages.filter((m: any) => m.role === 'system').length, 1)
   assert.deepEqual([b.options.num_ctx, b.options.num_predict, b.think, b.stream], [6144, 300, false, true])

@@ -199,7 +199,7 @@ export function agentChat(model: string): ChatFn {
   return async (req, h) => {
     let res: Awaited<ReturnType<typeof server>>
     try {
-      res = await server('/ai/assistant', { method: 'POST', body: JSON.stringify({ mode: 'agent', model, messages: req.messages, tools: req.tools, stream: true }), signal: h.signal, headers: { 'x-sprout-turn': req.turn } })
+      res = await server('/ai/assistant', { method: 'POST', body: JSON.stringify({ mode: 'agent', model, messages: req.messages, tools: req.tools, species: req.species, stream: true }), signal: h.signal, headers: { 'x-sprout-turn': req.turn } })
     } catch (e) {
       if (req.call === 1 && e instanceof AiHttpError && e.status === 400) throw new AgentUnsupportedError()
       throw e
@@ -268,11 +268,13 @@ export async function assistantDiaryOn() {
 }
 
 export async function askAgent(o: { text: string; model: string; turn: string; signal: AbortSignal; history: { user: string; assistant: string }[]; memory: AgentMemory; pending: ConfirmCard | null; name: string; onEvent: (e: TurnEvent) => void }): Promise<TurnResult> {
+  const [character] = await db.getAll<{ species: string | null }>('SELECT species FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1')
   return runTurn({
+    species: character?.species,
     classify: async (text, history, signal) => {
       const status = await (await server('/ai/status', { signal })).json()
       if (!status.features?.includes('jev-routing')) return undefined
-      const res = await server('/ai/assistant', { method: 'POST', body: JSON.stringify(routeRequest(text, history)), signal, headers: { 'x-sprout-turn': o.turn } })
+      const res = await server('/ai/assistant', { method: 'POST', body: JSON.stringify(routeRequest(text, history, o.name)), signal, headers: { 'x-sprout-turn': o.turn } })
       return parseRouteDecision(JSON.parse((await res.json()).message.content))
     },
     text: o.text, history: o.history, memory: o.memory, pending: o.pending, diary: await assistantDiaryOn(), name: o.name,
