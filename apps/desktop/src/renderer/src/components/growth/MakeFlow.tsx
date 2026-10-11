@@ -1,5 +1,5 @@
 // 49 §5 만들기 흐름(데스크톱) — 시안 character-v3.html A를 가운데 카드(폭 440 · 높이 720)로.
-// 0 시작 → 1 씨앗 고르기(끌기 18px당 한 컷 · ←/→) → 2 성향 카드 8장(1·2 키) → 3 세 번 두드려 깨우기 → 4 이름 → 5 첫 할 일 → 정원.
+// 0 시작 → 1 씨앗 고르기(끌기 18px당 한 컷 · ←/→) → 2 성향 카드 8장(1·2 키) → 3 세 번 두드려 깨우기 → 4 이름 → 5 캐릭터 소개(50 §9) → 6 첫 할 일 → 정원.
 // 카드 바탕 = 3D 장면(라이트 새벽 · 다크 밤). 움직임은 transform · opacity만, 움직임 줄이기 = 페이드만.
 // 저장: 씨앗 = characters.look_json.seed(setSeed — 기존 모습에 합침), 종·답·이름 = assignCharacter(옛 조사와 같은 칸),
 // 첫 할 일 = 보통 할 일(createTask) + 보통 완료 경로(useTaskActions.complete → XP 10 §6 그대로).
@@ -7,7 +7,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { createPortal } from 'react-dom'
 import { headTop3d, SEED_COUNT, SEED_PX, SEED_FRAMES, SEED_NAMES, seedCrackKey, seedTurnKey } from '@sprout/schema/characterArt'
 import { QUESTIONS, scoreSurvey, SPECIES, speciesFrom, XP, type Pick2, type Species } from '@sprout/schema/growth'
-import { iGa } from '@sprout/schema/josa'
+import { eulReul, iGa } from '@sprout/schema/josa'
+import { PERSONAS } from '@sprout/schema/persona'
 import { setSeed } from '@sprout/schema/wardrobe'
 import { assignCharacter, useMotionReduced } from '../../data/growth'
 import { saveLook, useRaise } from '../../data/raise'
@@ -54,7 +55,7 @@ export function useDocDark(): boolean {
   return dark
 }
 
-type Step = 0 | 1 | 2 | 3 | 4 | 5
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
 export function MakeFlow({ onClose }: { onClose: (r?: MakeResult) => void }) {
   const reduced = useMotionReduced()
@@ -180,11 +181,17 @@ export function MakeFlow({ onClose }: { onClose: (r?: MakeResult) => void }) {
     try {
       await assignCharacter(species, typeCode, answers, n)
       await saveLook(setSeed(raise.look, seed))
-      go(5)
+      go(5) // 50 §9: 이름 다음은 소개
     } catch { setError('저장하지 못했어요. 잠시 뒤 다시 시도하세요.') } finally { setSaving(false) }
   }
 
-  // 5 첫 할 일
+  // 5 소개(50 §9.2): 0.25초 뒤 말풍선 팝 + 웃는 얼굴 + 깡충(줄이기면 깡충 없이)
+  useEffect(() => {
+    if (step !== 5) return
+    later(() => { happyFor(1600); if (!reduced) hop() }, reduced ? 0 : 250)
+  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 6 첫 할 일
   const xpEl = useRef<HTMLDivElement>(null)
   const makeTask = async (title: string) => {
     const t = title.trim()
@@ -241,7 +248,7 @@ export function MakeFlow({ onClose }: { onClose: (r?: MakeResult) => void }) {
             const at = (size: number, lift = 0): CSSProperties => { const p = onPerch(L, size); return { left: p.left, top: p.top - lift, width: size, height: size } }
             return (
               <>
-                <ol className="mk-dots" aria-label={`${step + 1}/6단계`}>{[0, 1, 2, 3, 4, 5].map((i) => <li key={i} className={i === step ? 'is-on' : ''} />)}</ol>
+                <ol className="mk-dots" aria-label={`${step + 1}/7단계`}>{[0, 1, 2, 3, 4, 5, 6].map((i) => <li key={i} className={i === step ? 'is-on' : ''} />)}</ol>
                 {step <= 2 && <button className="mk-later" onClick={() => onClose()}>나중에</button>}
 
                 {step === 0 && (
@@ -332,9 +339,31 @@ export function MakeFlow({ onClose }: { onClose: (r?: MakeResult) => void }) {
                 )}
 
                 {step === 5 && (() => {
+                  // 50 §9.1 소개 — 제목 · 아기 + 첫인사 말풍선 · 유리 카드(§8.2 축약, 성향 막대 없음) · 같이 시작하기
+                  const top = at(170, 100), head = headTop3d(species, 1, 'a', seed), p = PERSONAS[species], nm = name.trim() || PET[species]
+                  return (
+                    <div className="mk-scr is-intro" key="s5">
+                      <div className="mk-copy"><p className="mk-h">{eulReul(nm)} 소개할게요</p><p className="mk-sub">{SPECIES[species].name} · {p.ui.kind}</p></div>
+                      <div className="mk-ch" style={top}><PlayableCharacter level="full" handle={play} reduced={reduced} buttonLabel={`${nm}. 눌러서 만져 보기`} species={species} stage={1} size={170} seed={seed} mood={happy ? 'happy' : 'default'} motion="idle" wear={{ seed }} /></div>
+                      <div className="mk-say mk-glass is-wrap mk-intro-say" style={{ top: (top.top as number) + head.y * 170 - 8 }} aria-live="polite">{p.greet}</div>
+                      <div className="mk-bottom">
+                        <div className="mk-intro mk-glass">
+                          <p className="mk-ilead">{p.ui.intro}</p>
+                          <div className="mk-irow"><span className="mk-ik">말투</span><span>{p.ui.toneLabel}</span></div>
+                          <div className="mk-irow"><span className="mk-ik">좋아하는 것</span><div className="mk-likes">{p.likes.map((l) => <span key={l}>{l}</span>)}</div></div>
+                          <div className="mk-irow"><span className="mk-ik">이렇게 도와줘요</span><span>{p.ui.help}</span></div>
+                        </div>
+                        <button ref={setPrimary} className="mk-btn" onClick={() => go(6)}>같이 시작하기</button>
+                        <p className="mk-note">성장 화면에서 언제든 다시 볼 수 있어요</p>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {step === 6 && (() => {
                   const top = at(170, 70), head = headTop3d(species, 1, 'a', seed)
                   return (
-                    <div className="mk-scr" key="s5">
+                    <div className="mk-scr" key="s6">
                       <div className="mk-copy"><p className="mk-h">{wa(name.trim() || PET[species])} 함께<br />첫 할 일 하나만</p><p className="mk-sub">끝내면 바로 자라요. 작아도 괜찮아요.</p></div>
                       <div className="mk-ch" style={top}><PlayableCharacter level="full" handle={play} reduced={reduced} buttonLabel={`${name.trim() || PET[species]}. 눌러서 만져 보기`} species={species} stage={1} size={170} seed={seed} mood={happy ? 'happy' : 'default'} motion="idle" wear={{ seed }} /></div>
                       <div className={`mk-say mk-glass${task?.done ? '' : ' is-hide'}`} style={{ top: (top.top as number) + head.y * 170 - 8 }} aria-live="polite">{task?.done ? '하나 끝! 같이 자랐어' : ''}</div>
