@@ -250,7 +250,8 @@ export class CalendarBridge {
   private async remoteDeleted(c: Ctx) {
     const { row } = c
     const at = this.now().toISOString()
-    await this.d.db.execute('UPDATE events SET deleted_at = ?, modified_at = ?, ext_hash = ?, ext_etag = NULL, ext_error = NULL WHERE id = ?', [at, at, fingerprint(row, true), row.id])
+    // 외부를 묻는 동안 꿈틀에서 고쳤으면 건너뛴다(다음 차례에 고친 내용을 올린다 — SAME 참고)
+    await this.d.db.execute(`UPDATE events SET deleted_at = ?, modified_at = ?, ext_hash = ?, ext_etag = NULL, ext_error = NULL WHERE id = ? ${SAME}`, [at, at, fingerprint(row, true), row.id, row.modified_at, row.deleted_at])
   }
 
   // ── 꿈틀 쪽 기록 ──
@@ -261,8 +262,8 @@ export class CalendarBridge {
   private async pull(row: LinkedRow, remote: Remote) {
     const f = remote.fields
     await this.d.db.execute(
-      'UPDATE events SET title = ?, notes = ?, location = ?, start_at = ?, end_at = ?, is_all_day = ?, repeat_rule = ?, deleted_at = NULL, modified_at = ?, ext_etag = ?, ext_updated = ?, ext_hash = ?, ext_error = NULL WHERE id = ?',
-      [f.title, f.notes, f.location, f.start_at, f.end_at, f.is_all_day, f.repeat_rule, this.now().toISOString(), remote.etag, remote.updated, fingerprint(f), row.id]
+      `UPDATE events SET title = ?, notes = ?, location = ?, start_at = ?, end_at = ?, is_all_day = ?, repeat_rule = ?, deleted_at = NULL, modified_at = ?, ext_etag = ?, ext_updated = ?, ext_hash = ?, ext_error = NULL WHERE id = ? ${SAME}`,
+      [f.title, f.notes, f.location, f.start_at, f.end_at, f.is_all_day, f.repeat_rule, this.now().toISOString(), remote.etag, remote.updated, fingerprint(f), row.id, row.modified_at, row.deleted_at]
     )
   }
   private async setError(row: LinkedRow, message: string, toast: boolean) {
@@ -289,5 +290,11 @@ export class CalendarBridge {
   }
 }
 
+/**
+ * 내려받기(pull·외부 삭제)는 외부를 묻기(await) 전에 읽은 행 그대로일 때만 쓴다(2026-10-11 Codex 리뷰 #P1).
+ * 그 사이 꿈틀(이 기기·휴대폰)에서 고치거나 지우면 modified_at이 바뀌어 건너뛰고, 감시가 다시 돌린 다음 차례가
+ * 지문 차이 → 올리기 → 412면 resolve(나중에 고친 쪽)로 최신 행을 두고 다시 정한다. 다리 자신의 record는 modified_at을 건드리지 않는다.
+ */
+const SAME = 'AND modified_at IS ? AND deleted_at IS ?'
 const isConflict = (e: unknown) => (e instanceof GoogleError && e.kind === 'conflict') || (e instanceof AppleWriteError && e.code === 'conflict')
 const isGone = (e: unknown) => (e instanceof GoogleError && (e.kind === 'notfound' || e.kind === 'gone')) || (e instanceof AppleWriteError && e.code === 'notfound')

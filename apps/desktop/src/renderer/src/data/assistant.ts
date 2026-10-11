@@ -1,6 +1,6 @@
 import { intentSchema, localChat, parseIntent, replyPreview, type AssistantProgress, type ChatInput, type Intent } from '../../../shared/assistant'
 import { getDb } from './db'
-import { insert, run, now, taskListId } from './mutations'
+import { insert, run, now, taskListId, withDescendants } from './mutations'
 import { eventFieldsOf } from '@sprout/schema/assistantExec'
 import type { ListRow, TaskRow } from './types'
 import { AgentUnsupportedError, runTurn, type AgentWrites, type ChatFn, type TurnEvent, type TurnResult } from '@sprout/schema/assistantAgent'
@@ -158,8 +158,36 @@ export function agentChat(model: string): ChatFn {
     } finally { off?.(); h.signal.removeEventListener('abort', cancel) }
   }
 }
+/**
+ * 완료 카드가 실제로 바꾼 것(카드 id → 완료 취소할 id, 완료 직후 modified_at). 2026-10-11 Codex 리뷰 #P2:
+ * 반복 할 일은 완료하면 원래 행이 다음 회차(status 0)로 넘어가고 완료 기록 행이 생긴다 → 되돌리기 = 그 기록을 완료 취소(앱의 완료 취소가 원래 행을 그 회차로 되돌림).
+ * 일반 할 일은 하위도 함께 끝나므로 그때 끝난 하위까지 완료 취소. 이 실행 동안만 기억한다(다시 켜면 예전처럼 원래 id만).
+ */
+const doneBy = new Map<string, { reopen: string[]; stamp: string | null; repeat: boolean }>()
+async function completedBy(o: { complete: (ids: string[]) => Promise<void> }, ids: string[]) {
+  const db = await getDb()
+  const marks = ids.map(() => '?').join(',')
+  const rows = ids.length ? await db.getAll<{ id: string; status: number; repeat_rule: string | null; due_at: string | null }>(`SELECT id, status, repeat_rule, due_at FROM tasks WHERE id IN (${marks})`, ids) : []
+  const kids = new Map<string, string[]>()
+  for (const r of rows) {
+    if (r.status !== 0 || (r.repeat_rule && r.due_at)) continue
+    const all = await withDescendants([r.id])
+    kids.set(r.id, (await db.getAll<{ id: string }>(`SELECT id FROM tasks WHERE status = 0 AND id IN (${all.map(() => '?').join(',')})`, all)).map((k) => k.id))
+  }
+  await o.complete(ids)
+  for (const r of rows) {
+    if (r.status !== 0) continue
+    const cur = await db.get<{ status: number; modified_at: string | null }>('SELECT status, modified_at FROM tasks WHERE id = ?', [r.id])
+    if (!cur) continue
+    if (kids.has(r.id)) { doneBy.set(r.id, { reopen: kids.get(r.id)!, stamp: cur.modified_at, repeat: false }); continue }
+    // 반복: 기록이 생겼으면 기록을, 마지막 회차(기록 없이 원래 행이 완료)면 원래 행을
+    const rec = cur.status === 1 ? null : await db.get<{ id: string }>('SELECT id FROM tasks WHERE repeat_origin_id = ? AND due_at = ? AND status = 1 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1', [r.id, r.due_at])
+    doneBy.set(r.id, { reopen: [rec?.id ?? r.id], stamp: cur.modified_at, repeat: !!rec })
+  }
+}
 /** 확인 카드 넣기 — 만들기는 executeIntent create와 같은 행, 완료·완료 취소는 앱의 완료(21, XP 포함) */
 export function agentWrites(o: { complete: (ids: string[]) => Promise<void>; uncomplete?: (ids: string[]) => Promise<void> }): AgentWrites {
+  const uncomplete = o.uncomplete
   return {
     newId: () => crypto.randomUUID(),
     stamp: now,
@@ -175,12 +203,23 @@ export function agentWrites(o: { complete: (ids: string[]) => Promise<void>; unc
       if (!ids.length) return []
       return (await getDb()).getAll(`SELECT id, modified_at, deleted_at FROM events WHERE id IN (${ids.map(() => '?').join(',')})`, ids)
     },
-    complete: o.complete,
-    ...(o.uncomplete ? { uncomplete: o.uncomplete } : {}),
+    complete: (ids) => completedBy(o, ids),
+    ...(uncomplete ? {
+      async uncomplete(ids: string[]) {
+        const db = await getDb()
+        const targets = [...new Set(ids.flatMap((id) => doneBy.get(id)?.reopen ?? [id]))]
+        // 함께 끝난 하위 중 아직 완료인 것만(그 뒤 따로 다시 연 것은 건드리지 않는다)
+        const still = targets.length ? new Set((await db.getAll<{ id: string }>(`SELECT id FROM tasks WHERE status = 1 AND id IN (${targets.map(() => '?').join(',')})`, targets)).map((r) => r.id)) : new Set<string>()
+        await uncomplete(targets.filter((id) => still.has(id)))
+        ids.forEach((id) => doneBy.delete(id))
+      }
+    } : {}),
     run: (stmts) => run(...stmts),
     async read(ids) {
       if (!ids.length) return []
-      return (await getDb()).getAll(`SELECT id, modified_at, status, deleted_at, start_at, due_at FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`, ids)
+      const rows = await (await getDb()).getAll<{ id: string; modified_at: string | null; status: number; deleted_at: string | null; start_at: string | null; due_at: string | null }>(`SELECT id, modified_at, status, deleted_at, start_at, due_at FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`, ids)
+      // 반복 할 일은 완료해도 원래 행이 status 0(다음 회차) — 완료 직후 그대로면 완료로 보여 되돌리기 확인(undoCard)이 통과하게
+      return rows.map((r) => { const d = doneBy.get(r.id); return d?.repeat && r.status === 0 && r.modified_at === d.stamp ? { ...r, status: 1 } : r })
     }
   }
 }

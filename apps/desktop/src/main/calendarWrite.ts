@@ -1,6 +1,7 @@
 // 16 §12.5~§12.9 캐시 전용 외부 일정(구글·Apple에서 직접 만든 일정) 쓰기 — 화면 먼저(캐시) · 바로 쓰기 · 실패 시 되돌림.
 // Electron 없음(시험은 가짜 구글 서버·가짜 도우미). 연결된 일정(꿈틀 events)은 calendarBridge.ts가 맡는다.
 import { addDays, addMinutes, daysBetween, minutesBetween } from '@sprout/schema/time'
+import { occurrences } from '@sprout/schema/events'
 import { fromFloating, isoNoMs, mapGoogleEvent, mapAppleEvent, type EventRow, type ExtPatch, type ExtSnapshot, type GoogleEvent, type WriteCode, type WriteResult, type WriteScope } from '../shared/calendars'
 import type { CalendarStore } from './calendarStore'
 import { fieldsFromGoogle, googleTimes } from './calendarLink'
@@ -76,7 +77,23 @@ function cutRecurrence(lines: string[], until: string): string[] {
     return `RRULE:${[...parts, `UNTIL=${until}`].join(';')}`
   })
 }
-const dropEnd = (lines: string[]) => lines.map((l) => (l.startsWith('RRULE:') ? `RRULE:${l.slice(6).split(';').filter((p) => !p.startsWith('COUNT=')).join(';')}` : l))
+/**
+ * "이후 모든 회차" 새 반복의 RRULE: COUNT는 이 회차부터 남은 횟수로(원본에서 이 회차 앞 회차 수를 뺀다), UNTIL은 그대로.
+ * COUNT를 그냥 지우면 끝이 있던 반복이 끝없는 반복이 된다(2026-10-11 Codex 리뷰 #P1)
+ */
+function restRecurrence(lines: string[], master: { start_at: string; end_at: string; repeat_rule: string | null }, occDate: string): string[] {
+  return lines.map((l) => {
+    if (!l.startsWith('RRULE:')) return l
+    const parts = l.slice(6).split(';')
+    const total = Number(parts.find((p) => p.startsWith('COUNT='))?.slice(6))
+    if (!total) return l
+    const before = occurrences(master, master.start_at.slice(0, 10), addDays(occDate, -1), total).length
+    return `RRULE:${parts.map((p) => (p.startsWith('COUNT=') ? `COUNT=${Math.max(1, total - before)}` : p)).join(';')}`
+  })
+}
+/** 새 반복에 옮겨 갈 원본 칸(참석자·일정별 알림·색·공개 범위 등 — 제목·시간·반복은 따로 정한다) */
+const CARRY = ['attendees', 'reminders', 'colorId', 'transparency', 'visibility', 'guestsCanModify', 'guestsCanInviteOthers', 'guestsCanSeeOtherGuests', 'anyoneCanAddSelf'] as const
+const carried = (master: GoogleEvent) => { const m = master as unknown as Record<string, unknown>; return Object.fromEntries(CARRY.filter((k) => m[k] !== undefined).map((k) => [k, m[k]])) }
 
 export class CalendarWriter {
   constructor(private d: WriteDeps) {}
@@ -160,8 +177,9 @@ export class CalendarWriter {
     const times = timeChanged ? { start_at: t.start, end_at: t.end, is_all_day: t.allDay ? 1 : 0 } : { start_at: row.start, end_at: row.end, is_all_day: row.all_day }
     try {
       await g.insertEvent(acc, cal, {
+        ...carried(master),
         summary: patch.title ?? master.summary ?? '', description: patch.description !== undefined ? patch.description ?? '' : master.description ?? '', location: patch.location !== undefined ? patch.location ?? '' : master.location ?? '',
-        ...googleTimes(times, tz), recurrence: dropEnd(lines)
+        ...googleTimes(times, tz), recurrence: restRecurrence(lines, mf, occDate)
       }, { notify })
     } catch (e) {
       await g.patchEvent(acc, cal, base, { recurrence: lines }, { notify: false }).catch(() => {}) // 원본 되돌리기

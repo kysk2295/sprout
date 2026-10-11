@@ -65,10 +65,30 @@ export function useMyCalColor(): string | null {
 }
 export const useEvent = (id: string | undefined) => useQuery<EventRow>('SELECT * FROM events WHERE id = ?', [id ?? ''])?.[0]
 
-async function snapshotEvents(ids: string[]): Promise<Restore> {
-  if (!ids.length) return async () => {}
+async function readEvents(ids: string[]): Promise<Map<string, Row>> {
   const rows = await (await getDb()).getAll<Row>(`SELECT id, ${FIELDS.join(', ')} FROM events WHERE id IN (${marks(ids.length)})`, ids)
-  return () => run(...rows.map(({ id, ...rest }) => update('events', id as string, rest)))
+  return new Map(rows.map((r) => [r.id as string, r]))
+}
+/**
+ * 고치고 되돌리기 함수를 돌려준다. 되돌리기는 이 작업이 바꾼 칸만, 그 뒤 다른 곳(다른 기기 등)에서 다시 바뀌지 않았을 때만
+ * 원래 값으로 — 전체 칸을 덮으면 제목 되돌리기가 다른 기기에서 고친 설명까지 지운다(2026-10-11 Codex 리뷰 #P1)
+ */
+async function changeEvents(ids: string[], stmts: Stmt[]): Promise<Restore> {
+  if (!ids.length) { await run(...stmts); return async () => {} }
+  const before = await readEvents(ids)
+  await run(...stmts)
+  const after = await readEvents(ids)
+  return async () => {
+    const cur = await readEvents(ids)
+    const back: Stmt[] = []
+    for (const [id, b] of before) {
+      const a = after.get(id), c = cur.get(id)
+      if (!a || !c) continue
+      const patch = Object.fromEntries(FIELDS.filter((f) => b[f] !== a[f] && c[f] === a[f]).map((f) => [f, b[f]]))
+      if (Object.keys(patch).length) back.push(update('events', id, patch))
+    }
+    if (back.length) await run(...back)
+  }
 }
 
 export interface NewEvent { title: string; start_at: string | null; due_at: string; repeat_rule?: string | null; reminders?: string[]; notes?: string; location?: string; link?: EventLink | null }
@@ -85,9 +105,7 @@ export async function createEvent(input: NewEvent): Promise<string> {
 }
 
 export async function updateEvent(id: string, patch: Partial<Omit<EventRow, 'id'>>): Promise<Restore> {
-  const restore = await snapshotEvents([id])
-  await run(update('events', id, patch))
-  return restore
+  return changeEvents([id], [update('events', id, patch)])
 }
 
 /** 날짜 선택기 값(태스크 Schedule 모양) → 일정 */
@@ -99,9 +117,7 @@ export async function applyEventSchedule(id: string, s: { start_at: string | nul
 /** 캘린더 끌기·길이(06 §7.2): changes는 태스크와 같은 모양(id는 일정 id 또는 'ev:' 붙은 것) */
 export async function rescheduleEvents(changes: { id: string; start_at: string | null; due_at: string | null }[]): Promise<Restore> {
   const list = changes.filter((c) => c.due_at).map((c) => ({ ...c, id: eventIdOf(c.id) }))
-  const restore = await snapshotEvents(list.map((c) => c.id))
-  await run(...list.map((c) => update('events', c.id, eventSpan(c.start_at, c.due_at!))))
-  return restore
+  return changeEvents(list.map((c) => c.id), list.map((c) => update('events', c.id, eventSpan(c.start_at, c.due_at!))))
 }
 
 /** ⌥ 끌기 복제·메뉴 "복제": 새 일정을 만들고, 되돌리면 지운다 */
@@ -119,15 +135,19 @@ export async function duplicateEvents(changes: { id: string; start_at: string | 
     stmts.push(insert('events', { ...rest, id: copy, ...(c.due_at ? eventSpan(c.start_at, c.due_at) : {}) }))
   }
   await run(...stmts)
-  return () => run(...copies.map((id) => remove('events', id)))
+  // 연결된 일정의 복제는 다리가 이미 외부에 올렸을 수 있다 → 행을 없애면 외부 사본을 지울 연결 정보도 사라진다.
+  // deleted_at으로 지워 다리가 외부에서도 지우게 한다(아직 안 올렸으면 다리는 기록만 한다). 연결 없는 일정만 바로 없앤다(2026-10-11 Codex 리뷰 #P2)
+  return async () => {
+    if (!copies.length) return
+    const linked = new Set((await db.getAll<{ id: string }>(`SELECT id FROM events WHERE ext_provider IS NOT NULL AND id IN (${marks(copies.length)})`, copies)).map((r) => r.id))
+    await run(...copies.map((id) => (linked.has(id) ? update('events', id, { deleted_at: now() }) : remove('events', id))))
+  }
 }
 
 /** 삭제 = deleted_at(되돌리기로 살린다) — 06 §14.4.5 */
 export async function deleteEvents(ids: string[]): Promise<Restore> {
   const list = ids.map(eventIdOf)
-  const restore = await snapshotEvents(list)
-  await run(...list.map((id) => update('events', id, { deleted_at: now() })))
-  return restore
+  return changeEvents(list, list.map((id) => update('events', id, { deleted_at: now() })))
 }
 
 /** 할 일 → 일정(06 §14.4.6). 하위 할 일이 있으면 'has-children' */
