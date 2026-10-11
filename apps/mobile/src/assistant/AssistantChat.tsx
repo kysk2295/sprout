@@ -206,7 +206,7 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
   // 말풍선이 커지면(글자가 써지는 동안) 기록도 같이 올려 방금 보낸 말이 가려지지 않게
   useEffect(() => { if (follow.current) requestAnimationFrame(() => scroll.current?.scrollToEnd({ animated: false })) }, [speechH, a.busy])
   // 말풍선 = 지금 말하는 새 답(글자가 써지는 동안 + 0.8초)뿐. 다 말하면 위 대화 기록으로 올라간다. 다시 열면 지난 답은 처음부터 기록에
-  const speechIdx = !empty && !a.busy && !errShown && lastAi >= 0 && lastAi === a.messages.length - 1 && typing === a.messages[lastAi].id && spoken !== typing ? lastAi : -1
+  const speechIdx = -1 // v1.8(사용자): 말풍선은 '생각 중'만 — 답은 오자마자 위 대화 기록으로 올라간다
   const buddyRoom = barTop ? Math.max(0, barTop - headY) + (a.busy || speechIdx >= 0 ? speechH : 0) + 16 : 0
   const shiftV = useSharedValue(0)
   useEffect(() => { shiftV.value = withTiming(sceneShift, { duration: 420 }) }, [sceneShift, shiftV])
@@ -216,7 +216,7 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
   const aiBody = (m: Message, i: number, typed = false) => (
     <>
             {m.agent ? <ToolChips chips={m.agent.chips.map((chip) => ({ chip, state: chip.failed ? 'failed' as const : 'done' as const }))} /> : null}
-            {faces[i]?.line ? (typed ? <TypeText key={m.id} text={faces[i]!.line!} play={typing === m.id} onDone={() => { setSpeaking(false); const id = m.id; setTimeout(() => setSpoken(id), 800) }} style={[s.text, s.speechText, { color: p.textPrimary }]} /> : <Text style={[s.text, { color: p.textPrimary }]} selectable>{faces[i]!.line}</Text>) : null}
+            {faces[i]?.line ? (typed ? <TypeText key={m.id} text={faces[i]!.line!} play={typing === m.id} onDone={() => setSpeaking(false)} style={[s.text, { color: p.textPrimary }]} /> : <Text style={[s.text, { color: p.textPrimary }]} selectable>{faces[i]!.line}</Text>) : null}
             {m.agent ? <Bands bands={m.agent.bands} /> : null}
             {m.agent ? <AgentCards cards={m.agent.cards} actions={actionsFor(m, i)} /> : null}
             {m.agent?.hint ? <Text style={[FONT.meta, { color: p.textTertiary }]}>{m.agent.hint}</Text> : null}
@@ -239,30 +239,17 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
             ) : null}
     </>
   )
-  const liveBody = a.busy && a.live ? (
-          <>
-            <ToolChips chips={a.live.chips.filter(Boolean)} />
-            {a.live.text ? <LiveText /> : (
-              <Text style={[s.text, { color: p.textSecondary }]}>{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.live.chips.some((c) => c?.state === 'running') ? '찾아보는 중…' : ''}</Text>
-            )}
-            {!a.live.text && !(a.progress.queue ?? 0) && !a.live.chips.some((c) => c?.state === 'running') ? <ThinkingDots color={p.textTertiary} /> : null}
-            <AgentCards cards={a.live.cards.filter((c) => !isConfirm(c))} actions={{ onSave: () => {}, onCancel: () => {}, onUndo: () => {}, onToggle: () => {}, onEdit: () => {} }} />
-            <Text style={[s.step, { color: p.textTertiary }]}>{elapsed}초</Text>
-          </>
-        ) : a.busy ? (
-          <>
-            {a.progress.preview ? <Text style={[s.text, { color: p.textPrimary }]}>{a.progress.preview}<Caret /></Text> : (
-              <Text style={[s.text, { color: p.textSecondary }]}>{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.progress.phase === 'connecting' ? '꿈틀 AI에 연결하는 중…' : '생각하는 중…'}</Text>
-            )}
-            <View style={s.steps} accessibilityRole="progressbar">
-              {STEPS.map((st, i) => (
-                <Text key={st.label} style={[s.step, { color: i <= phaseIndex ? p.accentInk : p.textQuaternary }]}>{i > 0 ? <Text style={{ color: p.textQuaternary }}>{' › '}</Text> : null}● {st.label}</Text>
-              ))}
-              <Text style={[s.step, { color: p.textTertiary }]}> · {elapsed}초</Text>
-            </View>
-          </>
+  // v1.8: 말풍선은 '생각 중' 한 줄만(진행 칩·미리 찾은 카드는 넣지 않는다 — 답이 기록으로 올라갈 때 같이 보인다)
+  // 사용자 "말풍선을 더 줄여, 캐릭터 크기에 맞게": 점 세 개만(찾는 중·대기 중일 때만 짧은 글자)
+  const thinkingLine = (a.progress.queue ?? 0) > 0 ? `앞에 ${a.progress.queue}명` : a.live?.chips.some((c) => c?.state === 'running') ? '찾는 중' : ''
+  const liveBody = a.busy ? (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} accessibilityLabel={thinkingLine || '생각 중'}>
+      {thinkingLine ? <Text style={{ fontSize: 12, color: p.textSecondary }}>{thinkingLine}</Text> : null}
+      <ThinkingDots color={p.textTertiary} />
+    </View>
   ) : null
-  const speechBody = a.busy ? liveBody : speechIdx >= 0 ? aiBody(a.messages[speechIdx], speechIdx, true) : null
+  const speechBody = a.busy ? liveBody : null
+  const perchX = L0?.perchX ?? area.w / 2
   return (
     <View style={{ flex: 1 }} onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setArea((o) => (o.w === width && o.h === height ? o : { w: width, h: height })) }}>
       {area.w ? <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: -bt, width: area.w, height: sceneH, backgroundColor: tint.top }} /> : null}
@@ -294,7 +281,7 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
         {a.messages.map((m, i) => m.role === 'user' ? (
           <Animated.View key={m.id} entering={reduced ? undefined : FadeIn.duration(180)} style={[s.me, { backgroundColor: p.accent }]}><Text style={[s.text, { color: p.onAccent }]}>{m.text}</Text></Animated.View>
         ) : i === speechIdx ? null : (
-          <Animated.View key={m.id} entering={reduced ? undefined : FadeIn.duration(180)}><Ai name={who} face={faceOf(faces[i], false)} xp={0}>{aiBody(m, i)}</Ai></Animated.View>
+          <Animated.View key={m.id} entering={reduced ? undefined : typing === m.id ? riseIn : FadeIn.duration(180)}><Ai name={who} face={faceOf(faces[i], false)} xp={0}>{aiBody(m, i, typing === m.id)}</Ai></Animated.View>
         ))}
         {errShown && errFace ? (
           <Ai name={who} face={faceOf(errFace, true)}>
@@ -321,14 +308,12 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
       ) : null}
       {notice ? <Text style={[s.notice, { backgroundColor: p.toastBg }]}>{notice}</Text> : null}
       {!empty && speechBody && area.w && barTop ? (
-        <Animated.View key="speech" entering={FadeIn.duration(150)} style={[s.speech, { transformOrigin: 'bottom', bottom: area.h - headY, maxHeight: Math.max(120, headY - 10), backgroundColor: p.dark ? 'rgba(28,28,30,0.95)' : 'rgba(255,255,255,0.96)' }]}
-          onLayout={(e) => setSpeechH(e.nativeEvent.layout.height)} accessibilityLiveRegion="polite">
-          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 14, gap: 8 }}>
-            <Text style={[s.name, { color: p.textTertiary }]} numberOfLines={1}>{who}</Text>
+        <View pointerEvents="none" style={{ position: 'absolute', left: perchX - 80, width: 160, bottom: area.h - headY, alignItems: 'center' }}>
+          <Animated.View entering={FadeIn.duration(150)} style={[s.think, { backgroundColor: p.dark ? 'rgba(40,40,44,0.92)' : 'rgba(255,255,255,0.94)' }]} accessibilityLiveRegion="polite">
             {speechBody}
-          </ScrollView>
-          <View style={[s.tail, { left: Math.min(Math.max(18, (L0?.perchX ?? area.w / 2) - 12 - 7), area.w - 24 - 32), backgroundColor: p.dark ? 'rgba(28,28,30,0.95)' : 'rgba(255,255,255,0.96)' }]} />
-        </Animated.View>
+          </Animated.View>
+          <View style={[s.thinkTail, { backgroundColor: p.dark ? 'rgba(40,40,44,0.92)' : 'rgba(255,255,255,0.94)' }]} />
+        </View>
       ) : null}
       {!empty && area.w && barTop ? (
         <ChatBuddy a={a} size={buddySize} left={(L0?.perchX ?? area.w / 2) - buddySize * FOOT.x} top={buddyTop}
@@ -438,11 +423,20 @@ function ChatBuddy({ a, size, left, top, face, hopN, listening, speaking }: {
   )
 }
 
+/** 새 답이 들어올 때 — 캐릭터 머리 위(말풍선 자리)에서 위 기록으로 올라오듯(0.32초, 튕김 없음) */
+const riseIn = () => {
+  'worklet'
+  return {
+    initialValues: { opacity: 0, transform: [{ translateY: 56 }] },
+    animations: { opacity: withTiming(1, { duration: 200 }), transform: [{ translateY: withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) }) }] }
+  }
+}
+
 /** 생각 중 점 세 개(통통) */
 function ThinkingDots({ color }: { color: string }) {
   const reduced = useMotionReduced()
   return (
-    <View style={{ flexDirection: 'row', gap: 5, paddingVertical: 4 }} accessibilityLabel="생각하는 중">
+    <View style={{ flexDirection: 'row', gap: 4, paddingVertical: 3 }} accessibilityLabel="생각하는 중">
       {[0, 1, 2].map((i) => <Dot key={i} delay={i * 140} color={color} still={reduced} />)}
     </View>
   )
@@ -455,7 +449,7 @@ function Dot({ delay, color, still }: { delay: number; color: string; still: boo
     return () => cancelAnimation(y)
   }, [delay, still, y])
   const st = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }))
-  return <Animated.View style={[{ width: 7, height: 7, borderRadius: 4, backgroundColor: color }, st]} />
+  return <Animated.View style={[{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }, st]} />
 }
 
 /** 글자가 써지듯(새 답만) — 움직임 줄이기면 바로 다 */
@@ -649,7 +643,9 @@ const s = StyleSheet.create({
   heroS: { fontSize: 14, lineHeight: 20, fontWeight: '500', marginTop: 6, textAlign: 'center' },
   heroChip: { paddingHorizontal: 16, paddingVertical: 13 },
   heroChipT: { fontSize: 14.5, fontWeight: '600' },
-  speech: { position: 'absolute', left: 12, right: 12, borderRadius: 22, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 4 } },
+  think: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 14, shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+  thinkTail: { width: 8, height: 8, borderRadius: 4, marginTop: 3, marginLeft: 10 },
+  speech: { position: 'absolute', borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 4 } },
   speechText: { fontSize: 16.5, lineHeight: 24 },
   tail: { position: 'absolute', bottom: -7, width: 14, height: 14, transform: [{ rotate: '45deg' }] },
   buddyBusy: { position: 'absolute', alignSelf: 'center', minWidth: 120, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
