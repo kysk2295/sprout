@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import initSqlJs from 'sql.js'
 import { TABLES } from './index.ts'
-import { planComplete, planCompleteWithXp, planGrantTaskXp, planReviewXp, planTidyXp, planReopen, planReopenWithXp, planRevokeTaskXp, insertStmt, type CoreDb, type Stmt } from './taskCore.ts'
+import { planComplete, planCompleteWithXp, planGrantTaskXp, planReviewXp, planTidyXp, planReopen, planReopenWithXp, planRevokeTaskXp, insertStmt, repeatRecordId, type CoreDb, type Stmt } from './taskCore.ts'
 
 const SQL = await initSqlJs()
 const sqldb = new SQL.Database()
@@ -49,6 +49,20 @@ assert.equal(rec.repeat_origin_id, 'r')
 assert.equal(rec.due_at, '2026-10-04T09:00')
 assert.equal(all('SELECT * FROM task_tags WHERE task_id = ?', [rec.id]).length, 1)
 assert.equal(all('SELECT done FROM check_items WHERE id = ?', ['ck1'])[0].done, 0)
+// 완료 기록 id는 원래 할 일 + 회차로 정해진다 — 두 기기가 같은 회차를 오프라인으로 끝내도 한 행(upsert)
+assert.equal(rec.id, repeatRecordId('r', '2026-10-04T09:00'))
+assert.equal(all('SELECT id FROM task_tags WHERE task_id = ?', [rec.id])[0].id, `${rec.id}:g1`)
+{
+  // 다른 기기 기록이 먼저 내려와 있으면 다시 넣지 않는다(다음 회차로만)
+  run([insertStmt('tasks', { id: 'r2', list_id: 'l1', title: '물 마시기', status: 0, priority: 0, due_at: '2026-10-04', is_all_day: 1, repeat_rule: 'FREQ=DAILY', repeat_from: 'due' }),
+    insertStmt('tasks', { id: repeatRecordId('r2', '2026-10-04'), list_id: 'l1', title: '물 마시기', status: 1, priority: 0, due_at: '2026-10-04', repeat_origin_id: 'r2' })])
+  const again = await planComplete(db, ['r2'], env)
+  assert.deepEqual(again.created, [])
+  run(again.stmts)
+  assert.equal(task('r2').due_at, '2026-10-05')
+  assert.equal(all("SELECT id FROM tasks WHERE repeat_origin_id = 'r2'").length, 1)
+  run([{ sql: "DELETE FROM tasks WHERE id = 'r2' OR repeat_origin_id = 'r2'" }])
+}
 
 // ③ XP: 같은 할 일은 하루 한 번, 하루 10까지
 run((await planGrantTaskXp(db, ['p', 'p', 'r'], env)).stmts)

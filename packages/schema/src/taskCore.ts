@@ -21,7 +21,8 @@ export interface CoreEnv {
   uuid?: () => string
 }
 const nowOf = (env: CoreEnv) => (env.now ?? (() => new Date().toISOString()))()
-const uuidOf = (env: CoreEnv) => (env.uuid ?? (() => crypto.randomUUID()))()
+/** 반복 완료 기록 id — 원래 할 일 id + 그 회차 기한. 두 기기가 같은 회차를 오프라인으로 끝내도 같은 행으로 합쳐진다(무작위 id면 기록이 둘) */
+export const repeatRecordId = (taskId: string, dueAt: string) => `rec:${taskId}:${dueAt}`
 const marks = (n: number) => Array.from({ length: n }, () => '?').join(',')
 
 // ── 문 만들기(렌더러 data/mutations.ts의 insert·update와 같은 모양) ──
@@ -94,13 +95,16 @@ export async function planComplete(db: CoreDb, ids: string[], env: CoreEnv): Pro
       continue
     }
     // 이번 회차 → 완료 기록 태스크(03 §8: 제목·본문·우선순위·리스트·태그 복사, 알림·반복 없음)
-    const rec = uuidOf(env)
-    created.push(rec)
-    stmts.push(insertStmt('tasks', {
-      id: rec, list_id: t.list_id, parent_id: t.parent_id, title: t.title, content: t.content, content_mode: 'text', status: 1, priority: t.priority,
-      start_at: t.start_at, due_at: t.due_at, is_all_day: t.is_all_day, time_zone: t.time_zone, repeat_origin_id: t.id, sort_order: t.sort_order, completed_at: at
-    }, at))
-    for (const tag of await db.getAll<{ tag_id: string }>('SELECT tag_id FROM task_tags WHERE task_id = ?', [t.id])) stmts.push(insertStmt('task_tags', { id: uuidOf(env), task_id: rec, tag_id: tag.tag_id }, at))
+    const rec = repeatRecordId(t.id as string, t.due_at as string)
+    // 이미 있으면(다른 기기 기록이 먼저 내려옴) 다시 넣지 않고 다음 회차로만 넘긴다
+    if (!(await db.get('SELECT id FROM tasks WHERE id = ?', [rec]))) {
+      created.push(rec)
+      stmts.push(insertStmt('tasks', {
+        id: rec, list_id: t.list_id, parent_id: t.parent_id, title: t.title, content: t.content, content_mode: 'text', status: 1, priority: t.priority,
+        start_at: t.start_at, due_at: t.due_at, is_all_day: t.is_all_day, time_zone: t.time_zone, repeat_origin_id: t.id, sort_order: t.sort_order, completed_at: at
+      }, at))
+      for (const tag of await db.getAll<{ tag_id: string }>('SELECT DISTINCT tag_id FROM task_tags WHERE task_id = ?', [t.id])) stmts.push(insertStmt('task_tags', { id: `${rec}:${tag.tag_id}`, task_id: rec, tag_id: tag.tag_id }, at))
+    }
     // 원래 태스크 → 다음 회차(시각·기간 유지), 남은 횟수 1 줄임, 체크 항목 초기화
     const shift = daysBetween(datePart(start), next)
     const nextRule = rule.count ? stringifyRule({ ...rule, count: rule.count - 1 }) : t.repeat_rule
