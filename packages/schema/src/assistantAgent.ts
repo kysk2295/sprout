@@ -145,8 +145,11 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
   let latestLookup: TaskLookup | undefined
   let pinnedTarget: string | undefined
   const targetQuestion = '어떤 항목을 변경할지 제목을 하나 지정해 줄래?'
+  // 모델이 답 앞에 제 이름을 붙이는 버릇('도토리, …'·'도토리: …') — 화면에서는 바로 할 말부터
+  const selfName = (i.name || '').trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const unname = (s: string) => (selfName ? s.replace(new RegExp(`^\\s*${selfName}\\s*[:,，]\\s*`), '') : s)
   const result = (text: string, extra: Partial<TurnResult> = {}): TurnResult => ({
-    text, chips, cards, bands: routed.bands, route: routed.route.kind, calls: 0, nudged: false, grounding: { hits: 0, reasons: [] }, memory: { ...remember(memory, cards, chips, facts), taskLookup: latestLookup }, ms: Date.now() - t0, ...extra
+    text: unname(text), chips, cards, bands: routed.bands, route: routed.route.kind, calls: 0, nudged: false, grounding: { hits: 0, reasons: [] }, memory: { ...remember(memory, cards, chips, facts), taskLookup: latestLookup }, ms: Date.now() - t0, ...extra
   })
   const addCard = (c: Card | undefined) => { if (!c) return; if (cards.length < 2 || isConfirm(c)) { cards.push(c); emit({ type: 'card', card: c }) } }
   /** 도구 실행(제한 시간 2초, 실패해도 턴은 이어 감) */

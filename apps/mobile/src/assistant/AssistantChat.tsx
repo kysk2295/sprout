@@ -9,8 +9,8 @@ import { useLiveQuery } from '../data/rows'
 import { useRouter } from 'expo-router'
 import { ArrowDown, ArrowUp, BarChart3, CalendarDays, Check, History, List, RefreshCw, RotateCcw, Square, TriangleAlert } from 'lucide-react-native'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { AccessibilityInfo, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
+import { AccessibilityInfo, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type TextStyle } from 'react-native'
+import Animated, { cancelAnimation, Easing, FadeIn, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated'
 import { XP } from '@sprout/schema/growth'
 import { daysBetween, dayWord, ymdOf, type RecallHit, type RecallResult } from '@sprout/schema/recall'
 import { openInCalendarApp } from '../calendars/device'
@@ -28,7 +28,9 @@ import { AgentCards, Bands, editParams, LiveText, ToolChips } from './AgentParts
 import { SceneBackdrop } from '../growth/art/Scene3D'
 import { Glass, myScene, sceneTone, type GlassTone } from '../growth/home/glass'
 import { useCharacterWear } from '../growth/art/CharacterArt'
-import { FOOT, sceneDark, sceneLayout } from '@sprout/schema/characterArt'
+import { PlayableCharacter, type PlayHandle } from '../growth/art/PlayableCharacter'
+import { useMotionReduced } from '../growth/motion'
+import { FOOT, SCENE_TINT, sceneDark, sceneLayout } from '@sprout/schema/characterArt'
 import { iGa } from '@sprout/schema/josa'
 import { leftLine } from './core'
 import { isConfirm, type ConfirmCard } from '@sprout/schema/assistantExec'
@@ -126,12 +128,22 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
     const prev = a.messages[i - 1]
     return answerFace({ kind, undone: m.undone, count: r?.total ?? r?.tasks?.length ?? 0, first: r?.tasks?.[0], status: r?.status, request: prev?.role === 'user' ? prev.sent ?? prev.text : '', text: r?.stats ? '' : m.text, egg })
   }), [a.messages, egg])
+  const reduced = useMotionReduced()
+  const [typing, setTyping] = useState('') // 새로 온 답만 글자가 써지듯(다시 열면 바로 다)
+  const [speaking, setSpeaking] = useState(false)
+  const [spoken, setSpoken] = useState('') // 다 말한 답 → 말풍선에서 위 대화 기록으로(사용자 "한번 대답하고 나면 바로 위쪽으로")
+  useEffect(() => { if (spoken) requestAnimationFrame(() => scroll.current?.scrollToEnd({ animated: true })) }, [spoken])
+  const [speakN, setSpeakN] = useState(0)
   useEffect(() => {
     if (!lastId || lastId === seen.current) return
     seen.current = lastId
+    setTyping(lastId); setSpeaking(true); setSpeakN((n) => n + 1)
     const f = faces[lastAi]
     if (f?.move) setPlay((o) => ({ move: f.move, n: o.n + 1 }))
   }, [lastId, lastAi, faces])
+  // 입력을 시작하면 갸웃(듣는 중)
+  const drafting = !!a.draft.trim()
+  useEffect(() => { if (drafting) setPlay((o) => ({ move: 'tilt', n: o.n + 1 })) }, [drafting])
   const phaseIndex = STEPS.findIndex((st) => st.key.includes(a.progress.phase))
   const bump = (i: number) => { if (i === lastAi) setPlay((o) => ({ move: 'hop', n: o.n + 1 })) }
   const actionsFor = (m: Message, i: number) => ({
@@ -173,12 +185,92 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
   const [area, setArea] = useState({ w: 0, h: 0 })
   const [barTop, setBarTop] = useState(0)
   // 49 v1.6: 대화 중에도 캐릭터가 받침 위에 남아 반응한다(사용자 "대화하면 캐릭터가 사라지잖아, 인터랙티브하게")
-  // 가운데 받침에 세우면 대화를 가린다 → 입력칸 바로 위 오른쪽에 작게(대화는 그 위로 스크롤)
-  const buddySize = variant === 'sheet' ? 72 : 96
-  const buddyRoom = Math.round(buddySize * FOOT.y) + 44 // 캐릭터 + 머리 위 말풍선 자리
+  // 대화 중(49 v1.6): 장면을 아래로 내려 받침 돌이 입력칸 바로 위에 오게 — 캐릭터는 그 돌 위, 대화는 그 위 공간(사용자 "여기(받침)에 캐릭터를 띄워서")
+  // 키보드가 올라오면 대화 칸이 줄어든다 — 장면은 키보드 없을 때 높이로 고정(크기가 출렁이지 않게)하고 위치만 옮긴다, 캐릭터는 작게
+  const [kb, setKb] = useState(false)
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKb(true))
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKb(false))
+    return () => { show.remove(); hide.remove() }
+  }, [])
+  const fullH = useRef(0)
+  if (!kb && area.h > fullH.current) fullH.current = area.h
+  const buddySize = kb ? 72 : variant === 'sheet' ? 96 : 132
+  const sceneH = Math.max(area.h, fullH.current) + bt + bb
+  const L0 = area.w ? sceneLayout(sceneKey, area.w, sceneH, 'bottom') : null
+  const perchTarget = barTop - (variant === 'sheet' ? 6 : 10) // 대화 칸 좌표
+  const sceneShift = !empty && L0 && barTop ? Math.max(area.h + bt + bb - sceneH, perchTarget - (L0.perchY - bt)) : 0 // 키보드면 위로도(음수)
+  const buddyTop = perchTarget - buddySize * FOOT.y
+  const headY = buddyTop + buddySize * 0.16 // 말풍선 꼬리가 닿는 머리 높이
+  const [speechH, setSpeechH] = useState(0)
+  // 말풍선이 커지면(글자가 써지는 동안) 기록도 같이 올려 방금 보낸 말이 가려지지 않게
+  useEffect(() => { if (follow.current) requestAnimationFrame(() => scroll.current?.scrollToEnd({ animated: false })) }, [speechH, a.busy])
+  // 말풍선 = 지금 말하는 새 답(글자가 써지는 동안 + 0.8초)뿐. 다 말하면 위 대화 기록으로 올라간다. 다시 열면 지난 답은 처음부터 기록에
+  const speechIdx = !empty && !a.busy && !errShown && lastAi >= 0 && lastAi === a.messages.length - 1 && typing === a.messages[lastAi].id && spoken !== typing ? lastAi : -1
+  const buddyRoom = barTop ? Math.max(0, barTop - headY) + (a.busy || speechIdx >= 0 ? speechH : 0) + 16 : 0
+  const shiftV = useSharedValue(0)
+  useEffect(() => { shiftV.value = withTiming(sceneShift, { duration: 420 }) }, [sceneShift, shiftV])
+  const shiftSt = useAnimatedStyle(() => ({ transform: [{ translateY: shiftV.value }] }))
+  const tint = SCENE_TINT[sceneKey] ?? SCENE_TINT['scene-day']
+  // ── 49 v1.7 "이 친구와 실제로 대화하는 느낌"(사용자): 최신 답·진행 상황은 캐릭터 머리 위 큰 말풍선(글자가 써지듯), 지난 대화는 그 위로
+  const aiBody = (m: Message, i: number, typed = false) => (
+    <>
+            {m.agent ? <ToolChips chips={m.agent.chips.map((chip) => ({ chip, state: chip.failed ? 'failed' as const : 'done' as const }))} /> : null}
+            {faces[i]?.line ? (typed ? <TypeText key={m.id} text={faces[i]!.line!} play={typing === m.id} onDone={() => { setSpeaking(false); const id = m.id; setTimeout(() => setSpoken(id), 800) }} style={[s.text, s.speechText, { color: p.textPrimary }]} /> : <Text style={[s.text, { color: p.textPrimary }]} selectable>{faces[i]!.line}</Text>) : null}
+            {m.agent ? <Bands bands={m.agent.bands} /> : null}
+            {m.agent ? <AgentCards cards={m.agent.cards} actions={actionsFor(m, i)} /> : null}
+            {m.agent?.hint ? <Text style={[FONT.meta, { color: p.textTertiary }]}>{m.agent.hint}</Text> : null}
+            {m.agent?.action ? <View style={{ flexDirection: 'row' }}><Btn label={m.agent.action === 'diary' ? '일기로 가기' : '설정 열기'} onPress={() => router.push(m.agent!.action === 'diary' ? '/diary' : '/settings/assistant')} /></View> : null}
+            {m.result?.recall ? <RecallCard r={m.result.recall} /> : null}
+            {m.result && !m.result.recall ? <ResultCard r={m.result} onComplete={() => { if (i === lastAi) setPlay((o) => ({ move: 'hop', n: o.n + 1 })); if (todayTaskXp < XP.taskDailyCap && i === lastAi) setXp((n) => n + 1) }} /> : null}
+            {m.result?.created && !m.undone ? (
+              <Pressable accessibilityRole="button" onPress={() => void doUndo(m)} style={s.undo} hitSlop={6}>
+                <RotateCcw size={15} color={p.accent} /><Text style={[FONT.sub, { color: p.accentInk, fontWeight: '600' }]}>되돌리기</Text>
+              </Pressable>
+            ) : null}
+            {i === lastAi && chips.length ? (
+              <View style={s.chips}>
+                {chips.map((c) => (
+                  <Pressable key={c.label} accessibilityRole="button" disabled={!a.model} onPress={() => void submit(c.label, c.send)} style={({ pressed }) => [s.chip, { borderColor: p.borderDivider, backgroundColor: pressed ? p.bgSelected : p.cardBg }]}>
+                    <Text style={[s.chipText, { color: c.ghost ? p.textSecondary : p.textPrimary }]}>{c.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+    </>
+  )
+  const liveBody = a.busy && a.live ? (
+          <>
+            <ToolChips chips={a.live.chips.filter(Boolean)} />
+            {a.live.text ? <LiveText /> : (
+              <Text style={[s.text, { color: p.textSecondary }]}>{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.live.chips.some((c) => c?.state === 'running') ? '찾아보는 중…' : ''}</Text>
+            )}
+            {!a.live.text && !(a.progress.queue ?? 0) && !a.live.chips.some((c) => c?.state === 'running') ? <ThinkingDots color={p.textTertiary} /> : null}
+            <AgentCards cards={a.live.cards.filter((c) => !isConfirm(c))} actions={{ onSave: () => {}, onCancel: () => {}, onUndo: () => {}, onToggle: () => {}, onEdit: () => {} }} />
+            <Text style={[s.step, { color: p.textTertiary }]}>{elapsed}초</Text>
+          </>
+        ) : a.busy ? (
+          <>
+            {a.progress.preview ? <Text style={[s.text, { color: p.textPrimary }]}>{a.progress.preview}<Caret /></Text> : (
+              <Text style={[s.text, { color: p.textSecondary }]}>{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.progress.phase === 'connecting' ? '꿈틀 AI에 연결하는 중…' : '생각하는 중…'}</Text>
+            )}
+            <View style={s.steps} accessibilityRole="progressbar">
+              {STEPS.map((st, i) => (
+                <Text key={st.label} style={[s.step, { color: i <= phaseIndex ? p.accentInk : p.textQuaternary }]}>{i > 0 ? <Text style={{ color: p.textQuaternary }}>{' › '}</Text> : null}● {st.label}</Text>
+              ))}
+              <Text style={[s.step, { color: p.textTertiary }]}> · {elapsed}초</Text>
+            </View>
+          </>
+  ) : null
+  const speechBody = a.busy ? liveBody : speechIdx >= 0 ? aiBody(a.messages[speechIdx], speechIdx, true) : null
   return (
     <View style={{ flex: 1 }} onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setArea((o) => (o.w === width && o.h === height ? o : { w: width, h: height })) }}>
-      {area.w ? <SceneBackdrop sceneKey={sceneKey} width={area.w} height={area.h + bt + bb} style={{ position: 'absolute', left: 0, top: -bt, width: area.w, height: area.h + bt + bb }} /> : null}
+      {area.w ? <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: -bt, width: area.w, height: sceneH, backgroundColor: tint.top }} /> : null}
+      {area.w ? (
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: -bt, width: area.w, height: sceneH }, shiftSt]}>
+          <SceneBackdrop sceneKey={sceneKey} width={area.w} height={sceneH} />
+        </Animated.View>
+      ) : null}
       <ScrollView
         ref={scroll}
         keyboardShouldPersistTaps="handled"
@@ -200,55 +292,10 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
       >
 
         {a.messages.map((m, i) => m.role === 'user' ? (
-          <View key={m.id} style={[s.me, { backgroundColor: p.accent }]}><Text style={[s.text, { color: p.onAccent }]}>{m.text}</Text></View>
-        ) : (
-          <Ai key={m.id} name={who} face={faceOf(faces[i], i === animatedRow, i === lastAi ? 'last' : undefined)} xp={i === lastAi ? xp : 0}>
-            {m.agent ? <ToolChips chips={m.agent.chips.map((chip) => ({ chip, state: chip.failed ? 'failed' as const : 'done' as const }))} /> : null}
-            {faces[i]?.line ? <Text style={[s.text, { color: p.textPrimary }]} selectable>{faces[i]!.line}</Text> : null}
-            {m.agent ? <Bands bands={m.agent.bands} /> : null}
-            {m.agent ? <AgentCards cards={m.agent.cards} actions={actionsFor(m, i)} /> : null}
-            {m.agent?.hint ? <Text style={[FONT.meta, { color: p.textTertiary }]}>{m.agent.hint}</Text> : null}
-            {m.agent?.action ? <View style={{ flexDirection: 'row' }}><Btn label={m.agent.action === 'diary' ? '일기로 가기' : '설정 열기'} onPress={() => router.push(m.agent!.action === 'diary' ? '/diary' : '/settings/assistant')} /></View> : null}
-            {m.result?.recall ? <RecallCard r={m.result.recall} /> : null}
-            {m.result && !m.result.recall ? <ResultCard r={m.result} onComplete={() => { if (i === lastAi) setPlay((o) => ({ move: 'hop', n: o.n + 1 })); if (todayTaskXp < XP.taskDailyCap && i === lastAi) setXp((n) => n + 1) }} /> : null}
-            {m.result?.created && !m.undone ? (
-              <Pressable accessibilityRole="button" onPress={() => void doUndo(m)} style={s.undo} hitSlop={6}>
-                <RotateCcw size={15} color={p.accent} /><Text style={[FONT.sub, { color: p.accentInk, fontWeight: '600' }]}>되돌리기</Text>
-              </Pressable>
-            ) : null}
-            {i === lastAi && chips.length ? (
-              <View style={s.chips}>
-                {chips.map((c) => (
-                  <Pressable key={c.label} accessibilityRole="button" disabled={!a.model} onPress={() => void submit(c.label, c.send)} style={({ pressed }) => [s.chip, { borderColor: p.borderDivider, backgroundColor: pressed ? p.bgSelected : p.cardBg }]}>
-                    <Text style={[s.chipText, { color: c.ghost ? p.textSecondary : p.textPrimary }]}>{c.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-          </Ai>
+          <Animated.View key={m.id} entering={reduced ? undefined : FadeIn.duration(180)} style={[s.me, { backgroundColor: p.accent }]}><Text style={[s.text, { color: p.onAccent }]}>{m.text}</Text></Animated.View>
+        ) : i === speechIdx ? null : (
+          <Animated.View key={m.id} entering={reduced ? undefined : FadeIn.duration(180)}><Ai name={who} face={faceOf(faces[i], false)} xp={0}>{aiBody(m, i)}</Ai></Animated.View>
         ))}
-        {a.busy && a.live ? (
-          <Ai name={who} face={faceOf(a.live.text ? { mood: 'smile', move: null, line: null } : WAITING_FACE, true)}>
-            <ToolChips chips={a.live.chips.filter(Boolean)} />
-            {a.live.text ? <LiveText /> : (
-              <Text style={[s.text, { color: p.textSecondary }]}>{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.live.chips.some((c) => c?.state === 'running') ? '찾아보는 중…' : '음…'}</Text>
-            )}
-            <AgentCards cards={a.live.cards.filter((c) => !isConfirm(c))} actions={{ onSave: () => {}, onCancel: () => {}, onUndo: () => {}, onToggle: () => {}, onEdit: () => {} }} />
-            <Text style={[s.step, { color: p.textTertiary }]}>{elapsed}초</Text>
-          </Ai>
-        ) : a.busy ? (
-          <Ai name={who} face={faceOf(WAITING_FACE, true)}>
-            {a.progress.preview ? <Text style={[s.text, { color: p.textPrimary }]}>{a.progress.preview}<Caret /></Text> : (
-              <Text style={[s.text, { color: p.textSecondary }]}>{(a.progress.queue ?? 0) > 0 ? `순서를 기다리는 중… (앞에 ${a.progress.queue}명)` : a.progress.phase === 'connecting' ? '꿈틀 AI에 연결하는 중…' : '생각하는 중…'}</Text>
-            )}
-            <View style={s.steps} accessibilityRole="progressbar">
-              {STEPS.map((st, i) => (
-                <Text key={st.label} style={[s.step, { color: i <= phaseIndex ? p.accentInk : p.textQuaternary }]}>{i > 0 ? <Text style={{ color: p.textQuaternary }}>{' › '}</Text> : null}● {st.label}</Text>
-              ))}
-              <Text style={[s.step, { color: p.textTertiary }]}> · {elapsed}초</Text>
-            </View>
-          </Ai>
-        ) : null}
         {errShown && errFace ? (
           <Ai name={who} face={faceOf(errFace, true)}>
             {errFace.line ? <Text style={[s.text, { color: p.textPrimary }]}>{errFace.line}</Text> : null}
@@ -273,9 +320,19 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
         </Pressable>
       ) : null}
       {notice ? <Text style={[s.notice, { backgroundColor: p.toastBg }]}>{notice}</Text> : null}
+      {!empty && speechBody && area.w && barTop ? (
+        <Animated.View key="speech" entering={FadeIn.duration(150)} style={[s.speech, { transformOrigin: 'bottom', bottom: area.h - headY, maxHeight: Math.max(120, headY - 10), backgroundColor: p.dark ? 'rgba(28,28,30,0.95)' : 'rgba(255,255,255,0.96)' }]}
+          onLayout={(e) => setSpeechH(e.nativeEvent.layout.height)} accessibilityLiveRegion="polite">
+          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 14, gap: 8 }}>
+            <Text style={[s.name, { color: p.textTertiary }]} numberOfLines={1}>{who}</Text>
+            {speechBody}
+          </ScrollView>
+          <View style={[s.tail, { left: Math.min(Math.max(18, (L0?.perchX ?? area.w / 2) - 12 - 7), area.w - 24 - 32), backgroundColor: p.dark ? 'rgba(28,28,30,0.95)' : 'rgba(255,255,255,0.96)' }]} />
+        </Animated.View>
+      ) : null}
       {!empty && area.w && barTop ? (
-        <ChatBuddy a={a} size={buddySize} sceneKey={sceneKey} area={area} bleed={{ top: bt, bottom: bb }} barTop={barTop}
-          face={errFace ?? (lastAi >= 0 ? faces[lastAi] : null)} play={play} lastId={lastId} onHop={() => setPlay((o) => ({ move: 'hop', n: o.n + 1 }))} />
+        <ChatBuddy a={a} size={buddySize} left={(L0?.perchX ?? area.w / 2) - buddySize * FOOT.x} top={buddyTop}
+          face={errFace ?? (lastAi >= 0 ? faces[lastAi] : null)} hopN={typing ? speakN : 0} listening={drafting} speaking={speaking} />
       ) : null}
       {empty && area.w && barTop ? <EmptyChat a={a} variant={variant} sceneKey={sceneKey} tone={tone} area={area} bleed={{ top: bt, bottom: bb }} barTop={barTop} onPick={(t) => void submit(t)} /> : null}
       <View onLayout={(e) => setBarTop(e.nativeEvent.layout.y)} pointerEvents="box-none">
@@ -337,49 +394,86 @@ function EmptyChat({ a, variant, sceneKey, tone, area, bleed, barTop, onPick }: 
   )
 }
 
+
 /** 대화 중 캐릭터(49 v1.6): 받침 위(입력칸 바로 위)에 서서 — 기다리는 동안 생각 얼굴 + 진행 말풍선(계속 보임),
  *  답이 오면 깡충 + 답 첫 문장을 말풍선으로, 누르면 깡충 + 한 줄. 큰 추천 칩·제목은 빈 대화에만 */
-function ChatBuddy({ a, size, sceneKey, area, bleed, barTop, face, play, lastId, onHop }: {
-  a: AssistantState; size: number; sceneKey: string; area: { w: number; h: number }; bleed: { top: number; bottom: number }; barTop: number
-  face: Face | null; play: { move: CompanionMove; n: number }; lastId: string; onHop: () => void
+function ChatBuddy({ a, size, left, top, face, hopN, listening, speaking }: {
+  a: AssistantState; size: number; left: number; top: number
+  face: Face | null; hopN: number; listening: boolean; speaking: boolean
 }) {
-  const p = usePalette()
   const buddy = useBuddy()
-  const [say, setSay] = useState({ text: '', n: 0 })
-  const prev = useRef(-1)
-  const taps = useRef<number[]>([])
-  const said = useRef(lastId)
-  // 새 답 → 첫 문장(40자)을 캐릭터가 말한다
+  const wear = useCharacterWear()
+  const pc = useRef<PlayHandle>(null)
+  const reduced = useMotionReduced()
+  // 몸짓(49 v1.7 · 사용자 "애니메이션을 자연스럽게"): 듣기 = 입력칸 쪽으로 기울며 조금 커짐, 생각 = 좌우로 천천히 흔들, 말하기 = 리듬 있게 들썩
+  const rot = useSharedValue(0), sc = useSharedValue(1), sy = useSharedValue(1)
+  const ease = Easing.inOut(Easing.sin)
+  const state = a.busy ? 'think' : speaking ? 'talk' : listening ? 'listen' : 'idle'
   useEffect(() => {
-    if (!lastId || lastId === said.current) return
-    said.current = lastId
-    const line = (face?.line ?? '').split(/(?<=[.!?…])\s/)[0]?.trim()
-    if (line) setSay((o) => ({ text: line.length > 40 ? `${line.slice(0, 39)}…` : line, n: o.n + 1 }))
-  }, [lastId, face?.line])
-  const tap = () => {
-    onHop()
-    if (!tapSpeaks(taps.current, Date.now())) return
-    if (!buddy.species) { setSay((o) => ({ text: EGG_TAP_LINE, n: o.n + 1 })); return }
-    const i = pickLine(TAP_LINES, prev.current)
-    prev.current = i
-    setSay((o) => ({ text: TAP_LINES[i], n: o.n + 1 }))
-  }
-  // 입력칸 바로 위 오른쪽 구석(발 = 입력칸 위 4)
-  const feet = barTop - 4
-  const left = area.w - size - 10, top = feet - size * FOOT.y
-  const busyLine = a.busy ? ((a.progress.queue ?? 0) > 0 ? `순서 기다리는 중… 앞에 ${a.progress.queue}명` : a.live?.chips.some((c) => c?.state === 'running') ? '찾아보는 중…' : '생각하는 중…') : ''
-  const mood = a.busy ? 'think' : face?.mood ?? 'smile'
+    cancelAnimation(rot); cancelAnimation(sc); cancelAnimation(sy)
+    if (reduced) { rot.value = 0; sc.value = 1; sy.value = 1; return }
+    if (state === 'think') {
+      sc.value = withTiming(1, { duration: 250 }); sy.value = withTiming(1, { duration: 200 })
+      rot.value = withSequence(withTiming(-4, { duration: 400, easing: ease }), withRepeat(withSequence(withTiming(4, { duration: 900, easing: ease }), withTiming(-4, { duration: 900, easing: ease })), -1))
+    } else if (state === 'talk') {
+      rot.value = withTiming(0, { duration: 200 }); sc.value = withTiming(1.02, { duration: 200 })
+      sy.value = withRepeat(withSequence(withTiming(1.05, { duration: 140, easing: ease }), withTiming(0.98, { duration: 160, easing: ease })), -1, true)
+    } else if (state === 'listen') {
+      sy.value = withTiming(1, { duration: 200 })
+      rot.value = withSpring(-6, { damping: 9, stiffness: 120 }); sc.value = withSpring(1.05, { damping: 10, stiffness: 120 })
+    } else {
+      rot.value = withSpring(0, { damping: 10, stiffness: 110 }); sc.value = withSpring(1, { damping: 10, stiffness: 110 }); sy.value = withTiming(1, { duration: 250 })
+    }
+  }, [state, reduced]) // eslint-disable-line react-hooks/exhaustive-deps
+  // 답이 오면 깡충 → 히히
+  useEffect(() => { if (hopN) { pc.current?.play('hop'); if (!reduced) setTimeout(() => pc.current?.play('giggle'), 420) } }, [hopN]) // eslint-disable-line react-hooks/exhaustive-deps
+  const st = useAnimatedStyle(() => ({ transform: [{ rotate: `${rot.value}deg` }, { scale: sc.value }, { scaleY: sy.value }] }))
+  const mood = a.busy ? 'think' : listening ? 'smile' : face?.mood ?? 'smile'
   return (
-    <View style={{ position: 'absolute', left, top, width: size, height: size }} pointerEvents="box-none">
-      {busyLine ? (
-        <View pointerEvents="none" style={[s.buddyBusy, { bottom: size * 0.9, backgroundColor: p.bgPopover, borderColor: p.borderPopover }]}>
-          <Text style={{ color: p.textSecondary, fontSize: 13 }} accessibilityLiveRegion="polite">{busyLine}</Text>
-        </View>
-      ) : <SayBubble text={say.text} n={say.n} style={{ bottom: size * 0.9, right: 0, left: undefined, maxWidth: area.w - 40 }} />}
-      <CompanionFace species={buddy.species} stage={buddy.stage} size={size} mood={mood} loop="breathe" play={a.busy ? { move: null, n: play.n } : play} onPress={tap}
-        label={companionLabel(buddy.species, buddy.name, buddy.level, buddy.stage)} />
+    <Animated.View style={[{ position: 'absolute', left, top, width: size, height: size, transformOrigin: '50% 90%' }, st]} pointerEvents="box-none">
+      <PlayableCharacter ref={pc} species={buddy.species} stage={buddy.stage} size={size} mood={mood} seed={wear?.wear.seed}
+        wear={buddy.species ? wear?.wear : undefined} level="full" draggable={false} idle={!a.busy && !speaking} reduced={reduced}
+        accessibilityLabel={companionLabel(buddy.species, buddy.name, buddy.level, buddy.stage)} />
+    </Animated.View>
+  )
+}
+
+/** 생각 중 점 세 개(통통) */
+function ThinkingDots({ color }: { color: string }) {
+  const reduced = useMotionReduced()
+  return (
+    <View style={{ flexDirection: 'row', gap: 5, paddingVertical: 4 }} accessibilityLabel="생각하는 중">
+      {[0, 1, 2].map((i) => <Dot key={i} delay={i * 140} color={color} still={reduced} />)}
     </View>
   )
+}
+function Dot({ delay, color, still }: { delay: number; color: string; still: boolean }) {
+  const y = useSharedValue(0)
+  useEffect(() => {
+    if (still) return
+    y.value = withDelay(delay, withRepeat(withSequence(withTiming(-5, { duration: 260, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 260, easing: Easing.in(Easing.quad) }), withTiming(0, { duration: 280 })), -1))
+    return () => cancelAnimation(y)
+  }, [delay, still, y])
+  const st = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }))
+  return <Animated.View style={[{ width: 7, height: 7, borderRadius: 4, backgroundColor: color }, st]} />
+}
+
+/** 글자가 써지듯(새 답만) — 움직임 줄이기면 바로 다 */
+function TypeText({ text, play, style, onDone }: { text: string; play: boolean; style: StyleProp<TextStyle>; onDone?: () => void }) {
+  const [n, setN] = useState(play ? 0 : text.length)
+  useEffect(() => {
+    if (!play) { setN(text.length); onDone?.(); return }
+    let id: ReturnType<typeof setInterval> | undefined
+    let alive = true
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (!alive) return
+      if (reduce) { setN(text.length); onDone?.(); return }
+      const step = Math.max(1, Math.ceil(text.length / 80)) // 길어도 2.5초 안에
+      id = setInterval(() => setN((v) => { const nv = Math.min(text.length, v + step); if (nv >= text.length && id) { clearInterval(id); setTimeout(() => onDone?.(), 0) } return nv }), 30)
+    })
+    return () => { alive = false; if (id) clearInterval(id) }
+  }, [text, play])
+  return <Text style={style} selectable>{text.slice(0, n)}</Text>
 }
 
 /** AI 쪽 한 줄: 캐릭터 30(13의 ✦ 원 자리, 배경 원 없음) · 이름(3차 11.5) · 본문 */
@@ -555,7 +649,10 @@ const s = StyleSheet.create({
   heroS: { fontSize: 14, lineHeight: 20, fontWeight: '500', marginTop: 6, textAlign: 'center' },
   heroChip: { paddingHorizontal: 16, paddingVertical: 13 },
   heroChipT: { fontSize: 14.5, fontWeight: '600' },
-  buddyBusy: { position: 'absolute', right: 0, minWidth: 120, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
+  speech: { position: 'absolute', left: 12, right: 12, borderRadius: 22, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 4 } },
+  speechText: { fontSize: 16.5, lineHeight: 24 },
+  tail: { position: 'absolute', bottom: -7, width: 14, height: 14, transform: [{ rotate: '45deg' }] },
+  buddyBusy: { position: 'absolute', alignSelf: 'center', minWidth: 120, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
   aiCard: { flex: 1, gap: 8, minWidth: 0, borderTopLeftRadius: 6, borderTopRightRadius: 18, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, paddingHorizontal: 13, paddingVertical: 10 },
   me: { alignSelf: 'flex-end', maxWidth: '80%', borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomLeftRadius: 18, borderBottomRightRadius: 6, paddingHorizontal: 14, paddingVertical: 9 },
   text: { fontSize: 15.5, lineHeight: 22 },
