@@ -172,6 +172,10 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
   const bt = bleed?.top ?? 0, bb = bleed?.bottom ?? 0
   const [area, setArea] = useState({ w: 0, h: 0 })
   const [barTop, setBarTop] = useState(0)
+  // 49 v1.6: 대화 중에도 캐릭터가 받침 위에 남아 반응한다(사용자 "대화하면 캐릭터가 사라지잖아, 인터랙티브하게")
+  // 가운데 받침에 세우면 대화를 가린다 → 입력칸 바로 위 오른쪽에 작게(대화는 그 위로 스크롤)
+  const buddySize = variant === 'sheet' ? 72 : 96
+  const buddyRoom = Math.round(buddySize * FOOT.y) + 44 // 캐릭터 + 머리 위 말풍선 자리
   return (
     <View style={{ flex: 1 }} onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setArea((o) => (o.w === width && o.h === height ? o : { w: width, h: height })) }}>
       {area.w ? <SceneBackdrop sceneKey={sceneKey} width={area.w} height={area.h + bt + bb} style={{ position: 'absolute', left: 0, top: -bt, width: area.w, height: area.h + bt + bb }} /> : null}
@@ -179,7 +183,7 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
         ref={scroll}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16, gap: 14 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 + (!empty ? buddyRoom : 0), gap: 14 }}
         onScroll={(e) => {
           const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent
           box.current = { content: contentSize.height, view: layoutMeasurement.height, y: contentOffset.y }
@@ -269,6 +273,10 @@ export function AssistantChat({ a, variant, autoFocus, bleed }: { a: AssistantSt
         </Pressable>
       ) : null}
       {notice ? <Text style={[s.notice, { backgroundColor: p.toastBg }]}>{notice}</Text> : null}
+      {!empty && area.w && barTop ? (
+        <ChatBuddy a={a} size={buddySize} sceneKey={sceneKey} area={area} bleed={{ top: bt, bottom: bb }} barTop={barTop}
+          face={errFace ?? (lastAi >= 0 ? faces[lastAi] : null)} play={play} lastId={lastId} onHop={() => setPlay((o) => ({ move: 'hop', n: o.n + 1 }))} />
+      ) : null}
       {empty && area.w && barTop ? <EmptyChat a={a} variant={variant} sceneKey={sceneKey} tone={tone} area={area} bleed={{ top: bt, bottom: bb }} barTop={barTop} onPick={(t) => void submit(t)} /> : null}
       <View onLayout={(e) => setBarTop(e.nativeEvent.layout.y)} pointerEvents="box-none">
       <Composer a={a} autoFocus={autoFocus} onSubmit={() => void submit()} />
@@ -325,6 +333,51 @@ function EmptyChat({ a, variant, sceneKey, tone, area, bleed, barTop, onPick }: 
           </Pressable>
         ))}
       </View>
+    </View>
+  )
+}
+
+/** 대화 중 캐릭터(49 v1.6): 받침 위(입력칸 바로 위)에 서서 — 기다리는 동안 생각 얼굴 + 진행 말풍선(계속 보임),
+ *  답이 오면 깡충 + 답 첫 문장을 말풍선으로, 누르면 깡충 + 한 줄. 큰 추천 칩·제목은 빈 대화에만 */
+function ChatBuddy({ a, size, sceneKey, area, bleed, barTop, face, play, lastId, onHop }: {
+  a: AssistantState; size: number; sceneKey: string; area: { w: number; h: number }; bleed: { top: number; bottom: number }; barTop: number
+  face: Face | null; play: { move: CompanionMove; n: number }; lastId: string; onHop: () => void
+}) {
+  const p = usePalette()
+  const buddy = useBuddy()
+  const [say, setSay] = useState({ text: '', n: 0 })
+  const prev = useRef(-1)
+  const taps = useRef<number[]>([])
+  const said = useRef(lastId)
+  // 새 답 → 첫 문장(40자)을 캐릭터가 말한다
+  useEffect(() => {
+    if (!lastId || lastId === said.current) return
+    said.current = lastId
+    const line = (face?.line ?? '').split(/(?<=[.!?…])\s/)[0]?.trim()
+    if (line) setSay((o) => ({ text: line.length > 40 ? `${line.slice(0, 39)}…` : line, n: o.n + 1 }))
+  }, [lastId, face?.line])
+  const tap = () => {
+    onHop()
+    if (!tapSpeaks(taps.current, Date.now())) return
+    if (!buddy.species) { setSay((o) => ({ text: EGG_TAP_LINE, n: o.n + 1 })); return }
+    const i = pickLine(TAP_LINES, prev.current)
+    prev.current = i
+    setSay((o) => ({ text: TAP_LINES[i], n: o.n + 1 }))
+  }
+  // 입력칸 바로 위 오른쪽 구석(발 = 입력칸 위 4)
+  const feet = barTop - 4
+  const left = area.w - size - 10, top = feet - size * FOOT.y
+  const busyLine = a.busy ? ((a.progress.queue ?? 0) > 0 ? `순서 기다리는 중… 앞에 ${a.progress.queue}명` : a.live?.chips.some((c) => c?.state === 'running') ? '찾아보는 중…' : '생각하는 중…') : ''
+  const mood = a.busy ? 'think' : face?.mood ?? 'smile'
+  return (
+    <View style={{ position: 'absolute', left, top, width: size, height: size }} pointerEvents="box-none">
+      {busyLine ? (
+        <View pointerEvents="none" style={[s.buddyBusy, { bottom: size * 0.9, backgroundColor: p.bgPopover, borderColor: p.borderPopover }]}>
+          <Text style={{ color: p.textSecondary, fontSize: 13 }} accessibilityLiveRegion="polite">{busyLine}</Text>
+        </View>
+      ) : <SayBubble text={say.text} n={say.n} style={{ bottom: size * 0.9, right: 0, left: undefined, maxWidth: area.w - 40 }} />}
+      <CompanionFace species={buddy.species} stage={buddy.stage} size={size} mood={mood} loop="breathe" play={a.busy ? { move: null, n: play.n } : play} onPress={tap}
+        label={companionLabel(buddy.species, buddy.name, buddy.level, buddy.stage)} />
     </View>
   )
 }
@@ -502,6 +555,7 @@ const s = StyleSheet.create({
   heroS: { fontSize: 14, lineHeight: 20, fontWeight: '500', marginTop: 6, textAlign: 'center' },
   heroChip: { paddingHorizontal: 16, paddingVertical: 13 },
   heroChipT: { fontSize: 14.5, fontWeight: '600' },
+  buddyBusy: { position: 'absolute', right: 0, minWidth: 120, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
   aiCard: { flex: 1, gap: 8, minWidth: 0, borderTopLeftRadius: 6, borderTopRightRadius: 18, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, paddingHorizontal: 13, paddingVertical: 10 },
   me: { alignSelf: 'flex-end', maxWidth: '80%', borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomLeftRadius: 18, borderBottomRightRadius: 6, paddingHorizontal: 14, paddingVertical: 9 },
   text: { fontSize: 15.5, lineHeight: 22 },
