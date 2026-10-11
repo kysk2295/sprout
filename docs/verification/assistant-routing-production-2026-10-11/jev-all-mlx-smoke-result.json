@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "all_models_stayed_resident": true,
+  "results": [
+    {
+      "seconds": 2.7583508333191276,
+      "text": "{\"ok\": true}"
+    },
+    {
+      "seconds": 2.392926167231053,
+      "text": "{\"tags\": [\"학업\", \"보고서\"]}"
+    },
+    {
+      "seconds": 4.649887959007174,
+      "text": "{\"tasks\": [{\"title\": \"먼지 닦기\"}, {\"title\": \"바닥 청소\"}, {\"title\": \"쓰레기 치우기\"}]}"
+    },
+    {
+      "seconds": 1.253789583221078,
+      "text": "{\"intent\": \"chat\", \"confidence\": 0.9999997615814209, \"resolution\": \"lookup\"}"
+    }
+  ]
+}

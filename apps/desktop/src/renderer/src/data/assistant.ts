@@ -236,10 +236,19 @@ export const reportGround = (hits: number) => { try { window.sprout?.assistant?.
 export type AgentAsk = { text: string; model: string; history: { user: string; assistant: string }[]; memory: AgentMemory; pending: ConfirmCard | null; diary: boolean; name: string; signal: AbortSignal; onEvent?: (e: TurnEvent) => void; chat?: ChatFn }
 export async function askAgent(a: AgentAsk): Promise<TurnResult> {
   const db = await getDb()
+  const turn = newTurnId()
   return runTurn({
+    classify: async (text, history, signal) => {
+      const api = window.sprout?.assistant
+      if (!api?.route) return undefined
+      const id = crypto.randomUUID(), cancel = () => api.cancel(id)
+      signal.throwIfAborted(); signal.addEventListener('abort', cancel, { once: true })
+      try { return await api.route(id, { text, history, turn }) }
+      finally { signal.removeEventListener('abort', cancel) }
+    },
     text: a.text, history: a.history, memory: a.memory, pending: a.pending, diary: a.diary, name: a.name,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, db: { getAll: (sql, args) => db.getAll(sql, args) },
-    chat: a.chat ?? agentChat(a.model), turn: newTurnId(), signal: a.signal, onEvent: a.onEvent
+    chat: a.chat ?? agentChat(a.model), turn, signal: a.signal, onEvent: a.onEvent
   })
 }
 /** 47 §8.4: AI 비서가 일기도 볼 수 있게(기본 꺼짐, 이 기기·계정). 일기 AI 동의(28 §5)가 있어야 켜진다 */

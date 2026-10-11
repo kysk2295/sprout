@@ -1,3 +1,4 @@
+import { routeRequest, parseRouteDecision } from '@sprout/schema/assistantDecision'
 import { app, ipcMain } from 'electron'
 import { AGENT_UNSUPPORTED, readAgentStream, readChatStream, type AgentInput, type AiPurpose, type ChatInput } from '../shared/assistant'
 import { createRemoteOllama } from './remoteOllama'
@@ -63,6 +64,12 @@ function createServerAi() {
     ground: async (hits: number) => {
       await server('/ai/ground', { method: 'POST', body: JSON.stringify({ hits }), signal: AbortSignal.timeout(8000) }).then((r) => r.body?.cancel()).catch(() => {})
     },
+    route: async (input: { text: string; history: { user: string; assistant: string }[]; turn: string }, signal: AbortSignal) => {
+      const status = await (await server('/ai/status', { signal })).json()
+      if (!status.features?.includes('jev-routing')) return undefined
+      const res = await server('/ai/assistant', { method: 'POST', body: JSON.stringify(routeRequest(input.text, input.history)), signal, headers: { 'x-sprout-turn': input.turn } })
+      return parseRouteDecision(JSON.parse((await res.json()).message.content))
+    },
     /** 47 agent 한 번(같은 턴 id). 글 조각·대기열은 IPC로, 끝나면 {content, tool_calls} */
     agent: async (input: AgentInput & { model?: string; call?: number }, signal: AbortSignal, onDelta: (text: string) => void, onQueue: (position: number) => void) => {
       const body = JSON.stringify({ mode: 'agent', ...(input.model ? { model: input.model } : {}), messages: input.messages, tools: input.tools, stream: true })
@@ -93,7 +100,7 @@ function createServerAi() {
 
 export function registerAssistant() {
   const remote = process.env.SPROUT_AI_SSH === '1' ? createRemoteOllama() : undefined
-  type Ai = Omit<ReturnType<typeof createServerAi>, 'daily' | 'features' | 'agent' | 'ground'> & Partial<Pick<ReturnType<typeof createServerAi>, 'daily' | 'features' | 'agent' | 'ground'>>
+  type Ai = Omit<ReturnType<typeof createServerAi>, 'daily' | 'features' | 'agent' | 'ground' | 'route'> & Partial<Pick<ReturnType<typeof createServerAi>, 'daily' | 'features' | 'agent' | 'ground' | 'route'>>
   const ai: Ai = remote ?? createServerAi()
   app.on('before-quit', () => remote?.close())
   const requests = new Map<string, AbortController>()
@@ -120,6 +127,17 @@ export function registerAssistant() {
   })
   // 47: SSH 직결(SPROUT_AI_SSH)은 agent 없음 → 13 의도 경로
   ipcMain.handle('assistant:features', () => (ai.features ? ai.features() : { agent: false, daily: null }))
+  ipcMain.handle('assistant:route', async (event, id: string, input: { text: string; history: { user: string; assistant: string }[]; turn: string }) => {
+    if (!ai.route) return undefined
+    if (typeof id !== 'string' || id.length > 100 || !input || !/^[A-Za-z0-9_-]{8,64}$/.test(input.turn)) throw new Error('잘못된 요청')
+    const key = `${event.sender.id}:${id}`
+    if (requests.has(key)) throw new Error('중복 요청')
+    const abort = new AbortController(); requests.set(key, abort)
+    const drop = () => abort.abort(); event.sender.once('destroyed', drop)
+    const timer = setTimeout(drop, 210000)
+    try { return await ai.route(input, abort.signal) }
+    finally { clearTimeout(timer); requests.delete(key); cancelled.delete(key); if (!event.sender.isDestroyed()) event.sender.off('destroyed', drop) }
+  })
   ipcMain.handle('assistant:agent', async (event, id: string, input: AgentInput & { model?: string; call?: number }) => {
     if (typeof id !== 'string' || id.length > 100 || !ai.agent) throw new Error(AGENT_UNSUPPORTED)
     if (!input || !Array.isArray(input.messages) || !Array.isArray(input.tools) || typeof input.turn !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(input.turn)) throw new Error('잘못된 요청')

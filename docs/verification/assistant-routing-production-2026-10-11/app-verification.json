@@ -1,0 +1,30 @@
+{
+  "app": "/Applications/Kkumteul.app",
+  "method": "native UI through cua_repl; same existing conversation preserved",
+  "initial_failures": [
+    "User observed greeting around 40 seconds",
+    "Provisional answer changed after grounding",
+    "Hobby question triggered growth lookup and role reversal",
+    "Prompt-only change still repeated old erroneous assistant answer"
+  ],
+  "final_tests": [
+    {
+      "input": "너는 취미가 뭐니",
+      "visible_answer": "난 새로운 이야기를 상상하는 게 좋아. 너는?",
+      "new_tool_chips": 0,
+      "gateway_route_ms": 2562,
+      "gateway_answer_ms": 2791,
+      "gateway_total_ms": 5353
+    },
+    {
+      "input": "어떤 이야기를 상상하는데?",
+      "visible_answer": "우주선 타고 달에 착륙해서 토끼랑 우유를 마시는 이야기야. 너는?",
+      "new_tool_chips": 0,
+      "gateway_route_ms": 1805,
+      "gateway_answer_ms": 5877,
+      "gateway_total_ms": 7682
+    }
+  ],
+  "timing_limit": "Gateway processing times are not exact UI end-to-end timings. UI polling confirmed completed output later. No 100-question rerun after final prompt/context change.",
+  "passed_scope": "Reported hobby-role failure and follow-up repaired in this existing conversation; broader conversation quality not established."
+}

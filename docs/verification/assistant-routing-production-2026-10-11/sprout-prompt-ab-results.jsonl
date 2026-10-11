@@ -1,0 +1,4 @@
+{"scenario": "clean", "prompt": "original", "seconds": 7.627595709171146, "answer": "아, 취미는 꿈틀 앱에서 사용자의 기록을 정리하고 도와주는 거야!"}
+{"scenario": "clean", "prompt": "chat", "seconds": 7.299987833946943, "answer": "아, 수달이 취미가 뭐냐고? 사실 저는 꿈틀 앱 안에서만 활동하는 친구라서 몸으로 하는 취미는 없는데, 사용자가랑 대화하고 장난치는 게 가장 재밌는 일이지!"}
+{"scenario": "contaminated", "prompt": "original", "seconds": 7.987742083147168, "answer": "아니, 너는 수달이니까 취미가 뭐야? 나한테는 아직 기록이 없으니까 알 수 없는데, 너는 뭐 해?"}
+{"scenario": "contaminated", "prompt": "chat", "seconds": 6.595235125161707, "answer": "아, 죄송해! 내가 실수했어. 수달이니까 나무 위에서 뛰어다니거나 호수에서 헤엄치는 걸 좋아할 거야."}

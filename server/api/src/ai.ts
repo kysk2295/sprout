@@ -1,3 +1,4 @@
+import { routeRequest, parseRouteDecision, assistantSelfQuestion } from '../../../packages/schema/src/assistantDecision.ts'
 // AI 프록시: 앱 → (JWT) → 여기(대기열·상한) → 백엔드(ai-backend.ts: 직접 URL 또는 Mac mini 워커) → Ollama. PRD "AI 사용 원칙"
 //   GET  /ai/status                       → 쓸 수 있는지·모델·대기열·내 사용량
 //   POST /ai/assistant|classify|map|diary|kpi-draft|weekly-report|breakdown|tag
@@ -25,7 +26,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AiBackend } from './ai-backend.ts'
 import { COMPANION_RULES, DIARY_GROUNDING, DISTILL_SCHEMA, DISTILL_SYSTEM } from '../../../packages/schema/src/diaryPrompts.ts'
-import { AGENT_CONTEXT_MAX, AGENT_SYSTEM, isToolName, NUDGE, TOOL_SPECS, type ToolName } from '../../../packages/schema/src/assistantTools.ts'
+import { AGENT_CONTEXT_MAX, AGENT_SYSTEM, CHAT_SYSTEM, isToolName, NUDGE, TOOL_SPECS, type ToolName } from '../../../packages/schema/src/assistantTools.ts'
 export { COMPANION_RULES, DIARY_GROUNDING, DISTILL_SYSTEM }
 
 export const ENDPOINTS = ['assistant', 'classify', 'map', 'diary', 'kpi-draft', 'weekly-report', 'breakdown', 'tag', 'diary-chat', 'diary-distill'] as const
@@ -532,10 +533,10 @@ export type AgentMsg = {
 }
 export type AgentInput = { messages: AgentMsg[]; tools: ToolName[]; model?: string; stream: boolean; temperature: number }
 /** body.mode — 'agent'만 새 경로, 없으면 예전 경로, 그 밖은 잘못된 요청 */
-export function assistantModeOf(body: unknown): 'agent' | null {
+export function assistantModeOf(body: unknown): 'agent' | 'route' | null {
   const mode = isObj(body) ? body.mode : undefined
   if (mode === undefined || mode === null) return null
-  if (mode === 'agent') return 'agent'
+  if (mode === 'agent' || mode === 'route') return mode
   throw new AiError('bad_request')
 }
 export const TURN_HEADER = 'x-sprout-turn'
@@ -674,6 +675,7 @@ export type AiDeps = {
   store: UsageStore
   /** Ollama까지 나르는 방법(ai-backend.ts: direct | worker) */
   backend: AiBackend
+  routing?: boolean
   /** JWT 확인 → 사용자 id. 실패하면 던진다 */
   auth: (req: IncomingMessage) => Promise<string>
   now?: () => number
@@ -693,7 +695,7 @@ export function createAi(deps: AiDeps) {
   const counter = (cls: Priority) => (cls === 'background' ? bgInflight : inflight)
   const locks = new Map<string, Promise<unknown>>()
   /** 47 §9 턴 셈: `${사용자}:${턴 id}` → 호출 수·첫 호출 시각(숫자만) */
-  const turns = new Map<string, { calls: number; firstAt: number }>()
+  const turns = new Map<string, { calls: number; firstAt: number; chat?: boolean; selfReference?: boolean }>()
   const sweepTurns = (t: number) => { for (const [k, v] of turns) if (t - v.firstAt > cfg.turnTtlMs) turns.delete(k) }
 
   // 같은 사용자의 상한 확인 + 예약을 한 번에 하나씩(동시 요청으로 주간 상한을 넘지 못하게)
@@ -795,7 +797,7 @@ export function createAi(deps: AiDeps) {
       default_model: names.includes(cfg.defaultModel) ? cfg.defaultModel : names[0] ?? null,
       backend: deps.backend.name,
       queue: queue.stats(), // 갈래별 길이만(누가 기다리는지는 없다)
-      features: ['agent', 'ground'], // 47: agent = 자유 대화 + 도구 경로, ground = 근거 검사 횟수 받기(§19.4)
+      features: ['agent', 'ground', ...(deps.routing ? ['jev-routing'] : [])], // 47: agent = 자유 대화 + 도구 경로, ground = 근거 검사 횟수 받기(§19.4)
       limits: { per_minute: cfg.perMinute, per_day: cfg.perDay, num_ctx: cfg.numCtx, num_predict: cfg.numPredict, timeout_ms: cfg.timeoutMs },
       usage: { today: await deps.store.count(userId, today), weekly, daily }
     }))
@@ -825,10 +827,18 @@ export function createAi(deps: AiDeps) {
     const userId = await deps.auth(req).catch(() => { throw new AiError('unauthorized') })
     const body = await readBody(req, cfg.maxBodyBytes)
     if (endpoint === 'diary') endpoint = diaryEndpointOf(body)
-    const agent = endpoint === 'assistant' ? assistantModeOf(body) === 'agent' : false
-    const turnId = agent ? turnIdOf(req.headers[TURN_HEADER]) : null
+    const mode = endpoint === 'assistant' ? assistantModeOf(body) : null
+    const routing = mode === 'route'
+    if (routing && !deps.routing) throw new AiError('not_found')
+    let routingState: ReturnType<typeof routeRequest> | null = null
+    if (routing) {
+      if (!isObj(body) || typeof body.text !== 'string' || !Array.isArray(body.history) || body.history.length > 2 || body.history.some((h: unknown) => !isObj(h) || typeof h.user !== 'string' || typeof h.assistant !== 'string' || h.user.length > 300 || h.assistant.length > 300) || Object.keys(body).some(k => !['mode', 'text', 'history', 'stream'].includes(k)) || body.stream !== false) throw new AiError('bad_request')
+      try { routingState = routeRequest(body.text, body.history) } catch { throw new AiError('bad_request') }
+    }
+    const agent = mode === 'agent'
+    const turnId = agent || routing ? turnIdOf(req.headers[TURN_HEADER]) : null
     const agentInput = agent ? validateAgentInput(body, cfg) : null
-    const input: AiInput = agentInput ? { messages: [], model: agentInput.model, stream: agentInput.stream, temperature: agentInput.temperature } : validateInput(body, cfg)
+    const input: AiInput = routing ? { messages: [], stream: false, temperature: 0 } : agentInput ? { messages: [], model: agentInput.model, stream: agentInput.stream, temperature: agentInput.temperature } : validateInput(body, cfg)
     const messages: (Msg | AgentMsg)[] = agentInput ? agentInput.messages : prepareMessages(endpoint, input.messages)
     const format = agentInput ? undefined : formatFor(endpoint, input.format)
     const names = await models()
@@ -844,6 +854,7 @@ export function createAi(deps: AiDeps) {
       sweepTurns(t0)
       const t = turns.get(turnKey)
       if (t) {
+        if (routing) throw new AiError('bad_request')
         if (t.calls >= cfg.turnMaxCalls) throw new AiError('turn_limit')
         if (t0 - t.firstAt > cfg.turnMaxMs) throw new AiError('timeout')
         followup = true
@@ -853,7 +864,13 @@ export function createAi(deps: AiDeps) {
     if (turnKey) {
       const t = turns.get(turnKey)
       if (followup && t) t.calls++
-      else turns.set(turnKey, { calls: 1, firstAt: at })
+      else turns.set(turnKey, { calls: routing ? 0 : 1, firstAt: at })
+    }
+
+    if (agentInput && turnKey && turns.get(turnKey)?.chat && agentInput.tools.length === 0 && !agentInput.messages.some(m => m.role === 'tool' || m.tool_calls?.length)) {
+      messages[0] = { role: 'system', content: CHAT_SYSTEM }
+      // Persona facts come from current app context, not earlier erroneous AI replies.
+      if (turns.get(turnKey)?.selfReference && messages.at(-1)?.role === 'user') messages.splice(1, messages.length - 2)
     }
 
     // 클라이언트가 끊으면 대기열에서 빠지고 Ollama 요청도 멈춘다
@@ -882,9 +899,12 @@ export function createAi(deps: AiDeps) {
       const signal = AbortSignal.any([client.signal, AbortSignal.timeout(agentInput ? cfg.agentCallTimeoutMs : cfg.timeoutMs)])
       const started = now()
       // 백엔드에는 늘 stream:true로 보낸다(워커 방식도 같은 모양, 끊으면 바로 멈춤). stream:false 요청은 여기서 모아서 준다
-      const upstream = await deps.backend.chat(agentInput
+      const upstream = await deps.backend.chat(routingState
+        ? { model, stream: true, sprout_route: { text: routingState.text, history: routingState.history } }
+        : agentInput
         ? {
             model,
+            ...(deps.routing ? { sprout_assistant: true } : {}),
             messages,
             ...(agentInput.tools.length ? { tools: agentInput.tools.map((n) => TOOL_SPECS[n]) } : {}),
             stream: true,
@@ -941,6 +961,9 @@ export function createAi(deps: AiDeps) {
         }
       } finally { await reader.cancel().catch(() => {}) }
       if (!done) throw new AiError('unavailable', 30)
+      if (routing) {
+        try { const predicted = parseRouteDecision(JSON.parse(content)); const decision = routingState && assistantSelfQuestion(routingState.text) ? { intent: 'chat' as const, confidence: 1, resolution: 'lookup' as const, source: 'self_reference_guard' as const } : predicted; content = JSON.stringify(decision); const turn = turnKey && turns.get(turnKey); if (turn) { turn.chat = decision.intent === 'chat' && decision.confidence >= .65; turn.selfReference = decision.source === 'self_reference_guard' } } catch { throw new AiError('unavailable', 30) }
+      }
       if (input.stream) res.end()
       else {
         res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })

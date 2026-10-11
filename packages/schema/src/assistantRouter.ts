@@ -1,6 +1,7 @@
 // 47 §2.2 길잡이(정해진 규칙, 모델 앞) — 결정 ④ "추천안대로": 확인 답·쓰기(만들기·완료·옮기기·지우기)·마지막으로 한 날·기간 할 일/일정·일기·상대 날짜는
 // 앱이 먼저 푼다(research 39: 모델 혼자면 쓰기 0/15, 날짜·요일 오답이 가장 흔함). 길잡이에 안 걸리는 말만 모델이 처음부터 고른다.
 // 결정 ② 말로 확인: 떠 있는 확인 카드 하나에만 '응·좋아·넣어 줘', 지우기는 단추로만. 결정 ③ 일기: 기본 꺼짐(설정 + 일기 AI 동의).
+import type { TaskLookup } from './assistantTarget.ts'
 import { recognize } from './recognition.ts'
 import { recallAsk, periodOf } from './recall.ts'
 import { dayGap, mdw, mondayOf, plusDays, weekdayOf, ymd, type ToolName } from './assistantTools.ts'
@@ -8,7 +9,7 @@ import { words, type AliasMap, type ConfirmCard, type ConfirmOp, type Facts, typ
 
 export type Band = 'noweb' | 'care'
 /** 이어 받을 것(§10): 한 대화 안에서만. 별칭·최근 항목·주제·최근 도구 요약 한 줄 */
-export type AgentMemory = { aliases: AliasMap; recent: { alias: string; title: string; date?: string | null }[]; subject?: string; lastTools?: string; facts?: Facts }
+export type AgentMemory = { taskLookup?: TaskLookup; aliases: AliasMap; recent: { alias: string; title: string; date?: string | null }[]; subject?: string; lastTools?: string; facts?: Facts }
 export const emptyMemory = (): AgentMemory => ({ aliases: {}, recent: [] })
 
 export type Prefetch = { name: ToolName; args: Record<string, unknown> }

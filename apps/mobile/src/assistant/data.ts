@@ -1,3 +1,4 @@
+import { routeRequest, parseRouteDecision } from '@sprout/schema/assistantDecision'
 // 27 AI 비서 — 서버 AI 프록시(POST {API}/ai/assistant, NDJSON 스트림)와 로컬 DB 실행.
 // 데스크톱 main/assistant.ts(서버 호출·오류) + renderer/data/assistant.ts(askAssistant·executeIntent·undoAssistant)와 같은 흐름.
 // 스트림은 expo/fetch(ReadableStream 지원). 사용자가 직접 보낸 요청만 부른다 — 수집함 분류는 부르지 않는다(26 M-C5).
@@ -268,6 +269,12 @@ export async function assistantDiaryOn() {
 
 export async function askAgent(o: { text: string; model: string; turn: string; signal: AbortSignal; history: { user: string; assistant: string }[]; memory: AgentMemory; pending: ConfirmCard | null; name: string; onEvent: (e: TurnEvent) => void }): Promise<TurnResult> {
   return runTurn({
+    classify: async (text, history, signal) => {
+      const status = await (await server('/ai/status', { signal })).json()
+      if (!status.features?.includes('jev-routing')) return undefined
+      const res = await server('/ai/assistant', { method: 'POST', body: JSON.stringify(routeRequest(text, history)), signal, headers: { 'x-sprout-turn': o.turn } })
+      return parseRouteDecision(JSON.parse((await res.json()).message.content))
+    },
     text: o.text, history: o.history, memory: o.memory, pending: o.pending, diary: await assistantDiaryOn(), name: o.name,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, db: { getAll: (sql, args) => db.getAll(sql, args ?? []) }, chat: agentChat(o.model),
     turn: o.turn, signal: o.signal, onEvent: o.onEvent

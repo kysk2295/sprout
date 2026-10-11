@@ -1,4 +1,4 @@
-// 47 §8.2 근거 검사 + §7 후처리 — 답이 다 온 뒤(스트림 중엔 그대로 보이고 끝에 바뀔 수 있음). 모델이 쓴 문장이 도구 결과·사용자 말·날짜표에 없는
+// 47 §8.2 근거 검사 + §7 후처리 — 답이 다 온 뒤(검사 전 초안은 화면에 표시하지 않음). 모델이 쓴 문장이 도구 결과·사용자 말·날짜표에 없는
 // 날짜·제목·숫자를 말하면 그 문장을 뺀다. 저장 말(넣었어…)인데 저장 없음 → '이렇게 넣을까?'. 별칭 id·한자 걷기. research 39 F4·F5·F7·F9가 근거.
 import { dayGap, plusDays, weekdayOf, ymd } from './assistantTools.ts'
 import type { AliasMap, Facts } from './assistantExec.ts'

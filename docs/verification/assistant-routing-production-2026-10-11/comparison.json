@@ -1,0 +1,143 @@
+{
+  "original": {
+    "all": {
+      "n": 100,
+      "errors": 0,
+      "mean_s": 20.01989,
+      "median_s": 13.2525,
+      "p95_s": 44.857,
+      "over30s": 25,
+      "reads": 52,
+      "task_reads": 30,
+      "nudges": 36,
+      "calls": 164,
+      "fixture_mentions": 27,
+      "router_median_s": null,
+      "router_p95_s": null
+    },
+    "general": {
+      "n": 76,
+      "errors": 0,
+      "mean_s": 22.513736842105263,
+      "median_s": 15.1045,
+      "p95_s": 47.187,
+      "over30s": 23,
+      "reads": 34,
+      "task_reads": 20,
+      "nudges": 33,
+      "calls": 138,
+      "fixture_mentions": 18,
+      "router_median_s": null,
+      "router_p95_s": null
+    },
+    "functional": {
+      "n": 20,
+      "errors": 0,
+      "mean_s": 10.4118,
+      "median_s": 8.591000000000001,
+      "p95_s": 26.649,
+      "over30s": 1,
+      "reads": 15,
+      "task_reads": 7,
+      "nudges": 2,
+      "calls": 20,
+      "fixture_mentions": 5,
+      "router_median_s": null,
+      "router_p95_s": null
+    }
+  },
+  "q8_sequential": {
+    "all": {
+      "n": 100,
+      "errors": 0,
+      "mean_s": 20.32075,
+      "median_s": 20.338,
+      "p95_s": 24.171,
+      "over30s": 5,
+      "reads": 15,
+      "task_reads": 7,
+      "nudges": 4,
+      "calls": 100,
+      "fixture_mentions": 4,
+      "router_median_s": 5.557,
+      "router_p95_s": 5.87
+    },
+    "general": {
+      "n": 76,
+      "errors": 0,
+      "mean_s": 20.518855263157896,
+      "median_s": 20.3685,
+      "p95_s": 22.688,
+      "over30s": 1,
+      "reads": 0,
+      "task_reads": 0,
+      "nudges": 0,
+      "calls": 75,
+      "fixture_mentions": 0,
+      "router_median_s": 5.564,
+      "router_p95_s": 5.907
+    },
+    "functional": {
+      "n": 20,
+      "errors": 0,
+      "mean_s": 20.36355,
+      "median_s": 19.994999999999997,
+      "p95_s": 44.49,
+      "over30s": 4,
+      "reads": 15,
+      "task_reads": 7,
+      "nudges": 4,
+      "calls": 22,
+      "fixture_mentions": 4,
+      "router_median_s": 5.45,
+      "router_p95_s": 5.617
+    }
+  },
+  "q6_concurrent": {
+    "all": {
+      "n": 100,
+      "errors": 0,
+      "mean_s": 9.37427,
+      "median_s": 8.844999999999999,
+      "p95_s": 14.707,
+      "over30s": 2,
+      "reads": 15,
+      "task_reads": 7,
+      "nudges": 4,
+      "calls": 99,
+      "fixture_mentions": 4,
+      "router_median_s": 1.4575,
+      "router_p95_s": 1.689
+    },
+    "general": {
+      "n": 76,
+      "errors": 0,
+      "mean_s": 8.80032894736842,
+      "median_s": 8.8225,
+      "p95_s": 11.175,
+      "over30s": 0,
+      "reads": 0,
+      "task_reads": 0,
+      "nudges": 0,
+      "calls": 74,
+      "fixture_mentions": 0,
+      "router_median_s": 1.517,
+      "router_p95_s": 1.703
+    },
+    "functional": {
+      "n": 20,
+      "errors": 0,
+      "mean_s": 12.04775,
+      "median_s": 10.290500000000002,
+      "p95_s": 36.915,
+      "over30s": 2,
+      "reads": 15,
+      "task_reads": 7,
+      "nudges": 4,
+      "calls": 22,
+      "fixture_mentions": 4,
+      "router_median_s": 1.4235,
+      "router_p95_s": 1.674
+    }
+  }
+}

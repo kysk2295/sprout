@@ -1,0 +1,34 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "legacy": {
+        "seconds": 31.409944541286677,
+        "text": "{ \"ok\": true }"
+      }
+    },
+    {
+      "after_legacy": {
+        "ok": true,
+        "routing": "jev-q6",
+        "models": []
+      }
+    },
+    {
+      "restored_route": {
+        "seconds": 11.038465582765639,
+        "text": "{\"intent\": \"chat\", \"confidence\": 0.9999997615814209, \"resolution\": \"lookup\"}"
+      }
+    },
+    {
+      "after_restore": {
+        "ok": true,
+        "routing": "jev-q6",
+        "models": [
+          "qwen",
+          "jev"
+        ]
+      }
+    }
+  ]
+}

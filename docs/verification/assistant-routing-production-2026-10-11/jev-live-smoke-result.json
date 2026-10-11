@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "scope": "production image API handler + real gateway, isolated in-memory auth/usage; no production account or task writes",
+  "results": [
+    {
+      "text": "안녕 오늘 기분 어때?",
+      "decision": {
+        "intent": "chat",
+        "confidence": 0.9999992847442627,
+        "resolution": "lookup"
+      },
+      "elapsedMs": 1705.469834
+    },
+    {
+      "text": "오늘 해야 할 일 보여줘",
+      "decision": {
+        "intent": "read",
+        "confidence": 0.9999988079071045,
+        "resolution": "lookup"
+      },
+      "elapsedMs": 1336.4327920000003
+    },
+    {
+      "text": "내일 3시에 교수님 면담 잡아줘",
+      "decision": {
+        "intent": "write",
+        "confidence": 0.9933104515075684,
+        "resolution": "lookup"
+      },
+      "elapsedMs": 1334.3850419999999
+    },
+    {
+      "answer": "안녕! 오늘 하루도 꿈틀 친구랑 같이 즐겁게 보내자~"
+    }
+  ]
+}

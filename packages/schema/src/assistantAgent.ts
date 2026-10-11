@@ -1,10 +1,12 @@
 // 47 §2·§4 한 턴: 길잡이(§2.2) → (모델 ↔ 도구) 최대 4번 → 근거 검사(§8.2). 데스크톱·휴대폰 같은 코드 — 모델 호출(chat)·DB·저장만 앱이 넣는다.
 // 루프: 모델 호출 최대 4번(도구 라운드 3 + 답 1), 한 번에 도구 3개, 도구 2초, 턴 150초. 데이터 질문인데 도구를 안 부르면 한 번만 재촉(research 39 v3),
-// 그래도 안 부르면 앱이 find_tasks를 직접 부르고 '찾아본 건 카드에 있어.'. 마지막 답만 글자 스트림(도구 라운드는 칩만). 대기열 503이면 길잡이로 찾은 카드만.
+// 그래도 안 부르면 앱이 find_tasks를 직접 부르고 '찾아본 건 카드에 있어.'. 근거 검사를 마친 최종 답만 표시(도구 라운드는 칩만). 대기열 503이면 길잡이로 찾은 카드만.
 import { agentContext, NUDGE, PROPOSE_TOOLS, toolsFor, ymd, type ToolName } from './assistantTools.ts'
 import { createCard, createdChip, failedRun, isConfirm, listsOf, pickList, runTool, runningChip, updateCard, undoStmts, moveStmts, deleteStmts, words, type AssistantDb, type Card, type Chip, type ConfirmCard, type Facts, type Stmt, type ToolRun } from './assistantExec.ts'
 import { claimsSearched, ground, offersToSearch } from './assistantGround.ts'
 import { memoryBlock, route, userContent, type AgentMemory, type Band, type Route } from './assistantRouter.ts'
+import { decisionPolicy, effectiveIntent, type RouteDecision } from './assistantDecision.ts'
+import { draftWithoutMutation, taskReference, type TaskLookup } from './assistantTarget.ts'
 
 export type AgentMessage =
   | { role: 'system' | 'user'; content: string }
@@ -45,6 +47,9 @@ export type TurnInput = {
   onEvent?: (e: TurnEvent) => void
   limits?: Partial<TurnLimits>
   newKey?: () => string
+  /** Experimental routing decision; absent means the unchanged baseline policy. */
+  classify?: (text: string, history: TurnInput['history'], signal: AbortSignal) => Promise<RouteDecision | undefined>
+  routeDecision?: RouteDecision
 }
 export type TurnResult = {
   text: string
@@ -112,16 +117,42 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
   const emit = (e: TurnEvent) => { try { i.onEvent?.(e) } catch { /* 화면 오류는 턴을 멈추지 않는다 */ } }
   const memory: AgentMemory = { aliases: { ...i.memory.aliases }, recent: [...i.memory.recent], subject: i.memory.subject, lastTools: i.memory.lastTools }
   const lists = await listsOf(i.db).catch(() => [])
-  const routed = route(i.text, { now, pending: i.pending, diary: i.diary, memory, lists })
+  const preliminary = route(i.text, { now, pending: i.pending, diary: i.diary, memory, lists })
+  if (i.classify && !i.routeDecision && !['confirm', 'cancel', 'fixed'].includes(preliminary.route.kind)) {
+    const signal = AbortSignal.any([...(i.signal ? [i.signal] : []), AbortSignal.timeout(L.turnMs)])
+    i = { ...i, routeDecision: await i.classify(i.text, i.history, signal) }
+    signal.throwIfAborted()
+  }
+  const routingText = i.routeDecision?.resolution === 'lookup' ? i.text.replace(/완료\s*해\s*줘([.!?~]*)$/, '완료로 해줘$1') : i.text
+  const decision = i.routeDecision?.resolution === 'lookup' && i.routeDecision.intent === 'write' && draftWithoutMutation(i.text) ? { ...i.routeDecision, intent: 'chat' as const } : i.routeDecision
+  const policy = decisionPolicy(route(routingText, { now, pending: i.pending, diary: i.diary, memory, lists }), decision)
+  const routed = policy.routed
   const chips: Chip[] = [], cards: Card[] = []
   let facts = mergeFacts(emptyFacts(), i.memory.facts ?? emptyFacts())
   const ctx = { db: i.db, now, aliases: memory.aliases, diary: i.diary, newKey: i.newKey }
+  let verifiedTarget: string | undefined
+  let latestLookup: TaskLookup | undefined
+  let pinnedTarget: string | undefined
+  const targetQuestion = '어떤 항목을 변경할지 제목을 하나 지정해 줄래?'
   const result = (text: string, extra: Partial<TurnResult> = {}): TurnResult => ({
-    text, chips, cards, bands: routed.bands, route: routed.route.kind, calls: 0, nudged: false, grounding: { hits: 0, reasons: [] }, memory: remember(memory, cards, chips, facts), ms: Date.now() - t0, ...extra
+    text, chips, cards, bands: routed.bands, route: routed.route.kind, calls: 0, nudged: false, grounding: { hits: 0, reasons: [] }, memory: { ...remember(memory, cards, chips, facts), taskLookup: latestLookup }, ms: Date.now() - t0, ...extra
   })
   const addCard = (c: Card | undefined) => { if (!c) return; if (cards.length < 2 || isConfirm(c)) { cards.push(c); emit({ type: 'card', card: c }) } }
   /** 도구 실행(제한 시간 2초, 실패해도 턴은 이어 감) */
   const exec = async (name: string, args: Record<string, unknown>): Promise<ToolRun> => {
+    if (!policy.allows(name as ToolName)) throw new Error(`routing-tool-denied: ${name}`)
+    if (pinnedTarget && name === 'propose_create') throw new Error('routing-target-unresolved')
+    if (policy.requireUniqueTarget && i.routeDecision?.resolution === 'lookup' && name === 'find_tasks' && !pinnedTarget) {
+      const query = typeof args.query === 'string' ? words(args.query) : []
+      if (!query.length || query.some(word => !i.text.replace(/\s+/g, '').includes(word.replace(/\s+/g, '')))) throw new Error('routing-target-unresolved')
+    }
+    if (policy.requireUniqueTarget && name === 'propose_update') {
+      const id = memory.aliases[String(args.id)]?.id
+      if (!verifiedTarget || id !== verifiedTarget || (pinnedTarget && id !== pinnedTarget)) throw new Error('routing-target-unresolved')
+      verifiedTarget = undefined
+    }
+    if (name.startsWith('find_')) latestLookup = undefined
+    if (policy.requireUniqueTarget && name === 'find_tasks') verifiedTarget = undefined
     const index = chips.length
     const chip: Chip = { tool: (name as ToolName), running: runningChip(name as ToolName, args), done: '', detail: '' }
     chips.push(chip)
@@ -132,7 +163,12 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
     ])
     chips[index] = run.chip
     emit({ type: 'chip', index, chip: run.chip, state: run.ok ? 'done' : 'failed' })
-    if (run.ok) { addCard(run.card); facts = mergeFacts(facts, run.facts) }
+    if (run.ok) {
+      if (name === 'find_tasks' && run.card?.type === 'tasks' && run.card.total === 1 && run.card.tasks.length === 1) verifiedTarget = run.card.tasks[0].id
+      addCard(run.card)
+      if (name === 'find_tasks' && run.card?.type === 'tasks' && cards.includes(run.card)) latestLookup = { ids: run.card.tasks.map(t => t.id), total: run.card.total }
+      facts = mergeFacts(facts, run.facts)
+    }
     return run
   }
 
@@ -141,6 +177,21 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
   if (rt.kind === 'confirm') return result('', { confirm: { key: rt.key, action: 'save' } })
   if (rt.kind === 'cancel') return result('알겠어, 안 넣을게.', { confirm: { key: rt.key, action: 'cancel' } })
   if (rt.kind === 'fixed') return result(rt.text, { ...(rt.hint ? { hint: rt.hint } : {}), ...(rt.action ? { action: rt.action } : {}) })
+  if (policy.requireUniqueTarget && i.routeDecision?.resolution === 'lookup') {
+    const reference = taskReference(i.text, i.memory.taskLookup)
+    if (reference.referential) {
+      if (!reference.id) return result(targetQuestion)
+      const rows = await i.db.getAll<{ id: string; title: string; start_at: string | null; due_at: string | null }>('SELECT id, title, start_at, due_at FROM tasks WHERE id = ? AND deleted_at IS NULL AND status = 0', [reference.id])
+      if (rows.length !== 1) return result('그 항목을 현재 목록에서 찾을 수 없어. 제목을 다시 알려 줄래?')
+      pinnedTarget = verifiedTarget = rows[0].id
+      if (rt.kind === 'update') {
+        const card = updateCard(rt.op, rows, i.newKey?.() ?? `c${t0.toString(36)}`, rt.moveTo, rt.said)
+        if (card) { addCard(card); return result(confirmLine(card)) }
+        return result(targetQuestion)
+      }
+      if (rt.kind === 'create') return result(targetQuestion)
+    }
+  }
   if (rt.kind === 'create') {
     const card = createCard({ title: rt.title, start: rt.start, due: rt.due, list: pickList(lists, rt.list ?? ''), repeat: rt.repeat, said: rt.said, durationMin: rt.durationMin, assumedPm: rt.assumedPm, basis: rt.basis, key: i.newKey?.() ?? `c${t0.toString(36)}`, kind: rt.event ? 'event' : 'task', today: ymd(now) })
     if (card) {
@@ -160,7 +211,9 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
     const ws = words(rt.query).map((w) => w.toLowerCase())
     const ranked = [...found].sort((a, b) => ws.filter((w) => b.title.toLowerCase().includes(w)).length - ws.filter((w) => a.title.toLowerCase().includes(w)).length)
     const exact = ranked.filter((tk) => tk.title.replace(/\s+/g, '') === rt.query.replace(/\s+/g, ''))
-    const card = updateCard(rt.op, (exact.length ? exact : ranked).slice(0, 5), i.newKey?.() ?? `c${t0.toString(36)}`, rt.moveTo, rt.said)
+    const candidates = exact.length ? exact : ranked
+    if (policy.requireUniqueTarget && (candidates.length !== 1 || (run.card?.type === 'tasks' && (run.card.total > found.length || (!exact.length && run.card.total !== 1))))) return result(targetQuestion)
+    const card = updateCard(rt.op, candidates.slice(0, 5), i.newKey?.() ?? `c${t0.toString(36)}`, rt.moveTo, rt.said)
     if (card) { addCard(card); return result(confirmLine(card)) }
     return result(`‘${rt.query}’ 할 일을 못 찾았어. 제목을 조금만 더 알려 줄래?`)
   }
@@ -169,11 +222,15 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
   const turnAbort = new AbortController()
   const timer = setTimeout(() => turnAbort.abort(new Error('turn-timeout')), L.turnMs)
   const signal = anySignal(turnAbort.signal, i.signal)
-  const tools = toolsFor({ diary: i.diary }).map((t) => t.function.name)
+  const tools = toolsFor({ diary: i.diary }).map((t) => t.function.name).filter(policy.allows)
   // 이어 받을 것은 앞 말을 가리킬 때만(그거·아까·그럼…) — 일반 질문에 앞 턴 항목이 새지 않게(실측: 공부법 답에 '안약 넣기')
   const mem = /(그거|그것|그걸|그건|거기|아까|그럼|그러면|그때|그\s|이거|저거|방금|다시|그날|걔|그 일)/.test(i.text) ? memoryBlock(i.memory, now) : ''
+  const casual = decision && effectiveIntent(decision) === 'chat' && !/(날짜|요일|며칠|몇 일|이번 주|다음 주|지난주|오늘.*무슨|내일.*무슨)/.test(i.text)
+  const context = casual
+    ? `네 이름은 ${(i.name || '친구').replace(/[\n\r"]/g, ' ').slice(0, 20)}. 지금은 일반 대화야. 사용자의 현재 말에 직접 답해. 인사는 한 문장으로. 묻지 않은 날짜·할 일·기록이나 이전 대화의 제안을 꺼내지 마.`
+    : agentContext(now, { name: i.name, timeZone: i.timeZone, diary: i.diary })
   const messages: AgentMessage[] = [
-    { role: 'system', content: agentContext(now, { name: i.name, timeZone: i.timeZone, diary: i.diary }) + (mem ? `\n${mem}` : '') },
+    { role: 'system', content: context + (mem ? `\n${mem}` : '') },
     ...i.history.slice(-HISTORY_TURNS).flatMap((h) => [{ role: 'user' as const, content: h.user.slice(0, HISTORY_CHARS) }, { role: 'assistant' as const, content: h.assistant.slice(0, HISTORY_CHARS) }]),
     { role: 'user', content: userContent(i.text, routed.notes) }
   ]
@@ -182,20 +239,23 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
   const callModel = async (offer: ToolName[]) => {
     calls++
     emit({ type: 'phase', phase: offer.length ? 'model' : 'answer' })
-    let streamed = false
     const reply = await i.chat({ messages, tools: offer, turn: i.turn, call: calls }, {
       signal,
-      onDelta: (s) => { streamed = true; emit({ type: 'delta', text: s }) },
+      // Provisional tokens can be revised by tool retries or grounding. Publish only the final answer.
+      onDelta: () => {},
       onQueue: (position) => emit({ type: 'queue', position })
     })
-    if (reply.tool_calls.length && streamed) emit({ type: 'reset' })
     return reply
   }
   const runCalls = async (list: { name: string; args: Record<string, unknown> }[]) => {
     const take = list.slice(0, L.toolsPerCall)
     messages.push({ role: 'assistant', content: '', tool_calls: take.map((c) => ({ function: { name: c.name, arguments: c.args } })) })
     emit({ type: 'phase', phase: 'tools' })
-    const runs = await Promise.all(take.map((c) => exec(c.name, c.args)))
+    const runs: ToolRun[] = []
+    if (policy.requireUniqueTarget) {
+      // A proposal must follow the lookup that established its single target.
+      for (const c of take) runs.push(await exec(c.name, c.args))
+    } else runs.push(...await Promise.all(take.map((c) => exec(c.name, c.args))))
     usedTools = true
     runs.forEach((r, k) => messages.push({ role: 'tool', tool_name: take[k].name, content: r.forModel }))
     return runs
@@ -218,7 +278,7 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
         if (reply.tool_calls.length && !last) { await runCalls(reply.tool_calls); continue }
         if (reply.tool_calls.length) { answer = MORE_LINE; break }
         // 데이터 질문(또는 '찾아볼까?'·내 일을 묻는데 '찾아봤는데 없어')인데 도구 없이 답함 → 한 번만 재촉. 일반 질문에 붙은 '기록에 없네'는 근거 검사가 뺀다
-        if (!usedTools && !nudged && (routed.dataQuestion || offersToSearch(reply.content) || (claimsSearched(reply.content) && /(내가|내\s|나\s|나의|했|있)/.test(i.text))) && calls + 1 < L.maxCalls) {
+        if (!usedTools && !nudged && (policy.nudge ?? (routed.dataQuestion || offersToSearch(reply.content) || (claimsSearched(reply.content) && /(내가|내\s|나\s|나의|했|있)/.test(i.text)))) && calls + 1 < L.maxCalls) {
           nudged = true
           emit({ type: 'reset' })
           messages.push({ role: 'assistant', content: reply.content }, { role: 'user', content: NUDGE })
@@ -238,6 +298,7 @@ export async function runTurn(i: TurnInput): Promise<TurnResult> {
     }
   } catch (e) {
     clearTimeout(timer)
+    if (policy.requireUniqueTarget && e instanceof Error && e.message === 'routing-target-unresolved') return result(targetQuestion, { calls, nudged })
     const stopped = !!i.signal?.aborted
     const timedOut = turnAbort.signal.aborted && !stopped
     if (e instanceof AgentUnsupportedError) throw e

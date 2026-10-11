@@ -82,7 +82,7 @@ async function userFrom(req: IncomingMessage): Promise<string> {
 }
 
 // AI 프록시: Mac mini Ollama로 대기열·상한을 걸어 전달한다(원문 저장 없음)
-const ai = createAi({ config: aiConfigFromEnv(), backend: backendFromEnv(), store: pgUsageStore((sql, params) => pool.query(sql, params)), auth: userFrom })
+const ai = createAi({ routing: process.env.AI_ROUTING === 'jev', config: aiConfigFromEnv(), backend: backendFromEnv(), store: pgUsageStore((sql, params) => pool.query(sql, params)), auth: userFrom })
 
 // 푸시 알림(32, push.ts): FCM_PROJECT_ID가 비었거나 키가 잘못되면 푸시만 꺼지고 나머지는 그대로 돈다
 const pushConfig = pushConfigFromEnv()

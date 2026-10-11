@@ -2,6 +2,15 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-11 Jev/MLX 운영 적용 — 별도 워크트리
+- 브랜치 `kysk2295/jev-runtime-release`, 기반 `6828dfb`. 원본 main 작업 폴더는 수정하지 않았다. 실험 데이터는 옆 `jev-routing` 워크트리에 있다. 사용자 지시로 스킬·서브에이전트는 사용하지 않았다.
+- Mac mini API 이미지 `sprout-api:jev-v7-contextfix-20261011`, 게이트웨이 `com.sprout.ai-runtime`(loopback 28011), Jev Q6(28008) + Qwen9B MLX4bit(28010). 기존 모델 재사용, 새 학습 없음. 모든 Qwen 요청을 MLX로 처리해 Ollama 전환으로 생기는 재로딩을 없앴다. JSON Schema 검사 추가.
+- 설치된 `/Applications/Kkumteul.app` 업데이트. 모바일 소스만 연결했고 기기 설치·웹·Railway API 배포는 안 했다.
+- 실제 앱에서 40초 지연·초안이 최종 답변으로 바뀜·취미 질문의 역할 혼동이 드러났다. 초안 표시 제거, 일반 대화 서버 프롬프트 분리, 명시적 캐릭터 취향/소개 질문의 기록 접근 차단과 해당 질문의 과거 오류 답변 재주입 방지 적용. 이것은 재학습 성과가 아니라 앱 보호 규칙이다.
+- 기존 100문항 평균 20.02→9.37초는 최종 프롬프트 변경 전 실험 수치다. 실제 여러 턴 대화까지 통과했다고 해석하지 않는다. 역할/맥락 분류 신규 12문항은 기존 9/12, 후보 지시 11/12로 후보 미적용.
+- 보고서: `docs/verification/assistant-routing-production-2026-10-11/REPORT.md`. 맥미니 복구: `~/sprout/backups/jev-switch-20261011/rollback.sh`; 맥 앱 원본: `/Users/koyunseo/sprout-deployment-backups/20261011-jev/Kkumteul.app`.
+- graphify 갱신은 설치된 Python 3.12 실행 경로가 없어 실패했다. 향후 학습은 이번 노출 사례와 별도의 미노출 여러 턴 평가셋을 구분해야 한다.
+
 ## ★ 2026-10-10 마스코트 꿈틀이 — 로고·성향 조사 전 기본 캐릭터·로그인 (45 v1.1 · 49 §15)
 - **로고(45 §9):** 사용자 "이 친구를 마스코트로" → D안. 3D `snail-1s0`(알껍질 아기 달팽이)을 평면+명암으로 다시 그린 기호 `scripts/brand/glyphs.mjs` `CONCEPTS.snail`(RECOMMENDED). `node scripts/brand/build-icons.mjs snail --apply` + `build-marketing.mjs`로 데스크톱·휴대폰·사이트·스토어 아이콘·배너 교체(커밋 35e3980). 시안 `docs/screens/mockups/brand-tadpole.html`.
 - **기본 캐릭터(49 §15):** 종 없음 + 씨앗 컷 없음 → 두 앱 `CharacterArt`·`PlayableCharacter`가 마스코트(공용 `MASCOT`·`MASCOT_NAME '꿈틀이'`·`MASCOT_LINES`). 성장 화면·AI 비서(`톡톡…` 뺌)·아바타·위젯(`art/v6-mascot-…`)·로그인(`FloatingMascot`). 만들기 흐름·부화는 씨앗 그대로. 데이터 변경 없음.
