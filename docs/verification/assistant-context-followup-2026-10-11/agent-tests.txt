@@ -1,0 +1,5 @@
+assistantAgent: ok
+assistantAgent (실측 보강): ok
+assistantAgent (실측 2차): ok
+assistantAgent (실측 3차): ok
+assistantAgent (일정 넣기 · 고치기 47 §19): ok

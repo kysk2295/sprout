@@ -64,10 +64,10 @@ function createServerAi() {
     ground: async (hits: number) => {
       await server('/ai/ground', { method: 'POST', body: JSON.stringify({ hits }), signal: AbortSignal.timeout(8000) }).then((r) => r.body?.cancel()).catch(() => {})
     },
-    route: async (input: { text: string; history: { user: string; assistant: string }[]; turn: string }, signal: AbortSignal) => {
+    route: async (input: { text: string; history: { user: string; assistant: string }[]; turn: string; name?: string }, signal: AbortSignal) => {
       const status = await (await server('/ai/status', { signal })).json()
       if (!status.features?.includes('jev-routing')) return undefined
-      const res = await server('/ai/assistant', { method: 'POST', body: JSON.stringify(routeRequest(input.text, input.history)), signal, headers: { 'x-sprout-turn': input.turn } })
+      const res = await server('/ai/assistant', { method: 'POST', body: JSON.stringify(routeRequest(input.text, input.history, input.name)), signal, headers: { 'x-sprout-turn': input.turn } })
       return parseRouteDecision(JSON.parse((await res.json()).message.content))
     },
     /** 47 agent 한 번(같은 턴 id). 글 조각·대기열은 IPC로, 끝나면 {content, tool_calls} */
@@ -127,7 +127,7 @@ export function registerAssistant() {
   })
   // 47: SSH 직결(SPROUT_AI_SSH)은 agent 없음 → 13 의도 경로
   ipcMain.handle('assistant:features', () => (ai.features ? ai.features() : { agent: false, daily: null }))
-  ipcMain.handle('assistant:route', async (event, id: string, input: { text: string; history: { user: string; assistant: string }[]; turn: string }) => {
+  ipcMain.handle('assistant:route', async (event, id: string, input: { text: string; history: { user: string; assistant: string }[]; turn: string; name?: string }) => {
     if (!ai.route) return undefined
     if (typeof id !== 'string' || id.length > 100 || !input || !/^[A-Za-z0-9_-]{8,64}$/.test(input.turn)) throw new Error('잘못된 요청')
     const key = `${event.sender.id}:${id}`

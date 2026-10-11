@@ -19,7 +19,7 @@ assert.equal(personaOf('nope' as never).id, 'mascot')
 assert.ok(isPersonaId('bee') && !isPersonaId('otter') && !isPersonaId(3))
 
 // 일반 대화 = 공통 + 카드 전체, 도구 대화 = 공통 + 말투 한 줄, 종 모름 = 공통만
-assert.equal(chatSystemFor(), CHAT_SYSTEM)
+assert.ok(chatSystemFor().startsWith(CHAT_SYSTEM) && chatSystemFor().includes('다정하고 호기심 많은'))
 assert.equal(agentSystemFor(), AGENT_SYSTEM)
 assert.ok(chatSystemFor('snail').startsWith(CHAT_SYSTEM) && chatSystemFor('snail').includes('이끼 길 산책'))
 assert.ok(chatSystemFor('bee') !== chatSystemFor('worm'))
@@ -28,7 +28,7 @@ assert.ok(!agentSystemFor('frog').includes('좋아하는 것'), '도구 대화�
 assert.ok(personaChatBlock('worm').includes('새 취미를 지어내지 마'))
 // 공통 일반 대화 지시문: 고정 성격 문장 없음 + 건강·돈 규칙
 assert.ok(!CHAT_SYSTEM.includes('상상하는 걸 좋아해'))
-assert.ok(/진단·약 이름·종목 추천 금지/.test(CHAT_SYSTEM))
+assert.ok(/질병 진단·약 처방·개별 투자 지시는 하지 말고/.test(CHAT_SYSTEM))
 // 일기 말투도 같은 카드에서
 assert.equal(toneOf('bee'), PERSONAS.bee.tone)
 assert.equal(toneOf(null), PERSONAS.mascot.tone)

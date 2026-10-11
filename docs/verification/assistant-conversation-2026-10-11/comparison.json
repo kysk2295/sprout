@@ -1,0 +1,18 @@
+{
+  "baseline": {
+    "turns": 30,
+    "errors": 0,
+    "meanMs": 8758.366666666667,
+    "medianMs": 7849.5,
+    "p95Ms": 13536,
+    "toolTurns": 2
+  },
+  "candidate": {
+    "turns": 30,
+    "errors": 0,
+    "meanMs": 10304.9,
+    "medianMs": 7713.5,
+    "p95Ms": 26994,
+    "toolTurns": 5
+  }
+}

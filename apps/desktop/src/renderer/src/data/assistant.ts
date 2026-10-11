@@ -1,5 +1,6 @@
 import { intentSchema, localChat, parseIntent, replyPreview, type AssistantProgress, type ChatInput, type Intent } from '../../../shared/assistant'
-import type { PersonaId } from '@sprout/schema/persona'
+import { personaIdOf, type PersonaId } from '@sprout/schema/persona'
+import { normalizeSpecies } from '@sprout/schema/growth'
 import { getDb } from './db'
 import { insert, run, now, taskListId, withDescendants } from './mutations'
 import { eventFieldsOf } from '@sprout/schema/assistantExec'
@@ -238,18 +239,22 @@ export type AgentAsk = { text: string; model: string; history: { user: string; a
 export async function askAgent(a: AgentAsk): Promise<TurnResult> {
   const db = await getDb()
   const turn = newTurnId()
+  const [character] = await db.getAll<{ species: string | null }>('SELECT species FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1')
+  // 50: 성격 카드 = 매 턴 지금 캐릭터 종(다른 세션: DB에서 바로 읽기 — 다시 조사해도 바로 반영). 조사 전 = 꿈틀이
+  const persona = a.persona ?? personaIdOf(normalizeSpecies(character?.species))
   return runTurn({
+    persona,
     classify: async (text, history, signal) => {
       const api = window.sprout?.assistant
       if (!api?.route) return undefined
       const id = crypto.randomUUID(), cancel = () => api.cancel(id)
       signal.throwIfAborted(); signal.addEventListener('abort', cancel, { once: true })
-      try { return await api.route(id, { text, history, turn }) }
+      try { return await api.route(id, { text, history, turn, name: a.name }) }
       finally { signal.removeEventListener('abort', cancel) }
     },
     text: a.text, history: a.history, memory: a.memory, pending: a.pending, diary: a.diary, name: a.name,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, db: { getAll: (sql, args) => db.getAll(sql, args) },
-    chat: a.chat ?? agentChat(a.model), turn, signal: a.signal, onEvent: a.onEvent, ...(a.persona ? { persona: a.persona } : {})
+    chat: a.chat ?? agentChat(a.model), turn, signal: a.signal, onEvent: a.onEvent
   })
 }
 /** 47 §8.4: AI 비서가 일기도 볼 수 있게(기본 꺼짐, 이 기기·계정). 일기 AI 동의(28 §5)가 있어야 켜진다 */

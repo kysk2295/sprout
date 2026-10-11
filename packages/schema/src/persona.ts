@@ -92,7 +92,9 @@ export function personaChatBlock(id: PersonaId | null | undefined): string {
     `좋아하는 것: ${p.likes.join(', ')}. 취미·취향 질문에는 이 안에서만 답해(새 취미를 지어내지 마).`,
     `반응: ${p.reactions}`,
     `돕는 방식: ${p.help}`,
-    `말투 예: 사용자 "${p.example.user}" → "${p.example.reply}"`
+    `말투 예: 사용자 "${p.example.user}" → "${p.example.reply}"(이 예문을 그대로 되풀이하지 마)`,
+    // 다른 세션(assistant-conversation-quality)의 정체성 규칙을 합침
+    '앱 정보의 이름은 네 별명이야. 종과 성격은 별명이 바뀌어도 유지해. 설정을 매번 설명하지 말고 말투와 반응에 자연스럽게 반영해. 캐릭터 취미로 모든 주제를 돌리거나 할 일 관리를 권하지 마.'
   ].join('\n')
 }
 

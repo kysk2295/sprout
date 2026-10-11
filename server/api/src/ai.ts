@@ -1,4 +1,4 @@
-import { routeRequest, parseRouteDecision, assistantSelfQuestion } from '../../../packages/schema/src/assistantDecision.ts'
+import { routeRequest, parseRouteDecision, conversationalDecision } from '../../../packages/schema/src/assistantDecision.ts'
 // AI 프록시: 앱 → (JWT) → 여기(대기열·상한) → 백엔드(ai-backend.ts: 직접 URL 또는 Mac mini 워커) → Ollama. PRD "AI 사용 원칙"
 //   GET  /ai/status                       → 쓸 수 있는지·모델·대기열·내 사용량
 //   POST /ai/assistant|classify|map|diary|kpi-draft|weekly-report|breakdown|tag
@@ -26,7 +26,8 @@ import { routeRequest, parseRouteDecision, assistantSelfQuestion } from '../../.
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AiBackend } from './ai-backend.ts'
 import { COMPANION_RULES, DIARY_GROUNDING, DISTILL_SCHEMA, DISTILL_SYSTEM } from '../../../packages/schema/src/diaryPrompts.ts'
-import { isPersonaId, type PersonaId } from '../../../packages/schema/src/persona.ts'
+import { isPersonaId, personaIdOf, type PersonaId } from '../../../packages/schema/src/persona.ts'
+import { normalizeSpecies } from '../../../packages/schema/src/growth.ts'
 import { AGENT_CONTEXT_MAX, agentSystemFor, chatSystemFor, isToolName, NUDGE, TOOL_SPECS, type ToolName } from '../../../packages/schema/src/assistantTools.ts'
 export { COMPANION_RULES, DIARY_GROUNDING, DISTILL_SYSTEM }
 
@@ -561,6 +562,8 @@ export function validateAgentInput(body: unknown, cfg: AiConfig): AgentInput {
   if (!isObj(body) || !Array.isArray(body.messages) || !body.messages.length) throw new AiError('bad_request')
   if (body.messages.length > cfg.agentMaxMessages) throw new AiError('too_large')
   if (body.format !== undefined && body.format !== null) throw new AiError('bad_request')
+  if (body.species !== undefined && body.species !== null && (typeof body.species !== 'string' || !normalizeSpecies(body.species))) throw new AiError('bad_request')
+  const species = typeof body.species === 'string' ? normalizeSpecies(body.species) : null
   const tools = toolNamesOf(body.tools)
   let total = 0
   const messages: AgentMsg[] = body.messages.map((m: unknown) => {
@@ -602,7 +605,8 @@ export function validateAgentInput(body: unknown, cfg: AiConfig): AgentInput {
   }
   // 50 §5: 앱은 성격 글이 아니라 종 id만 보낸다 — 목록에 있는 것만(없으면 예전 앱 = 공통 지시문)
   if (body.persona !== undefined && body.persona !== null && !isPersonaId(body.persona)) throw new AiError('bad_request')
-  const persona = isPersonaId(body.persona) ? body.persona : undefined
+  // 다른 세션 앱 빌드는 species(옛 종 id 포함)를 보낸다 → 같은 카드로
+  const persona = isPersonaId(body.persona) ? body.persona : species ? personaIdOf(species) : undefined
   return { messages: prepareAgentMessages(messages, persona), tools, model: body.model as string | undefined, stream: body.stream === true, temperature, ...(persona ? { persona } : {}) }
 }
 /** 지시문은 서버 것만: 앱 system을 모두 버리고 system = AGENT_SYSTEM(고정). 앱 칸(오늘·날짜표·이름·이어 받을 것 — 규칙이 아닌 사실, 자름)은
@@ -699,7 +703,7 @@ export function createAi(deps: AiDeps) {
   const counter = (cls: Priority) => (cls === 'background' ? bgInflight : inflight)
   const locks = new Map<string, Promise<unknown>>()
   /** 47 §9 턴 셈: `${사용자}:${턴 id}` → 호출 수·첫 호출 시각(숫자만) */
-  const turns = new Map<string, { calls: number; firstAt: number; chat?: boolean; selfReference?: boolean }>()
+  const turns = new Map<string, { calls: number; firstAt: number; chat?: boolean }>()
   const sweepTurns = (t: number) => { for (const [k, v] of turns) if (t - v.firstAt > cfg.turnTtlMs) turns.delete(k) }
 
   // 같은 사용자의 상한 확인 + 예약을 한 번에 하나씩(동시 요청으로 주간 상한을 넘지 못하게)
@@ -836,8 +840,8 @@ export function createAi(deps: AiDeps) {
     if (routing && !deps.routing) throw new AiError('not_found')
     let routingState: ReturnType<typeof routeRequest> | null = null
     if (routing) {
-      if (!isObj(body) || typeof body.text !== 'string' || !Array.isArray(body.history) || body.history.length > 2 || body.history.some((h: unknown) => !isObj(h) || typeof h.user !== 'string' || typeof h.assistant !== 'string' || h.user.length > 300 || h.assistant.length > 300) || Object.keys(body).some(k => !['mode', 'text', 'history', 'stream'].includes(k)) || body.stream !== false) throw new AiError('bad_request')
-      try { routingState = routeRequest(body.text, body.history) } catch { throw new AiError('bad_request') }
+      if (!isObj(body) || typeof body.text !== 'string' || !Array.isArray(body.history) || body.history.length > 2 || body.history.some((h: unknown) => !isObj(h) || typeof h.user !== 'string' || typeof h.assistant !== 'string' || h.user.length > 300 || h.assistant.length > 300) || Object.keys(body).some(k => !['mode', 'text', 'history', 'stream', 'name'].includes(k)) || body.stream !== false) throw new AiError('bad_request')
+      try { routingState = routeRequest(body.text, body.history, body.name) } catch { throw new AiError('bad_request') }
     }
     const agent = mode === 'agent'
     const turnId = agent || routing ? turnIdOf(req.headers[TURN_HEADER]) : null
@@ -864,6 +868,7 @@ export function createAi(deps: AiDeps) {
         followup = true
       }
     }
+    if (agentInput && turnKey && turns.get(turnKey)?.chat && agentInput.tools.length) throw new AiError('bad_request')
     const { day, at } = followup ? await reserveFollowup(userId, cls) : await reserve(userId, endpoint, cls)
     if (turnKey) {
       const t = turns.get(turnKey)
@@ -873,8 +878,7 @@ export function createAi(deps: AiDeps) {
 
     if (agentInput && turnKey && turns.get(turnKey)?.chat && agentInput.tools.length === 0 && !agentInput.messages.some(m => m.role === 'tool' || m.tool_calls?.length)) {
       messages[0] = { role: 'system', content: chatSystemFor(agentInput.persona) }
-      // Persona facts come from current app context, not earlier erroneous AI replies.
-      if (turns.get(turnKey)?.selfReference && messages.at(-1)?.role === 'user') messages.splice(1, messages.length - 2)
+      // Keep dialogue facts even for persona questions; server identity rules correct old mistakes.
     }
 
     // 클라이언트가 끊으면 대기열에서 빠지고 Ollama 요청도 멈춘다
@@ -966,7 +970,15 @@ export function createAi(deps: AiDeps) {
       } finally { await reader.cancel().catch(() => {}) }
       if (!done) throw new AiError('unavailable', 30)
       if (routing) {
-        try { const predicted = parseRouteDecision(JSON.parse(content)); const decision = routingState && assistantSelfQuestion(routingState.text) ? { intent: 'chat' as const, confidence: 1, resolution: 'lookup' as const, source: 'self_reference_guard' as const } : predicted; content = JSON.stringify(decision); const turn = turnKey && turns.get(turnKey); if (turn) { turn.chat = decision.intent === 'chat' && decision.confidence >= .65; turn.selfReference = decision.source === 'self_reference_guard' } } catch { throw new AiError('unavailable', 30) }
+        try {
+          const predicted = parseRouteDecision(JSON.parse(content))
+          const decision = conversationalDecision(predicted, routingState!.text, routingState!.name, routingState!.history)
+          content = JSON.stringify(decision)
+          const turn = turnKey && turns.get(turnKey)
+          if (turn) {
+            turn.chat = decision.intent === 'chat'
+          }
+        } catch { throw new AiError('unavailable', 30) }
       }
       if (input.stream) res.end()
       else {
@@ -978,9 +990,20 @@ export function createAi(deps: AiDeps) {
       }
       ok = true
     } catch (e) {
-      if (turnKey && !followup) turns.delete(turnKey) // 첫 호출 실패 = 턴도 없던 일(다시 시도는 새 턴)
-      if (client.signal.aborted) throw new AiError('aborted')
+      if (client.signal.aborted) { if (turnKey && !followup) turns.delete(turnKey); throw new AiError('aborted') }
       const err = toAiError(e, 'server')
+      // Only an admitted classifier request may degrade to tool-free conversation.
+      // Authentication, quotas, queue rejection and user cancellation retain their errors.
+      if (routing && release && turnKey && ['unavailable', 'timeout'].includes(err.code)) {
+        const turn = turns.get(turnKey)
+        if (turn) turn.chat = true
+        const decision = { intent: 'chat', confidence: 0, resolution: 'lookup', source: 'routing_fallback' }
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
+        res.end(JSON.stringify({ model, message: { role: 'assistant', content: JSON.stringify(decision) }, done: true }))
+        usage.failures = 1; ok = true
+        return
+      }
+      if (turnKey && !followup) turns.delete(turnKey)
       if (!release && LOAD_CODES.has(err.code)) refundMinute(userId, at)
       throw err
     } finally {

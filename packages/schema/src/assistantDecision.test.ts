@@ -41,5 +41,13 @@ assert.equal(write.confirm, undefined)
 const clarify = await runTurn({ ...input, text: '그걸 처리해', routeDecision: { intent: 'clarify', confidence: 0.99 } })
 assert.equal(clarify.calls, 0)
 assert.equal(clarify.chips.length, 0)
+// 50: 성격 카드 id(종 · 조사 전 mascot)가 매 호출에 실린다
+for (const persona of ['snail', 'bee', 'worm', 'frog', 'mascot'] as const) {
+  await runTurn({ ...input, persona, chat: async req => {
+    assert.equal(req.persona, persona, 'each turn carries its own selected character')
+    assert.deepEqual(req.tools, [])
+    return { content: '응, 듣고 있어.', tool_calls: [] }
+  } })
+}
 database.close()
 console.log('assistantDecision: policy, retry, tool enforcement, diary, read, write and clarify passed')

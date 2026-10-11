@@ -1,0 +1,21 @@
+
+> @sprout/api@0.0.1 test
+> node --experimental-strip-types --no-warnings src/upload.test.ts && node --experimental-strip-types --no-warnings src/auth.test.ts && node --experimental-strip-types --no-warnings src/social.test.ts && node --experimental-strip-types --no-warnings src/ai.test.ts && node --experimental-strip-types --no-warnings src/ratelimit.test.ts && node --experimental-strip-types --no-warnings src/account.test.ts && node --experimental-strip-types --no-warnings src/link.test.ts && node --experimental-strip-types --no-warnings src/push.test.ts && node --experimental-strip-types --no-warnings src/defaultInbox.test.ts && node --experimental-strip-types --no-warnings src/autoTrash.test.ts
+
+upload: ok
+upload long id ok
+auth: ok
+[social] 애플 토큰 폐기 1건 · 실패 1건
+[social] 애플 토큰 폐기 0건 · 실패 1건
+social: ok
+ai: ok
+ratelimit: ok
+[account] 계정 1건 삭제
+[account] 계정 1건 삭제
+[account] 계정 1건 삭제
+[account] 계정 1건 삭제
+account: ok
+link: ok
+push: ok
+defaultInbox: ok
+autoTrash: ok

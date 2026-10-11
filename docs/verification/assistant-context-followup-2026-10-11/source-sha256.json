@@ -1,0 +1,5 @@
+{
+  "server/api/src/ai.ts": "cc2c827ca756230f9773ea54f41c052fac4d7a2cf6c2c74e003030546fd773a1",
+  "packages/schema/src/assistantTools.ts": "7dc23e79c91598f1e96128d47783561b512e2bfa835c23ed58b49255f93c13b3",
+  "scripts/assistant-conversation-eval.ts": "173f0a61c9637a5b1202f5f7c64d0024c44754638b7b023fbedf0ba52ccfbd42"
+}

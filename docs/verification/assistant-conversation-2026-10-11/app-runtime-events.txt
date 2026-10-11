@@ -1,0 +1,10 @@
+{"time": 1791722070.6702678, "event": "request_started", "request_kind": "answer", "wait_ms": 0}
+{"time": 1791722081.7104719, "event": "request_finished", "total_ms": 11040}
+{"time": 1791722102.008041, "event": "request_started", "request_kind": "route", "wait_ms": 0}
+{"time": 1791722103.911666, "event": "request_finished", "total_ms": 1904}
+{"time": 1791722103.930572, "event": "request_started", "request_kind": "answer", "wait_ms": 0}
+{"time": 1791722106.823125, "event": "request_finished", "total_ms": 2892}
+{"time": 1791722132.304062, "event": "request_started", "request_kind": "route", "wait_ms": 0}
+{"time": 1791722134.0314748, "event": "request_finished", "total_ms": 1727}
+{"time": 1791722134.054413, "event": "request_started", "request_kind": "answer", "wait_ms": 0}
+{"time": 1791722142.356931, "event": "request_finished", "total_ms": 8302}
