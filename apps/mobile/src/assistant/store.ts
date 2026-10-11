@@ -176,14 +176,18 @@ const patchCard = (msgId: string, key: string, f: (c: ConfirmCard) => ConfirmCar
   set((o) => ({ messages: o.messages.map((m) => (m.id === msgId && m.agent ? { ...m, agent: { ...m.agent, cards: m.agent.cards.map((c) => (isConfirm(c) && c.key === key ? f(c) : c)) } } : m)) }))
 const findCard = (msgId: string, key: string) => current().messages.find((m) => m.id === msgId)?.agent?.cards.find((c): c is ConfirmCard => isConfirm(c) && c.key === key)
 /** 확인 카드 넣기(완료·옮기기·지우기). 캐릭터 한 줄(§5.3)을 돌려준다. 실패하면 null */
+// 저장이 끝날 때까지 카드는 'pending'이라 두 번 누르면 두 줄이 생긴다 → 카드마다 잠근다(두 번째는 무시)
+const savingCards = new Set<string>()
 export async function saveAgentCard(msgId: string, key: string): Promise<string | null> {
   const card = findCard(msgId, key)
-  if (!card || card.state !== 'pending') return null
+  const lock = `${msgId}\n${key}`
+  if (!card || card.state !== 'pending' || savingCards.has(lock)) return null
+  savingCards.add(lock)
   try {
     const saved = await saveCard(card, agentWrites)
     patchCard(msgId, key, () => saved)
     return savedLine(saved, new Date())
-  } catch (e) { set({ error: humanize(e) }); return null }
+  } catch (e) { set({ error: humanize(e) }); return null } finally { savingCards.delete(lock) }
 }
 /** 단추로 넣은 뒤: 그 답의 한 줄을 캐릭터 말로 바꾸고 깡충(§5.3) */
 export function setAgentLine(msgId: string, text: string, mood: 'happy' | 'smile' = 'happy') {

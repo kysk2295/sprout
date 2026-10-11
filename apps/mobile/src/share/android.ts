@@ -1,13 +1,14 @@
 // 24 §5-5 Android 공유 받기: 다른 앱 공유 → 꿈틀 → 수집함. 받는 종류는 app.json android.intentFilters(SEND text/plain),
 // 인텐트 읽기는 modules/sprout-share(Kotlin). 확장·App Group이 없으니 본 앱이 바로 로컬 DB에 쓴다(→ PowerSync가 올림, 오프라인이면 연결될 때).
-// 로그인 전에 온 공유는 모듈에 쌓여 있다가 로그인하면 들어간다(앱 프로세스가 살아 있는 동안).
+// 로그인 전에 온 공유는 모듈에 쌓여 있다가 로그인하면 들어간다(앱 프로세스가 살아 있는 동안). 가져간 뒤로는 앱 파일에 남아 종료돼도 다음에 들어간다.
 import { insertStmt } from '@sprout/schema/taskCore'
 import { requireOptionalNativeModule } from 'expo'
 import { useRouter, type Href } from 'expo-router'
 import { useEffect } from 'react'
 import { AppState, Platform } from 'react-native'
 import { currentUserId } from '../data/auth'
-import { run } from '../data/db'
+import { coreDb, run } from '../data/db'
+import { readJson, removeJson, writeJson } from '../collect/localStore'
 import { useToast } from '../ui/Toast'
 import { androidShareContent, shareRow } from './row.ts'
 
@@ -21,18 +22,32 @@ const native = Platform.OS === 'android' ? requireOptionalNativeModule<SproutSha
 /** 이 빌드에서 다른 앱 공유로 꿈틀에 넣을 수 있나 — iOS는 공유 확장, Android는 공유 받기 모듈이 들어간 빌드 */
 export const canReceiveShare = Platform.OS === 'ios' || !!native
 
+// take()는 모듈 대기열을 비운다 → 넣기 전에 앱 파일(localStore)에 먼저 옮겨 두고, 한 건 넣을 때마다 지운다.
+// 넣다가 DB 오류·앱 종료가 나도 남은 것은 다음 drain에서 다시. id는 옮길 때 정해 두어 "넣었는데 파일은 못 지움"이면 건너뛴다.
+const STASH = 'android-share-pending'
+type Stashed = { id: string; content: string; at: string }
+
 /** 쌓인 공유를 수집함에 넣는다. 넣은 개수 */
 async function drain(): Promise<number> {
   if (!native) return 0
+  let stash = readJson<Stashed[]>(STASH, [])
   let items: Shared[] = []
-  try { items = native.take() } catch (e) { console.warn('[share] take failed:', e); return 0 }
-  let n = 0
+  try { items = native.take() } catch (e) { console.warn('[share] take failed:', e) }
   for (const it of items) {
     const content = androidShareContent(it.subject, it.text)
-    if (!content) continue
-    const at = new Date(typeof it.at === 'number' ? it.at : Date.now()).toISOString()
-    await run([insertStmt('notes', { owner_id: currentUserId(), id: crypto.randomUUID(), ...shareRow(content, at) })])
-    n++
+    if (content) stash.push({ id: crypto.randomUUID(), content, at: new Date(typeof it.at === 'number' ? it.at : Date.now()).toISOString() })
+  }
+  if (items.length) writeJson(STASH, stash)
+  let n = 0
+  while (stash.length) {
+    const it = stash[0]
+    if (!(await coreDb.get('SELECT id FROM notes WHERE id = ?', [it.id]))) {
+      await run([insertStmt('notes', { owner_id: currentUserId(), id: it.id, ...shareRow(it.content, it.at) })])
+      n++
+    }
+    stash = stash.slice(1)
+    if (stash.length) writeJson(STASH, stash)
+    else removeJson(STASH)
   }
   return n
 }
