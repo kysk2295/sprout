@@ -2,6 +2,13 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-11 밤 캐릭터 성격(50) · 브랜치 병합 · 서버 배포
+- **성격 카드 정본 = `packages/schema/src/persona.ts`**(명세 [50](docs/screens/50-character-persona.md)). AI 비서 일반 대화 = 카드 전체, 도구 대화 = 말투 한 줄, 일기·주간 리포트도 같은 카드. 앱은 `persona`(종 id · 조사 전 `mascot`)만 보내고, 서버는 예전 빌드의 `species`도 받는다.
+- 성장 화면 캐릭터 소개(ⓘ → 데스크톱 팝오버 · 휴대폰 시트), 만들기 흐름 이름 다음 '캐릭터 소개' 단계(두 앱).
+- **`kysk2295/assistant-conversation-quality`를 main에 병합**(0356bc6). 그 브랜치의 `assistantPersona.ts`는 `persona.ts`로 합쳐 지웠다 — 그 워크트리에서 이어 작업하면 main을 먼저 받아야 한다.
+- **Mac mini API = `sprout-api:persona-merge-20261011`**(소스 `~/sprout/releases/persona-merge-20261011` = main 0356bc6의 server·schema). 되돌리기: `cp ~/sprout/backups/persona-merge-20261011/docker-compose.yaml ~/sprout/server/ && docker compose up -d --no-build api`(이전 이미지 `context-followup-20261011`). 긴 id 업로드 수정(2200a64)도 이 배포로 반영.
+- 아직: 앱 빌드(휴대폰·데스크톱 dmg)에 성격 UI 반영 안 됨 · 50 §6 12문항 성격 평가 미실행.
+
 ## ★ 2026-10-11 Jev/MLX 운영 적용 — 별도 워크트리
 - 브랜치 `kysk2295/jev-runtime-release`, 기반 `6828dfb`. 원본 main 작업 폴더는 수정하지 않았다. 실험 데이터는 옆 `jev-routing` 워크트리에 있다. 사용자 지시로 스킬·서브에이전트는 사용하지 않았다.
 - Mac mini API 이미지 `sprout-api:jev-v7-contextfix-20261011`, 게이트웨이 `com.sprout.ai-runtime`(loopback 28011), Jev Q6(28008) + Qwen9B MLX4bit(28010). 기존 모델 재사용, 새 학습 없음. 모든 Qwen 요청을 MLX로 처리해 Ollama 전환으로 생기는 재로딩을 없앴다. JSON Schema 검사 추가.
