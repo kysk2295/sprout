@@ -244,9 +244,11 @@ export const RaiseStage = forwardRef<StageHandle, {
               <Text style={[s.who, { color: t.ink }]} numberOfLines={1}>{species ? `${name} · ${title}` : title}</Text>
             </Pressable>
             {raise.character && onPersona ? (
-              <Pressable onPress={() => { hx.tick(); onPersona() }} hitSlop={13} accessibilityRole="button" accessibilityLabel="캐릭터 소개"
-                style={({ pressed }) => [s.info, pressed && { opacity: 0.5 }]}>
-                <Info size={18} color={t.ink} style={{ opacity: 0.7 }} />
+              // 50 §8.1 v1.2: 작은 ⓘ는 찾기 어려웠다 → 글자 있는 알약 단추(브랜드 청록 옅은 바탕)
+              <Pressable onPress={() => { hx.tick(); onPersona() }} hitSlop={10} accessibilityRole="button" accessibilityLabel="캐릭터 소개"
+                style={({ pressed }) => [s.info, { backgroundColor: sd ? 'rgba(143,224,200,0.16)' : p.accent + '22', borderColor: sd ? 'rgba(143,224,200,0.42)' : p.accent + '59' }, pressed && { opacity: 0.6 }]}>
+                <Info size={13} color={sd ? '#8FE0C8' : p.accent} />
+                <Text style={[s.infoT, { color: sd ? '#8FE0C8' : p.accent }]}>캐릭터 소개</Text>
               </Pressable>
             ) : null}
           </View>
@@ -410,7 +412,8 @@ const s = StyleSheet.create({
   lvb: { borderRadius: 7, paddingHorizontal: 7, paddingVertical: 2 },
   lvbT: { color: '#fff', fontSize: 11.5, fontWeight: '800' },
   who: { fontSize: 13, fontWeight: '700', opacity: 0.82 },
-  info: { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' }, // 50 §8.1 — 18 + hitSlop 13 = 누르는 칸 44
+  info: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 6, paddingHorizontal: 8, height: 24, borderRadius: 12, borderWidth: 1 }, // 50 §8.1 v1.2 — 높이 24 + hitSlop 10 = 누르는 칸 44
+  infoT: { fontSize: 12, fontWeight: '700' },
   row2: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 },
   big: { fontSize: 54, lineHeight: 58, fontWeight: '800', letterSpacing: -2.7, marginTop: 6, includeFontPadding: false },
   bigPct: { fontSize: 28, letterSpacing: -0.5 },

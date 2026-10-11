@@ -74,9 +74,11 @@ export function PersonaTitle({ species, stage, title, name, wear, answersJson, t
 
   return (
     <>
-      <button ref={btn} type="button" className="ttl gs-persona-btn" title="캐릭터 소개" aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined}
+      {/* 50 §8.1 v1.2: 작은 ⓘ는 찾기 어려웠다(사용자 "캐릭터 소개하는 게 어디 있어") → 종 글은 글자로, 옆에 글자 있는 알약 단추 */}
+      <span className="ttl gs-persona-ttl">{title}</span>
+      <button ref={btn} type="button" className="gs-persona-pill" aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined}
         tabIndex={disabled ? -1 : 0} onClick={() => (open ? close(true) : setOpen(true))}>
-        <span className="tx">{title}</span><Info size={14} aria-hidden="true" />
+        <Info size={13} aria-hidden="true" /><span>캐릭터 소개</span>
       </button>
       {open && createPortal(
         <div ref={card} id={id} role="dialog" aria-label="캐릭터 소개" tabIndex={-1}

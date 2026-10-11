@@ -1,13 +1,14 @@
+/* 50 §8.1 v1.2 — HUD 종 글 + "캐릭터 소개" 알약 단추(브랜드 청록 옅은 바탕) */
+.gs3-hud .lv .gs-persona-ttl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs3-hud .lv .gs-persona-pill { flex: none; display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 3px 9px 3px 7px; border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--color-accent) 14%, transparent); color: var(--color-accent); font: inherit; font-size: 12px; font-weight: 700; line-height: 1.2; cursor: pointer; transition: background-color .12s, border-color .12s; }
+.gs3-hud .lv .gs-persona-pill:hover, .gs3-hud .lv .gs-persona-pill[aria-expanded="true"] { background: color-mix(in srgb, var(--color-accent) 24%, transparent); border-color: color-mix(in srgb, var(--color-accent) 55%, transparent); }
+.gs3-hud .lv .gs-persona-pill:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.gs3.is-dark .gs3-hud .lv .gs-persona-pill { color: #8FE0C8; border-color: rgba(143, 224, 200, .4); background: rgba(143, 224, 200, .14); }
 /* 50 §8 캐릭터 소개 — HUD 종 글 단추 + 유리 팝오버. 글자·유리 톤은 무대의 --g-* (장면마다, 49 §6.1 sceneGlass)를 그대로 받는다 */
 
 /* 가운뎃점은 단추 밖(알약이 글만 감싸게) */
 .gs3-hud .lv .dot { flex: none; opacity: .72; font-weight: 600; margin-right: -3px; }
 /* 단추: 기존 .ttl 글(흐린 굵기 600) 그대로, 호버 = 알약 배경(밑줄 없음) — 50 §8.1 */
-.gs3-hud .lv .gs-persona-btn { display: inline-flex; align-items: center; gap: 4px; min-width: 0; border: 0; background: none; margin: -3px 0 -3px -4px; padding: 3px 6px 3px 4px; border-radius: 999px; color: inherit; font: inherit; font-weight: 600; cursor: pointer; transition: background-color .12s; }
-.gs3-hud .lv .gs-persona-btn .tx { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gs3-hud .lv .gs-persona-btn svg { flex: none; color: var(--g-sub, currentColor); }
-.gs3-hud .lv .gs-persona-btn:hover, .gs3-hud .lv .gs-persona-btn[aria-expanded="true"] { background: color-mix(in srgb, var(--g-ink) 10%, transparent); }
-.gs3-hud .lv .gs-persona-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 
 /* 팝오버(50 §8.3): 유리 = HUD와 같은 .gs3-glass · 320px · 창 높이 − 120 넘으면 안에서 스크롤 · 열기 120ms 페이드 + 4px 위로 */
 .gs-persona {
