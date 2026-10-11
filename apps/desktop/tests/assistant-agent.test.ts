@@ -59,7 +59,8 @@ const events: string[] = []
 const r1 = await A.askAgent({ text: '미용실 간 지 얼마나 지났지', model: 'qwen3.5:9b', history: [], memory: emptyMemory(), pending: null, diary: false, name: '도토리', signal: new AbortController().signal, onEvent: (e) => events.push(e.type) })
 assert.equal(calls.length, 1)
 assert.deepEqual([calls[0].tools, calls[0].call, /^[A-Za-z0-9_-]{8,64}$/.test(calls[0].turn), calls[0].model], [[], 1, true, 'qwen3.5:9b'])
-assert.ok(events.includes('delta') && events.includes('chip'))
+// 근거 검사를 마친 최종 답만 보인다 — 글 조각(delta)을 흘리지 않는다(쓰다가 다른 답으로 바뀌어 보이던 문제, 0debea4)
+assert.ok(events.includes('chip') && !events.includes('delta'))
 assert.equal(r1.cards[0].type, 'since')
 assert.match(r1.text, /8월 31일/)
 
