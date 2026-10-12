@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>일기 시안 5가지 — 레퍼런스별</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root { --ink:#1D2622; --sub:#6B766F; --faint:#A3ADA7; --line:#E3E8E4; --accent:#12715E; --accent-soft:#E1F1EC;
+    --m1:#8797AE; --m2:#8EC1D6; --m3:#F2B84B; --m4:#62BF7E; --m5:#F08A5D; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Pretendard, -apple-system, sans-serif; background:#DDE3DF; color:var(--ink); }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 0 24px 60px; }
+  header { padding: 34px 0 4px; } h1 { margin:0 0 6px; font-size:26px; letter-spacing:-.02em; }
+  .lead { color:var(--sub); font-size:15px; line-height:1.65; margin:0; }
+  nav.toc { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 4px; }
+  nav.toc a { background:#fff; border-radius:14px; padding:8px 12px; font-size:13.5px; color:var(--ink); text-decoration:none; font-weight:600; }
+  section.opt { background:#F4F7F5; border-radius:28px; padding:22px 22px 26px; margin-top:22px; }
+  .oh { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .oh h2 { margin:0; font-size:21px; letter-spacing:-.02em; } .oh .ref { font-size:13px; color:var(--sub); }
+  .why { display:grid; grid-template-columns: repeat(3,1fr); gap:10px; margin:12px 0 16px; font-size:13px; line-height:1.55; }
+  .why div { background:#fff; border-radius:14px; padding:10px 12px; } .why b { display:block; font-size:12px; margin-bottom:3px; }
+  .why .p b { color:var(--accent); } .why .c b { color:#B5523B; } .why .f b { color:#7A5BB0; }
+  .row { display:flex; flex-wrap:wrap; gap:24px; }
+  figure { margin:0; } figcaption { margin-top:10px; width:280px; font-size:12.5px; line-height:1.5; color:#3B4640; } figcaption b { color:var(--ink); }
+  .phone { width:280px; height:600px; border-radius:42px; border:9px solid #1B1F1D; position:relative; overflow:hidden; box-shadow:0 16px 36px #0003; background:#F2F4F2; }
+  .notch { position:absolute; top:8px; left:50%; translate:-50% 0; width:88px; height:25px; background:#1B1F1D; border-radius:16px; z-index:9; }
+  .status { height:38px; display:flex; align-items:end; justify-content:space-between; padding:0 22px 4px; font-size:12px; font-weight:600; position:relative; z-index:2; }
+  .bean { display:inline-grid; place-items:center; border-radius:50%; flex:none; }
+  .buddy { position:relative; flex:none; } .buddy img { position:absolute; left:-35%; top:-45%; width:170%; height:170%; object-fit:contain; }
+
+  /* ── 1 하루콩식 ── */
+  .h1 { background:#FFFDF8; }
+  .h1 .top { display:flex; justify-content:space-between; align-items:center; padding:6px 18px; }
+  .h1 .top b { font-size:20px; } .h1 .top span { font-size:13px; color:var(--sub); }
+  .h1 .cal { margin:6px 12px; display:grid; grid-template-columns:repeat(7,1fr); row-gap:10px; }
+  .h1 .wd { font-size:10px; color:var(--faint); text-align:center; }
+  .h1 .c { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:9.5px; color:var(--sub); }
+  .h1 .c .bean { width:30px; height:30px; font-size:15px; }
+  .h1 .c .e { width:30px; height:30px; border-radius:50%; border:1.5px dashed #D9D2C2; }
+  .h1 .c.t { color:var(--accent); font-weight:800; }
+  .h1 .sum { margin:14px 12px 0; background:#fff; border-radius:18px; padding:12px; font-size:12.5px; box-shadow:0 1px 4px #0000000d; }
+  .h1 .sum .bar { display:flex; height:9px; border-radius:5px; overflow:hidden; margin:6px 0; }
+  .tabbar { position:absolute; left:0; right:0; bottom:0; height:64px; background:#fff; border-top:1px solid #EEE; display:flex; justify-content:space-around; align-items:center; font-size:10px; color:var(--faint); }
+  .tabbar .plus { width:46px; height:46px; border-radius:50%; background:var(--m3); color:#fff; display:grid; place-items:center; font-size:24px; margin-top:-20px; box-shadow:0 6px 14px #F2B84B66; }
+  .h1 .q { text-align:center; font-size:16px; font-weight:800; margin:10px 0 14px; }
+  .h1 .moodbig { display:flex; justify-content:center; gap:8px; }
+  .h1 .moodbig .bean { width:44px; height:44px; font-size:22px; opacity:.4; } .h1 .moodbig .on { opacity:1; transform:scale(1.15); }
+  .h1 .grp { margin:12px 14px 0; background:#fff; border-radius:16px; padding:10px 12px; }
+  .h1 .grp b { font-size:11.5px; color:var(--sub); }
+  .h1 .ico { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:8px; }
+  .h1 .ico span { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:9.5px; color:var(--sub); }
+  .h1 .ico i { width:36px; height:36px; border-radius:12px; background:#F4F1EA; display:grid; place-items:center; font-style:normal; font-size:17px; }
+  .h1 .ico .on i { background:var(--accent-soft); box-shadow:inset 0 0 0 2px var(--accent); }
+  .h1 .memo { margin:12px 14px; background:#fff; border-radius:16px; padding:10px 12px; font-size:12.5px; color:var(--faint); }
+
+  /* ── 2 Day One식 ── */
+  .d1 { background:#fff; }
+  .d1 .hd { background:linear-gradient(180deg,#1E5E8C,#2A78B0); color:#fff; padding:44px 16px 14px; margin-top:-38px; }
+  .d1 .hd b { font-size:22px; } .d1 .hd small { display:block; opacity:.8; font-size:12px; margin-top:2px; }
+  .d1 .tabs { display:flex; gap:14px; font-size:12.5px; margin-top:12px; opacity:.9; } .d1 .tabs .on { border-bottom:2px solid #fff; padding-bottom:4px; font-weight:700; }
+  .d1 .ent { display:flex; gap:10px; padding:12px 14px; border-bottom:1px solid #EEF1F3; }
+  .d1 .date { width:38px; text-align:center; flex:none; } .d1 .date b { display:block; font-size:20px; line-height:1; } .d1 .date small { font-size:10px; color:var(--sub); }
+  .d1 .ent p { margin:0; font-size:12.5px; line-height:1.5; color:#333; } .d1 .ent p b { display:block; font-size:13.5px; color:var(--ink); margin-bottom:2px; }
+  .d1 .meta { font-size:10.5px; color:var(--faint); margin-top:4px; }
+  .d1 .thumb { width:52px; height:52px; border-radius:10px; flex:none; background:linear-gradient(135deg,#A8D5BA,#5B9C7E); }
+  .d1 .fab { position:absolute; right:16px; bottom:22px; width:54px; height:54px; border-radius:50%; background:#2A78B0; color:#fff; display:grid; place-items:center; font-size:26px; box-shadow:0 6px 14px #2A78B066; }
+  .d1 .ed .bar { display:flex; justify-content:space-between; padding:6px 14px; font-size:13px; color:#2A78B0; } .d1 .ed .bar b { color:var(--ink); }
+  .d1 .ed .mt { margin:4px 14px 8px; font-size:11px; color:var(--sub); display:flex; gap:10px; flex-wrap:wrap; }
+  .d1 .ed .mt span { background:#F1F5F8; border-radius:8px; padding:3px 7px; }
+  .d1 .ed h3 { margin:6px 14px 4px; font-size:19px; }
+  .d1 .ed .body { margin:0 14px; font-size:13.5px; line-height:1.75; color:#333; }
+  .d1 .ed .photo { margin:10px 14px; height:120px; border-radius:12px; background:linear-gradient(135deg,#F7D9A8,#E59B6B); }
+  .d1 .ed .tb { position:absolute; left:0; right:0; bottom:0; height:52px; border-top:1px solid #EEE; display:flex; justify-content:space-around; align-items:center; font-size:16px; color:#2A78B0; background:#fff; }
+
+  /* ── 3 Apple 저널식 ── */
+  .a1 { background:linear-gradient(180deg,#F3EEFB,#FBF3EE); }
+  .a1 .t { padding:4px 18px 8px; font-size:28px; font-weight:800; letter-spacing:-.03em; }
+  .a1 .card { margin:0 12px 10px; background:#fff; border-radius:20px; padding:12px 14px; box-shadow:0 2px 10px #0000000a; }
+  .a1 .card small { font-size:11px; color:var(--sub); } .a1 .card p { margin:4px 0 0; font-size:13px; line-height:1.55; }
+  .a1 .sug { display:flex; gap:6px; margin-top:8px; } .a1 .sug span { height:56px; flex:1; border-radius:12px; }
+  .a1 .bigplus { position:absolute; left:50%; translate:-50% 0; bottom:22px; width:62px; height:62px; border-radius:50%; background:#fff; display:grid; place-items:center; font-size:30px; color:#8A63D2; box-shadow:0 8px 20px #8A63D244; }
+  .a1 .sheet { position:absolute; inset:60px 0 0 0; background:#fff; border-radius:26px 26px 0 0; padding:12px 14px; }
+  .a1 .sheet .grab { width:38px; height:5px; border-radius:3px; background:#DDD; margin:0 auto 10px; }
+  .a1 .sheet h4 { margin:0 0 8px; font-size:16px; } .a1 .sheet .lbl { font-size:11px; color:var(--sub); font-weight:700; margin:10px 0 6px; }
+  .a1 .sc { border-radius:16px; padding:10px 12px; margin-bottom:8px; font-size:12.5px; line-height:1.45; }
+  .a1 .sc b { display:block; font-size:13px; margin-bottom:2px; }
+  .a1 .pr { background:#F4F1FA; border-radius:12px; padding:9px 11px; font-size:12.5px; margin-bottom:6px; }
+
+  /* ── 4 Finch식 캐릭터 방 ── */
+  .f1 { background:#2B2F4A; color:#fff; }
+  .f1 .scene { position:absolute; inset:0; background:url('../../../packages/schema/art3d/scene-dusk@390.webp') center 70% / cover; }
+  .f1 .scene.day { background-image:url('../../../packages/schema/art3d/scene-day@390.webp'); }
+  .f1 .glass { background:rgba(255,255,255,.88); color:var(--ink); border-radius:20px; padding:12px 14px; }
+  .f1 .ask { position:absolute; left:14px; right:14px; top:70px; }
+  .f1 .ask b { font-size:16px; display:block; margin-bottom:8px; }
+  .f1 .ask .row5 { display:flex; justify-content:space-between; } .f1 .ask .row5 .bean { width:38px; height:38px; font-size:19px; }
+  .f1 .pet { position:absolute; left:50%; bottom:120px; translate:-50% 0; width:150px; height:150px; }
+  .f1 .bub { position:absolute; left:50%; bottom:262px; translate:-50% 0; background:#fff; color:var(--ink); border-radius:14px; padding:7px 11px; font-size:12.5px; white-space:nowrap; }
+  .f1 .xp { position:absolute; left:14px; right:14px; bottom:22px; display:flex; gap:8px; }
+  .f1 .xp span { flex:1; text-align:center; background:rgba(255,255,255,.9); color:var(--ink); border-radius:14px; padding:10px 0; font-size:12px; font-weight:700; }
+  .f1 .qcard { position:absolute; left:18px; right:18px; top:86px; height:300px; background:#fff; color:var(--ink); border-radius:24px; padding:18px; box-shadow:0 12px 26px #0004; }
+  .f1 .qcard.back1 { top:78px; left:28px; right:28px; opacity:.6; } .f1 .qcard.back2 { top:70px; left:38px; right:38px; opacity:.35; }
+  .f1 .qcard small { color:var(--sub); font-size:11.5px; } .f1 .qcard h4 { margin:6px 0 10px; font-size:18px; line-height:1.35; }
+  .f1 .qcard .ans { background:#F4F6F5; border-radius:14px; padding:10px; font-size:13px; line-height:1.6; min-height:110px; }
+  .f1 .qcard .nav { position:absolute; left:18px; right:18px; bottom:16px; display:flex; justify-content:space-between; font-size:12.5px; color:var(--sub); } .f1 .qcard .nav b { color:var(--accent); }
+  .f1 .dots { position:absolute; left:0; right:0; top:396px; display:flex; justify-content:center; gap:6px; } .f1 .dots i { width:6px; height:6px; border-radius:50%; background:#fff8; } .f1 .dots i.on { background:#fff; width:16px; border-radius:3px; }
+
+  /* ── 5 Stoic식 루틴 ── */
+  .s1 { background:#111613; color:#E9EFEB; }
+  .s1 .t { padding:6px 18px 2px; font-size:13px; color:#8FA197; } .s1 .t b { display:block; font-size:24px; color:#fff; margin-top:2px; letter-spacing:-.02em; }
+  .s1 .rt { margin:12px 12px 0; border-radius:20px; padding:14px; }
+  .s1 .rt.am { background:linear-gradient(135deg,#F4C977,#E9905A); color:#2A1B0E; }
+  .s1 .rt.pm { background:linear-gradient(135deg,#3A4F8C,#22305E); color:#fff; }
+  .s1 .rt small { font-size:11.5px; opacity:.8; } .s1 .rt b { display:block; font-size:17px; margin:2px 0 8px; }
+  .s1 .rt .steps { display:flex; gap:6px; font-size:11px; } .s1 .rt .steps span { background:#ffffff44; border-radius:10px; padding:3px 8px; }
+  .s1 .rt.done { opacity:.55; }
+  .s1 .streak { margin:12px; background:#1C231F; border-radius:18px; padding:12px 14px; font-size:12.5px; color:#A9B8AF; }
+  .s1 .streak .wk { display:flex; justify-content:space-between; margin-top:8px; } .s1 .streak .wk span { width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-size:11px; background:#26302A; } .s1 .streak .wk .y { background:#3E8C70; color:#fff; }
+  .s1 .step { padding:10px 18px; } .s1 .prog { display:flex; gap:4px; padding:4px 18px; } .s1 .prog i { flex:1; height:3px; border-radius:2px; background:#2C3530; } .s1 .prog i.on { background:#7FD1B0; }
+  .s1 .step small { color:#7FD1B0; font-size:12px; font-weight:700; } .s1 .step h4 { margin:8px 0 6px; font-size:21px; line-height:1.35; color:#fff; }
+  .s1 .step p { margin:0; font-size:12.5px; color:#8FA197; line-height:1.55; }
+  .s1 .area { margin:16px 18px; min-height:150px; border-radius:16px; background:#1C231F; padding:12px; font-size:14px; line-height:1.7; color:#DDE6E0; }
+  .s1 .next { position:absolute; left:18px; right:18px; bottom:26px; height:48px; border-radius:24px; background:#7FD1B0; color:#0E2A20; display:grid; place-items:center; font-weight:800; font-size:14px; }
+
+  .verdict { margin-top:28px; } .verdict table { width:100%; border-collapse:collapse; background:#fff; border-radius:16px; overflow:hidden; font-size:13px; }
+  .verdict th, .verdict td { padding:10px 12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; line-height:1.5; }
+  .verdict th { background:#F3F6F4; color:var(--sub); font-size:12px; }
+  @media (max-width: 900px) { .why { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>일기 시안 5가지 — 레퍼런스별로 한 방향씩</h1>
+  <p class="lead">레퍼런스 앱의 <b>배치·흐름</b>만 따르고 그림·로고는 꿈틀 것으로 바꿨다. 다섯 방향은 서로 성격이 다르다 — 고르시면 그 방향으로 세부를 다듬는다(섞어도 된다: 예) 1번 달력 + 4번 쓰기).</p>
+  <nav class="toc"><a href="#o1">① 하루콩식 · 콩 달력</a><a href="#o2">② Day One식 · 타임라인 저널</a><a href="#o3">③ Apple 저널식 · 쓸거리 제안</a><a href="#o4">④ Finch식 · 캐릭터 방</a><a href="#o5">⑤ Stoic식 · 아침·저녁 루틴</a></nav>
+</header>
+
+<!-- ① 하루콩 -->
+<section class="opt" id="o1">
+  <div class="oh"><h2>① 콩 달력 — 몇 초 만에 남기기</h2><span class="ref">레퍼런스: 하루콩 · Daylio</span></div>
+  <div class="why"><div class="p"><b>좋은 점</b>기분 + 아이콘 탭 = 5초. 글을 안 써도 기록이 쌓이고, 달력 한 장에 한 달이 보인다.</div><div class="c"><b>아쉬운 점</b>글이 짧아져 "일기"보다 "기분 기록"에 가깝다. 캐릭터가 할 일이 적다.</div><div class="f"><b>꿈틀만의 것</b>활동 아이콘 첫 줄 = 오늘 끝낸 할 일(자동). 달력 칸 = 내 캐릭터 기분 얼굴.</div></div>
+  <div class="row">
+    <figure><div class="phone h1"><div class="notch"></div><div class="status"><span>9:41</span><span>▮</span></div>
+      <div class="top"><b>2026.10</b><span>‹ ›</span></div>
+      <div class="cal">
+        <span class="wd">일</span><span class="wd">월</span><span class="wd">화</span><span class="wd">수</span><span class="wd">목</span><span class="wd">금</span><span class="wd">토</span>
+        <span></span><span></span><span></span>
+        <span class="c">1<i class="bean" style="background:var(--m4)">😊</i></span><span class="c">2<i class="bean" style="background:var(--m3)">🙂</i></span><span class="c">3<i class="e"></i></span><span class="c">4<i class="bean" style="background:var(--m5)">😆</i></span>
+        <span class="c">5<i class="bean" style="background:var(--m2)">😕</i></span><span class="c">6<i class="bean" style="background:var(--m4)">😊</i></span><span class="c">7<i class="e"></i></span><span class="c">8<i class="bean" style="background:var(--m1)">😣</i></span><span class="c">9<i class="bean" style="background:var(--m3)">🙂</i></span><span class="c">10<i class="bean" style="background:var(--m2)">😕</i></span><span class="c">11<i class="bean" style="background:var(--m4)">😊</i></span>
+        <span class="c t">12<i class="e" style="border-color:var(--accent)"></i></span><span class="c">13<i class="e"></i></span><span class="c">14<i class="e"></i></span><span class="c">15<i class="e"></i></span><span class="c">16<i class="e"></i></span><span class="c">17<i class="e"></i></span><span class="c">18<i class="e"></i></span>
+      </div>
+      <div class="sum"><b>이번 달 기분</b><div class="bar"><span style="flex:1;background:var(--m1)"></span><span style="flex:2;background:var(--m2)"></span><span style="flex:2;background:var(--m3)"></span><span style="flex:4;background:var(--m4)"></span><span style="flex:1;background:var(--m5)"></span></div><span style="color:var(--sub)">좋은 날 자주 한 일 · 운동 · 친구 만나기</span></div>
+      <div class="tabbar"><span>달력</span><span>목록</span><span class="plus">+</span><span>통계</span><span>설정</span></div>
+    </div><figcaption><b>달력이 첫 화면.</b> 칸마다 기분 얼굴, 빈 날 점선. 가운데 큰 + 로 오늘 기록.</figcaption></figure>
+    <figure><div class="phone h1"><div class="notch"></div><div class="status"><span>9:41</span><span>▮</span></div>
+      <div class="q">오늘 하루 어땠어?</div>
+      <div class="moodbig"><i class="bean" style="background:var(--m1)">😣</i><i class="bean" style="background:var(--m2)">😕</i><i class="bean" style="background:var(--m3)">🙂</i><i class="bean on" style="background:var(--m4)">😊</i><i class="bean" style="background:var(--m5)">😆</i></div>
+      <div class="grp"><b>오늘 끝낸 일</b><div class="ico"><span class="on"><i>📝</i>퀴즈</span><span class="on"><i>🦷</i>교정 상담</span><span><i>📞</i>전화영어</span><span><i>🏃</i>운동</span><span><i>＋</i>추가</span></div></div>
+      <div class="grp"><b>함께</b><div class="ico"><span><i>👨‍👩‍👧</i>가족</span><span class="on"><i>🧑‍🤝‍🧑</i>친구</span><span><i>💼</i>동료</span><span><i>🧍</i>혼자</span><span><i>🐶</i>반려</span></div></div>
+      <div class="grp"><b>날씨·몸</b><div class="ico"><span><i>☀️</i>맑음</span><span><i>🌧</i>비</span><span class="on"><i>😴</i>피곤</span><span><i>💪</i>개운</span><span><i>🤒</i>아픔</span></div></div>
+      <div class="memo">한 줄 메모 (선택)</div>
+    </div><figcaption><b>기분 → 아이콘 탭 → 끝.</b> 첫 줄은 오늘 끝낸 할 일이 자동으로. 메모는 선택.</figcaption></figure>
+  </div>
+</section>
+
+<!-- ② Day One -->
+<section class="opt" id="o2">
+  <div class="oh"><h2>② 타임라인 저널 — 제대로 쓰는 일기</h2><span class="ref">레퍼런스: Day One</span></div>
+  <div class="why"><div class="p"><b>좋은 점</b>제목·사진·날씨·장소가 붙은 "진짜 일기". 오래 쓸수록 가치가 커진다. 글 많이 쓰는 사람에게 최고.</div><div class="c"><b>아쉬운 점</b>쓰기 부담이 크다. 매일 열게 만드는 힘이 약하고 기능이 많아진다.</div><div class="f"><b>꿈틀만의 것</b>메타 줄에 날씨·장소 대신 "끝낸 할 일 3 · 일정 2". 캐릭터는 1년 전 오늘을 알려 주는 역할.</div></div>
+  <div class="row">
+    <figure><div class="phone d1"><div class="notch"></div><div class="status" style="color:#fff"><span>9:41</span><span>▮</span></div>
+      <div class="hd"><b>일기</b><small>9편 · 이번 달</small><div class="tabs"><span class="on">목록</span><span>달력</span><span>사진</span><span>1년 전 오늘</span></div></div>
+      <div class="ent"><div class="date"><b>12</b><small>일요일</small></div><div><p><b>미뤄 둔 교정 상담</b>생각보다 기간이 길어서 놀랐지만 후련하다…</p><div class="meta">오후 9:12 · 😊 · ✓ 할 일 2 · 📅 일정 1</div></div><div class="thumb"></div></div>
+      <div class="ent"><div class="date"><b>11</b><small>토요일</small></div><div><p><b>오랜만의 저녁</b>친구랑 이야기하다 보니 시간 가는 줄 몰랐다…</p><div class="meta">오후 10:02 · 😊 · ✓ 할 일 3</div></div></div>
+      <div class="ent"><div class="date"><b>10</b><small>금요일</small></div><div><p><b>잠 못 잔 날</b>퀴즈 준비하느라 새벽까지…</p><div class="meta">오후 11:40 · 😕 · ✓ 할 일 1</div></div><div class="thumb" style="background:linear-gradient(135deg,#C9D6E8,#7C93B8)"></div></div>
+      <div class="fab">+</div>
+    </div><figcaption><b>날짜별 글 목록.</b> 제목 · 두 줄 · 사진 썸네일 · 메타(기분 · 그날 끝낸 할 일 수).</figcaption></figure>
+    <figure><div class="phone d1"><div class="notch"></div><div class="status"><span>9:41</span><span>▮</span></div>
+      <div class="ed"><div class="bar"><span>‹ 일기</span><b>10월 12일</b><span>완료</span></div>
+      <div class="mt"><span>😊 좋았어</span><span>✓ 퀴즈2 · 교정 상담</span><span>📅 전화영어</span></div>
+      <h3>미뤄 둔 교정 상담</h3>
+      <div class="body">교정 상담 받고 왔다. 생각보다 기간이 길어서 좀 놀랐지만, 그래도 미뤄 왔던 걸 드디어 해서 후련하다. 저녁엔 전화영어까지 끝냈다.</div>
+      <div class="photo"></div>
+      <div class="tb"><span>Aa</span><span>📷</span><span>😊</span><span>✓</span><span>🔒</span></div></div>
+    </div><figcaption><b>글쓰기 편집기.</b> 위 메타 줄은 자동(기분 · 끝낸 할 일 · 일정). 제목·본문·사진, 아래 도구 막대.</figcaption></figure>
+  </div>
+</section>
+
+<!-- ③ Apple 저널 -->
+<section class="opt" id="o3">
+  <div class="oh"><h2>③ 쓸거리 제안 — 앱이 먼저 꺼내 준다</h2><span class="ref">레퍼런스: Apple 저널</span></div>
+  <div class="why"><div class="p"><b>좋은 점</b>"무엇을 쓸지"를 앱이 먼저 보여 줘서 시작이 쉽다. 부드러운 카드 화면이 편안하다.</div><div class="c"><b>아쉬운 점</b>제안이 매번 비슷해지면 무뎌진다. 기분 기록은 약하다.</div><div class="f"><b>꿈틀만의 것</b>제안 카드 = 오늘 끝낸 할 일 묶음 · 오늘 일정 · 이번 주 목표 · 캐릭터 질문.</div></div>
+  <div class="row">
+    <figure><div class="phone a1"><div class="notch"></div><div class="status"><span>9:41</span><span>▮</span></div>
+      <div class="t">일기</div>
+      <div class="card"><small>오늘 · 오후 9:12</small><p>교정 상담 받고 왔다. 생각보다 길어서 놀랐지만 후련하다.</p><div class="sug"><span style="background:#E8F3EE"></span><span style="background:#FCE9DE"></span></div></div>
+      <div class="card"><small>어제 · 오후 10:02</small><p>오랜만에 친구랑 저녁. 쌓였던 게 좀 풀렸다.</p></div>
+      <div class="card"><small>10월 10일</small><p>잠을 못 잔 날. 퀴즈 준비로 새벽까지.</p></div>
+      <div class="bigplus">＋</div>
+    </div><figcaption><b>부드러운 색 바탕 위 카드.</b> 큰 + 하나(Apple 저널의 단점이던 작은 +를 키움).</figcaption></figure>
+    <figure><div class="phone a1"><div class="notch"></div><div class="status"><span>9:41</span><span>▮</span></div>
+      <div class="sheet"><div class="grab"></div><h4>무엇을 남길까?</h4>
+        <div class="lbl">오늘</div>
+        <div class="sc" style="background:#E8F3EE"><b>✓ 오늘 끝낸 일 2개</b>기업경제학 퀴즈2 · 치아 교정 상담</div>
+        <div class="sc" style="background:#FCE9DE"><b>📅 오늘 일정</b>전화영어 오후 9:00</div>
+        <div class="sc" style="background:#EEF0FB"><b>🎯 이번 주 목표</b>운동 3번 중 2번 했어요</div>
+        <div class="lbl">돌아보기 질문</div>
+        <div class="pr">오늘 나를 웃게 한 건?</div><div class="pr">요즘 마음에 걸리는 게 있다면?</div>
+        <div class="pr" style="background:#fff;border:1.5px dashed #D8CFF0;text-align:center;color:#8A63D2">빈 일기로 쓰기</div>
+      </div>
+    </div><figcaption><b>+ 누르면 쓸거리 제안.</b> 카드를 고르면 그 내용이 일기 첫머리에 들어가고 바로 쓰기.</figcaption></figure>
+  </div>
+</section>
+
+<!-- ④ Finch -->
+<section class="opt" id="o4">
+  <div class="oh"><h2>④ 캐릭터 방 — 캐릭터에게 하루를 들려주기</h2><span class="ref">레퍼런스: Finch</span></div>
+  <div class="why"><div class="p"><b>좋은 점</b>장면 속 캐릭터가 묻고 반응해서 "숙제"가 아니라 "놀이". 꿈틀 성장 루프와 가장 잘 맞는다.</div><div class="c"><b>아쉬운 점</b>지난 일기를 읽고 찾는 기능은 약하다(별도 목록 필요). 장면 그림 비용.</div><div class="f"><b>꿈틀만의 것</b>내 캐릭터·내 장면 그대로. 질문 카드는 3장(넘기며 한 줄씩), 다 쓰면 캐릭터가 깡충.</div></div>
+  <div class="row">
+    <figure><div class="phone f1"><div class="scene"></div><div class="notch"></div><div class="status"><span>9:41</span><span>▮</span></div>
+      <div class="ask glass"><b>오늘 기분은 어때?</b><div class="row5"><i class="bean" style="background:var(--m1)">😣</i><i class="bean" style="background:var(--m2)">😕</i><i class="bean" style="background:var(--m3)">🙂</i><i class="bean" style="background:var(--m4)">😊</i><i class="bean" style="background:var(--m5)">😆</i></div></div>
+      <div class="bub">오늘 이야기 들려줘!</div>
+      <div class="pet buddy"><img src="../../../packages/schema/art3d/frog-1@768.webp" alt=""><img src="../../../packages/schema/art3d/frog-1-face-happy@768.webp" alt=""></div>
+      <div class="xp"><span>📖 지난 일기</span><span>🗓 기분 달력</span></div>
+    </div><figcaption><b>일기 = 캐릭터의 방.</b> 열면 장면 속 캐릭터가 기분을 묻는다. 아래 지난 일기·달력.</figcaption></figure>
+    <figure><div class="phone f1"><div class="scene"></div><div class="notch"></div><div class="status"><span>9:41</span><span>▮</span></div>
+      <div class="qcard back2"></div><div class="qcard back1"></div>
+      <div class="qcard"><small>2 / 3 · 😊 좋았어</small><h4>오늘 제일 기억에 남는 순간은?</h4><div class="ans">미뤄 왔던 교정 상담을 드디어 받은 거. 후련했다.</div><div class="nav"><span>건너뛰기</span><b>다음 ›</b></div></div>
+      <div class="dots"><i></i><i class="on"></i><i></i></div>
+      <div class="pet buddy" style="width:110px;height:110px;bottom:40px"><img src="../../../packages/schema/art3d/frog-1@768.webp" alt=""><img src="../../../packages/schema/art3d/frog-1-face-happy@768.webp" alt=""></div>
+    </div><figcaption><b>질문 카드 3장.</b> 한 장에 한 줄씩, 넘기면 다음 질문. 다 쓰면 카드들이 일기 한 편으로 합쳐지고 캐릭터가 반응.</figcaption></figure>
+  </div>
+</section>
+
+<!-- ⑤ Stoic -->
+<section class="opt" id="o5">
+  <div class="oh"><h2>⑤ 아침·저녁 루틴 — 할 일 앱다운 일기</h2><span class="ref">레퍼런스: Stoic</span></div>
+  <div class="why"><div class="p"><b>좋은 점</b>할 일 앱과 딱 맞는다 — 아침엔 오늘 할 일 다짐, 저녁엔 끝낸 일 돌아보기. 하루 두 번 2분.</div><div class="c"><b>아쉬운 점</b>틀이 정해져 자유로운 감정 일기에는 딱딱하다. 하루 두 번은 부담일 수 있다.</div><div class="f"><b>꿈틀만의 것</b>아침 = 오늘 할 일 3개 중 제일 중요한 것 고르기 · 저녁 = 끝낸 할 일 + 기분 + 한 줄. 끝내면 XP.</div></div>
+  <div class="row">
+    <figure><div class="phone s1"><div class="notch"></div><div class="status"><span>9:41</span><span>▮</span></div>
+      <div class="t">10월 12일 일요일<b>좋은 저녁이에요</b></div>
+      <div class="rt am done"><small>아침 · 2분 · 끝냄 ✓</small><b>오늘을 준비해요</b><div class="steps"><span>기분</span><span>제일 중요한 일</span><span>다짐 한 줄</span></div></div>
+      <div class="rt pm"><small>저녁 · 2분</small><b>오늘을 돌아봐요</b><div class="steps"><span>끝낸 일 확인</span><span>기분</span><span>좋았던 것</span><span>내일 하나</span></div></div>
+      <div class="streak">이번 주<div class="wk"><span class="y">월</span><span class="y">화</span><span>수</span><span class="y">목</span><span class="y">금</span><span class="y">토</span><span>일</span></div></div>
+    </div><figcaption><b>오늘 탭에 루틴 두 개.</b> 아침 다짐 · 저녁 돌아보기, 각각 2분짜리 단계.</figcaption></figure>
+    <figure><div class="phone s1"><div class="notch"></div><div class="status"><span>9:41</span><span>▮</span></div>
+      <div class="prog"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+      <div class="step"><small>저녁 돌아보기 · 3 / 4</small><h4>오늘 좋았던 건 뭐였어요?</h4><p>오늘 끝낸 일: 기업경제학 퀴즈2 · 치아 교정 상담</p></div>
+      <div class="area">미뤄 왔던 교정 상담을 드디어 받은 것. 생각보다 길지만 후련했다.</div>
+      <div class="next">다음</div>
+    </div><figcaption><b>한 화면에 질문 하나.</b> 위 진행 막대, 끝낸 할 일이 참고로 보인다. 다 하면 일기 한 편 + XP.</figcaption></figure>
+  </div>
+</section>
+
+<div class="verdict">
+  <h2 style="font-size:18px;margin:0 0 10px">한눈에 비교</h2>
+  <table>
+    <tr><th>방향</th><th>한 번 쓰는 시간</th><th>글의 깊이</th><th>매일 열게 하는 힘</th><th>꿈틀(할 일·캐릭터)과 맞음</th><th>만드는 양</th></tr>
+    <tr><td><b>① 콩 달력</b></td><td>5초</td><td>얕음(메모)</td><td>높음</td><td>중간(끝낸 일 아이콘)</td><td>적음</td></tr>
+    <tr><td><b>② 타임라인 저널</b></td><td>3~10분</td><td>깊음</td><td>낮음</td><td>낮음</td><td>많음(사진·편집기)</td></tr>
+    <tr><td><b>③ 쓸거리 제안</b></td><td>1~3분</td><td>중간</td><td>중간</td><td>높음(할 일·일정·목표 카드)</td><td>중간</td></tr>
+    <tr><td><b>④ 캐릭터 방</b></td><td>1~2분</td><td>중간</td><td>높음</td><td>가장 높음(캐릭터·장면)</td><td>중간(장면 재사용)</td></tr>
+    <tr><td><b>⑤ 아침·저녁 루틴</b></td><td>2분 × 2</td><td>중간</td><td>높음(습관)</td><td>높음(할 일 중심)</td><td>중간</td></tr>
+  </table>
+  <p class="lead" style="margin-top:12px">제 추천은 <b>④ 캐릭터 방을 바탕으로 ①의 기분 달력을 기록 화면으로</b> 섞는 것입니다(꿈틀다움 + 빠른 기록 + 한 달이 한눈에). 다만 고르시는 방향으로 다듬겠습니다.</p>
+</div>
+</div>
+</body>
+</html>
