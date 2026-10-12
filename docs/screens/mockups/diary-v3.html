@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>일기 v3 시안 — 꼭 필요한 것만</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root {
+    --bg: #EEF1EE; --card: #FFFFFF; --ink: #1D2622; --sub: #6B766F; --faint: #A3ADA7; --line: #E3E8E4;
+    --accent: #12715E; --accent-soft: #E1F1EC; --me: #E4F2EC;
+    --m1: #8797AE; --m2: #8EC1D6; --m3: #F2B84B; --m4: #62BF7E; --m5: #F08A5D;
+    --art: '../../../packages/schema/art3d/';
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Pretendard, -apple-system, sans-serif; background: #DDE3DF; color: var(--ink); }
+  header.page { max-width: 1280px; margin: 0 auto; padding: 36px 24px 8px; }
+  header.page h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.02em; }
+  header.page p { margin: 0; color: var(--sub); font-size: 15px; line-height: 1.6; }
+  .cuts { max-width: 1280px; margin: 18px auto 0; padding: 0 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cuts section { background: #fff; border-radius: 16px; padding: 16px 18px; }
+  .cuts h2 { margin: 0 0 8px; font-size: 15px; }
+  .cuts ul { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.75; color: #3B4640; }
+  .cuts .keep h2 { color: var(--accent); } .cuts .drop h2 { color: #B5523B; }
+  .cuts .drop li { text-decoration-color: #B5523B88; }
+  .row { max-width: 1280px; margin: 0 auto; padding: 22px 24px 48px; display: flex; flex-wrap: wrap; gap: 28px; }
+  figure { margin: 0; }
+  figcaption { margin-top: 12px; width: 300px; font-size: 13px; line-height: 1.55; color: #3B4640; }
+  figcaption strong { display: block; font-size: 14px; color: var(--ink); margin-bottom: 2px; }
+  figcaption b { color: var(--ink); }
+
+  /* 휴대폰 */
+  .phone { width: 300px; height: 650px; border-radius: 44px; background: var(--bg); border: 9px solid #1B1F1D; position: relative; overflow: hidden; box-shadow: 0 18px 40px #0003; }
+  .notch { position: absolute; top: 8px; left: 50%; translate: -50% 0; width: 92px; height: 26px; background: #1B1F1D; border-radius: 16px; z-index: 5; }
+  .status { height: 40px; display: flex; align-items: end; justify-content: space-between; padding: 0 22px 4px; font-size: 12.5px; font-weight: 600; }
+  .nav { height: 46px; display: flex; align-items: center; padding: 0 10px; gap: 8px; }
+  .round { width: 34px; height: 34px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: 15px; color: var(--ink); box-shadow: 0 1px 3px #0001; }
+  .nav .mid { flex: 1; text-align: center; line-height: 1.15; }
+  .nav .mid b { font-size: 14.5px; } .nav .mid small { display: block; font-size: 11px; color: var(--sub); margin-top: 2px; }
+  .saved { color: var(--accent) !important; }
+
+  /* 캐릭터가 묻는 한 줄 */
+  .ask { display: flex; align-items: flex-end; gap: 8px; padding: 6px 16px 0; }
+  .buddy { width: 54px; height: 54px; position: relative; flex: none; }
+  .buddy img { position: absolute; left: -35%; top: -45%; width: 170%; height: 170%; object-fit: contain; }
+  .bubble { background: #fff; border-radius: 16px 16px 16px 5px; padding: 9px 12px; font-size: 13.5px; line-height: 1.4; box-shadow: 0 1px 3px #0001; }
+  .bubble .again { display: inline-block; margin-left: 6px; font-size: 11.5px; color: var(--accent); font-weight: 600; }
+
+  /* 기분 */
+  .moods { display: flex; justify-content: space-between; padding: 14px 18px 4px; }
+  .mood { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10.5px; color: var(--sub); width: 48px; }
+  .mood i { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 19px; opacity: .55; }
+  .mood.on i { opacity: 1; outline: 3px solid #fff; box-shadow: 0 0 0 5px var(--accent); }
+  .mood.on { color: var(--ink); font-weight: 700; }
+
+  /* 글 */
+  .paper { margin: 12px 14px 0; background: var(--card); border-radius: 20px; padding: 16px; min-height: 250px; font-size: 15px; line-height: 1.75; }
+  .paper .ph { color: var(--faint); }
+  .paper .caret { display: inline-block; width: 1.5px; height: 18px; background: var(--accent); vertical-align: -3px; margin-left: 1px; }
+  .hint { margin: 8px 18px 0; font-size: 11.5px; color: var(--faint); display: flex; justify-content: space-between; }
+
+  /* 키보드 */
+  .kbbar { position: absolute; left: 0; right: 0; bottom: 214px; height: 44px; background: #F7F8F7; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 6px; padding: 0 10px; font-size: 12.5px; }
+  .kbbar .chip { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 5px 10px; }
+  .kbbar .done { margin-left: auto; color: var(--accent); font-weight: 700; padding: 6px 8px; }
+  .kb { position: absolute; left: 0; right: 0; bottom: 0; height: 214px; background: #D1D5DB; display: grid; grid-template-rows: repeat(4, 1fr); gap: 7px; padding: 8px 4px 26px; }
+  .kb div { display: flex; gap: 4px; justify-content: center; }
+  .kb span { flex: 0 0 22px; height: 36px; background: #fff; border-radius: 5px; box-shadow: 0 1px 0 #0003; }
+
+  /* 한마디 */
+  .entry { margin: 8px 14px 0; background: var(--card); border-radius: 20px; padding: 14px 16px; font-size: 14px; line-height: 1.7; }
+  .entry .top { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sub); margin-bottom: 6px; }
+  .entry .top i { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 12px; }
+  .reply { display: flex; align-items: flex-end; gap: 8px; padding: 12px 14px 0; }
+  .reply .bubble { font-size: 13.5px; }
+  .actions { display: flex; gap: 8px; padding: 10px 16px 0 76px; }
+  .btn { border-radius: 16px; padding: 7px 12px; font-size: 12.5px; font-weight: 600; background: #fff; border: 1px solid var(--line); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .me { margin: 10px 14px 0 auto; max-width: 200px; background: var(--me); border-radius: 16px 16px 5px 16px; padding: 8px 12px; font-size: 13.5px; }
+  .replyin { position: absolute; left: 12px; right: 12px; bottom: 26px; height: 42px; border-radius: 21px; background: #fff; border: 1px solid var(--line); display: flex; align-items: center; padding: 0 6px 0 14px; font-size: 13px; color: var(--faint); }
+  .replyin b { margin-left: auto; width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: 14px; }
+
+  /* 달력 */
+  .month { display: flex; align-items: center; justify-content: space-between; padding: 6px 18px 4px; }
+  .month b { font-size: 20px; letter-spacing: -0.02em; } .month span { color: var(--sub); font-size: 15px; letter-spacing: 8px; }
+  .cal { margin: 4px 12px 0; background: var(--card); border-radius: 20px; padding: 10px 6px; display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 6px; }
+  .cal .wd { text-align: center; font-size: 10px; color: var(--faint); }
+  .cal .d { height: 40px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 9.5px; color: var(--sub); }
+  .cal .d i { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11px; }
+  .cal .d .none { background: transparent; border: 1.5px dashed #CBD3CE; }
+  .cal .d.today { color: var(--accent); font-weight: 800; }
+  .cal .d.fut { opacity: .35; }
+  .list { margin: 10px 12px 0; display: flex; flex-direction: column; gap: 8px; }
+  .item { background: var(--card); border-radius: 16px; padding: 10px 12px; display: flex; gap: 10px; align-items: center; }
+  .item i { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 14px; flex: none; }
+  .item div { min-width: 0; } .item b { font-size: 12px; color: var(--sub); font-weight: 600; }
+  .item p { margin: 1px 0 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .lock { margin-left: auto; color: var(--faint); font-size: 12px; }
+
+  /* 시트 */
+  .dim { position: absolute; inset: 0; background: #0005; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 24px 24px 0 0; padding: 10px 16px 30px; }
+  .grab { width: 38px; height: 5px; border-radius: 3px; background: #D5DBD7; margin: 0 auto 12px; }
+  .opt { display: flex; align-items: center; justify-content: space-between; padding: 13px 4px; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+  .opt small { display: block; color: var(--sub); font-size: 11.5px; margin-top: 2px; }
+  .tog { width: 44px; height: 26px; border-radius: 13px; background: #D5DBD7; position: relative; flex: none; }
+  .tog::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0003; }
+  .tog.on { background: var(--accent); } .tog.on::after { left: 21px; }
+  .opt.danger { color: #C0452F; border: 0; }
+
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 2px 7px; margin-bottom: 6px; }
+  .decide { max-width: 1280px; margin: 0 auto 60px; padding: 0 24px; }
+  .decide table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 16px; overflow: hidden; font-size: 13.5px; }
+  .decide th, .decide td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.55; }
+  .decide th { background: #F3F6F4; font-size: 12.5px; color: var(--sub); }
+  @media (max-width: 720px) { .cuts { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="page">
+  <h1>일기 v3 — 꼭 필요한 것만 (휴대폰 시안)</h1>
+  <p>한 화면에서 <b>기분 고르고 → 쓰고 → 끝</b>. 저장 버튼 없이 저절로 저장되고, 캐릭터는 묻는 한 줄과 다 쓴 뒤 한마디만 한다.<br>
+  대화로 쓰기·AI 일기 정리·하루 여러 편·제목/태그·통계는 뺀다. 데이터(일기 글·기분)는 그대로라 지난 일기는 다 그대로 보인다.</p>
+</header>
+
+<div class="cuts">
+  <section class="keep">
+    <h2>남기는 것</h2>
+    <ul>
+      <li>기분 5개(한 번 누르기)</li>
+      <li>글 한 칸 — 쓰는 대로 자동 저장(저장 버튼 없음)</li>
+      <li>캐릭터가 묻는 한 줄(막히면 <b>다른 질문</b>)</li>
+      <li>다 쓰면 캐릭터 한마디 1개 + 답장 한 번(원하면)</li>
+      <li>기록 = 기분 달력 + 이번 달 목록(첫 줄 미리보기)</li>
+      <li>나만 보기(이 날 일기는 AI에 안 보냄)</li>
+    </ul>
+  </section>
+  <section class="drop">
+    <h2>빼는 것</h2>
+    <ul>
+      <li>캐릭터 대화로 쓰기 · 20초 뒤 질문 · 기분 뒤 동의 카드</li>
+      <li>AI 일기 정리(제목·태그 만들기) · 다시 정리 · 대화 그대로 저장</li>
+      <li>하루 여러 편(시각 머리) — 같은 날은 이어 쓰기</li>
+      <li>그냥 쓰기/대화로 쓰기 모드 전환</li>
+      <li>이번 달 기분 분포 · 이번 주 돌아보기 · 좌우로 밀어 날짜 넘기기</li>
+      <li>그날 끝낸 할 일 목록 · 처음부터 다시 묻기 · 검색(다음 버전)</li>
+    </ul>
+  </section>
+</div>
+
+<div class="row">
+  <!-- 1 오늘, 아직 안 씀 -->
+  <figure>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="nav"><div class="round">‹</div><div class="mid"><b>10월 12일 일요일</b><small>오늘 일기</small></div><div class="round">▦</div><div class="round">⋯</div></div>
+      <div class="ask">
+        <div class="buddy"><img src="../../../packages/schema/art3d/frog-1@384.webp" alt=""><img src="../../../packages/schema/art3d/frog-1-face-happy@384.webp" alt=""></div>
+        <div class="bubble">오늘 하루 어땠어?<span class="again">다른 질문 ↻</span></div>
+      </div>
+      <div class="moods">
+        <div class="mood"><i style="background:var(--m1)">😣</i>힘들었어</div>
+        <div class="mood"><i style="background:var(--m2)">😕</i>별로</div>
+        <div class="mood"><i style="background:var(--m3)">🙂</i>그럭저럭</div>
+        <div class="mood"><i style="background:var(--m4)">😊</i>좋았어</div>
+        <div class="mood"><i style="background:var(--m5)">😆</i>최고</div>
+      </div>
+      <div class="paper"><span class="ph">생각나는 대로 적어 줘. 한 줄도 괜찮아.</span></div>
+      <div class="hint"><span>쓰는 대로 저장돼요</span><span>🔓 나누기</span></div>
+    </div>
+    <figcaption><strong>① 오늘 — 열자마자 쓰기</strong>머리 한 줄(날짜·상태) · 캐릭터가 묻는 한 줄 · 기분 5개 · 글 칸. 첫 화면에 다 보이고 스크롤 없음. 막히면 <b>다른 질문</b>(정해진 질문 목록, AI 안 씀).</figcaption>
+  </figure>
+
+  <!-- 2 쓰는 중 + 키보드 -->
+  <figure>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="nav"><div class="round">‹</div><div class="mid"><b>10월 12일 일요일</b><small class="saved">저장됨 ✓</small></div><div class="round">▦</div><div class="round">⋯</div></div>
+      <div class="moods" style="padding-top:2px">
+        <div class="mood"><i style="background:var(--m1)">😣</i></div>
+        <div class="mood"><i style="background:var(--m2)">😕</i></div>
+        <div class="mood"><i style="background:var(--m3)">🙂</i></div>
+        <div class="mood on"><i style="background:var(--m4)">😊</i></div>
+        <div class="mood"><i style="background:var(--m5)">😆</i></div>
+      </div>
+      <div class="paper" style="min-height:150px;font-size:14.5px">오늘은 오랜만에 일찍 일어나서 산책을 했다. 공기가 차가웠는데 머리가 맑아지는 느낌. 오후엔 기업경제학 퀴즈를 봤는데 생각보다 괜찮았다<span class="caret"></span></div>
+      <div class="kbbar"><span class="chip">↻ 다른 질문</span><span class="chip">🔒 나만 보기</span><span class="done">완료</span></div>
+      <div class="kb"><div><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><div><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><div><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><div><span style="flex-basis:60px"></span><span style="flex-basis:150px"></span><span style="flex-basis:60px"></span></div></div>
+    </div>
+    <figcaption><strong>② 쓰는 중</strong>기분은 위에 작게 남고 글 칸이 화면을 채운다. 키보드 위 막대 하나: 다른 질문 · 나만 보기 · <b>완료</b>(키보드 내림). 쓰는 대로 저장 — 머리에 <b>저장됨 ✓</b>.</figcaption>
+  </figure>
+
+  <!-- 3 다 쓰고 한마디 -->
+  <figure>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="nav"><div class="round">‹</div><div class="mid"><b>10월 12일 일요일</b><small class="saved">저장됨 ✓</small></div><div class="round">▦</div><div class="round">⋯</div></div>
+      <div class="entry">
+        <div class="top"><i style="background:var(--m4)">😊</i>좋았어 · 오후 9:12</div>
+        오늘은 오랜만에 일찍 일어나서 산책을 했다. 공기가 차가웠는데 머리가 맑아지는 느낌. 오후엔 기업경제학 퀴즈를 봤는데 생각보다 괜찮았다.
+      </div>
+      <div class="reply">
+        <div class="buddy" style="width:46px;height:46px"><img src="../../../packages/schema/art3d/frog-1@384.webp" alt=""><img src="../../../packages/schema/art3d/frog-1-face-happy@384.webp" alt=""></div>
+        <div class="bubble">아침 산책으로 머리가 맑아졌구나. 퀴즈도 생각보다 괜찮았다니 다행이야!</div>
+      </div>
+      <div class="actions"><span class="btn">답장하기</span><span class="btn">이어 쓰기</span></div>
+      <div class="me">고마워, 내일도 일찍 일어나 볼래</div>
+      <div class="reply" style="padding-top:8px">
+        <div class="buddy" style="width:46px;height:46px"><img src="../../../packages/schema/art3d/frog-1@384.webp" alt=""><img src="../../../packages/schema/art3d/frog-1-face-happy@384.webp" alt=""></div>
+        <div class="bubble">좋아, 내일 아침에 같이 확인해 보자.</div>
+      </div>
+      <div class="replyin">느리에게 답장…<b>↑</b></div>
+    </div>
+    <figcaption><strong>③ 다 쓰고 나서 — 캐릭터 한마디</strong><b>완료</b>를 누르면 일기 카드 아래 캐릭터 한마디가 하나 온다(일기에 있는 말만 짚기). 답장은 원할 때만, 짧게 몇 번. 일기 글은 내가 쓴 그대로 — AI가 고치지 않는다.</figcaption>
+  </figure>
+
+  <!-- 4 기록 -->
+  <figure>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="nav"><div class="round">‹</div><div class="mid"><b>기록</b></div><div class="round" style="visibility:hidden"></div></div>
+      <div class="month"><b>2026년 10월</b><span>‹›</span></div>
+      <div class="cal">
+        <span class="wd">일</span><span class="wd">월</span><span class="wd">화</span><span class="wd">수</span><span class="wd">목</span><span class="wd">금</span><span class="wd">토</span>
+        <span class="d"></span><span class="d"></span><span class="d"></span>
+        <span class="d">1<i style="background:var(--m4)">😊</i></span><span class="d">2<i style="background:var(--m3)">🙂</i></span><span class="d">3<i class="none"></i></span><span class="d">4<i style="background:var(--m5)">😆</i></span>
+        <span class="d">5<i style="background:var(--m2)">😕</i></span><span class="d">6<i style="background:var(--m4)">😊</i></span><span class="d">7<i class="none"></i></span><span class="d">8<i style="background:var(--m1)">😣</i></span><span class="d">9<i style="background:var(--m3)">🙂</i></span><span class="d">10<i style="background:var(--m4)">😊</i></span><span class="d">11<i class="none"></i></span>
+        <span class="d today">12<i style="background:var(--m4)">😊</i></span><span class="d fut">13<i class="none"></i></span><span class="d fut">14<i class="none"></i></span><span class="d fut">15<i class="none"></i></span><span class="d fut">16<i class="none"></i></span><span class="d fut">17<i class="none"></i></span><span class="d fut">18<i class="none"></i></span>
+      </div>
+      <div class="list">
+        <div class="item"><i style="background:var(--m4)">😊</i><div><b>10월 12일 일</b><p>오늘은 오랜만에 일찍 일어나서 산책을 했다…</p></div></div>
+        <div class="item"><i style="background:var(--m4)">😊</i><div><b>10월 10일 금</b><p>발표 끝! 생각보다 질문이 많았지만…</p></div></div>
+        <div class="item"><i style="background:var(--m3)">🙂</i><div><b>10월 9일 목</b><p>나만 보기</p></div><span class="lock">🔒</span></div>
+      </div>
+    </div>
+    <figcaption><strong>④ 기록 — 달력 하나 + 목록</strong>머리 ▦ 단추. 칸 = 그날 기분 얼굴, 안 쓴 날 = 점선. 아래 이번 달 일기 목록(첫 줄 미리보기). 누르면 그날로. 분포 그래프·주간 카드·연속 기록 없음.</figcaption>
+  </figure>
+
+  <!-- 5 ⋯ 시트 -->
+  <figure>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="nav"><div class="round">‹</div><div class="mid"><b>10월 12일 일요일</b><small class="saved">저장됨 ✓</small></div><div class="round">▦</div><div class="round">⋯</div></div>
+      <div class="paper" style="min-height:200px;opacity:.6">오늘은 오랜만에 일찍 일어나서 산책을 했다…</div>
+      <div class="dim"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="opt"><div>나만 보기<small>이 날 일기는 AI에 보내지 않아요</small></div><span class="tog"></span></div>
+        <div class="opt"><div>캐릭터 한마디 받기<small>다 쓰면 느리가 읽고 한마디 해요</small></div><span class="tog on"></span></div>
+        <div class="opt danger">이 날 일기 지우기</div>
+      </div>
+    </div>
+    <figcaption><strong>⑤ ⋯ — 세 줄뿐</strong>나만 보기(이 날) · 캐릭터 한마디 받기(전체, 처음 켤 때 AI 안내 한 번 = 동의) · 지우기. 쓰기 방식·처음부터 다시 등은 없다.</figcaption>
+  </figure>
+</div>
+
+<div class="decide">
+  <h2 style="font-size:17px;margin:0 0 10px">정해 주실 것</h2>
+  <table>
+    <tr><th style="width:36px">#</th><th>질문</th><th>추천</th><th>이유</th></tr>
+    <tr><td>①</td><td>캐릭터와의 대화를 어디까지 남길까?</td><td><b>다 쓴 뒤 한마디 + 원하면 짧은 답장</b>(그날 몇 번만)</td><td>대화로 일기 쓰기는 손이 많이 가고 AI를 기다려야 했다. 쓰기는 혼자, 캐릭터는 읽고 반응하는 친구 역할이 가볍다.</td></tr>
+    <tr><td>②</td><td>AI가 일기를 정리(제목·태그·문장 다듬기)할까?</td><td><b>안 한다</b> — 내가 쓴 글 그대로</td><td>정리 기다림(약 20~30초)·실패·한도가 가장 큰 불편이었다. 일기는 내 말이 남는 게 가치.</td></tr>
+    <tr><td>③</td><td>하루 여러 편은?</td><td><b>하루 한 편, 다시 열면 이어 쓰기</b></td><td>편마다 제목·시각 머리가 생겨 복잡했다. 기존 여러 편 일기는 글 그대로 보인다(데이터 변경 없음).</td></tr>
+    <tr><td>④</td><td>데스크톱 일기도 같이 바꿀까?</td><td><b>같이</b> — 같은 흐름(기분 · 글 · 한마디 · 기록)</td><td>두 앱이 같은 일기를 다른 방식으로 쓰면 헷갈린다.</td></tr>
+  </table>
+</div>
+</body>
+</html>
