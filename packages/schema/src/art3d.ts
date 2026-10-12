@@ -249,7 +249,8 @@ export function mobileTier(file: string): ArtTier {
   if (/^(seed|band|decor)/.test(key)) return 'base'
   if (/-spin$/.test(key)) return 'pack'
   const acc = /^[a-z]+-\d-acc-(.+)$/.exec(key)
-  if (acc) return px === BIG_PX ? 'pack' : ACC_HATS.has(acc[1]) ? 'base' : 'none'
+  // 옷장·도감 칸 그림(견본 ICON_BASE의 160)은 모든 옷을 앱 안에 — 모자만 넣었더니 손·목·등 칸이 비었다(2026-10-12, 사용자 "옷장·도감에 아무것도 안 뜬다")
+  if (acc) return px === BIG_PX ? 'pack' : ACC_HATS.has(acc[1]) || (px === SMALL_PX && key.startsWith(`${ICON_BASE.sp}-${ICON_BASE.st}-acc-`)) ? 'base' : 'none'
   const st = Number(/^[a-z]+-(\d)/.exec(key)?.[1] ?? 0)
   if (px === SMALL_PX) return 'base'
   if (px === MID_PX) return 'pack'

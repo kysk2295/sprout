@@ -283,7 +283,8 @@ def tier(fn):
     if re.match(r'^(seed|band|decor)', key): return 'base'
     if key.endswith('-spin'): return 'pack'
     a = re.match(r'^[a-z]+-\d-acc-(.+)$', key)
-    if a: return 'pack' if px == 768 else ('base' if a.group(1) in HATS else 'none')
+    # 옷장·도감 칸 그림(견본 bee-3의 160)은 모든 옷을 앱 안에(art3d.ts ICON_BASE · 2026-10-12)
+    if a: return 'pack' if px == 768 else ('base' if a.group(1) in HATS or (px == 160 and key.startswith('bee-3-acc-')) else 'none')
     st = int(re.match(r'^[a-z]+-(\d)', key).group(1))
     if px == 160: return 'base'
     if px == 384: return 'pack'

@@ -9,7 +9,6 @@ import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWind
 import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
 import { SceneBand } from '../growth/art/Scene3D'
 import { useMyBandScene } from '../growth/home/glass'
-import { AssistantButton } from '../assistant/AssistantSheet'
 import { syncNow } from '../data/auth'
 import { useFolders, useLists, useSections } from '../data/lists'
 import {
@@ -356,9 +355,8 @@ function TaskListMain() {
         smallTitle={title}
         smallStyle={collapse.small}
         right={
-          // 39 §4.14 [영상 실측]: 오른쪽 버튼은 한 유리 알약. 27 D3 · M-A1 ①: ✦(강조색) → AI 비서 반 시트, 🔍 · ⋯
+          // 39 §4.14 [영상 실측]: 오른쪽 버튼은 한 유리 알약. 🔍 · ⋯ (✦ AI 비서 단추는 뺐다 — 사용자 2026-10-12. AI 비서는 더보기·탭에서)
           <GlassGroup>
-            <AssistantButton plain />
             <GlassButton plain label="검색" onPress={() => router.push('/search')}><Search size={20} color={p.textPrimary} /></GlassButton>
             <View ref={more.ref} collapsable={false}>
               <GlassButton plain label="더보기" badge={offline || !!syncError} onPress={more.open}><Ellipsis size={22} color={p.textPrimary} /></GlassButton>

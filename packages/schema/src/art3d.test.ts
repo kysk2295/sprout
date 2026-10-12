@@ -140,7 +140,7 @@ for (const sp of SPECIES_IDS) {
 }
 assert.equal(mobileTier('seed0-t03@384.webp'), 'base'); assert.equal(mobileTier('scene-day@1170.webp'), 'base'); assert.equal(mobileTier('scene-pond@1170.webp'), 'bg'); assert.equal(mobileTier('scene-pond@390.webp'), 'base')
 assert.equal(mobileTier('snail-1s2@768.webp'), 'base'); assert.equal(mobileTier('snail-3a@768.webp'), 'pack'); assert.equal(mobileTier('snail-3a@384.webp'), 'pack')
-assert.equal(mobileTier('bee-3-acc-mug@160.webp'), 'none'); assert.equal(mobileTier('bee-3-acc-straw@160.webp'), 'base'); assert.equal(mobileTier('frog-5a-prop@768.webp'), 'pack')
+assert.equal(mobileTier('bee-3-acc-mug@160.webp'), 'base'); assert.equal(mobileTier('frog-3-acc-mug@160.webp'), 'none'); /* 옷장 칸 그림 = 견본 bee-3의 160만 앱 안(2026-10-12) */ assert.equal(mobileTier('bee-3-acc-straw@160.webp'), 'base'); assert.equal(mobileTier('frog-5a-prop@768.webp'), 'pack')
 // 한 바퀴 띠: 모든 몸에 있다(12컷), 휴대폰은 종 묶음
 for (const k of Object.keys(BODIES)) { const sp = SPINS3D[k]; assert.ok(sp && sp[0] === 12, `회전 띠 ${k}`); assert.ok(onDisk(`${k}-spin`, sp[1]), `띠 파일 ${k}`); assert.equal(mobileTier(artFile(`${k}-spin`, sp[1])), 'pack') }
 assert.deepEqual(spinOf('snail', 3, 'b'), { key: 'snail-3b-spin', frames: 12, px: SPINS3D['snail-3b'][1] })
