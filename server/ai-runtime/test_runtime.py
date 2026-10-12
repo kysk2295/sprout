@@ -2,6 +2,17 @@ import os,tempfile,unittest
 os.environ.setdefault('SPROUT_MODEL_ROOT','/unused-model-path')
 os.environ.setdefault('SPROUT_RUNTIME_STATE',tempfile.mkdtemp(prefix='jev-runtime-test-'))
 import runtime
+class RepairTests(unittest.TestCase):
+ def test_missing_array_close(self):
+  s='{"head":"a","lines":["x","y."}'
+  self.assertEqual(runtime.parse_structured(s),{'head':'a','lines':['x','y.']})
+ def test_fence_and_prose(self):
+  self.assertEqual(runtime.parse_structured('```json\n{"a":[1,2]}\n```'),{'a':[1,2]})
+  self.assertEqual(runtime.parse_structured('결과: {"a":"b"} 끝'),{'a':'b'})
+ def test_brackets_inside_strings_untouched(self):
+  self.assertEqual(runtime.parse_structured('{"a":"x}]y","b":["[}"'),{'a':'x}]y','b':['[}']})
+ def test_truncated_string(self):
+  self.assertEqual(runtime.parse_structured('{"head":"a","lines":["x'),{'head':'a','lines':['x']})
 class PayloadTests(unittest.TestCase):
  def test_structured_system_stays_first(self):
   body={'messages':[{'role':'user','content':'classify'}],'format':'json'}

@@ -11,7 +11,7 @@ from pathlib import Path
 BASE=Path(os.environ['SPROUT_MODEL_ROOT']);STATE=Path(os.environ['SPROUT_RUNTIME_STATE']);STATE.mkdir(parents=True,exist_ok=True)
 PY=str(BASE/'.venv-mlx/bin/python');MODEL=str(BASE/'qwen-mlx-4bit');JEV=str(BASE/'mlx-model-v7-q6')
 QUESTION=json.loads((Path(__file__).parent/'intent-question.json').read_text());PORT=int(os.environ.get('SPROUT_RUNTIME_PORT','28011'))
-LOCK=threading.Lock();STOP=threading.Event();FAULT=threading.Event();CHILDREN={};LOGS=[]
+RECOVER_S=int(os.environ.get('SPROUT_RECOVER_S','600'));LOCK=threading.Lock();STOP=threading.Event();FAULT=threading.Event();CHILDREN={};LOGS=[]
 def rotate(path):
  if path.exists() and path.stat().st_size>8_000_000:path.replace(path.with_suffix(path.suffix+'.1'))
 def event(kind,**info):
@@ -28,8 +28,18 @@ def stop_model(name):
    try:p.wait(timeout=10)
    except subprocess.TimeoutExpired:p.kill();p.wait()
   event('model_stopped',model=name,pid=p.pid,exit=p.returncode)
+def notify(kind,reason):
+ # 2026-10-12: 멈춤·복구를 밖에 알린다(SPROUT_ALERT_URL에 JSON POST — 예: ntfy 주소). 없으면 기록만. 실패해도 런타임에는 영향 없음
+ url=os.environ.get('SPROUT_ALERT_URL')
+ if not url:return
+ def go():
+  try:
+   body=json.dumps({'event':kind,'reason':reason,'time':time.time()}).encode()
+   urllib.request.urlopen(urllib.request.Request(url,body,{'Content-Type':'application/json','Title':'kkumteul AI '+kind}),timeout=5).close()
+  except Exception:pass
+ threading.Thread(target=go,daemon=True).start()
 def fault(reason):
- FAULT.set();(STATE/'fault.json').write_text(json.dumps({'time':time.time(),'reason':reason,'memory':memory()}))
+ FAULT.set();(STATE/'fault.json').write_text(json.dumps({'time':time.time(),'reason':reason,'memory':memory()}));event('fault',reason=reason);notify('fault',reason)
  for name in list(CHILDREN):stop_model(name)
 def start_model(name,args,port):
  if FAULT.is_set() or STOP.is_set():raise RuntimeError('runtime unavailable')
@@ -65,6 +75,36 @@ def route_request(body):
  choice=a['choice'];confidence=a['probabilities'][choice]
  if choice not in ['chat','read','write','clarify'] or not isinstance(confidence,(float,int)) or not 0<=confidence<=1:raise ValueError('invalid decision')
  return {'intent':choice,'confidence':confidence,'resolution':'lookup'}
+def repair_json(s):
+ # 2026-10-12: MLX는 형식을 강제하지 않아 긴 답에서 괄호를 빠뜨린다(실측: lines 배열의 ']' 없이 '}'로 끝남 → 링크 요약 JSONDecodeError).
+ # 코드 펜스·앞뒤 말을 걷고, 문자열 밖 괄호 짝을 맞춰(빠진 닫는 괄호를 채워) 다시 읽는다. 고친 뒤에도 스키마 검사는 그대로 한다
+ s=s.strip()
+ if s.startswith('```'):s=s.split('\n',1)[-1].rsplit('```',1)[0].strip()
+ i=min([x for x in (s.find('{'),s.find('[')) if x>=0],default=-1)
+ if i<0:return s
+ s=s[i:];out=[];stack=[];ins=False;esc=False
+ for ch in s:
+  if ins:
+   out.append(ch)
+   if esc:esc=False
+   elif ch=='\\':esc=True
+   elif ch=='"':ins=False
+   continue
+  if ch=='"':ins=True;out.append(ch);continue
+  if ch in '{[':stack.append('}' if ch=='{' else ']');out.append(ch);continue
+  if ch in '}]':
+   while stack and stack[-1]!=ch:out.append(stack.pop())
+   if stack:stack.pop();out.append(ch)
+   if not stack:break
+   continue
+  out.append(ch)
+ if ins:out.append('"')
+ while stack:out.append(stack.pop())
+ return ''.join(out)
+def parse_structured(text):
+ try:return json.loads(text)
+ except json.JSONDecodeError:
+  fixed=repair_json(text);v=json.loads(fixed);event('json_repaired',before=len(text),after=len(fixed));return v
 def mlx_payload(body):
  messages=[];pending=[];counter=0
  for raw in body['messages']:
@@ -122,7 +162,7 @@ class Handler(BaseHTTPRequestHandler):
        for tc in delta.get('tool_calls',[]):
         f=tc.get('function',{});c=calls.setdefault(tc.get('index',0),{'name':'','arguments':''});c['name']+=f.get('name','');c['arguments']+=f.get('arguments','')
      if structured:
-      value=json.loads(''.join(content))
+      value=parse_structured(''.join(content))
       if isinstance(body['format'],dict):jsonschema.validate(value,body['format'])
       self.emit({'message':{'role':'assistant','content':json.dumps(value,ensure_ascii=False)},'done':False})
      tools=[{'function':{'name':c['name'],'arguments':json.loads(c['arguments'])}} for c in calls.values()]
@@ -145,13 +185,34 @@ if __name__=='__main__':
  try:
   server=ThreadingHTTPServer(('127.0.0.1',PORT),Handler)
   threading.Thread(target=server.serve_forever,daemon=True).start()
+  calm=[None]
+  def recover():
+   try:
+    with LOCK:
+     f=STATE/'fault.json'
+     if f.exists():
+      (STATE/'faults').mkdir(exist_ok=True);f.replace(STATE/'faults'/(str(int(time.time()))+'.json'))
+     FAULT.clear();ensure_pair()
+    event('recovered');notify('recovered','')
+   except Exception as exc:
+    event('recover_failed',error_type=type(exc).__name__);fault('recover failed')
   def monitor():
    while not STOP.wait(2):
     m=memory()
     rotate(STATE/'memory.jsonl')
     with (STATE/'memory.jsonl').open('a') as f:f.write(json.dumps({'time':time.time(),**m})+'\n')
-    if not FAULT.is_set() and (m['pressure']>=4 or m['swap_mb']-initial['swap_mb']>2048):fault('memory guard')
-    if not FAULT.is_set() and any(p.poll() is not None for p in list(CHILDREN.values())):fault('model process exited')
+    # 2026-10-12: '시작 대비 swap +2GB'는 뺐다 — 16GB Mac mini에서는 요약 한 건(입력 4천 자)에도 넘어 압력이 정상(1~2)인데 AI가 멈췄다.
+    # macOS가 위험하다고 보는 압력 4(critical)만 멈춤 사유로 본다
+    if not FAULT.is_set():
+     calm[0]=None
+     if m['pressure']>=4:fault('memory guard')
+     elif any(p.poll() is not None for p in list(CHILDREN.values())):fault('model process exited')
+    else:
+     # 잠그지 않고 저절로 복구: 압력이 정상(≤2)으로 RECOVER_S초 이어지면 기록을 보관하고 다시 켠다
+     if m['pressure']<=2:
+      calm[0]=calm[0] or time.time()
+      if time.time()-calm[0]>=RECOVER_S:calm[0]=None;recover()
+     else:calm[0]=None
   threading.Thread(target=monitor,daemon=True).start()
   if not FAULT.is_set():
    try:
