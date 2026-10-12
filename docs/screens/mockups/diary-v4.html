@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>일기 v4 — 일기 앱 조사와 시안</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root {
+    --bg: #EEF1EE; --card: #FFFFFF; --ink: #1D2622; --sub: #6B766F; --faint: #A3ADA7; --line: #E3E8E4;
+    --accent: #12715E; --accent-soft: #E1F1EC; --me: #E4F2EC;
+    --m1: #8797AE; --m2: #8EC1D6; --m3: #F2B84B; --m4: #62BF7E; --m5: #F08A5D;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Pretendard, -apple-system, sans-serif; background: #DDE3DF; color: var(--ink); }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 0 24px; }
+  header.page { padding: 36px 0 6px; }
+  h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.02em; }
+  h2 { font-size: 18px; margin: 34px 0 10px; letter-spacing: -0.01em; }
+  p.lead { margin: 0; color: var(--sub); font-size: 15px; line-height: 1.65; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 16px; overflow: hidden; font-size: 13.2px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.55; }
+  th { background: #F3F6F4; font-size: 12px; color: var(--sub); font-weight: 700; }
+  td b { color: var(--ink); }
+  .take { color: var(--accent); font-weight: 700; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .pill { background: #fff; border-radius: 16px; padding: 14px 16px; font-size: 13.5px; line-height: 1.6; }
+  .pill b { display: block; font-size: 14.5px; margin-bottom: 4px; }
+  .pill .from { color: var(--sub); font-size: 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px; padding: 6px 0 20px; }
+  figure { margin: 0; }
+  figcaption { margin-top: 12px; width: 300px; font-size: 13px; line-height: 1.55; color: #3B4640; }
+  figcaption strong { display: block; font-size: 14px; color: var(--ink); margin-bottom: 2px; }
+  figcaption em { font-style: normal; color: var(--accent); font-weight: 600; }
+
+  .phone { width: 300px; height: 650px; border-radius: 44px; background: var(--bg); border: 9px solid #1B1F1D; position: relative; overflow: hidden; box-shadow: 0 18px 40px #0003; }
+  .notch { position: absolute; top: 8px; left: 50%; translate: -50% 0; width: 92px; height: 26px; background: #1B1F1D; border-radius: 16px; z-index: 5; }
+  .status { height: 40px; display: flex; align-items: end; justify-content: space-between; padding: 0 22px 4px; font-size: 12.5px; font-weight: 600; }
+  .bigt { display: flex; align-items: end; justify-content: space-between; padding: 6px 18px 8px; }
+  .bigt b { font-size: 26px; letter-spacing: -0.03em; } .bigt span { font-size: 13px; color: var(--sub); }
+  .round { width: 32px; height: 32px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: 14px; box-shadow: 0 1px 3px #0001; }
+  .scroll { position: absolute; top: 96px; bottom: 0; left: 0; right: 0; overflow: hidden; padding: 0 12px; }
+
+  .bean { width: 30px; height: 30px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 15px; flex: none; }
+  .buddy { width: 48px; height: 48px; position: relative; flex: none; overflow: visible; }
+  .buddy img { position: absolute; left: -35%; top: -45%; width: 170%; height: 170%; object-fit: contain; }
+
+  /* 체크인 카드 */
+  .check { background: var(--card); border-radius: 22px; padding: 14px; }
+  .check .who { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; }
+  .check .who small { display: block; font-size: 11.5px; color: var(--sub); font-weight: 500; margin-top: 2px; }
+  .beans { display: flex; justify-content: space-between; margin-top: 12px; }
+  .beans .b { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10px; color: var(--sub); }
+  .beans .b .bean { width: 40px; height: 40px; font-size: 20px; }
+
+  /* 타임라인 */
+  .day { font-size: 11.5px; color: var(--sub); font-weight: 700; margin: 14px 4px 6px; }
+  .card { background: var(--card); border-radius: 18px; padding: 12px 13px; margin-bottom: 8px; }
+  .card .h { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sub); }
+  .card .h b { color: var(--ink); font-size: 13px; }
+  .card p { margin: 7px 0 0; font-size: 13.5px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .chip { font-size: 11.5px; background: #F1F4F2; border-radius: 10px; padding: 3px 8px; color: #3B4640; }
+  .chip.task { background: var(--accent-soft); color: var(--accent); }
+  .say { display: flex; align-items: flex-end; gap: 6px; margin-top: 8px; font-size: 12.5px; color: var(--sub); }
+  .say span { background: #F3F6F4; border-radius: 12px 12px 12px 4px; padding: 6px 9px; }
+  .fab { position: absolute; right: 16px; bottom: 26px; width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 26px; box-shadow: 0 8px 18px #12715E55; }
+
+  /* 쓰기 시트 */
+  .dim { position: absolute; inset: 0; background: #0004; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; top: 70px; background: #fff; border-radius: 26px 26px 0 0; padding: 10px 16px; }
+  .grab { width: 38px; height: 5px; border-radius: 3px; background: #D5DBD7; margin: 0 auto 10px; }
+  .sh { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--sub); }
+  .sh b { color: var(--ink); font-size: 15px; } .sh .save { color: var(--accent); font-weight: 700; }
+  .lbl { font-size: 11.5px; color: var(--sub); font-weight: 700; margin: 14px 0 6px; }
+  .pickrow { display: flex; gap: 8px; }
+  .pickrow .bean { width: 42px; height: 42px; font-size: 21px; opacity: .45; }
+  .pickrow .bean.on { opacity: 1; box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--accent); }
+  .tasks { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tchip { font-size: 12px; border: 1px solid var(--line); border-radius: 14px; padding: 6px 10px; }
+  .tchip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .write { margin-top: 12px; border-radius: 16px; background: #F6F8F7; padding: 12px; min-height: 120px; font-size: 14px; line-height: 1.7; }
+  .write .ph { color: var(--faint); }
+  .prompts { display: flex; gap: 6px; margin-top: 8px; overflow: hidden; }
+  .prompts span { flex: none; font-size: 11.5px; color: var(--accent); background: var(--accent-soft); border-radius: 12px; padding: 5px 9px; }
+  .opts { display: flex; gap: 14px; margin-top: 14px; font-size: 12px; color: var(--sub); }
+
+  /* 달력 */
+  .cal { background: var(--card); border-radius: 20px; padding: 10px 6px; display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 7px; }
+  .cal .wd { text-align: center; font-size: 10px; color: var(--faint); }
+  .cal .d { height: 38px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 9.5px; color: var(--sub); }
+  .cal .d .bean { width: 24px; height: 24px; font-size: 12px; }
+  .cal .d .none { background: transparent; border: 1.5px dashed #CBD3CE; }
+  .cal .d.today { color: var(--accent); font-weight: 800; } .cal .d.fut { opacity: .35; }
+  .ins { background: var(--card); border-radius: 18px; padding: 12px 14px; margin-top: 8px; font-size: 13px; line-height: 1.6; }
+  .ins b { font-size: 12px; color: var(--sub); display: block; margin-bottom: 4px; }
+  .bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin: 6px 0; }
+  .seg { display: flex; justify-content: space-between; margin: 0 12px 10px; background: #E3E8E4; border-radius: 12px; padding: 3px; font-size: 12.5px; }
+  .seg span { flex: 1; text-align: center; padding: 6px; border-radius: 9px; color: var(--sub); }
+  .seg .on { background: #fff; color: var(--ink); font-weight: 700; }
+  .back { margin-top: 8px; background: linear-gradient(135deg, #FFF6E5, #FDEBDD); border-radius: 18px; padding: 12px 14px; font-size: 13px; line-height: 1.55; }
+  .back b { font-size: 11.5px; color: #B0702A; display: block; margin-bottom: 3px; }
+  @media (max-width: 900px) { .grid3 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="page">
+  <h1>일기 v4 — 일기 앱 조사 → 시안</h1>
+  <p class="lead">많이 쓰는 일기 앱 6개를 보고, <b>꿈틀 사용자에게 진짜 편한 것만</b> 골랐다. 결론: <b>기분 한 번 + 오늘 한 일 고르기 + 한 줄</b>이면 끝나는 체크인(하루콩·Daylio), <b>카드로 쌓이는 기록</b>(Apple 저널·Day One), <b>캐릭터는 반응만</b>(Finch). AI 대화로 일기 쓰기(Rosebud류)는 빼고, 꿈틀만 가진 <b>할 일·일정 데이터</b>를 "오늘 한 일"로 자동으로 꺼내 준다.</p>
+</header>
+
+<h2>1. 일기 앱 비교</h2>
+<table>
+  <tr><th style="width:120px">앱</th><th>쓰는 방식</th><th>기록 보기</th><th>잘하는 것</th><th>아쉬운 점</th><th style="width:210px">꿈틀이 가져올 것</th></tr>
+  <tr><td><b>하루콩</b><br><small>국내 · 한 해 2,960만 건</small></td><td>기분콩 5개 → 활동 아이콘 탭 → 사진 한 장·한 줄 메모. 몇 초면 끝</td><td>월 달력에 기분콩</td><td>압도적으로 빠름, 귀여운 콩, 활동과 기분의 관계 통계</td><td>긴 글 쓰기에는 약함</td><td class="take">기분 5개 + 활동 고르기 + 한 줄, 달력에 기분 얼굴</td></tr>
+  <tr><td><b>Daylio</b></td><td>"두 번 탭": 기분 → 활동 → (선택) 메모</td><td>달력·통계·흐름 그래프</td><td>글 안 써도 기록이 쌓임, 힘든 날에도 부담 없음</td><td>통계 화면이 많고 무거움</td><td class="take">글은 선택. 활동만 골라도 저장</td></tr>
+  <tr><td><b>Day One</b></td><td>+ 눌러 풍부한 편집기. 날짜·시간·날씨·위치 자동</td><td>타임라인(최근 글 카드)·달력·연속 기록·"이날의 기록"</td><td>자동 정보, 타임라인, 오래 쓰는 사람에게 강함</td><td>기능이 많아 처음엔 어렵고 유료 위주</td><td class="take">타임라인 카드, 자동으로 붙는 정보(우리는 할 일·일정), "1년 전 오늘"</td></tr>
+  <tr><td><b>Apple 저널</b></td><td>+ 누르면 사진·장소·운동으로 만든 "쓸거리 제안"과 돌아보기 질문</td><td>부드러운 색 바탕 위 카드 목록</td><td>쓸거리를 앱이 먼저 꺼내 줘서 시작이 쉬움, 단순함</td><td>+ 단추가 작아 찾기 어렵다는 평</td><td class="take">쓸거리 제안 = 오늘 끝낸 할 일·일정. 큰 + 단추</td></tr>
+  <tr><td><b>Finch</b></td><td>앱을 열면 기분 체크인 → 펫의 집. 돌아보기 질문</td><td>펫 성장·기록</td><td>캐릭터가 "숙제"를 놀이로 바꿈, 압박 없음</td><td>일기 자체 기능은 얕음</td><td class="take">캐릭터가 먼저 "오늘 어땠어?" 묻고, 쓰면 한 줄 반응</td></tr>
+  <tr><td><b>Stoic · Rosebud</b></td><td>아침·저녁 짧은 질문(Stoic), AI와 대화하며 돌아보기(Rosebud)</td><td>기분 분석·보고서</td><td>깊은 성찰, 질문이 좋음</td><td>시간·AI 비용, 유료, 매일 하기엔 무거움</td><td class="take">질문은 칩으로만(막힐 때). AI 대화로 쓰기는 안 함</td></tr>
+</table>
+
+<h2>2. 그래서 꿈틀 일기는</h2>
+<div class="grid3">
+  <div class="pill"><b>① 10초 체크인</b>캐릭터가 묻고 → 기분 한 번 → <b>오늘 끝낸 할 일이 칩으로</b> 떠 있어 탭하면 담김 → 한 줄(선택). 글을 안 써도 저장된다.<div class="from">하루콩 · Daylio · Finch</div></div>
+  <div class="pill"><b>② 카드로 쌓이는 기록</b>일기 탭 = 타임라인. 날마다 카드(기분 얼굴 · 글 첫 3줄 · 한 일 칩 · 캐릭터 한 줄). 위쪽에 "1년 전 오늘"이 가끔.<div class="from">Apple 저널 · Day One</div></div>
+  <div class="pill"><b>③ 달력은 기분만, 통계는 한 장</b>월 달력에 기분 얼굴, 아래 "이번 달" 한 장(기분 비율 + 기분 좋은 날 자주 한 일). 그래프 여러 장은 없음.<div class="from">하루콩 · Daylio(줄임)</div></div>
+</div>
+
+<h2>3. 시안 (휴대폰)</h2>
+<div class="row">
+  <!-- A 일기 탭: 체크인 + 타임라인 -->
+  <figure>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="bigt"><b>일기</b><span><span class="round" style="display:inline-grid">▦</span></span></div>
+      <div class="scroll">
+        <div class="check">
+          <div class="who"><div class="buddy"><img src="../../../packages/schema/art3d/frog-1@384.webp" alt=""><img src="../../../packages/schema/art3d/frog-1-face-happy@384.webp" alt=""></div><div>오늘 하루 어땠어?<small>10월 12일 일요일 · 할 일 4개 끝냈네!</small></div></div>
+          <div class="beans">
+            <div class="b"><span class="bean" style="background:var(--m1)">😣</span>힘들었어</div>
+            <div class="b"><span class="bean" style="background:var(--m2)">😕</span>별로</div>
+            <div class="b"><span class="bean" style="background:var(--m3)">🙂</span>그럭저럭</div>
+            <div class="b"><span class="bean" style="background:var(--m4)">😊</span>좋았어</div>
+            <div class="b"><span class="bean" style="background:var(--m5)">😆</span>최고</div>
+          </div>
+        </div>
+        <div class="day">어제 · 10월 11일 토</div>
+        <div class="card">
+          <div class="h"><span class="bean" style="background:var(--m4)">😊</span><b>좋았어</b> · 오후 10:02</div>
+          <p>오랜만에 친구랑 저녁 먹었다. 이야기하다 보니 시간 가는 줄 몰랐다. 요즘 쌓였던 게 좀 풀린 느낌.</p>
+          <div class="chips"><span class="chip task">✓ 모바일 일기 UI 개편</span><span class="chip task">✓ 운동 30분</span></div>
+          <div class="say"><div class="buddy" style="width:24px;height:24px"><img src="../../../packages/schema/art3d/frog-1@384.webp" alt=""></div><span>친구랑 웃다 보면 풀리지!</span></div>
+        </div>
+        <div class="day">10월 10일 금</div>
+        <div class="card">
+          <div class="h"><span class="bean" style="background:var(--m2)">😕</span><b>별로</b></div>
+          <div class="chips"><span class="chip task">✓ 기업경제학 퀴즈2</span><span class="chip">잠을 못 잤어</span></div>
+        </div>
+      </div>
+      <div class="fab">+</div>
+    </div>
+    <figcaption><strong>A. 일기 탭 — 체크인 + 타임라인</strong>맨 위 체크인 카드: 캐릭터가 묻고 기분 5개(누르면 B). 아래로 날마다 카드: 기분 · 글 3줄 · <em>그날 끝낸 할 일 칩(자동)</em> · 캐릭터 한 줄. 글 없이 기분·한 일만 남긴 날도 카드(10월 10일). + = 지금 쓰기.</figcaption>
+  </figure>
+
+  <!-- B 쓰기 시트 -->
+  <figure>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="bigt"><b>일기</b></div>
+      <div class="dim"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="sh"><span>취소</span><b>10월 12일 일요일</b><span class="save">저장</span></div>
+        <div class="lbl">기분</div>
+        <div class="pickrow">
+          <span class="bean" style="background:var(--m1)">😣</span><span class="bean" style="background:var(--m2)">😕</span><span class="bean" style="background:var(--m3)">🙂</span><span class="bean on" style="background:var(--m4)">😊</span><span class="bean" style="background:var(--m5)">😆</span>
+        </div>
+        <div class="lbl">오늘 한 일 <span style="font-weight:500">· 끝낸 할 일·일정에서</span></div>
+        <div class="tasks">
+          <span class="tchip on">✓ 기업경제학 퀴즈2</span><span class="tchip on">✓ 치아 교정 상담</span><span class="tchip">전화영어</span><span class="tchip">운동</span><span class="tchip">＋ 직접</span>
+        </div>
+        <div class="write">교정 상담 받고 왔다. 생각보다 기간이 길어서 좀 놀랐지만, 그래도 미뤄 왔던 걸 드디어 해서 후련하다.</div>
+        <div class="prompts"><span>오늘 제일 좋았던 순간?</span><span>내일 하나만 한다면?</span><span>고마웠던 사람?</span></div>
+        <div class="opts"><span>📷 사진</span><span>🔒 나만 보기</span></div>
+      </div>
+    </div>
+    <figcaption><strong>B. 쓰기 — 한 장에서 끝</strong>기분 → <em>오늘 끝낸 할 일·일정이 칩으로 미리 떠 있음</em>(탭해 담기, Daylio 활동 고르기 자리) → 글은 선택. 막히면 질문 칩(Apple 저널 제안 자리, AI 안 씀). 사진·나만 보기. 저장 한 번.</figcaption>
+  </figure>
+
+  <!-- C 저장 뒤 반응 -->
+  <figure>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="bigt"><b>일기</b><span><span class="round" style="display:inline-grid">▦</span></span></div>
+      <div class="scroll">
+        <div class="day" style="margin-top:4px">오늘 · 10월 12일 일</div>
+        <div class="card" style="box-shadow:0 0 0 2px var(--accent-soft)">
+          <div class="h"><span class="bean" style="background:var(--m4)">😊</span><b>좋았어</b> · 방금</div>
+          <p>교정 상담 받고 왔다. 생각보다 기간이 길어서 좀 놀랐지만, 그래도 미뤄 왔던 걸 드디어 해서 후련하다.</p>
+          <div class="chips"><span class="chip task">✓ 기업경제학 퀴즈2</span><span class="chip task">✓ 치아 교정 상담</span></div>
+          <div class="say"><div class="buddy" style="width:30px;height:30px"><img src="../../../packages/schema/art3d/frog-1@384.webp" alt=""><img src="../../../packages/schema/art3d/frog-1-face-happy@384.webp" alt=""></div><span style="color:var(--ink);font-size:13px">미뤄 왔던 걸 해낸 날이네. 후련하다니 나도 좋아!</span></div>
+        </div>
+        <div class="back"><b>1년 전 오늘</b>"처음으로 혼자 영화를 봤다. 생각보다 편했다." 😊</div>
+        <div class="day">어제 · 10월 11일 토</div>
+        <div class="card">
+          <div class="h"><span class="bean" style="background:var(--m4)">😊</span><b>좋았어</b> · 오후 10:02</div>
+          <p>오랜만에 친구랑 저녁 먹었다. 이야기하다 보니 시간 가는 줄 몰랐다.</p>
+        </div>
+      </div>
+      <div class="fab">+</div>
+    </div>
+    <figcaption><strong>C. 저장하면 — 캐릭터 한 줄</strong>오늘 카드가 맨 위에 생기고 캐릭터가 <em>내 글에 있는 말만 짚어</em> 한 줄 반응(AI, 끌 수 있음 · 나만 보기면 정해진 말). 대화로 이어지지 않는다. 가끔 "1년 전 오늘"(Day One).</figcaption>
+  </figure>
+
+  <!-- D 달력 -->
+  <figure>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="bigt"><b>10월</b><span>‹ 2026 ›</span></div>
+      <div class="seg"><span>목록</span><span class="on">달력</span></div>
+      <div class="scroll" style="top:138px">
+        <div class="cal">
+          <span class="wd">일</span><span class="wd">월</span><span class="wd">화</span><span class="wd">수</span><span class="wd">목</span><span class="wd">금</span><span class="wd">토</span>
+          <span class="d"></span><span class="d"></span><span class="d"></span>
+          <span class="d">1<i class="bean" style="background:var(--m4)">😊</i></span><span class="d">2<i class="bean" style="background:var(--m3)">🙂</i></span><span class="d">3<i class="bean none"></i></span><span class="d">4<i class="bean" style="background:var(--m5)">😆</i></span>
+          <span class="d">5<i class="bean" style="background:var(--m2)">😕</i></span><span class="d">6<i class="bean" style="background:var(--m4)">😊</i></span><span class="d">7<i class="bean none"></i></span><span class="d">8<i class="bean" style="background:var(--m1)">😣</i></span><span class="d">9<i class="bean" style="background:var(--m3)">🙂</i></span><span class="d">10<i class="bean" style="background:var(--m2)">😕</i></span><span class="d">11<i class="bean" style="background:var(--m4)">😊</i></span>
+          <span class="d today">12<i class="bean" style="background:var(--m4)">😊</i></span><span class="d fut">13<i class="bean none"></i></span><span class="d fut">14<i class="bean none"></i></span><span class="d fut">15<i class="bean none"></i></span><span class="d fut">16<i class="bean none"></i></span><span class="d fut">17<i class="bean none"></i></span><span class="d fut">18<i class="bean none"></i></span>
+        </div>
+        <div class="ins">
+          <b>이번 달</b>
+          <div class="bar"><span style="flex:1;background:var(--m1)"></span><span style="flex:2;background:var(--m2)"></span><span style="flex:2;background:var(--m3)"></span><span style="flex:4;background:var(--m4)"></span><span style="flex:1;background:var(--m5)"></span></div>
+          9일 남겼어요 · 좋았던 날이 제일 많아요<br>
+          <span style="color:var(--sub)">기분 좋은 날 자주 한 일</span> <span class="chip task">운동</span> <span class="chip task">친구 만나기</span>
+        </div>
+      </div>
+    </div>
+    <figcaption><strong>D. 달력 — 기분만 한눈에</strong>목록/달력 전환. 칸 = 기분 얼굴(하루콩), 누르면 그날 카드. 아래 <em>"이번 달" 한 장</em>: 기분 비율 + 기분 좋은 날 자주 한 일(할 일 데이터로). 연속 기록·그래프 여러 장 없음.</figcaption>
+  </figure>
+</div>
+
+<h2>4. v3 시안과 다른 점 · 정해 주실 것</h2>
+<table>
+  <tr><th style="width:36px">#</th><th>질문</th><th>추천</th><th>이유</th></tr>
+  <tr><td>①</td><td>일기 탭 첫 화면은? (v3: 오늘 쓰기 화면 / v4: 체크인 + 타임라인)</td><td><b>v4 — 체크인 카드 + 타임라인</b></td><td>열면 바로 쓸 수도(기분 탭), 지난 기록을 볼 수도 있다. Apple 저널·Day One·하루콩 모두 기록이 첫 화면.</td></tr>
+  <tr><td>②</td><td>"오늘 한 일" 칩(끝낸 할 일·일정 자동)을 넣을까?</td><td><b>넣는다</b></td><td>Daylio·하루콩의 "활동 고르기"를 우리 데이터로 자동화 — 꿈틀만 할 수 있는 것. 글을 안 써도 의미 있는 기록.</td></tr>
+  <tr><td>③</td><td>캐릭터는?</td><td><b>체크인에서 묻고, 저장하면 한 줄 반응만</b>(대화 없음)</td><td>Finch처럼 압박 없이 동기만. 대화로 쓰기는 무겁고 AI를 기다려야 했다.</td></tr>
+  <tr><td>④</td><td>사진·"1년 전 오늘"은 v1에?</td><td><b>사진은 다음, 1년 전 오늘은 넣기</b>(글만, 가끔)</td><td>사진은 업로드·저장 공간이 필요. 1년 전 오늘은 기존 데이터로 바로 된다.</td></tr>
+</table>
+<p class="lead" style="margin:14px 0 50px">조사 출처: <a href="https://apps.apple.com/KR/app/id1553223828">하루콩(App Store)</a> · <a href="https://www.unicornfactory.co.kr/article/2025010716384717743">하루콩 2,960만 건(유니콘팩토리)</a> · <a href="https://screensdesign.com/showcase/daylio-journal-daily-diary">Daylio 화면(ScreensDesign)</a> · <a href="https://mhealth.amegroups.org/article/view/11509/html">Daylio 분석(mHealth)</a> · <a href="https://ixd.prattsi.org/2026/09/design-critique-day-one-iphone-app/">Day One 디자인 비평(Pratt)</a> · <a href="https://dayoneapp.com/features/">Day One 기능</a> · <a href="https://ixd.prattsi.org/2026/02/design-critique-journal-iphone-app/">Apple 저널 디자인 비평(Pratt)</a> · <a href="https://thesweetsetup.com/our-first-look-at-apples-new-journal-app/">Apple 저널 첫인상(The Sweet Setup)</a> · <a href="https://www.pastemagazine.com/article/finch-app-mental-health-virtual-pet-self-care">Finch(Paste)</a> · <a href="https://blog.mylifenote.ai/stoic-app-alternative/">Stoic 비교</a> · <a href="https://www.rosebud.app/blog/best-journaling-apps-for-adults-in-therapy">Rosebud</a></p>
+</div>
+</body>
+</html>
