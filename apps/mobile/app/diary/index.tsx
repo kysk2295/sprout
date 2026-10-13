@@ -17,7 +17,8 @@ import { dropSoloDraft, hasSoloDraft, seedSoloDraft, SoloWrite } from '../../src
 import { dayTitle, isWritten, josa } from '../../src/diary/logic'
 import { PastDay } from '../../src/diary/PastDay'
 import { setConsent, setMemory, setWriteMode, useDiaryPrefs } from '../../src/diary/prefs'
-import { clearWant, openDay, useDiaryState } from '../../src/diary/state'
+import { clearWant, diaryToday, openDay, useDiaryState } from '../../src/diary/state'
+import { getDiaryNudge, setDiaryNudge } from '../../src/notifications/diary'
 import { BYE_ME, composeDraft, replay, SCRIPTED } from '../../src/diary/talk'
 import { KEY, preload } from '../../src/growth/store'
 import { useMotionReduced } from '../../src/growth/motion'
@@ -43,7 +44,7 @@ export default function Diary() {
   const { date: param } = useLocalSearchParams<{ date?: string }>()
   useEffect(() => { if (param) openDay(param) }, [param])
   const { date, want } = useDiaryState()
-  const today = dayKey()
+  const today = diaryToday()
   const past = date !== today
   const entry = useEntry(date)
   const messages = useMessages(date)
@@ -84,7 +85,7 @@ export default function Diary() {
   dateRef.current = date
   const go = useCallback((dir: 1 | -1) => {
     const next = addDays(dateRef.current, dir)
-    if (next > dayKey()) { toast.show('내일은 아직 오지 않았어요'); tx.value = withSpring(0); return }
+    if (next > diaryToday()) { toast.show('내일은 아직 오지 않았어요'); tx.value = withSpring(0); return }
     hx.tick()
     openDay(next)
     tx.value = reduced ? 0 : dir * 60
@@ -94,7 +95,7 @@ export default function Diary() {
   }, [reduced, toast, tx, op])
   const toToday = () => {
     hx.tick()
-    openDay(dayKey())
+    openDay(diaryToday())
     tx.value = reduced ? 0 : 60
     op.value = reduced ? 1 : 0
     tx.value = withTiming(0, { duration: reduced ? 0 : 240 })
@@ -114,6 +115,9 @@ export default function Diary() {
   const [menu, setMenu] = useState(false)
   const [askDelete, setAskDelete] = useState(false)
   const act = (fn: () => void) => () => { setMenu(false); setTimeout(fn, 200) }
+  // 28 §9 A 저녁 알림(기기 설정)
+  const [nudge, setNudge] = useState<string | null | undefined>(undefined)
+  useEffect(() => { if (menu) void getDiaryNudge().then(setNudge) }, [menu])
 
   const status = written ? '저장됨 ✓' : past ? '지난 일기' : '오늘 일기'
 
@@ -175,6 +179,7 @@ export default function Diary() {
           <Item label={prefs.consent ? `${josa(name, '와', '과')} 나누기 끄기` : `${josa(name, '와', '과')} 나누기 켜기`} onPress={act(() => { const on = !prefs.consent; setConsent(on); toast.show(on ? '나누기를 켰어요' : '나누기를 껐어요. 질문은 계속 정해진 말로 해요') })} />
           {prefs.consent ? <Item label="기억하기" note={prefs.memory ? '켜짐' : undefined} onPress={act(() => { setMemory(!prefs.memory); toast.show(prefs.memory ? '이 날 일기만 보고 이야기해요' : '최근 7일 일기 요약도 같이 봐요') })} /> : null}
           {view === 'chat' && hasScripted && !written ? <Item label="처음부터 다시 묻기" onPress={act(() => { forgetDraft(date); void clearScripted(date) })} /> : null}
+          {nudge !== undefined ? <Item label={nudge ? '저녁 알림 끄기' : '저녁 알림 켜기'} note={nudge ?? undefined} onPress={act(() => { const v = nudge ? null : '21:00'; void setDiaryNudge(v).then(() => toast.show(v ? `밤 9시에 ${josa(name, '가', '이')} 하루를 물어볼게요` : '저녁 알림을 껐어요')) })} /> : null}
           <Item label="일기 검색" onPress={act(() => router.push('/diary/search'))} />
           <Item label="이 날 일기 지우기" danger last onPress={() => { hx.warn(); setAskDelete(true) }} />
         </View>

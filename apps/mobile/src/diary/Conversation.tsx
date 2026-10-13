@@ -18,6 +18,7 @@ import { Glass, myScene, sceneTone } from '../growth/home/glass'
 import { timeoutSignal } from '../lib/timeoutSignal'
 import { alpha } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
+import { askDiaryNudgeOnce } from '../notifications/diary'
 import { hx } from '../ui/haptics'
 import { useToast } from '../ui/Toast'
 import { MoodFace } from './art'
@@ -100,6 +101,7 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
   const pinned = useRef(true)
   const abort = useRef<AbortController | null>(null)
   const scene = useRef<SceneHandle>(null)
+  const openedAt = useRef(new Date().toISOString()).current
   useEffect(() => () => abort.current?.abort(), [])
   useEffect(() => {
     if (!aiFlow) return
@@ -244,6 +246,7 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
       reveal(await addScripted(date, [{ role: 'buddy', content: warmLineOf({ mood, past, done: stats.done }) }]))
       hx.success()
       setTimeout(() => scene.current?.hop(), 300)
+      if (!past) setTimeout(() => void askDiaryNudgeOnce(), 2500)
       setListen(false)
     } finally { setFinishing(false) }
   }
@@ -289,6 +292,13 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
     ownSaving.current = true
     void finish().finally(() => { ownSaving.current = false })
   }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
+  // 알림에서 답장했으면(내 말이 마지막인데 답이 없음) 열자마자 캐릭터가 이어서 답한다(28 §9 A)
+  const answered = useRef(false)
+  useEffect(() => {
+    if (answered.current || phase !== 'talk' || ai.kind !== 'idle' || !lastRow || lastRow.role !== 'me' || lastRow.safety || lastRow.created_at >= openedAt) return
+    answered.current = true
+    if (aiDown) void localTurn(lastRow.content, false); else void runAi(null)
+  }, [phase, lastRow?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   // 끝 말까지 남기고 앱이 꺼졌으면(저장 한 줄 없음) 열 때 이어서 마무리
   useEffect(() => { if (phase === 'finishing' && !finishing && !isFinishing(date)) void finish() }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
   // 대화가 5분 멈추면 저절로 마무리(열려 있을 때). 다시 열었을 때 이미 5분 지났으면 바로
@@ -349,7 +359,6 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
   const toEnd = useCallback(() => scroll.current?.scrollToEnd({ animated: !reduced }), [reduced])
   useEffect(() => { if (kbH) setTimeout(toEnd, 60) }, [kbH, toEnd])
   const followEnd = useCallback(() => { if (pinned.current) toEnd() }, [toEnd])
-  const openedAt = useRef(new Date().toISOString()).current
   const enter = (createdAt: string) => (createdAt < openedAt ? undefined : reduced ? FadeIn.duration(150) : FadeInDown.duration(220))
   const taskChips = useMemo(() => all.filter((m) => m.role === 'buddy' && !m.safety).map((m) => parseBuddyReply(m.content).task).filter((t): t is string => !!t), [all])
   const made = useExistingTitles(taskChips)
@@ -362,8 +371,11 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
   const streaming = busy && (ai.kind === 'landing' || (ai.kind === 'reading' && ai.started))
   const bstate: BuddyState = (ai.kind === 'reading' && !ai.started) || distilling ? 'think' : streaming ? 'talk' : drafting ? 'listen' : 'idle'
 
+  // 저장 한 줄(잘 남겼어)마다 그 대화로 만든 장. 혼자 쓴 장(✎)과 저장 한 줄이 없는 예전 장은 맨 위에
   const warmCount = visible.filter((m) => m.safety === SCRIPTED && m.role === 'buddy' && isWarm(m.content)).length
-  const extra = Math.max(0, sections.length - warmCount)
+  const talkIdx = sections.map((s, i) => (s.solo ? -1 : i)).filter((i) => i >= 0)
+  const oldTalk = Math.max(0, talkIdx.length - warmCount)
+  const leading = sections.map((_, i) => i).filter((i) => sections[i].solo || talkIdx.indexOf(i) < oldTalk)
   const paper = paperOf(p.dark, p.cardBg)
   const f = finished.get(date)
   const savedCard = (k: number) => {
@@ -377,12 +389,12 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
     )
   }
   const rows: React.ReactNode[] = []
-  for (let k = 0; k < extra; k++) rows.push(savedCard(k))
+  for (const k of leading) rows.push(savedCard(k))
   let warmK = 0
   visible.forEach((m) => {
     const isAi = !m.safety
     const warm = m.safety === SCRIPTED && m.role === 'buddy' && isWarm(m.content)
-    if (warm) { rows.push(savedCard(extra + warmK)); warmK++ }
+    if (warm) { const k = talkIdx[oldTalk + warmK]; if (k !== undefined) rows.push(savedCard(k)); warmK++ }
     if (m.role === 'me') {
       const mood = m.safety === SCRIPTED ? replay([m.content]).answers.mood : null
       const rx = m.created_at >= openedAt ? reacts.get(m.content) : undefined
@@ -496,7 +508,7 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
       <Animated.View onLayout={onDock} style={[st.dock, { paddingBottom: insets.bottom + 8 }, lift]} pointerEvents="box-none">
         {phase === 'mood' ? (
           <Glass dark={sceneDark(sceneKey)} radius={24} style={st.moodGlass}>
-            <MoodRow onPick={(v) => void answerMood({ mood: v })} disabled={typing} ink={tone.ink} />
+            <MoodRow onPick={(v) => void answerMood({ mood: v })} disabled={typing} ink={tone.ink} selected={entry?.mood ?? null} />
           </Glass>
         ) : null}
         <ChipRow chips={chips} disabled={typing || busy || finishing} tone={tone} />

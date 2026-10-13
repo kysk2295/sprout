@@ -11,6 +11,7 @@ import { parseSections, type Section } from '@sprout/schema/diaryPrompts'
 import { readJson, removeJson, writeJson } from '../collect/localStore'
 import { alpha } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
+import { askDiaryNudgeOnce } from '../notifications/diary'
 import { GlassButton, GlassGroup } from '../ui/Glass'
 import { hx } from '../ui/haptics'
 import { useToast } from '../ui/Toast'
@@ -116,6 +117,7 @@ export function SoloWrite({ date, entry, index, onBack, onChat, onSaved }: {
       Keyboard.dismiss()
       toast.show('저장했어요')
       onSaved()
+      setTimeout(() => void askDiaryNudgeOnce(), 1500)
     } catch {
       setStatus('draft')
       toast.show('저장하지 못했어요. 글은 그대로 있어요')

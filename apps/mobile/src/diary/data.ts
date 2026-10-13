@@ -118,6 +118,8 @@ async function addMessage(date: string, role: 'me' | 'buddy', content: string) {
   await run([insert('diary_messages', { id: uuid(), entry_id: entryRef, role, content, safety: 0, created_at: at.toISOString(), modified_at: new Date().toISOString() })])
 }
 
+/** 28 §9 A 알림 답장: 내 말 한 줄(AI 대화 행 — 다음에 열면 캐릭터가 이어서 답한다) */
+export const addMine = (date: string, text: string) => addMessage(date, 'me', text.slice(0, 2000))
 /** 정해진 말(28 §8.3)과 그 답을 한 번에 남긴다(safety = SCRIPTED). 화면이 캐릭터 말을 잠깐 뒤에 보이도록 만든 id를 돌려준다 */
 export async function addScripted(date: string, lines: Line[]): Promise<string[]> {
   if (!lines.length) return []

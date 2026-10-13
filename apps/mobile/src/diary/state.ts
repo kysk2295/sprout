@@ -4,7 +4,9 @@ import { dayKey } from '../lib/dates'
 
 /** want = 그날을 열 때 한 번만 바랄 보기(이번 주 한 줄 → 그냥 쓰기) — 일기 화면이 읽고 지운다 */
 type State = { date: string; want?: 'free' | 'chat' }
-let state: State = { date: dayKey() }
+/** 28 §9.4 새벽 4시 전은 전날 일기 */
+export const diaryToday = () => (new Date().getHours() < 4 ? dayKey(-1) : dayKey())
+let state: State = { date: diaryToday() }
 const listeners = new Set<() => void>()
 const subscribe = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l) } }
 export const useDiaryState = () => useSyncExternalStore(subscribe, () => state)

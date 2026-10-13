@@ -18,6 +18,7 @@ import { db } from '../data/db'
 import { syncNow } from '../data/auth'
 import { completeTasks } from '../data/tasks'
 import { ensureExactAlarm, exactAlarmChanged } from './exactAlarm'
+import { configureDiaryCategory, handleDiaryResponse, scheduleDiaryNudge } from './diary'
 import { routeOf } from './pushLogic'
 import {
   ACTION_DONE, ACTION_SNOOZE, CATEGORY, diffSchedule, EVENT_CATEGORY, eventSnoozeId, isReminderId, mergePlans, overdueIds, isSnoozeId, planEventReminders, planReminders,
@@ -48,6 +49,8 @@ export function configureNotifications() {
     ])
     // 일정(06 §14.4.7): 완료 없이 다시 알림만
     await Notifications.setNotificationCategoryAsync(EVENT_CATEGORY, [snooze])
+    // 28 §9 A 저녁 일기: 답장 · 기분 단추
+    await configureDiaryCategory()
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync(CHANNEL, { name: '할 일 알림', importance: Notifications.AndroidImportance.HIGH })
       // 32 §5·§8: 서버가 보내는 하루 요약·성장 소식(기본 중요도)
@@ -71,24 +74,27 @@ let asking: Promise<boolean> | undefined
  * 꺼져 있으면 설정 열기를 권한다(같은 실행에서 한 번만).
  * reminder = 할 일 알림을 정한 순간(빠른 추가·날짜 시트): 알림 권한이 있으면 정확한 알람도 한 번 권한다(32 §17.6 ⓐ)
  */
-export function ensurePermission(opts: { reminder?: boolean } = {}): Promise<boolean> {
-  return askNotifications().then(async (granted) => {
+export function ensurePermission(opts: { reminder?: boolean; diary?: boolean } = {}): Promise<boolean> {
+  return askNotifications(opts.diary).then(async (granted) => {
     if (granted && opts.reminder) await ensureExactAlarm().catch(() => {})
     return granted
   })
 }
-function askNotifications(): Promise<boolean> {
+function askNotifications(diary = false): Promise<boolean> {
   asking ??= (async () => {
     const state = await permissionState()
     if (state === 'granted') return true
     if (state === 'denied') {
+      if (diary) return false
       if (!deniedShown) {
         deniedShown = true
         await choose('알림이 꺼져 있어요', '할 일 시간에 알림을 받으려면 설정에서 꿈틀 알림을 켜 주세요.', '설정 열기').then((ok) => { if (ok) void Linking.openSettings() })
       }
       return false
     }
-    const ok = await choose('알림을 켤까요?', '정한 시간에 할 일을 알려 드려요. 알림에서 바로 완료하거나 다시 알림을 고를 수 있어요.', '알림 켜기', '나중에')
+    const ok = diary
+      ? await choose('저녁에 물어봐도 될까요?', '밤 9시에 캐릭터가 하루가 어땠는지 물어봐요. 알림에서 바로 답하거나 기분만 눌러도 돼요.', '알림 켜기', '나중에')
+      : await choose('알림을 켤까요?', '정한 시간에 할 일을 알려 드려요. 알림에서 바로 완료하거나 다시 알림을 고를 수 있어요.', '알림 켜기', '나중에')
     if (!ok) return false
     const r = await Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowSound: true, allowBadge: false } })
     if (r.granted) void rescheduleNow()
@@ -167,6 +173,7 @@ async function rescheduleOnce() {
       })
     }
   }
+  await scheduleDiaryNudge()
   rescheduledListeners.forEach((l) => l())
 }
 /** 로그아웃: 이 기기의 예약을 모두 지운다 */
@@ -198,8 +205,14 @@ async function alreadyHandled(key: string): Promise<boolean> {
 }
 export async function handleResponse(r: Notifications.NotificationResponse, opts: { navigate: boolean }) {
   const req = r.notification.request
-  const data = req.content.data as { taskId?: string; eventId?: string; url?: string } | null
+  const data = req.content.data as { taskId?: string; eventId?: string; url?: string; diary?: string } | null
   const taskId = data?.taskId
+  // 28 §9 A 일기 알림: 기분 단추·답장은 앱을 열지 않고 남김(같은 응답은 한 번만), 누르면 일기
+  if (data?.diary && r.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) {
+    if (await alreadyHandled(`${req.identifier}|${r.actionIdentifier}|${r.userText ?? ''}`)) return
+    await handleDiaryResponse(r)
+    return
+  }
   if (data?.eventId) return handleEventResponse(r, data.eventId, opts)
   if (!taskId) {
     // 32 하루 요약·성장 소식: 누르면 그 화면(버튼 없음)
@@ -262,7 +275,7 @@ export function useNotifications(signedIn: boolean) {
     if (!signedIn) { void cancelAll(); return }
     void configureNotifications().then(() => rescheduleNow())
     // 데이터가 바뀌면(이 기기·동기화) 다시 계산
-    const stopWatch = db.onChangeWithCallback({ onChange: () => void rescheduleNow() }, { tables: ['tasks', 'reminders', 'lists', 'user_prefs', 'events'], throttleMs: 1500 })
+    const stopWatch = db.onChangeWithCallback({ onChange: () => void rescheduleNow() }, { tables: ['tasks', 'reminders', 'lists', 'user_prefs', 'events', 'diary_entries'], throttleMs: 1500 })
     const app = AppState.addEventListener('change', (s) => { if (s === 'active') void rescheduleNow() })
     // 48시간 창 안으로 들어오는 알림을 잡으려고 앞에 있는 동안 30분마다
     const timer = setInterval(() => void rescheduleNow(), 30 * 60_000)
