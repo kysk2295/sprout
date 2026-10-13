@@ -65,7 +65,7 @@
   .buddy.s { width:34px; height:34px; position:relative; flex:none; }
 
   .nav { position:absolute; top:44px; left:0; right:0; height:44px; display:flex; align-items:center; justify-content:space-between; padding:0 12px; z-index:15; color:#fff; }
-  .nav .t { text-align:center; font-size:13.5px; font-weight:700; line-height:1.2; } .nav .t small { display:block; font-size:10.5px; font-weight:500; opacity:.75; }
+  .nav .t { position:absolute; left:50%; translate:-50% 0; text-align:center; font-size:13.5px; font-weight:700; line-height:1.2; } .nav .t small { display:block; font-size:10.5px; font-weight:500; opacity:.75; }
   .gbtn { height:32px; min-width:32px; padding:0 10px; border-radius:16px; background:var(--glass); border:1px solid var(--glass-line); display:grid; place-items:center; font-size:12.5px; color:#fff; backdrop-filter:blur(12px); }
 
   .msgs { position:absolute; left:10px; right:10px; z-index:8; display:flex; flex-direction:column; gap:7px; }
@@ -183,6 +183,26 @@
   .note b { font-size:14px; display:block; margin-bottom:4px; }
   .note ul { margin:4px 0 0; padding-left:18px; } .note li { margin-bottom:3px; }
   .src { font-size:12.5px; color:var(--sub); line-height:1.8; margin-top:24px; }
+
+  /* 혼자 쓰기(메모장) */
+  .memo { background:var(--paper); }
+  .memo .mnav { position:absolute; top:44px; left:0; right:0; height:44px; display:flex; align-items:center; justify-content:space-between; padding:0 12px; z-index:15; }
+  .memo .mnav .t { position:absolute; left:50%; translate:-50% 0; text-align:center; font-size:13.5px; font-weight:700; line-height:1.2; } .memo .mnav .t small { display:block; font-size:10.5px; font-weight:500; color:var(--sub); }
+  .lbtn { height:32px; min-width:32px; padding:0 10px; border-radius:16px; background:#F0ECE3; display:grid; place-items:center; font-size:12.5px; color:var(--ink); }
+  .lbtn.save { background:var(--accent); color:#fff; font-weight:700; padding:0 14px; }
+  .lbtn.off { background:#ECE8DF; color:#B4B9B5; font-weight:700; padding:0 14px; }
+  .memo .mood-row { position:absolute; top:96px; left:16px; right:16px; display:flex; gap:8px; align-items:center; font-size:11.5px; color:var(--sub); }
+  .memo .mood-row .bean { width:28px; height:28px; font-size:14px; opacity:.38; } .memo .mood-row .bean.on { opacity:1; box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent); }
+  .memo .ttl { position:absolute; top:138px; left:16px; right:16px; font-size:21px; font-weight:800; letter-spacing:-.02em; }
+  .memo .ttl.ph { color:#C9C4B8; }
+  .memo .txt { position:absolute; top:178px; left:16px; right:16px; font-size:14.5px; line-height:28px; color:#2D3631; background-image:repeating-linear-gradient(180deg,transparent 0 27px,#EFEAE0 27px 28px); }
+  .memo .txt .ph { color:#BDB8AC; }
+  .memo .caret { display:inline-block; width:2px; height:17px; background:var(--accent); vertical-align:-3px; animation:blink 1s steps(2) infinite; }
+  .tbar { position:absolute; left:0; right:0; height:44px; background:#F6F3EC; border-top:1px solid #E9E4D9; display:flex; align-items:center; justify-content:space-around; z-index:12; font-size:12px; color:#3A433E; }
+  .tbar span { display:flex; align-items:center; gap:4px; padding:6px 8px; border-radius:10px; } .tbar b { color:var(--accent); }
+  .coach { position:absolute; z-index:25; background:#fff; color:var(--ink); border-radius:14px; padding:8px 11px; font-size:12px; line-height:1.45; box-shadow:0 8px 20px #0004; }
+  .coach::before { content:''; position:absolute; top:-6px; right:46px; border:6px solid transparent; border-top:0; border-bottom-color:#fff; }
+  .toast { position:absolute; left:50%; translate:-50% 0; z-index:25; background:#1D2622; color:#fff; border-radius:16px; padding:8px 14px; font-size:12.5px; white-space:nowrap; }
   @media (max-width:1000px) { .hero,.grid2,.goals { grid-template-columns:1fr; } }
 </style>
 </head>
@@ -295,7 +315,7 @@
     <div class="phone">
       <div class="scene dusk"></div><div class="fade-top"></div>
       <div class="notch"></div><div class="status"><span>21:04</span><span>▮</span></div>
-      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>오늘 이야기</small></div><span class="gbtn">▦</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화<small>오늘 이야기</small></div><span style="display:flex;gap:6px"><span class="gbtn">✎</span><span class="gbtn">▦</span></span></div>
       <div class="msgs" style="top:262px">
         <div class="who">느리</div>
         <div class="b c">저녁이네. 오늘 할 일 4개나 끝냈어. 하루 어땠어?</div>
@@ -307,7 +327,7 @@
         </div>
         <div class="composer"><span class="ph">아니면 그냥 말해 줘</span><span class="mic">🎙</span></div>
       </div>
-      <div class="pin" style="left:240px;top:52px">1</div>
+      <div class="pin" style="left:264px;top:28px">1</div>
       <div class="pin" style="left:12px;top:252px">2</div>
       <div class="pin" style="left:206px;top:350px">3</div>
       <div class="pin" style="left:8px;top:520px">4</div>
@@ -317,7 +337,7 @@
       <h3>C. 일기 탭 — 열면 이미 이야기 중</h3>
       <p class="why">① 빈 종이 → Finch 체크인 + Reflectly 기분부터</p>
       <ol>
-        <li><b>머리는 한 줄.</b> 날짜(누르면 기분 달력), ▦ = 기록(E). 저장 단추 없음. 화면을 오른쪽으로 밀면 어제</li>
+        <li><b>머리는 한 줄.</b> 날짜(누르면 기분 달력) · <b>✎ = 혼자 쓰기로 전환(K)</b> · ▦ = 기록(I). 저장 단추 없음. 화면을 오른쪽으로 밀면 어제</li>
         <li><b>인사는 기기가 만든다(AI 없음, 즉시).</b> 시간대 + 오늘 할 일. 3일 이상 안 왔으면 "다시 왔네, 반가워"(탓하지 않음). 아침엔 "오늘 할 일 5개 있어. 지금 기분은?"</li>
         <li><b>느리가 받침 위에 있다.</b> 숨쉬기 · 가끔 두리번. 누르면 깡충(AI 비서와 같은 동작)</li>
         <li><b>기분 5개가 첫 답.</b> 누르기만 해도 그날 기분 저장. 누르는 칸 48×58</li>
@@ -331,7 +351,7 @@
     <div class="phone">
       <div class="scene dusk"></div><div class="fade-top"></div>
       <div class="notch"></div><div class="status"><span>21:05</span><span>▮</span></div>
-      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>저장됨 ✓</small></div><span class="gbtn">▦</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화<small>저장됨 ✓</small></div><span style="display:flex;gap:6px"><span class="gbtn">✎</span><span class="gbtn">▦</span></span></div>
       <div class="msgs" style="top:96px">
         <div class="b c old">저녁이네. 오늘 할 일 4개나 끝냈어. 하루 어땠어?</div>
         <div class="b me"><span class="mood" style="background:var(--m4)">😊</span>좋았어</div>
@@ -344,7 +364,7 @@
         <div class="chips"><span class="chip g">✓ 기업경제학 퀴즈2</span><span class="chip g">✓ 치아 교정 상담</span><span class="chip g">전화영어</span></div>
         <div class="composer"><span class="ph">더 말해 줘도 돼</span><span class="mic">🎙</span></div>
       </div>
-      <div class="pin" style="left:226px;top:53px">1</div>
+      <div class="pin" style="left:264px;top:28px">1</div>
       <div class="pin" style="left:252px;top:236px">2</div>
       <div class="pin" style="left:8px;top:308px">3</div>
       <div class="pin" style="left:196px;top:396px">4</div>
@@ -368,7 +388,7 @@
     <div class="phone">
       <div class="scene dusk"></div><div class="fade-top"></div>
       <div class="notch"></div><div class="status"><span>21:06</span><span>▮</span></div>
-      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>저장됨 ✓</small></div><span class="gbtn">▦</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화<small>저장됨 ✓</small></div><span style="display:flex;gap:6px"><span class="gbtn">✎</span><span class="gbtn">▦</span></span></div>
       <div class="msgs" style="top:96px">
         <div class="b me old">퀴즈 생각보다 잘 봤어! 어제 늦게까지 한 보람 있었다</div>
         <div class="b c">어제 늦게까지 붙잡고 있던 게 오늘 점수로 돌아왔구나. 천천히라도 끝까지 한 거, 그게 너다워.</div>
@@ -402,7 +422,7 @@
     <div class="phone">
       <div class="scene dusk" style="background-position:center 20%"></div>
       <div class="notch"></div><div class="status"><span>21:07</span><span>▮</span></div>
-      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>저장됨 ✓</small></div><span class="gbtn">▦</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화<small>저장됨 ✓</small></div><span style="display:flex;gap:6px"><span class="gbtn">✎</span><span class="gbtn">▦</span></span></div>
       <div class="msgs" style="top:96px">
         <div class="b c old">…그래도 미뤄 두던 상담을 오늘 직접 다녀온 거잖아. 그것만으로도 큰일 한 거야.</div>
       </div>
@@ -434,7 +454,7 @@
     <div class="phone">
       <div class="scene dusk"></div><div class="fade-top" style="height:420px;background:linear-gradient(180deg,#353550 0%,#353550 60%,rgba(53,53,80,0) 100%)"></div>
       <div class="notch"></div><div class="status"><span>21:09</span><span>▮</span></div>
-      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>일기 쓰는 중</small></div><span class="gbtn">▦</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화<small>일기 쓰는 중</small></div><span style="display:flex;gap:6px"><span class="gbtn">✎</span><span class="gbtn">▦</span></span></div>
       <div class="msgs" style="top:96px">
         <div class="b me old" style="font-size:12.5px">오늘은 여기까지 ✓</div>
         <div class="b c">응, 오늘 이야기 고마워. 내가 일기로 옮겨 둘게.</div>
@@ -467,7 +487,7 @@
     <div class="phone">
       <div class="scene dusk"></div><div class="fade-top" style="height:460px;background:linear-gradient(180deg,#353550 0%,#353550 70%,rgba(53,53,80,0) 100%)"></div>
       <div class="notch"></div><div class="status"><span>21:09</span><span>▮</span></div>
-      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>저장됨 ✓</small></div><span class="gbtn">▦</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화<small>저장됨 ✓</small></div><span style="display:flex;gap:6px"><span class="gbtn">✎</span><span class="gbtn">▦</span></span></div>
       <div class="page" style="top:98px">
         <div class="band"></div>
         <div class="in">
@@ -541,7 +561,7 @@
     <div class="phone">
       <div class="scene moon"></div><div class="fade-top" style="background:linear-gradient(180deg,#3a4264 0%,#3a4264 40%,rgba(58,66,100,0) 100%)"></div>
       <div class="notch"></div><div class="status"><span>23:40</span><span>▮</span></div>
-      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>🔒 나만 보기</small></div><span class="gbtn">▦</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화<small>🔒 나만 보기</small></div><span style="display:flex;gap:6px"><span class="gbtn">✎</span><span class="gbtn">▦</span></span></div>
       <div class="msgs" style="top:96px">
         <div class="b me">오늘 그냥 좀 지쳤어</div>
         <div class="b c">그랬구나. 지친 날엔 여기까지 온 것도 충분해. 더 말하고 싶으면 들을게.</div>
@@ -553,7 +573,7 @@
         <div style="text-align:center;font-size:11.5px;color:var(--gsub);margin-bottom:8px">나만 보기 — 느리는 정해진 말만 하고, 일기는 기기 밖으로 나가지 않아요</div>
         <div class="composer"><span class="ph">더 말해 줘도 돼</span><span class="mic">🎙</span></div>
       </div>
-      <div class="pin" style="left:226px;top:53px">1</div>
+      <div class="pin" style="left:264px;top:28px">1</div>
       <div class="pin" style="left:8px;top:200px">2</div>
       <div class="pin" style="left:8px;top:556px">3</div>
     </div>
@@ -564,6 +584,114 @@
         <li><b>🔒 나만 보기</b>(날마다 또는 늘). AI 0회, 보내는 것 없음</li>
         <li><b>정해진 공감 말</b> — 기분 × 낱말(지쳤·힘들·좋았·뿌듯…)로 고른 문장 60개쯤. 질문은 3개까지. 끝나면 <b>내 말 그대로</b> 이어 붙인 일기(옮기기 없음)</li>
         <li><b>AI가 쉬는 중·한도 끝</b>도 같은 길로. 느리 얼굴 = 졸림, 위 한 줄 "느리가 쉬는 중이라 짧게 답해요. 일기는 그대로 저장돼요". 돌아오면 "다시 옮기기"로 다듬기 가능</li>
+      </ol>
+    </figcaption>
+  </figure>
+</div>
+
+
+<h2>3-2. 혼자 쓰기 — 메모장처럼 쓰고 저장<small>위 ✎ 단추 하나로 전환 · AI 0회</small></h2>
+<p class="h2sub">이야기하기 싫은 날, 길게 쓰고 싶은 날을 위한 길. 캐릭터도 질문도 없이 종이에 바로 쓰고 <b>저장</b>을 누른다. 쓰는 중엔 기기에 계속 임시 저장돼 앱이 꺼져도 잃지 않는다. 혼자 쓴 글은 어디로도 보내지 않는다(AI 0회 — 따로 "나만 보기"를 켤 필요 없음).</p>
+<div class="row">
+
+  <!-- K 전환 단추 -->
+  <figure>
+    <div class="phone">
+      <div class="scene dusk"></div><div class="fade-top"></div>
+      <div class="notch"></div><div class="status"><span>21:04</span><span>▮</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화<small>오늘 이야기</small></div><span style="display:flex;gap:6px"><span class="gbtn" style="background:#fff;color:var(--ink);box-shadow:0 0 0 3px rgba(60,196,162,.6)">✎</span><span class="gbtn">▦</span></span></div>
+      <div class="coach" style="top:96px;right:12px">오늘은 혼자 쓰고 싶다면 여기.<br><span style="color:var(--sub)">언제든 다시 느리와 이야기할 수 있어요</span></div>
+      <div class="msgs" style="top:262px">
+        <div class="who">느리</div>
+        <div class="b c">저녁이네. 오늘 할 일 4개나 끝냈어. 하루 어땠어?</div>
+      </div>
+      <div class="buddy" style="left:90px;top:330px"><img src="../../../packages/schema/art3d/snail-2@768.webp"><img src="../../../packages/schema/art3d/snail-2-face-default@768.webp"></div>
+      <div class="bottom">
+        <div class="moods">
+          <span><i class="bean" style="background:var(--m1)">😣</i>힘들었어</span><span><i class="bean" style="background:var(--m2)">😕</i>별로</span><span><i class="bean" style="background:var(--m3)">🙂</i>그럭저럭</span><span><i class="bean" style="background:var(--m4)">😊</i>좋았어</span><span><i class="bean" style="background:var(--m5)">😆</i>최고</span>
+        </div>
+        <div class="composer"><span class="ph">아니면 그냥 말해 줘</span><span class="mic">🎙</span></div>
+      </div>
+      <div class="pin" style="left:206px;top:44px">1</div>
+      <div class="pin" style="left:8px;top:104px">2</div>
+    </div>
+    <figcaption>
+      <h3>K. 전환 단추 ✎ — 머리 오른쪽</h3>
+      <p class="why">대화가 늘 맞는 건 아니다 → 한 번 눌러 바로 종이로</p>
+      <ol>
+        <li><b>✎ 하나.</b> 누르면 장면이 종이로 바뀐다(0.3초 겹쳐 사라짐). 혼자 쓰기 화면에선 같은 자리가 <b>💬</b>(느리와 이야기로 돌아가기)</li>
+        <li><b>처음 한 번만 안내 말풍선.</b> 마지막에 쓴 방식을 기억해, 혼자 쓰기를 자주 쓰는 사람은 일기 탭이 바로 종이로 열린다(설정에서 바꿈)</li>
+      </ol>
+    </figcaption>
+  </figure>
+
+  <!-- L 쓰는 중 -->
+  <figure>
+    <div class="phone memo">
+      <div class="notch"></div><div class="status dark"><span>21:05</span><span>▮</span></div>
+      <div class="mnav"><span class="lbtn">‹</span><div class="t">10월 13일<small>화 · 임시 저장됨</small></div><span style="display:flex;gap:6px"><span class="lbtn">💬</span><span class="lbtn save">저장</span></span></div>
+      <div class="mood-row">기분 <i class="bean" style="background:var(--m1)">😣</i><i class="bean" style="background:var(--m2)">😕</i><i class="bean on" style="background:var(--m3)">🙂</i><i class="bean" style="background:var(--m4)">😊</i><i class="bean" style="background:var(--m5)">😆</i></div>
+      <div class="ttl">애매한 하루</div>
+      <div class="txt">퀴즈는 잘 봤는데 교정이 2년이라는 말을 듣고 나니 기분이 묘하다. 잘한 것도 있고 걱정도 있는, 딱 중간쯤인 날.<span class="caret"></span></div>
+      <div class="tbar" style="bottom:236px"><span>🙂 기분</span><span>✓ 한 일</span><span>? 질문</span><span>🕘 시각</span><span><b>키보드 ⌄</b></span></div>
+      <div class="kb"><div class="kr"><i>ㅂ</i><i>ㅈ</i><i>ㄷ</i><i>ㄱ</i><i>ㅅ</i><i>ㅛ</i><i>ㅕ</i><i>ㅑ</i><i>ㅐ</i><i>ㅔ</i></div><div class="kr"><i>ㅁ</i><i>ㄴ</i><i>ㅇ</i><i>ㄹ</i><i>ㅎ</i><i>ㅗ</i><i>ㅓ</i><i>ㅏ</i><i>ㅣ</i></div><div class="kr"><i class="m">⇧</i><i>ㅋ</i><i>ㅌ</i><i>ㅊ</i><i>ㅍ</i><i>ㅠ</i><i>ㅜ</i><i>ㅡ</i><i class="m">⌫</i></div><div class="kr"><i class="m">123</i><i class="m">🎙</i><i class="w">스페이스</i><i class="m">↵</i></div></div>
+      <div class="pin" style="left:80px;top:62px">1</div>
+      <div class="pin" style="left:262px;top:30px">2</div>
+      <div class="pin" style="left:252px;top:100px">3</div>
+      <div class="pin" style="left:250px;top:142px">4</div>
+      <div class="pin" style="left:250px;top:186px">5</div>
+      <div class="pin" style="left:8px;top:366px">6</div>
+    </div>
+    <figcaption>
+      <h3>L. 혼자 쓰기 — 메모장 그대로</h3>
+      <p class="why">Apple 메모·Day One 편집기처럼 열면 바로 커서</p>
+      <ol>
+        <li><b>임시 저장됨</b> — 글자를 칠 때마다 1초 뒤 기기에 저장. 저장 전 나가도 다음에 그대로 이어서</li>
+        <li><b>저장</b> 단추(오른쪽 위). 아무것도 안 썼으면 흐림. 누르면 키보드가 내려가고 일기 한 장(M)</li>
+        <li><b>기분은 선택</b>, 한 줄 작게. 고르지 않으면 저장할 때 묻지 않는다</li>
+        <li><b>제목도 선택.</b> 비우면 본문 첫 줄이 목록 제목이 된다. 제목 칸에서 ↵ = 본문으로</li>
+        <li><b>본문은 줄 노트 종이 한 장</b>, 화면 끝까지. 열면 커서가 본문에 있고 키보드가 올라와 있다</li>
+        <li><b>키보드 위 도구 한 줄:</b> 기분 · <b>한 일</b>(오늘 끝낸 할 일을 골라 글에 넣기) · <b>질문</b>(막힐 때 한 줄 질문을 글에 넣기) · 시각(지금 시각 넣기) · 키보드 내리기</li>
+      </ol>
+    </figcaption>
+  </figure>
+
+  <!-- M 저장 뒤 -->
+  <figure>
+    <div class="phone memo">
+      <div class="notch"></div><div class="status dark"><span>21:12</span><span>▮</span></div>
+      <div class="mnav"><span class="lbtn">‹</span><div class="t">10월 13일<small>화 · 저장됨 ✓</small></div><span style="display:flex;gap:6px"><span class="lbtn">💬</span><span class="lbtn">⋯</span></span></div>
+      <div class="page" style="top:98px;box-shadow:0 6px 20px #0000001a">
+        <div class="band" style="background:linear-gradient(90deg,var(--m4),#9AD7AE)"></div>
+        <div class="in">
+          <div class="meta"><span class="bean" style="background:var(--m4)">😊</span><b style="color:var(--ink)">좋았어</b> · 오후 9:09 · 💬 느리와</div>
+          <h4 style="font-size:16px">2년짜리 교정, 그리고 케이크</h4>
+          <div class="body" style="font-size:12.8px">기업경제학 퀴즈를 생각보다 잘 봤다. 미뤄 두던 교정 상담도 다녀왔는데…</div>
+        </div>
+      </div>
+      <div class="page" style="top:252px">
+        <div class="band" style="background:linear-gradient(90deg,var(--m3),#F7D58C)"></div>
+        <div class="in">
+          <div class="meta"><span class="bean" style="background:var(--m3)">🙂</span><b style="color:var(--ink)">그럭저럭</b> · 오후 11:40 · ✎ 혼자</div>
+          <h4>애매한 하루</h4>
+          <div class="body">퀴즈는 잘 봤는데 교정이 2년이라는 말을 듣고 나니 기분이 묘하다. 잘한 것도 있고 걱정도 있는, 딱 중간쯤인 날.</div>
+        </div>
+        <div class="acts"><span>✎ 고치기</span><span>＋ 이어 쓰기</span></div>
+      </div>
+      <div class="toast" style="bottom:40px">저장했어요</div>
+      <div class="pin" style="left:8px;top:108px">1</div>
+      <div class="pin" style="left:8px;top:262px">2</div>
+      <div class="pin" style="left:8px;top:424px">3</div>
+      <div class="pin" style="left:250px;top:84px">4</div>
+    </div>
+    <figcaption>
+      <h3>M. 저장 뒤 — 그날의 종이들</h3>
+      <p class="why">하루에 몇 번 써도 앞 글을 덮지 않는다(지금 규칙 그대로)</p>
+      <ol>
+        <li><b>그날 쓴 글이 시간 순서로 쌓인다.</b> 느리와 나눈 이야기로 만든 장은 💬, 혼자 쓴 장은 ✎ 표시. 지난 장은 접혀 첫 줄만</li>
+        <li><b>방금 저장한 장</b>이 펼쳐진 채 아래에. 기분 띠 색 그대로</li>
+        <li><b>고치기</b> = 같은 메모장(L)으로 · <b>이어 쓰기</b> = 새 장. 느리 반응·한 줄 말은 없다(혼자 쓰기니까)</li>
+        <li>⋯ = 지우기 · 느리에게 보여 주기(이 장만 느리가 읽고 답함, 누를 때만 AI 1회)</li>
       </ol>
     </figcaption>
   </figure>
@@ -589,6 +717,7 @@
     <li>초안 카드의 [저장] 단추 → 자동 저장</li>
     <li>동의 카드 단계 → 처음 한 번 설정에서 끝내고, 대화 안 카드 없음(기본은 나누기, 첫날 한 줄 안내)</li>
     <li>"대화 그대로" 단추 → ⋯ 안으로</li>
+    <li>"그냥 쓸래요" 칩·🔒 나만 보기 날 표시 → 머리 ✎ 혼자 쓰기 하나로(혼자 쓴 글은 AI 0)</li>
     <li>질문 3개를 정해 두는 단계 → 막힐 때만 질문(20초 무입력)</li>
     <li>좌우 밀어 날짜 넘기기 + 주 띠 → 기록 달력 하나</li>
     <li>여러 편 이어 붙이기의 시각 머리 → 같은 날 두 번째부터만 작게</li>
@@ -602,12 +731,13 @@
     <li>앱을 떠나면 자동으로 일기 정리(G)</li>
     <li>종이 한 장 + 그날 끝낸 할 일(H)</li>
     <li>새벽 4시까지는 전날 일기</li>
+    <li><b>✎ 혼자 쓰기</b>: 메모장처럼 쓰고 저장(K·L·M) — 지금의 "그냥 쓸래요"·나만 보기를 대신함</li>
   </ul></div>
 </div>
 
-<h2>6. 정해 주실 것</h2>
+<h2>6. 결정 (2026-10-13 확정 — 4개 모두 추천대로 + 혼자 쓰기 전환)</h2>
 <table>
-  <tr><th style="width:36px">#</th><th>질문</th><th style="width:300px">추천</th><th>이유</th></tr>
+  <tr><th style="width:36px">#</th><th>질문</th><th style="width:300px">확정</th><th>이유</th></tr>
   <tr><td>①</td><td>이 방향(대화 → 자동 일기 한 장)으로 갈까?</td><td><b>간다</b></td><td>조사한 불편 7개를 한 흐름으로 푼다. 서버(대화·옮기기 스트림)는 이미 있어 바뀌는 건 휴대폰 화면과 알림·위젯</td></tr>
   <tr><td>②</td><td>알림 바로 답장 · 홈 위젯도 v1에?</td><td><b>알림 답장은 v1, 위젯은 다음</b></td><td>알림은 이미 있는 푸시 + 답장 동작만 더하면 된다. 위젯은 iOS 위젯 확장(Swift)·안드로이드 위젯을 따로 만들어야 해서 크다</td></tr>
   <tr><td>③</td><td>앱을 떠나면 자동으로 일기로 옮길까?</td><td><b>옮긴다</b>(5분 뒤, 하루 5번 안에서)</td><td>"끝내기"조차 귀찮다. 옮기기 한도를 넘으면 내 말 그대로 이어 붙여 저장</td></tr>
