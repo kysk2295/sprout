@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>일기 v6 — 톡하면 일기가 된다</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root {
+    --ink:#1D2622; --sub:#66716B; --faint:#A3ADA7; --line:#E3E8E4; --page:#E9EDEA;
+    --accent:#12715E; --accent-2:#3CC4A2; --accent-soft:#E1F1EC;
+    --m1:#8797AE; --m2:#8EC1D6; --m3:#F2B84B; --m4:#62BF7E; --m5:#F08A5D;
+    --glass:rgba(22,28,40,.58); --glass-line:rgba(255,255,255,.14); --gink:#F4F6F8; --gsub:rgba(244,246,248,.7);
+    --paper:#FFFDF8;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Pretendard,-apple-system,sans-serif; background:var(--page); color:var(--ink); -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1360px; margin:0 auto; padding:0 28px 80px; }
+  a { color:var(--accent); }
+
+  /* ── 머리 ── */
+  .hero { padding:44px 0 18px; display:grid; grid-template-columns:1.25fr 1fr; gap:36px; align-items:end; }
+  .hero .k { font-size:13px; font-weight:700; color:var(--accent); letter-spacing:.02em; }
+  .hero h1 { margin:6px 0 10px; font-size:38px; line-height:1.18; letter-spacing:-.035em; }
+  .hero p { margin:0; font-size:15.5px; line-height:1.7; color:#3E4943; }
+  .goals { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .goal { background:#fff; border-radius:18px; padding:14px 16px; }
+  .goal b { display:block; font-size:14.5px; margin-bottom:4px; } .goal span { font-size:12.8px; color:var(--sub); line-height:1.55; }
+  .goal i { font-style:normal; font-size:20px; float:right; }
+
+  h2 { font-size:22px; letter-spacing:-.025em; margin:56px 0 6px; }
+  h2 small { font-size:13px; color:var(--sub); font-weight:500; margin-left:8px; letter-spacing:0; }
+  .h2sub { margin:0 0 16px; color:var(--sub); font-size:14px; line-height:1.6; }
+
+  table { width:100%; border-collapse:collapse; background:#fff; border-radius:18px; overflow:hidden; font-size:13.2px; }
+  th, td { text-align:left; padding:11px 13px; border-bottom:1px solid var(--line); vertical-align:top; line-height:1.55; }
+  th { background:#F3F6F4; font-size:12px; color:var(--sub); font-weight:700; }
+  tr:last-child td { border-bottom:0; }
+  td.ours { color:var(--accent); font-weight:600; }
+  .tag { display:inline-block; font-size:11px; border-radius:8px; padding:1px 7px; background:#F1F4F2; color:#4A554F; margin:1px 2px 1px 0; }
+
+  /* ── 흐름 ── */
+  .flow { display:flex; align-items:stretch; gap:0; background:#fff; border-radius:20px; padding:16px; overflow-x:auto; }
+  .flow .st { flex:1; min-width:150px; padding:6px 12px; border-right:1px dashed #D5DCD8; }
+  .flow .st:last-child { border-right:0; }
+  .flow .st b { display:block; font-size:13.5px; margin-bottom:3px; } .flow .st span { font-size:12px; color:var(--sub); line-height:1.5; }
+  .flow .st em { font-style:normal; display:inline-block; font-size:11px; font-weight:700; color:#fff; background:var(--accent); border-radius:9px; padding:1px 7px; margin-bottom:6px; }
+  .flow .st em.ai { background:#7A5BB0; } .flow .st em.no { background:#8A958F; }
+
+  /* ── 휴대폰 ── */
+  .row { display:flex; flex-wrap:wrap; gap:34px 30px; }
+  figure { margin:0; width:300px; }
+  .phone { width:300px; height:650px; border-radius:46px; border:9px solid #161A18; position:relative; overflow:hidden; box-shadow:0 22px 44px #00000030; background:#202436; }
+  .notch { position:absolute; top:8px; left:50%; translate:-50% 0; width:90px; height:26px; background:#161A18; border-radius:16px; z-index:30; }
+  .status { position:absolute; top:0; left:0; right:0; height:40px; display:flex; align-items:end; justify-content:space-between; padding:0 24px 4px; font-size:12.5px; font-weight:600; z-index:20; color:#fff; }
+  .status.dark { color:var(--ink); }
+  .scene { position:absolute; inset:0; background-size:cover; background-position:center 78%; }
+  .scene.dusk { background-image:url('../../../packages/schema/art3d/scene-dusk@1170.webp'); }
+  .scene.moon { background-image:url('../../../packages/schema/art3d/scene-moon@1170.webp'); }
+  .scene.day { background-image:url('../../../packages/schema/art3d/scene-day@1170.webp'); }
+  .fade-top { position:absolute; left:0; right:0; top:0; height:260px; background:linear-gradient(180deg,#353550 0%,#353550 40%,rgba(53,53,80,0) 100%); }
+
+  .buddy { position:absolute; width:120px; height:120px; z-index:6; }
+  .buddy img { position:absolute; left:-35%; top:-45%; width:170%; height:170%; object-fit:contain; }
+  .buddy.s { width:34px; height:34px; position:relative; flex:none; }
+
+  .nav { position:absolute; top:44px; left:0; right:0; height:44px; display:flex; align-items:center; justify-content:space-between; padding:0 12px; z-index:15; color:#fff; }
+  .nav .t { text-align:center; font-size:13.5px; font-weight:700; line-height:1.2; } .nav .t small { display:block; font-size:10.5px; font-weight:500; opacity:.75; }
+  .gbtn { height:32px; min-width:32px; padding:0 10px; border-radius:16px; background:var(--glass); border:1px solid var(--glass-line); display:grid; place-items:center; font-size:12.5px; color:#fff; backdrop-filter:blur(12px); }
+
+  .msgs { position:absolute; left:10px; right:10px; z-index:8; display:flex; flex-direction:column; gap:7px; }
+  .b { max-width:82%; padding:9px 12px; font-size:13.4px; line-height:1.55; border-radius:18px; position:relative; }
+  .b.c { align-self:flex-start; background:var(--glass); color:var(--gink); border:1px solid var(--glass-line); border-bottom-left-radius:6px; backdrop-filter:blur(14px); }
+  .b.me { align-self:flex-end; background:#F4FFFA; color:var(--ink); border-bottom-right-radius:6px; }
+  .b.me .rx { position:absolute; left:-10px; bottom:-8px; background:#fff; border-radius:12px; padding:1px 5px; font-size:12px; box-shadow:0 2px 6px #0003; }
+  .b.old { opacity:.55; }
+  .b .mood { display:inline-block; width:18px; height:18px; border-radius:50%; vertical-align:-4px; margin-right:5px; text-align:center; font-size:11px; line-height:18px; }
+  .b.stream::after { content:''; display:inline-block; width:7px; height:13px; background:var(--accent-2); border-radius:2px; margin-left:2px; vertical-align:-2px; animation:blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity:0; } }
+  .dots { display:inline-flex; gap:4px; padding:3px 2px; } .dots i { width:6px; height:6px; border-radius:50%; background:var(--gsub); animation:bob 1.2s infinite; } .dots i:nth-child(2){animation-delay:.15s} .dots i:nth-child(3){animation-delay:.3s}
+  @keyframes bob { 0%,60%,100%{transform:translateY(0);opacity:.5} 30%{transform:translateY(-3px);opacity:1} }
+  .who { font-size:10.5px; color:var(--gsub); margin:2px 0 -3px 4px; }
+
+  .bottom { position:absolute; left:0; right:0; bottom:0; z-index:12; padding:0 10px 22px; }
+  .chips { display:flex; gap:6px; overflow:hidden; margin-bottom:8px; }
+  .chip { flex:none; height:34px; padding:0 13px; border-radius:17px; display:flex; align-items:center; gap:5px; font-size:12.8px; background:rgba(255,255,255,.92); color:var(--ink); font-weight:600; }
+  .chip.g { background:var(--glass); color:#fff; border:1px solid var(--glass-line); font-weight:500; }
+  .chip.end { background:var(--accent); color:#fff; }
+  .moods { display:flex; justify-content:space-between; background:var(--glass); border:1px solid var(--glass-line); border-radius:22px; padding:10px 10px 8px; margin-bottom:8px; backdrop-filter:blur(14px); }
+  .moods span { display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10.5px; color:var(--gsub); width:48px; }
+  .bean { display:grid; place-items:center; border-radius:50%; flex:none; }
+  .moods .bean { width:40px; height:40px; font-size:20px; }
+  .composer { display:flex; align-items:center; gap:6px; height:46px; border-radius:23px; background:rgba(255,255,255,.95); padding:0 6px 0 14px; }
+  .composer .ph { flex:1; font-size:13.5px; color:var(--faint); }
+  .composer .ph.typed { color:var(--ink); }
+  .composer .mic { width:34px; height:34px; border-radius:50%; background:#EEF2F0; display:grid; place-items:center; font-size:15px; }
+  .composer .send { width:34px; height:34px; border-radius:50%; background:var(--accent); color:#fff; display:grid; place-items:center; font-size:16px; font-weight:800; }
+
+  .kb { position:absolute; left:0; right:0; bottom:0; height:236px; background:#D3D6DD; z-index:11; padding:8px 4px; }
+  .kb .kr { display:flex; justify-content:center; gap:5px; margin-bottom:9px; } .kb .kr i { width:24px; height:38px; border-radius:6px; background:#fff; box-shadow:0 1px 0 #898A8D; font-style:normal; font-size:14px; display:grid; place-items:center; color:#222; }
+  .kb .kr i.w { width:120px; } .kb .kr i.m { width:36px; background:#ACB0BA; }
+
+  /* 표식 */
+  .pin { position:absolute; z-index:40; width:22px; height:22px; border-radius:50%; background:#FF5A3C; color:#fff; font-size:12px; font-weight:800; display:grid; place-items:center; box-shadow:0 0 0 3px #fff, 0 3px 8px #0004; }
+  figcaption { margin-top:14px; }
+  figcaption h3 { margin:0 0 4px; font-size:15.5px; letter-spacing:-.02em; }
+  figcaption .why { font-size:12.6px; color:var(--sub); line-height:1.55; margin:0 0 8px; }
+  figcaption ol { margin:0; padding:0; list-style:none; counter-reset:n; }
+  figcaption li { counter-increment:n; position:relative; padding-left:26px; font-size:12.6px; line-height:1.55; margin-bottom:6px; color:#323C37; }
+  figcaption li::before { content:counter(n); position:absolute; left:0; top:1px; width:18px; height:18px; border-radius:50%; background:#FF5A3C; color:#fff; font-size:10.5px; font-weight:800; display:grid; place-items:center; }
+  figcaption li b { color:var(--ink); }
+
+  /* 잠금 화면 */
+  .lock { background:url('../../../packages/schema/art3d/scene-moon@1170.webp') center/cover; }
+  .lock .clock { position:absolute; top:70px; left:0; right:0; text-align:center; color:#fff; z-index:5; }
+  .lock .clock small { font-size:14px; font-weight:600; opacity:.85; } .lock .clock b { display:block; font-size:66px; font-weight:700; letter-spacing:-.03em; line-height:1.05; }
+  .noti { position:absolute; left:10px; right:10px; top:250px; z-index:6; background:rgba(245,245,247,.82); backdrop-filter:blur(20px); border-radius:22px; padding:11px 12px; }
+  .noti .h { display:flex; align-items:center; gap:8px; font-size:12px; color:#555; } .noti .h b { color:#111; font-size:13px; }
+  .noti .ic { width:24px; height:24px; border-radius:7px; background:linear-gradient(135deg,#3CC4A2,#12715E); position:relative; overflow:hidden; }
+  .noti p { margin:5px 0 0 32px; font-size:13.5px; line-height:1.45; color:#111; }
+  .noti .acts { display:flex; gap:6px; margin:10px 0 0; }
+  .noti .acts span { flex:1; text-align:center; background:rgba(255,255,255,.75); border-radius:12px; padding:8px 0; font-size:12.5px; font-weight:600; color:#111; }
+  .noti .reply { margin-top:8px; display:flex; align-items:center; gap:6px; background:#fff; border-radius:16px; padding:8px 10px; font-size:13px; color:#111; }
+  .noti .reply span { flex:1; } .noti .reply i { font-style:normal; width:26px; height:26px; border-radius:50%; background:var(--accent); color:#fff; display:grid; place-items:center; font-weight:800; }
+
+  /* 홈 화면 */
+  .home { background:linear-gradient(170deg,#A9C6D9,#E8D2C4); }
+  .apps { position:absolute; left:18px; right:18px; display:grid; grid-template-columns:repeat(4,1fr); gap:16px 14px; }
+  .apps i { height:50px; border-radius:13px; background:rgba(255,255,255,.55); display:block; }
+  .wg { position:absolute; left:16px; right:16px; border-radius:24px; overflow:hidden; box-shadow:0 8px 20px #0002; }
+  .wg.m { top:66px; height:150px; background:url('../../../packages/schema/art3d/scene-dusk@1170.webp') center 80%/cover; }
+  .wg .q { position:absolute; left:14px; top:14px; color:#fff; font-size:15px; font-weight:700; line-height:1.3; } .wg .q small { display:block; font-size:11px; font-weight:500; opacity:.8; margin-top:3px; }
+  .wg .wb { position:absolute; left:12px; right:12px; bottom:12px; display:flex; justify-content:space-between; background:rgba(22,28,40,.5); border-radius:16px; padding:7px 8px; backdrop-filter:blur(8px); }
+  .wg .wb .bean { width:32px; height:32px; font-size:16px; }
+  .wg.s { width:122px; height:122px; left:16px; right:auto; top:380px; background:var(--paper); }
+  .wg.s2 { width:122px; height:122px; left:auto; right:16px; top:380px; background:url('../../../packages/schema/art3d/scene-day@1170.webp') center 80%/cover; }
+
+  /* 일기 한 장 */
+  .light { background:#F3F5F2; }
+  .page { position:absolute; left:10px; right:10px; z-index:8; background:var(--paper); border-radius:24px; box-shadow:0 10px 30px #0000002e; overflow:hidden; }
+  .page .band { height:6px; background:linear-gradient(90deg,var(--m4),#9AD7AE); }
+  .page .in { padding:14px 16px 12px; }
+  .page .meta { display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--sub); }
+  .page .meta .bean { width:22px; height:22px; font-size:12px; }
+  .page h4 { margin:8px 0 6px; font-size:18px; letter-spacing:-.02em; }
+  .page .body { font-size:13.4px; line-height:1.78; color:#2D3631; background-image:repeating-linear-gradient(180deg,transparent 0 23px,#EFEAE0 23px 24px); }
+  .page .tg { margin-top:8px; }
+  .page .tasks { margin-top:8px; display:flex; flex-wrap:wrap; gap:5px; }
+  .page .tasks span { font-size:11.3px; border-radius:9px; padding:3px 8px; background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  .page .foot { display:flex; justify-content:space-between; align-items:center; border-top:1px solid #F0ECE3; padding:9px 16px; font-size:12px; color:var(--sub); }
+  .page .foot b { color:var(--accent); font-weight:700; }
+  .page .acts { display:flex; gap:6px; padding:0 16px 14px; }
+  .page .acts span { flex:1; text-align:center; font-size:12px; font-weight:600; padding:8px 0; border-radius:12px; background:#F2EFE8; color:#3A433E; }
+  .writing { position:absolute; left:10px; right:10px; z-index:8; background:var(--paper); border-radius:24px; padding:14px 16px; box-shadow:0 10px 30px #0000002e; }
+  .writing .hd { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; }
+  .writing .prog { height:3px; border-radius:2px; background:#ECE7DC; margin:10px 0; overflow:hidden; } .writing .prog i { display:block; width:45%; height:100%; background:linear-gradient(90deg,transparent,var(--accent-2),transparent); animation:flow 1.4s linear infinite; }
+  @keyframes flow { from{transform:translateX(-100%)} to{transform:translateX(230%)} }
+  .writing h4 { margin:2px 0 6px; font-size:17px; }
+  .writing p { margin:0; font-size:13.3px; line-height:1.75; color:#2D3631; }
+  .writing small { display:block; margin-top:10px; font-size:11.3px; color:var(--sub); }
+
+  /* 기록 */
+  .rec { position:absolute; top:44px; left:0; right:0; bottom:0; padding:0 12px; overflow:hidden; }
+  .rec .top { display:flex; align-items:center; justify-content:space-between; height:44px; }
+  .rec .top b { font-size:22px; letter-spacing:-.03em; }
+  .rec .cal { background:#fff; border-radius:22px; padding:10px 6px 6px; display:grid; grid-template-columns:repeat(7,1fr); row-gap:4px; }
+  .rec .wd { font-size:10px; color:var(--faint); text-align:center; padding-bottom:3px; }
+  .rec .d { height:42px; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:9.5px; color:var(--sub); }
+  .rec .d .bean { width:26px; height:26px; font-size:13px; }
+  .rec .d .e { width:26px; height:26px; border-radius:50%; background:#F1F3F1; }
+  .rec .d.t { color:var(--accent); font-weight:800; } .rec .d.t .bean { box-shadow:0 0 0 2px #fff,0 0 0 4px var(--accent); }
+  .rec .d.f { opacity:.35; }
+  .rec .sum { background:#fff; border-radius:20px; padding:12px 14px; margin-top:8px; font-size:12.8px; line-height:1.55; }
+  .rec .sum .bar { display:flex; height:8px; border-radius:4px; overflow:hidden; margin:7px 0 6px; }
+  .rec .yb { margin-top:8px; border-radius:20px; padding:12px 14px; background:linear-gradient(135deg,#FFF3DF,#FBE6DA); font-size:12.8px; line-height:1.55; }
+  .rec .yb b { display:block; font-size:11px; color:#A86A2A; margin-bottom:2px; }
+  .rec .li { margin-top:8px; background:#fff; border-radius:18px; padding:11px 13px; display:flex; gap:10px; align-items:flex-start; }
+  .rec .li .bean { width:28px; height:28px; font-size:14px; }
+  .rec .li b { font-size:13.4px; display:block; } .rec .li span { font-size:12px; color:var(--sub); line-height:1.45; }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .note { background:#fff; border-radius:18px; padding:14px 16px; font-size:13px; line-height:1.65; }
+  .note b { font-size:14px; display:block; margin-bottom:4px; }
+  .note ul { margin:4px 0 0; padding-left:18px; } .note li { margin-bottom:3px; }
+  .src { font-size:12.5px; color:var(--sub); line-height:1.8; margin-top:24px; }
+  @media (max-width:1000px) { .hero,.grid2,.goals { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ───────── 머리 ───────── -->
+<div class="hero">
+  <div>
+    <div class="k">일기 v6 · 조사 → 시안 · 2026-10-13</div>
+    <h1>느리에게 톡하면,<br>오늘의 일기가 된다</h1>
+    <p>일기를 그만두는 이유는 대부분 의지가 아니라 <b>마찰</b>이다. 빈 종이, 느낌을 문장으로 옮기는 수고, 열고 저장하는 단계가 마찰이 된다(조사 §1). 그래서 꿈틀 일기는 <b>쓰는 게 아니라 캐릭터에게 이야기하는 것</b>으로 바꿨다. 기분 하나만 눌러도 기록이 되고, 몇 마디 나누면 느리가 내 말투 그대로 일기 한 장으로 옮겨 <b>알아서 저장</b>한다. 저장 단추는 없다.</p>
+  </div>
+  <div class="goals">
+    <div class="goal"><i>⏱</i><b>3초부터</b><span>알림·위젯에서 기분만 눌러도 그날 기록 끝. 보통 1~2분.</span></div>
+    <div class="goal"><i>✍︎</i><b>안 써도 된다</b><span>칩 탭 · 말하기 · 한 줄. 문장은 느리가 일기로 옮긴다.</span></div>
+    <div class="goal"><i>♡</i><b>공감부터</b><span>0.3초 안에 끄덕임·하트, 그다음 내 말을 짚는 답. 조언은 물을 때만.</span></div>
+    <div class="goal"><i>✦</i><b>예쁘게</b><span>시간대 장면 위 유리 말풍선, 일기는 종이 한 장.</span></div>
+  </div>
+</div>
+
+<!-- ───────── 1 조사 ───────── -->
+<h2>1. 왜 귀찮은가 → 다른 앱은 → 꿈틀은<small>조사한 앱 12개</small></h2>
+<p class="h2sub">일기 앱은 정신 건강 도구 가운데 오래 쓰는 비율이 가장 낮다. 첫 주에 열심히 쓰고, 2주째 줄고, 한 달 안에 멈춘다. 습관은 평균 11일째쯤 끊긴다. 아래 표는 불편 하나마다 그걸 가장 잘 푼 앱과 꿈틀의 답이다.</p>
+<table>
+  <tr><th style="width:190px">사용자가 겪는 불편</th><th>잘 푼 앱 · 방법</th><th style="width:380px">꿈틀 일기</th></tr>
+  <tr><td><b>① 빈 종이</b> — 뭘 쓸지 몰라 열었다 닫는다</td><td><span class="tag">Reflectly</span> 질문을 한 단계씩 · <span class="tag">Rosebud</span> 빈 페이지 대신 질문 · <span class="tag">Apple 저널</span> 사진·장소로 쓸거리 제안</td><td class="ours">느리가 먼저 말을 건다. 첫 질문은 오늘 데이터로("퀴즈2 끝냈네!"), 답 칩은 끝낸 할 일·일정에서</td></tr>
+  <tr><td><b>② 문장으로 옮기는 수고</b> — 지치고 힘든 날일수록 못 쓴다</td><td><span class="tag">마이모리</span> 톡 보내듯 대충 써도 일기로 정리 · <span class="tag">들어주는일기</span> 전화하듯 말로 · <span class="tag">사이다</span> AI가 대신 써 줌</td><td class="ours">메신저처럼 짧게, 칩, 말하기(기기 받아쓰기). 끝나면 느리가 <b>내 말투 그대로</b> 1인칭 일기로 옮긴다(느리 말은 빼고)</td></tr>
+  <tr><td><b>③ 여는 것 자체</b> — 까먹거나, 앱 찾아 들어가기 귀찮다</td><td><span class="tag">Daylio</span> 알림 · 두 번 탭 · <span class="tag">Finch</span> 열면 바로 체크인</td><td class="ours">저녁 알림에서 <b>바로 답장</b>, 위젯에서 <b>기분 바로 누르기</b>(앱 안 열림). 열면 이미 대화가 시작돼 있다</td></tr>
+  <tr><td><b>④ 저장·정리</b> — 끝맺기·제목 붙이기가 일</td><td><span class="tag">Rosebud</span> 쓰다 만 글 자동 임시 저장 · <span class="tag">Reflectly</span> 끝에 축하</td><td class="ours">저장 단추 없음. 모든 말은 바로 저장, "오늘은 여기까지"나 앱을 떠나면 일기 한 장으로 자동 정리. 제목·태그도 느리가</td></tr>
+  <tr><td><b>⑤ 연속 기록 죄책감</b> — 끊기면 "어차피"</td><td><span class="tag">Daylio</span> 놓쳐도 벌 없음(Finch 연속 압박과 대조로 호평)</td><td class="ours">연속 숫자 없음. 며칠 만에 와도 "다시 왔네, 반가워". 새벽 4시까지 쓴 건 전날 일기로</td></tr>
+  <tr><td><b>⑥ 답을 기다리는 시간</b> — 우리 AI는 첫 글자까지 6~20초(실측)</td><td><span class="tag">하루 AI 일기 친구</span>·<span class="tag">하루온기</span> 캐릭터·목소리로 공감</td><td class="ours">보내는 순간 <b>0.3초 안에 기기에서</b> 끄덕임 + 내 말풍선에 하트, 생각하는 얼굴. 그동안 AI 답이 흘러나온다</td></tr>
+  <tr><td><b>⑦ 형식적인 AI</b> — 조언·요약·보고서 말투</td><td><span class="tag">How We Feel</span> 감정을 고르는 방식을 좁혀 줌 · <span class="tag">Stoic</span> 질문이 좋음 (반면 Rosebud는 무겁다는 평)</td><td class="ours">기존 대화 규칙 유지: 한 말을 그대로 짚어 알아주기, 묻지 않으면 조언 금지, "그냥 들어줘" 칩</td></tr>
+</table>
+
+<!-- ───────── 2 흐름 ───────── -->
+<h2>2. 한 번 쓰는 흐름<small>초록 = 기기 · 보라 = AI(우리 서버) · 회색 = 사용자 선택</small></h2>
+<div class="flow">
+  <div class="st"><em class="no">들어오기</em><b>알림 · 위젯 · 탭</b><span>저녁 9시(바꿀 수 있음) 알림에서 바로 답장, 위젯 기분 누르기, 또는 일기 탭</span></div>
+  <div class="st"><em>0초</em><b>인사 + 기분</b><span>느리가 시간대 + 오늘 할 일로 인사. 기분 5개 중 하나 → 여기서 닫아도 기록</span></div>
+  <div class="st"><em class="ai">10초~</em><b>이야기</b><span>칩 · 말하기 · 글. 보내면 즉시 끄덕임 → 공감 답(AI). 2~5번 주고받기</span></div>
+  <div class="st"><em class="no">끝</em><b>오늘은 여기까지</b><span>칩을 누르거나, 그냥 앱을 떠나도 된다(5분 뒤 자동)</span></div>
+  <div class="st"><em class="ai">~20초</em><b>일기 한 장</b><span>느리가 내 말로 옮김(제목·태그). 자동 저장, 고치기는 선택</span></div>
+  <div class="st"><em>나중</em><b>기록</b><span>기분 달력 · 일기 목록 · 1년 전 오늘</span></div>
+</div>
+
+<!-- ───────── 3 시안 ───────── -->
+<h2>3. 화면<small>빨간 번호 = 아래 설명</small></h2>
+<p class="h2sub">캐릭터는 사용자의 정원 친구(예: 달팽이 "느리"), 장면은 지금 시간대(아침 dawn · 낮 day · 저녁 dusk · 밤 moon)를 따른다. AI 비서 채팅에서 만든 장면·받침·유리 말풍선을 그대로 쓴다.</p>
+
+<div class="row">
+
+  <!-- A 알림 -->
+  <figure>
+    <div class="phone lock">
+      <div class="notch"></div><div class="status"><span></span><span>▮</span></div>
+      <div class="clock"><small>10월 13일 화요일</small><b>21:04</b></div>
+      <div class="noti">
+        <div class="h"><span class="ic"><span class="buddy s" style="position:absolute;left:-3px;top:-1px;width:30px;height:30px"><img src="../../../packages/schema/art3d/snail-2@384.webp"></span></span><b>느리</b><span style="margin-left:auto">지금</span></div>
+        <p>오늘 할 일 4개나 끝냈네. 하루 어땠어?</p>
+        <div class="acts"><span>😊 좋았어</span><span>😐 그냥</span><span>😣 힘들어</span></div>
+        <div class="reply"><span>퀴즈 생각보다 잘 봤어!</span><i>↑</i></div>
+      </div>
+      <div class="pin" style="left:14px;top:300px">1</div>
+      <div class="pin" style="left:248px;top:352px">2</div>
+      <div class="pin" style="left:248px;top:396px">3</div>
+    </div>
+    <figcaption>
+      <h3>A. 저녁 알림 — 앱을 안 열어도 된다</h3>
+      <p class="why">③ 여는 것 자체가 귀찮다 → Daylio 알림 + iOS·안드로이드 알림 바로 답장</p>
+      <ol>
+        <li><b>캐릭터가 묻는 말 한 줄.</b> 오늘 끝낸 할 일 수만 쓴다. 할 일 제목이나 일기 내용은 알림에 절대 안 띄운다(잠금 화면 노출)</li>
+        <li><b>기분 단추 3개</b>(길게 누르면 펼쳐짐). 누르면 그날 기분만 기록. 앱은 열리지 않고, 다음에 열면 이어서 이야기</li>
+        <li><b>바로 답장.</b> 보낸 말은 대화 첫 줄로 들어간다. 느리 답은 다음 알림으로 "느리가 답했어"(내용 없이)</li>
+        <li>시각은 설정에서(기본 21:00). 그날 이미 이야기했으면 안 보낸다. 3일 연속 무시하면 일주일에 2번으로 줄인다</li>
+      </ol>
+    </figcaption>
+  </figure>
+
+  <!-- B 위젯 -->
+  <figure>
+    <div class="phone home">
+      <div class="notch"></div><div class="status dark"><span>9:41</span><span>▮</span></div>
+      <div class="wg m">
+        <div class="q">오늘 어땠어?<small>느리 · 할 일 4개 끝냄</small></div>
+        <div class="buddy" style="width:66px;height:66px;right:14px;left:auto;top:16px"><img src="../../../packages/schema/art3d/snail-2@384.webp"><img src="../../../packages/schema/art3d/snail-2-face-default@384.webp"></div>
+        <div class="wb"><i class="bean" style="background:var(--m1)">😣</i><i class="bean" style="background:var(--m2)">😕</i><i class="bean" style="background:var(--m3)">🙂</i><i class="bean" style="background:var(--m4)">😊</i><i class="bean" style="background:var(--m5)">😆</i></div>
+      </div>
+      <div class="apps" style="top:236px"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="wg s"><div style="padding:12px;font-size:11px;color:var(--sub)">어제<br><b style="font-size:14px;color:var(--ink);line-height:1.35;display:block;margin-top:4px">오랜만의 저녁 약속</b></div><span class="bean" style="position:absolute;right:10px;bottom:10px;width:30px;height:30px;font-size:15px;background:var(--m4)">😊</span></div>
+      <div class="wg s2"><div class="buddy" style="width:70px;height:70px;left:30px;top:36px"><img src="../../../packages/schema/art3d/snail-2@384.webp"><img src="../../../packages/schema/art3d/snail-2-face-happy@384.webp"></div><div style="position:absolute;left:10px;bottom:8px;font-size:11px;color:#fff;font-weight:700;text-shadow:0 1px 3px #0006">오늘 좋았구나!</div></div>
+      <div class="apps" style="top:530px"><i></i><i></i><i></i><i></i></div>
+      <div class="pin" style="left:20px;top:150px">1</div>
+      <div class="pin" style="left:12px;top:372px">2</div>
+      <div class="pin" style="left:150px;top:372px">3</div>
+    </div>
+    <figcaption>
+      <h3>B. 홈 위젯 — 기분 3초</h3>
+      <p class="why">③ 여는 것이 귀찮다 → Daylio 두 번 탭을 홈 화면으로</p>
+      <ol>
+        <li><b>중간 위젯:</b> 장면 + 느리 + 기분 5개. 누르면 앱이 열리지 않고 기분만 기록되고(iOS 17·안드로이드 위젯 단추) 느리 얼굴이 웃음으로. 글 부분을 누르면 대화로 들어가 키보드가 바로 올라온다</li>
+        <li><b>작은 위젯(지난 일기):</b> 어제 제목과 기분. 내용 첫 줄은 설정에서 켤 때만(기본 끔, 남이 볼 수 있음)</li>
+        <li><b>작은 위젯(느리):</b> 오늘 기분에 맞춰 얼굴과 한 줄이 바뀐다. 누르면 대화</li>
+      </ol>
+    </figcaption>
+  </figure>
+
+  <!-- C 열자마자 -->
+  <figure>
+    <div class="phone">
+      <div class="scene dusk"></div><div class="fade-top"></div>
+      <div class="notch"></div><div class="status"><span>21:04</span><span>▮</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>오늘 이야기</small></div><span class="gbtn">▦</span></div>
+      <div class="msgs" style="top:262px">
+        <div class="who">느리</div>
+        <div class="b c">저녁이네. 오늘 할 일 4개나 끝냈어. 하루 어땠어?</div>
+      </div>
+      <div class="buddy" style="left:90px;top:330px"><img src="../../../packages/schema/art3d/snail-2@768.webp"><img src="../../../packages/schema/art3d/snail-2-face-default@768.webp"></div>
+      <div class="bottom">
+        <div class="moods">
+          <span><i class="bean" style="background:var(--m1)">😣</i>힘들었어</span><span><i class="bean" style="background:var(--m2)">😕</i>별로</span><span><i class="bean" style="background:var(--m3)">🙂</i>그럭저럭</span><span><i class="bean" style="background:var(--m4)">😊</i>좋았어</span><span><i class="bean" style="background:var(--m5)">😆</i>최고</span>
+        </div>
+        <div class="composer"><span class="ph">아니면 그냥 말해 줘</span><span class="mic">🎙</span></div>
+      </div>
+      <div class="pin" style="left:240px;top:52px">1</div>
+      <div class="pin" style="left:12px;top:252px">2</div>
+      <div class="pin" style="left:206px;top:350px">3</div>
+      <div class="pin" style="left:8px;top:520px">4</div>
+      <div class="pin" style="left:8px;top:578px">5</div>
+    </div>
+    <figcaption>
+      <h3>C. 일기 탭 — 열면 이미 이야기 중</h3>
+      <p class="why">① 빈 종이 → Finch 체크인 + Reflectly 기분부터</p>
+      <ol>
+        <li><b>머리는 한 줄.</b> 날짜(누르면 기분 달력), ▦ = 기록(E). 저장 단추 없음. 화면을 오른쪽으로 밀면 어제</li>
+        <li><b>인사는 기기가 만든다(AI 없음, 즉시).</b> 시간대 + 오늘 할 일. 3일 이상 안 왔으면 "다시 왔네, 반가워"(탓하지 않음). 아침엔 "오늘 할 일 5개 있어. 지금 기분은?"</li>
+        <li><b>느리가 받침 위에 있다.</b> 숨쉬기 · 가끔 두리번. 누르면 깡충(AI 비서와 같은 동작)</li>
+        <li><b>기분 5개가 첫 답.</b> 누르기만 해도 그날 기분 저장. 누르는 칸 48×58</li>
+        <li><b>바로 말해도 된다.</b> 기분을 건너뛰고 쓰면, 느리가 다 들은 뒤 마지막에 기분을 한 번 묻는다. 🎙 = 기기 받아쓰기(F)</li>
+      </ol>
+    </figcaption>
+  </figure>
+
+  <!-- D 보낸 직후 -->
+  <figure>
+    <div class="phone">
+      <div class="scene dusk"></div><div class="fade-top"></div>
+      <div class="notch"></div><div class="status"><span>21:05</span><span>▮</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>저장됨 ✓</small></div><span class="gbtn">▦</span></div>
+      <div class="msgs" style="top:96px">
+        <div class="b c old">저녁이네. 오늘 할 일 4개나 끝냈어. 하루 어땠어?</div>
+        <div class="b me"><span class="mood" style="background:var(--m4)">😊</span>좋았어</div>
+        <div class="b c">좋았다니 나도 좋다. 제일 기억에 남는 건 뭐야?</div>
+        <div class="b me">퀴즈 생각보다 잘 봤어! 어제 늦게까지 한 보람 있었다<span class="rx">💚</span></div>
+        <div class="b c" style="padding:8px 12px"><span class="dots"><i></i><i></i><i></i></span></div>
+      </div>
+      <div class="buddy" style="left:96px;top:376px"><img src="../../../packages/schema/art3d/snail-2@768.webp"><img src="../../../packages/schema/art3d/snail-2-face-think@768.webp"></div>
+      <div class="bottom">
+        <div class="chips"><span class="chip g">✓ 기업경제학 퀴즈2</span><span class="chip g">✓ 치아 교정 상담</span><span class="chip g">전화영어</span></div>
+        <div class="composer"><span class="ph">더 말해 줘도 돼</span><span class="mic">🎙</span></div>
+      </div>
+      <div class="pin" style="left:226px;top:53px">1</div>
+      <div class="pin" style="left:252px;top:236px">2</div>
+      <div class="pin" style="left:8px;top:308px">3</div>
+      <div class="pin" style="left:196px;top:396px">4</div>
+      <div class="pin" style="left:6px;top:538px">5</div>
+    </div>
+    <figcaption>
+      <h3>D. 보낸 직후 — 0.3초 안에 반응</h3>
+      <p class="why">⑥ AI는 첫 글자까지 6~20초 → 기기에서 먼저 반응해 기다림을 덮는다</p>
+      <ol>
+        <li><b>"저장됨 ✓"</b> — 보낸 말은 그 즉시 기기에 저장. 앱을 꺼도 잃지 않는다</li>
+        <li><b>내 말풍선에 하트(0.3초, 기기).</b> 기분과 말 내용(좋다·힘들다 낱말)으로 💚·🫂·✨ 중 하나. 느리가 끄덕(아래로 4px, 2번)</li>
+        <li><b>기분 반응 한 줄은 정해진 말</b>(즉시). 그다음 질문 하나도 기기가 정한다 — 기분 3~5면 "기억에 남는 건?", 1~2면 "뭐가 마음에 걸렸어?"</li>
+        <li><b>생각하는 얼굴</b> + 점 세 개, 좌우 3° 흔들림. 서버에 줄이 있으면 "차례 기다리는 중"</li>
+        <li><b>칩 = 오늘 끝낸 할 일·일정.</b> 누르면 "기업경제학 퀴즈2 했어"로 보낸다. 대화에 이미 나온 건 빠진다</li>
+      </ol>
+    </figcaption>
+  </figure>
+
+  <!-- E 공감 답 -->
+  <figure>
+    <div class="phone">
+      <div class="scene dusk"></div><div class="fade-top"></div>
+      <div class="notch"></div><div class="status"><span>21:06</span><span>▮</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>저장됨 ✓</small></div><span class="gbtn">▦</span></div>
+      <div class="msgs" style="top:96px">
+        <div class="b me old">퀴즈 생각보다 잘 봤어! 어제 늦게까지 한 보람 있었다</div>
+        <div class="b c">어제 늦게까지 붙잡고 있던 게 오늘 점수로 돌아왔구나. 천천히라도 끝까지 한 거, 그게 너다워.</div>
+        <div class="b me">근데 교정 상담은 좀 충격이었어. 2년이래…</div>
+        <div class="b c stream">2년이라니, 생각보다 훨씬 길어서 놀랐겠다. 그래도 미뤄 두던 상담을 오늘 직접 다녀온 거잖아</div>
+      </div>
+      <div class="buddy" style="left:96px;top:384px"><img src="../../../packages/schema/art3d/snail-2@768.webp"><img src="../../../packages/schema/art3d/snail-2-face-default@768.webp"></div>
+      <div class="bottom">
+        <div class="chips"><span class="chip">그냥 들어줘</span><span class="chip">더 있어</span><span class="chip end">여기까지 ✓</span></div>
+        <div class="composer"><span class="ph">더 말해 줘도 돼</span><span class="mic">🎙</span></div>
+      </div>
+      <div class="pin" style="left:8px;top:150px">1</div>
+      <div class="pin" style="left:252px;top:312px">2</div>
+      <div class="pin" style="left:8px;top:538px">3</div>
+      <div class="pin" style="left:262px;top:538px">4</div>
+    </div>
+    <figcaption>
+      <h3>E. 공감 답 — 내 말을 짚는다</h3>
+      <p class="why">⑦ 형식적인 AI → 기존 대화 규칙(COMPANION_RULES) + 캐릭터 성격 카드</p>
+      <ol>
+        <li><b>내가 한 말을 그대로 짚는다</b>("늦게까지 → 점수"). 성격은 캐릭터마다 다르다(느리 = 꾸준함을 짚음, 벌 = 같이 기뻐함). 1~3문장, 질문은 많아야 하나</li>
+        <li><b>흘러나오며 쓰인다</b>(프레임마다, 지금 구현 그대로). 쓰는 중 보내기 자리 = ■ 멈추기</li>
+        <li><b>"그냥 들어줘"</b> = 이후 질문·조언 없이 맞장구만. 힘든 기분이면 이 칩이 맨 앞</li>
+        <li><b>끝내는 칩("여기까지")은 늘 맨 끝에 강조색.</b> 2번 주고받은 뒤부터 보인다. 안 눌러도 된다(G)</li>
+      </ol>
+    </figcaption>
+  </figure>
+
+  <!-- F 키보드 + 말하기 -->
+  <figure>
+    <div class="phone">
+      <div class="scene dusk" style="background-position:center 20%"></div>
+      <div class="notch"></div><div class="status"><span>21:07</span><span>▮</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>저장됨 ✓</small></div><span class="gbtn">▦</span></div>
+      <div class="msgs" style="top:96px">
+        <div class="b c old">…그래도 미뤄 두던 상담을 오늘 직접 다녀온 거잖아. 그것만으로도 큰일 한 거야.</div>
+      </div>
+      <div class="buddy" style="width:72px;height:72px;left:12px;top:200px"><img src="../../../packages/schema/art3d/snail-2@768.webp"><img src="../../../packages/schema/art3d/snail-2-face-default@768.webp"></div>
+      <div class="bottom" style="bottom:236px;padding-bottom:8px">
+        <div class="chips"><span class="chip g">✓ 퀴즈2</span><span class="chip g">✓ 교정 상담</span><span class="chip g">😊 기분 바꾸기</span></div>
+        <div class="composer" style="height:auto;min-height:46px;padding:8px 6px 8px 14px;align-items:flex-end"><span class="ph typed" style="line-height:1.5">맞아 그래서 끝나고 혼자 케이크 사 먹었어 ㅋㅋ 기념으로</span><span class="send">↑</span></div>
+      </div>
+      <div class="kb"><div class="kr"><i>ㅂ</i><i>ㅈ</i><i>ㄷ</i><i>ㄱ</i><i>ㅅ</i><i>ㅛ</i><i>ㅕ</i><i>ㅑ</i><i>ㅐ</i><i>ㅔ</i></div><div class="kr"><i>ㅁ</i><i>ㄴ</i><i>ㅇ</i><i>ㄹ</i><i>ㅎ</i><i>ㅗ</i><i>ㅓ</i><i>ㅏ</i><i>ㅣ</i></div><div class="kr"><i class="m">⇧</i><i>ㅋ</i><i>ㅌ</i><i>ㅊ</i><i>ㅍ</i><i>ㅠ</i><i>ㅜ</i><i>ㅡ</i><i class="m">⌫</i></div><div class="kr"><i class="m">123</i><i class="m">🎙</i><i class="w">스페이스</i><i class="m">↵</i></div></div>
+      <div class="pin" style="left:80px;top:200px">1</div>
+      <div class="pin" style="left:8px;top:300px">2</div>
+      <div class="pin" style="left:262px;top:350px">3</div>
+      <div class="pin" style="left:150px;top:596px">4</div>
+    </div>
+    <figcaption>
+      <h3>F. 키보드·말하기 — 손가락 하나로</h3>
+      <p class="why">② 문장으로 옮기는 수고 → 들어주는일기(말로) + 마이모리(톡처럼)</p>
+      <ol>
+        <li><b>키보드가 올라오면 느리는 왼쪽 위 작은 크기(72)로</b> 비켜 앉고, 최근 말 1개만 남는다. 장면은 위쪽으로 밀려 하늘만(장면 깨짐 없음)</li>
+        <li><b>칩 줄은 키보드 바로 위</b>에 붙어 있다. 기분도 여기서 바꾼다</li>
+        <li><b>입력창은 4줄까지 늘어난다.</b> 보내면 키보드가 내려가고 느리가 다시 받침으로(지금 AI 비서와 같은 규칙)</li>
+        <li><b>🎙 말하기</b> = 기기 받아쓰기(iOS·안드로이드, 서버로 소리 안 보냄). 누르는 동안 파형, 떼면 글로 채워지고 한 번 더 확인 후 보내기</li>
+      </ol>
+    </figcaption>
+  </figure>
+
+  <!-- G 일기로 옮기는 중 -->
+  <figure>
+    <div class="phone">
+      <div class="scene dusk"></div><div class="fade-top" style="height:420px;background:linear-gradient(180deg,#353550 0%,#353550 60%,rgba(53,53,80,0) 100%)"></div>
+      <div class="notch"></div><div class="status"><span>21:09</span><span>▮</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>일기 쓰는 중</small></div><span class="gbtn">▦</span></div>
+      <div class="msgs" style="top:96px">
+        <div class="b me old" style="font-size:12.5px">오늘은 여기까지 ✓</div>
+        <div class="b c">응, 오늘 이야기 고마워. 내가 일기로 옮겨 둘게.</div>
+      </div>
+      <div class="writing" style="top:198px">
+        <div class="hd"><span class="buddy s"><img src="../../../packages/schema/art3d/snail-2@384.webp"><img src="../../../packages/schema/art3d/snail-2-face-think@384.webp"></span>느리가 일기로 옮기는 중…</div>
+        <div class="prog"><i></i></div>
+        <h4>2년짜리 교정, 그리고 케이크</h4>
+        <p class="b stream" style="padding:0;border-radius:0;max-width:none;background:none;color:inherit;font-size:13.3px">기업경제학 퀴즈를 생각보다 잘 봤다. 어제 늦게까지 붙잡고 있던 게 보람이 있었다. 미뤄 두던 교정 상담도 다녀왔는데, 2년이 걸린다고 해서</p>
+        <small>내가 한 말로만 옮겨요 · 느리의 말과 조언은 넣지 않아요</small>
+      </div>
+      <div class="buddy" style="left:96px;top:420px"><img src="../../../packages/schema/art3d/snail-2@768.webp"><img src="../../../packages/schema/art3d/snail-2-face-think@768.webp"></div>
+      <div class="pin" style="left:254px;top:204px">1</div>
+      <div class="pin" style="left:8px;top:300px">2</div>
+      <div class="pin" style="left:8px;top:430px">3</div>
+    </div>
+    <figcaption>
+      <h3>G. 끝 — 저장은 느리가 한다</h3>
+      <p class="why">④ 저장·정리가 일 → 마이모리 자동 정리 + Rosebud 자동 임시 저장</p>
+      <ol>
+        <li><b>끝내는 방법 셋:</b> "오늘은 여기까지" 칩 · "이제 잘게"처럼 말하기 · 그냥 앱 떠나기(대화가 5분 멈추면 백그라운드에서 정리, 다음에 열면 완성된 일기)</li>
+        <li><b>제목 → 본문이 흘러나온다</b>(지금 구현된 옮기기 스트림). 1인칭 일기체로, 내 말투·"ㅋㅋ" 같은 표현은 살리고 느리 말은 뺀다</li>
+        <li>내가 한 말이 기분 하나뿐이면 옮기지 않고 기분만 저장(AI 0회)</li>
+      </ol>
+    </figcaption>
+  </figure>
+
+  <!-- H 오늘의 일기 -->
+  <figure>
+    <div class="phone">
+      <div class="scene dusk"></div><div class="fade-top" style="height:460px;background:linear-gradient(180deg,#353550 0%,#353550 70%,rgba(53,53,80,0) 100%)"></div>
+      <div class="notch"></div><div class="status"><span>21:09</span><span>▮</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>저장됨 ✓</small></div><span class="gbtn">▦</span></div>
+      <div class="page" style="top:98px">
+        <div class="band"></div>
+        <div class="in">
+          <div class="meta"><span class="bean" style="background:var(--m4)">😊</span><b style="color:var(--ink)">좋았어</b> · 오후 9:09</div>
+          <h4>2년짜리 교정, 그리고 케이크</h4>
+          <div class="body">기업경제학 퀴즈를 생각보다 잘 봤다. 어제 늦게까지 붙잡고 있던 게 보람이 있었다. 미뤄 두던 교정 상담도 다녀왔는데, 2년이 걸린다고 해서 좀 충격이었다. 그래도 끝나고 혼자 케이크를 사 먹었다 ㅋㅋ 기념으로.</div>
+          <div class="tg"><span class="tag">#공부</span><span class="tag">#건강</span><span class="tag">#뿌듯함</span></div>
+          <div class="tasks"><span>✓ 기업경제학 퀴즈2</span><span>✓ 교정 상담</span><span>+2</span></div>
+        </div>
+        <div class="acts"><span>✎ 고치기</span><span>↻ 다시 옮기기</span><span>💬 이야기 6</span></div>
+      </div>
+      <div class="msgs" style="top:470px">
+        <div class="b c" style="font-size:12.8px">잘 남겼어. 오늘 케이크, 맛있었길.</div>
+      </div>
+      <div class="buddy" style="left:96px;top:500px;width:96px;height:96px"><img src="../../../packages/schema/art3d/snail-2@768.webp"><img src="../../../packages/schema/art3d/snail-2-face-happy@768.webp"></div>
+      <div class="pin" style="left:8px;top:110px">1</div>
+      <div class="pin" style="left:256px;top:176px">2</div>
+      <div class="pin" style="left:8px;top:332px">3</div>
+      <div class="pin" style="left:8px;top:408px">4</div>
+      <div class="pin" style="left:252px;top:470px">5</div>
+    </div>
+    <figcaption>
+      <h3>H. 오늘의 일기 한 장 — 이미 저장됨</h3>
+      <p class="why">예쁘게 + ④ → 대화가 종이 한 장으로 접혀 내려앉는 순간이 보상</p>
+      <ol>
+        <li><b>종이 카드</b>(크림색, 줄 노트 결). 위 띠 색 = 기분. 대화 말풍선들이 카드로 접히는 0.4초 전환</li>
+        <li><b>제목·태그는 느리가.</b> 제목을 누르면 바로 고친다. 태그 ✕로 빼기</li>
+        <li><b>그날 끝낸 할 일이 붙는다</b>(자동, 숨길 수 있음). 꿈틀만 할 수 있는 기록</li>
+        <li><b>고치기</b> = 본문 바로 편집 · <b>다시 옮기기</b>(하루 5번) · <b>이야기 6</b> = 나눈 대화 펼치기. 저장 단추는 없다</li>
+        <li><b>마지막 한 줄은 정해진 말</b>(일기 단어 하나를 넣음) + 깡충 + 웃는 얼굴. XP는 주지 않는다(일기는 숙제가 아니다)</li>
+      </ol>
+    </figcaption>
+  </figure>
+
+  <!-- I 기록 -->
+  <figure>
+    <div class="phone light">
+      <div class="notch"></div><div class="status dark"><span>9:41</span><span>▮</span></div>
+      <div class="rec">
+        <div class="top"><span style="font-size:18px">‹</span><b>10월</b><span style="font-size:12.5px;color:var(--sub)">달력 · 목록</span></div>
+        <div class="cal">
+          <span class="wd">일</span><span class="wd">월</span><span class="wd">화</span><span class="wd">수</span><span class="wd">목</span><span class="wd">금</span><span class="wd">토</span>
+          <span></span><span></span><span></span>
+          <span class="d">1<i class="bean" style="background:var(--m4)">😊</i></span><span class="d">2<i class="bean" style="background:var(--m3)">🙂</i></span><span class="d">3<i class="e"></i></span><span class="d">4<i class="bean" style="background:var(--m5)">😆</i></span>
+          <span class="d">5<i class="bean" style="background:var(--m2)">😕</i></span><span class="d">6<i class="bean" style="background:var(--m4)">😊</i></span><span class="d">7<i class="e"></i></span><span class="d">8<i class="bean" style="background:var(--m1)">😣</i></span><span class="d">9<i class="bean" style="background:var(--m3)">🙂</i></span><span class="d">10<i class="bean" style="background:var(--m2)">😕</i></span><span class="d">11<i class="bean" style="background:var(--m4)">😊</i></span>
+          <span class="d">12<i class="bean" style="background:var(--m4)">😊</i></span><span class="d t">13<i class="bean" style="background:var(--m4)">😊</i></span><span class="d f">14<i class="e"></i></span><span class="d f">15<i class="e"></i></span><span class="d f">16<i class="e"></i></span><span class="d f">17<i class="e"></i></span><span class="d f">18<i class="e"></i></span>
+        </div>
+        <div class="sum"><b>이번 달 10일 남겼어요</b><div class="bar"><span style="flex:1;background:var(--m1)"></span><span style="flex:2;background:var(--m2)"></span><span style="flex:2;background:var(--m3)"></span><span style="flex:4;background:var(--m4)"></span><span style="flex:1;background:var(--m5)"></span></div><span style="color:var(--sub)">좋았던 날엔 <b style="color:var(--ink)">운동</b>을 자주 끝냈어요</span></div>
+        <div class="yb"><b>1년 전 오늘</b>"처음으로 혼자 영화를 봤다. 생각보다 편했다." 😊</div>
+        <div class="li"><i class="bean" style="background:var(--m4)">😊</i><div><b>2년짜리 교정, 그리고 케이크</b><span>오늘 · 퀴즈를 생각보다 잘 봤다. 어제 늦게까지…</span></div></div>
+      </div>
+      <div class="pin" style="left:226px;top:52px">1</div>
+      <div class="pin" style="left:8px;top:98px">2</div>
+      <div class="pin" style="left:8px;top:340px">3</div>
+      <div class="pin" style="left:8px;top:420px">4</div>
+    </div>
+    <figcaption>
+      <h3>I. 기록 — 한 달이 한 장</h3>
+      <p class="why">⑤ 연속 기록 죄책감 → 하루콩 기분 달력, 연속 숫자 없음</p>
+      <ol>
+        <li><b>달력 · 목록</b> 두 가지만. 목록 = 일기 카드(제목·첫 줄·기분), 위에 검색</li>
+        <li><b>칸 = 기분 콩.</b> 빈 날은 연한 원(점선·빨강 없음). 누르면 그날 종이(H)로, 빈 날이면 "그날 이야기 하기"</li>
+        <li><b>이번 달 한 장:</b> 남긴 날 수(연속 아님) + 기분 비율 + 좋은 날 자주 끝낸 할 일 하나(기기에서 계산, AI 없음)</li>
+        <li><b>1년 전 오늘</b>은 있을 때만. 그날 제목·첫 줄</li>
+      </ol>
+    </figcaption>
+  </figure>
+
+  <!-- J 상태 -->
+  <figure>
+    <div class="phone">
+      <div class="scene moon"></div><div class="fade-top" style="background:linear-gradient(180deg,#3a4264 0%,#3a4264 40%,rgba(58,66,100,0) 100%)"></div>
+      <div class="notch"></div><div class="status"><span>23:40</span><span>▮</span></div>
+      <div class="nav"><span class="gbtn">‹</span><div class="t">10월 13일 화요일<small>🔒 나만 보기</small></div><span class="gbtn">▦</span></div>
+      <div class="msgs" style="top:96px">
+        <div class="b me">오늘 그냥 좀 지쳤어</div>
+        <div class="b c">그랬구나. 지친 날엔 여기까지 온 것도 충분해. 더 말하고 싶으면 들을게.</div>
+        <div class="b me">아니 그냥 자려고</div>
+        <div class="b c">응, 푹 자. 오늘 말은 내가 잘 적어 둘게.</div>
+      </div>
+      <div class="buddy" style="left:96px;top:380px"><img src="../../../packages/schema/art3d/snail-2@768.webp"><img src="../../../packages/schema/art3d/snail-2-face-sleepy@768.webp"></div>
+      <div class="bottom">
+        <div style="text-align:center;font-size:11.5px;color:var(--gsub);margin-bottom:8px">나만 보기 — 느리는 정해진 말만 하고, 일기는 기기 밖으로 나가지 않아요</div>
+        <div class="composer"><span class="ph">더 말해 줘도 돼</span><span class="mic">🎙</span></div>
+      </div>
+      <div class="pin" style="left:226px;top:53px">1</div>
+      <div class="pin" style="left:8px;top:200px">2</div>
+      <div class="pin" style="left:8px;top:556px">3</div>
+    </div>
+    <figcaption>
+      <h3>J. 나만 보기 · 느리가 쉴 때</h3>
+      <p class="why">AI가 없어도 일기는 끝까지 써진다</p>
+      <ol>
+        <li><b>🔒 나만 보기</b>(날마다 또는 늘). AI 0회, 보내는 것 없음</li>
+        <li><b>정해진 공감 말</b> — 기분 × 낱말(지쳤·힘들·좋았·뿌듯…)로 고른 문장 60개쯤. 질문은 3개까지. 끝나면 <b>내 말 그대로</b> 이어 붙인 일기(옮기기 없음)</li>
+        <li><b>AI가 쉬는 중·한도 끝</b>도 같은 길로. 느리 얼굴 = 졸림, 위 한 줄 "느리가 쉬는 중이라 짧게 답해요. 일기는 그대로 저장돼요". 돌아오면 "다시 옮기기"로 다듬기 가능</li>
+      </ol>
+    </figcaption>
+  </figure>
+</div>
+
+<!-- ───────── 4 동작·시간 ───────── -->
+<h2>4. 움직임과 시간<small>지금 AI 비서 채팅 구현을 다시 씀</small></h2>
+<table>
+  <tr><th style="width:200px">순간</th><th style="width:110px">시간</th><th>무엇이</th><th style="width:150px">어디서</th></tr>
+  <tr><td>앱 열기 → 인사</td><td>0ms</td><td>인사는 미리 그려져 있다(타자 효과 없음). 느리 숨쉬기 시작</td><td>기기</td></tr>
+  <tr><td>기분 누르기</td><td>120ms</td><td>콩이 눌렸다 커짐(0.92→1.08→1) + 가벼운 진동. 내 말풍선으로 날아가 앉음</td><td>기기</td></tr>
+  <tr><td>보내기</td><td>~300ms</td><td>키보드 내려감 · 내 말풍선 위로 · 하트 붙음 · 느리 끄덕 2번 → 생각하는 얼굴</td><td>기기</td></tr>
+  <tr><td>첫 글자</td><td>6~20초(실측)</td><td>같은 말풍선에서 점 → 글로 바뀜, 프레임마다 흘러나옴. 얼굴 = 말하는 중</td><td>AI(우리 서버)</td></tr>
+  <tr><td>답 끝</td><td>+0.8초</td><td>답이 따뜻하면 웃는 얼굴, 칩 줄이 아래에서 올라옴</td><td>기기</td></tr>
+  <tr><td>오늘은 여기까지</td><td>~20초</td><td>말풍선이 종이로 접힘(0.4초) → 제목·본문 흘러나옴 → 저장됨 ✓ · 깡충</td><td>AI → 기기</td></tr>
+  <tr><td>움직임 줄이기</td><td>—</td><td>끄덕·깡충·접힘 없음, 얼굴만 바뀜. 글은 받은 대로 한 번에</td><td>기기</td></tr>
+</table>
+
+<!-- ───────── 5 지금과 다른 점 · 결정 ───────── -->
+<h2>5. 지금 일기(28 §8)에서 빼는 것 · 바뀌는 것</h2>
+<div class="grid2">
+  <div class="note"><b>빼는 것</b><ul>
+    <li>초안 카드의 [저장] 단추 → 자동 저장</li>
+    <li>동의 카드 단계 → 처음 한 번 설정에서 끝내고, 대화 안 카드 없음(기본은 나누기, 첫날 한 줄 안내)</li>
+    <li>"대화 그대로" 단추 → ⋯ 안으로</li>
+    <li>질문 3개를 정해 두는 단계 → 막힐 때만 질문(20초 무입력)</li>
+    <li>좌우 밀어 날짜 넘기기 + 주 띠 → 기록 달력 하나</li>
+    <li>여러 편 이어 붙이기의 시각 머리 → 같은 날 두 번째부터만 작게</li>
+  </ul></div>
+  <div class="note"><b>새로 생기는 것</b><ul>
+    <li>저녁 알림 바로 답장 · 기분 단추(A)</li>
+    <li>홈 위젯 3종(B)</li>
+    <li>보내자마자 기기에서 하트·끄덕(D)</li>
+    <li>"그냥 들어줘" 칩 · 끝내기 칩(E)</li>
+    <li>기기 받아쓰기 🎙(F)</li>
+    <li>앱을 떠나면 자동으로 일기 정리(G)</li>
+    <li>종이 한 장 + 그날 끝낸 할 일(H)</li>
+    <li>새벽 4시까지는 전날 일기</li>
+  </ul></div>
+</div>
+
+<h2>6. 정해 주실 것</h2>
+<table>
+  <tr><th style="width:36px">#</th><th>질문</th><th style="width:300px">추천</th><th>이유</th></tr>
+  <tr><td>①</td><td>이 방향(대화 → 자동 일기 한 장)으로 갈까?</td><td><b>간다</b></td><td>조사한 불편 7개를 한 흐름으로 푼다. 서버(대화·옮기기 스트림)는 이미 있어 바뀌는 건 휴대폰 화면과 알림·위젯</td></tr>
+  <tr><td>②</td><td>알림 바로 답장 · 홈 위젯도 v1에?</td><td><b>알림 답장은 v1, 위젯은 다음</b></td><td>알림은 이미 있는 푸시 + 답장 동작만 더하면 된다. 위젯은 iOS 위젯 확장(Swift)·안드로이드 위젯을 따로 만들어야 해서 크다</td></tr>
+  <tr><td>③</td><td>앱을 떠나면 자동으로 일기로 옮길까?</td><td><b>옮긴다</b>(5분 뒤, 하루 5번 안에서)</td><td>"끝내기"조차 귀찮다. 옮기기 한도를 넘으면 내 말 그대로 이어 붙여 저장</td></tr>
+  <tr><td>④</td><td>동의 카드를 없애고 처음 한 번 설정 화면으로?</td><td><b>없앤다</b> — 첫 일기 전에 한 장 안내(나누기 / 나만 보기)</td><td>대화 중간에 끊기는 단계가 제일 큰 마찰. 단 무엇이 서버로 가는지는 첫 장에 분명히</td></tr>
+</table>
+
+<p class="src">조사 출처 —
+<a href="https://thatjournalingguy.substack.com/p/why-most-people-fail-at-journaling/comments">일기를 그만두는 이유(That Journaling Guy)</a> ·
+<a href="https://www.yaps.ai/blog/voice-journaling-mental-health">글로 옮기는 인지 부담과 말로 쓰기(Yaps)</a> ·
+<a href="https://goodux.appcues.com/blog/reflectlys-easygoing-daily-journaling">Reflectly 입력 흐름(GoodUX)</a> ·
+<a href="https://screensdesign.com/showcase/rosebud-ai-journal-diary">Rosebud 화면(ScreensDesign)</a> ·
+<a href="https://www.rosebud.app/blog/ai-journaling-apps">Rosebud 블로그</a> ·
+<a href="https://apps.apple.com/kr/app/%EB%A7%88%EC%9D%B4%EB%AA%A8%EB%A6%AC-ai%EC%99%80-%ED%95%A8%EA%BB%98-%EC%93%B0%EB%8A%94-%EC%9D%BC%EA%B8%B0/id6503250569">마이모리(App Store)</a> ·
+<a href="https://play.google.com/store/apps/details?id=calldiary.namkyu.kr">들어주는일기(Google Play)</a> ·
+<a href="https://play.google.com/store/apps/details?id=app.harujournal&hl=ko">하루 AI 일기 친구(Google Play)</a> ·
+<a href="https://apps.apple.com/us/app/%ED%95%98%EB%A3%A8%EC%98%A8%EA%B8%B0-%EB%82%98%EB%A7%8C%EC%9D%98-ai-%EC%9D%BC%EA%B8%B0%EC%9E%A5/id6756260179">하루온기(App Store)</a> ·
+<a href="https://www.ddaily.co.kr/page/view/2025042414363870473">사이다(디지털데일리)</a> ·
+<a href="https://screensdesign.com/showcase/how-we-feel">How We Feel(ScreensDesign)</a> ·
+<a href="https://lifestack.ai/blog/finch-alternative">Finch 연속 압박 vs Daylio(Lifestack)</a> ·
+<a href="https://mhealth.amegroups.org/article/view/11509/html">Daylio 분석(mHealth)</a> ·
+<a href="https://apps.apple.com/KR/app/id1553223828">하루콩</a> ·
+<a href="https://ixd.prattsi.org/2026/02/design-critique-journal-iphone-app/">Apple 저널 비평(Pratt)</a> ·
+<a href="https://blog.mylifenote.ai/stoic-app-alternative/">Stoic 비교</a>
+</p>
+</div>
+</body>
+</html>
