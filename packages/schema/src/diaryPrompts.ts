@@ -103,8 +103,9 @@ export function transcriptOf(lines: Line[], name: string): string {
 }
 
 // ── 하루에 여러 편: 일기 글 안의 머리 `## 21:40 — 제목` + 태그 줄 ──
-export type Section = { time: string | null; title: string; tags: string[]; body: string }
-const HEAD = /^## (\d{1,2}:\d{2})(?:\s+—\s+(.*))?$/
+/** solo = 혼자 쓴 장(28 §9 — 머리 `## 23:40 ✎ — 제목`). 없으면 대화로 만든 장 */
+export type Section = { time: string | null; title: string; tags: string[]; body: string; solo?: boolean }
+const HEAD = /^## (\d{1,2}:\d{2})( ✎)?(?:\s+—\s+(.*))?$/
 /** 일기 글 → 편들. 머리 없는 예전 글은 머리 없는 한 편 */
 export function parseSections(content: string | null | undefined): Section[] {
   const text = (content ?? '').replace(/\r\n/g, '\n')
@@ -118,7 +119,7 @@ export function parseSections(content: string | null | undefined): Section[] {
     const m = line.match(HEAD)
     if (m) {
       close()
-      cur = { time: m[1], title: (m[2] ?? '').trim(), tags: [], body: '' }
+      cur = { time: m[1], title: (m[3] ?? '').trim(), tags: [], body: '', ...(m[2] ? { solo: true } : {}) }
       continue
     }
     if (!cur) { pre.push(line); continue }
@@ -130,7 +131,7 @@ export function parseSections(content: string | null | undefined): Section[] {
   return lead ? [{ time: null, title: '', tags: [], body: lead }, ...out] : out
 }
 export function formatSection(s: Section): string {
-  const head = s.time ? `## ${s.time}${s.title.trim() ? ` — ${s.title.trim()}` : ''}` : ''
+  const head = s.time ? `## ${s.time}${s.solo ? ' ✎' : ''}${s.title.trim() ? ` — ${s.title.trim()}` : ''}` : ''
   const tags = s.tags.length ? s.tags.join(' ') : ''
   return [head, tags, head || tags ? '' : null, s.body.trim()].filter((x) => x !== null && (x !== '' || head || tags)).join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }

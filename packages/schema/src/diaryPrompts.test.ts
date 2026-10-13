@@ -59,3 +59,10 @@ assert.equal(firstLineOf(both), '아침 산책')
 assert.equal(firstLineOf('그냥 글\n둘째 줄'), '그냥 글')
 
 console.log('diaryPrompts ok')
+
+// 28 §9 혼자 쓴 장: 머리에 ✎ — 대화 장과 섞여도 앞 장 그대로
+const mixed = appendSection(both, { time: '23:40', title: '애매한 하루', tags: [], body: '딱 중간쯤인 날.', solo: true })
+assert.ok(mixed.endsWith('## 23:40 ✎ — 애매한 하루\n\n딱 중간쯤인 날.'))
+assert.deepEqual(parseSections(mixed)[2], { time: '23:40', title: '애매한 하루', tags: [], body: '딱 중간쯤인 날.', solo: true })
+assert.equal(parseSections(mixed)[1].solo, undefined)
+assert.deepEqual(parseSections('## 07:05 ✎\n\n제목 없는 장.'), [{ time: '07:05', title: '', tags: [], body: '제목 없는 장.', solo: true }])

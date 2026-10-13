@@ -31,9 +31,9 @@ export function setSolo(date: string, on: boolean) {
   const days = (read(K.solo) ?? '').split(',').filter((d) => d && d !== date).slice(-30)
   write(K.solo, (on ? [...days, date] : days).join(','))
 }
-/** 28 §8.7 ①: 오늘 일기를 열 때 대화(기본) / 그냥 쓰기 — `그냥 쓸래요`를 고르면 이 기기는 다음에도 그냥 쓰기로 연다 */
-export type WriteMode = 'chat' | 'free'
-export const getWriteMode = (): WriteMode => (read(K.mode) === 'free' ? 'free' : 'chat')
+/** 28 §9 K: 오늘 일기를 열 때 대화(기본) / 혼자 쓰기 — 마지막에 쓴 방식을 기억한다(예전 값 'free' = 혼자 쓰기) */
+export type WriteMode = 'chat' | 'solo'
+export const getWriteMode = (): WriteMode => (read(K.mode) === 'free' || read(K.mode) === 'solo' ? 'solo' : 'chat')
 export const setWriteMode = (m: WriteMode) => write(K.mode, m)
 /** 캐릭터 소개(§8.3 0)는 처음 한 번만 — 첫 답을 남기면 켠다 */
 export const hasMet = () => read(K.met) === 'on'

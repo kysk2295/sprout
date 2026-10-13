@@ -1,6 +1,7 @@
-// 28 §8.2·§8.10 지난 날: 저장한 일기 카드(편마다 시각·제목·태그) + `느리와 나눈 이야기 N개`(접힘) + `그날 끝낸 할 일 N개`(접힘).
-// 빈 날 = `그날 이야기 하기`(그날 기준 질문으로 대화) · `그냥 쓸래요`. 좌우로 밀면 앞뒤 날(밀기는 화면이 준다).
-import { CheckSquare, ChevronDown, ChevronRight, Lock, MessageCircle } from 'lucide-react-native'
+// 28 §8.2·§8.10·§9(M) 그날의 장들: 장마다 종이 카드(시각·제목·태그·본문, 💬 대화로 만든 장 / ✎ 혼자 쓴 장) + `느리와 나눈 이야기 N개`(접힘)
+// + `그날 끝낸 할 일 N개`(접힘). 혼자 쓴 장 = 고치기, 아래 `＋ 혼자 이어 쓰기`. 빈 날 = `그날 이야기 하기` · `혼자 쓰기`.
+// 오늘도 혼자 쓰기를 저장하면 이 화면. 나만 보기는 없앴다(§9.7 ⑥ — 예전 private 날도 표시 없음). 좌우로 밀면 앞뒤 날(밀기는 화면이 준다).
+import { CheckSquare, ChevronDown, ChevronRight, MessageCircle, PenLine, Plus } from 'lucide-react-native'
 import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler'
@@ -13,9 +14,12 @@ import { useDayStats, useMessages } from './data'
 import { isWritten, josa, mayCallAi, moodOf, parseBuddyReply, type Buddy, type DiaryEntry } from './logic'
 import { BuddyArt } from './parts'
 import { useDiaryPrefs } from './prefs'
+import { paperOf } from './SoloWrite'
 
-export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onFree }: {
-  date: string; entry: DiaryEntry | undefined; buddy: Buddy & { stage: number }; reduced: boolean; swipe: GestureType; onChat: () => void; onFree: () => void
+export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onSolo }: {
+  date: string; entry: DiaryEntry | undefined; buddy: Buddy & { stage: number }; reduced: boolean; swipe: GestureType; onChat: () => void
+  /** 혼자 쓰기: index = 고칠 장, null = 새 장 */
+  onSolo: (index: number | null) => void
 }) {
   const p = usePalette()
   const insets = useSafeAreaInsets()
@@ -29,7 +33,8 @@ export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onFree }: 
   const m = moodOf(entry?.mood)
   const sections = parseSections(entry?.content)
   const talk = messages.filter((x) => x.safety !== 1)
-  const canTalk = written && !entry?.private && prefs.consent !== false
+  const canTalk = written && prefs.consent !== false
+  const paper = paperOf(p.dark, p.cardBg)
   return (
     <GestureDetector gesture={swipe}>
       <ScrollView contentContainerStyle={[s.wrap, { paddingBottom: insets.bottom + 32 }]}>
@@ -39,28 +44,33 @@ export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onFree }: 
             <Text style={[s.emptyTitle, { color: p.textPrimary }]}>이 날은 비어 있어요</Text>
             <Text style={[s.emptySub, { color: p.textTertiary }]}>{josa(name, '가', '이')} 그날 이야기를 물어볼게요</Text>
             <Pressable accessibilityRole="button" onPress={onChat} style={[s.btn, { backgroundColor: p.accent }]}><Text style={[s.btnText, { color: p.onAccent }]}>그날 이야기 하기</Text></Pressable>
-            <Pressable accessibilityRole="button" onPress={onFree} style={[s.btn, { borderWidth: 1, borderColor: p.borderStrong }]}><Text style={[s.btnText, { color: p.textPrimary }]}>그냥 쓸래요</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => onSolo(null)} style={[s.btn, { borderWidth: 1, borderColor: p.borderStrong }]}><Text style={[s.btnText, { color: p.textPrimary }]}>혼자 쓰기</Text></Pressable>
             {stats.done ? <Text style={[s.emptySub, { color: p.textTertiary, marginTop: 12 }]}>그날 끝낸 할 일 {stats.done}개</Text> : null}
           </View>
         ) : (
           <>
-            {entry?.private ? (
-              <View style={[s.lockbar, { backgroundColor: p.bgSelected }]}>
-                <Lock size={15} color={p.accentInk} />
-                <Text style={{ color: p.textSecondary, fontSize: 13, flex: 1 }}>나만 보기 — {josa(name, '가', '이')} 읽지 않은 날이에요</Text>
-              </View>
-            ) : null}
-            <View style={[s.card, { backgroundColor: p.cardBg, borderColor: p.borderDivider }]}>
-              {m ? <View style={s.pm}><MoodFace mood={m.value} size={34} /><Text style={{ color: p.textPrimary, fontSize: 14, fontWeight: '700' }}>{m.label}</Text></View> : null}
-              {sections.length ? sections.map((sec, i) => (
-                <View key={i} style={[i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider, paddingTop: 12, marginTop: 12 }, { gap: 6 }]}>
-                  {sec.time || sec.title ? <Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '800' }}>{sec.time ? <Text style={{ color: p.textTertiary, fontWeight: '600', fontSize: 13 }}>{sec.time}  </Text> : null}{sec.title}</Text> : null}
-                  {sec.tags.length ? <View style={s.tags}>{sec.tags.map((t) => <View key={t} style={[s.tag, { backgroundColor: alpha(p.accent, 0.1) }]}><Text style={{ color: p.accentInk, fontSize: 12, fontWeight: '600' }}>{t}</Text></View>)}</View> : null}
-                  <Text style={[s.pt, { color: p.textPrimary }]} selectable>{sec.body}</Text>
+            {m ? <View style={s.pm}><MoodFace mood={m.value} size={30} /><Text style={{ color: p.textPrimary, fontSize: 14, fontWeight: '700' }}>{m.label}</Text></View> : null}
+            {sections.length ? sections.map((sec, i) => (
+              <View key={i} style={[s.card, { backgroundColor: paper, borderColor: p.borderDivider }]}>
+                <View style={s.meta}>
+                  {sec.solo ? <PenLine size={13} color={p.textTertiary} /> : sec.time ? <MessageCircle size={13} color={p.textTertiary} /> : null}
+                  <Text style={{ color: p.textTertiary, fontSize: 12.5, fontWeight: '600' }}>{[sec.time, sec.solo ? '혼자' : sec.time ? `${josa(name, '와', '과')} 이야기` : null].filter(Boolean).join(' · ')}</Text>
                 </View>
-              )) : <Text style={[s.pt, { color: p.textPrimary }]}>(기분만 남겼어요)</Text>}
-            </View>
-            {talk.length && !entry?.private ? (
+                {sec.title ? <Text style={{ color: p.textPrimary, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 }}>{sec.title}</Text> : null}
+                {sec.tags.length ? <View style={s.tags}>{sec.tags.map((t) => <View key={t} style={[s.tag, { backgroundColor: alpha(p.accent, 0.1) }]}><Text style={{ color: p.accentInk, fontSize: 12, fontWeight: '600' }}>{t}</Text></View>)}</View> : null}
+                {sec.body ? <Text style={[s.pt, { color: p.textPrimary }]} selectable>{sec.body}</Text> : null}
+                {sec.solo ? (
+                  <Pressable accessibilityRole="button" accessibilityLabel={`${sec.title || '이 장'} 고치기`} onPress={() => onSolo(i)} style={[s.edit, { backgroundColor: alpha(p.textTertiary, 0.1) }]} hitSlop={4}>
+                    <Text style={{ color: p.textSecondary, fontSize: 13, fontWeight: '600' }}>고치기</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            )) : <View style={[s.card, { backgroundColor: paper, borderColor: p.borderDivider }]}><Text style={[s.pt, { color: p.textSecondary }]}>(기분만 남겼어요)</Text></View>}
+            <Pressable accessibilityRole="button" onPress={() => onSolo(null)} style={[s.row, { backgroundColor: p.cardBg }]}>
+              <Plus size={18} color={p.textSecondary} />
+              <Text style={[s.rowText, { color: p.textPrimary }]}>혼자 이어 쓰기</Text>
+            </Pressable>
+            {talk.length ? (
               <>
                 <Pressable accessibilityRole="button" accessibilityState={{ expanded: openTalk }} onPress={() => setOpenTalk((v) => !v)} style={[s.row, { backgroundColor: p.cardBg }]}>
                   <MessageCircle size={18} color={p.textSecondary} />
@@ -81,7 +91,7 @@ export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onFree }: 
                 ) : null}
               </>
             ) : null}
-            {canTalk && mayCallAi({ consent: prefs.consent ?? true, private: entry?.private, solo: prefs.isSolo(date) }) ? (
+            {canTalk && mayCallAi({ consent: prefs.consent ?? true, private: entry?.private, solo: false }) ? (
               <Pressable accessibilityRole="button" onPress={onChat} style={[s.row, { backgroundColor: p.cardBg }]}>
                 <MessageCircle size={18} color={p.accentInk} />
                 <Text style={[s.rowText, { color: p.accentInk }]}>{josa(name, '와', '과')} 이 날 이야기하기</Text>
@@ -113,9 +123,10 @@ const s = StyleSheet.create({
   emptySub: { fontSize: 14, lineHeight: 20 },
   btn: { height: 48, minWidth: 180, paddingHorizontal: 20, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   btnText: { fontSize: 15, fontWeight: '700' },
-  lockbar: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, paddingHorizontal: 12, minHeight: 44 },
-  card: { borderRadius: 20, padding: 16, borderWidth: StyleSheet.hairlineWidth },
-  pm: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  card: { borderRadius: 20, padding: 16, borderWidth: StyleSheet.hairlineWidth, gap: 6 },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  edit: { alignSelf: 'flex-start', marginTop: 6, height: 34, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  pm: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
   pt: { fontSize: 16.5, lineHeight: 28 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 14, borderRadius: 16 },
   rowText: { flex: 1, fontSize: 14.5, fontWeight: '600' },

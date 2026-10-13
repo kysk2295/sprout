@@ -1,8 +1,9 @@
-// 28 §8 일기 v2: 머리 한 줄(‹ · 가운데 날짜 + 상태 → 기분 달력 · [오늘][📅][⋯]) + 그날 본문.
-// 오늘 = 캐릭터와 대화(기본, Conversation) 또는 그냥 쓰기(FreeWrite — 이 기기에서 고르면 다음에도). 지난 날 = 저장 카드 + 접힌 대화(PastDay).
+// 28 §8·§9 일기: 머리 한 줄(‹ · 가운데 날짜 + 상태 → 기분 달력 · [오늘][✎ 또는 💬][📅][⋯]) + 그날 본문.
+// 오늘 = 캐릭터와 대화(기본, Conversation) 또는 혼자 쓰기(SoloWrite — 메모장 + 저장, 머리는 자기 것). 마지막에 쓴 방식을 기억한다.
+// 그날의 장들(PastDay) = 지난 날, 그리고 혼자 쓰기를 저장한 뒤. 나만 보기는 없앴다(§9.7 ⑥).
 // 화면을 좌우로 밀면 전날·다음 날(오른쪽 = 전날, 오늘 다음은 막힘). 동의는 열 때 묻지 않는다 — 기분을 고른 뒤 대화 안 카드(§8.10).
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { CalendarDays, ChevronLeft, Lock, MoreHorizontal } from 'lucide-react-native'
+import { CalendarDays, ChevronLeft, MessageCircle, MoreHorizontal, PenLine } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { Gesture } from 'react-native-gesture-handler'
@@ -11,11 +12,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { scheduleOnRN } from 'react-native-worklets'
 import { addDays } from '@sprout/schema/time'
 import { Conversation, forgetDraft } from '../../src/diary/Conversation'
-import { clearScripted, deleteEntry, flushSummaries, saveEntry, setPrivate, useBuddy, useEntry, useMessages } from '../../src/diary/data'
-import { FreeWrite, type FreeStatus } from '../../src/diary/FreeWrite'
+import { clearScripted, deleteEntry, flushSummaries, useBuddy, useEntry, useMessages } from '../../src/diary/data'
+import { dropSoloDraft, hasSoloDraft, seedSoloDraft, SoloWrite } from '../../src/diary/SoloWrite'
 import { dayTitle, isWritten, josa } from '../../src/diary/logic'
 import { PastDay } from '../../src/diary/PastDay'
-import { setConsent, setMemory, setSolo, setWriteMode, useDiaryPrefs } from '../../src/diary/prefs'
+import { setConsent, setMemory, setWriteMode, useDiaryPrefs } from '../../src/diary/prefs'
 import { clearWant, openDay, useDiaryState } from '../../src/diary/state'
 import { BYE_ME, composeDraft, replay, SCRIPTED } from '../../src/diary/talk'
 import { KEY, preload } from '../../src/growth/store'
@@ -30,7 +31,7 @@ import { hx } from '../../src/ui/haptics'
 import { SlideSheet } from '../../src/ui/SlideSheet'
 import { useToast } from '../../src/ui/Toast'
 
-type View_ = 'chat' | 'free' | 'card'
+type View_ = 'chat' | 'solo' | 'card'
 
 export default function Diary() {
   const p = usePalette()
@@ -55,20 +56,24 @@ export default function Diary() {
   const [chosen, setChosen] = useState<Record<string, View_>>({})
   const written = !!entry && isWritten(entry)
   const hasScripted = messages.some((m) => m.safety === SCRIPTED)
-  const view: View_ = chosen[date] ?? (past ? (!written && hasScripted ? 'chat' : 'card') : prefs.mode === 'free' ? 'free' : 'chat')
+  const view: View_ = chosen[date] ?? (past
+    ? (!written && hasScripted ? 'chat' : 'card')
+    : prefs.mode === 'solo' ? (hasSoloDraft(date) || !written ? 'solo' : 'card') : 'chat')
   const choose = (v: View_) => setChosen((c) => ({ ...c, [date]: v }))
-  const [freeStatus, setFreeStatus] = useState<FreeStatus>('idle')
-  useEffect(() => setFreeStatus('idle'), [date])
-  const toFree = useCallback(async (given?: { text: string; mood: number | null }) => {
-    if (!past) setWriteMode('free')
-    // ⋯에서 고르면: 지금까지 대화에서 한 답으로 글·기분을 만든다(대화의 그냥 쓸래요와 같게)
-    const r = replay(messages.filter((m) => m.safety === SCRIPTED && m.role === 'me' && m.content !== BYE_ME).map((m) => m.content))
-    const prefill = given ?? { text: composeDraft(r.answers, { past }), mood: r.answers.mood }
-    if (prefill && !written && (prefill.text.trim() || prefill.mood)) await saveEntry(date, { content: prefill.text.trim(), mood: prefill.mood })
-    choose('free')
+  // 혼자 쓰기: 고칠 장(null = 새 장)
+  const [soloIndex, setSoloIndex] = useState<number | null>(null)
+  const toSolo = useCallback((index: number | null = null, given?: { text: string; mood: number | null }) => {
+    if (!past) setWriteMode('solo')
+    // 대화에서 넘어오면: 지금까지 한 답으로 새 장을 채워 둔다
+    if (index === null) {
+      const r = replay(messages.filter((m) => m.safety === SCRIPTED && m.role === 'me' && m.content !== BYE_ME).map((m) => m.content))
+      seedSoloDraft(date, given?.text ?? (written ? '' : composeDraft(r.answers, { past })))
+    }
+    setSoloIndex(index)
+    choose('solo')
   }, [past, written, date, messages]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (want) { setChosen((c) => ({ ...c, [date]: want })); clearWant() } }, [want, date])
-  const toChat = () => { if (!past) setWriteMode('chat'); choose('chat') }
+  useEffect(() => { if (want) { setChosen((c) => ({ ...c, [date]: want === 'free' ? 'solo' : want })); clearWant() } }, [want, date])
+  const toChat = () => { hx.tick(); if (!past) setWriteMode('chat'); choose('chat') }
 
   // ── 좌우로 밀어 날 넘기기(transform·opacity만, 39 §11) ──
   const tx = useSharedValue(0)
@@ -106,27 +111,25 @@ export default function Diary() {
   // ── 시트 ──
   const [menu, setMenu] = useState(false)
   const [askDelete, setAskDelete] = useState(false)
-  const priv = !!entry?.private
-  const solo = prefs.isSolo(date)
   const act = (fn: () => void) => () => { setMenu(false); setTimeout(fn, 200) }
 
-  const status = view === 'free'
-    ? (freeStatus === 'saving' ? '저장 중…' : freeStatus === 'saved' || written ? '자동 저장됨 ✓' : '그냥 쓰기')
-    : written ? '저장됨 ✓' : past ? '지난 일기' : '오늘 일기'
+  const status = written ? '저장됨 ✓' : past ? '지난 일기' : '오늘 일기'
 
   // 49 §6.1: 고른 배경 장면을 은은하게(흐리게 + 바탕색 막 80%) — 글 읽기가 먼저
   const win = useWindowDimensions()
   const wear = useCharacterWear()
   const soft = wear?.species ? myScene(wear.wear.eq?.bg, p.dark) : null
+  if (view === 'solo') {
+    return <SoloWrite key={`${date}:${soloIndex}`} date={date} entry={entry} index={soloIndex} onBack={() => router.back()} onChat={toChat} onSaved={() => choose('card')} />
+  }
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
       {soft ? <SoftScene sceneKey={soft} width={win.width} height={win.height} veil={p.pageBg} veilOpacity={p.dark ? 0.78 : 0.8} /> : null}
       <View style={[s.hdr, { marginTop: insets.top }]}>
         <GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>
-        <Pressable style={s.mid} onPress={() => router.push('/diary/calendar')} accessibilityRole="button" accessibilityLabel={`${dayTitle(date)}, ${priv ? '나만 보기, ' : ''}${status}. 기분 달력 열기`}>
+        <Pressable style={s.mid} onPress={() => router.push('/diary/calendar')} accessibilityRole="button" accessibilityLabel={`${dayTitle(date)}, ${status}. 기분 달력 열기`}>
           <Text style={[s.midTitle, { color: p.textPrimary }]} numberOfLines={1}>{dayTitle(date)}</Text>
           <View style={s.midSub}>
-            {priv ? <><Lock size={11} color={p.accentInk} /><Text style={{ color: p.accentInk, fontSize: 12, fontWeight: '700' }}>나만 보기</Text><Text style={{ color: p.textTertiary, fontSize: 12 }}> · </Text></> : null}
             <Text style={{ color: p.textTertiary, fontSize: 12 }}>{status}</Text>
           </View>
         </Pressable>
@@ -136,17 +139,18 @@ export default function Diary() {
               <Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '700' }}>오늘</Text>
             </Pressable>
           ) : null}
+          {view === 'chat'
+            ? <GlassButton plain label="혼자 쓰기" onPress={() => { hx.tick(); toSolo(null) }}><PenLine size={18} color={p.textPrimary} /></GlassButton>
+            : <GlassButton plain label={`${josa(name, '와', '과')} 이야기하기`} onPress={toChat}><MessageCircle size={19} color={p.textPrimary} /></GlassButton>}
           <GlassButton plain label="기분 달력" onPress={() => router.push('/diary/calendar')}><CalendarDays size={19} color={p.textPrimary} /></GlassButton>
           <GlassButton plain label="일기 메뉴" onPress={() => setMenu(true)}><MoreHorizontal size={20} color={p.textPrimary} /></GlassButton>
         </GlassGroup>
       </View>
 
       <Animated.View key={date} style={[{ flex: 1 }, body]}>
-        {view === 'free'
-          ? <FreeWrite date={date} entry={entry} name={name} onChat={toChat} onStatus={setFreeStatus} />
-          : view === 'card'
-            ? <PastDay date={date} entry={entry} buddy={buddy} reduced={reduced} swipe={swipe} onChat={() => choose('chat')} onFree={() => void toFree()} />
-            : <Conversation date={date} today={today} entry={entry} buddy={buddy} reduced={reduced} swipe={swipe} onFree={(x) => void toFree(x)} />}
+        {view === 'card'
+          ? <PastDay date={date} entry={entry} buddy={buddy} reduced={reduced} swipe={swipe} onChat={toChat} onSolo={(i) => toSolo(i)} />
+          : <Conversation date={date} today={today} entry={entry} buddy={buddy} reduced={reduced} swipe={swipe} onFree={(x) => toSolo(null, x)} />}
       </Animated.View>
 
       {/* ⋯ 아래 동작 시트(§8.2 확인 = 아래 시트) */}
@@ -155,18 +159,13 @@ export default function Diary() {
         {askDelete ? <>
           <Text style={[s.sheetTitle, { color: p.textPrimary }]}>이 날 일기를 지울까요?</Text>
           <Text style={[s.sheetBody, { color: p.textSecondary }]}>글·기분·대화가 모든 기기에서 지워져요.</Text>
-          <Pressable accessibilityRole="button" onPress={() => { setMenu(false); setAskDelete(false); forgetDraft(date); void deleteEntry(date).then(() => toast.show('일기를 지웠어요')) }} style={[s.cancel, { backgroundColor: p.cardBg }]}>
+          <Pressable accessibilityRole="button" onPress={() => { setMenu(false); setAskDelete(false); forgetDraft(date); dropSoloDraft(date); void deleteEntry(date).then(() => toast.show('일기를 지웠어요')) }} style={[s.cancel, { backgroundColor: p.cardBg }]}>
             <Text style={{ color: p.danger, fontSize: 16, fontWeight: '700' }}>지우기</Text>
           </Pressable>
           <Pressable accessibilityRole="button" onPress={() => { setMenu(false); setAskDelete(false) }} style={[s.cancel, { backgroundColor: p.cardBg }]}><Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600' }}>취소</Text></Pressable>
         </> : <>
         <View style={[s.group, { backgroundColor: p.cardBg }]}>
-          <Item label={priv ? '나만 보기 끄기' : '나만 보기'} note={priv ? '켜짐' : undefined} onPress={act(() => void setPrivate(date, !priv).then(() => toast.show(!priv ? `이 날은 나만 봐요. ${josa(name, '가', '이')} 읽지 않아요` : `${josa(name, '와', '과')} 같이 읽어요`)))} />
-          {view === 'free'
-            ? <Item label="대화로 쓰기" onPress={act(toChat)} />
-            : <Item label="그냥 쓸래요" onPress={act(() => void toFree())} />}
           <Item label={prefs.consent ? `${josa(name, '와', '과')} 나누기 끄기` : `${josa(name, '와', '과')} 나누기 켜기`} onPress={act(() => { const on = !prefs.consent; setConsent(on); toast.show(on ? '나누기를 켰어요' : '나누기를 껐어요. 질문은 계속 정해진 말로 해요') })} />
-          {prefs.consent ? <Item label={solo ? `오늘은 ${josa(name, '와', '과')} 이야기하기` : '이 날은 혼자 쓸게'} onPress={act(() => setSolo(date, !solo))} /> : null}
           {prefs.consent ? <Item label="기억하기" note={prefs.memory ? '켜짐' : undefined} onPress={act(() => { setMemory(!prefs.memory); toast.show(prefs.memory ? '이 날 일기만 보고 이야기해요' : '최근 7일 일기 요약도 같이 봐요') })} /> : null}
           {view === 'chat' && hasScripted && !written ? <Item label="처음부터 다시 묻기" onPress={act(() => { forgetDraft(date); void clearScripted(date) })} /> : null}
           <Item label="일기 검색" onPress={act(() => router.push('/diary/search'))} />

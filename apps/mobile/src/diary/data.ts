@@ -98,8 +98,6 @@ export async function saveEntry(date: string, patch: Patch): Promise<string> {
   await run([insert('diary_entries', { id, date, mood: null, content: '', prompt: null, private: 0, summary: null, ...patch })])
   return id
 }
-/** 나만 보기를 켜면 기억하기 요약도 지운다 */
-export const setPrivate = (date: string, on: boolean) => saveEntry(date, on ? { private: 1, summary: null } : { private: 0 })
 export async function deleteEntry(date: string) {
   const id = (await findEntry(date))?.id
   if (!id) return
