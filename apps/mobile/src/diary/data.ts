@@ -17,7 +17,7 @@ import {
   MEMORY_SQL, mayCallAi, parseBuddyReply, XP_SQL, type Buddy, type DiaryEntry, type DiaryMessage
 } from './logic'
 import { getConsent, getMemory, isSolo } from './prefs'
-import { chatTurns, sessionOf, SCRIPTED, type DayStats, type Line } from './talk'
+import { BYE_ME, chatTurns, clock, END_BUDDY, END_ME, LISTEN_SYSTEM, ownWords, replay, sessionOf, SCRIPTED, warmLineOf, type DayStats, type Line } from './talk'
 import { appendSection, chatSystem, DISTILL_SCHEMA, distillMessages, parseDistill, parseSections, formatSection, type Distilled, type Section } from '@sprout/schema/diaryPrompts'
 import { IN_SMART } from '../data/views'
 
@@ -145,7 +145,9 @@ export async function clearScripted(date: string) {
 export type ReplyResult = 'reply' | 'blocked'
 export type ReplyOpts = { buddy: Buddy; signal: AbortSignal; onDelta?: (visible: string) => void; onQueue?: (position: number) => void
   /** 다 받은 뒤 저장하기 전 — 화면이 글을 다 드러낼 때까지 기다린다(28 §8.11) */
-  settle?: () => Promise<void> }
+  settle?: () => Promise<void>
+  /** 28 §9 E 그냥 들어줘: 질문·조언 없이 맞장구만 */
+  listen?: boolean }
 
 /** 이번 실행에서 쓰거나 고친 날 — 화면을 떠날 때 기억하기 요약(켜 둔 사람만) */
 const touched = new Set<string>()
@@ -172,7 +174,7 @@ export async function chatTurn(date: string, text: string | null, opts: ReplyOpt
   const entry = await findEntry(date)
   if (!entry || !mayCallAi({ consent: getConsent(), private: entry.private, solo: isSolo(date) })) return 'blocked'
   const rows = await db.getAll<DiaryMessage>('SELECT * FROM diary_messages WHERE entry_id = ? AND COALESCE(safety, 0) != 1 ORDER BY created_at, id', [entry.id])
-  const system = chatSystem({ name: opts.buddy.name, tone: toneOf(opts.buddy.species), date, diary: entry.content })
+  const system = chatSystem({ name: opts.buddy.name, tone: toneOf(opts.buddy.species), date, diary: entry.content }) + (opts.listen ? `\n\n${LISTEN_SYSTEM}` : '')
   const msgs = chatTurns(system, sessionOf(rows).rows)
   if (!msgs) return 'blocked'
   let raw = ''
@@ -227,3 +229,36 @@ export async function taskFromChip(title: string): Promise<string> {
   if (same) return same.id
   return createTask({ title: t, list_id: '' }) // 빈 리스트 = 기본함(없으면 만든다, 02 §14.1)
 }
+
+/** 28 §9 G 자동 마무리(화면 밖): 이번 편에 내 말이 있고 아직 옮기지 않았으면 일기로 옮겨 저장 + 끝·저장 한 줄.
+ *  옮기기가 안 되면(동의 없음·AI 쉼·한도) 내 말 그대로. 화면이 떠 있으면 화면이 직접 한다(같은 편을 두 번 저장하지 않게 finishing). */
+const finishing = new Set<string>()
+export async function autoFinish(date: string, signal: AbortSignal): Promise<boolean> {
+  if (finishing.has(date)) return false
+  finishing.add(date)
+  try {
+    const entry = await findEntry(date)
+    if (!entry) return false
+    const rows = await db.getAll<DiaryMessage>('SELECT * FROM diary_messages WHERE entry_id = ? AND COALESCE(safety, 0) != 1 ORDER BY created_at, id', [entry.id])
+    const S = sessionOf(rows).rows
+    const mine = S.filter((m) => m.role === 'me' && !m.safety)
+    if (!mine.length) return false
+    const mood = replay(S.filter((m) => m.safety === SCRIPTED && m.role === 'me' && m.content !== BYE_ME && m.content !== END_ME).map((m) => m.content)).answers.mood ?? entry.mood ?? null
+    const ended = S.some((m) => m.role === 'buddy' && m.content === END_BUDDY)
+    if (!ended) await addScripted(date, [{ role: 'me', content: END_ME }, { role: 'buddy', content: END_BUDDY }])
+    let sec: Section = { time: clock(), title: '', tags: [], body: ownWords(mine.map((m) => m.content)) }
+    if (getConsent() === true && !entry.private) {
+      try {
+        const lines = S.filter((m) => m.content !== BYE_ME && m.content !== END_ME).map((m) => ({ who: (m.role === 'me' ? 'me' : 'buddy') as 'me' | 'buddy', text: parseBuddyReply(m.content).text }))
+        const d = await distillSession(date, lines, mood, signal)
+        sec = { time: sec.time, title: d.title, tags: d.tags, body: d.entry }
+      } catch { /* 내 말 그대로 */ }
+    }
+    if (signal.aborted) return false
+    await saveSection(date, sec, mood)
+    const stats = await db.getOptional<{ n: number }>(`SELECT count(*) AS n FROM tasks WHERE status = 1 AND deleted_at IS NULL AND completed_at >= ? AND completed_at < ?`, dayRange(date))
+    await addScripted(date, [{ role: 'buddy', content: warmLineOf({ mood, past: false, done: stats?.n ?? 0 }) }])
+    return true
+  } finally { finishing.delete(date) }
+}
+export const isFinishing = (date: string) => finishing.has(date)

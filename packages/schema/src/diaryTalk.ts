@@ -317,3 +317,43 @@ export function partialDistill(raw: string): { title: string | null; entry: stri
 export const replyFaceOf = (text: string): 'happy' | null => (/고마|다행|잘했|수고|좋았|좋다|멋지|멋있|기뻐|기쁘|축하|대단/.test(text) ? 'happy' : null)
 /** 맨 아래 근처인가(따라 내려가기) */
 export const nearBottom = (el: { scrollTop: number; scrollHeight: number; clientHeight: number }, slack = 64) => el.scrollHeight - el.scrollTop - el.clientHeight <= slack
+
+// ── 28 §9 v3: 보내자마자 반응 · 끝내기 · 그냥 들어줘 · AI 없을 때 공감 ──
+const HARD = /힘들|지쳤|지친|피곤|우울|슬프|슬펐|속상|눈물|외로|불안|걱정|무서|짜증|화나|화났|스트레스|아파|아팠|망했|싫어|싫었|최악|충격|놀랐|당황|막막|답답|서운|억울/
+const GOOD = /좋았|좋아|좋다|뿌듯|행복|신나|신났|기뻐|기뻤|재밌|재미있|잘\s*(봤|했|됐|끝)|성공|최고|맛있|설레|웃겼|감사|고마/
+/** 28 §9 D: 내 말풍선에 0.3초 안에 붙는 반응(기기에서) — 힘든 말 🫂, 좋은 말 💚, 그 밖 ✨. 기분이 1~2면 🫂 쪽으로 */
+export function reactionOf(text: string, mood: number | null = null): '🫂' | '💚' | '✨' {
+  if (HARD.test(text)) return '🫂'
+  if (GOOD.test(text)) return '💚'
+  return mood !== null && mood <= 2 ? '🫂' : mood !== null && mood >= 4 ? '💚' : '✨'
+}
+/** 끝내기 말(칩·"이제 잘게" 류) — 일기로 옮기기도 같은 끝 */
+export const END_ME = '여기까지'
+export const END_BUDDY = '응, 오늘 이야기 고마워. 내가 일기로 옮겨 둘게.'
+export const asksEnd = (t: string) => {
+  const s = t.trim().replace(/\s+/g, ' ')
+  return s === END_ME || /^(오늘은\s*)?여기까지(야|할래|하자|만)?[.!~ ]*$/.test(s) || /이제\s*잘(게|래|거야)|자러\s*갈(게|래)|그만\s*(할래|하자|얘기할래)/.test(s) || asksDistill(s)
+}
+/** 그냥 들어줘: 이후 이번 편은 질문·조언 없이 맞장구만 */
+export const LISTEN_ME = '그냥 들어줘'
+export const LISTEN_SYSTEM = '[지금은 그냥 들어 주기] 사용자가 그냥 들어 달래. 질문하지 말고 조언하지 마. 한 말을 그대로 짚어 맞장구만 1~2문장으로.'
+/** 오늘 끝낸 할 일 중 아직 대화에 안 나온 것(칩) — 제목 앞 6글자가 내 말에 있으면 나온 것으로 */
+export function doneChipsOf(doneTitles: string[], said: string[], max = 3): string[] {
+  const all = said.join(' ')
+  return [...new Set(doneTitles)].filter((t) => t.trim() && !all.includes(t.trim().slice(0, 6))).slice(0, max)
+}
+/** AI가 없을 때(쉬는 중·한도·오프라인) 정해진 공감 말 — 한 말의 결로 고르고 n으로 돌려 쓴다(같은 말 반복 줄이기) */
+const LOCAL: Record<'hard' | 'good' | 'plain', string[]> = {
+  hard: ['그랬구나. 많이 지쳤겠다.', '그 말 들으니 나도 마음이 쓰여. 오늘 버틴 것만으로도 충분해.', '속상했겠다. 여기선 편하게 말해도 돼.', '힘든 하루였네. 천천히 더 말해도 괜찮아.', '그랬구나. 오늘은 너한테 조금 다정해도 돼.'],
+  good: ['오, 좋았겠다! 나도 기분이 좋아져.', '잘됐다! 그 얘기 더 듣고 싶어.', '뿌듯했겠다. 그 순간 기억해 두자.', '와, 좋은 일이 있었네!', '듣기만 해도 기분 좋다.'],
+  plain: ['그렇구나. 들려줘서 고마워.', '응응, 듣고 있어.', '그랬구나. 또 어떤 일 있었어?', '오늘 그런 일이 있었구나.', '응, 계속 말해 줘.']
+}
+export function localReplyOf(text: string, mood: number | null, n: number): string {
+  const kind = HARD.test(text) ? 'hard' : GOOD.test(text) ? 'good' : mood !== null && mood <= 2 ? 'hard' : 'plain'
+  const list = LOCAL[kind]
+  return list[Math.abs(n) % list.length]
+}
+/** AI가 쉴 때 아래 한 줄 */
+export const restLineOf = (name: string) => `${josa(name, '가', '이')} 쉬는 중이라 짧게 답해요 · 일기는 그대로 저장돼요`
+/** 28 §9 G: 대화가 이만큼 멈추면 저절로 일기로 옮긴다 */
+export const AUTO_FINISH_MS = 5 * 60_000

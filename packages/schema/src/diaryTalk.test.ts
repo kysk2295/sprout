@@ -97,3 +97,17 @@ console.log('diary talk shared: ok')
   assert.equal(nearBottom({ scrollTop: 400, scrollHeight: 1500, clientHeight: 560 }), false)
   console.log('diary stream shared: ok')
 }
+
+// 28 §9 v3
+import { asksEnd, doneChipsOf, localReplyOf, reactionOf } from './diaryTalk.ts'
+assert.equal(reactionOf('오늘 너무 지쳤어'), '🫂')
+assert.equal(reactionOf('퀴즈 생각보다 잘 봤어!'), '💚')
+assert.equal(reactionOf('그냥 밥 먹었어'), '✨')
+assert.equal(reactionOf('교정이 2년이래. 좀 충격', 4), '🫂')
+assert.equal(reactionOf('그냥 밥 먹었어', 1), '🫂')
+assert.ok(asksEnd('여기까지') && asksEnd('오늘은 여기까지!') && asksEnd('이제 잘게') && asksEnd('일기로 정리해 줘'))
+assert.ok(!asksEnd('여기까지 오는데 힘들었어') && !asksEnd('잘 봤어'))
+assert.deepEqual(doneChipsOf(['기업경제학 퀴즈2', '치아 교정 상담', '운동'], ['기업경제학 퀴즈 잘 봤어']), ['치아 교정 상담', '운동'])
+assert.notEqual(localReplyOf('지쳤어', null, 0), localReplyOf('지쳤어', null, 1))
+assert.ok(localReplyOf('좋았어', null, 0).length > 0)
+console.log('diaryTalk v3 ok')

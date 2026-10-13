@@ -23,7 +23,9 @@ import { KEY, preload } from '../../src/growth/store'
 import { useMotionReduced } from '../../src/growth/motion'
 import { SoftScene } from '../../src/growth/art/Scene3D'
 import { useCharacterWear } from '../../src/growth/art/CharacterArt'
-import { myScene } from '../../src/growth/home/glass'
+import { myScene, sceneTone } from '../../src/growth/home/glass'
+import { SCENE_EDGE, sceneDark } from '@sprout/schema/characterArt'
+import { StatusBar } from 'expo-status-bar'
 import { dayKey } from '../../src/lib/dates'
 import { usePalette } from '../../src/theme/ThemeProvider'
 import { GlassButton, GlassGroup } from '../../src/ui/Glass'
@@ -122,15 +124,20 @@ export default function Diary() {
   if (view === 'solo') {
     return <SoloWrite key={`${date}:${soloIndex}`} date={date} entry={entry} index={soloIndex} onBack={() => router.back()} onChat={toChat} onSaved={() => choose('card')} />
   }
+  // 28 §9: 대화는 장면 위 — 머리도 장면 윗줄 색 위에(띠 없이), 글자색은 장면 밝기로
+  const chatScene = view === 'chat' ? myScene(wear?.species ? wear.wear.eq?.bg : null, p.dark) : null
+  const tone = chatScene ? sceneTone(chatScene) : null
+  const ink = tone?.ink ?? p.textPrimary
   return (
-    <View style={{ flex: 1, backgroundColor: p.pageBg }}>
-      {soft ? <SoftScene sceneKey={soft} width={win.width} height={win.height} veil={p.pageBg} veilOpacity={p.dark ? 0.78 : 0.8} /> : null}
+    <View style={{ flex: 1, backgroundColor: chatScene ? SCENE_EDGE[chatScene] ?? p.pageBg : p.pageBg }}>
+      {chatScene ? <StatusBar style={sceneDark(chatScene) ? 'light' : 'dark'} /> : null}
+      {soft && !chatScene ? <SoftScene sceneKey={soft} width={win.width} height={win.height} veil={p.pageBg} veilOpacity={p.dark ? 0.78 : 0.8} /> : null}
       <View style={[s.hdr, { marginTop: insets.top }]}>
         <GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>
         <Pressable style={s.mid} onPress={() => router.push('/diary/calendar')} accessibilityRole="button" accessibilityLabel={`${dayTitle(date)}, ${status}. 기분 달력 열기`}>
-          <Text style={[s.midTitle, { color: p.textPrimary }]} numberOfLines={1}>{dayTitle(date)}</Text>
+          <Text style={[s.midTitle, { color: ink }]} numberOfLines={1}>{dayTitle(date)}</Text>
           <View style={s.midSub}>
-            <Text style={{ color: p.textTertiary, fontSize: 12 }}>{status}</Text>
+            <Text style={{ color: tone?.sub ?? p.textTertiary, fontSize: 12 }}>{status}</Text>
           </View>
         </Pressable>
         <GlassGroup>

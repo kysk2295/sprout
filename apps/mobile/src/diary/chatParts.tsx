@@ -12,6 +12,7 @@ import { MoodFace } from './art'
 import { MOODS, moodOf, type Buddy } from './logic'
 import { BuddyArt } from './parts'
 import { moodShort } from './talk'
+import type { GlassTone } from '../growth/home/glass'
 
 /** 점 세 개(0.65초 기다림·AI 읽는 중) — opacity만, 움직임 줄이기면 멈춤 */
 function Dot({ i, still }: { i: number; still: boolean }) {
@@ -30,10 +31,19 @@ export const TypingDots = memo(function TypingDots({ still }: { still: boolean }
 })
 
 /** 캐릭터 말풍선 줄: 묶음 첫 줄만 얼굴(30), 마지막 말의 얼굴만 숨쉰다(한 번에 하나만 움직임 — §8.8) */
-export function BuddyRow({ buddy, avatar, live, still, face = 'smile', ai, think, dim, children }: { buddy: Buddy & { stage: number }; avatar: boolean; live: boolean; still: boolean; face?: ArtMood; ai?: boolean
+export function BuddyRow({ buddy, avatar, live, still, face = 'smile', ai, think, dim, tone, children }: { buddy: Buddy & { stage: number }; avatar: boolean; live: boolean; still: boolean; face?: ArtMood; ai?: boolean
   /** 생각 중(28 §8.11): 얼굴 think + 좌우 흔들림 */
-  think?: boolean; dim?: boolean; children: ReactNode }) {
+  think?: boolean; dim?: boolean
+  /** 28 §9: 장면 위 유리 말풍선(얼굴 칸 없음 — 캐릭터는 받침 위에 크게) */
+  tone?: GlassTone; children: ReactNode }) {
   const p = usePalette()
+  if (tone) {
+    return (
+      <View style={[s.rowB, dim && { opacity: 0.75 }]}>
+        <View style={[s.bb, { backgroundColor: tone.bubble, borderWidth: StyleSheet.hairlineWidth, borderColor: tone.line, shadowOpacity: 0 }]}>{children}</View>
+      </View>
+    )
+  }
   return (
     <View style={[s.rowB, dim && { opacity: 0.75 }]}>
       <View style={[s.av, avatar && { backgroundColor: p.accentSubtle }]}>
@@ -43,28 +53,44 @@ export function BuddyRow({ buddy, avatar, live, still, face = 'smile', ai, think
     </View>
   )
 }
-export function MeRow({ text, mood, skip }: { text: string; mood?: number | null; skip?: boolean }) {
+export function MeRow({ text, mood, skip, react, scene, still }: { text: string; mood?: number | null; skip?: boolean
+  /** 28 §9 D: 보내자마자 붙는 반응(💚·🫂·✨) */
+  react?: string
+  /** 장면 위(밝은 말풍선 + 짙은 글자 — 앱 테마와 상관없이) */
+  scene?: boolean; still?: boolean }) {
   const p = usePalette()
+  const bg = scene ? '#F2FBF6' : p.accentSubtle
+  const ink = scene ? '#1D2622' : p.textPrimary
   return (
-    <View style={[s.bm, skip ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: p.borderStrong } : { backgroundColor: p.accentSubtle }]}>
+    <View style={[s.bm, skip ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: scene ? 'rgba(255,255,255,0.5)' : p.borderStrong } : { backgroundColor: bg }]}>
       {mood ? <MoodFace mood={mood} size={26} /> : null}
-      <Text style={[s.msg, { color: skip ? p.textTertiary : p.textPrimary, flexShrink: 1 }]}>{text}</Text>
+      <Text style={[s.msg, { color: skip ? (scene ? 'rgba(255,255,255,0.8)' : p.textTertiary) : ink, flexShrink: 1 }]}>{text}</Text>
+      {react ? <ReactBadge emoji={react} still={!!still} /> : null}
     </View>
   )
+}
+/** 반응 배지: 0.3초 뒤 톡 붙는다(scale 0 → 1.15 → 1) */
+function ReactBadge({ emoji, still }: { emoji: string; still: boolean }) {
+  const sc = useSharedValue(still ? 1 : 0)
+  useEffect(() => { if (!still) sc.value = withDelay(300, withSequence(withTiming(1.18, { duration: 160 }), withTiming(1, { duration: 120 }))) }, [still, sc])
+  const st = useAnimatedStyle(() => ({ transform: [{ scale: sc.value }] }))
+  return <Animated.View style={[s.react, st]} accessibilityLabel={`반응 ${emoji}`}><Text style={{ fontSize: 13 }}>{emoji}</Text></Animated.View>
 }
 
 /** 빠른 답 칩(높이 44, 가로 스크롤). mute = 회색(건너뛸래·그냥 쓸래요), acc = 강조 테두리 */
 export type Chip = { key: string; label: string; onPress: () => void; tone?: 'mute' | 'acc'; icon?: ReactNode }
-export const ChipRow = memo(function ChipRow({ chips, disabled }: { chips: Chip[]; disabled?: boolean }) {
+export const ChipRow = memo(function ChipRow({ chips, disabled, tone }: { chips: Chip[]; disabled?: boolean; tone?: GlassTone }) {
   const p = usePalette()
   if (!chips.length) return null
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" contentContainerStyle={s.qr} style={disabled && { opacity: 0.45 }}>
       {chips.map((c) => (
         <PressableScale key={c.key} accessibilityRole="button" accessibilityLabel={c.label} disabled={disabled} onPress={c.onPress}
-          style={[s.qc, c.tone === 'mute' ? { backgroundColor: p.bgSelected, borderColor: 'transparent' } : { backgroundColor: p.cardBg, borderColor: c.tone === 'acc' ? p.accent : p.borderStrong }]}>
+          style={[s.qc, tone
+            ? (c.tone === 'acc' ? { backgroundColor: p.accent, borderColor: p.accent } : c.tone === 'mute' ? { backgroundColor: tone.bubble, borderColor: tone.line } : { backgroundColor: 'rgba(255,255,255,0.94)', borderColor: 'transparent' })
+            : c.tone === 'mute' ? { backgroundColor: p.bgSelected, borderColor: 'transparent' } : { backgroundColor: p.cardBg, borderColor: c.tone === 'acc' ? p.accent : p.borderStrong }]}>
           {c.icon}
-          <Text style={{ color: c.tone === 'acc' ? p.accentInk : c.tone === 'mute' ? p.textSecondary : p.textPrimary, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>{c.label}</Text>
+          <Text style={{ color: tone ? (c.tone === 'acc' ? p.onAccent : c.tone === 'mute' ? tone.ink : '#1D2622') : c.tone === 'acc' ? p.accentInk : c.tone === 'mute' ? p.textSecondary : p.textPrimary, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>{c.label}</Text>
         </PressableScale>
       ))}
     </ScrollView>
@@ -72,7 +98,7 @@ export const ChipRow = memo(function ChipRow({ chips, disabled }: { chips: Chip[
 })
 
 /** 기분 빠른 답: 얼굴 40 × 5, 누르는 칸 64×58 + 짧은 이름 */
-export const MoodRow = memo(function MoodRow({ onPick, disabled, selected }: { onPick: (v: number) => void; disabled?: boolean; selected?: number | null }) {
+export const MoodRow = memo(function MoodRow({ onPick, disabled, selected, ink }: { onPick: (v: number) => void; disabled?: boolean; selected?: number | null; ink?: string }) {
   const p = usePalette()
   return (
     <View style={s.qmood} accessibilityRole="radiogroup" accessibilityLabel="오늘 기분">
@@ -82,7 +108,7 @@ export const MoodRow = memo(function MoodRow({ onPick, disabled, selected }: { o
         return (
           <PressableScale key={m.value} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={m.label} disabled={disabled} onPress={() => onPick(m.value)} style={s.qf}>
             <MoodFace mood={m.value} size={on ? 46 : 40} faded={dim} />
-            <Text style={{ color: on ? p.textPrimary : p.textSecondary, fontSize: 11.5, fontWeight: on ? '700' : '600' }}>{moodShort(m.value)}</Text>
+            <Text style={{ color: ink ?? (on ? p.textPrimary : p.textSecondary), fontSize: 11.5, fontWeight: on ? '700' : '600' }}>{moodShort(m.value)}</Text>
           </PressableScale>
         )
       })}
@@ -158,6 +184,7 @@ const s = StyleSheet.create({
   bb: { flexShrink: 1, borderRadius: 18, borderBottomLeftRadius: 6, paddingHorizontal: 13, paddingVertical: 9, shadowColor: '#0B2A22', shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, gap: 8 },
   bm: { alignSelf: 'flex-end', maxWidth: '82%', borderRadius: 18, borderBottomRightRadius: 6, paddingHorizontal: 13, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 8 },
   msg: { fontSize: 15, lineHeight: 22 },
+  react: { position: 'absolute', left: -10, bottom: -9, backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 4, paddingVertical: 1, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
   qr: { gap: 8, paddingHorizontal: 14, paddingTop: 4, paddingBottom: 8 },
   qc: { height: 44, paddingHorizontal: 16, borderRadius: 22, borderWidth: 1.5, flexDirection: 'row', alignItems: 'center', gap: 6 },
   qmood: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10, paddingBottom: 8 },

@@ -65,7 +65,7 @@ export function DistillCard({ stream, buddy, name, again, reduced, onStop }: { s
 }
 
 const s = StyleSheet.create({
-  card: { marginLeft: 38, marginVertical: 4, borderRadius: 20, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#0B2A22', shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, gap: 10 },
+  card: { marginVertical: 4, borderRadius: 20, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#0B2A22', shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, gap: 10 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   av: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   headText: { flex: 1, fontSize: 14, fontWeight: '700' },
