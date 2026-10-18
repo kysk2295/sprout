@@ -103,3 +103,20 @@ open ios/*.xcworkspace     # 타깃 3개(앱·SproutShare·SproutWidget) 모두 
 
 - 위 항목이 없는 예전 빌드를 TestFlight에 올렸다면 빌드 번호를 올려 다시 올립니다.
 - 개인정보 답변(`store/privacy-answers.md`)은 위 항목으로 바뀌지 않습니다(휴대폰 캘린더에서 읽기만 한 일정은 기기 안 처리, 꿈틀에서 만든 일정은 이미 "캘린더 일정" 항목 — 같은 파일 26·51줄).
+
+---
+
+## 10. 2026-10-18 갱신 — 10-10 뒤 바뀐 것
+네이티브 설정(권한 파일·App ID·확장 타깃)은 **새로 생긴 것 없음**. `npx expo prebuild --platform ios --clean`을 한 번 새로 돌리고 아래만 확인하면 됩니다.
+
+| 무엇 | 확인할 것 |
+|---|---|
+| 저녁 일기 알림(28 §9 A) | 로컬 알림 + 카테고리 `sprout-diary`(답장 글 입력 · 😊 좋았어 · 😣 힘들었어). 이미 있는 알림 권한만 씀 — 새 entitlement·Info.plist 문구 없음. 첫 일기를 저장하면 "저녁에 물어봐도 될까요?" 뒤 OS 권한 창이 한 번 뜨는 게 정상 |
+| 일기 화면 v3 | 캐릭터와 대화 → 자동 저장, 머리 ✎ = 혼자 쓰기. 코드만 바뀜(설정 없음). **나만 보기는 없앰** — 스토어 설명·스크린샷에 나만 보기가 나오면 빼기 |
+| `expo-sensors` | 이제 `package.json`에 들어 있음(§9 표대로 권한 문구 필요 없음, `NSMotionUsageDescription`이 생기면 PR에 적기) |
+| 위젯 그림 | 마스코트 그림이 바뀜(`plugins/widgets`) — prebuild만 다시 하면 됨 |
+| 스크린샷 | `store/screenshots/ios/6.9/`·`6.5/` 6장씩 새로 바뀜(01-today · 02-calendar · 03-growth · 04-quickadd · 05-ai · 06-ai-answer), 캡션 `captions.md`도 같이 |
+| 심사 메모 | [store/review-notes.md](store/review-notes.md) PERMISSIONS(알림 = 할 일 + 저녁 일기, 캘린더 = 켤 때만)와 JOURNAL 문단을 새로 넣음 — App Store Connect의 심사 메모 칸에 **새 글로 다시 붙여 넣기** |
+| 데모 데이터 | 2026-10-05 기준이라 지금은 날짜가 지났음 — **제출 전에 주인에게 새로 넣어 달라고 요청** |
+| 빌드 번호 | `app.json` `ios.buildNumber`는 아직 `1`. 이미 TestFlight에 1을 올렸다면 `2`로 올려서 다시 올리기 |
+

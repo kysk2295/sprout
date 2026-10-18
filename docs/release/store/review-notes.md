@@ -43,7 +43,12 @@ PRIVACY
 No analytics, advertising or crash-reporting SDKs. No tracking (no ATT prompt). Data is used only to provide the app's features. Privacy policy: https://web-production-cd889.up.railway.app/privacy?lang=en
 
 PERMISSIONS
-Notifications only (task reminders, scheduled on the device). The app does not access contacts, photos, location, camera or the microphone.
+- Notifications: task reminders and an optional evening journal prompt (9 PM), both scheduled on the device. The journal prompt has "Reply" and two mood buttons; it is asked for only after the user saves a first journal entry, and can be turned off in Journal > ⋯.
+- Calendar (optional): only when the user turns on More > Settings > Calendar sync, to show events from the iPhone calendar. Reminders access is not requested.
+The app does not access contacts, photos, location, camera or the microphone.
+
+JOURNAL
+More > Journal. The user talks with their character in a chat; when they tap "여기까지 ✓" (or leave the screen for 5 minutes) the conversation is turned into a first-person journal entry and saved automatically. The pen button at the top switches to writing alone like a notepad (no AI). The character is a friend, not a counselor, and gives no medical advice.
 
 SHARE EXTENSION
 From another app's share sheet, choose "꿈틀" to save text or a link to the app's Inbox (requires being logged in).
