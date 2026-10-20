@@ -6,6 +6,7 @@
 // - 업로드: POST /sync/upload. 400은 버리고 진행, 그 밖(409·네트워크·5xx)은 다시 시도.
 import * as SecureStore from 'expo-secure-store'
 import { useSyncExternalStore } from 'react'
+import { AppState } from 'react-native'
 import { UpdateType, type AbstractPowerSyncDatabase, type PowerSyncBackendConnector } from '@powersync/react-native'
 import { seedStatements } from '@sprout/schema/seed'
 import { ensureInbox, inboxIdFor } from '@sprout/schema/inbox'
@@ -95,6 +96,7 @@ export async function freshToken(): Promise<string | null> {
       return session!.access_token
     } catch (e) {
       // 그사이 다른 곳(로그인·공유 확장 등)에서 세션이 새로 바뀌었으면 로그아웃하지 않는다
+      console.warn('[sync] 토큰 새로 고침 실패:', e instanceof ApiError ? `${e.status} ${e.message}` : e)
       if (e instanceof ApiError && e.status === 401) {
         if (session && session.refresh_token !== used) return session.access_token
         await signOutLocal()
@@ -325,8 +327,25 @@ export function startAuth() {
     status = session ? 'signedIn' : 'signedOut'
     emit()
     if (session) { void db.connect(connector, CONNECT_OPTIONS); watchInbox(session.user.id) }
+    watchForeground()
   })()
   return started
+}
+
+/** 2026-10-21 실측: 휴대폰이 10-14부터 한 번도 서버에 붙지 않아 변경 22건이 쌓여 있었다(서버·데스크톱은 정상).
+ *  iOS가 배경에서 연결을 끊은 뒤 다시 붙지 않는 경우를 막는다 — 앞으로 올 때마다, 그리고 앞에 있는 동안 1분마다
+ *  로그인돼 있는데 끊겨 있으면 다시 붙인다(올릴 것이 쌓여 있어도 같은 길로 올라간다) */
+let fgWatch: { remove: () => void } | undefined
+let fgTimer: ReturnType<typeof setInterval> | undefined
+function watchForeground() {
+  if (fgWatch) return
+  const kick = (why: string) => {
+    if (!session || db.currentStatus.connected || db.currentStatus.connecting) return
+    console.warn('[sync] 다시 연결:', why)
+    void db.connect(connector, CONNECT_OPTIONS).catch((e) => console.warn('[sync] 다시 연결 실패:', e))
+  }
+  fgWatch = AppState.addEventListener('change', (s) => { if (s === 'active') kick('앞으로 옴') })
+  fgTimer = setInterval(() => { if (AppState.currentState === 'active') kick('1분 확인') }, 60_000)
 }
 
 /** 당겨서 새로 고침·설정의 "지금 동기화": 끊겨 있으면 다시 붙이고, 내려받기가 끝날 때까지(최대 8초) 기다린다 */
