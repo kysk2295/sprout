@@ -10,7 +10,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { appleAvailable } from '../data/apple'
-import { authErrorText, login, loginWithApple, loginWithGoogle, signup, socialErrorText } from '../data/auth'
+import { authErrorText, login, loginWithApple, loginWithGoogle, signup, socialErrorText, staleAccount } from '../data/auth'
 import { FONT, shadow } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { AppleMark, GoogleMark } from '../ui/BrandMarks'
@@ -29,6 +29,9 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
   const router = useRouter()
   const params = useLocalSearchParams<{ email?: string }>()
   const [email, setEmail] = useState(params.email ?? '')
+  // 로그인이 만료돼 돌아온 경우: 같은 계정이면 이 기기에 남은 변경을 그대로 올린다(auth.ts expireLocal)
+  const [stale, setStaleUser] = useState<string | null>(null)
+  useEffect(() => { void staleAccount().then((u) => { if (u) { setStaleUser(u.email); setEmail((e) => e || u.email) } }) }, [])
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [social, setSocial] = useState<'google' | 'apple' | null>(null) // 기기 구글·애플 창이 열려 있는 동안
@@ -106,6 +109,9 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
         <Text style={[s.lead, { color: tone.sub }]}>
           {signupMode ? '이메일과 비밀번호만 있으면 돼요. 가입하면 꿈틀이가 나를 닮은 친구를 찾아 줘요.' : '컴퓨터와 같은 계정으로 들어가면 할 일과 캐릭터가 그대로 이어져요.'}
         </Text>
+        {stale && !signupMode ? (
+          <Text accessibilityRole="alert" style={[s.lead, { color: tone.ink, fontWeight: '700' }]}>로그인이 만료됐어요. {stale}로 다시 로그인하면 이 기기에서 바꾼 내용을 그대로 올려요.</Text>
+        ) : null}
         <View style={s.mark} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <FloatingMascot size={signupMode ? 104 : 132} reduced={reduced} />
         </View>

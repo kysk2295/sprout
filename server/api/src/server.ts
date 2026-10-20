@@ -298,13 +298,19 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
   'POST /auth/refresh': async (req) => counted([[`refresh:ip:${ipOf(req)}`, limits.refreshIp]], async () => {
     const { refresh_token } = await readJson(req, 10_000)
     if (typeof refresh_token !== 'string') throw new UploadError('unauthorized', 401)
+    // 2026-10-21: 리프레시 토큰을 바꾸지 않는다(같은 토큰 + 만료를 다시 60일로) — 접근 토큰만 새로.
+    // 예전에는 쓸 때마다 새 토큰을 주고 옛 토큰을 2분 뒤 죽였는데, 휴대폰이 화면 잠금 중 배경에서 새 토큰을 키체인에 못 쓰자
+    // 옛 토큰만 남아 그 뒤로 영영 401(겉으로는 로그인 상태, 동기화는 멈춤 — 휴대폰 10-14 · Windows 10-19 실측). 응답이 끊겨도 같다.
+    // 도난 토큰을 막는 건 로그아웃·계정 삭제·만료(60일)로 한다. 예전 앱도 받은 refresh_token을 그대로 저장하므로 바꿀 것 없음
     const r = await pool.query(
-      // 지운 대신 2분만 더 살려 둔다: 응답이 기기에 닿기 전에 끊기거나 두 요청이 겹쳐 같은 토큰을 다시 보내도 로그아웃되지 않게(2026-10-08)
-      `UPDATE sessions s SET expires_at = LEAST(s.expires_at, now() + interval '2 minutes') FROM users u WHERE s.token_hash = $1 AND s.user_id = u.id AND s.expires_at > now() RETURNING u.id, u.email`,
+      `UPDATE sessions s SET expires_at = GREATEST(s.expires_at, now() + interval '${REFRESH_DAYS} days') FROM users u WHERE s.token_hash = $1 AND s.user_id = u.id AND s.expires_at > now() RETURNING u.id, u.email`,
       [hashToken(refresh_token)]
     )
     if (!r.rowCount) throw new UploadError('unauthorized', 401)
-    return [200, await issue(r.rows[0].id, r.rows[0].email, false, false)] as [number, unknown]
+    const { id, email } = r.rows[0]
+    await ensureDefaultInbox((sql, params) => pool.query(sql, params), id).catch((e) => console.error('[inbox] ensure', (e as Error).message))
+    const access = await signAccessToken(keys, id, ISSUER, ACCESS_TTL)
+    return [200, { user: { id, email }, access_token: access, refresh_token, expires_in: ACCESS_TTL, created: false }] as [number, unknown]
   }),
 
   'POST /auth/logout': async (req) => {

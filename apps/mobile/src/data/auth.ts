@@ -13,10 +13,15 @@ import { ensureInbox, inboxIdFor } from '@sprout/schema/inbox'
 import { API_URL, SYNC_URL } from '../config'
 import { CONNECT_OPTIONS, coreDb, db, run } from './db'
 import { deviceId } from './device'
+import { slog } from './syncLog'
 import { GoogleSignInError, googleIdToken } from './google'
 import { AppleSignInError, appleCredential } from './apple'
 
 const KEY = 'sprout.session.v1'
+/** 로그인이 만료된 계정(데이터·안 올린 변경은 기기에 그대로) — 같은 계정으로 다시 들어오면 지우지 않고 이어서 올린다 */
+const STALE_KEY = 'sprout.session.stale'
+/** 2026-10-21: 화면이 잠긴 채 배경에서 토큰을 새로 고치면 키체인 쓰기가 막혀(기본 WHEN_UNLOCKED) 새 리프레시 토큰을 잃었다 → 첫 잠금 해제 뒤면 쓰게 */
+const KC = { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK }
 
 export type User = { id: string; email: string }
 type Session = { user: User; access_token: string; refresh_token: string; expires_at: number }
@@ -41,8 +46,35 @@ export const signedInUserId = () => session?.user.id ?? null
 // ── 저장 ──
 async function save(s: Session | undefined) {
   session = s
-  if (s) await SecureStore.setItemAsync(KEY, JSON.stringify(s))
-  else await SecureStore.deleteItemAsync(KEY)
+  if (!s) { await SecureStore.deleteItemAsync(KEY, KC).catch(() => {}); return }
+  // 저장이 실패해도 이번 실행은 메모리 세션으로 계속 — 다음에 앞으로 올 때 다시 쓴다(옛 토큰이 남으면 다음 실행에서 로그인이 풀린다)
+  try { await SecureStore.setItemAsync(KEY, JSON.stringify(s), KC); unsaved = false } catch (e) { unsaved = true; slog('session: 저장 실패', e) }
+}
+let unsaved = false
+const retrySave = () => { if (unsaved && session) void save(session) }
+let staleUser: User | null | undefined
+export async function staleAccount(): Promise<User | null> {
+  if (staleUser === undefined) {
+    try { const raw = await SecureStore.getItemAsync(STALE_KEY); staleUser = raw ? (JSON.parse(raw) as User) : null } catch { staleUser = null }
+  }
+  return staleUser
+}
+async function setStale(u: User | null) {
+  staleUser = u
+  if (u) await SecureStore.setItemAsync(STALE_KEY, JSON.stringify(u), KC).catch(() => {})
+  else await SecureStore.deleteItemAsync(STALE_KEY).catch(() => {})
+}
+/** 로그인 만료(리프레시 401): 지우지 않는다. 연결만 끊고 로그인 화면으로 — 같은 계정으로 다시 들어오면 쌓인 변경을 그대로 올린다 */
+async function expireLocal() {
+  const u = session?.user ?? null
+  slog('session: 만료 — 기기 데이터는 그대로 두고 다시 로그인 대기', u?.id.slice(0, 8))
+  inboxWatch?.abort()
+  inboxWatch = undefined
+  await db.disconnect().catch((e) => slog('session: 연결 끊기 실패', e))
+  await setStale(u)
+  await save(undefined)
+  status = 'signedOut'
+  emit()
 }
 async function load(): Promise<Session | undefined> {
   try {
@@ -87,19 +119,23 @@ const toSession = (r: TokenResponse): Session => ({ user: r.user, access_token: 
 let refreshing: Promise<string | null> | undefined
 /** 접근 토큰이 5분 안에 끝나면 새로 받는다. 401이면 세션 만료 → 로그아웃 상태 */
 export async function freshToken(): Promise<string | null> {
-  if (!session) return null
+  if (!session) { slog('token: 세션 없음'); return null }
   if (session.expires_at - Date.now() > 5 * 60_000) return session.access_token
   refreshing ??= (async () => {
     const used = session!.refresh_token
+    slog('token: 새로 고침 시작, 만료까지', Math.round((session!.expires_at - Date.now()) / 1000), 's')
     try {
-      await save(toSession(await api<TokenResponse>('/auth/refresh', { body: { refresh_token: used } })))
+      const r = await api<TokenResponse>('/auth/refresh', { body: { refresh_token: used }, timeoutMs: 20_000 })
+      slog('token: 새로 고침 성공')
+      await save(toSession(r))
       return session!.access_token
     } catch (e) {
       // 그사이 다른 곳(로그인·공유 확장 등)에서 세션이 새로 바뀌었으면 로그아웃하지 않는다
+      slog('token: 새로 고침 실패', e instanceof ApiError ? `${e.status} ${e.message}` : e)
       console.warn('[sync] 토큰 새로 고침 실패:', e instanceof ApiError ? `${e.status} ${e.message}` : e)
       if (e instanceof ApiError && e.status === 401) {
         if (session && session.refresh_token !== used) return session.access_token
-        await signOutLocal()
+        await expireLocal()
       }
       return null
     } finally {
@@ -116,11 +152,13 @@ export const serverAccess = async () => ({ url: API_URL, token: await freshToken
 export const connector: PowerSyncBackendConnector = {
   async fetchCredentials() {
     const token = await freshToken()
+    slog('credentials:', token ? 'ok' : 'null')
     return token ? { endpoint: SYNC_URL, token } : null
   },
   async uploadData(database: AbstractPowerSyncDatabase) {
     const batch = await database.getCrudBatch(200)
     if (!batch) return
+    slog('upload: 시작', batch.crud.length, '건')
     const token = await freshToken()
     if (!token) throw new Error('not signed in')
     const ops = batch.crud.map((op) => ({
@@ -134,7 +172,9 @@ export const connector: PowerSyncBackendConnector = {
     const send = (b: typeof ops) => api('/sync/upload', { body: { batch: b }, token, headers: device ? { 'x-sprout-device': device } : undefined })
     try {
       await send(ops)
+      slog('upload: 성공')
     } catch (e) {
+      slog('upload: 실패', e instanceof ApiError ? `${e.status} ${e.message}` : e)
       // 400(형식이 깨진 연산)은 다시 보내도 같다. 묶음째 버리면 정상 변경까지 사라지니(2026-10-11 Codex 리뷰)
       // 한 건씩 다시 보내 깨진 연산만 버린다. 나머지 오류는 다시 시도
       if (!(e instanceof ApiError && e.status === 400)) throw e
@@ -152,6 +192,10 @@ export const connector: PowerSyncBackendConnector = {
 /** 로그인 직후: 서버에 데이터가 있으면 로컬을 비우고 내려받고, 없으면 기본함을 만들어 올린다 */
 async function adopt(s: Session) {
   const me = await api<{ has_data: boolean }>('/auth/me', { token: s.access_token })
+  // 만료됐던 같은 계정이면 지우지 않는다 — 기기에 쌓인 변경을 그대로 올리고, 내려받기로 맞춘다
+  const stale = await staleAccount()
+  if (stale && stale.id === s.user.id) { slog('login: 만료됐던 같은 계정 — 기기 데이터 유지'); await setStale(null); return }
+  if (stale) await setStale(null)
   await db.disconnectAndClear()
   if (!me.has_data) {
     // 서버는 계정을 만들 때 기본함 inbox-<id>를 만든다 → 같은 id로 만들어야 둘이 되지 않는다(02 §14.1)
@@ -324,6 +368,7 @@ export function startAuth() {
   started ??= (async () => {
     await db.init()
     session = await load()
+    slog('start: 세션', session ? `있음(${session.user.id.slice(0, 8)}, 토큰 만료까지 ${Math.round((session.expires_at - Date.now()) / 60000)}분)` : '없음', 'sync', SYNC_URL)
     status = session ? 'signedIn' : 'signedOut'
     emit()
     if (session) { void db.connect(connector, CONNECT_OPTIONS); watchInbox(session.user.id) }
@@ -341,15 +386,24 @@ function watchForeground() {
   if (fgWatch) return
   const kick = (why: string) => {
     if (!session || db.currentStatus.connected || db.currentStatus.connecting) return
+    slog('reconnect:', why)
     console.warn('[sync] 다시 연결:', why)
     void db.connect(connector, CONNECT_OPTIONS).catch((e) => console.warn('[sync] 다시 연결 실패:', e))
   }
-  fgWatch = AppState.addEventListener('change', (s) => { if (s === 'active') kick('앞으로 옴') })
+  // 상태가 바뀔 때마다 기록(연결·오류)
+  let last = ''
+  db.registerListener({ statusChanged: (s) => {
+    const e = s.dataFlowStatus
+    const line = `status: connected=${s.connected} connecting=${s.connecting} synced=${s.lastSyncedAt?.toISOString?.() ?? '-'} up=${e.uploading} down=${e.downloading} upErr=${e.uploadError?.message ?? '-'} downErr=${e.downloadError?.message ?? '-'}`
+    if (line !== last) { last = line; slog(line) }
+  } })
+  fgWatch = AppState.addEventListener('change', (s) => { if (s === 'active') { retrySave(); kick('앞으로 옴') } })
   fgTimer = setInterval(() => { if (AppState.currentState === 'active') kick('1분 확인') }, 60_000)
 }
 
 /** 당겨서 새로 고침·설정의 "지금 동기화": 끊겨 있으면 다시 붙이고, 내려받기가 끝날 때까지(최대 8초) 기다린다 */
 export async function syncNow() {
+  slog('syncNow: 눌림, 세션', session ? '있음' : '없음', 'connected', db.currentStatus.connected)
   if (!session) return
   if (!db.currentStatus.connected) await db.connect(connector, CONNECT_OPTIONS)
   const started = Date.now()

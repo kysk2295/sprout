@@ -19,6 +19,14 @@ import { clearNotices } from './notices'
 const API_URL = process.env.SPROUT_API_URL ?? 'https://macmini.tail425c97.ts.net'
 const SYNC_URL = process.env.SPROUT_SYNC_URL ?? 'https://macmini.tail425c97.ts.net:8443'
 const AUTH_FILE = () => join(app.getPath('userData'), 'auth.bin')
+/** 로그인이 만료된 계정(2026-10-21): 이 기기 데이터·안 올린 변경은 그대로 — 같은 계정으로 다시 들어오면 지우지 않고 이어서 올린다 */
+const STALE_FILE = () => join(app.getPath('userData'), 'stale-account.json')
+function readStale(): { id: string; email: string } | null {
+  try { return existsSync(STALE_FILE()) ? JSON.parse(readFileSync(STALE_FILE(), 'utf8')) : null } catch { return null }
+}
+function writeStale(u: { id: string; email: string } | null) {
+  try { if (u) writeFileSync(STALE_FILE(), JSON.stringify(u), { mode: 0o600 }); else if (existsSync(STALE_FILE())) rmSync(STALE_FILE()) } catch { /* 없으면 그만 */ }
+}
 
 type Session = { user: { id: string; email: string }; access_token: string; refresh_token: string; expires_at: number }
 let session: Session | undefined
@@ -81,7 +89,10 @@ async function freshToken(): Promise<string | null> {
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         if (session && session.refresh_token !== used) return session.access_token
-        save(undefined); broadcast() // 세션 만료 → 로그아웃 상태
+        // 세션 만료 → 로그인 화면. 데이터는 지우지 않고, 같은 계정으로 다시 들어오면 그대로 이어서 올린다(adopt)
+        console.warn('[sync] 로그인 만료 — 기기 데이터 유지, 다시 로그인 대기')
+        writeStale(session?.user ?? null)
+        save(undefined); broadcast()
       }
       return null
     } finally {
@@ -151,6 +162,10 @@ function broadcast() {
 /** 로그인 직후: 서버에 데이터가 있으면 로컬을 비우고 내려받고, 없으면 로컬 데이터를 내 계정으로 옮겨 올린다 */
 async function adopt(s: Session) {
   const me = await api<{ has_data: boolean }>('/auth/me', { token: s.access_token })
+  // 만료됐던 같은 계정이면 지우지 않는다 — 쌓인 변경을 올리고 내려받기로 맞춘다(2026-10-21 휴대폰·Windows 실측)
+  const stale = readStale()
+  writeStale(null)
+  if (stale && stale.id === s.user.id) return
   if (me.has_data) {
     await db.disconnectAndClear()
   } else {
