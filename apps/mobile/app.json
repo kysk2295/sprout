@@ -3,7 +3,7 @@
     "name": "꿈틀",
     "slug": "sprout",
     "scheme": "sprout",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -90,7 +90,7 @@
         "backgroundImage": "./assets/brand/adaptive-background.png",
         "monochromeImage": "./assets/brand/adaptive-monochrome.png"
       },
-      "versionCode": 4,
+      "versionCode": 5,
       "intentFilters": [
         {
           "action": "SEND",
