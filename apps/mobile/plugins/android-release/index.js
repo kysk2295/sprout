@@ -19,7 +19,8 @@ const REMOVE = [
   'android.permission.WRITE_EXTERNAL_STORAGE',
   'android.permission.FOREGROUND_SERVICE', // WorkManager 기본 선언 — 포그라운드 작업 없음(expo-background-task는 일반 작업)
   'android.permission.USE_BIOMETRIC', // expo-secure-store — requireAuthentication(생체 인증) 안 씀
-  'android.permission.USE_FINGERPRINT'
+  'android.permission.USE_FINGERPRINT',
+  'android.permission.ACTIVITY_RECOGNITION' // expo-sensors(만보기용) — 흔들기 감지는 가속도계만 써서 필요 없음. 있으면 Play가 건강 데이터 권한으로 보고 출시마다 건강 선언을 요구했다(2026-10-26)
 ]
 const ADD = ['android.permission.SCHEDULE_EXACT_ALARM']
 const MARK = '// @sprout/android-release'
