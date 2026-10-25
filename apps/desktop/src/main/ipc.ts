@@ -1,10 +1,12 @@
 import { ipcMain, type MessagePortMain } from 'electron'
 import { db } from './db'
+import { registerMedia } from './media'
 
 // 렌더러 ↔ 로컬 DB 다리. SQL은 렌더러의 data 계층에서 만들고, 여기서는 실행만 한다.
 type Stmt = { sql: string; params?: unknown[] }
 
 export function registerDbIpc(): void {
+  registerMedia() // 15 §11 일기 사진 한 장(POST·GET /media — 토큰은 메인에만)
   ipcMain.handle('db:getAll', (_e, sql: string, params: unknown[] = []) => db.getAll(sql, params))
   ipcMain.handle('db:get', (_e, sql: string, params: unknown[] = []) => db.getOptional(sql, params))
   ipcMain.handle('db:transaction', async (_e, stmts: Stmt[]) => {

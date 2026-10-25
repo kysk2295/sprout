@@ -1,64 +1,84 @@
-import { CheckSquare, ChevronDown, ChevronRight, Lock, LockOpen } from 'lucide-react'
-import { useState } from 'react'
+import { CheckSquare, ChevronDown, ChevronRight, MessageCircle, PenLine, Plus } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { parseSections } from '@sprout/schema/diaryPrompts'
-import { moodOf } from '../../data/diary'
+import { BYE_ME, END_ME, sessionOf } from '@sprout/schema/diaryTalk'
+import { useQuery } from '../../data/useQuery'
+import { josa, MESSAGES_BY_DATE_SQL, useDayStats, type DiaryEntry, type DiaryMessage } from '../../data/diary'
 import { hhmm } from './dates'
-import { MoodFace } from './MoodFace'
-import { DraftCard, SavedCard, SectionView } from './Sections'
-import { DistillCard } from './Stream'
-import type { TalkState } from './Talk'
+import type { usePhotoAdd } from './Photos'
+import { PhotoStrip } from './Photos'
+import { SceneCardView } from './SceneCard'
+import { useSceneCard } from './sceneData'
+import { Tags } from './Sections'
 
-// 15 §10.1 오른쪽 `오늘 일기` 340 — 저장한 편 카드(시각·제목·태그·본문, 고치기) · 지금 쓰는 편(내 말이 모이는 중 / 초안 카드) · 그날 끝낸 할 일(XP 없음).
+// 15 §11 오른쪽 칸 330 — 오늘의 장면(저절로, sceneCardOf) + 사진 줄(＋ 사진) + 그날 장들(💬 대화로 만든 장 / ✎ 혼자 쓴 장, 고치기 = 혼자 쓰기 메모장으로)
+// + `혼자 이어 쓰기` + 그날 끝낸 할 일(접힘, XP 없음). 빈 오른쪽 칸 없음 — 아무것도 없는 날도 장면 자리 안내가 있다.
 
-export function DayPanel({ t, onPrivate, onOpenTask }: { t: TalkState; onPrivate: () => void; onOpenTask: (id: string) => void }) {
-  const isPrivate = !!t.entry?.private
-  const m = moodOf(t.entry?.mood)
+export function DayPanel({ date, today, entry, name, photo, onSolo, onOpenTask, onOpenDay, head }: {
+  date: string; today: string; entry: DiaryEntry | undefined; name: string
+  photo: ReturnType<typeof usePhotoAdd>
+  onSolo: (index: number | null) => void
+  onOpenTask: (id: string) => void
+  /** 앨범에서 고른 날 → 기록으로 열기 */
+  onOpenDay?: () => void
+  head?: React.ReactNode
+}) {
+  const past = date !== today
+  const card = useSceneCard(date, entry)
+  const sections = useMemo(() => parseSections(entry?.content), [entry?.content])
+  const rows = useQuery<DiaryMessage>(MESSAGES_BY_DATE_SQL, [date])
+  // 지금 이야기 중인 편(아직 장이 안 됨) — 끝나면 여기에 한 장
+  const talking = useMemo(() => sessionOf((rows ?? []).filter((m) => m.safety !== 1)).rows.some((m) => m.role === 'me' && !m.safety && m.content !== END_ME && m.content !== BYE_ME), [rows])
+  const [open, setOpen] = useState<Set<number>>(() => new Set())
+  // 장면이 바뀌면(저장·사진) 카드가 다시 생긴다(뒤집힘 → 사진 → 칩)
+  const cardKey = card ? `${card.title}|${card.photo?.media_id ?? ''}|${card.mood ?? ''}` : ''
+  const [firstKey] = useState(cardKey)
   return (
-    <aside className="dpanel" aria-label={t.past ? '그날 일기' : '오늘 일기'}>
+    <aside className="dpanel" aria-label={past ? '그날의 장면' : '오늘의 장면'}>
       <div className="dpanel__head">
-        <b>{t.past ? '그날 일기' : '오늘 일기'}</b>
-        {m && <span className="dpanel__mood"><MoodFace mood={m.value} size={20} />{m.label}</span>}
-        <button className={`icon-btn dpanel__lock${isPrivate ? ' is-on' : ''}`} aria-pressed={isPrivate} aria-label="나만 보기" title={isPrivate ? `나만 보기 켜짐 — ${t.name}에게 보내지 않아요` : '나만 보기'} onClick={onPrivate}>{isPrivate ? <Lock /> : <LockOpen />}</button>
+        <b>{head ?? (past ? '그날의 장면' : '오늘의 장면')}</b>
+        <small>{onOpenDay ? '누른 날' : '저절로 채워져요'}</small>
       </div>
       <div className="dpanel__scroll">
-        {t.sections.map((sec, k) => (
-          <SavedCard key={`${k}-${sec.time}-${sec.title}`} section={sec} date={t.date} past={t.past} editing={t.editAt === k}
-            onEdit={() => t.setEditAt(k)} onCancel={() => t.setEditAt(null)} onSave={(s) => void t.editSaved(k, s)} />
-        ))}
-        {t.distilling ? (
-          <DistillCard stream={t.dstream} buddy={t.buddy} name={t.name} again={t.distillTry > 1} reduced={t.reduced} onStop={t.stop} />
-        ) : t.draft ? (
-          <DraftCard draft={t.draft} date={t.date} past={t.past} name={t.name} mood={t.sessionMood ?? t.entry?.mood ?? null} aiFlow={t.aiFlow} distilling={t.distilling}
-            left={t.quota ? Math.max(0, t.quota.limit - t.quota.used) : null} canTranscript={t.canTranscript}
-            onChange={(d) => t.setDraft({ ...t.draft!, ...d })} onRedo={() => void t.distill(true)} onTranscript={t.makeTranscript} onSave={() => void t.save()} onBack={t.aiFlow ? () => t.setDraft(null) : undefined} />
-        ) : t.forming.trim() && (t.phase === 'talk' || t.phase === 'q1' || t.phase === 'q2' || t.phase === 'q3') ? (
-          <section className="dforming" aria-label="지금 쓰는 편">
-            <div className="dforming__head">지금 쓰는 편 <small>내 말이 모이는 중</small></div>
-            <p>{t.forming}</p>
-            <small>{t.aiFlow ? `다 이야기했으면 "일기로 정리해 줘" — ${t.name}의 말은 빼고 내 말로 옮겨요` : '질문에 다 답하면 내 말 그대로 초안이 돼요'}</small>
-          </section>
-        ) : !t.sections.length ? (
-          <div className="dpanel__empty">
-            <p>{t.past ? '이 날은 비어 있어요' : '아직 남긴 편이 없어요'}</p>
-            <small>{josaHint(t)}</small>
-          </div>
-        ) : null}
-        <DoneList t={t} onOpenTask={onOpenTask} />
+        {card
+          ? <SceneCardView key={cardKey} card={card} variant="side" appear={cardKey !== firstKey || !past} />
+          : <div className="dscene-empty"><b>{past ? '이 날은 비어 있어요' : '아직 장면이 없어요'}</b><small>기분 하나, 사진 한 장, 끝낸 할 일만 있어도 {past ? '그날' : '오늘'}의 장면이 저절로 생겨요</small></div>}
+        <PhotoStrip photos={photo.photos} pending={photo.pending} onAdd={() => void photo.pick()} busy={photo.busy} />
+        {onOpenDay && <button className="dbtn is-soft is-block" onClick={onOpenDay}>이 날 일기 열기</button>}
+        {sections.map((sec, i) => {
+          const big = open.has(i)
+          return (
+            <section key={`${i}-${sec.time}-${sec.title}`} className="dpg" aria-label={sec.title || '그날의 장'}>
+              <div className="dpg__m">
+                {sec.solo ? <PenLine /> : <MessageCircle />}
+                <span>{[sec.time, sec.solo ? '혼자 쓰기' : sec.time ? `${josa(name, '와', '과')} 이야기` : null].filter(Boolean).join(' · ') || '일기'}</span>
+              </div>
+              {sec.title && <b className="dpg__t">{sec.title}</b>}
+              {sec.tags.length > 0 && <Tags tags={sec.tags} />}
+              <p className={`dpg__b${big ? '' : ' is-clamp'}`} onClick={() => setOpen((o) => { const n = new Set(o); if (n.has(i)) n.delete(i); else n.add(i); return n })}>{sec.body || '(기분만 남겼어요)'}</p>
+              {!onOpenDay && <div className="dpg__acts"><button onClick={() => onSolo(i)}>고치기</button></div>}
+            </section>
+          )
+        })}
+        {talking && !onOpenDay && (
+          <section className="dpg is-forming"><div className="dpg__m"><MessageCircle /><span>{josa(name, '와', '과')} 이야기 중</span></div><b className="dpg__t">끝나면 여기에 한 장</b><p className="dpg__b">여기까지 ✓ 또는 5분 멈추면 저절로 일기가 돼요</p></section>
+        )}
+        {!onOpenDay && <button className="dpg-add" onClick={() => onSolo(null)}><Plus />{sections.length ? '혼자 이어 쓰기' : '혼자 쓰기'}<kbd>⌘N</kbd></button>}
+        <DoneList date={date} past={past} onOpenTask={onOpenTask} />
       </div>
     </aside>
   )
 }
-const josaHint = (t: TalkState) => (t.aiFlow ? `${t.name}에게 편하게 이야기하면 내 말로 일기를 정리해 줘요` : '기분을 고르고 질문에 답하면 일기가 돼요')
 
 /** 그날 끝낸 할 일(접힘) — 항목 클릭 = 할 일 열기. XP는 보이지 않는다(28 §8.1-8) */
-export function DoneList({ t, onOpenTask }: { t: TalkState; onOpenTask: (id: string) => void }) {
+export function DoneList({ date, past, onOpenTask }: { date: string; past: boolean; onOpenTask: (id: string) => void }) {
   const [open, setOpen] = useState(false)
-  const rows = t.stats.rows
+  const rows = useDayStats(date).rows
   if (!rows.length) return null
   return (
     <div className="ddone">
       <button className="ddone__head" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <CheckSquare />{t.past ? '그날' : '오늘'} 끝낸 할 일 <span>{rows.length}개</span>{open ? <ChevronDown /> : <ChevronRight />}
+        <CheckSquare />{past ? '그날' : '오늘'} 끝낸 할 일 <span>{rows.length}개</span>{open ? <ChevronDown /> : <ChevronRight />}
       </button>
       {open && (
         <ul>
@@ -67,11 +87,4 @@ export function DoneList({ t, onOpenTask }: { t: TalkState; onOpenTask: (id: str
       )}
     </div>
   )
-}
-
-/** 편 미리보기(그냥 쓰기 옆 열) — 지금 글을 편으로 나눠 보여 준다 */
-export function SectionsPreview({ content }: { content: string }) {
-  const ss = parseSections(content)
-  if (!ss.length) return null
-  return <div className="dpreview">{ss.map((s, i) => <section key={i} className="ddraft is-saved"><SectionView section={s} /></section>)}</div>
 }

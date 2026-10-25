@@ -1,12 +1,12 @@
 // 15 일기 — 날짜별 일기(결정적 id), 성장 캐릭터와의 대화, 동의·나만 보기. v2(§10): 캐릭터와 이야기하고 일기로 옮기기(28 §8.10과 같은 흐름).
 // 순수 계산(기분·말투·AI 입력·달력·정해진 말·초안·편 나누기)은 휴대폰과 같이 packages/schema/src/diary.ts·diaryTalk.ts·diaryPrompts.ts에 있다.
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { addDays } from '@sprout/schema/time'
 import {
   buildBuddyMessages, buildSummaryMessages, chipTitle, cleanSummary, DAY_NEXT_SQL, DAY_OPEN_SQL, dayRange, DONE_SQL, entryId, mayCallAi,
   MEMORY_SQL, moodOf, parseBuddyReply, toneOf, type Buddy, type DiaryEntry, type DiaryMessage, type Memory
 } from '@sprout/schema/diary'
-import { chatTurns, sessionOf, SCRIPTED, type DayStats, type Line } from '@sprout/schema/diaryTalk'
+import { BYE_ME, chatTurns, clock, END_BUDDY, END_ME, LISTEN_SYSTEM, ownWords, replay, sessionOf, SCRIPTED, warmLineOf, type DayStats, type Line } from '@sprout/schema/diaryTalk'
 import { appendSection, chatSystem, DISTILL_SCHEMA, distillMessages, formatSection, parseDistill, parseSections, type Distilled, type Section } from '@sprout/schema/diaryPrompts'
 import { aiChat } from './ai'
 import { getDb } from './db'
@@ -74,9 +74,9 @@ export function takeNotice(limit = 5): boolean {
   write(K.notice, String(n + 1))
   return true
 }
-/** 15 §10.5 · 28 §8.7 ①: 일기를 열 때 대화(기본) / 그냥 쓰기 — `그냥 쓸래요`를 고르면 이 기기는 다음에도 그냥 쓰기로 연다 */
-export type WriteMode = 'chat' | 'free'
-export const getWriteMode = (): WriteMode => (read(K.mode) === 'free' ? 'free' : 'chat')
+/** 15 §11 · 28 §9 K: 마지막에 쓴 방식(대화 · ✎ 혼자 쓰기)으로 연다. 예전 값 'free'(그냥 쓰기)는 혼자 쓰기로 읽는다 */
+export type WriteMode = 'chat' | 'solo'
+export const getWriteMode = (): WriteMode => (read(K.mode) === 'solo' || read(K.mode) === 'free' ? 'solo' : 'chat')
 export const setWriteMode = (m: WriteMode) => write(K.mode, m)
 /** 캐릭터 소개는 처음 한 번만 — 첫 답을 남기면 켠다 */
 export const hasMet = () => read(K.met) === 'on'
@@ -92,7 +92,9 @@ export async function recentMemory(date: string): Promise<Memory[]> {
 export type ReplyResult = 'reply' | 'blocked'
 type ReplyOpts = { buddy: Buddy; memoryOn: boolean; signal: AbortSignal; onDelta?: (visible: string) => void; onQueue?: (position: number) => void
   /** 다 받은 뒤 저장하기 전 — 화면이 글을 다 드러낼 때까지 기다린다(28 §8.11) */
-  settle?: () => Promise<void> }
+  settle?: () => Promise<void>
+  /** 28 §9 E 그냥 들어줘: 질문·조언 없이 맞장구만 */
+  listen?: boolean }
 
 /** 캐릭터가 일기 글을 읽고 한 번 답한다(그냥 쓰기로 쓴 날의 `느리가 읽고 답해 주기`) — AI 입력 = 일기 글 + AI 대화(safety 0)뿐 */
 export async function buddyReply(date: string, opts: ReplyOpts): Promise<ReplyResult> {
@@ -177,7 +179,7 @@ export async function chatTurn(date: string, text: string | null, opts: Omit<Rep
   const entry = await findEntry(date)
   if (!entry || !mayCallAi({ consent: getConsent(), private: entry.private, solo: isSolo(date) })) return 'blocked'
   const rows = await (await getDb()).getAll<DiaryMessage>('SELECT * FROM diary_messages WHERE entry_id = ? AND COALESCE(safety, 0) != 1 ORDER BY created_at, id', [entry.id])
-  const system = chatSystem({ name: opts.buddy.name, tone: toneOf(opts.buddy.species), date, diary: entry.content })
+  const system = chatSystem({ name: opts.buddy.name, tone: toneOf(opts.buddy.species), date, diary: entry.content }) + (opts.listen ? `\n\n${LISTEN_SYSTEM}` : '')
   const msgs = chatTurns(system, sessionOf(rows).rows)
   if (!msgs) return 'blocked'
   let raw = ''
@@ -239,4 +241,154 @@ export function useDayStats(date: string): DayStats & { rows: DoneRow[] } {
     const rows = done ?? []
     return { total: open + rows.length, done: rows.length, doneTitles: rows.slice().reverse().map((r) => r.title).filter(Boolean), nextTitles: (nextRows ?? []).map((r) => r.title).filter(Boolean), rows }
   }, [open, done, nextRows])
+}
+
+// ── 28 §9 G 자동 마무리(화면 밖): 이번 편에 내 말이 있고 아직 옮기지 않았으면 일기로 옮겨 저장 + 끝·저장 한 줄 ──
+// 옮기기가 안 되면(동의 없음·AI 쉼·한도) 내 말 그대로. 화면이 떠 있으면 화면이 직접 한다(같은 편을 두 번 저장하지 않게 finishing). 휴대폰 data.autoFinish와 같다
+const finishing = new Set<string>()
+export const isFinishing = (date: string) => finishing.has(date)
+export const markFinishing = (date: string, on: boolean) => { if (on) finishing.add(date); else finishing.delete(date) }
+export async function autoFinish(date: string, signal: AbortSignal): Promise<boolean> {
+  if (finishing.has(date)) return false
+  finishing.add(date)
+  try {
+    const entry = await findEntry(date)
+    if (!entry) return false
+    const rows = await (await getDb()).getAll<DiaryMessage>('SELECT * FROM diary_messages WHERE entry_id = ? AND COALESCE(safety, 0) != 1 ORDER BY created_at, id', [entry.id])
+    const S = sessionOf(rows).rows
+    const mine = S.filter((m) => m.role === 'me' && !m.safety)
+    if (!mine.length) return false
+    const mood = replay(S.filter((m) => m.safety === SCRIPTED && m.role === 'me' && m.content !== BYE_ME && m.content !== END_ME).map((m) => m.content)).answers.mood ?? entry.mood ?? null
+    if (!S.some((m) => m.role === 'buddy' && m.content === END_BUDDY)) await addScripted(date, [{ role: 'me', content: END_ME }, { role: 'buddy', content: END_BUDDY }])
+    let sec: Section = { time: clock(), title: '', tags: [], body: ownWords(mine.map((m) => m.content)) }
+    if (getConsent() === true && !entry.private) {
+      try {
+        const lines = S.filter((m) => m.content !== BYE_ME && m.content !== END_ME).map((m) => ({ who: (m.role === 'me' ? 'me' : 'buddy') as 'me' | 'buddy', text: parseBuddyReply(m.content).text }))
+        const d = await distillSession(date, lines, mood, signal)
+        sec = { time: sec.time, title: d.title, tags: d.tags, body: d.entry }
+      } catch { /* 내 말 그대로 */ }
+    }
+    if (signal.aborted) return false
+    await saveSection(date, sec, mood)
+    const n = await (await getDb()).get<{ n: number }>('SELECT count(*) AS n FROM tasks WHERE status = 1 AND deleted_at IS NULL AND completed_at >= ? AND completed_at < ?', dayRange(date))
+    await addScripted(date, [{ role: 'buddy', content: warmLineOf({ mood, past: false, done: n?.n ?? 0 }) }])
+    return true
+  } finally { finishing.delete(date) }
+}
+
+// ── 28 §9.2 혼자 쓰기 임시 글: 이 기기에만(diary-draft-<날짜>, 동기화 안 함). 저장하면 지운다 ──
+export type SoloDraft = { title: string; body: string; index: number | null }
+const draftKey = (date: string) => `diary-draft-${date}`
+export function readSoloDraft(date: string): SoloDraft | null {
+  try { const v = JSON.parse(read(draftKey(date)) ?? 'null') as SoloDraft | null; return v && typeof v.body === 'string' ? v : null } catch { return null }
+}
+export const writeSoloDraft = (date: string, d: SoloDraft) => { if (d.title.trim() || d.body.trim()) write(draftKey(date), JSON.stringify(d)); else dropSoloDraft(date) }
+export const dropSoloDraft = (date: string) => { try { localStorage.removeItem(draftKey(date)) } catch { /* 그만 */ } }
+export const hasSoloDraft = (date: string) => { const d = readSoloDraft(date); return !!d && !!(d.title.trim() || d.body.trim()) }
+/** 대화에서 넘어올 때 지금까지 내 말로 새 장을 채워 둔다(이미 쓰던 임시 글이 있으면 그대로) */
+export const seedSoloDraft = (date: string, body: string) => { if (body.trim() && !hasSoloDraft(date)) writeSoloDraft(date, { title: '', body: body.trim(), index: null }) }
+
+// ── 28 §10.2 그날의 장면 재료(읽기만): 일정 · 캐릭터 저장 한 줄 ──
+export const EVENTS_DAY_SQL = "SELECT title FROM events WHERE deleted_at IS NULL AND substr(start_at, 1, 10) <= ? AND substr(COALESCE(end_at, start_at), 1, 10) >= ? ORDER BY start_at LIMIT 3"
+export const WARM_DAY_SQL = `SELECT m.content FROM diary_messages m JOIN diary_entries e ON e.id = m.entry_id WHERE e.date = ? AND m.role = 'buddy' AND m.safety = ${SCRIPTED} ORDER BY m.created_at DESC LIMIT 12`
+
+// ── 28 §10.3 사진 한 장: 기기에서 줄이기(긴 변 1600 · JPEG 0.8 — 다시 인코딩이라 EXIF 위치가 빠짐) → 메인 프로세스가 POST /media → diary_photos 행 ──
+// 보기: 메인 프로세스가 GET /media/:id → 파일 캐시 → 데이터 URL. 올리다 끊기면(오프라인·서버 쉼) 이번 실행 동안 대기열에 두고 다시 붙으면 올린다.
+export type DiaryPhoto = { id: string; date: string; media_id: string; width: number | null; height: number | null; sort_order: number | null }
+export const PHOTOS_SQL = 'SELECT id, date, media_id, width, height, sort_order FROM diary_photos WHERE date = ? ORDER BY sort_order, created_at, id'
+export const PHOTOS_BETWEEN_SQL = 'SELECT id, date, media_id, width, height, sort_order FROM diary_photos WHERE date >= ? AND date <= ? ORDER BY date, sort_order, created_at'
+export const usePhotos = (date: string): DiaryPhoto[] => useQuery<DiaryPhoto>(PHOTOS_SQL, [date]) ?? EMPTY_PHOTOS
+const EMPTY_PHOTOS: DiaryPhoto[] = []
+type MediaApi = { upload: (bytes: Uint8Array, mime: string) => Promise<{ ok: true; id: string } | { ok: false; status: number; error: string }>; get: (id: string) => Promise<string | null> }
+const mediaApi = (): MediaApi | undefined => (window.sprout as unknown as { media?: MediaApi } | undefined)?.media
+export const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif']
+export const isPhotoFile = (f: { type: string; name?: string }) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name ?? '')
+
+/** 긴 변 1600 · JPEG 0.8로 다시 그리기(EXIF 회전은 반영, 위치는 버려짐) */
+export async function downscale(blob: Blob, long = 1600, quality = 0.8): Promise<{ bytes: Uint8Array; width: number; height: number; url: string }> {
+  const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' })
+  const k = Math.min(1, long / Math.max(bmp.width, bmp.height))
+  const width = Math.max(1, Math.round(bmp.width * k)), height = Math.max(1, Math.round(bmp.height * k))
+  const c = document.createElement('canvas')
+  c.width = width; c.height = height
+  const g = c.getContext('2d')
+  if (!g) throw new Error('사진을 줄이지 못했어요')
+  g.fillStyle = '#fff'
+  g.fillRect(0, 0, width, height)
+  g.drawImage(bmp, 0, 0, width, height)
+  bmp.close()
+  const out = await new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('사진을 줄이지 못했어요'))), 'image/jpeg', quality))
+  return { bytes: new Uint8Array(await out.arrayBuffer()), width, height, url: c.toDataURL('image/jpeg', 0.6) }
+}
+
+type Pending = { localId: string; date: string; bytes: Uint8Array; width: number; height: number; sort: number; at: string; url: string }
+let pending: Pending[] = []
+const pendingSubs = new Set<() => void>()
+const setPending = (p: Pending[]) => { pending = p; pendingSubs.forEach((f) => f()) }
+export function usePendingPhotos(date: string): { localId: string; url: string }[] {
+  const all = useSyncExternalStore((f) => { pendingSubs.add(f); return () => { pendingSubs.delete(f) } }, () => pending)
+  return useMemo(() => all.filter((p) => p.date === date).map((p) => ({ localId: p.localId, url: p.url })), [all, date])
+}
+const shownUrls = new Map<string, string>() // 올린 기기: 받기 전에 줄인 그림으로 바로
+let flushing: Promise<string | null> | null = null
+/** 대기열을 올린다. 다시 해도 같은 결과(한도·형식)면 빼고 그 이유를 돌려준다 */
+export function flushPhotos(): Promise<string | null> {
+  flushing ??= (async () => {
+    let err: string | null = null
+    try {
+      const api = mediaApi()
+      if (!api) return '이 화면에선 사진을 붙일 수 없어요'
+      for (const p of [...pending]) {
+        const r = await api.upload(p.bytes, 'image/jpeg')
+        if (!r.ok) {
+          if (r.status === 0 || r.status >= 500 || r.status === 401) { err = r.error; break } // 다음에 다시
+          setPending(pending.filter((x) => x.localId !== p.localId))
+          err = r.error
+          continue
+        }
+        shownUrls.set(r.id, p.url)
+        await run(insert('diary_photos', { id: uuid(), date: p.date, media_id: r.id, width: p.width, height: p.height, sort_order: p.sort, created_at: p.at, modified_at: now() }))
+        setPending(pending.filter((x) => x.localId !== p.localId))
+      }
+    } finally { flushing = null }
+    return err
+  })()
+  return flushing
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => { if (pending.length) void flushPhotos() })
+  window.setInterval(() => { if (pending.length) void flushPhotos() }, 30_000)
+}
+/** 그날에 사진 붙이기(여러 장이면 차례로). 결과 = 붙인 장 수 · 안내(오류) */
+export async function addPhotos(date: string, files: Blob[], count: number): Promise<{ added: number; error: string | null }> {
+  let n = 0
+  let error: string | null = null
+  for (const f of files.slice(0, Math.max(0, 10 - count))) {
+    try {
+      const img = await downscale(f)
+      setPending([...pending, { localId: uuid(), date, ...img, sort: count + n, at: now() }])
+      n++
+    } catch { error = '이 사진은 열 수 없어요' }
+  }
+  if (files.length > 10 - count) error = '하루에 사진은 10장까지예요'
+  const e = n ? await flushPhotos() : null
+  return { added: n, error: e ?? error }
+}
+/** 사진 지우기: 행을 지우면 서버가 하루 뒤 바이트를 정리한다 */
+export const removePhoto = (id: string) => run(remove('diary_photos', id))
+const urlCache = new Map<string, string>()
+/** 사진 데이터 URL(받는 중이면 null) */
+export function usePhotoUrl(mediaId: string | null | undefined): string | null {
+  const first = mediaId ? urlCache.get(mediaId) ?? shownUrls.get(mediaId) ?? null : null
+  const [url, setUrl] = useState<string | null>(first)
+  useEffect(() => {
+    if (!mediaId) { setUrl(null); return }
+    const hit = urlCache.get(mediaId)
+    if (hit) { setUrl(hit); return }
+    setUrl(shownUrls.get(mediaId) ?? null)
+    let live = true
+    void mediaApi()?.get(mediaId).then((u) => { if (u) urlCache.set(mediaId, u); if (live && u) setUrl(u) }).catch(() => {})
+    return () => { live = false }
+  }, [mediaId])
+  return url
 }

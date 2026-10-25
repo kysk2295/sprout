@@ -24,7 +24,7 @@ import { useToast } from '../ui/Toast'
 import { MoodFace } from './art'
 import { AiUnavailable, distillQuota, type Quota } from './ai'
 import { BuddyRow, ChipRow, Composer, MeRow, MoodRow, TypingDots, moodFaceArt, type Chip } from './chatParts'
-import { addScripted, autoFinish, chatTurn, distillSession, isFinishing, replaceSection, saveSection, taskFromChip, useDayStats, useExistingTitles, useMessages } from './data'
+import { addScripted, autoFinish, chatTurn, distillSession, isFinishing, replaceSection, saveEntry, saveSection, taskFromChip, useDayStats, useExistingTitles, useMessages } from './data'
 import { useKeyboardHeight, useKeyboardLift } from './keyboard'
 import { dayTitle, josa, mayCallAi, moodOf, parseBuddyReply, type Buddy, type DiaryEntry } from './logic'
 import { DiaryScene, type BuddyState, type SceneHandle } from './Scene'
@@ -145,6 +145,7 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
     if (!lines.length) return
     const firstMe = lines.findIndex((l) => l.role === 'me')
     reveal((await addScripted(date, lines)).slice(firstMe + 1))
+    if (a.mood) await saveEntry(date, { mood: a.mood }) // 28 §9: 기분은 누르기만 해도 그날 기록(장면 카드·달력에 바로, 대화를 안 끝내도 남는다)
     if (!prefs.met) setMet()
     scene.current?.nod()
   }

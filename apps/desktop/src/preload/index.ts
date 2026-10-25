@@ -131,7 +131,13 @@ const desktopApi = {
   loginItem: () => ipcRenderer.invoke('desktop:login-item') as Promise<{ available: boolean; openAtLogin: boolean }>,
   setLoginItem: (open: boolean) => ipcRenderer.invoke('desktop:set-login-item', open) as Promise<{ available: boolean; openAtLogin: boolean }>
 }
-contextBridge.exposeInMainWorld('sprout', { platform: process.platform, calendars: calendarsApi, assistant: assistantApi, collect: collectApi, ticktick: ticktickApi, db: dbApi, reminders: remindersApi, notices: noticesApi, desktop: desktopApi, auth: authApi, mini: miniApi })
+// 15 §11 일기 사진: 줄인 바이트 올리기 · 데이터 URL로 받기(토큰은 메인 프로세스에만)
+const mediaApi = {
+  upload: (bytes: Uint8Array, mime: string) => ipcRenderer.invoke('media:upload', bytes, mime) as Promise<{ ok: true; id: string } | { ok: false; status: number; error: string }>,
+  get: (id: string) => ipcRenderer.invoke('media:get', id) as Promise<string | null>
+}
+export type SproutMediaApi = typeof mediaApi
+contextBridge.exposeInMainWorld('sprout', { platform: process.platform, calendars: calendarsApi, assistant: assistantApi, collect: collectApi, ticktick: ticktickApi, db: dbApi, reminders: remindersApi, notices: noticesApi, desktop: desktopApi, auth: authApi, mini: miniApi, media: mediaApi })
 export type SproutMiniApi = typeof miniApi
 export type SproutAuthApi = typeof authApi
 export type SproutDesktopApi = typeof desktopApi

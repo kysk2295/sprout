@@ -30,6 +30,6 @@ export function AssistantLauncher({view,onView,draft,onDraft,assistant,onOpen,of
  const [open,setOpen]=useState(false),[blocked,setBlocked]=useState(false)
  useEffect(()=>{const check=()=>setBlocked(!!document.querySelector('[aria-modal="true"], .popover'));check();const observer=new MutationObserver(check);observer.observe(document.body,{childList:true,subtree:true});return()=>observer.disconnect()},[])
  useEffect(()=>{const key=(e:KeyboardEvent)=>{if(e.key==='Escape'&&!blocked)setOpen(false)};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[blocked])
- if(view==='assistant'||blocked)return null
+ if(view==='assistant'||view==='diary'||blocked)return null
  return <><button className={`assistant-fab${view==='notes'?' assistant-fab--notes':''}`} style={offset?{right:offset+20}:undefined} aria-label={open?'AI 빠른 창 닫기':'AI 빠른 창 열기'} aria-expanded={open} onClick={()=>setOpen(!open)}>{open?<X/>:<MessageCircle/>}</button>{open&&<aside className="assistant-quick" aria-label="AI 빠른 대화"><header><strong>AI 비서</strong><AssistantStatus assistant={assistant} short/><button className="icon-btn" aria-label="AI 비서 전체 화면" onClick={()=>{setOpen(false);onView('assistant')}}><Maximize2/></button><button className="icon-btn" aria-label="대화창 닫기" onClick={()=>setOpen(false)}><X/></button></header><AssistantBody variant="quick" draft={draft} onDraft={onDraft} assistant={assistant} onOpen={onOpen}/></aside>}</>
 }
