@@ -29,6 +29,7 @@ import {
 import { clientIp, enforce, limitsFromEnv, RateLimiter, RateLimitError, trustFromEnv, type Rule } from './ratelimit.ts'
 import { AccountError, deleteAccount } from './account.ts'
 import { toStatements, UploadError } from './upload.ts'
+import { createMedia, pgMediaStore } from './media.ts'
 import {
   APPLE_JWKS_URL, appleTokenExchange, GOOGLE_JWKS_URL, pgAppleTokenStore, revokeAppleTokens, HandoffStore, appleReturnPage, parseAppleCallback, pgIdentityStore, remoteJwks,
   resolveSocialUser, socialConfigFromEnv, SocialError, STATE_RE, verifyAppleIdToken, verifyGoogleIdToken
@@ -91,6 +92,9 @@ const pushStore = pgPushStore(pool, pushConfig.ios)
 const push = createPush({ config: pushConfig, store: pushStore, sender: fcm ? createFcmSender(fcm) : null, auth: userFrom })
 // 48 만료 2주 지난 할 일 자동 정리: 사용자 시간대로 하루 한 번(10분마다 확인). AUTO_TRASH=0이면 끔
 const autoTrash = process.env.AUTO_TRASH === '0' ? null : createAutoTrash({ store: pgAutoTrashStore(pool) })
+
+// 28 §10 v7 일기 사진(media.ts): POST·GET·DELETE /media, 고아 사진 하루 한 번 정리
+const media = createMedia({ store: pgMediaStore((sql, params) => pool.query(sql, params)), auth: userFrom })
 
 // 시도 제한(ratelimit.ts, 메모리 — API는 한 대). 한도는 RL_* 환경 변수, IP는 TRUST_PROXY 앞단의 X-Forwarded-For만 믿는다(README)
 const limiter = new RateLimiter()
@@ -381,6 +385,7 @@ createServer(async (req, res) => {
   const path = (req.url ?? '/').split('?')[0]
   if (await ai.handle(req, res, path)) return
   if (await push.handle(req, res, path)) return
+  if (await media.handle(req, res, path)) return
   const handler = routes[`${req.method} ${path}`]
   if (!handler) return send(res, 404, { error: 'not found' })
   try {
@@ -400,4 +405,5 @@ createServer(async (req, res) => {
   console.log(`sprout api :${PORT} · tables ${Object.keys(TABLES).length} · push ${push.enabled ? 'on' : 'off'}`)
   push.start()
   autoTrash?.start()
+  media.start()
 })

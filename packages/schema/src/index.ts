@@ -189,6 +189,11 @@ export const TABLES = {
   diary_messages: {
     columns: { ...common, entry_id: 'text', role: 'text', content: 'text', safety: 'integer' }, // role 'me'|'buddy'
     indexes: { entry: ['entry_id'] }
+  },
+  // 28 §10 v7 사진 한 장: 그날 사진 목록(사진 바이트는 서버 전용 media 표 — GET /media/:id). 첫 장(sort_order 가장 작은 것)이 그날의 장면 사진
+  diary_photos: {
+    columns: { ...common, date: 'text', media_id: 'text', width: 'integer', height: 'integer', sort_order: 'integer' },
+    indexes: { date: ['date'] }
   }
 } satisfies Record<string, TableDef>
 

@@ -420,6 +420,20 @@ CREATE TABLE IF NOT EXISTS diary_messages (
 CREATE INDEX IF NOT EXISTS diary_messages_owner_idx ON diary_messages (owner_id);
 CREATE INDEX IF NOT EXISTS diary_messages_entry_idx ON diary_messages (owner_id, entry_id);
 
+CREATE TABLE IF NOT EXISTS diary_photos (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at text,
+  modified_at text,
+  date text,
+  media_id text,
+  width integer,
+  height integer,
+  sort_order integer
+);
+CREATE INDEX IF NOT EXISTS diary_photos_owner_idx ON diary_photos (owner_id);
+CREATE INDEX IF NOT EXISTS diary_photos_date_idx ON diary_photos (owner_id, date);
+
 -- PowerSync는 이 publication으로 변경분을 읽는다
 DROP PUBLICATION IF EXISTS powersync;
-CREATE PUBLICATION powersync FOR TABLE notes, wiki_topics, wiki_versions, folders, lists, tags, filters, sections, tasks, check_items, task_tags, reminders, view_settings, user_prefs, xp_events, characters, character_items, kpis, weekly_reports, map_areas, task_areas, map_links, relations, events, diary_entries, diary_messages;
+CREATE PUBLICATION powersync FOR TABLE notes, wiki_topics, wiki_versions, folders, lists, tags, filters, sections, tasks, check_items, task_tags, reminders, view_settings, user_prefs, xp_events, characters, character_items, kpis, weekly_reports, map_areas, task_areas, map_links, relations, events, diary_entries, diary_messages, diary_photos;

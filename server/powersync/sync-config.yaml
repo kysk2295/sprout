@@ -33,3 +33,4 @@ streams:
       - SELECT * FROM events WHERE owner_id = auth.user_id()
       - SELECT * FROM diary_entries WHERE owner_id = auth.user_id()
       - SELECT * FROM diary_messages WHERE owner_id = auth.user_id()
+      - SELECT * FROM diary_photos WHERE owner_id = auth.user_id()
