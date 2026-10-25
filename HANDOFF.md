@@ -2,6 +2,13 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-26 새벽 설치·출시 준비 · 장면 카드 v2 · 휴대폰 UX P1
+- **아이폰 실기기(고윤서 iPhone 14 Pro):** 10-14부터 토큰 401로 끊겨 변경 47건이 쌓여 있었음 → 88135c0 이후 Release를 devicectl로 덮어 설치(개인 팀이라 로컬 `ios/app/app.entitlements`에서 aps-environment·applesignin을 잠시 빼고 빌드, 끝나면 되돌림 — `expo run:ios` 설치 단계가 "연결 중"에서 멈추면 `xcrun devicectl device install app`). 같은 계정 다시 로그인 → 47건 업로드 성공, 남은 0. **이 설치본엔 휴대폰 UX P1 고침(64c7d45)이 아직 없음 — 다음에 다시 설치.**
+- **데스크톱 설치본** /Applications/Kkumteul.app 1.0.1 → 1.0.2(오늘 코드, dist:mac). 옛 앱은 ~/Desktop/kkumteul-old-app.
+- **Play:** 1.0.1(versionCode 5) AAB `~/Desktop/kkumteul-1.0.1-5.aab`(업로드 키 SHA-1 14:D5…69:A2 확인) · 새 스크린샷 8장 `docs/release/store/screenshots/android/01~08` · 출시 노트 play-listing §7 — **Play Console 업로드는 사용자(자동 업로드 키 없음).**
+- 장면 카드 v2(28 §10.9): 사진 = 배경 전체 · 없으면 캐릭터가 기분 표정·몸짓, 새 3D 표정 `sad`(20캐릭터). 휴대폰 UX 점검 [MOBILE-UX-AUDIT](docs/verification/release-test-2026-10/MOBILE-UX-AUDIT-2026-10-25.md): P1 대부분 고침(대화 엔터 = 줄 바꿈, 동기화 결과 표시, 두 번 제출 막기), **남음:** Android 계획 대화 키보드 가림(확인 필요) · P2 15 · P3 12.
+- 동기화 조사 [SYNC-COMPLETE](docs/verification/release-test-2026-10/SYNC-COMPLETE-2026-10-25.md) 남은 위험: 서버 500 영구 재시도, 로그인·로그아웃 때 안 올라간 변경 묻지 않음, 같은 칸 충돌 = 늦게 도착한 쪽.
+
 ## ★ 2026-10-25 밤 데스크톱 일기 v7 · 세 기기 QA · AI 검증 — **사용자 결정 3개 대기**
 - **데스크톱 일기 v7 구현(15 §11, 3425abb)** — 실제 앱 1440·1280·1100·900 폭·라이트·다크 확인. 기분은 누르면 바로 저장(세 앱).
 - **세 기기 QA**(QA 계정 `qa-20261025-mggu`, Mac 개발 앱 `SPROUT_PROFILE=qa-sync` · iPhone 17 Pro 시뮬레이터 Release · Pixel 6a 에뮬레이터 Release): 결과 [RESULT-2026-10-25](docs/verification/release-test-2026-10/RESULT-2026-10-25.md). 동기화 S1~S8·S12·S14·S16 통과(대부분 1초 안). 고침: Android 서랍 겹침·재시작 때 빈 화면·빠른 추가 두 번 제출·뒤로 가기 / 로그아웃 때 일기 설정(AI 동의) 지움 / 일기 옮기기 태그 파서. **남음:** 실기기(아이폰·갤럭시)·Windows·S13·S15 화면 시험, 휴대폰 로그아웃 고침은 다음 빌드에서 확인.
