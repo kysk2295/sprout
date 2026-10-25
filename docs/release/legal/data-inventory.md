@@ -24,6 +24,7 @@
 | 비밀번호 해시 | `users.password_hash` — scrypt(N=16384, r=8, p=1, 16바이트 솔트). 소셜 전용 계정은 NULL | 로그인 | 탈퇴 시까지 | 즉시 삭제 | 없음 |
 | 가입 시각 | `users.created_at` | 운영 | 탈퇴 시까지 | 즉시 | 없음 |
 | 리프레시 토큰 | `sessions.token_hash`(SHA-256 해시만), `created_at`, `expires_at`(60일). **IP·기기 정보 저장 안 함** | 로그인 유지 | 로그아웃·리프레시(회전)·탈퇴 때 삭제. **만료된 행을 지우는 작업은 없음 [갭]** | CASCADE | 없음 |
+| 일기 사진(2026-10-25 v7) | 서버 전용 `media(id, owner_id, mime, bytes, size, created_at)` + 동기화 `diary_photos(date, media_id, width, height, sort_order)` — 사용자가 고른 사진만, 기기에서 긴 변 1600 JPEG로 줄이고 다시 인코딩해 **위치 등 EXIF 제거** | 일기 그날의 장면·앨범 | 사용자가 지울 때(행 삭제 → 하루 뒤 바이트 정리) 또는 탈퇴 시까지 | CASCADE | 없음(우리 서버·DB 백업만) |
 | 구글·애플 식별자 | `user_identities(provider, subject, email, created_at, apple_client_id, apple_refresh_token)` — `subject`=공급자 사용자 id, `email`=그때 받은 이메일(애플 가림 주소 가능), `apple_refresh_token`=애플 폐기용 갱신 토큰(.p8 키가 있을 때만, 서버 전용 — 2026-10-05 `migrations/20261011-apple-tokens.sql`). 이름·프로필 사진은 **저장 안 함** | 소셜 로그인·로그인 방법 연결 | 탈퇴 또는 연결 해제(`DELETE /auth/link/*`) 시까지 | CASCADE | 공급자(구글·애플)는 사용자가 직접 로그인 |
 | 접근 토큰(JWT) | 저장 안 함(RS256 서명, 1시간, `auth_time`은 막 로그인했을 때만) | API·동기화 인증 | — | — | 없음 |
 | JWT 서명 키 | `api_data` 볼륨 `/data/keys.json`(권한 600) | 토큰 서명 | — | — | 없음 |
@@ -131,7 +132,7 @@
 | 광고·분석 업체 | 없음 | — | — | — |
 
 ## 4. 권한·식별자 (모바일)
-- iOS: 알림(로컬), **캘린더 전체 접근**(휴대폰 캘린더 연결 — 연결을 누를 때만, `NSCalendarsFullAccessUsageDescription`·`NSCalendarsUsageDescription`). 카메라·사진·위치·연락처·미리 알림 권한 **쓰지 않음**. `ITSAppUsesNonExemptEncryption=false`. 광고 식별자(IDFA)·ATT 없음.
+- iOS: 알림(로컬), **캘린더 전체 접근**(휴대폰 캘린더 연결 — 연결을 누를 때만, `NSCalendarsFullAccessUsageDescription`·`NSCalendarsUsageDescription`), **카메라**(일기 "지금 찍기"를 누를 때만, `NSCameraUsageDescription`). 사진은 시스템 사진 창으로 사용자가 고른 한 장만 받음(사진 보관함 권한 요청 안 함, `NSPhotoLibraryUsageDescription` 문구만 있음). 위치·연락처·미리 알림 권한 **쓰지 않음**. `ITSAppUsesNonExemptEncryption=false`. 광고 식별자(IDFA)·ATT 없음.
 - Android: `INTERNET`, `VIBRATE`, 알림(POST_NOTIFICATIONS), 선택적 `SCHEDULE_EXACT_ALARM`(사용자 허용 시), `READ_CALENDAR`·`WRITE_CALENDAR`(휴대폰 캘린더 연결 — 연결을 누를 때만 요청). 매니페스트에 `SYSTEM_ALERT_WINDOW`·외부 저장소(≤API 32)가 보임 — 개발 빌드 잔여물일 가능성 **[확인 필요: 출시 빌드에서 제거]**.
 - `supportsTablet: true` → iPad 스크린숏 필요.
 

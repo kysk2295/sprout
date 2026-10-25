@@ -11,11 +11,13 @@ c = sceneCardOf({ ...base, content: '## 10:00 ✎\n\n오랜만에 친구를 만�
 assert.equal(c.title, '오랜만에 친구를 만났다.'); assert.equal(c.titleFrom, 'body')
 // 글이 없으면 할 일·일정으로
 c = sceneCardOf({ ...base, doneTitles: ['주간 회의 정리', '운동 30분(헬스장)'], eventTitles: ['저녁 약속'] })!
-assert.equal(c.title, '주간 회의 정리하고 운동 30분 한 날'); assert.equal(c.titleFrom, 'tasks'); assert.equal(c.done, 2); assert.equal(c.firstEvent, '저녁 약속')
+assert.equal(c.title, '주간 회의 정리 · 운동 30분'); assert.equal(c.titleFrom, 'tasks'); assert.equal(c.done, 2); assert.equal(c.firstEvent, '저녁 약속')
 c = sceneCardOf({ ...base, doneTitles: ['보고서'], eventTitles: ['저녁 약속'] })!
-assert.equal(c.title, '보고서하고 저녁 약속 한 날')
+assert.equal(c.title, '보고서 · 저녁 약속')
 c = sceneCardOf({ ...base, eventTitles: ['치과'] })!
-assert.equal(c.title, '치과 한 날')
+assert.equal(c.title, '치과')
+// 기분 없는 날 장면이 날짜로 섞임
+assert.ok(new Set(['2026-10-01','2026-10-02','2026-10-03','2026-10-04','2026-10-05','2026-10-06'].map((d) => sceneCardOf({ ...base, date: d, eventTitles: ['x'] })!.sceneKey)).size >= 3)
 // 기분만 → 조용히 지나간 하루 + 기분 한 줄
 c = sceneCardOf({ ...base, mood: 1 })!
 assert.equal(c.title, '조용히 지나간 하루'); assert.equal(c.sceneKey, 'scene-rain'); assert.ok(c.buddyLine.length > 0)

@@ -120,3 +120,10 @@ open ios/*.xcworkspace     # 타깃 3개(앱·SproutShare·SproutWidget) 모두 
 | 데모 데이터 | 2026-10-05 기준이라 지금은 날짜가 지났음 — **제출 전에 주인에게 새로 넣어 달라고 요청** |
 | 빌드 번호 | `app.json` `ios.buildNumber`는 아직 `1`. 이미 TestFlight에 1을 올렸다면 `2`로 올려서 다시 올리기 |
 
+## 11. 2026-10-25 추가 — 일기 사진(v7)
+| 무엇 | 확인할 것 |
+|---|---|
+| `expo-image-picker` · `expo-image-manipulator` (새 네이티브 모듈) | `npx expo prebuild --platform ios --clean` 다시 → Info.plist에 `NSPhotoLibraryUsageDescription`·`NSCameraUsageDescription`이 한국어 문구로(app.json 플러그인), 마이크 문구는 **없어야** 정상(`microphonePermission: false`). 앨범 고르기는 시스템 사진 창이라 권한 창이 뜨지 않는 게 정상, "지금 찍기"만 카메라 권한 |
+| 개인정보 라벨 | App Store Connect App Privacy에 **사진 또는 동영상(앱 기능·사용자와 연결·추적 아님)** 추가 — [store/privacy-answers.md](store/privacy-answers.md) |
+| 심사 메모 | [store/review-notes.md](store/review-notes.md) PERMISSIONS에 Photos 줄 추가됨 — 다시 붙여 넣기 |
+

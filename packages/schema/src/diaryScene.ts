@@ -37,9 +37,12 @@ const firstSentence = (s: string) => (s.trim().match(/[^.!?。？\n]+[.!?。？]
 const short = (s: string) => clip(s.replace(/\s*[([].*$/, '').replace(/[.。]+$/, ''), 12)
 
 export const MOOD_LINE: Record<number, string> = { 1: '오늘도 버텼다, 그걸로 충분해', 2: '그런 날도 있지', 3: '무난하게 지나간 하루', 4: '좋은 하루였네', 5: '최고의 하루!' }
-export const sceneKeyForMood = (mood: number | null, dark = false) => {
-  const k = mood === 1 || mood === 2 ? 'scene-rain' : mood === 4 ? 'scene-sunset' : mood === 5 ? 'scene-flowers' : 'scene-day'
-  return dark ? ({ 'scene-rain': 'scene-rain-n', 'scene-flowers': 'scene-flowers-n', 'scene-sunset': 'scene-dusk', 'scene-day': 'scene-moon' } as Record<string, string>)[k] : k
+const CALM = ['scene-day', 'scene-pond', 'scene-dawn', 'scene-flowers', 'scene-sunset'] as const
+/** 기분이 없으면 날짜로 고르게 섞는다(앨범이 한 장면으로 도배되지 않게) */
+export const sceneKeyForMood = (mood: number | null, dark = false, date = '') => {
+  const h = [...date].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7)
+  const k = mood === 1 || mood === 2 ? 'scene-rain' : mood === 4 ? 'scene-sunset' : mood === 5 ? 'scene-flowers' : mood === 3 ? 'scene-day' : CALM[h % CALM.length]
+  return dark ? (({ 'scene-rain': 'scene-rain-n', 'scene-flowers': 'scene-flowers-n', 'scene-sunset': 'scene-dusk', 'scene-day': 'scene-moon', 'scene-pond': 'scene-pond-n', 'scene-dawn': 'scene-moon' } as Record<string, string>)[k] ?? k) : k
 }
 
 /** 재료가 하나도 없으면 null(앨범 칸은 빗금) */
@@ -56,7 +59,8 @@ export function sceneCardOf(i: SceneInput, o: { dark?: boolean } = {}): SceneCar
     title = clip(firstSentence(body), 24); titleFrom = 'body'
   } else if (i.doneTitles.length || i.eventTitles.length) {
     const parts = [...i.doneTitles.slice(0, 2).map(short), ...i.eventTitles.slice(0, i.doneTitles.length >= 2 ? 0 : 1).map(short)].filter(Boolean)
-    title = parts.length === 1 ? `${parts[0]} 한 날` : `${parts.slice(0, -1).join(', ')}하고 ${parts.at(-1)} 한 날`
+    // 할 일 제목을 문장으로 잇지 않는다("정하기하고"처럼 어색해짐) — 가운뎃점으로
+    title = parts.join(' · ')
     titleFrom = 'tasks'
   } else if (i.photos.length) { title = '사진 한 장으로 남긴 하루' } else title = '조용히 지나간 하루'
   return {
@@ -69,7 +73,7 @@ export function sceneCardOf(i: SceneInput, o: { dark?: boolean } = {}): SceneCar
     done: i.doneTitles.length,
     firstEvent: i.eventTitles[0] ? clip(i.eventTitles[0], 14) : null,
     buddyLine: clip(i.buddyLine?.trim() || (i.mood ? MOOD_LINE[i.mood] : '오늘도 수고했어'), 18),
-    sceneKey: sceneKeyForMood(i.mood, o.dark),
+    sceneKey: sceneKeyForMood(i.mood, o.dark, i.date),
     pages: sections.filter((s) => s.body.trim() || s.title.trim()).length
   }
 }

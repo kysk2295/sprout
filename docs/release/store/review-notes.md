@@ -45,7 +45,8 @@ No analytics, advertising or crash-reporting SDKs. No tracking (no ATT prompt). 
 PERMISSIONS
 - Notifications: task reminders and an optional evening journal prompt (9 PM), both scheduled on the device. The journal prompt has "Reply" and two mood buttons; it is asked for only after the user saves a first journal entry, and can be turned off in Journal > ⋯.
 - Calendar (optional): only when the user turns on More > Settings > Calendar sync, to show events from the iPhone calendar. Reminders access is not requested.
-The app does not access contacts, photos, location, camera or the microphone.
+- Photos (optional): in Journal, "📷 사진 한 장" opens the system photo picker (no photo-library permission is requested; only the one chosen photo is shared with the app). "지금 찍기" asks for camera access. The chosen photo is resized on the device (location metadata removed) and stored with the user's journal on our server; it is deleted with the account.
+The app does not access contacts, location or the microphone, and never reads the photo library on its own.
 
 JOURNAL
 More > Journal. The user talks with their character in a chat; when they tap "여기까지 ✓" (or leave the screen for 5 minutes) the conversation is turned into a first-person journal entry and saved automatically. The pen button at the top switches to writing alone like a notepad (no AI). The character is a friend, not a counselor, and gives no medical advice.
