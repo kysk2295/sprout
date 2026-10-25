@@ -10,14 +10,15 @@ import type { Equip, Path } from './wardrobe.ts'
 export { ART3D_VERSION, ACCS, BODIES, DECOR3D, FACES, FILE_BYTES, PROPS, SCENES3D, SEEDS3D, SPINS3D }
 
 /* ───────── 표정 5 (49 결정 ④) ───────── */
-export type Mood5 = 'default' | 'happy' | 'sleepy' | 'wow' | 'think'
-export const MOODS5: Mood5[] = ['default', 'happy', 'sleepy', 'wow', 'think']
-export const MOOD5_NAME: Record<Mood5, string> = { default: '기본', happy: '웃음', sleepy: '졸림', wow: '놀람', think: '생각' }
+export type Mood5 = 'default' | 'happy' | 'sleepy' | 'wow' | 'think' | 'sad'
+/** sad = 2026-10-25 일기 장면 카드(힘든 날) — 걱정 눈썹·처진 입·눈물 한 방울 */
+export const MOODS5: Mood5[] = ['default', 'happy', 'sleepy', 'wow', 'think', 'sad']
+export const MOOD5_NAME: Record<Mood5, string> = { default: '기본', happy: '웃음', sleepy: '졸림', wow: '놀람', think: '생각', sad: '슬픔' }
 /** 옛 표정 11(40 §6 · 42 · 43 만지기) → 5. 부르는 쪽(AI 비서·일기·만지기)은 옛 이름을 그대로 넘겨도 된다.
  *  smile·content·pet·giggle·eat = 웃음(웃는 눈·넓은 미소) · puzzled = 생각(눈이 옆·위로) */
 export const MOOD_MAP: Record<string, Mood5> = {
   default: 'default', smile: 'happy', happy: 'happy', content: 'happy', pet: 'happy', giggle: 'happy', eat: 'happy',
-  sleepy: 'sleepy', think: 'think', puzzled: 'think', wow: 'wow'
+  sleepy: 'sleepy', think: 'think', puzzled: 'think', wow: 'wow', sad: 'sad', cry: 'sad'
 }
 export const mood5 = (m?: string | null): Mood5 => MOOD_MAP[m ?? 'default'] ?? 'default'
 

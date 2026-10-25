@@ -643,3 +643,22 @@ button.dscene.is-cell:hover { filter: brightness(1.06); }
 /* 위로 밀린 말풍선이 유리 머리 글자와 겹치지 않게: 머리 높이만큼 흐려지며 사라짐 */
 .dconv__scroll { -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 40px, #000 70px); mask-image: linear-gradient(to bottom, transparent 0, transparent 40px, #000 70px); }
 .dright-over .dpanel__head { padding-right: 48px; }
+
+/* 28 §10.9 장면 카드 v2 — 사진 = 카드 전체 배경 · 없으면 캐릭터가 기분 표정·몸짓 */
+.dscene__full { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; display: block; }
+.dscene.has-photo .dscene__shade { background: linear-gradient(180deg, rgb(0 0 0 / 0) 45%, rgb(0 0 0 / .62) 100%); }
+.dscene.has-photo.is-appear .dscene__full { animation: diary-fade .5s .25s ease-out both; }
+.dscene__buddy { position: absolute; z-index: 1; display: block; pointer-events: none; transform-origin: 50% 92%; }
+.dscene__buddy.is-row { right: 10px; bottom: 6px; width: 84px; height: 84px; z-index: 0; }
+.dscene__buddy.is-hop { animation: dbuddy-hop 1.4s cubic-bezier(.3, .8, .4, 1) infinite; }
+.dscene__buddy.is-sway { animation: dbuddy-sway 2.4s ease-in-out infinite; }
+.dscene__buddy.is-breathe { animation: dbuddy-breathe 3s ease-in-out infinite; }
+.dscene__buddy.is-droop { animation: dbuddy-droop 3s ease-in-out infinite; }
+.dscene__buddy.is-huddle { animation: dbuddy-huddle 2.6s ease-in-out infinite; }
+@keyframes dbuddy-hop { 0%, 55%, 100% { transform: translateY(0) scale(1, 1); } 12% { transform: translateY(0) scale(1.06, .94); } 30% { transform: translateY(-14%) scale(.97, 1.04); } 48% { transform: translateY(0) scale(1.04, .96); } }
+@keyframes dbuddy-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes dbuddy-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03, 1.02); } }
+@keyframes dbuddy-droop { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(3px) rotate(-3deg); } }
+@keyframes dbuddy-huddle { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, .96); } }
+.diary.is-reduced .dscene__buddy { animation: none !important; }
+.dscene.is-hero .dscene__buddy, .dscene.is-side .dscene__buddy { filter: drop-shadow(0 6px 10px rgb(0 0 0 / .18)); }

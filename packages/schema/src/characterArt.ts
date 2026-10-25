@@ -154,8 +154,8 @@ function eye(x: number, y: number, e: number) {
 
 /** 얼굴. 앱 얼굴(10 §3.2.3·40 §6) + 만지기 얼굴(43): default ω · smile 웃는 입 · happy 웃는 눈+벌린 입 · content 웃는 눈+웃는 입(배부름) ·
  *  eat 벌린 입 · sleepy 감은 눈 · think 눈동자 위·옆 + 작은 동그라미 입 · puzzled 눈동자 옆 + 물결 입 · pet 웃는 눈 · giggle 크게 웃음 · wow 놀란 눈·입 */
-export type ArtMood = 'default' | 'smile' | 'happy' | 'content' | 'eat' | 'sleepy' | 'think' | 'puzzled' | 'pet' | 'giggle' | 'wow'
-export const ART_MOODS: ArtMood[] = ['default', 'smile', 'happy', 'content', 'eat', 'sleepy', 'think', 'puzzled', 'pet', 'giggle', 'wow']
+export type ArtMood = 'default' | 'smile' | 'happy' | 'content' | 'eat' | 'sleepy' | 'think' | 'puzzled' | 'pet' | 'giggle' | 'wow' | 'sad'
+export const ART_MOODS: ArtMood[] = ['default', 'smile', 'happy', 'content', 'eat', 'sleepy', 'think', 'puzzled', 'pet', 'giggle', 'wow', 'sad']
 function face(F: Face, mood: ArtMood, small: boolean, o: { blink?: boolean; look?: { x: number; y: number } } = {}) {
   const { cx, ey, dx, e, my, chx, chy } = F, lx = cx - dx, rx = cx + dx, w = e * 0.78, sw = f(Math.max(1.7, e * 0.34))
   let s = `<ellipse cx="${f(cx - chx)}" cy="${f(chy)}" rx="${f(e * 1.08)}" ry="${f(e * 0.68)}" fill="${R('cheek')}"/><ellipse cx="${f(cx + chx)}" cy="${f(chy)}" rx="${f(e * 1.08)}" ry="${f(e * 0.68)}" fill="${R('cheek')}"/>`

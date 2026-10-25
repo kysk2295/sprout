@@ -35,3 +35,10 @@ assert.deepEqual(lookbackDates('2026-03-31').map((x) => x.date), ['2025-03-31'])
 // 많이 쓴 말
 assert.deepEqual(topWords(['퀴즈를 봤다. 친구랑 밥.', '퀴즈 공부. 친구가 왔다.', '퀴즈 끝']).slice(0, 2), ['퀴즈', '친구'])
 console.log('diaryScene ok')
+
+// 28 §10.9 장면 카드 v2 — 기분별 표정·몸짓
+{
+  const { cardPoseOf } = await import('./diaryScene.ts')
+  if (cardPoseOf(1).face !== 'sad' || cardPoseOf(5).motion !== 'hop' || cardPoseOf(null).face !== 'default' || cardPoseOf(2).face !== 'sleepy') throw new Error('cardPoseOf')
+  console.log('diaryScene pose ok')
+}

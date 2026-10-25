@@ -103,3 +103,13 @@ export function topWords(texts: string[], n = 3): string[] {
   }
   return [...c.entries()].filter(([, k]) => k >= 2).sort((a, b) => b[1] - a[1]).slice(0, n).map(([w]) => w)
 }
+
+/** 28 §10.9 사진 없는 장면 카드: 그날 기분 → 캐릭터 표정(3D 얼굴)·몸짓(반복) */
+export type CardMotion = 'hop' | 'sway' | 'breathe' | 'droop' | 'huddle'
+export function cardPoseOf(mood: number | null): { face: 'happy' | 'default' | 'sleepy' | 'sad'; motion: CardMotion } {
+  if (mood === 5) return { face: 'happy', motion: 'hop' }
+  if (mood === 4) return { face: 'happy', motion: 'sway' }
+  if (mood === 2) return { face: 'sleepy', motion: 'droop' }
+  if (mood === 1) return { face: 'sad', motion: 'huddle' }
+  return { face: 'default', motion: 'breathe' }
+}

@@ -18,6 +18,7 @@ import { dateLabel, monthOf } from './dates'
 import { DayPanel } from './DayPanel'
 import { usePhotoAdd } from './Photos'
 import { AlbumMonths, EntryList, Lookbacks, MiniCalendar } from './Side'
+import { CardBuddy } from './SceneCard'
 import { SoloWrite } from './SoloWrite'
 import { forgetAuto, glassVars, soloRef, Talk, useTalkScene, type FullBuddy } from './Talk'
 import './diary.css'
@@ -65,6 +66,7 @@ export function DiaryView({ onOpen }: { onOpen: (taskId: string) => void }) {
   const byDate = useMemo(() => new Map((entries ?? []).map((e) => [e.date, e])), [entries])
   const entry = byDate.get(date)
   const name = buddy.name
+  const cardBuddy = useMemo(() => (buddy.species ? { species: buddy.species, stage: buddy.stage } : null), [buddy.species, buddy.stage])
   const isToday = date === today
 
   // ── 창 폭 규칙(시안 §4.5): 레일 포함 창 폭으로 ──
@@ -247,6 +249,7 @@ export function DiaryView({ onOpen }: { onOpen: (taskId: string) => void }) {
   }
 
   return (
+    <CardBuddy.Provider value={cardBuddy}>
     <div ref={rootRef}
       className={`diary${reduced ? ' is-reduced' : ''}${rightDocked ? ' is-3' : ''}${leftDocked ? '' : ' is-narrow'}${drag ? ' is-drag' : ''}`}
       onDragEnter={(e) => { if (!hasFiles(e)) return; dragDepth.current++; setDrag(true) }}
@@ -292,5 +295,6 @@ export function DiaryView({ onOpen }: { onOpen: (taskId: string) => void }) {
       )}
       <GuideLayer guide={guide} onTry={tryRecipe} />
     </div>
+    </CardBuddy.Provider>
   )
 }

@@ -222,7 +222,7 @@ def surface(body, x, z, y0=-5):
     if hit is None: return None, None
     return mw @ hit, (mw.to_3x3() @ n).normalized()
 
-MOODS = ['default', 'happy', 'sleepy', 'wow', 'think']  # 49 결정 ④: 기본·웃음·졸림·놀람·생각
+MOODS = ['default', 'happy', 'sleepy', 'wow', 'think', 'sad']  # 49 결정 ④: 기본·웃음·졸림·놀람·생각 + 슬픔(2026-10-25 일기 장면 카드 — 힘든 날)
 
 def face(body, cx, cz, size, mood='default'):
     """작은 유광 점 눈 둘 + 가는 입. 표정은 눈·입 모양만 바꾼다(49 §2)."""
@@ -245,10 +245,25 @@ def face(body, cx, cz, size, mood='default'):
         elif mood == 'sleepy':
             arc(x, cz - size * 0.03, size * 0.12, -size * 0.035, size * 0.019)
         else:
-            k = 1.28 if mood == 'wow' else 1.0
-            p, n = surface(body, x + look[0], cz + look[1] + (size * 0.01 if mood == 'wow' else 0))
+            k = 1.28 if mood == 'wow' else 0.9 if mood == 'sad' else 1.0
+            p, n = surface(body, x + look[0], cz + look[1] + (size * 0.01 if mood == 'wow' else -size * 0.02 if mood == 'sad' else 0))
             if p is None: continue
             e = sphere('eye', p - n * size * 0.012, (size * 0.062 * k, size * 0.062 * k, size * 0.085 * k), ink)
+            e.rotation_mode = 'QUATERNION'; e.rotation_quaternion = (-n).to_track_quat('-Y', 'Z')
+            out.append(e)
+        if mood == 'sad':  # 걱정 눈썹: 바깥이 낮고 안쪽(가운데 쪽)이 올라간 짧은 선
+            pts, rr = [], []
+            for k2 in range(4):
+                t = k2 / 3
+                q, qn = surface(body, x + sgn * size * (0.1 - t * 0.17), cz + size * (0.13 + t * 0.06))
+                if q is None: continue
+                pts.append(q + qn * size * 0.01); rr.append(size * 0.016)
+            if len(pts) >= 3: out.append(tube('brow', pts, rr, ink))
+    if mood == 'sad':  # 눈물 한 방울: 보는 쪽 왼눈 아래, 맑은 하늘색 유광
+        tear = mat('tear', '#8FD0F5', rough=0.06, sss=0.0, spec=0.9)
+        p, n = surface(body, cx - gap - size * 0.01, cz - size * 0.15)
+        if p is not None:
+            e = sphere('tear', p + n * size * 0.012, (size * 0.034, size * 0.034, size * 0.05), tear)
             e.rotation_mode = 'QUATERNION'; e.rotation_quaternion = (-n).to_track_quat('-Y', 'Z')
             out.append(e)
     mz = cz - size * 0.2
@@ -265,6 +280,8 @@ def face(body, cx, cz, size, mood='default'):
             w, dep, off, tilt = size * 0.06, size * 0.02, 0, 0
         elif mood == 'happy':
             w, dep, off, tilt = size * 0.15, size * 0.075, 0, 0
+        elif mood == 'sad':  # 처진 입(∩) — 가운데가 위
+            w, dep, off, tilt = size * 0.09, -size * 0.04, 0, 0
         else:
             w, dep, off, tilt = size * 0.11, size * 0.045, 0, 0
         pts, rr = [], []
@@ -1163,8 +1180,8 @@ def do_char(it, out, size, samples):
     SPECIES[it['species']](it['stage'], it.get('branch', 'a'), it.get('seed', 0), P)
     layer = it.get('layer', 'body')
     b, fx, fz, fs = P.face
-    moods = MOODS if layer == 'faces' else ['default']
-    faces = {m: face(b, fx, fz, fs, m) for m in moods}
+    moods = (it.get('moods') or MOODS) if layer == 'faces' else ['default']
+    faces = {m: face(b, fx, fz, fs, m) for m in dict.fromkeys(['default'] + moods)}
     faceobjs = faces['default']
     propobjs = [o for objs, slot in P.props for o in objs]
     catcher(); lights()
