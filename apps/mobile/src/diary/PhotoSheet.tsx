@@ -24,8 +24,8 @@ export function PhotoSheet({ visible, date, count, onClose, onAdded }: { visible
         const err = takeError()
         if (err) toast.show(err, { error: true })
         else onAdded?.()
-      } catch { toast.show('사진을 붙이지 못했어요', { error: true }) }
-    }, 250)
+      } catch (e) { toast.show(`사진을 붙이지 못했어요${e instanceof Error ? ` (${e.message.slice(0, 60)})` : ''}`, { error: true, duration: 5000 }) }
+    }, 650)
   }
   return (
     <SlideSheet visible={visible} onClose={onClose} label="사진 한 장" style={[s.sheet, { backgroundColor: p.sheetBg, paddingBottom: insets.bottom + 12 }]}>

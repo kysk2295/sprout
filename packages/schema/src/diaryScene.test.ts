@@ -21,7 +21,7 @@ c = sceneCardOf({ ...base, mood: 1 })!
 assert.equal(c.title, '조용히 지나간 하루'); assert.equal(c.sceneKey, 'scene-rain'); assert.ok(c.buddyLine.length > 0)
 // 사진
 c = sceneCardOf({ ...base, photos: [{ media_id: 'a' }, { media_id: 'b' }] })!
-assert.equal(c.photo?.media_id, 'a'); assert.equal(c.photoCount, 2)
+assert.equal(c.photo?.media_id, 'a'); assert.equal(c.photoCount, 2); assert.equal(c.title, '사진 한 장으로 남긴 하루')
 // '(기분만 남겼어요)'는 글이 아니다
 c = sceneCardOf({ ...base, mood: 3, content: '## 09:00\n\n(기분만 남겼어요)', doneTitles: ['빨래'] })!
 assert.equal(c.titleFrom, 'tasks')

@@ -4,9 +4,9 @@
 // 저장 = 그날 글 끝에 ✎ 장을 이어 붙인다(앞 장을 덮지 않음). 고치기(index) = 그 장 자리에서 바꾼다.
 import { ChevronLeft, ChevronDown, Clock, HelpCircle, ImagePlus, ListChecks, MessageCircle } from 'lucide-react-native'
 import { PhotoSheet } from './PhotoSheet'
-import { usePhotos } from './photos'
+import { usePhotos, usePhotoUri } from './photos'
 import { useEffect, useRef, useState } from 'react'
-import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
+import { Image, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { parseSections, type Section } from '@sprout/schema/diaryPrompts'
@@ -179,6 +179,11 @@ export function SoloWrite({ date, entry, index, onBack, onChat, onSaved }: {
         style={[s.body, { color: p.textPrimary, marginBottom: above }]}
       />
 
+      {photos.length && !kbH ? (
+        <View style={[s.thumbs, { bottom: above + 8 }]} pointerEvents="box-none">
+          {photos.slice(0, 5).map((ph) => <SoloThumb key={ph.id} mediaId={ph.media_id} />)}
+        </View>
+      ) : null}
       {pop ? (
         <Animated.View entering={FadeIn.duration(120)} exiting={FadeOut.duration(90)} style={[s.pop, { backgroundColor: p.sheetBg, bottom: above + 6, shadowOpacity: p.dark ? 0.5 : 0.15 }]}>
           {pop === 'mood' ? (
@@ -223,6 +228,11 @@ export function SoloWrite({ date, entry, index, onBack, onChat, onSaved }: {
   )
 }
 
+function SoloThumb({ mediaId }: { mediaId: string }) {
+  const uri = usePhotoUri(mediaId)
+  return <View style={s.thumb}>{uri ? <Image source={{ uri }} style={{ width: '100%', height: '100%' }} /> : null}</View>
+}
+
 function Tool({ label, on, onPress, children }: { label: string; on?: boolean; onPress: () => void; children: React.ReactNode }) {
   const p = usePalette()
   return (
@@ -245,6 +255,8 @@ const s = StyleSheet.create({
   barRow: { height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: 6 },
   tool: { minWidth: 44, height: 40, borderRadius: 12, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   tl: { fontSize: 13, fontWeight: '600' },
+  thumbs: { position: 'absolute', left: 18, flexDirection: 'row', gap: 8 },
+  thumb: { width: 64, height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: '#EEE9DE', borderWidth: 3, borderColor: '#fff', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
   pop: { position: 'absolute', left: 8, right: 8, borderRadius: 20, paddingVertical: 6, shadowColor: '#000', shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
   popMoods: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 6 },
   popMood: { alignItems: 'center', gap: 4, minWidth: 56, paddingVertical: 4 },

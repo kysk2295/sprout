@@ -58,7 +58,7 @@ export function sceneCardOf(i: SceneInput, o: { dark?: boolean } = {}): SceneCar
     const parts = [...i.doneTitles.slice(0, 2).map(short), ...i.eventTitles.slice(0, i.doneTitles.length >= 2 ? 0 : 1).map(short)].filter(Boolean)
     title = parts.length === 1 ? `${parts[0]} 한 날` : `${parts.slice(0, -1).join(', ')}하고 ${parts.at(-1)} 한 날`
     titleFrom = 'tasks'
-  } else title = '조용히 지나간 하루'
+  } else if (i.photos.length) { title = '사진 한 장으로 남긴 하루' } else title = '조용히 지나간 하루'
   return {
     date: i.date,
     title,

@@ -2,6 +2,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
 import { useState } from 'react'
+import { StatusBar } from 'expo-status-bar'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { SceneCardView } from '../../src/diary/SceneCard'
@@ -28,6 +29,7 @@ export default function SceneScreen() {
   const [n, setN] = useState(0) // 사진을 붙이면 다시 나타나는 움직임
   return (
     <View style={{ flex: 1, backgroundColor: '#14161f' }}>
+      <StatusBar style="light" />
       <View style={[s.hdr, { marginTop: insets.top }]}>
         <GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>
         <Text style={s.h}>그날의 장면</Text>

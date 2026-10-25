@@ -28,8 +28,8 @@ const cacheFile = (mediaId: string) => new File(dir(), `${mediaId.replace(/[^\w-
 export type Source = 'library' | 'camera'
 /** 고르고 줄여서 기기 파일로. 취소면 null. 권한 거절은 'denied' */
 export async function pick(source: Source): Promise<{ uri: string; width: number; height: number } | null | 'denied'> {
-  const perm = source === 'camera' ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync()
-  if (!perm.granted && (perm as { accessPrivileges?: string }).accessPrivileges !== 'limited') return 'denied'
+  // 앨범은 시스템 사진 고르기 창(iOS PHPicker · Android Photo Picker)이라 사진 보관함 권한을 묻지 않는다(고른 한 장만 받음). 카메라만 권한
+  if (source === 'camera') { const perm = await ImagePicker.requestCameraPermissionsAsync(); if (!perm.granted) return 'denied' }
   const r = source === 'camera'
     ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1, exif: false })
     : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, exif: false, selectionLimit: 1 })

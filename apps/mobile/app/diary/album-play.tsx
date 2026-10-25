@@ -2,6 +2,7 @@
 // 다음 장은 오른쪽에서 4% 밀리며 교차(§10.5). 움직임 줄이기면 자동 넘김 끔(좌우로만).
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { StatusBar } from 'expo-status-bar'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { cancelAnimation, Easing, FadeIn, SlideInRight, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -39,6 +40,7 @@ export default function AlbumPlay() {
   const card = d ? scenes.get(d) : null
   return (
     <View style={{ flex: 1, backgroundColor: '#0d0f14' }}>
+      <StatusBar style="light" />
       <View style={[s.bars, { marginTop: insets.top + 8 }]}>
         {days.map((x, k) => (
           <View key={x} style={s.track}>{k < i ? <View style={[s.fill, { width: '100%' }]} /> : k === i ? <Animated.View style={[s.fill, bar]} /> : null}</View>
