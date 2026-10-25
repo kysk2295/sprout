@@ -11,6 +11,8 @@ import { FONT, M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { GlassButton } from '../ui/Glass'
 import { AssistantChat, StatusPill, useChatScene } from './AssistantChat'
+import { StatusBar } from 'expo-status-bar'
+import { sceneDark } from '@sprout/schema/characterArt'
 import { clear, setDraft, useAssistant } from './store'
 
 export default function AssistantScreen() {
@@ -34,6 +36,7 @@ export default function AssistantScreen() {
   const onHeader = (show: boolean) => { const v = show ? 0 : 1; if (hide.value !== v) hide.value = withTiming(v, { duration: 220 }) }
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: p.cardBg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StatusBar style={sceneDark(sc.sceneKey) ? 'light' : 'dark'} />
       {/* 머리는 대화 위에 투명하게 떠 있다 — 대화가 머리 뒤로 비쳐 지나간다(사용자 "여기가 투명해야지") */}
       <Animated.View style={[s.nav, { position: 'absolute', top: insets.top, left: 0, right: 0, borderBottomColor: 'transparent' }, navSt]}>
         <GlassButton label="뒤로" style={btn} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}><ChevronLeft size={22} color={g.ink} /></GlassButton>

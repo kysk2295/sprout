@@ -70,11 +70,12 @@ async function expireLocal() {
   slog('session: 만료 — 기기 데이터는 그대로 두고 다시 로그인 대기', u?.id.slice(0, 8))
   inboxWatch?.abort()
   inboxWatch = undefined
-  await db.disconnect().catch((e) => slog('session: 연결 끊기 실패', e))
+  // 화면부터 로그인으로(세션을 먼저 비워 다시 연결 시도가 멈추게), 연결 끊기는 기다리되 오래 걸리면 그냥 넘어간다
   await setStale(u)
   await save(undefined)
   status = 'signedOut'
   emit()
+  await Promise.race([db.disconnect().catch((e) => slog('session: 연결 끊기 실패', e)), new Promise((r) => setTimeout(r, 5000))])
 }
 async function load(): Promise<Session | undefined> {
   try {
@@ -95,13 +96,14 @@ export class ApiError extends Error {
 }
 export async function api<T>(path: string, init: { method?: string; body?: unknown; token?: string; headers?: Record<string, string>; timeoutMs?: number } = {}): Promise<T> {
   let res: Response
-  const abort = init.timeoutMs ? new AbortController() : undefined
-  const timer = abort ? setTimeout(() => abort.abort(), init.timeoutMs) : undefined
+  // 2026-10-25 QA: 시간 제한이 없으면 서버가 멈출 때 화면(로그인 방법·로그아웃)이 끝없이 돈다 — 기본 20초
+  const abort = new AbortController()
+  const timer = setTimeout(() => abort.abort(), init.timeoutMs ?? 20_000)
   try {
     res = await fetch(`${API_URL}${path}`, {
       method: init.method ?? (init.body ? 'POST' : 'GET'),
       headers: { 'content-type': 'application/json', ...(init.token ? { authorization: `Bearer ${init.token}` } : {}), ...init.headers },
-      signal: abort?.signal,
+      signal: abort.signal,
       body: init.body ? JSON.stringify(init.body) : undefined
     })
   } catch {
@@ -135,7 +137,9 @@ export async function freshToken(): Promise<string | null> {
       console.warn('[sync] 토큰 새로 고침 실패:', e instanceof ApiError ? `${e.status} ${e.message}` : e)
       if (e instanceof ApiError && e.status === 401) {
         if (session && session.refresh_token !== used) return session.access_token
-        await expireLocal()
+        // 2026-10-25 QA(Android 에뮬레이터): 여기서 기다리면 교착 — 동기화 연결이 이 토큰을 기다리는 중인데
+        // expireLocal이 그 연결이 끝나길(disconnect) 기다렸다 → 로그인 상태로 멈추고 로그아웃도 안 됨. 기다리지 않고 바로 null
+        setTimeout(() => void expireLocal(), 0)
       }
       return null
     } finally {
@@ -341,16 +345,21 @@ export function socialErrorText(e: unknown, provider: Provider = e instanceof Ap
 async function signOutLocal() {
   inboxWatch?.abort()
   inboxWatch = undefined
-  await db.disconnectAndClear()
   await save(undefined)
   status = 'signedOut'
   emit()
+  // 연결이 토큰을 기다리며 멈춰 있어도 로그아웃은 끝나야 한다(교착 방지): 8초 안에 못 지우면 끊고 한 번 더
+  const done = await Promise.race([db.disconnectAndClear().then(() => true), new Promise<boolean>((r) => setTimeout(() => r(false), 8000))])
+  if (!done) { slog('logout: 지우기 늦음 — 다시'); await db.disconnect().catch(() => {}); await db.disconnectAndClear().catch((e) => slog('logout: 지우기 실패', e)) }
 }
 /**
  * 로그아웃: 이 기기의 내 데이터를 지우고 처음 상태로(다음 사람에게 보이지 않게 — 데스크톱과 같음).
  * 32 §3.2: 접근 토큰이 살아 있을 때 먼저 이 기기 푸시 등록을 지우고(DELETE /push/devices/:id, 3초까지만 기다림),
  * /auth/logout에도 device_id를 실어 그 DELETE가 실패해도 서버가 정리하게 한다.
  */
+/** 아직 서버에 안 올라간 변경 수 */
+export const pendingUploads = async () => (await db.getOptional<{ n: number }>('SELECT count(*) AS n FROM ps_crud'))?.n ?? 0
+
 export async function logout() {
   const s = session
   const device = await deviceId().catch(() => null)

@@ -34,7 +34,7 @@ export const SoftIcon = memo(function SoftIcon({ name, size = 20, day }: { name:
           </RadialGradient>
         ))}
         <RadialGradient id="soft-gloss" cx=".5" cy=".5" r=".5">
-          <Stop offset="0" stopColor="#fff" stopOpacity={0.95} /><Stop offset=".55" stopColor="#fff" stopOpacity={0.35} /><Stop offset="1" stopColor="#fff" stopOpacity={0} />
+          <Stop offset="0" stopColor="#fff" stopOpacity={0.95} /><Stop offset={0.55} stopColor="#fff" stopOpacity={0.35} /><Stop offset="1" stopColor="#fff" stopOpacity={0} />
         </RadialGradient>
       </Defs>
       {shapes.map((s, i) => <Shape key={i} s={s} />)}

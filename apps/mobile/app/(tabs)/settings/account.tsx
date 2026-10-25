@@ -10,8 +10,7 @@ import { ActivityIndicator, Alert, Keyboard, Platform, Pressable, ScrollView, St
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   api, ApiError, freshToken, linkApple, linkGoogle, loginMethods, logout, reauthWithApple, reauthWithGoogle, socialErrorText, unlinkProvider, useAuth,
-  type LinkedIdentity, type LoginMethods, type Provider
-} from '../../../src/data/auth'
+  type LinkedIdentity, type LoginMethods, type Provider, pendingUploads } from '../../../src/data/auth'
 import { appleAvailable } from '../../../src/data/apple'
 import { AvatarSheet } from '../../../src/avatar/AvatarSheet'
 import { ProfileAvatar } from '../../../src/avatar/ProfileAvatar'
@@ -172,11 +171,16 @@ export default function Account() {
       setError(deleteErrorText(msg, e instanceof ApiError ? e.status : 0, mode === 'apple' ? 'apple' : 'google'))
     }
   }
-  const confirmLogout = () =>
-    Alert.alert('로그아웃할까요?', '이 기기의 데이터가 지워져요. 다시 로그인하면 그대로 돌아와요.', [
+  // 2026-10-25 QA: 아직 서버에 안 올라간 변경이 있으면 지우기 전에 알린다(로그아웃 = 이 기기 데이터 지움)
+  const confirmLogout = async () => {
+    const n = await pendingUploads().catch(() => 0)
+    Alert.alert('로그아웃할까요?', n
+      ? `아직 서버에 올라가지 않은 변경이 ${n}건 있어요. 지금 로그아웃하면 이 변경은 사라져요. 인터넷에 연결된 상태에서 잠시 뒤 다시 해 보세요.`
+      : '이 기기의 데이터가 지워져요. 다시 로그인하면 그대로 돌아와요.', [
       { text: '취소', style: 'cancel' },
-      { text: '로그아웃', style: 'destructive', onPress: () => void logout() }
+      { text: n ? '그래도 로그아웃' : '로그아웃', style: 'destructive', onPress: () => void logout() }
     ])
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
