@@ -6,7 +6,8 @@
 //   행마다 들고 나는 전환도 없다. 움직이는 것은 카드 높이·아래 카드 자리(카드 몇 장의 레이아웃 전환 `groupLayout` 200ms 감속)와 행 묶음 opacity 하나뿐.
 import { ChevronDown } from 'lucide-react-native'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native'
+import { StyleSheet, Text, View, type GestureResponderEvent } from 'react-native'
+import { Tap } from './Pressables'
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { FONT, M } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
@@ -45,19 +46,19 @@ export function GroupCard(props: Props) {
   return (
     <Animated.View layout={layout} entering={m?.entering} exiting={m?.exiting} style={[s.card, { backgroundColor: p.cardBg }]}>
       {props.title ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={props.onToggle ? `${props.title} ${props.count}개, ${collapsed ? '펼치기' : '접기'}` : `${props.title} ${props.count}개`} onPress={onPress} onLongPress={props.onLongPress} delayLongPress={350} style={s.head}>
+        <Tap accessibilityRole="button" accessibilityLabel={props.onToggle ? `${props.title} ${props.count}개, ${collapsed ? '펼치기' : '접기'}` : `${props.title} ${props.count}개`} onPress={onPress} onLongPress={props.onLongPress} delayLongPress={350} style={s.head}>
           <Text style={[FONT.group, { color: p.textPrimary }]}>{props.title}</Text>
           <View style={{ flex: 1 }} />
           {props.onPostpone ? (
-            <Pressable accessibilityRole="button" hitSlop={8} onPress={props.onPostpone}>
+            <Tap accessibilityRole="button" hitSlop={8} onPress={props.onPostpone}>
               <Text style={[s.link, { color: p.accentInk }]}>미루기</Text>
-            </Pressable>
+            </Tap>
           ) : null}
           <Text style={[FONT.sub, { color: p.textTertiary }]}>{props.count}</Text>
           <Animated.View style={chev}>
             <ChevronDown size={15} color={p.textTertiary} />
           </Animated.View>
-        </Pressable>
+        </Tap>
       ) : null}
       {mounted ? (
         <Animated.View

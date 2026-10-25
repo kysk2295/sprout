@@ -6,7 +6,8 @@
 //   AI가 쉬면(오류·한도) 정해진 공감 말로 이어 가고 끝은 내 말 그대로. 동의를 끈 사람은 정해진 질문 3개 → 내 말 그대로(AI 0).
 import { Check, Plus, RotateCcw, X } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
+import { Alert, Keyboard, ScrollView, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
+import { Tap } from '../ui/Pressables'
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler'
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -29,7 +30,8 @@ import { useKeyboardHeight, useKeyboardLift } from './keyboard'
 import { dayTitle, josa, mayCallAi, moodOf, parseBuddyReply, type Buddy, type DiaryEntry } from './logic'
 import { DiaryScene, type BuddyState, type SceneHandle } from './Scene'
 import { paperOf } from './SoloWrite'
-import { useRouter } from 'expo-router'
+import { useNavigation, useRouter } from 'expo-router'
+import { usePreventRemove } from 'expo-router/react-navigation'
 import { lookbackDates } from '@sprout/schema/diaryScene'
 import { PhotoSheet } from './PhotoSheet'
 import { usePhotos } from './photos'
@@ -51,6 +53,8 @@ type Props = {
   swipe: GestureType
   /** 혼자 쓰기로: 지금까지 한 말로 만든 글·기분을 넘긴다 */
   onFree: (prefill: { text: string; mood: number | null }) => void
+  /** 저장한 장을 고치는 중인지(고치는 동안 날 넘기기 밀기를 끈다 — UX 점검 P2-7) */
+  onEditing?: (on: boolean) => void
 }
 
 /** 화면을 떠난 뒤 저절로 마무리(28 §9 G) — 다시 열면 지운다 */
@@ -61,7 +65,7 @@ type Ai = { kind: 'idle' } | { kind: 'reading'; started: boolean; queue?: number
 /** 이번 실행에서 마무리한 장: 다시 옮기기에 쓸 대화(앱을 다시 켜면 없음 — 고치기만) */
 const finished = new Map<string, { index: number; lines: { who: 'me' | 'buddy'; text: string }[]; mood: number | null }>()
 
-export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree }: Props) {
+export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree, onEditing }: Props) {
   const p = usePalette()
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -98,6 +102,19 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
   const [distilling, setDistilling] = useState(false)
   const [quota, setQuota] = useState<Quota>(null)
   const [editAt, setEditAt] = useState<number | null>(null)
+  // P2-7: 고치는 중에는 날 넘기기를 막고, 고친 것이 있는 채로 떠나면(뒤로·Android 뒤로 가기·밀어서 뒤로) 버릴지 묻는다
+  const [dirty, setDirty] = useState(false)
+  const navigation = useNavigation()
+  const editingRef = useRef(onEditing)
+  editingRef.current = onEditing
+  useEffect(() => { editingRef.current?.(editAt !== null); if (editAt === null) setDirty(false) }, [editAt])
+  useEffect(() => () => editingRef.current?.(false), [])
+  usePreventRemove(editAt !== null && dirty, ({ data }) => {
+    Alert.alert('고친 내용을 버릴까요?', '저장하지 않은 고침은 사라져요.', [
+      { text: '계속 고치기', style: 'cancel' },
+      { text: '버리기', style: 'destructive', onPress: () => navigation.dispatch(data.action) }
+    ])
+  })
   const [distillTry, setDistillTry] = useState(1)
   const [reacts, setReacts] = useState<Map<string, string>>(() => new Map())
   const localN = useRef(0)
@@ -393,7 +410,7 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
     return (
       <SavedCard key={`sec-${k}`} section={sec} date={date} past={past} mood={entry?.mood ?? null} editing={editAt === k} paper={paper}
         canRedo={!!f && f.index === k && !sec.solo && aiFlow && !aiDown && (quota ? quota.used < quota.limit : true)} redoing={distilling}
-        onRedo={() => void redo(k)} onEdit={() => setEditAt(k)} onCancel={() => setEditAt(null)}
+        onRedo={() => void redo(k)} onEdit={() => setEditAt(k)} onCancel={() => setEditAt(null)} onDirty={setDirty}
         onSave={(s) => { void replaceSection(date, k, s).then(() => { setEditAt(null); toast.show('고쳐서 저장했어요') }) }} />
     )
   }
@@ -415,10 +432,10 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
           <BuddyRow buddy={buddy} avatar={false} live={false} still={reduced} tone={tone} ai={isAi}>
             <Text style={[st.msg, { color: tone.ink }]}>{parsed.text}</Text>
             {parsed.task ? (
-              <Pressable accessibilityRole="button" disabled={made.has(parsed.task)} onPress={() => void addTask(parsed.task!)} hitSlop={6} style={[st.taskChip, { borderColor: tone.line, backgroundColor: tone.soft }]}>
+              <Tap accessibilityRole="button" disabled={made.has(parsed.task)} onPress={() => void addTask(parsed.task!)} hitSlop={6} style={[st.taskChip, { borderColor: tone.line, backgroundColor: tone.soft }]}>
                 {made.has(parsed.task) ? <Check size={14} color={tone.ink} /> : <Plus size={14} color={tone.ink} />}
                 <Text style={{ color: tone.ink, fontSize: 13, fontWeight: '600', flexShrink: 1 }} numberOfLines={2}>{made.has(parsed.task) ? '할 일에 넣었어요' : `할 일로: ${parsed.task}`}</Text>
-              </Pressable>
+              </Tap>
             ) : null}
           </BuddyRow>
         </Animated.View>
@@ -472,9 +489,9 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
           <Text style={[st.daysep, { color: tone.sub }]}>{dayTitle(date)}{past ? '' : ` · ${TIME_LABEL[timeOfDay(new Date().getHours())]}`}</Text>
           {!past ? <Lookbacks today={date} reduced={reduced} onOpen={(d) => router.push({ pathname: '/diary/scene', params: { date: d } })} /> : null}
           {todayCard && !virtualStart ? (
-            <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/diary/scene', params: { date } })} style={[st.scenePill, { backgroundColor: tone.bubble, borderColor: tone.line }]}>
+            <Tap accessibilityRole="button" onPress={() => router.push({ pathname: '/diary/scene', params: { date } })} style={[st.scenePill, { backgroundColor: tone.bubble, borderColor: tone.line }]}>
               <Text style={{ color: tone.ink, fontSize: 12.5, fontWeight: '700' }}>🖼 {past ? '그날' : '오늘'}의 장면 · {todayCard.title}</Text>
-            </Pressable>
+            </Tap>
           ) : null}
           {virtualStart && !prefs.met ? <BuddyRow buddy={buddy} avatar={false} live={false} still={reduced} tone={tone}><Text style={[st.msg, { color: tone.ink }]}>{introLine(name)}</Text></BuddyRow> : null}
           {greet ? <BuddyRow buddy={buddy} avatar={false} live={false} still={reduced} tone={tone}><Text style={[st.msg, { color: tone.ink }]}>{greet}</Text></BuddyRow> : null}
@@ -487,8 +504,8 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
                 <Text key={f2} style={[st.fact, { color: p.textSecondary }]}>· {f2}</Text>
               ))}
               <View style={st.btns}>
-                <Pressable accessibilityRole="button" onPress={consentNo} style={[st.btn, { backgroundColor: p.bgSelected }]}><Text style={[st.btnText, { color: p.textPrimary }]}>혼자 쓰기</Text></Pressable>
-                <Pressable accessibilityRole="button" onPress={consentYes} style={[st.btn, { backgroundColor: p.accent }]}><Text style={[st.btnText, { color: p.onAccent }]}>이야기하기</Text></Pressable>
+                <Tap accessibilityRole="button" onPress={consentNo} style={[st.btn, { backgroundColor: p.bgSelected }]}><Text style={[st.btnText, { color: p.textPrimary }]}>혼자 쓰기</Text></Tap>
+                <Tap accessibilityRole="button" onPress={consentYes} style={[st.btn, { backgroundColor: p.accent }]}><Text style={[st.btnText, { color: p.onAccent }]}>이야기하기</Text></Tap>
               </View>
               <Text style={[st.small, { color: p.textTertiary }]}>{josa(name, '는', '은')} 친구처럼 들어 주지만 전문 상담은 아니에요 · ⋯에서 언제든 바꿔요</Text>
             </Animated.View>
@@ -514,7 +531,7 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
               ) : null}
               <View style={st.retryRow}>
                 <Text style={{ color: tone.sub, fontSize: 13 }}>{ai.stopped ? '멈췄어.' : '연결이 끊겼어.'}</Text>
-                <Pressable onPress={retry} accessibilityRole="button" hitSlop={8} style={[st.retryChip, { backgroundColor: 'rgba(255,255,255,0.94)' }]}><RotateCcw size={14} color="#12715E" /><Text style={{ color: '#12715E', fontWeight: '600', fontSize: 14 }}>다시 시도</Text></Pressable>
+                <Tap onPress={retry} accessibilityRole="button" hitSlop={8} style={[st.retryChip, { backgroundColor: 'rgba(255,255,255,0.94)' }]}><RotateCcw size={14} color="#12715E" /><Text style={{ color: '#12715E', fontWeight: '600', fontSize: 14 }}>다시 시도</Text></Tap>
               </View>
             </>
           ) : null}
@@ -578,32 +595,35 @@ function TagEditor({ tags, onChange, editable }: { tags: string[]; onChange?: (t
   return (
     <View style={st.tags}>
       {tags.map((t) => (
-        <Pressable key={t} accessibilityRole="button" accessibilityLabel={editable ? `${t} 빼기` : t} disabled={!editable} onPress={() => onChange?.(tags.filter((x) => x !== t))} hitSlop={6}
+        <Tap key={t} accessibilityRole="button" accessibilityLabel={editable ? `${t} 빼기` : t} disabled={!editable} onPress={() => onChange?.(tags.filter((x) => x !== t))} hitSlop={6}
           style={[st.tag, { backgroundColor: alpha(p.accent, 0.1) }]}>
           <Text style={{ color: p.accentInk, fontSize: 12.5, fontWeight: '600' }}>{t}</Text>
           {editable ? <X size={12} color={p.accentInk} /> : null}
-        </Pressable>
+        </Tap>
       ))}
       {editable ? (adding ? (
         <TextInput autoFocus value={v} onChangeText={setV} onSubmitEditing={add} onBlur={add} placeholder="감정/설렘" placeholderTextColor={p.textTertiary}
           accessibilityLabel="태그 더하기" style={[st.tag, st.tagInput, { color: p.textPrimary, borderColor: p.borderStrong }]} />
       ) : (
-        <Pressable accessibilityRole="button" accessibilityLabel="태그 더하기" onPress={() => setAdding(true)} hitSlop={8} style={[st.tag, { borderWidth: 1, borderColor: p.borderStrong }]}>
+        <Tap accessibilityRole="button" accessibilityLabel="태그 더하기" onPress={() => setAdding(true)} hitSlop={8} style={[st.tag, { borderWidth: 1, borderColor: p.borderStrong }]}>
           <Plus size={12} color={p.textSecondary} /><Text style={{ color: p.textSecondary, fontSize: 12.5, fontWeight: '600' }}>태그</Text>
-        </Pressable>
+        </Tap>
       )) : null}
     </View>
   )
 }
 
 /** 저장한 장(28 §9 H): 종이 카드 — 기분 띠 · 시각 · 제목 · 태그 · 본문 · ✓ 저장됨 · 고치기 · 다시 옮기기(방금 마무리한 장) */
-function SavedCard({ section, date, past, mood, editing, paper, canRedo, redoing, onRedo, onEdit, onCancel, onSave }: {
+function SavedCard({ section, date, past, mood, editing, paper, canRedo, redoing, onRedo, onEdit, onCancel, onSave, onDirty }: {
   section: Section; date: string; past: boolean; mood: number | null; editing: boolean; paper: string; canRedo: boolean; redoing: boolean
-  onRedo: () => void; onEdit: () => void; onCancel: () => void; onSave: (s: Section) => void
+  onRedo: () => void; onEdit: () => void; onCancel: () => void; onSave: (s: Section) => void; onDirty: (dirty: boolean) => void
 }) {
   const p = usePalette()
   const [d, setD] = useState(section)
   useEffect(() => { if (editing) setD(section) }, [editing]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (editing) onDirty(d.title !== section.title || d.body !== section.body || JSON.stringify(d.tags) !== JSON.stringify(section.tags))
+  }, [d, editing]) // eslint-disable-line react-hooks/exhaustive-deps
   const m = moodOf(mood)
   return (
     <Animated.View entering={FadeInDown.duration(260)} style={[st.paper, { backgroundColor: paper, shadowOpacity: p.dark ? 0 : 0.16 }]}>
@@ -618,8 +638,8 @@ function SavedCard({ section, date, past, mood, editing, paper, canRedo, redoing
           <TagEditor tags={d.tags} editable onChange={(tags) => setD({ ...d, tags })} />
           <TextInput value={d.body} onChangeText={(t) => setD({ ...d, body: t })} multiline autoFocus accessibilityLabel="일기 고치기" style={[st.dtEdit, { color: p.textPrimary, backgroundColor: p.bgSelected, borderColor: p.accent }]} />
           <View style={st.da}>
-            <Pressable accessibilityRole="button" onPress={onCancel} style={[st.dbtn, st.ghost, { borderColor: p.borderStrong }]}><Text style={{ color: p.textPrimary, fontSize: 14, fontWeight: '600' }}>취소</Text></Pressable>
-            <Pressable accessibilityRole="button" onPress={() => onSave(d)} style={[st.dbtn, { marginLeft: 'auto', backgroundColor: p.accent }]}><Text style={{ color: p.onAccent, fontSize: 14, fontWeight: '700' }}>저장</Text></Pressable>
+            <Tap accessibilityRole="button" onPress={onCancel} style={[st.dbtn, st.ghost, { borderColor: p.borderStrong }]}><Text style={{ color: p.textPrimary, fontSize: 14, fontWeight: '600' }}>취소</Text></Tap>
+            <Tap accessibilityRole="button" onPress={() => onSave(d)} style={[st.dbtn, { marginLeft: 'auto', backgroundColor: p.accent }]}><Text style={{ color: p.onAccent, fontSize: 14, fontWeight: '700' }}>저장</Text></Tap>
           </View>
         </> : <>
           {section.title ? <Text style={[st.title, { color: p.textPrimary }]}>{section.title}</Text> : null}
@@ -628,8 +648,8 @@ function SavedCard({ section, date, past, mood, editing, paper, canRedo, redoing
           <View style={st.da}>
             <Check size={14} color={p.accentInk} /><Text style={{ color: p.accentInk, fontSize: 12.5, fontWeight: '700' }}>저장됨</Text>
             <View style={{ flex: 1 }} />
-            {canRedo ? <Pressable accessibilityRole="button" disabled={redoing} onPress={onRedo} style={[st.dbtn, { backgroundColor: alpha(p.textTertiary, 0.12) }]}><Text style={{ color: p.textSecondary, fontSize: 13.5, fontWeight: '600' }}>{redoing ? '옮기는 중…' : '다시 옮기기'}</Text></Pressable> : null}
-            <Pressable accessibilityRole="button" onPress={onEdit} style={[st.dbtn, { backgroundColor: alpha(p.textTertiary, 0.12) }]}><Text style={{ color: p.textSecondary, fontSize: 13.5, fontWeight: '600' }}>고치기</Text></Pressable>
+            {canRedo ? <Tap accessibilityRole="button" disabled={redoing} onPress={onRedo} style={[st.dbtn, { backgroundColor: alpha(p.textTertiary, 0.12) }]}><Text style={{ color: p.textSecondary, fontSize: 13.5, fontWeight: '600' }}>{redoing ? '옮기는 중…' : '다시 옮기기'}</Text></Tap> : null}
+            <Tap accessibilityRole="button" onPress={onEdit} style={[st.dbtn, { backgroundColor: alpha(p.textTertiary, 0.12) }]}><Text style={{ color: p.textSecondary, fontSize: 13.5, fontWeight: '600' }}>고치기</Text></Tap>
           </View>
         </>}
       </View>

@@ -32,7 +32,7 @@ export default function MapGoals() {
             </View>
           )
         })}
-        {!data.goals.length ? <Text style={{ color: p.textTertiary, textAlign: 'center', marginTop: 40 }}>이번 주 목표가 없어요</Text> : null}
+        {data.loaded && !data.goals.length ? <Text style={{ color: p.textTertiary, textAlign: 'center', marginTop: 40 }}>이번 주 목표가 없어요</Text> : null}
       </ScrollView>
     </View>
   )

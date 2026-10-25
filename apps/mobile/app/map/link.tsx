@@ -44,13 +44,13 @@ export default function MapLink() {
               {linked.has(g.id) ? <Check size={17} color={p.accent} /> : null}
             </Pressable>
           ))}
-          {!data.goals.length ? <Text style={{ color: p.textTertiary, padding: 16 }}>이번 주 목표가 없어요. 성장 탭에서 목표를 정해 보세요</Text> : null}
+          {data.loaded && data.goals.length ? <Text style={{ color: p.textTertiary, padding: 16 }}>이번 주 목표가 없어요. 성장 탭에서 목표를 정해 보세요</Text> : null}
         </View>
       ) : (
         <>
           <View style={[s.search, { backgroundColor: p.cardBg }]}>
             <Search size={16} color={p.textTertiary} />
-            <TextInput value={q} onChangeText={setQ} placeholder="할 일 검색" placeholderTextColor={p.textTertiary} style={{ flex: 1, fontSize: 15, color: p.textPrimary }} accessibilityLabel="할 일 검색" />
+            <TextInput value={q} onChangeText={setQ} autoCorrect={false} autoCapitalize="none" returnKeyType="search" placeholder="할 일 검색" placeholderTextColor={p.textTertiary} style={{ flex: 1, fontSize: 15, color: p.textPrimary }} accessibilityLabel="할 일 검색" />
           </View>
           <View style={[s.card, { backgroundColor: p.cardBg }]}>
             {candidates.slice(0, 80).map((t, i) => (
@@ -62,7 +62,7 @@ export default function MapLink() {
                 {linked.has(t.id) ? <Check size={17} color={p.accent} /> : null}
               </Pressable>
             ))}
-            {!candidates.length ? <Text style={{ color: p.textTertiary, padding: 16 }}>고를 할 일이 없어요</Text> : null}
+            {data.loaded && candidates.length ? <Text style={{ color: p.textTertiary, padding: 16 }}>고를 할 일이 없어요</Text> : null}
           </View>
         </>
       )}

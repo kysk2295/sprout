@@ -8,9 +8,11 @@
 //
 // 화면마다 넣다 빠뜨리지 않게 스택에서 한 번에 건다: formSheet로 뜨는 모든 화면을 <View flex 1>[가드, 화면]으로 감싼다.
 //   <Stack screenLayout={sheetScreenLayout}> — 뿌리(app/_layout)·일기(app/diary/_layout) 스택에 달려 있다.
+// 토스트 자리(ToastHost)도 여기서 같이 단다 — 시트가 열려 있는 동안 토스트는 시트 안 아래에 뜬다.
 // formSheet를 띄우는 스택(작업 지도 app/map/_layout 등)을 만들거나 고치면 같은 screenLayout을 단다. 화면 안에 따로 넣을 필요 없다.
 import type { ReactElement } from 'react'
 import { View } from 'react-native'
+import { ToastHost } from './Toast'
 
 export function SheetScrollGuard() {
   return <View collapsable={false} pointerEvents="none" style={{ height: 0 }} />
@@ -22,6 +24,8 @@ export function sheetScreenLayout({ children, options }: { children: ReactElemen
     <View collapsable={false} style={{ flex: 1 }}>
       <SheetScrollGuard />
       {children}
+      {/* 시트 화면 안 토스트 자리(UX 점검 P2-2) — 뿌리 토스트는 formSheet 뒤에 숨는다 */}
+      <ToastHost />
     </View>
   )
 }

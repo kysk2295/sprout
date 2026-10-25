@@ -6,7 +6,9 @@ import { hx } from '../../src/ui/haptics'
 import { useRouter } from 'expo-router'
 import { Check, ChevronLeft, X } from 'lucide-react-native'
 import { useEffect, useMemo, useState } from 'react'
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Tap } from '../../src/ui/Pressables'
+import { KeyboardAvoid } from '../../src/ui/KeyboardAvoid'
 import Animated, { Easing, FadeIn, SlideInRight, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CharacterArt, Egg, HatchTop } from '../../src/growth/art/CharacterArt'
@@ -18,6 +20,7 @@ import { useMotionReduced } from '../../src/growth/motion'
 import { dayKey } from '../../src/lib/dates'
 import { usePalette } from '../../src/theme/ThemeProvider'
 import { GlassButton } from '../../src/ui/Glass'
+import { useOnce } from '../../src/ui/once'
 
 const ALL: Species[] = ['snail', 'bee', 'worm', 'frog']
 
@@ -59,6 +62,13 @@ export default function Survey() {
     }, reduced ? 120 : 250)
   }
 
+  // 키우기 시작(단추 · 엔터 "완료" — P3-3). 두 번 눌러도 한 번만
+  const start = useOnce(async () => {
+    if (!species || !name.trim()) return
+    await assignCharacter(dayKey(), { species, typeCode: typeCodeOf(score), answers, name: name.trim() })
+    close()
+  })
+
   if (q.isLoading || !again) return <View style={[s.screen, { backgroundColor: p.bgApp }]} />
   return (
     <View style={[s.screen, { backgroundColor: p.bgApp, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -74,8 +84,8 @@ export default function Survey() {
             </Text>
           </View>
           <View style={s.bottom}>
-            <Pressable style={[s.big, { backgroundColor: p.accent }]} onPress={() => setStep('quiz')} accessibilityRole="button"><Text style={s.bigText}>시작하기</Text></Pressable>
-            <Pressable onPress={close} hitSlop={8} accessibilityRole="button"><Text style={[s.ghost, { color: p.textSecondary }]}>나중에</Text></Pressable>
+            <Tap style={[s.big, { backgroundColor: p.accent }]} onPress={() => setStep('quiz')} accessibilityRole="button"><Text style={s.bigText}>시작하기</Text></Tap>
+            <Tap onPress={close} hitSlop={8} accessibilityRole="button"><Text style={[s.ghost, { color: p.textSecondary }]}>나중에</Text></Tap>
           </View>
         </View>
       )}
@@ -94,13 +104,13 @@ export default function Survey() {
             {(['A', 'B'] as Pick2[]).map((k) => {
               const on = picked === k || (!picked && answers[queue[i].id] === k)
               return (
-                <Pressable key={k} onPress={() => pick(k)} accessibilityRole="button" accessibilityState={{ selected: on }}
+                <Tap key={k} onPress={() => pick(k)} accessibilityRole="button" accessibilityState={{ selected: on }}
                   style={[s.qcard, { borderColor: on ? p.accent : p.borderDivider, backgroundColor: on ? p.accentSubtle : p.cardBg }]}>
                   <View style={[s.key, { backgroundColor: on ? p.accent : p.bgSelected }]}>
                     {on ? <Check size={16} color="#fff" strokeWidth={3} /> : <Text style={[s.keyText, { color: p.textSecondary }]}>{k}</Text>}
                   </View>
                   <Text style={[s.qtext, { color: p.textPrimary }]}>{k === 'A' ? queue[i].a : queue[i].b}</Text>
-                </Pressable>
+                </Tap>
               )
             })}
           </Animated.View>
@@ -110,7 +120,7 @@ export default function Survey() {
       )}
 
       {step === 'result' && species && (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <KeyboardAvoid style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ paddingTop: 52, paddingBottom: 12 }} keyboardShouldPersistTaps="handled">
             <Hatch species={species} reduced={reduced} />
             <Text style={[s.eyebrow, { color: p.textTertiary }]}>당신은</Text>
@@ -119,20 +129,17 @@ export default function Survey() {
             <Axis p={p} left="계획" right="즉흥" ax={score.plan} />
             <Axis p={p} left="몰입" right="멀티" ax={score.focus} />
             <Text style={[s.nameLabel, { color: p.textTertiary }]}>이름을 지어 주세요</Text>
-            <TextInput value={name} onChangeText={setName} maxLength={12} returnKeyType="done" accessibilityLabel="캐릭터 이름"
+            <TextInput value={name} onChangeText={setName} maxLength={12} returnKeyType="done" autoCorrect={false} onSubmitEditing={() => void start()} accessibilityLabel="캐릭터 이름"
               style={[s.field, { color: p.textPrimary, borderColor: p.accent, backgroundColor: p.bgInput }]} />
           </ScrollView>
           <View style={[s.bottom, { paddingBottom: 12 }]}>
-            <Pressable style={[s.big, { backgroundColor: p.accent, opacity: name.trim() ? 1 : 0.5 }]} disabled={!name.trim()} accessibilityRole="button"
-              onPress={async () => {
-                await assignCharacter(dayKey(), { species, typeCode: typeCodeOf(score), answers, name: name.trim() })
-                close()
-              }}>
+            <Tap style={[s.big, { backgroundColor: p.accent, opacity: name.trim() ? 1 : 0.5 }]} disabled={!name.trim()} accessibilityRole="button"
+              onPress={() => void start()}>
               <Text style={s.bigText}>키우기 시작</Text>
-            </Pressable>
-            <Pressable onPress={() => { setAnswers({}); setI(0); setStep('quiz') }} hitSlop={8} accessibilityRole="button"><Text style={[s.ghost, { color: p.textSecondary }]}>다시 하기</Text></Pressable>
+            </Tap>
+            <Tap onPress={() => { setAnswers({}); setI(0); setStep('quiz') }} hitSlop={8} accessibilityRole="button"><Text style={[s.ghost, { color: p.textSecondary }]}>다시 하기</Text></Tap>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardAvoid>
       )}
     </View>
   )

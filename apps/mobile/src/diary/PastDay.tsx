@@ -3,7 +3,8 @@
 // 오늘도 혼자 쓰기를 저장하면 이 화면. 나만 보기는 없앴다(§9.7 ⑥ — 예전 private 날도 표시 없음). 좌우로 밀면 앞뒤 날(밀기는 화면이 준다).
 import { CheckSquare, ChevronDown, ChevronRight, MessageCircle, PenLine, Plus } from 'lucide-react-native'
 import { useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Tap } from '../ui/Pressables'
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { usePalette } from '../theme/ThemeProvider'
@@ -56,18 +57,18 @@ export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onSolo }: 
         <View style={s.photos}>
           {photos.map((ph) => <PhotoThumb key={ph.id} photo={ph} onRemove={() => void removePhoto(ph.id)} />)}
           {pending.map((x) => <View key={x.localId} style={s.thumb}><Image source={{ uri: x.file }} style={[s.thumbImg, { opacity: 0.5 }]} /></View>)}
-          <Pressable accessibilityRole="button" accessibilityLabel="사진 한 장 붙이기" onPress={() => setPhotoSheet(true)} style={[s.thumb, s.addThumb, { borderColor: p.borderStrong }]}>
+          <Tap accessibilityRole="button" accessibilityLabel="사진 한 장 붙이기" onPress={() => setPhotoSheet(true)} style={[s.thumb, s.addThumb, { borderColor: p.borderStrong }]}>
             <ImagePlus size={20} color={p.textSecondary} />
             <Text style={{ color: p.textSecondary, fontSize: 11.5, fontWeight: '600' }}>사진</Text>
-          </Pressable>
+          </Tap>
         </View>
         {!written ? (
           <View style={s.empty}>
             <BuddyArt buddy={buddy} stage={buddy.stage} size={88} mood="smile" still={reduced} />
             <Text style={[s.emptyTitle, { color: p.textPrimary }]}>이 날은 비어 있어요</Text>
             <Text style={[s.emptySub, { color: p.textTertiary }]}>{josa(name, '가', '이')} 그날 이야기를 물어볼게요</Text>
-            <Pressable accessibilityRole="button" onPress={onChat} style={[s.btn, { backgroundColor: p.accent }]}><Text style={[s.btnText, { color: p.onAccent }]}>그날 이야기 하기</Text></Pressable>
-            <Pressable accessibilityRole="button" onPress={() => onSolo(null)} style={[s.btn, { borderWidth: 1, borderColor: p.borderStrong }]}><Text style={[s.btnText, { color: p.textPrimary }]}>혼자 쓰기</Text></Pressable>
+            <Tap accessibilityRole="button" onPress={onChat} style={[s.btn, { backgroundColor: p.accent }]}><Text style={[s.btnText, { color: p.onAccent }]}>그날 이야기 하기</Text></Tap>
+            <Tap accessibilityRole="button" onPress={() => onSolo(null)} style={[s.btn, { borderWidth: 1, borderColor: p.borderStrong }]}><Text style={[s.btnText, { color: p.textPrimary }]}>혼자 쓰기</Text></Tap>
             {stats.done ? <Text style={[s.emptySub, { color: p.textTertiary, marginTop: 12 }]}>그날 끝낸 할 일 {stats.done}개</Text> : null}
           </View>
         ) : (
@@ -83,24 +84,24 @@ export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onSolo }: 
                 {sec.tags.length ? <View style={s.tags}>{sec.tags.map((t) => <View key={t} style={[s.tag, { backgroundColor: alpha(p.accent, 0.1) }]}><Text style={{ color: p.accentInk, fontSize: 12, fontWeight: '600' }}>{t}</Text></View>)}</View> : null}
                 {sec.body ? <Text style={[s.pt, { color: p.textPrimary }]} selectable>{sec.body}</Text> : null}
                 {sec.solo ? (
-                  <Pressable accessibilityRole="button" accessibilityLabel={`${sec.title || '이 장'} 고치기`} onPress={() => onSolo(i)} style={[s.edit, { backgroundColor: alpha(p.textTertiary, 0.1) }]} hitSlop={4}>
+                  <Tap accessibilityRole="button" accessibilityLabel={`${sec.title || '이 장'} 고치기`} onPress={() => onSolo(i)} style={[s.edit, { backgroundColor: alpha(p.textTertiary, 0.1) }]} hitSlop={4}>
                     <Text style={{ color: p.textSecondary, fontSize: 13, fontWeight: '600' }}>고치기</Text>
-                  </Pressable>
+                  </Tap>
                 ) : null}
               </View>
             )) : <View style={[s.card, { backgroundColor: paper, borderColor: p.borderDivider }]}><Text style={[s.pt, { color: p.textSecondary }]}>(기분만 남겼어요)</Text></View>}
-            <Pressable accessibilityRole="button" onPress={() => onSolo(null)} style={[s.row, { backgroundColor: p.cardBg }]}>
+            <Tap accessibilityRole="button" onPress={() => onSolo(null)} style={[s.row, { backgroundColor: p.cardBg }]}>
               <Plus size={18} color={p.textSecondary} />
               <Text style={[s.rowText, { color: p.textPrimary }]}>혼자 이어 쓰기</Text>
-            </Pressable>
+            </Tap>
             {talk.length ? (
               <>
-                <Pressable accessibilityRole="button" accessibilityState={{ expanded: openTalk }} onPress={() => setOpenTalk((v) => !v)} style={[s.row, { backgroundColor: p.cardBg }]}>
+                <Tap accessibilityRole="button" accessibilityState={{ expanded: openTalk }} onPress={() => setOpenTalk((v) => !v)} style={[s.row, { backgroundColor: p.cardBg }]}>
                   <MessageCircle size={18} color={p.textSecondary} />
                   <Text style={[s.rowText, { color: p.textPrimary }]}>{josa(name, '와', '과')} 나눈 이야기</Text>
                   <Text style={{ color: p.textTertiary, fontSize: 13 }}>{talk.length}개</Text>
                   {openTalk ? <ChevronDown size={18} color={p.textTertiary} /> : <ChevronRight size={18} color={p.textTertiary} />}
-                </Pressable>
+                </Tap>
                 {openTalk ? (
                   <View style={s.talk}>
                     {talk.map((x) => (
@@ -115,20 +116,20 @@ export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onSolo }: 
               </>
             ) : null}
             {canTalk && mayCallAi({ consent: prefs.consent ?? true, private: entry?.private, solo: false }) ? (
-              <Pressable accessibilityRole="button" onPress={onChat} style={[s.row, { backgroundColor: p.cardBg }]}>
+              <Tap accessibilityRole="button" onPress={onChat} style={[s.row, { backgroundColor: p.cardBg }]}>
                 <MessageCircle size={18} color={p.accentInk} />
                 <Text style={[s.rowText, { color: p.accentInk }]}>{josa(name, '와', '과')} 이 날 이야기하기</Text>
                 <ChevronRight size={18} color={p.textTertiary} />
-              </Pressable>
+              </Tap>
             ) : null}
             {stats.done ? (
               <>
-                <Pressable accessibilityRole="button" accessibilityState={{ expanded: openDone }} onPress={() => setOpenDone((v) => !v)} style={[s.row, { backgroundColor: p.cardBg }]}>
+                <Tap accessibilityRole="button" accessibilityState={{ expanded: openDone }} onPress={() => setOpenDone((v) => !v)} style={[s.row, { backgroundColor: p.cardBg }]}>
                   <CheckSquare size={18} color={p.textSecondary} />
                   <Text style={[s.rowText, { color: p.textPrimary }]}>그날 끝낸 할 일</Text>
                   <Text style={{ color: p.textTertiary, fontSize: 13 }}>{stats.done}개</Text>
                   {openDone ? <ChevronDown size={18} color={p.textTertiary} /> : <ChevronRight size={18} color={p.textTertiary} />}
-                </Pressable>
+                </Tap>
                 {openDone ? <View style={s.talk}>{stats.doneTitles.map((t, i) => <Text key={i} style={{ color: p.textSecondary, fontSize: 13.5, lineHeight: 20 }}>✓ {t}</Text>)}</View> : null}
               </>
             ) : null}
@@ -147,12 +148,12 @@ function PhotoThumb({ photo, onRemove }: { photo: DiaryPhoto; onRemove: () => vo
   const [ask, setAsk] = useState(false)
   const p = usePalette()
   return (
-    <Pressable accessibilityRole="imagebutton" accessibilityLabel="일기 사진, 길게 누르면 지우기" onLongPress={() => setAsk(true)} style={s.thumb}>
+    <Tap accessibilityRole="imagebutton" accessibilityLabel="일기 사진, 길게 누르면 지우기" onLongPress={() => setAsk(true)} style={s.thumb}>
       {uri ? <Image source={{ uri }} style={s.thumbImg} /> : <View style={[s.thumbImg, { backgroundColor: p.bgSelected }]} />}
       {ask ? (
-        <Pressable accessibilityRole="button" onPress={() => { setAsk(false); onRemove() }} style={[StyleSheet.absoluteFill, s.del]}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 12.5 }}>지우기</Text></Pressable>
+        <Tap accessibilityRole="button" onPress={() => { setAsk(false); onRemove() }} style={[StyleSheet.absoluteFill, s.del]}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 12.5 }}>지우기</Text></Tap>
       ) : null}
-    </Pressable>
+    </Tap>
   )
 }
 

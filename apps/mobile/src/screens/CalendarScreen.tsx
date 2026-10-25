@@ -34,6 +34,7 @@ import { DUR, popIn, SPRING, timing } from '../ui/motion'
 import Svg, { Circle, Ellipse, Path, Rect as SvgRect } from 'react-native-svg'
 import { alpha, FONT, M, mix, type Palette } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
+import { useBackClose } from '../ui/backClose'
 import { useEventMenu } from '../ui/EventMenu'
 import { EventRowView } from '../ui/EventRow'
 import { afterMenu } from '../ui/Drawer'
@@ -382,7 +383,7 @@ function YearView(props: { year: string; today: string; items: Item[]; ws: WeekS
           const days = monthDays(m, props.ws)
           return (
             <Pressable key={m} accessibilityRole="button" accessibilityLabel={`${i + 1}월`} onPress={() => props.onPick(m)} style={({ pressed }) => [s.ym, pressed && { opacity: 0.6 }]}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: m.slice(0, 7) === props.today.slice(0, 7) ? p.accentInk : p.textPrimary, marginBottom: 4 }}>{i + 1}월</Text>
+              <Text maxFontSizeMultiplier={1.2} style={{ fontSize: 15, fontWeight: '700', color: m.slice(0, 7) === props.today.slice(0, 7) ? p.accentInk : p.textPrimary, marginBottom: 4 }}>{i + 1}월</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', width: cellW * 7 }}>
                 {days.map((d) => {
                   const other = d.slice(0, 7) !== m.slice(0, 7)
@@ -390,7 +391,7 @@ function YearView(props: { year: string; today: string; items: Item[]; ws: WeekS
                   const isToday = d === props.today
                   return (
                     <View key={d} style={[s.yc, { width: cellW, height: cellW }, n ? { backgroundColor: alpha(p.accent.slice(0, 7), n > 3 ? 0.5 : n > 1 ? 0.32 : 0.18) } : null, isToday && { backgroundColor: p.accent, borderRadius: cellW / 2 }]}>
-                      {other ? null : <Text style={{ fontSize: 9, lineHeight: 11, color: isToday ? '#fff' : p.textSecondary }}>{Number(d.slice(8))}</Text>}
+                      {other ? null : <Text maxFontSizeMultiplier={1.2} style={{ fontSize: 9, lineHeight: 11, color: isToday ? '#fff' : p.textSecondary }}>{Number(d.slice(8))}</Text>}
                     </View>
                   )
                 })}
@@ -503,7 +504,7 @@ function MonthView(props: { ws: WeekStart; today: string; cursor: string; items:
   return (
     <View style={{ flex: 1 }}>
       <View style={s.wd}>
-        {weekHeadOf(props.ws).map((w, i) => { const dow = headWeekday(i, props.ws); return <Text key={w} style={[s.wdText, { color: dow === 0 ? p.holiday : dow === 6 ? p.saturday : p.textTertiary }]}>{w}</Text> })}
+        {weekHeadOf(props.ws).map((w, i) => { const dow = headWeekday(i, props.ws); return <Text maxFontSizeMultiplier={1.2} key={w} style={[s.wdText, { color: dow === 0 ? p.holiday : dow === 6 ? p.saturday : p.textTertiary }]}>{w}</Text> })}
       </View>
       <GestureDetector gesture={gridGesture}>
         <Animated.View
@@ -568,6 +569,7 @@ function MonthFull(props: {
     pv.value = withTiming(0, PANEL_OUT)
     op.value = withTiming(0, SPLIT_CLOSE, (fin) => { if (fin) scheduleOnRN(setOpen, false) })
   }, [op, pv])
+  useBackClose(open, doClose) // P2-4: Android 뒤로 가기 = 날짜 판부터 닫기
   const pickRef = useRef(props.onPick)
   pickRef.current = props.onPick
   const pick = useCallback((d: string) => {
@@ -687,7 +689,7 @@ function MonthFull(props: {
   return (
     <View ref={outerRef} collapsable={false} style={{ flex: 1 }}>
       <View style={s.wd}>
-        {weekHeadOf(props.ws).map((w, i) => { const dow = headWeekday(i, props.ws); return <Text key={w} style={[s.wdText, { color: dow === 0 ? p.holiday : dow === 6 ? p.saturday : p.textTertiary }]}>{w}</Text> })}
+        {weekHeadOf(props.ws).map((w, i) => { const dow = headWeekday(i, props.ws); return <Text maxFontSizeMultiplier={1.2} key={w} style={[s.wdText, { color: dow === 0 ? p.holiday : dow === 6 ? p.saturday : p.textTertiary }]}>{w}</Text> })}
       </View>
       <GestureDetector gesture={gridGesture}>
         <View
@@ -835,7 +837,7 @@ const DayCell = memo(function DayCell(props: CellProps) {
     >
       {/* [영상 실측 research 35 §3] 고른 날 = 강조색 채운 원 + 흰 숫자, 오늘(안 고름) = 옅은 원 + 강조색 숫자. 그날 판이 열리면 고른 칸 전체에 옅은 강조색 면 */}
       <View style={[s.num, big && s.numBig, props.sel ? { backgroundColor: p.accent } : props.isToday ? { backgroundColor: p.accentSubtle } : null]}>
-        <Text style={{ fontSize: big ? 14 : 12, fontWeight: props.isToday || props.sel ? '700' : '500', color: props.sel ? p.onAccent : props.isToday ? p.accentInk : dayTone(p, d, mk, props.faded) }}>{Number(d.slice(8))}</Text>
+        <Text maxFontSizeMultiplier={1.2} style={{ fontSize: big ? 14 : 12, fontWeight: props.isToday || props.sel ? '700' : '500', color: props.sel ? p.onAccent : props.isToday ? p.accentInk : dayTone(p, d, mk, props.faded) }}>{Number(d.slice(8))}</Text>
       </View>
       <View style={{ marginTop: -1, opacity: props.faded ? 0.55 : 1 }}><SideLabel marks={mk} /></View>
       {shown.map((it) => {
@@ -844,11 +846,11 @@ const DayCell = memo(function DayCell(props: CellProps) {
           <View key={it.key} style={[big ? s.barBig : s.bar, { backgroundColor: k.fill }]}>
             {k.ev ? <CalendarDays size={big ? 9 : 8} color={k.mark} strokeWidth={2.4} /> : null}
             {/* 틱틱처럼 말줄임 없이 칸 끝에서 자른다 */}
-            <Text numberOfLines={1} ellipsizeMode="clip" style={[big ? s.barTextBig : s.barText, { color: k.text }, k.faded && { fontWeight: '500' }]}>{it.task.title}</Text>
+            <Text maxFontSizeMultiplier={1.2} numberOfLines={1} ellipsizeMode="clip" style={[big ? s.barTextBig : s.barText, { color: k.text }, k.faded && { fontWeight: '500' }]}>{it.task.title}</Text>
           </View>
         )
       })}
-      {more ? <View style={[s.moreChip, { backgroundColor: p.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}><Text style={{ fontSize: 10, lineHeight: 13, fontWeight: '600', color: p.textTertiary }}>+{more}</Text></View> : null}
+      {more ? <View style={[s.moreChip, { backgroundColor: p.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}><Text maxFontSizeMultiplier={1.2} style={{ fontSize: 10, lineHeight: 13, fontWeight: '600', color: p.textTertiary }}>+{more}</Text></View> : null}
     </Pressable>
   )
 }, (a, b) => a.d === b.d && a.first === b.first && a.rowH === b.rowH && a.isToday === b.isToday && a.sel === b.sel && a.tint === b.tint && a.faded === b.faded && a.marks === b.marks && a.onPick === b.onPick && a.onAdd === b.onAdd && sameItems(a.items, b.items))
@@ -947,9 +949,9 @@ function Timeline(props: {
               const mk = props.marks(d, false)
               return (
                 <Pressable key={d} accessibilityRole="button" accessibilityLabel={`${Number(d.slice(8))}일 ${weekdayKo(d)}요일${mk.holiday ? `, ${mk.holiday}` : ''}`} accessibilityState={{ selected: sel }} onPress={() => props.onPick(d)} style={s.stripDay}>
-                  <Text style={{ fontSize: 11, color: p.textTertiary }}>{weekdayKo(d)}</Text>
+                  <Text maxFontSizeMultiplier={1.2} style={{ fontSize: 11, color: p.textTertiary }}>{weekdayKo(d)}</Text>
                   <View style={[s.stripNum, sel && { backgroundColor: p.accent }, !sel && d === props.today && { borderWidth: 1.5, borderColor: p.accent }]}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: sel ? '#fff' : d === props.today ? p.accent : dayTone(p, d, mk, false) }}>{Number(d.slice(8))}</Text>
+                    <Text maxFontSizeMultiplier={1.2} style={{ fontSize: 15, fontWeight: '600', color: sel ? '#fff' : d === props.today ? p.accent : dayTone(p, d, mk, false) }}>{Number(d.slice(8))}</Text>
                   </View>
                   <View style={[s.dot, { backgroundColor: has ? p.textQuaternary : 'transparent' }]} />
                 </Pressable>
@@ -965,7 +967,7 @@ function Timeline(props: {
               return (
                 <Pressable key={d} accessibilityLabel={`${weekdayKo(d)} ${Number(d.slice(8))}${mk.holiday ? `, ${mk.holiday}` : ''}`} onPress={() => props.onPick(d)} style={{ width: colW, alignItems: 'center', paddingVertical: 6 }}>
                   <View>
-                    <Text style={{ fontSize: 12, color: d === props.today ? p.accentInk : dayTone(p, d, mk, false, p.textTertiary), fontWeight: d === props.today ? '700' : '400' }}>{`${weekdayKo(d)} ${Number(d.slice(8))}`}</Text>
+                    <Text maxFontSizeMultiplier={1.2} style={{ fontSize: 12, color: d === props.today ? p.accentInk : dayTone(p, d, mk, false, p.textTertiary), fontWeight: d === props.today ? '700' : '400' }}>{`${weekdayKo(d)} ${Number(d.slice(8))}`}</Text>
                   </View>
                   <SideLabel marks={mk} size={9.5} />
                 </Pressable>
@@ -976,7 +978,7 @@ function Timeline(props: {
       )}
       {/* 종일 줄 */}
       <View style={[s.allday, { borderBottomColor: p.borderDivider }]}>
-        <Text style={[s.alldayLabel, { color: p.textTertiary }]}>종일</Text>
+        <Text maxFontSizeMultiplier={1.2} style={[s.alldayLabel, { color: p.textTertiary }]}>종일</Text>
         {days.map((d) => {
           const b = bars(d)
           return (
@@ -986,11 +988,11 @@ function Timeline(props: {
                 return (
                   <Pressable key={it.key} accessibilityLabel={`${k.ev ? '일정 ' : ''}${it.task.title}`} onPress={() => props.onOpen(it.task)} onLongPress={(e) => props.onMenu(it.task, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, width: 0, height: 0 })} style={[s.chip, { backgroundColor: k.fill }]}>
                     {colW >= 48 ? <Mark look={k} onCheck={() => props.onCheck(it.task)} /> : null}
-                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, fontWeight: k.faded ? '500' : '600', color: k.text }}>{it.task.title}</Text>
+                    <Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={{ flex: 1, fontSize: 11, fontWeight: k.faded ? '500' : '600', color: k.text }}>{it.task.title}</Text>
                   </Pressable>
                 )
               })}
-              {b.length > 3 ? <Text style={{ fontSize: 10, color: p.textTertiary }}>+{b.length - 3}</Text> : null}
+              {b.length > 3 ? <Text maxFontSizeMultiplier={1.2} style={{ fontSize: 10, color: p.textTertiary }}>+{b.length - 3}</Text> : null}
             </View>
           )
         })}
@@ -999,7 +1001,7 @@ function Timeline(props: {
         <View style={{ height: 24 * HOUR_H, flexDirection: 'row' }}>
           <View style={{ width: GUTTER }}>
             {Array.from({ length: 24 }, (_, h) => (
-              <Text key={h} style={[s.hour, { top: h * HOUR_H - 7, color: p.textTertiary }]}>{h ? hourLabel(h) : ''}</Text>
+              <Text maxFontSizeMultiplier={1.2} key={h} style={[s.hour, { top: h * HOUR_H - 7, color: p.textTertiary }]}>{h ? hourLabel(h) : ''}</Text>
             ))}
           </View>
           {days.map((d, ci) => (
@@ -1105,8 +1107,8 @@ function DragBlock(props: { block: Block<TaskRow>; colW: number; colIndex: numbe
     <>
       {markShown ? <Mark look={k} /> : null}
       <View style={{ flex: 1 }}>
-        <Text numberOfLines={h > 36 ? 2 : 1} style={{ fontSize: 12, lineHeight: 15, fontWeight: k.faded ? '500' : '600', color: k.text }}>{t.title}</Text>
-        {h > 40 ? <Text numberOfLines={1} style={{ fontSize: 10, color: k.sub }}>{blockTime(b.item.start, b.item.end)}</Text> : null}
+        <Text maxFontSizeMultiplier={1.2} numberOfLines={h > 36 ? 2 : 1} style={{ fontSize: 12, lineHeight: 15, fontWeight: k.faded ? '500' : '600', color: k.text }}>{t.title}</Text>
+        {h > 40 ? <Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={{ fontSize: 10, color: k.sub }}>{blockTime(b.item.start, b.item.end)}</Text> : null}
       </View>
     </>
   )

@@ -4,7 +4,8 @@ import { chipsOf, initPlan, inputOpen, planReduce, questionNo, type Effect, type
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ArrowUp, RotateCcw, X } from 'lucide-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Tap } from '../src/ui/Pressables'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { completeTasks } from '../src/data/tasks'
 import { dayKey } from '../src/lib/dates'
@@ -16,6 +17,8 @@ import {
 } from '../src/map/v2/planActions'
 import { usePalette } from '../src/theme/ThemeProvider'
 import { useToast } from '../src/ui/Toast'
+import { KeyboardAvoid } from '../src/ui/KeyboardAvoid'
+import { useKeyboardHeight } from '../src/diary/keyboard'
 
 const SAY_DELAY = 350
 
@@ -159,12 +162,13 @@ export default function PlanChatScreen() {
   const { chips, skip } = chipsOf(state)
   const settled = shown >= state.msgs.length
   const qn = questionNo(state.phase)
+  const kbUp = useKeyboardHeight() > 0 // P3-6: 키보드가 있으면 홈 표시줄 여백을 빼서 입력 줄이 키보드에 붙게
   const send = () => { const t = draft.trim(); if (!t) return; setDraft(''); dispatch({ type: 'answer', text: t }) }
 
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
       <View style={[s.head, { paddingTop: insets.top + 6, borderBottomColor: p.borderDivider }]}>
-        <Pressable onPress={close} hitSlop={10} accessibilityRole="button" accessibilityLabel="닫기 — 만든 건 남아요"><X size={24} color={p.textPrimary} /></Pressable>
+        <Tap onPress={close} hitSlop={10} accessibilityRole="button" accessibilityLabel="닫기 — 만든 건 남아요"><X size={24} color={p.textPrimary} /></Tap>
         <Buddy size={32} />
         <View style={{ flex: 1 }}>
           <Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600' }} numberOfLines={1}>{name}</Text>
@@ -173,9 +177,9 @@ export default function PlanChatScreen() {
         <View style={s.dots} accessibilityLabel={qn ? `${qn}번째 물음` : undefined}>
           {[1, 2, 3, 4].map((n) => <View key={n} style={[s.pd, { backgroundColor: qn && n <= qn ? p.accent : p.textQuaternary }]} />)}
         </View>
-        {changed ? <Pressable onPress={() => void undoAll()} hitSlop={8} accessibilityRole="button" accessibilityLabel="이번 대화 되돌리기" style={s.undo}><RotateCcw size={14} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 13.5, fontWeight: '600' }}>되돌리기</Text></Pressable> : null}
+        {changed ? <Tap onPress={() => void undoAll()} hitSlop={8} accessibilityRole="button" accessibilityLabel="이번 대화 되돌리기" style={s.undo}><RotateCcw size={14} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 13.5, fontWeight: '600' }}>되돌리기</Text></Tap> : null}
       </View>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid style={{ flex: 1 }}>
         <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 20 }} keyboardShouldPersistTaps="handled" accessibilityLiveRegion="polite">
           {state.msgs.slice(0, shown).map((m) => m.who === 'sys'
             ? <Text key={m.id} style={{ color: p.textTertiary, fontSize: 12.5, textAlign: 'center' }}>{m.text}</Text>
@@ -198,23 +202,23 @@ export default function PlanChatScreen() {
         {settled && (chips.length || skip) ? (
           <ScrollView horizontal style={{ flexGrow: 0, flexShrink: 0, maxHeight: 52 }} showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips} keyboardShouldPersistTaps="handled" accessibilityLabel="빠른 답">
             {chips.slice(0, 6).map((c) => (
-              <Pressable key={c.id} onPress={() => dispatch({ type: 'chip', id: c.id })} accessibilityRole="button" style={[s.chip, { backgroundColor: p.accentSubtle }]}>
+              <Tap key={c.id} onPress={() => dispatch({ type: 'chip', id: c.id })} accessibilityRole="button" style={[s.chip, { backgroundColor: p.accentSubtle }]}>
                 <Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>{c.label}</Text>
-              </Pressable>
+              </Tap>
             ))}
-            {skip ? <Pressable onPress={() => dispatch({ type: 'skip' })} accessibilityRole="button" style={s.chip}><Text style={{ color: p.textTertiary, fontSize: 14 }}>건너뛰기</Text></Pressable> : null}
+            {skip ? <Tap onPress={() => dispatch({ type: 'skip' })} accessibilityRole="button" style={s.chip}><Text style={{ color: p.textTertiary, fontSize: 14 }}>건너뛰기</Text></Tap> : null}
           </ScrollView>
         ) : null}
-        <View style={[s.inputRow, { paddingBottom: insets.bottom + 8, borderTopColor: p.borderDivider, backgroundColor: p.pageBg }]}>
-          <TextInput value={draft} onChangeText={setDraft} multiline editable={inputOpen(state)} placeholder={state.phase === 'split-manual' ? '예: 자료 조사, 목차 잡기, 초안 쓰기' : state.phase === 'team' ? '예: 민수, 지은' : '답을 적어 줘'}
+        <View style={[s.inputRow, { paddingBottom: kbUp ? 8 : insets.bottom + 8, borderTopColor: p.borderDivider, backgroundColor: p.pageBg }]}>
+          <TextInput value={draft} onChangeText={setDraft} multiline editable={inputOpen(state)} placeholder={!inputOpen(state) ? (state.phase === 'gone' ? '대화가 끝났어요' : '생각하는 중…') /* P3-7: 잠긴 이유 */ : state.phase === 'split-manual' ? '예: 자료 조사, 목차 잡기, 초안 쓰기' : state.phase === 'team' ? '예: 민수, 지은' : '답을 적어 줘'}
             placeholderTextColor={p.textTertiary} style={[s.input, { backgroundColor: p.cardBg, color: p.textPrimary }]} accessibilityLabel="답 입력" />
           {state.busy && abort.current ? (
-            <Pressable onPress={() => abort.current?.abort()} accessibilityRole="button" accessibilityLabel="멈추기" style={[s.send, { backgroundColor: p.textTertiary }]}><X size={18} color="#fff" /></Pressable>
+            <Tap onPress={() => abort.current?.abort()} accessibilityRole="button" accessibilityLabel="멈추기" hitSlop={4} style={[s.send, { backgroundColor: p.textTertiary }]}><X size={18} color="#fff" /></Tap>
           ) : (
-            <Pressable onPress={send} disabled={!draft.trim() || !inputOpen(state)} accessibilityRole="button" accessibilityLabel="보내기" style={[s.send, { backgroundColor: draft.trim() ? p.accent : p.textQuaternary }]}><ArrowUp size={18} color="#fff" /></Pressable>
+            <Tap onPress={send} disabled={!draft.trim() || !inputOpen(state)} accessibilityRole="button" accessibilityLabel="보내기" hitSlop={4} style={[s.send, { backgroundColor: draft.trim() ? p.accent : p.textQuaternary }]}><ArrowUp size={18} color="#fff" /></Tap>
           )}
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </View>
   )
 }

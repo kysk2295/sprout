@@ -6,7 +6,9 @@ import { relatedLists, relatedTags, tagPills } from '@sprout/schema/wikiGraph'
 import { useRouter } from 'expo-router'
 import { Check, ChevronDown, X } from 'lucide-react-native'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Modal, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Tap } from '../ui/Pressables'
+import { KeyboardAvoid } from '../ui/KeyboardAvoid'
 import { contentOf } from '../collect/core'
 import { toggleDone } from '../data/tasks'
 import type { ListRow } from '../data/views'
@@ -94,40 +96,40 @@ function Body({ kind, id, lists, filter, onFilter, descOpen, onDescClose }: Para
     const on = filter.includes(tid)
     const t = tagById.get(tid)
     return (
-      <Pressable accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={`${tagName(tid)}${on ? ' 거르는 중' : ''}, 길게 누르면 태그 페이지`}
+      <Tap accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={`${tagName(tid)}${on ? ' 거르는 중' : ''}, 길게 누르면 태그 페이지`}
         onPress={() => toggle(tid)} onLongPress={() => openView(router, `tag:${tid}`)} delayLongPress={350}
         style={[small ? s.pillSm : s.pill, { backgroundColor: on ? p.accent : p.bgSelected }]}>
         {ai ? <Text style={[s.ai, { color: on ? '#fff' : p.accent }]}>✦</Text> : null}
         <KindGlyph kind={t?.kind} name={t?.name} size={small ? 11 : 12} color={on ? '#fff' : p.textSecondary} />
         <Text style={[s.pillText, { color: on ? '#fff' : p.textPrimary }]} numberOfLines={1}>{tagName(tid)}</Text>
         {n !== undefined ? <Text style={[s.pillN, { color: on ? '#fff' : p.textTertiary }]}>{n}</Text> : null}
-      </Pressable>
+      </Tap>
     )
   }
   const NavPill = ({ label, n, onPress, children }: { label: string; n?: string | number; onPress: () => void; children?: ReactNode }) => (
-    <Pressable accessibilityRole="button" onPress={onPress} style={[s.pill, { backgroundColor: p.bgSelected }]}>
+    <Tap accessibilityRole="button" onPress={onPress} style={[s.pill, { backgroundColor: p.bgSelected }]}>
       {children}
       <Text style={[s.pillText, { color: p.textPrimary }]} numberOfLines={1}>{label}</Text>
       {n !== undefined ? <Text style={[s.pillN, { color: p.textTertiary }]} numberOfLines={1}>{n}</Text> : null}
-    </Pressable>
+    </Tap>
   )
 
   if (!open) {
     const shown = [...filter.filter((f) => pills.some((x) => x.tag_id === f)), ...pills.map((x) => x.tag_id).filter((x) => !filter.includes(x))].slice(0, Math.max(description ? 2 : 3, filter.length))
     return (
       <>
-        <Pressable accessibilityRole="button" accessibilityLabel="페이지 정보 펼치기" onPress={() => setOpen(true)} style={[s.card, s.collapsed, { backgroundColor: p.cardBg }]}>
+        <Tap accessibilityRole="button" accessibilityLabel="페이지 정보 펼치기" onPress={() => setOpen(true)} style={[s.card, s.collapsed, { backgroundColor: p.cardBg }]}>
           {description ? <Text style={[FONT.sub, s.descLine, { color: p.textSecondary }]} numberOfLines={1}>{description.split('\n')[0]}</Text> : null}
           {shown.map((tid) => <Pill key={tid} tid={tid} small />)}
           {filter.length ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="거르기 해제" hitSlop={8} onPress={() => onFilter([])} style={s.clear}><X size={14} color={p.textTertiary} /></Pressable>
+            <Tap accessibilityRole="button" accessibilityLabel="거르기 해제" hitSlop={8} onPress={() => onFilter([])} style={s.clear}><X size={14} color={p.textTertiary} /></Tap>
           ) : null}
           {!isList && tagLists.length ? <Text style={[s.meta, { color: p.textTertiary }]}>리스트 {tagLists.length}</Text> : null}
           {related.length ? <Text style={[s.meta, { color: p.textTertiary }]}>관련 {related.length}</Text> : null}
           {backlinks.length ? <Text style={[s.meta, { color: p.textTertiary }]}>{'\u21A9\uFE0E'} {backlinks.length}</Text> : null}
           {description ? null : <View style={{ flex: 1 }} />}
           <ChevronDown size={15} color={p.textTertiary} />
-        </Pressable>
+        </Tap>
         {editor}
       </>
     )
@@ -137,34 +139,34 @@ function Body({ kind, id, lists, filter, onFilter, descOpen, onDescClose }: Para
   return (
     <View style={[s.card, { backgroundColor: p.cardBg }]}>
       <Row label="설명">
-        <Pressable accessibilityRole="button" accessibilityLabel="설명 고치기" onPress={() => setDescLocal(true)} style={{ flex: 1 }}>
+        <Tap accessibilityRole="button" accessibilityLabel="설명 고치기" onPress={() => setDescLocal(true)} style={{ flex: 1 }}>
           {description
             ? <Text style={[FONT.sub, { color: p.textPrimary }]}>{description}</Text>
             : <Text style={[FONT.sub, { color: p.textTertiary }]}>+ 설명 쓰기</Text>}
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="페이지 정보 접기" hitSlop={8} onPress={() => setOpen(false)} style={s.fold}>
+        </Tap>
+        <Tap accessibilityRole="button" accessibilityLabel="페이지 정보 접기" hitSlop={8} onPress={() => setOpen(false)} style={s.fold}>
           <ChevronDown size={15} color={p.textTertiary} style={{ transform: [{ rotate: '180deg' }] }} />
-        </Pressable>
+        </Tap>
       </Row>
       {!isList ? (
         <Row label="위키">
           {topic ? (
-            <Pressable accessibilityRole="button" onPress={() => router.push(`/collect/wiki/${topic.id}`)} style={{ flex: 1, gap: 2 }}>
+            <Tap accessibilityRole="button" onPress={() => router.push(`/collect/wiki/${topic.id}`)} style={{ flex: 1, gap: 2 }}>
               <Text style={[FONT.sub, { color: c!.sections.overview[0] ? p.textSecondary : p.textTertiary }]} numberOfLines={2}>📖 {c!.sections.overview[0]?.text ?? '개요 없음'}</Text>
               <Text style={[FONT.sub, { color: p.accentInk }]}>핵심 정리 {c!.sections.key.length}줄 ›</Text>
-            </Pressable>
+            </Tap>
           ) : (
-            <Pressable accessibilityRole="button" onPress={async () => { if (tag) router.push(`/collect/wiki/${await ensureTagTopic(tag)}`) }}>
+            <Tap accessibilityRole="button" onPress={async () => { if (tag) router.push(`/collect/wiki/${await ensureTagTopic(tag)}`) }}>
               <Text style={[FONT.sub, { color: p.accentInk }]}>+ 위키 페이지 만들기</Text>
-            </Pressable>
+            </Tap>
           )}
         </Row>
       ) : null}
       {isList && pills.length ? (
         <Row label="태그" scroll>
-          <Pressable accessibilityRole="button" onPress={() => onFilter([])} style={[s.pill, { backgroundColor: filter.length ? p.bgSelected : p.accent }]}>
+          <Tap accessibilityRole="button" onPress={() => onFilter([])} style={[s.pill, { backgroundColor: filter.length ? p.bgSelected : p.accent }]}>
             <Text style={[s.pillText, { color: filter.length ? p.textPrimary : '#fff' }]}>전체</Text>
-          </Pressable>
+          </Tap>
           {pills.map((x) => <Pill key={x.tag_id} tid={x.tag_id} n={x.count} ai={x.aiOnly} />)}
         </Row>
       ) : null}
@@ -191,7 +193,7 @@ function Body({ kind, id, lists, filter, onFilter, descOpen, onDescClose }: Para
         <View style={[s.back, { borderTopColor: p.borderDivider }]}>
           <Text style={[s.k, { color: p.textTertiary, paddingBottom: 2 }]}>백링크 {backlinks.length > 10 ? '10+' : backlinks.length}</Text>
           {backlinks.slice(0, 10).map((b) => (
-            <Pressable key={`${b.from_type}:${b.from_id}`} accessibilityRole="button" disabled={b.from_type !== 'task'} onPress={() => router.push(`/task/${b.from_id}`)} style={s.backRow}>
+            <Tap key={`${b.from_type}:${b.from_id}`} accessibilityRole="button" disabled={b.from_type !== 'task'} onPress={() => router.push(`/task/${b.from_id}`)} style={s.backRow}>
               {b.from_type === 'task'
                 ? <Checkbox priority={b.priority ?? 0} done={b.status !== 0} size={16} onPress={() => void toggleDone({ id: b.from_id, status: b.status ?? 0 })} />
                 : <Text style={{ width: 18, textAlign: 'center', color: p.textTertiary }}>{b.from_type === 'tag' ? '#' : '≡'}</Text>}
@@ -200,7 +202,7 @@ function Body({ kind, id, lists, filter, onFilter, descOpen, onDescClose }: Para
                   : <Text style={[FONT.sub, { color: p.textTertiary }]}>{b.from_type === 'task' ? '제목 없음' : '설명'}</Text>}
               </View>
               {b.list_id ? <Text style={[s.meta, { color: p.textTertiary }]} numberOfLines={1}>{listName(b.list_id)}</Text> : null}
-            </Pressable>
+            </Tap>
           ))}
         </View>
       ) : null}
@@ -237,7 +239,7 @@ function DescriptionSheet({ open, value, onClose, onSave }: { open: boolean; val
   }
   return (
     <Modal visible={shown} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: p.pageBg }}>
+      <KeyboardAvoid style={{ flex: 1, backgroundColor: p.pageBg }}>
         <View style={s.head}>
           <GlassButton label="닫기" onPress={close}><X size={20} color={p.textPrimary} /></GlassButton>
           <Text style={[FONT.nav, { flex: 1, textAlign: 'center', color: p.textPrimary }]}>설명</Text>
@@ -250,7 +252,7 @@ function DescriptionSheet({ open, value, onClose, onSave }: { open: boolean; val
             style={[FONT.body, { color: p.textPrimary, minHeight: 140, textAlignVertical: 'top' }]} accessibilityLabel="설명" />
         </View>
         {draft.length > DESC_MAX - 50 ? <Text style={[s.count, { color: over ? p.danger : p.textTertiary }]}>{draft.length}/{DESC_MAX}</Text> : null}
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </Modal>
   )
 }

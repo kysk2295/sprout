@@ -9,7 +9,8 @@ import { XP, type GoalDraft } from '@sprout/schema/growth'
 import { addDays } from '@sprout/schema/time'
 import { Check, ChevronLeft, Hash, ListTodo, MoreHorizontal, Plus, Sparkles, Trash2, X, FolderClosed, Hand } from 'lucide-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Tap } from '../ui/Pressables'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useBuddy } from '../diary/data'
 import type { Palette } from '../theme/palette'
@@ -154,9 +155,9 @@ export function GoalsSheet({ p, visible, onClose, today, week, drafts, draftUsed
         <View style={[s.snack, { backgroundColor: p.toastBg }]} accessibilityLiveRegion="polite">
           <Text style={[s.snackT, snack.error && { color: '#ffb4b4' }]} numberOfLines={2}>{snack.text}</Text>
           {snack.undo ? (
-            <Pressable hitSlop={8} accessibilityRole="button" accessibilityLabel="되돌리기" onPress={() => { const u = snack.undo; setSnack(null); void u?.() }}>
+            <Tap hitSlop={8} accessibilityRole="button" accessibilityLabel="되돌리기" onPress={() => { const u = snack.undo; setSnack(null); void u?.() }}>
               <Text style={[s.snackBtn, { color: p.toastAction }]}>되돌리기</Text>
-            </Pressable>
+            </Tap>
           ) : null}
         </View>
       ) : null}
@@ -171,10 +172,10 @@ export function GoalsSheet({ p, visible, onClose, today, week, drafts, draftUsed
             style={[s.addInput, { color: p.textPrimary }]} accessibilityLabel="목표 추가"
             onChangeText={(v) => { setText(v); setAddErr(undefined); if (!v) setPending(undefined) }}
             onSubmitEditing={() => void submit()} />
-          <Pressable disabled={!text.trim()} onPress={() => void submit()} hitSlop={6} accessibilityRole="button" accessibilityLabel="추가"
+          <Tap disabled={!text.trim()} onPress={() => void submit()} hitSlop={6} accessibilityRole="button" accessibilityLabel="추가"
             style={({ pressed }) => [s.addBtn, { backgroundColor: text.trim() ? p.accent : p.bgSelected }, pressed && { opacity: 0.8 }]}>
             <Text style={[s.addBtnT, { color: text.trim() ? '#fff' : p.textTertiary }]}>추가</Text>
-          </Pressable>
+          </Tap>
         </View>
       )}
     </View>
@@ -214,13 +215,13 @@ export function GoalsSheet({ p, visible, onClose, today, week, drafts, draftUsed
             ))}
             {shownDrafts.map((d) => (
               <View key={d.title} style={[s.aiRow, { borderTopColor: p.borderRow }, goals.length > 0 && { borderTopWidth: StyleSheet.hairlineWidth }]}>
-                <Pressable style={s.aiMain} onPress={() => { setText(d.title); setPending(d.title); setAddErr(undefined); input.current?.focus() }}
+                <Tap style={s.aiMain} onPress={() => { setText(d.title); setPending(d.title); setAddErr(undefined); input.current?.focus() }}
                   accessibilityRole="button" accessibilityLabel={`AI 제안 고쳐서 받기: ${d.title}`}>
                   <Sparkles size={16} color={p.accent} />
                   <Text style={[s.aiText, { color: p.textSecondary }]} numberOfLines={1}>{d.title}</Text>
-                </Pressable>
-                <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel={`${d.title} 목표로 추가`} onPress={() => void accept(d)}><Plus size={20} color={p.accent} /></Pressable>
-                <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel={`${d.title} 제안 숨기기`} onPress={() => void dismissDraft(today, addDays(week, -7), d.title)}><X size={18} color={p.textTertiary} /></Pressable>
+                </Tap>
+                <Tap hitSlop={10} accessibilityRole="button" accessibilityLabel={`${d.title} 목표로 추가`} onPress={() => void accept(d)}><Plus size={20} color={p.accent} /></Tap>
+                <Tap hitSlop={10} accessibilityRole="button" accessibilityLabel={`${d.title} 제안 숨기기`} onPress={() => void dismissDraft(today, addDays(week, -7), d.title)}><X size={18} color={p.textTertiary} /></Tap>
               </View>
             ))}
             {tab === 'this' && draftUsed && !shownDrafts.length && !full && !goals.length ? (
@@ -238,10 +239,10 @@ export function GoalsSheet({ p, visible, onClose, today, week, drafts, draftUsed
                 <Text style={[s.emptySub, { color: p.textTertiary }]}>날짜 없이 이 주 안에 이루고 싶은 일을 적어요</Text>
                 <View style={s.chips}>
                   {GOAL_TEMPLATES.map((t) => (
-                    <Pressable key={t.title} onPress={() => void template(t)} accessibilityRole="button" accessibilityLabel={`${t.title} 목표 만들기`}
+                    <Tap key={t.title} onPress={() => void template(t)} accessibilityRole="button" accessibilityLabel={`${t.title} 목표 만들기`}
                       style={({ pressed }) => [s.chip, { backgroundColor: p.accentSubtle }, pressed && { opacity: 0.7 }]}>
                       <Plus size={13} color={p.accent} /><Text style={[s.chipT, { color: p.accent }]}>{t.title}</Text>
-                    </Pressable>
+                    </Tap>
                   ))}
                 </View>
               </View>
@@ -288,16 +289,16 @@ function GoalLine({ p, g, xpIds, names, editing, cheer, onEdit, onRename, onProg
   ) : g.target > 1 && g.target <= 10 && !achieved ? (
     <View style={s.dots} accessibilityLabel={`${g.progress}/${g.target}`}>
       {Array.from({ length: g.target }, (_, k) => (
-        <Pressable key={k} hitSlop={{ top: 10, bottom: 10, left: 3, right: 3 }} accessibilityRole="button" accessibilityLabel={`${k + 1}번`} onPress={() => onProgress(dotTarget(g.progress, k))}>
+        <Tap key={k} hitSlop={{ top: 10, bottom: 10, left: 3, right: 3 }} accessibilityRole="button" accessibilityLabel={`${k + 1}번`} onPress={() => onProgress(dotTarget(g.progress, k))}>
           <View style={[s.dot, { borderColor: p.accent }, k < g.progress && { backgroundColor: p.accent }]} />
-        </Pressable>
+        </Tap>
       ))}
     </View>
   ) : g.target > 10 && !achieved ? (
     <View style={s.count}>
-      <Pressable hitSlop={8} accessibilityLabel="하나 빼기" onPress={() => onProgress(g.progress - 1)}><Text style={[s.countBtn, { color: p.accent }]}>−</Text></Pressable>
+      <Tap hitSlop={8} accessibilityLabel="하나 빼기" onPress={() => onProgress(g.progress - 1)}><Text style={[s.countBtn, { color: p.accent }]}>−</Text></Tap>
       <Text style={{ color: p.textSecondary, fontSize: 13 }}>{g.progress}/{g.target}</Text>
-      <Pressable hitSlop={8} accessibilityLabel="하나 더하기" onPress={() => onProgress(g.progress + 1)}><Text style={[s.countBtn, { color: p.accent }]}>+</Text></Pressable>
+      <Tap hitSlop={8} accessibilityLabel="하나 더하기" onPress={() => onProgress(g.progress + 1)}><Text style={[s.countBtn, { color: p.accent }]}>+</Text></Tap>
     </View>
   ) : badge.note ? <Text style={[s.note, { color: p.textTertiary }]} numberOfLines={1}>{badge.note}</Text> : null
   return (
@@ -311,13 +312,13 @@ function GoalLine({ p, g, xpIds, names, editing, cheer, onEdit, onRename, onProg
             <TextInput value={draft} onChangeText={setDraft} autoFocus maxLength={GOAL_TITLE_MAX} returnKeyType="done" selectTextOnFocus
               onSubmitEditing={save} onBlur={save} style={[s.title, s.titleInput, { color: p.textPrimary, borderColor: p.accent }]} accessibilityLabel="목표 이름" />
           ) : (
-            <Pressable onPress={onEdit} hitSlop={{ top: 6, bottom: 4 }} style={{ flex: 1 }} accessibilityRole="button" accessibilityLabel={`${g.title}, 이름 바꾸기`}>
+            <Tap onPress={onEdit} hitSlop={{ top: 6, bottom: 4 }} style={{ flex: 1 }} accessibilityRole="button" accessibilityLabel={`${g.title}, 이름 바꾸기`}>
               <Text style={[s.title, { color: achieved ? p.textTertiary : p.textPrimary }]} numberOfLines={2}>{g.title}</Text>
-            </Pressable>
+            </Tap>
           )}
           {badge.reward ? <View style={[s.reward, { backgroundColor: p.accentSubtle }]}><Text style={[s.rewardT, { color: p.accent }]}>{badge.reward}</Text></View> : null}
           <View ref={moreRef} collapsable={false}>
-            <Pressable onPress={onMore} hitSlop={11} accessibilityRole="button" accessibilityLabel={`${g.title} 메뉴`} style={s.more}><MoreHorizontal size={18} color={p.textTertiary} /></Pressable>
+            <Tap onPress={onMore} hitSlop={11} accessibilityRole="button" accessibilityLabel={`${g.title} 메뉴`} style={s.more}><MoreHorizontal size={18} color={p.textTertiary} /></Tap>
           </View>
         </View>
         <View style={s.sub}>
@@ -339,13 +340,13 @@ function Stepper({ p, value, onChange }: { p: Palette; value: number; onChange: 
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(e) => onChange(value + (e.nativeEvent.actionName === 'increment' ? 1 : -1))}>
       <Text style={[s.stepLbl, { color: p.textTertiary }]}>목표</Text>
-      <Pressable disabled={minus} hitSlop={8}  onPress={() => onChange(value - 1)} style={[s.stepBtn, { backgroundColor: p.bgSelected }, minus && { opacity: 0.35 }]} accessibilityLabel="목표 수 줄이기">
+      <Tap disabled={minus} hitSlop={8}  onPress={() => onChange(value - 1)} style={[s.stepBtn, { backgroundColor: p.bgSelected }, minus && { opacity: 0.35 }]} accessibilityLabel="목표 수 줄이기">
         <Text style={[s.stepBtnT, { color: p.textPrimary }]}>−</Text>
-      </Pressable>
+      </Tap>
       <Text style={[s.stepN, { color: p.textPrimary }]}>{value}번</Text>
-      <Pressable disabled={plus} hitSlop={8}  onPress={() => onChange(value + 1)} style={[s.stepBtn, { backgroundColor: p.bgSelected }, plus && { opacity: 0.35 }]} accessibilityLabel="목표 수 늘리기">
+      <Tap disabled={plus} hitSlop={8}  onPress={() => onChange(value + 1)} style={[s.stepBtn, { backgroundColor: p.bgSelected }, plus && { opacity: 0.35 }]} accessibilityLabel="목표 수 늘리기">
         <Text style={[s.stepBtnT, { color: p.textPrimary }]}>+</Text>
-      </Pressable>
+      </Tap>
     </View>
   )
 }
@@ -359,7 +360,7 @@ function LinkPicker({ p, goal, links, onBack, onPick }: {
   const Row = ({ kind, id, label, icon, sub }: { kind: GoalLinkKind; id?: string; label: string; icon: React.ReactNode; sub?: string }) => {
     const on = cur === kind && (kind === 'none' || kind === 'tasks' || goal.link_id === id)
     return (
-      <Pressable onPress={() => onPick(kind, id ?? null)} accessibilityRole="button" accessibilityState={{ selected: on }}
+      <Tap onPress={() => onPick(kind, id ?? null)} accessibilityRole="button" accessibilityState={{ selected: on }}
         style={({ pressed }) => [s.pick, { borderTopColor: p.borderRow }, pressed && { backgroundColor: p.bgSelected }]}>
         {icon}
         <View style={{ flex: 1 }}>
@@ -367,14 +368,14 @@ function LinkPicker({ p, goal, links, onBack, onPick }: {
           {sub ? <Text style={[s.pickS, { color: p.textTertiary }]}>{sub}</Text> : null}
         </View>
         {on ? <Check size={18} color={p.accent} /> : null}
-      </Pressable>
+      </Tap>
     )
   }
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: ins.bottom + 24 }}>
-      <Pressable onPress={onBack} style={s.back} accessibilityRole="button" accessibilityLabel="뒤로">
+      <Tap onPress={onBack} style={s.back} accessibilityRole="button" accessibilityLabel="뒤로">
         <ChevronLeft size={18} color={p.accent} /><Text style={[s.backT, { color: p.accent }]} numberOfLines={1}>{goal.title}</Text>
-      </Pressable>
+      </Tap>
       <View style={[s.card, { backgroundColor: p.cardBg }]}>
         <Row kind="none" label="직접 체크" sub="체크·점을 눌러 세요" icon={<Hand size={17} color={p.textSecondary} />} />
         <Row kind="tasks" label="끝낸 할 일 모두" sub="이번 주에 끝낸 할 일마다 1" icon={<ListTodo size={17} color={p.textSecondary} />} />

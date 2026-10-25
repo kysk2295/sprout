@@ -11,6 +11,7 @@ import { scheduleOnRN } from 'react-native-worklets'
 import { M } from '../theme/palette'
 import { DUR, EASE, RUBBER, SPRING as MS } from './motion'
 import { usePalette } from '../theme/ThemeProvider'
+import { ToastHost } from './Toast'
 
 
 export function BottomSheet(props: {
@@ -93,6 +94,8 @@ export function BottomSheet(props: {
           {props.footer ? <Animated.View style={[{ paddingBottom: (kb ? 8 : Math.max(insets.bottom, 12)) + 40 }, footStyle]}>{props.footer}</Animated.View> : null}
         </Animated.View>
         {props.overlay}
+        {/* 시트 안 토스트(UX 점검 P2-2) — 바닥 줄이 있으면 그 위 */}
+        <ToastHost bottom={props.footer ? Math.max(insets.bottom, 12) + 64 : undefined} />
       </GestureHandlerRootView>
     </Modal>
   )

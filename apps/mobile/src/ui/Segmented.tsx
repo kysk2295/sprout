@@ -1,7 +1,8 @@
 // 세그먼트(시안 키트 .m-seg, 44 §4): 칸 면 트랙 + 고른 칸 흰 칸 + sh-1(다크 = 한 단계 밝은 칸). 일기 쓰기·돌아보기, 작업 지도 목록·보드, 월·연.
 // 44 §4.1(2026-10-10): 트랙 = 글자색 반투명(라이트 10% · 다크 12%) + 머리카락 테두리 — 회색 바닥(pageBg)에서도 흰 카드에서도 보이게.
 // 예전 segTrack(#EBEFEA)은 바닥 #F3F5F1과 대비 1.06으로 거의 안 보였다. 고른 칸 = 라이트 흰 칸 + 그림자·테두리, 다크 = 글자색 22%를 카드 면에 섞은 불투명 칸.
-import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native'
+import { StyleSheet, Text, View, type ViewStyle } from 'react-native'
+import { Tap } from './Pressables'
 import { alpha, mix, type Palette } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 
@@ -29,7 +30,7 @@ export function Segmented<T extends string>({ items, value, onChange, style, sma
         const on = it.key === value
         const off = !on && !!disabled?.includes(it.key)
         return (
-          <Pressable
+          <Tap
             key={it.key}
             accessibilityRole="tab"
             accessibilityState={{ selected: on, disabled: off }}
@@ -38,7 +39,7 @@ export function Segmented<T extends string>({ items, value, onChange, style, sma
             style={[s.item, off && { opacity: 0.4 }, on && { backgroundColor: c.on, borderColor: c.onLine, ...c.shadow }]}
           >
             <Text style={{ fontSize: small ? 13 : 14, fontWeight: on ? '600' : '500', color: on ? p.textPrimary : p.textSecondary }}>{it.label}</Text>
-          </Pressable>
+          </Tap>
         )
       })}
     </View>

@@ -9,6 +9,7 @@ import { scheduleOnRN } from 'react-native-worklets'
 import { usePalette } from '../theme/ThemeProvider'
 import { usePresence } from './Menu'
 import { DUR, SPRING } from './motion'
+import { ToastHost } from './Toast'
 
 export function SlideSheet(props: { visible: boolean; onClose: () => void; children: ReactNode; style?: StyleProp<ViewStyle>; label?: string }) {
   const p = usePalette()
@@ -36,6 +37,7 @@ export function SlideSheet(props: { visible: boolean; onClose: () => void; child
             {props.children}
           </Animated.View>
         </GestureDetector>
+        <ToastHost />
       </GestureHandlerRootView>
     </Modal>
   )

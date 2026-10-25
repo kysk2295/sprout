@@ -7,7 +7,8 @@ import { SEED_NAMES } from '@sprout/schema/characterArt'
 import { XP, type Pick2, type Species } from '@sprout/schema/growth'
 import { useIsFocused, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { AccessibilityInfo, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native'
+import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native'
+import { KeyboardAvoid } from '../../src/ui/KeyboardAvoid'
 import Animated, { Easing, FadeIn, FadeOut, Keyframe, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { SceneBackdrop } from '../../src/growth/art/Scene3D'
@@ -356,7 +357,7 @@ function StepName({ c, seed, species, reduced, onSave }: { c: MakeColors; seed: 
   }
   const ok = cleanName(name)
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+    <KeyboardAvoid style={{ flex: 1 }}>
       <Copy c={c} style={st.copy} title="이름을 지어 줄까요?" sub="나중에 성장 화면에서 바꿀 수 있어요." />
       <Middle onLayout={(e) => setBox(Math.max(90, Math.min(230, Math.floor(e.nativeEvent.layout.height - 12))))}>
         <View>
@@ -366,7 +367,7 @@ function StepName({ c, seed, species, reduced, onSave }: { c: MakeColors; seed: 
       </Middle>
       <View style={st.bottom}>
         <Glass c={c} radius={20} style={st.nameField}>
-          <TextInput value={name} onChangeText={onType} maxLength={NAME_MAX} returnKeyType="done" accessibilityLabel="캐릭터 이름" selectionColor={c.accent}
+          <TextInput value={name} onChangeText={onType} maxLength={NAME_MAX} returnKeyType="done" autoCorrect={false} accessibilityLabel="캐릭터 이름" selectionColor={c.accent}
             onSubmitEditing={() => { if (ok) onSave(ok) }} style={[st.nameInput, { color: c.ink }]} />
           <Text style={[st.nameCount, { color: c.ink }]}>{nameCount(name)}</Text>
         </Glass>
@@ -375,7 +376,7 @@ function StepName({ c, seed, species, reduced, onSave }: { c: MakeColors; seed: 
         </View>
         <BigButton c={c} label="좋아요" disabled={!ok} dim={!ok} onPress={() => onSave(ok)} />
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAvoid>
   )
 }
 
@@ -496,7 +497,7 @@ function StepFirst({ c, seed, species, name, reduced, onNext }: { c: MakeColors;
     try { await completeTasks([task.id]) } catch (e) { console.warn('[make] complete failed:', e) } finally { busy.current = false }
   }
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+    <KeyboardAvoid style={{ flex: 1 }}>
       <Copy c={c} style={st.copy} title={firstTitle(name)} sub="끝내면 바로 자라요. 작아도 괜찮아요." />
       <Middle>
         <View style={{ alignItems: 'center' }}>
@@ -533,7 +534,7 @@ function StepFirst({ c, seed, species, name, reduced, onNext }: { c: MakeColors;
         )}
         <BigButton c={c} label="정원으로 가기" disabled={!done} dim={!done} onPress={onNext} style={{ marginTop: 10 }} />
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAvoid>
   )
 }
 

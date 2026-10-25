@@ -14,7 +14,8 @@ import { projectTitle, taskDay, WORK_KINDS, WORK_LABEL, workKind, type WorkKind 
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft, ChevronRight, FolderMinus, MoreHorizontal, Plus, Search, Trash2, X } from 'lucide-react-native'
 import { useMemo, useRef, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Tap } from '../../../src/ui/Pressables'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLists } from '../../../src/data/lists'
 import { moveDates, setPriority, trashTasks } from '../../../src/data/tasks'
@@ -94,12 +95,12 @@ export default function ProjectScreen() {
   if (!data.loaded) return <View style={{ flex: 1, backgroundColor: p.pageBg }} />
   const nav = (
     <View style={[s.nav, { marginTop: insets.top }]}>
-      <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="모든 프로젝트로 돌아가기" style={s.back} hitSlop={6}>
+      <Tap onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="모든 프로젝트로 돌아가기" style={s.back} hitSlop={6}>
         <ChevronLeft size={24} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 17 }}>모든 프로젝트</Text>
-      </Pressable>
+      </Tap>
       {x ? (
         <View ref={more.ref} collapsable={false}>
-          <Pressable onPress={more.open} accessibilityRole="button" accessibilityLabel="프로젝트 메뉴" hitSlop={10} style={s.moreBtn}><MoreHorizontal size={22} color={p.accent} /></Pressable>
+          <Tap onPress={more.open} accessibilityRole="button" accessibilityLabel="프로젝트 메뉴" hitSlop={10} style={s.moreBtn}><MoreHorizontal size={22} color={p.accent} /></Tap>
         </View>
       ) : null}
     </View>
@@ -108,7 +109,8 @@ export default function ProjectScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: p.pageBg }}>
         {nav}
-        <Text style={{ color: p.textTertiary, textAlign: 'center', marginTop: 80, fontSize: 15 }}>이 프로젝트에 남은 일이 없어요</Text>
+        {/* P2-11: 읽는 중에는 빈 화면 — 정말 없을 때만 이 글 */}
+        {data.loaded ? <Text style={{ color: p.textTertiary, textAlign: 'center', marginTop: 80, fontSize: 15 }}>이 프로젝트에 남은 일이 없어요</Text> : null}
       </View>
     )
   }
@@ -224,23 +226,23 @@ export default function ProjectScreen() {
           <Text style={{ flex: 1, color: p.textSecondary, fontSize: 13.5, lineHeight: 19 }}>
             {x.confirmed ? `관련 일 ${x.members.length}개` : `관련 일 ${x.members.length}개를 모았어요. 빠진 게 있으면 더 넣어요.`}
           </Text>
-          {!x.confirmed ? <Pressable onPress={() => { void confirmProject(x.tag.id, x.members.length).catch(fail); setAdding(false) }} hitSlop={8} accessibilityRole="button"><Text style={{ color: p.textSecondary, fontSize: 14 }}>빠진 거 없어</Text></Pressable> : null}
-          <Pressable onPress={() => { setAdding((v) => !v); setQ('') }} hitSlop={8} accessibilityRole="button"><Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '500' }}>{adding ? '닫기' : '더 넣기'}</Text></Pressable>
+          {!x.confirmed ? <Tap onPress={() => { void confirmProject(x.tag.id, x.members.length).catch(fail); setAdding(false) }} hitSlop={8} accessibilityRole="button"><Text style={{ color: p.textSecondary, fontSize: 14 }}>빠진 거 없어</Text></Tap> : null}
+          <Tap onPress={() => { setAdding((v) => !v); setQ('') }} hitSlop={8} accessibilityRole="button"><Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '500' }}>{adding ? '닫기' : '더 넣기'}</Text></Tap>
         </View>
         {adding ? (
           <Card>
             <View style={[s.search, { borderBottomColor: p.borderDivider }]}>
               <Search size={16} color={p.textTertiary} />
-              <TextInput value={q} onChangeText={setQ} autoFocus placeholder="넣을 할 일 찾기" placeholderTextColor={p.textTertiary} style={{ flex: 1, fontSize: 15, color: p.textPrimary }} accessibilityLabel="넣을 할 일 찾기" />
+              <TextInput value={q} onChangeText={setQ} autoFocus autoCorrect={false} autoCapitalize="none" returnKeyType="search" placeholder="넣을 할 일 찾기" placeholderTextColor={p.textTertiary} style={{ flex: 1, fontSize: 15, color: p.textPrimary }} accessibilityLabel="넣을 할 일 찾기" />
             </View>
             {outside.map((t, i) => (
-              <Pressable key={t.id} onPress={() => void add(t)} accessibilityRole="button" style={({ pressed }) => [s.pick, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
+              <Tap key={t.id} onPress={() => void add(t)} accessibilityRole="button" style={({ pressed }) => [s.pick, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: p.textPrimary, fontSize: 15 }} numberOfLines={1}>{t.title}</Text>
                   <Text style={{ color: p.textTertiary, fontSize: 12 }} numberOfLines={1}>{data.listName(t.list_id)}</Text>
                 </View>
                 <Text style={{ color: p.accentInk, fontSize: 14 }}>넣기</Text>
-              </Pressable>
+              </Tap>
             ))}
             {!outside.length ? <Text style={{ color: p.textTertiary, padding: 14 }}>넣을 할 일이 없어요</Text> : null}
           </Card>
@@ -249,9 +251,9 @@ export default function ProjectScreen() {
         {ask ? (
           <View style={s.starter}>
             <Text style={{ flex: 1, color: p.textSecondary, fontSize: 13.5 }}>{ask.text}</Text>
-            <Pressable onPress={() => void starterYes()} accessibilityRole="button" hitSlop={6}><Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '600' }}>{ask.lanes ? '그렇게' : `＋ ${ask.add} 추가`}</Text></Pressable>
-            <Pressable onPress={() => void tryDo(async () => { await seen() })} accessibilityRole="button" hitSlop={6}><Text style={{ color: p.textTertiary, fontSize: 14 }}>괜찮아요</Text></Pressable>
-            <Pressable onPress={() => void tryDo(async () => { await seen() })} accessibilityRole="button" accessibilityLabel="제안 닫기" hitSlop={8}><X size={15} color={p.textTertiary} /></Pressable>
+            <Tap onPress={() => void starterYes()} accessibilityRole="button" hitSlop={6}><Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '600' }}>{ask.lanes ? '그렇게' : `＋ ${ask.add} 추가`}</Text></Tap>
+            <Tap onPress={() => void tryDo(async () => { await seen() })} accessibilityRole="button" hitSlop={6}><Text style={{ color: p.textTertiary, fontSize: 14 }}>괜찮아요</Text></Tap>
+            <Tap onPress={() => void tryDo(async () => { await seen() })} accessibilityRole="button" accessibilityLabel="제안 닫기" hitSlop={8}><X size={15} color={p.textTertiary} /></Tap>
           </View>
         ) : null}
 
@@ -264,12 +266,12 @@ export default function ProjectScreen() {
                 {editable && renaming === lane.id ? (
                   <InlineInput initial={lane.name} prefix="#" label="묶음 이름" onDone={(v) => { if (v === null) setRenaming(null); else void doRenameLane(lane, v) }} />
                 ) : (
-                  <Pressable disabled={!editable} onPress={() => editable && setRenaming(lane.id)} delayLongPress={350}
+                  <Tap disabled={!editable} onPress={() => editable && setRenaming(lane.id)} delayLongPress={350}
                     onLongPress={() => editable && headRefs.current.get(g.key)?.measureInWindow((rx, ry, width, height) => setGroupMenu({ lane, rect: { x: rx, y: ry, width, height } }))}
                     accessibilityRole={editable ? 'button' : undefined} accessibilityHint={editable ? '누르면 이름 고치기, 길게 누르면 메뉴' : undefined} style={s.gname}>
                     <Text style={{ color: p.textSecondary, fontSize: 13, fontWeight: '600' }}>{g.label}</Text>
                     <Text style={{ color: p.textTertiary, fontSize: 13 }}>{g.items.length}</Text>
-                  </Pressable>
+                  </Tap>
                 )}
               </View>
               <Card>
@@ -300,9 +302,9 @@ export default function ProjectScreen() {
               <InlineInput initial="" prefix="#" label="새 묶음 이름" placeholder="예: 금융상품" onDone={(v) => { if (v === null || !v.trim()) setNewLane(false); else void makeLane(v).catch(fail) }} />
             </View>
           ) : (
-            <Pressable onPress={() => setNewLane(true)} accessibilityRole="button" style={({ pressed }) => [s.addLane, pressed && { backgroundColor: p.bgSelected }]}>
+            <Tap onPress={() => setNewLane(true)} accessibilityRole="button" style={({ pressed }) => [s.addLane, pressed && { backgroundColor: p.bgSelected }]}>
               <Plus size={18} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 15, fontWeight: '500' }}>묶음 추가</Text>
-            </Pressable>
+            </Tap>
           )
         ) : (
           <Text style={[s.kindNote, { color: p.textTertiary }]}>일의 종류 묶음은 정해져 있어요. 묶음을 직접 만들려면 묶기: 태그로 바꿔요.</Text>
@@ -336,14 +338,14 @@ function TitleEdit({ x, onSave }: { x: ProjectView; onSave: (v: string) => void 
   const title = projectTitle(x.tag.name)
   if (edit === null) {
     return (
-      <Pressable onPress={() => { done.current = false; setEdit(title) }} accessibilityRole="button" accessibilityLabel={`${title}, 누르면 이름 고치기`}>
+      <Tap onPress={() => { done.current = false; setEdit(title) }} accessibilityRole="button" accessibilityLabel={`${title}, 누르면 이름 고치기`}>
         <Text style={[s.title, { color: p.textPrimary }]} numberOfLines={2}>{x.title}</Text>
-      </Pressable>
+      </Tap>
     )
   }
   const save = () => { if (done.current) return; done.current = true; const v = edit.trim(); setEdit(null); if (v && v !== title) onSave(v) }
   return (
-    <TextInput value={edit} onChangeText={setEdit} autoFocus maxLength={20} submitBehavior="blurAndSubmit" returnKeyType="done" onSubmitEditing={save} onBlur={save}
+    <TextInput value={edit} onChangeText={setEdit} autoFocus autoCorrect={false} maxLength={20} submitBehavior="blurAndSubmit" returnKeyType="done" onSubmitEditing={save} onBlur={save}
       style={[s.title, s.titleIn, { color: p.textPrimary, borderColor: p.accent }]} accessibilityLabel="프로젝트 이름" />
   )
 }
@@ -358,15 +360,15 @@ function HeadPills({ x, today, onKey, onTeam, onUnteam, onOpenPerson, onFocus }:
   const gray = { backgroundColor: p.bgInput } // 44 §4 칩 = 칸 면
   return (
     <View style={s.pills}>
-      <Pressable onPress={onKey} accessibilityRole="button" accessibilityLabel={pill ? `핵심 날짜 ${pill.text} ${pill.dday}` : '핵심 날짜 정하기'} style={[s.pill, pill?.hot ? { backgroundColor: p.dark ? 'rgba(255,127,166,0.15)' : '#FFE6EE' } : gray]}>
+      <Tap onPress={onKey} accessibilityRole="button" accessibilityLabel={pill ? `핵심 날짜 ${pill.text} ${pill.dday}` : '핵심 날짜 정하기'} style={[s.pill, pill?.hot ? { backgroundColor: p.dark ? 'rgba(255,127,166,0.15)' : '#FFE6EE' } : gray]}>
         {pill ? (
           <Text style={{ color: pill.hot ? (p.dark ? '#FF8FB1' : '#D6336C') : p.textSecondary, fontSize: 13, fontWeight: '600' }}>{pill.text} <Text style={{ fontWeight: '800' }}>{pill.dday}</Text></Text>
         ) : <Text style={{ color: p.textSecondary, fontSize: 13 }}>＋ 핵심 날짜</Text>}
-      </Pressable>
+      </Tap>
       {x.team.map((m) => (
         <View key={m.id} style={[s.pill, gray, { paddingRight: 6 }]}>
-          <Pressable onPress={() => onOpenPerson(m.id)} accessibilityRole="button" hitSlop={4}><Text style={{ color: p.textSecondary, fontSize: 13 }}>{m.name}</Text></Pressable>
-          <Pressable onPress={() => onUnteam(m.id, m.name)} accessibilityRole="button" accessibilityLabel={`${m.name} 팀원에서 빼기`} hitSlop={8} style={{ marginLeft: 4 }}><X size={13} color={p.textTertiary} /></Pressable>
+          <Tap onPress={() => onOpenPerson(m.id)} accessibilityRole="button" hitSlop={4}><Text style={{ color: p.textSecondary, fontSize: 13 }}>{m.name}</Text></Tap>
+          <Tap onPress={() => onUnteam(m.id, m.name)} accessibilityRole="button" accessibilityLabel={`${m.name} 팀원에서 빼기`} hitSlop={8} style={{ marginLeft: 4 }}><X size={13} color={p.textTertiary} /></Tap>
         </View>
       ))}
       {typing ? (
@@ -374,13 +376,13 @@ function HeadPills({ x, today, onKey, onTeam, onUnteam, onOpenPerson, onFocus }:
           <InlineInput initial="" label="팀원 이름" placeholder="예: 민수, 지은" small onDone={(v) => { setTyping(false); const names = v ? splitPeople(v) : []; if (names.length) onTeam(names) }} />
         </View>
       ) : (
-        <Pressable onPress={() => setTyping(true)} accessibilityRole="button" accessibilityLabel="팀원 더하기" style={[s.pill, gray]}>
+        <Tap onPress={() => setTyping(true)} accessibilityRole="button" accessibilityLabel="팀원 더하기" style={[s.pill, gray]}>
           <Text style={{ color: p.textSecondary, fontSize: 13 }}>{x.team.length ? '＋' : '팀원 ＋'}</Text>
-        </Pressable>
+        </Tap>
       )}
-      <Pressable onPress={onFocus} accessibilityRole="button" accessibilityState={{ selected: x.focus }} style={[s.pill, { backgroundColor: x.focus ? p.accent : p.bgSelected }]}>
+      <Tap onPress={onFocus} accessibilityRole="button" accessibilityState={{ selected: x.focus }} style={[s.pill, { backgroundColor: x.focus ? p.accent : p.bgSelected }]}>
         <Text style={{ color: x.focus ? '#fff' : p.textSecondary, fontSize: 13, fontWeight: x.focus ? '600' : '400' }}>집중</Text>
-      </Pressable>
+      </Tap>
     </View>
   )
 }
@@ -419,9 +421,9 @@ function AddRow({ first, open, onOpen, onClose, placeholder, lists, tags, today,
   const border = !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }
   if (!open) {
     return (
-      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel="할 일 추가" style={({ pressed }) => [s.add, border, pressed && { backgroundColor: p.bgSelected }]}>
+      <Tap onPress={onOpen} accessibilityRole="button" accessibilityLabel="할 일 추가" style={({ pressed }) => [s.add, border, pressed && { backgroundColor: p.bgSelected }]}>
         <Plus size={18} color={p.textTertiary} /><Text style={{ color: p.textTertiary, fontSize: 15 }}>할 일 추가</Text>
-      </Pressable>
+      </Tap>
     )
   }
   const send = async () => {
@@ -455,11 +457,11 @@ function Related({ title, items }: { title: string; items: { key: string; label:
       <Text style={{ color: p.textSecondary, fontSize: 13, fontWeight: '600', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 6 }}>{title}</Text>
       <Card>
         {items.map((it, i) => (
-          <Pressable key={it.key} onPress={it.onPress} accessibilityRole="button" style={({ pressed }) => [s.pick, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
+          <Tap key={it.key} onPress={it.onPress} accessibilityRole="button" style={({ pressed }) => [s.pick, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
             <Text style={{ flex: 1, color: p.textPrimary, fontSize: 15 }} numberOfLines={1}>{it.label}</Text>
             {it.sub ? <Text style={{ color: p.textTertiary, fontSize: 12.5 }}>{it.sub}</Text> : null}
             <ChevronRight size={15} color={p.textQuaternary} />
-          </Pressable>
+          </Tap>
         ))}
       </Card>
     </>

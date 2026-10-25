@@ -116,7 +116,7 @@ export const MoodRow = memo(function MoodRow({ onPick, disabled, selected, ink }
   )
 })
 
-/** 입력창(높이 48, 모서리 24) + 보내기 원 40. 한 줄 보내기(⏎ = 보내기) */
+/** 입력창(높이 48~, 모서리 24) + 보내기 원 40. 여러 줄 — 엔터 = 줄 바꿈, 보내기는 ↑ 단추만(2026-10-25 사용자) */
 export const Composer = forwardRef<TextInput, { placeholder: string; onSend: (t: string) => void; disabled?: boolean; ai?: boolean; onTyping?: () => void
   /** 받는 중이면 보내기 자리가 ■ 멈추기(28 §8.11) */
   onStop?: () => void }>(function Composer({ placeholder, onSend, disabled, ai, onTyping, onStop }, ref) {

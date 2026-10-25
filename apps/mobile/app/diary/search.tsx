@@ -24,7 +24,7 @@ export default function DiarySearch() {
         <GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>
         <View style={[s.box, { backgroundColor: p.cardBg }]}>
           <Search size={16} color={p.textTertiary} />
-          <TextInput autoFocus value={q} onChangeText={setQ} placeholder="일기 검색" placeholderTextColor={p.textTertiary} returnKeyType="search" accessibilityLabel="일기 검색" style={{ flex: 1, fontSize: 16, color: p.textPrimary }} />
+          <TextInput autoFocus value={q} onChangeText={setQ} placeholder="일기 검색" placeholderTextColor={p.textTertiary} returnKeyType="search" autoCorrect={false} autoCapitalize="none" accessibilityLabel="일기 검색" style={{ flex: 1, fontSize: 16, color: p.textPrimary }} />
         </View>
       </View>
       <FlatList

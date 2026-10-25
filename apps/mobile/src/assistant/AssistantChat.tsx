@@ -550,9 +550,9 @@ function Composer({ a, onSubmit, autoFocus }: { a: AssistantState; onSubmit: () 
         accessibilityLabel="AI에게 보낼 내용"
       />
       {a.busy ? (
-        <Pressable accessibilityRole="button" accessibilityLabel="멈추기" onPress={cancel} style={[s.send, { backgroundColor: p.textPrimary }]}><Square size={12} color={p.cardBg} fill={p.cardBg} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="멈추기" hitSlop={6} onPress={cancel} style={[s.send, { backgroundColor: p.textPrimary }]}><Square size={12} color={p.cardBg} fill={p.cardBg} /></Pressable>
       ) : (
-        <Pressable accessibilityRole="button" accessibilityLabel="보내기" disabled={!can} onPress={onSubmit} style={[s.send, { backgroundColor: p.accent }, !can && { opacity: 0.35 }]}><ArrowUp size={18} color={p.onAccent} strokeWidth={2.6} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="보내기" hitSlop={6} disabled={!can} onPress={onSubmit} style={[s.send, { backgroundColor: p.accent }, !can && { opacity: 0.35 }]}><ArrowUp size={18} color={p.onAccent} strokeWidth={2.6} /></Pressable>
       )}
     </View>
   )
@@ -680,9 +680,10 @@ const s = StyleSheet.create({
   btn: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 32, borderRadius: 9, paddingHorizontal: 11, borderWidth: StyleSheet.hairlineWidth },
   latest: { position: 'absolute', right: 14, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 16, paddingHorizontal: 12, height: 32, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   notice: { position: 'absolute', alignSelf: 'center', bottom: 72, color: '#fff', fontSize: 13.5, borderRadius: 10, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 9 },
-  composer: { marginHorizontal: 12, marginTop: 4, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'flex-end', paddingLeft: 16, paddingRight: 6, paddingVertical: 6, minHeight: 44 },
+  composer: { marginHorizontal: 12, marginTop: 4, borderRadius: 22, // 여러 줄이어도 어색하지 않게(P3-8 — 일기 Composer와 맞춤, 한 줄 높이 44에선 알약과 같다)
+    borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'flex-end', paddingLeft: 16, paddingRight: 6, paddingVertical: 6, minHeight: 44 },
   input: { flex: 1, fontSize: 16, lineHeight: 21, maxHeight: 6 * 21 + 12, paddingTop: 6, paddingBottom: 6 },
-  send: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
+  send: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginLeft: 6 }, // 누름 자리 = 32 + hitSlop 6×2 = 44(P2-8)
   foot: { fontSize: 11, lineHeight: 15, textAlign: 'center', paddingHorizontal: 20, paddingTop: 6 },
   card: { borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 36, borderBottomWidth: StyleSheet.hairlineWidth },

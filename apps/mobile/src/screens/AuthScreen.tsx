@@ -7,7 +7,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft, Lock, Mail } from 'lucide-react-native'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { appleAvailable } from '../data/apple'
 import { authErrorText, login, loginWithApple, loginWithGoogle, signup, socialErrorText, staleAccount } from '../data/auth'
@@ -20,6 +20,11 @@ import { Glass, sceneTone } from '../growth/home/glass'
 import { FloatingMascot } from '../growth/make/parts'
 import { useMotionReduced } from '../growth/motion'
 import { GlassButton } from '../ui/Glass'
+import { KeyboardAvoid } from '../ui/KeyboardAvoid'
+
+// 스토어 등록과 같은 주소(docs/release/store/listing.md)
+const TERMS_URL = 'https://web-production-cd889.up.railway.app/terms'
+const PRIVACY_URL = 'https://web-production-cd889.up.railway.app/privacy'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -42,6 +47,8 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
   const pw = useRef<TextInput>(null)
   const signupMode = mode === 'signup'
   const locked = busy || !!social
+  // 같은 순간 두 번(빠른 두 번 누르기 · 엔터 "이동"과 단추 함께)은 state가 바뀌기 전이라 둘 다 통과한다 → ref로도 잠근다(UX 점검 P2-14)
+  const lock = useRef(false)
   const reduced = useMotionReduced()
   const { width, height } = useWindowDimensions()
   const sceneKey = p.dark ? 'scene-dusk' : 'scene-dawn'
@@ -49,7 +56,8 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
   const darkScene = sceneDark(sceneKey)
 
   const continueWithGoogle = async () => {
-    if (locked) return
+    if (locked || lock.current) return
+    lock.current = true
     setSocial('google')
     setError(null)
     try {
@@ -58,12 +66,14 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
       const text = socialErrorText(e)
       if (text) setError({ field: 'form', text })
       setSocial(null)
-    }
+    } finally { lock.current = false }
   }
   const continueWithApple = async () => {
     if (locked) return
     // 애플 로그인 권한이 없는 빌드: 버튼만 보이고 누르면 안내(20 §4.3.1)
     if (!appleReady) return setError({ field: 'form', text: 'Apple 로그인은 준비 중이에요. Google이나 이메일로 계속하세요.' })
+    if (lock.current) return
+    lock.current = true
     setSocial('apple')
     setError(null)
     try {
@@ -72,14 +82,15 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
       const text = socialErrorText(e, 'apple')
       if (text) setError({ field: 'form', text })
       setSocial(null)
-    }
+    } finally { lock.current = false }
   }
 
   const submit = async () => {
-    if (locked) return
+    if (locked || lock.current) return
     if (!EMAIL.test(email.trim())) return setError({ field: 'email', text: '이메일 주소를 확인하세요' })
     if (signupMode && (password.length < 6 || password.length > 64)) return setError({ field: 'password', text: '비밀번호는 6-64자로 입력하세요' })
     if (!password) return setError({ field: 'password', text: '이메일 또는 비밀번호가 맞지 않아요' })
+    lock.current = true
     setBusy(true)
     setError(null)
     try {
@@ -88,7 +99,7 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
       const text = authErrorText(e)
       setError({ field: /이메일 주소|이미 가입/.test(text) ? 'email' : /비밀번호는/.test(text) ? 'password' : 'form', text })
       setBusy(false)
-    }
+    } finally { lock.current = false }
   }
   const input = (field: 'email' | 'password') => ({
     backgroundColor: p.loginCard,
@@ -97,7 +108,7 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
   const err = (field: 'email' | 'password' | 'form') => (error?.field === field ? <Text style={[s.err, { color: p.danger }]}>{error.text}</Text> : null)
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: darkScene ? '#1F2846' : '#EDC4B1' }}>
+    <KeyboardAvoid style={{ flex: 1, backgroundColor: darkScene ? '#1F2846' : '#EDC4B1' }}>
       <SceneBackdrop sceneKey={sceneKey} width={width} height={height} align="center" style={StyleSheet.absoluteFill} />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.page, { paddingTop: insets.top + (signupMode ? 0 : 20), paddingBottom: insets.bottom + 20 }]}>
         {signupMode ? (
@@ -184,11 +195,12 @@ export default function AuthScreen({ mode }: { mode: 'login' | 'signup' }) {
         <View style={{ flex: 1 }} />
         {signupMode ? (
           <Text style={[s.terms, { color: tone.sub }]}>
-            가입함으로써 <Text style={{ textDecorationLine: 'underline', color: tone.ink }}>이용 약관</Text> 및 <Text style={{ textDecorationLine: 'underline', color: tone.ink }}>개인정보 처리방침</Text>에{'\n'}동의하게 됩니다.
+            {/* UX 점검 P2-15: 밑줄 친 두 말은 눌러서 연다(스토어 심사 — 가입 화면에서 약관을 열 수 있어야 한다) */}
+            가입함으로써 <Text accessibilityRole="link" suppressHighlighting={false} onPress={() => void Linking.openURL(TERMS_URL)} style={{ textDecorationLine: 'underline', color: tone.ink }}>이용 약관</Text> 및 <Text accessibilityRole="link" suppressHighlighting={false} onPress={() => void Linking.openURL(PRIVACY_URL)} style={{ textDecorationLine: 'underline', color: tone.ink }}>개인정보 처리방침</Text>에{'\n'}동의하게 됩니다.
           </Text>
         ) : null}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAvoid>
   )
 }
 /** 20 §4.3.1 소셜 버튼: 폭 꽉 참 · 높이 50 · 테두리 · 로고 18. soon = Apple 준비 중(흐림 + "준비 중") */

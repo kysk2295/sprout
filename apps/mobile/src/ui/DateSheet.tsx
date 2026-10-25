@@ -3,7 +3,8 @@
 import { parseRule, reminderLabel, ruleSummary, timePart, hasTime, datePart, RR_DAY_CODES, rrDayLabel, formatTimeKo } from '@sprout/schema/time'
 import { AlarmClock, CalendarArrowUp, CalendarDays, Check, ChevronsUpDown, Clock, Minus, Moon, Plus, Repeat, Sun, Sunrise, X } from 'lucide-react-native'
 import { useState, type ReactNode } from 'react'
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
+import { Tap } from './Pressables'
 import { dayKey, nextMonday } from '../lib/dates'
 import { FONT } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
@@ -101,7 +102,7 @@ export function DateSheet({ initial, onDone, onClose, scroll = true, datesOnly =
             {RR_DAY_CODES.map((c) => {
               const on = days.includes(c)
               return (
-                <Pressable
+                <Tap
                   key={c}
                   accessibilityRole="button"
                   accessibilityLabel={`${rrDayLabel(c)}요일`}
@@ -110,7 +111,7 @@ export function DateSheet({ initial, onDone, onClose, scroll = true, datesOnly =
                   style={[s.pill, { backgroundColor: on ? p.accent : p.bgSelected }]}
                 >
                   <Text style={{ fontSize: 14, color: on ? '#fff' : p.textPrimary, fontWeight: on ? '600' : '400' }}>{rrDayLabel(c)}</Text>
-                </Pressable>
+                </Tap>
               )
             })}
           </View>
@@ -126,7 +127,7 @@ export function DateSheet({ initial, onDone, onClose, scroll = true, datesOnly =
         <GlassButton label="닫기" onPress={onClose}><X size={20} color={p.textPrimary} /></GlassButton>
         <View style={[s.seg, { backgroundColor: p.segTrack }]}>
           {(['date', 'duration'] as const).map((t) => (
-            <Pressable
+            <Tap
               key={t}
               accessibilityRole="tab"
               accessibilityState={{ selected: tab === t }}
@@ -134,7 +135,7 @@ export function DateSheet({ initial, onDone, onClose, scroll = true, datesOnly =
               style={[s.segBtn, tab === t && { backgroundColor: p.segOn, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } }]}
             >
               <Text style={{ fontSize: 14, fontWeight: tab === t ? '600' : '400', color: p.textPrimary }}>{t === 'date' ? '날짜' : '기간'}</Text>
-            </Pressable>
+            </Tap>
           ))}
         </View>
         <GlassButton label="확인" plain style={{ backgroundColor: p.accent }} onPress={() => onDone(d)}><Check size={20} color="#fff" /></GlassButton>
@@ -147,10 +148,10 @@ export function DateSheet({ initial, onDone, onClose, scroll = true, datesOnly =
             {quick.map(([label, Icon, date, time]) => {
               const on = quickOn(date, time)
               return (
-                <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: on }} onPress={() => onDone(quickSchedule(d, date, time))} style={s.q}>
+                <Tap key={label} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: on }} onPress={() => onDone(quickSchedule(d, date, time))} style={s.q}>
                   <Icon size={26} color={on ? p.accent : p.textPrimary} />
                   <Text style={{ fontSize: 11, lineHeight: 14, color: on ? p.accentInk : p.textSecondary }}>{label}</Text>
-                </Pressable>
+                </Tap>
               )
             })}
           </View>
@@ -188,9 +189,9 @@ export function DateSheet({ initial, onDone, onClose, scroll = true, datesOnly =
         <DurationBody datesOnly={datesOnly} d={d} setD={setD} open={open} toggle={toggle} today={today} timeWheel={timeWheel} reminderText={reminderText} reminderList={reminderList} ruleText={rule ? ruleSummary(rule, anchor) : ''} repeatList={repeatList} onClearRepeat={() => setD(setRepeat(d, null, today))} />
       )}
       {datesOnly ? null : (
-        <Pressable accessibilityRole="button" onPress={() => onDone(EMPTY_SCHEDULE)} style={s.clear}>
+        <Tap accessibilityRole="button" onPress={() => onDone(EMPTY_SCHEDULE)} style={s.clear}>
           <Text style={{ fontSize: 15, color: p.textTertiary }}>날짜 지우기</Text>
-        </Pressable>
+        </Tap>
       )}
     </View>
   )
@@ -218,13 +219,13 @@ function DurationBody(props: {
       <>
         <View style={[s.row, k === 'ed' && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }]}>
           <Text style={[FONT.body, { width: 44, color: p.textPrimary }]}>{label}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={`${label} 날짜`} onPress={() => { setMonth(v.slice(0, 7)); toggle(k) }} style={[s.field, { backgroundColor: open === k ? p.accentSubtle : p.bgSelected }]}>
+          <Tap accessibilityRole="button" accessibilityLabel={`${label} 날짜`} onPress={() => { setMonth(v.slice(0, 7)); toggle(k) }} style={[s.field, { backgroundColor: open === k ? p.accentSubtle : p.bgSelected }]}>
             <Text style={{ fontSize: 15, color: open === k ? p.accentInk : p.textPrimary }}>{fmt(v)}</Text>
-          </Pressable>
+          </Tap>
           {!allDay ? (
-            <Pressable accessibilityRole="button" accessibilityLabel={`${label} 시간`} onPress={() => toggle(tk)} style={[s.field, { backgroundColor: open === tk ? p.accentSubtle : p.bgSelected }]}>
+            <Tap accessibilityRole="button" accessibilityLabel={`${label} 시간`} onPress={() => toggle(tk)} style={[s.field, { backgroundColor: open === tk ? p.accentSubtle : p.bgSelected }]}>
               <Text style={{ fontSize: 15, color: open === tk ? p.accentInk : p.textPrimary }}>{timePart(v)}</Text>
-            </Pressable>
+            </Tap>
           ) : null}
         </View>
         {open === k ? (
@@ -273,15 +274,15 @@ function CustomReminder({ allDay, onAdd }: { allDay: boolean; onAdd: (t: string)
   return (
     <View style={[s.custom, { borderTopColor: p.borderDivider }]}>
       <View style={s.customRow}>
-        <Pressable accessibilityRole="button" accessibilityLabel="줄이기" onPress={() => setN(Math.max(0, n - 1))} style={[s.step, { backgroundColor: p.bgSelected }]}><Minus size={16} color={p.textPrimary} /></Pressable>
+        <Tap accessibilityRole="button" accessibilityLabel="줄이기" hitSlop={7} onPress={() => setN(Math.max(0, n - 1))} style={({ pressed }) => [s.step, { backgroundColor: p.bgSelected, opacity: pressed ? 0.6 : 1 }]}><Minus size={16} color={p.textPrimary} /></Tap>
         <Text style={[FONT.bodyStrong, { minWidth: 36, textAlign: 'center', color: p.textPrimary }]}>{n}</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="늘리기" onPress={() => setN(n + 1)} style={[s.step, { backgroundColor: p.bgSelected }]}><Plus size={16} color={p.textPrimary} /></Pressable>
+        <Tap accessibilityRole="button" accessibilityLabel="늘리기" hitSlop={7} onPress={() => setN(n + 1)} style={({ pressed }) => [s.step, { backgroundColor: p.bgSelected, opacity: pressed ? 0.6 : 1 }]}><Plus size={16} color={p.textPrimary} /></Tap>
         {allDay ? <Text style={[FONT.body, { color: p.textPrimary }]}>일 전</Text> : (
           <View style={[s.seg, { backgroundColor: p.segTrack, width: 168, marginLeft: 6 }]}>
             {(['m', 'h', 'd'] as const).map((u) => (
-              <Pressable key={u} onPress={() => setUnit(u)} accessibilityRole="button" accessibilityState={{ selected: unit === u }} style={[s.segBtn, unit === u && { backgroundColor: p.segOn }]}>
+              <Tap key={u} onPress={() => setUnit(u)} accessibilityRole="button" accessibilityState={{ selected: unit === u }} style={[s.segBtn, unit === u && { backgroundColor: p.segOn }]}>
                 <Text style={{ fontSize: 13, color: p.textPrimary }}>{u === 'm' ? '분 전' : u === 'h' ? '시간 전' : '일 전'}</Text>
-              </Pressable>
+              </Tap>
             ))}
           </View>
         )}
@@ -295,9 +296,9 @@ function CustomReminder({ allDay, onAdd }: { allDay: boolean; onAdd: (t: string)
       ) : null}
       <View style={s.customRow}>
         <Text style={[FONT.sub, { flex: 1, color: p.textSecondary }]}>{reminderLabel(trigger, allDay)}</Text>
-        <Pressable accessibilityRole="button" onPress={() => onAdd(trigger)} style={[s.add, { backgroundColor: p.accent }]}>
+        <Tap accessibilityRole="button" onPress={() => onAdd(trigger)} style={[s.add, { backgroundColor: p.accent }]}>
           <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>추가</Text>
-        </Pressable>
+        </Tap>
       </View>
     </View>
   )
@@ -310,24 +311,24 @@ function Card({ children }: { children: ReactNode }) {
 function Row({ icon, label, value, accent, onPress, onClear, first = true }: { icon: ReactNode; label: string; value: string; accent?: boolean; onPress: () => void; onClear?: () => void; first?: boolean }) {
   const p = usePalette()
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${value}`} onPress={onPress} style={({ pressed }) => [s.row, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { opacity: 0.7 }]}>
+    <Tap accessibilityRole="button" accessibilityLabel={`${label}: ${value}`} onPress={onPress} style={({ pressed }) => [s.row, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { opacity: 0.7 }]}>
       {icon}
       <Text style={[FONT.body, { color: p.textPrimary }]}>{label}</Text>
       <View style={{ flex: 1 }} />
       <Text style={[FONT.sub, { color: accent ? p.accentInk : p.textTertiary, flexShrink: 1 }]} numberOfLines={1}>{value}</Text>
       {onClear ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={`${label} 지우기`} hitSlop={8} onPress={onClear}><X size={14} color={p.textTertiary} /></Pressable>
+        <Tap accessibilityRole="button" accessibilityLabel={`${label} 지우기`} hitSlop={8} onPress={onClear}><X size={14} color={p.textTertiary} /></Tap>
       ) : <ChevronsUpDown size={14} color={p.textTertiary} />}
-    </Pressable>
+    </Tap>
   )
 }
 function Sub({ label, hint, on, accent, onPress }: { label: string; hint?: string; on?: boolean; accent?: boolean; onPress: () => void }) {
   const p = usePalette()
   return (
-    <Pressable accessibilityRole="button" accessibilityState={{ selected: !!on }} onPress={onPress} style={({ pressed }) => [s.sub, pressed && { opacity: 0.6 }]}>
+    <Tap accessibilityRole="button" accessibilityState={{ selected: !!on }} onPress={onPress} style={({ pressed }) => [s.sub, pressed && { opacity: 0.6 }]}>
       <Text style={[FONT.body, { flex: 1, color: accent ? p.accentInk : p.textPrimary }]}>{label}{hint ? <Text style={{ color: p.textTertiary }}> ({hint})</Text> : null}</Text>
       {on ? <Check size={18} color={p.accent} /> : null}
-    </Pressable>
+    </Tap>
   )
 }
 
@@ -346,7 +347,7 @@ const s = StyleSheet.create({
   field: { height: 32, borderRadius: 8, paddingHorizontal: 10, justifyContent: 'center', marginRight: 6 },
   custom: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 8 },
   customRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 44, paddingRight: 14, paddingVertical: 6 },
-  step: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  step: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, // 누름 자리 30 + hitSlop 7×2 = 44(P3-9)
   add: { height: 32, borderRadius: 16, paddingHorizontal: 16, justifyContent: 'center' },
   clear: { alignItems: 'center', paddingVertical: 16 }
 })

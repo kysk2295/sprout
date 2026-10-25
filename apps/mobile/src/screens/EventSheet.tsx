@@ -13,6 +13,7 @@ import { FONT } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { useEventActions } from '../ui/EventMenu'
 import { GlassButton } from '../ui/Glass'
+import { useToast } from '../ui/Toast'
 import { CloseButton } from '../ui/SheetHead'
 import { PopMenu, useAnchor } from '../ui/Menu'
 import { PF } from '../calendars/device'
@@ -28,6 +29,7 @@ export default function EventSheet() {
   const e = useEvent(id)
   const myColor = useMyCalColor()
   const act = useEventActions()
+  const toast = useToast()
   // 38 §5.5 연결된 일정: 위 줄 = 그 캘린더 이름, 맨 아래 = 올리기 오류 / 아직 못 올림
   const devCal = useDeviceCal()
   const [myAccount, setMyAccount] = useState<string | null>(null)
@@ -46,7 +48,7 @@ export default function EventSheet() {
     clearTimeout(timer.current)
     const patch = pending.current
     pending.current = {}
-    if (Object.keys(patch).length && id) void updateEvent(id, patch)
+    if (Object.keys(patch).length && id) updateEvent(id, patch).catch(() => toast.show('저장하지 못했어요', { error: true })) // P3-11: 조용히 삼키지 않는다
   }
   const edit = (k: 'title' | 'location' | 'notes', v: string) => {
     setDraft((d) => ({ ...d, [k]: v }))

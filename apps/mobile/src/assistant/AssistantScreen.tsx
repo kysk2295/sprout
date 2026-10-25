@@ -3,7 +3,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft, SquarePen } from 'lucide-react-native'
 import { useEffect } from 'react'
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
+import { KeyboardAvoid } from '../ui/KeyboardAvoid'
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { sceneGlass } from '@sprout/schema/characterArt'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -35,7 +36,7 @@ export default function AssistantScreen() {
   const navSt = useAnimatedStyle(() => ({ opacity: 1 - hide.value, transform: [{ translateY: -hide.value * (insets.top + M.navH) }] }))
   const onHeader = (show: boolean) => { const v = show ? 0 : 1; if (hide.value !== v) hide.value = withTiming(v, { duration: 220 }) }
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: p.cardBg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoid style={{ flex: 1, backgroundColor: p.cardBg }}>
       <StatusBar style={sceneDark(sc.sceneKey) ? 'light' : 'dark'} />
       {/* 머리는 대화 위에 투명하게 떠 있다 — 대화가 머리 뒤로 비쳐 지나간다(사용자 "여기가 투명해야지") */}
       <Animated.View style={[s.nav, { position: 'absolute', top: insets.top, left: 0, right: 0, borderBottomColor: 'transparent' }, navSt]}>
@@ -51,7 +52,7 @@ export default function AssistantScreen() {
       <View style={{ flex: 1, paddingBottom: bottom, zIndex: 1 }}>
         <AssistantChat a={a} variant="full" bleed={{ top: 0, bottom }} contentTop={insets.top + M.navH} onHeader={onHeader} />
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAvoid>
   )
 }
 const s = StyleSheet.create({

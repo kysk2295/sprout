@@ -47,7 +47,7 @@ export default function Move() {
         <SheetHead title="이동" />
       <View style={[s.search, { backgroundColor: p.cardBg }]}>
         <Search size={16} color={p.textTertiary} />
-        <TextInput value={q} onChangeText={setQ} placeholder="검색" placeholderTextColor={p.textTertiary} style={[FONT.sub, { flex: 1, color: p.textPrimary }]} accessibilityLabel="리스트 검색" />
+        <TextInput value={q} onChangeText={setQ} autoCorrect={false} autoCapitalize="none" returnKeyType="search" placeholder="검색" placeholderTextColor={p.textTertiary} style={[FONT.sub, { flex: 1, color: p.textPrimary }]} accessibilityLabel="리스트 검색" />
       </View>
 
         <Cells>

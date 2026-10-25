@@ -1,6 +1,8 @@
 // 작은 가운데 대화 상자: 이름 입력(폴더·리스트 만들기/이름 바꾸기) 또는 확인(삭제). 틱틱 모바일 알림창 모양 [임시].
 import { useEffect, useState } from 'react'
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Modal, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Tap } from '../ui/Pressables'
+import { KeyboardAvoid } from '../ui/KeyboardAvoid'
 import { usePalette } from '../theme/ThemeProvider'
 import { NAME_MAX } from './logic'
 import { useOnce } from '../ui/once'
@@ -18,30 +20,32 @@ export function Dialog({ spec, onClose }: { spec: DialogSpec | null; onClose: ()
     const t = setTimeout(() => setShown(spec), 320)
     return () => clearTimeout(t)
   }, [spec])
+  const badOf = (sp: DialogSpec, v: string) => { const n = [...v.trim()].length; return !!sp.input && (n === 0 || n > NAME_MAX) }
+  // 훅은 아래 이른 return보다 먼저(열림·닫힘에 따라 훅 개수가 바뀌면 React가 멈춘다)
+  const ok = useOnce(async () => { if (!spec || badOf(spec, value)) return; onClose(); await spec.onConfirm(value) })
   if (!spec || shown !== spec) return null
   const len = [...value.trim()].length
-  const bad = !!spec.input && (len === 0 || len > NAME_MAX)
-  const ok = useOnce(async () => { if (bad) return; onClose(); await spec.onConfirm(value) })
+  const bad = badOf(spec, value)
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.scrim, { backgroundColor: p.scrim }]}>
+      <KeyboardAvoid style={[s.scrim, { backgroundColor: p.scrim }]}>
         <View style={[s.box, { backgroundColor: p.bgPopover }]}>
           <Text style={[s.title, { color: p.textPrimary }]}>{spec.title}</Text>
           {spec.message ? <Text style={[s.msg, { color: p.textSecondary }]}>{spec.message}</Text> : null}
           {spec.input ? (
             <View>
-              <TextInput autoFocus value={value} onChangeText={setValue} placeholder={spec.input.placeholder} placeholderTextColor={p.textTertiary} onSubmitEditing={() => void ok()} returnKeyType="done" accessibilityLabel={spec.input.placeholder}
+              <TextInput autoFocus value={value} onChangeText={setValue} placeholder={spec.input.placeholder} placeholderTextColor={p.textTertiary} onSubmitEditing={() => void ok()} returnKeyType="done" autoCorrect={false} accessibilityLabel={spec.input.placeholder}
                 style={[s.input, { color: p.textPrimary, backgroundColor: p.bgInput, borderColor: len > NAME_MAX ? p.danger : p.borderDivider }]} />
               <Text style={[s.count, { color: len > NAME_MAX ? p.danger : p.textTertiary }]}>{len}/{NAME_MAX}</Text>
             </View>
           ) : null}
           <View style={[s.btns, { borderTopColor: p.borderDivider }]}>
-            <Pressable onPress={onClose} style={s.btn} accessibilityRole="button"><Text style={{ color: p.textSecondary, fontSize: 16 }}>취소</Text></Pressable>
+            <Tap onPress={onClose} style={s.btn} accessibilityRole="button"><Text style={{ color: p.textSecondary, fontSize: 16 }}>취소</Text></Tap>
             <View style={{ width: StyleSheet.hairlineWidth, backgroundColor: p.borderDivider }} />
-            <Pressable disabled={bad} onPress={() => void ok()} style={s.btn} accessibilityRole="button"><Text style={{ color: spec.danger ? p.danger : p.accent, fontSize: 16, fontWeight: '600', opacity: bad ? 0.4 : 1 }}>{spec.confirm}</Text></Pressable>
+            <Tap disabled={bad} onPress={() => void ok()} style={s.btn} accessibilityRole="button"><Text style={{ color: spec.danger ? p.danger : p.accent, fontSize: 16, fontWeight: '600', opacity: bad ? 0.4 : 1 }}>{spec.confirm}</Text></Tap>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </Modal>
   )
 }

@@ -1,6 +1,7 @@
 // 날짜 시트 달력(시안 E .cal-mini, 03 §3): 머리 ‹ 2026년 10월 ›, 주 시작 설정(기본 일요일 — 06 §16.1) 6주 고정, 오늘 = 강조 옅은 원 + 강조 글자, 선택 = 강조색 원(44 §4).
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
+import { Tap } from './Pressables'
 import { usePalette } from '../theme/ThemeProvider'
 import { monthCells, shiftMonth } from './dateSheetModel'
 import { useDayMarks, useMarkPrefs } from '../data/calendarPrefs'
@@ -19,14 +20,14 @@ export function MonthCalendar({ month, onMonth, today, selected, range = [], onP
   return (
     <View>
       <View style={s.head}>
-        <Pressable accessibilityRole="button" accessibilityLabel="이전 달" hitSlop={10} onPress={() => onMonth(shiftMonth(month, -1))}><ChevronLeft size={18} color={p.textTertiary} /></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="이번 달로" onPress={() => onMonth(today.slice(0, 7))}>
+        <Tap accessibilityRole="button" accessibilityLabel="이전 달" hitSlop={10} onPress={() => onMonth(shiftMonth(month, -1))}><ChevronLeft size={18} color={p.textTertiary} /></Tap>
+        <Tap accessibilityRole="button" accessibilityLabel="이번 달로" onPress={() => onMonth(today.slice(0, 7))}>
           <Text style={[s.title, { color: p.textPrimary }]}>{y}년 {m}월</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="다음 달" hitSlop={10} onPress={() => onMonth(shiftMonth(month, 1))}><ChevronRight size={18} color={p.textTertiary} /></Pressable>
+        </Tap>
+        <Tap accessibilityRole="button" accessibilityLabel="다음 달" hitSlop={10} onPress={() => onMonth(shiftMonth(month, 1))}><ChevronRight size={18} color={p.textTertiary} /></Tap>
       </View>
       <View style={s.grid}>
-        {weekHead(ws).map((w, i) => { const dow = headWeekday(i, ws); return <Text key={w} style={[s.wd, { color: dow === 0 ? p.holiday : dow === 6 ? p.saturday : p.textTertiary }]}>{w}</Text> })}
+        {weekHead(ws).map((w, i) => { const dow = headWeekday(i, ws); return <Text maxFontSizeMultiplier={1.2} key={w} style={[s.wd, { color: dow === 0 ? p.holiday : dow === 6 ? p.saturday : p.textTertiary }]}>{w}</Text> })}
         {cells.map((d, i) => {
           const other = d.slice(0, 7) !== month
           const sel = selected.includes(d)
@@ -36,9 +37,9 @@ export function MonthCalendar({ month, onMonth, today, selected, range = [], onP
           const sat = headWeekday(i % 7, ws) === 6 // 06 §16 토요일 파랑(사용자 결정 2026-10-05)
           const mk = marks(d, false)
           return (
-            <Pressable key={d} accessibilityRole="button" accessibilityLabel={d} accessibilityHint={mk.holiday ?? undefined} accessibilityState={{ selected: sel }} onPress={() => onPick(d)} style={s.cellWrap}>
+            <Tap key={d} accessibilityRole="button" accessibilityLabel={d} accessibilityHint={mk.holiday ?? undefined} accessibilityState={{ selected: sel }} onPress={() => onPick(d)} style={s.cellWrap}>
               <View style={[s.cell, isToday && !sel && { backgroundColor: p.accentSubtle }, sel && { backgroundColor: p.accent }, inRange && { backgroundColor: p.accentSubtle }]}>
-                <Text style={[
+                <Text maxFontSizeMultiplier={1.2} style={[
                   s.day,
                   { color: other ? p.calOther : sun || mk.holiday ? p.holiday : sat ? p.saturday : p.textPrimary },
                   isToday && { color: p.accentInk, fontWeight: '700' },
@@ -46,7 +47,7 @@ export function MonthCalendar({ month, onMonth, today, selected, range = [], onP
                 ]}>{Number(d.slice(8))}</Text>
                 
               </View>
-            </Pressable>
+            </Tap>
           )
         })}
       </View>

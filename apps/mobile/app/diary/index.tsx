@@ -5,7 +5,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { CalendarDays, ChevronLeft, MessageCircle, MoreHorizontal, PenLine } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
+import { Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
+import { Tap } from '../../src/ui/Pressables'
 import { Gesture } from 'react-native-gesture-handler'
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -35,6 +36,9 @@ import { SlideSheet } from '../../src/ui/SlideSheet'
 import { useToast } from '../../src/ui/Toast'
 
 type View_ = 'chat' | 'solo' | 'card'
+
+/** iOS 왼쪽 가장자리(뒤로 밀기 자리) — 여기서 시작한 밀기는 날 넘기기로 받지 않는다(Android는 0) */
+const EDGE = Platform.OS === 'ios' ? 24 : 0
 
 export default function Diary() {
   const p = usePalette()
@@ -101,14 +105,19 @@ export default function Diary() {
     tx.value = withTiming(0, { duration: reduced ? 0 : 240 })
     op.value = withTiming(1, { duration: reduced ? 120 : 240 })
   }
+  // P2-7: 저장한 장을 고치는 중이면 날 넘기기 밀기를 끈다(고친 글이 경고 없이 사라지지 않게)
+  const [editing, setEditing] = useState(false)
   const swipe = useMemo(() => Gesture.Pan()
+    .enabled(!editing)
     .activeOffsetX([-18, 18])
     .failOffsetY([-14, 14])
+    // P2-6: iOS 왼쪽 가장자리 밀기 = 뒤로(HIG) — 가장자리에서 시작한 손가락은 날 넘기기로 받지 않는다
+    .onTouchesDown((e, m) => { if (EDGE && e.allTouches[0] && e.allTouches[0].absoluteX < EDGE) m.fail() })
     .onUpdate((e) => { tx.value = e.translationX * 0.5 })
     .onEnd((e) => {
       if (Math.abs(e.translationX) < 70 && Math.abs(e.velocityX) < 800) { tx.value = withSpring(0); return }
       scheduleOnRN(go, e.translationX > 0 ? -1 : 1)
-    }), [go, tx])
+    }), [go, tx, editing])
   const body = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }], opacity: op.value }))
 
   // ── 시트 ──
@@ -138,17 +147,17 @@ export default function Diary() {
       {soft && !chatScene ? <SoftScene sceneKey={soft} width={win.width} height={win.height} veil={p.pageBg} veilOpacity={p.dark ? 0.78 : 0.8} /> : null}
       <View style={[s.hdr, { marginTop: insets.top }]}>
         <GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>
-        <Pressable style={s.mid} onPress={() => router.push('/diary/calendar')} accessibilityRole="button" accessibilityLabel={`${dayTitle(date)}, ${status}. 기분 달력 열기`}>
+        <Tap style={s.mid} onPress={() => router.push('/diary/calendar')} accessibilityRole="button" accessibilityLabel={`${dayTitle(date)}, ${status}. 기분 달력 열기`}>
           <Text style={[s.midTitle, { color: ink }]} numberOfLines={1}>{dayTitle(date)}</Text>
           <View style={s.midSub}>
             <Text style={{ color: tone?.sub ?? p.textTertiary, fontSize: 12 }}>{status}</Text>
           </View>
-        </Pressable>
+        </Tap>
         <GlassGroup>
           {past ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="오늘로" onPress={toToday} style={s.today} hitSlop={2}>
+            <Tap accessibilityRole="button" accessibilityLabel="오늘로" onPress={toToday} style={s.today} hitSlop={2}>
               <Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '700' }}>오늘</Text>
-            </Pressable>
+            </Tap>
           ) : null}
           {view === 'chat'
             ? <GlassButton plain label="혼자 쓰기" onPress={() => { hx.tick(); toSolo(null) }}><PenLine size={18} color={p.textPrimary} /></GlassButton>
@@ -161,7 +170,7 @@ export default function Diary() {
       <Animated.View key={date} style={[{ flex: 1 }, body]}>
         {view === 'card'
           ? <PastDay date={date} entry={entry} buddy={buddy} reduced={reduced} swipe={swipe} onChat={toChat} onSolo={(i) => toSolo(i)} />
-          : <Conversation date={date} today={today} entry={entry} buddy={buddy} reduced={reduced} swipe={swipe} onFree={(x) => toSolo(null, x)} />}
+          : <Conversation date={date} today={today} entry={entry} buddy={buddy} reduced={reduced} swipe={swipe} onFree={(x) => toSolo(null, x)} onEditing={setEditing} />}
       </Animated.View>
 
       {/* ⋯ 아래 동작 시트(§8.2 확인 = 아래 시트) */}
@@ -170,10 +179,10 @@ export default function Diary() {
         {askDelete ? <>
           <Text style={[s.sheetTitle, { color: p.textPrimary }]}>이 날 일기를 지울까요?</Text>
           <Text style={[s.sheetBody, { color: p.textSecondary }]}>글·기분·대화가 모든 기기에서 지워져요.</Text>
-          <Pressable accessibilityRole="button" onPress={() => { setMenu(false); setAskDelete(false); forgetDraft(date); dropSoloDraft(date); void deleteEntry(date).then(() => toast.show('일기를 지웠어요')) }} style={[s.cancel, { backgroundColor: p.cardBg }]}>
+          <Tap accessibilityRole="button" onPress={() => { setMenu(false); setAskDelete(false); forgetDraft(date); dropSoloDraft(date); void deleteEntry(date).then(() => toast.show('일기를 지웠어요')) }} style={[s.cancel, { backgroundColor: p.cardBg }]}>
             <Text style={{ color: p.danger, fontSize: 16, fontWeight: '700' }}>지우기</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => { setMenu(false); setAskDelete(false) }} style={[s.cancel, { backgroundColor: p.cardBg }]}><Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600' }}>취소</Text></Pressable>
+          </Tap>
+          <Tap accessibilityRole="button" onPress={() => { setMenu(false); setAskDelete(false) }} style={[s.cancel, { backgroundColor: p.cardBg }]}><Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600' }}>취소</Text></Tap>
         </> : <>
         <View style={[s.group, { backgroundColor: p.cardBg }]}>
           {prefs.consent ? <Item label="기억하기" note={prefs.memory ? '켜짐' : undefined} onPress={act(() => { setMemory(!prefs.memory); toast.show(prefs.memory ? '이 날 일기만 보고 이야기해요' : '최근 7일 일기 요약도 같이 봐요') })} /> : null}
@@ -182,7 +191,7 @@ export default function Diary() {
           <Item label="일기 검색" onPress={act(() => router.push('/diary/search'))} />
           <Item label="이 날 일기 지우기" danger last onPress={() => { hx.warn(); setAskDelete(true) }} />
         </View>
-        <Pressable accessibilityRole="button" onPress={() => setMenu(false)} style={[s.cancel, { backgroundColor: p.cardBg }]}><Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600' }}>취소</Text></Pressable>
+        <Tap accessibilityRole="button" onPress={() => setMenu(false)} style={[s.cancel, { backgroundColor: p.cardBg }]}><Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600' }}>취소</Text></Tap>
         </>}
       </SlideSheet>
 
@@ -194,19 +203,19 @@ export default function Diary() {
 function Item({ label, note, danger, last, onPress }: { label: string; note?: string; danger?: boolean; last?: boolean; onPress: () => void }): ReactNode {
   const p = usePalette()
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [s.item, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
+    <Tap accessibilityRole="button" onPress={onPress} style={({ pressed }) => [s.item, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
       <Text style={{ flex: 1, color: danger ? p.danger : p.textPrimary, fontSize: 16 }}>{label}</Text>
       {note ? <Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '600' }}>{note}</Text> : null}
-    </Pressable>
+    </Tap>
   )
 }
 
 const s = StyleSheet.create({
-  hdr: { height: 52, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 },
+  hdr: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 },
   mid: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   midTitle: { fontSize: 16, fontWeight: '700', lineHeight: 20 },
   midSub: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  today: { height: 42, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
+  today: { minHeight: 42, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
   sheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 12, paddingTop: 8, gap: 10 },
   grab: { alignSelf: 'center', width: 36, height: 5, borderRadius: 3, marginBottom: 4 },
   group: { borderRadius: 16, overflow: 'hidden' },

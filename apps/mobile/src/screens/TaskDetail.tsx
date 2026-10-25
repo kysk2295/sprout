@@ -7,7 +7,8 @@ import { useLiveQuery } from '../data/rows'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { ArrowRightLeft, Ban, Bell, ChevronLeft, ChevronsUpDown, Copy, Ellipsis, Flag, ListChecks, Pin, Plus, Repeat, Tag, Trash2 } from 'lucide-react-native'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Dimensions, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type KeyboardEvent } from 'react-native'
+import { Dimensions, Keyboard, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View, type KeyboardEvent } from 'react-native'
+import { Tap } from '../ui/Pressables'
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
@@ -91,11 +92,11 @@ export default function TaskDetail() {
         <View style={[s.top, { marginTop: full ? insets.top : 10 }]}>
           {/* 20 §3.2: 반 시트 = 둥근 ✕, 끌어 올린 전체 화면 = ‹ (틱틱 "‹ Inbox") — 둘 다 닫기 */}
           {full ? <GlassButton label="닫기" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton> : <CloseButton />}
-          <Pressable accessibilityRole="button" accessibilityLabel={`리스트: ${listName}, 이동`} onPress={() => openSheet('/move')} style={s.list}>
+          <Tap accessibilityRole="button" accessibilityLabel={`리스트: ${listName}, 이동`} onPress={() => openSheet('/move')} style={s.list}>
             {task.list_emoji ? <Text>{task.list_emoji}</Text> : <View style={[s.dot, { backgroundColor: task.list_color ?? (task.list_kind === 'inbox' ? p.slInbox : p.textQuaternary) }]} />}
             <Text style={[s.listText, { color: p.textSecondary }]} numberOfLines={1}>{listName}</Text>
             <ChevronsUpDown size={14} color={p.textSecondary} />
-          </Pressable>
+          </Tap>
           <View style={{ flex: 1 }} />
           <View ref={priority.ref} collapsable={false}>
             <GlassButton label="우선순위" onPress={priority.open}><Flag size={20} color={priorityColor(p, task.priority)} fill={task.priority ? priorityColor(p, task.priority) : 'transparent'} /></GlassButton>
@@ -106,11 +107,11 @@ export default function TaskDetail() {
           {checklist ? <ListChecks size={18} color={p.textTertiary} /> : (
             <Checkbox priority={task.priority} done={done} onPress={() => void toggleDone(task).then((u) => u && toast.show('작업이 완료되었습니다.', { undo: u }))} />
           )}
-          <Pressable accessibilityRole="button" accessibilityLabel={`날짜: ${date.label}`} onPress={() => openSheet('/date')} style={s.dateBtn}>
+          <Tap accessibilityRole="button" accessibilityLabel={`날짜: ${date.label}`} onPress={() => openSheet('/date')} style={s.dateBtn}>
             <Text style={[FONT.body, { fontSize: 15, color: date.tone === 'none' ? p.textQuaternary : date.tone === 'overdue' ? p.overdue : p.accent }]}>{date.label}</Text>
             {task.reminder_count ? <Bell size={15} color={p.accent} /> : null}
             {task.repeat_rule ? <Repeat size={15} color={p.accent} /> : null}
-          </Pressable>
+          </Tap>
         </View>
 
         <TextInput
@@ -174,10 +175,10 @@ export default function TaskDetail() {
           <View>
             <Text style={[FONT.meta, s.subHead, { color: p.textTertiary }]}>하위 할 일 {subs.length}</Text>
             {subs.map((c) => (
-              <Pressable key={c.id} onPress={() => router.push(`/task/${c.id}`)} style={s.subRow}>
+              <Tap key={c.id} onPress={() => router.push(`/task/${c.id}`)} style={s.subRow}>
                 <Checkbox priority={c.priority} done={c.status !== 0} onPress={() => void toggleDone(c)} />
                 <Text style={[FONT.body, { flex: 1, color: c.status ? p.textTertiary : p.textPrimary }]} numberOfLines={1}>{c.title}</Text>
-              </Pressable>
+              </Tap>
             ))}
             <Text style={[FONT.meta, { color: p.textQuaternary, paddingHorizontal: 16, paddingTop: 4 }]}>하위 할 일 만들기는 컴퓨터에서 할 수 있어요</Text>
           </View>
@@ -269,21 +270,21 @@ function MoreSheet(props: { open: boolean; onClose: () => void; pinned: boolean;
         <View style={[s.grabber, { backgroundColor: p.textQuaternary }]} />
         <View style={s.bigRow}>
           {big.map(([k, label, icon]) => (
-            <Pressable key={k} accessibilityRole="button" accessibilityLabel={label} onPress={() => act(k)} style={[s.big, { backgroundColor: p.cardBg }]}>
+            <Tap key={k} accessibilityRole="button" accessibilityLabel={label} onPress={() => act(k)} style={[s.big, { backgroundColor: p.cardBg }]}>
               {icon}
               <Text style={{ fontSize: 12, color: p.textSecondary }}>{label}</Text>
-            </Pressable>
+            </Tap>
           ))}
         </View>
         <View style={[s.cells, { backgroundColor: p.cardBg }]}>
-          <Pressable accessibilityRole="button" onPress={() => act('tags')} style={s.cell}>
+          <Tap accessibilityRole="button" onPress={() => act('tags')} style={s.cell}>
             <Tag size={20} color={p.textSecondary} />
             <Text style={[FONT.body, { color: p.textPrimary }]}>태그</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => act('toEvent')} style={[s.cell, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }]}>
+          </Tap>
+          <Tap accessibilityRole="button" onPress={() => act('toEvent')} style={[s.cell, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }]}>
             <ArrowRightLeft size={20} color={p.textSecondary} />
             <Text style={[FONT.body, { color: p.textPrimary }]}>일정으로 바꾸기</Text>
-          </Pressable>
+          </Tap>
         </View>
     </SlideSheet>
   )

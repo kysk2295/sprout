@@ -115,6 +115,8 @@ export default function SearchScreen() {
             placeholder="검색"
             placeholderTextColor={p.textTertiary}
             returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
             clearButtonMode="while-editing"
             style={[FONT.body, { flex: 1, color: p.textPrimary, height: 40 }]}
             accessibilityLabel="검색어"

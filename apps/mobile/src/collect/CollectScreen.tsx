@@ -6,7 +6,8 @@ import { useLiveQuery } from '../data/rows'
 import { useRouter, useScrollToTop } from 'expo-router'
 import { BookOpen, Check, ChevronRight, Ellipsis, Plus, Search, SquareCheck, Trash2, X } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Keyboard, Linking, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Keyboard, Linking, RefreshControl, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Tap } from '../ui/Pressables'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { syncNow } from '../data/auth'
 import { dayKey } from '../lib/dates'
@@ -32,6 +33,7 @@ import { seedSeen, useSeen } from './wikiSeen'
 import { useTabBarSpace } from '../ui/tabBarSpace'
 import { canReceiveShare } from '../share/android'
 import { useOnce } from '../ui/once'
+import { useBackClose } from '../ui/backClose'
 
 type Section = 'notes' | 'watch' | 'wiki'
 type Topic = WikiTopic & { count: number }
@@ -52,7 +54,11 @@ export default function CollectScreen() {
   const [section, setSection] = useState<Section>('notes')
   const [search, setSearch] = useState<string | null>(null)
   const q = search ?? ''
-  const items = useLiveQuery<CollectItem>(ITEMS_SQL, [q]).data
+  useBackClose(search !== null, () => { setSearch(null); Keyboard.dismiss() }) // P2-4: Android 뒤로 가기 = 검색부터 닫기
+  const itemsQ = useLiveQuery<CollectItem>(ITEMS_SQL, [q])
+  const items = itemsQ.data
+  // P2-10: 기기 DB를 읽는 중이면 빈 화면 글을 안 그린다(할 일 목록 firstLoad와 같은 꼴) — 켤 때 "무엇이든 던져 두세요"가 깜빡였다
+  const loading = itemsQ.isLoading && !items.length
   const unseen = useLiveQuery<{ n: number }>('SELECT COUNT(*) AS n FROM notes WHERE url IS NOT NULL AND seen_at IS NULL').data[0]?.n ?? 0
   const pending = useLiveQuery<{ n: number }>("SELECT COUNT(*) AS n FROM notes WHERE ai_state = 'pending' AND task_id IS NULL").data[0]?.n ?? 0
   const [toggled, setToggled] = useState<Set<string>>(() => new Set())
@@ -110,10 +116,10 @@ export default function CollectScreen() {
         <View style={[s.searchRow, { marginTop: insets.top }]}>
           <View style={[s.searchBox, { backgroundColor: p.dark ? 'rgba(118,118,128,0.24)' : 'rgba(120,120,128,0.12)' }]}>
             <Search size={16} color={p.textTertiary} />
-            <TextInput autoFocus value={search} onChangeText={setSearch} placeholder={section === 'wiki' ? '주제 검색' : section === 'watch' ? '볼 것 검색' : '수집함 검색'} placeholderTextColor={p.textTertiary} style={[s.searchInput, { color: p.textPrimary }]} returnKeyType="search" accessibilityLabel="수집함 검색" />
-            {search ? <Pressable accessibilityLabel="검색어 지우기" hitSlop={8} onPress={() => setSearch('')}><X size={16} color={p.textTertiary} /></Pressable> : null}
+            <TextInput autoFocus value={search} onChangeText={setSearch} placeholder={section === 'wiki' ? '주제 검색' : section === 'watch' ? '볼 것 검색' : '수집함 검색'} placeholderTextColor={p.textTertiary} style={[s.searchInput, { color: p.textPrimary }]} returnKeyType="search" autoCorrect={false} autoCapitalize="none" accessibilityLabel="수집함 검색" />
+            {search ? <Tap accessibilityLabel="검색어 지우기" hitSlop={8} onPress={() => setSearch('')}><X size={16} color={p.textTertiary} /></Tap> : null}
           </View>
-          <Pressable accessibilityRole="button" onPress={() => { setSearch(null); Keyboard.dismiss() }} hitSlop={8}><Text style={[FONT.body, { color: p.accentInk }]}>취소</Text></Pressable>
+          <Tap accessibilityRole="button" onPress={() => { setSearch(null); Keyboard.dismiss() }} hitSlop={8}><Text style={[FONT.body, { color: p.accentInk }]}>취소</Text></Tap>
         </View>
       )}
       <ScrollView
@@ -136,7 +142,7 @@ export default function CollectScreen() {
               </View>
             ) : null}
             {!items.length ? (
-              q ? <CollectEmpty icon="inbox" title={`"${q}"와 맞는 항목이 없어요`} /> : (
+              loading ? null : q ? <CollectEmpty icon="inbox" title={`"${q}"와 맞는 항목이 없어요`} /> : (
                 <CollectEmpty icon="inbox" title="무엇이든 던져 두세요" sub={canReceiveShare ? "다른 앱에서 공유 → 꿈틀을 누르면 여기로 와요\n(카톡 '나에게 보내기'처럼)" : '링크·글을 복사해 위 입력 칸에 붙여 넣으면 여기로 와요\n(카톡 \'나에게 보내기\'처럼)'} />
               )
             ) : groups.map((g) => {
@@ -156,7 +162,7 @@ export default function CollectScreen() {
             })}
           </>
         ) : section === 'watch' ? (
-          !watch.some((g) => g.items.length) ? (
+          !watch.some((g) => g.items.length) ? loading ? null : (
             q ? <CollectEmpty icon="link" title={`"${q}"와 맞는 링크가 없어요`} /> : <CollectEmpty icon="link" title="저장한 링크가 여기에 모여요" sub="수집에 유튜브·기사 링크를 던져 두면 제목과 함께 들어와요" />
           ) : watch.filter((g) => g.items.length).map((g) => {
             const closed = !q && (g.id === 'seen') !== toggled.has(`w:${g.id}`)
@@ -218,16 +224,16 @@ function WatchRow({ item, today, onToggle, onMenu }: { item: CollectItem; today:
   const on = !!item.seen_at
   return (
     <View ref={ref} collapsable={false}>
-      <Pressable
+      <Tap
         onPress={() => void Linking.openURL(item.url!)}
         onLongPress={() => ref.current?.measureInWindow((x, y, width, height) => onMenu({ x: x + 40, y, width: 0, height }))}
         delayLongPress={350}
         accessibilityLabel={`${item.link_title || item.url} 열기`}
         style={({ pressed }) => [s.wrow, { backgroundColor: pressed ? p.bgSelected : p.cardBg }]}
       >
-        <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={on ? '안 본 것으로' : '봤어요'} hitSlop={8} onPress={onToggle} style={[s.circle, { borderColor: on ? p.textQuaternary : p.textTertiary, backgroundColor: on ? p.textQuaternary : 'transparent' }]}>
+        <Tap accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={on ? '안 본 것으로' : '봤어요'} hitSlop={8} onPress={onToggle} style={[s.circle, { borderColor: on ? p.textQuaternary : p.textTertiary, backgroundColor: on ? p.textQuaternary : 'transparent' }]}>
           {on ? <Check size={11} color="#fff" strokeWidth={3} /> : null}
-        </Pressable>
+        </Tap>
         <SiteMark url={item.url!} />
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
           <Text style={[FONT.body, { color: on ? p.textTertiary : p.textPrimary }]} numberOfLines={1}>{item.link_title || titleOf(item) || item.url}</Text>
@@ -237,7 +243,7 @@ function WatchRow({ item, today, onToggle, onMenu }: { item: CollectItem; today:
             {isKakao(item) ? <ChipView chip={{ text: '카톡', tone: 'line' }} /> : null}
           </View>
         </View>
-      </Pressable>
+      </Tap>
     </View>
   )
 }
@@ -275,9 +281,9 @@ function AddBar({ onSaved }: { onSaved: (bare: boolean) => void }) {
           accessibilityLabel="수집함에 넣기"
         />
       ) : (
-        <Pressable accessibilityRole="button" style={{ flex: 1, height: 44, justifyContent: 'center' }} onPress={() => setEditing(true)}>
+        <Tap accessibilityRole="button" style={{ flex: 1, height: 44, justifyContent: 'center' }} onPress={() => setEditing(true)}>
           <Text style={[FONT.body, { color: p.textTertiary }]} numberOfLines={1}>무엇이든 던져 두세요 — 할 일, 링크, 메모</Text>
-        </Pressable>
+        </Tap>
       )}
     </View>
   )
@@ -294,7 +300,7 @@ function WikiTopics({ query, onOpen, onBack }: { query: string; onOpen: (id: str
   if (!topics.length) {
     return (
       <CollectEmpty icon="book" title="자료가 쌓이면 주제별로 정리해 드려요" sub="공부한 것·알게 된 것을 수집에 던져 두면 AI가 주제 페이지를 만들어요">
-        <Pressable accessibilityRole="button" onPress={onBack} style={{ marginTop: 10 }}><Text style={[FONT.sub, { color: p.accentInk, fontWeight: '600' }]}>수집으로 돌아가기</Text></Pressable>
+        <Tap accessibilityRole="button" onPress={onBack} style={{ marginTop: 10 }}><Text style={[FONT.sub, { color: p.accentInk, fontWeight: '600' }]}>수집으로 돌아가기</Text></Tap>
       </CollectEmpty>
     )
   }
@@ -306,7 +312,7 @@ function WikiTopics({ query, onOpen, onBack }: { query: string; onOpen: (id: str
         {shown.map((t) => {
           const fresh = !!seen && t.version > (seen[t.id] ?? 0)
           return (
-            <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={`${t.name}${fresh ? ', 새로 바뀜' : ''}`} onPress={() => onOpen(t.id)} style={({ pressed }) => [s.trow, { backgroundColor: pressed ? p.bgSelected : p.cardBg }]}>
+            <Tap key={t.id} accessibilityRole="button" accessibilityLabel={`${t.name}${fresh ? ', 새로 바뀜' : ''}`} onPress={() => onOpen(t.id)} style={({ pressed }) => [s.trow, { backgroundColor: pressed ? p.bgSelected : p.cardBg }]}>
               <View style={{ width: 24, alignItems: 'center' }}><BookOpen size={18} color={p.textTertiary} /></View>
               <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
                 <Text style={[FONT.body, { color: p.textPrimary }]} numberOfLines={1}>{t.name}</Text>
@@ -314,7 +320,7 @@ function WikiTopics({ query, onOpen, onBack }: { query: string; onOpen: (id: str
               </View>
               {fresh ? <View style={[s.newdot, { backgroundColor: p.accent }]} /> : null}
               <ChevronRight size={16} color={p.textQuaternary} />
-            </Pressable>
+            </Tap>
           )
         })}
       </GroupCard>

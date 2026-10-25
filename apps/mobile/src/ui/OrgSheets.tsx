@@ -3,7 +3,9 @@
 // 섹션 이름 같은 한 줄 입력은 TextPrompt(가운데 작은 창 — Android에 Alert.prompt가 없어서 직접 그림).
 import { Check, Folder, X } from 'lucide-react-native'
 import { useEffect, useState, type ReactNode } from 'react'
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { Modal, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { Tap } from './Pressables'
+import { KeyboardAvoid } from './KeyboardAvoid'
 import { useFolders, useLists } from '../data/lists'
 import { EMPTY_FILTER, FILTER_DATES, filterSummary, readFilter, writeFilter, type FilterRule } from '../data/filters'
 import { saveFilter, saveFolder, saveList, saveTag, useFilters, useListFull, useTagsFull } from '../data/organization'
@@ -20,7 +22,7 @@ function Sheet(props: { open: boolean; title: string; canSave: boolean; busy?: b
   const p = usePalette()
   return (
     <Modal visible={props.open} animationType="slide" presentationStyle="pageSheet" onRequestClose={props.onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: p.pageBg }}>
+      <KeyboardAvoid style={{ flex: 1, backgroundColor: p.pageBg }}>
         <View style={s.head}>
           <GlassButton label="닫기" onPress={props.onClose}><X size={20} color={p.textPrimary} /></GlassButton>
           <Text style={[FONT.nav, s.title, { color: p.textPrimary }]} numberOfLines={1}>{props.title}</Text>
@@ -32,7 +34,7 @@ function Sheet(props: { open: boolean; title: string; canSave: boolean; busy?: b
           {props.error ? <Text style={[s.err, { color: p.danger }]} accessibilityRole="alert">{props.error}</Text> : null}
           {props.children}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </Modal>
   )
 }
@@ -54,6 +56,7 @@ function NameRow(props: { emoji?: string | null; onEmoji?: (v: string) => void; 
       ) : props.prefix ? <Text style={[FONT.body, { color: p.textTertiary }]}>{props.prefix}</Text> : null}
       <TextInput
         autoFocus
+        autoCorrect={false}
         value={props.name}
         onChangeText={props.onName}
         placeholder={props.placeholder}
@@ -72,11 +75,11 @@ function Colors(props: { value: string | null; onChange: (c: string | null) => v
       {ORG_COLORS.map((c) => {
         const on = (props.value ?? '') === c
         return (
-          <Pressable key={c || 'none'} accessibilityRole="button" accessibilityLabel={c ? `색 ${c}` : '색 없음'} accessibilityState={{ selected: on }} onPress={() => props.onChange(c || null)} style={[s.swatch, { borderColor: on ? p.accent : 'transparent' }]}>
+          <Tap key={c || 'none'} accessibilityRole="button" accessibilityLabel={c ? `색 ${c}` : '색 없음'} accessibilityState={{ selected: on }} onPress={() => props.onChange(c || null)} style={[s.swatch, { borderColor: on ? p.accent : 'transparent' }]}>
             <View style={[s.swatchIn, { backgroundColor: c || 'transparent', borderColor: c ? c : p.textQuaternary }]}>
               {!c ? <View style={[s.slash, { backgroundColor: p.textQuaternary }]} /> : null}
             </View>
-          </Pressable>
+          </Tap>
         )
       })}
     </View>
@@ -89,10 +92,10 @@ const Title = ({ children }: { children: string }) => {
 function Chip(props: { label: string; on: boolean; onPress: () => void; color?: string }) {
   const p = usePalette()
   return (
-    <Pressable accessibilityRole="button" accessibilityState={{ selected: props.on }} onPress={props.onPress} style={[s.chip, { backgroundColor: props.on ? p.accent : p.bgSelected }]}>
+    <Tap accessibilityRole="button" accessibilityState={{ selected: props.on }} onPress={props.onPress} style={[s.chip, { backgroundColor: props.on ? p.accent : p.bgSelected }]}>
       {props.color ? <View style={[s.cdot, { backgroundColor: props.color }]} /> : null}
       <Text style={{ fontSize: 14, color: props.on ? '#fff' : p.textPrimary }} numberOfLines={1}>{props.label}</Text>
-    </Pressable>
+    </Tap>
   )
 }
 
@@ -283,17 +286,17 @@ export function TextPrompt(props: { open: boolean; title: string; initial?: stri
   })
   return (
     <Modal transparent visible={props.open} animationType="fade" onRequestClose={props.onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.dim, { backgroundColor: p.scrim }]}>
+      <KeyboardAvoid style={[s.dim, { backgroundColor: p.scrim }]}>
         <View style={[s.box, { backgroundColor: p.bgPopover, borderColor: p.borderPopover }]}>
           <Text style={[FONT.nav, { color: p.textPrimary, textAlign: 'center' }]}>{props.title}</Text>
-          <TextInput autoFocus value={v} onChangeText={setV} onSubmitEditing={() => void ok()} placeholder={props.placeholder} placeholderTextColor={p.textQuaternary} returnKeyType="done" style={[FONT.body, s.input, { color: p.textPrimary, borderColor: p.accent }]} accessibilityLabel={props.title} />
+          <TextInput autoFocus autoCorrect={false} value={v} onChangeText={setV} onSubmitEditing={() => void ok()} placeholder={props.placeholder} placeholderTextColor={p.textQuaternary} returnKeyType="done" style={[FONT.body, s.input, { color: p.textPrimary, borderColor: p.accent }]} accessibilityLabel={props.title} />
           {error ? <Text style={{ color: p.danger, fontSize: 13 }}>{error}</Text> : null}
           <View style={s.btns}>
-            <Pressable accessibilityRole="button" onPress={props.onClose} style={s.btn}><Text style={{ fontSize: 16, color: p.textSecondary }}>취소</Text></Pressable>
-            <Pressable accessibilityRole="button" disabled={!v.trim()} onPress={() => void ok()} style={s.btn}><Text style={{ fontSize: 16, fontWeight: '600', color: v.trim() ? p.accentInk : p.textQuaternary }}>{props.confirm ?? '확인'}</Text></Pressable>
+            <Tap accessibilityRole="button" onPress={props.onClose} style={s.btn}><Text style={{ fontSize: 16, color: p.textSecondary }}>취소</Text></Tap>
+            <Tap accessibilityRole="button" disabled={!v.trim()} onPress={() => void ok()} style={s.btn}><Text style={{ fontSize: 16, fontWeight: '600', color: v.trim() ? p.accentInk : p.textQuaternary }}>{props.confirm ?? '확인'}</Text></Tap>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </Modal>
   )
 }

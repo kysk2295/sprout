@@ -4,7 +4,8 @@
 import { useRouter } from 'expo-router'
 import { ChevronLeft, ChevronRight, Lock } from 'lucide-react-native'
 import { useCallback, useMemo, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Tap } from '../../src/ui/Pressables'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { scheduleOnRN } from 'react-native-worklets'
@@ -29,6 +30,9 @@ import { Segmented } from '../../src/ui/Segmented'
 
 const shift = (m: string, n: number) => { const d = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` }
 
+/** iOS 왼쪽 가장자리(뒤로 밀기 자리) — 여기서 시작한 밀기는 달 넘기기로 받지 않는다 */
+const EDGE = Platform.OS === 'ios' ? 24 : 0
+
 export default function MoodCalendar() {
   const p = usePalette()
   const router = useRouter()
@@ -45,7 +49,9 @@ export default function MoodCalendar() {
   const inMonth = useMemo(() => entries.filter((e) => e.date.slice(0, 7) === month && isWritten(e)), [entries, month])
   const canNext = month < today.slice(0, 7)
   const move = useCallback((n: number) => setMonth((m) => { const next = shift(m, n); if (next > dayKey().slice(0, 7)) return m; hx.tick(); return next }), [])
-  const swipe = useMemo(() => Gesture.Pan().activeOffsetX([-24, 24]).failOffsetY([-14, 14]).onEnd((e) => {
+  const swipe = useMemo(() => Gesture.Pan().activeOffsetX([-24, 24]).failOffsetY([-14, 14])
+    .onTouchesDown((e, m) => { if (EDGE && e.allTouches[0] && e.allTouches[0].absoluteX < EDGE) m.fail() }) // P2-6: iOS 가장자리 = 뒤로
+    .onEnd((e) => {
     if (Math.abs(e.translationX) > 60) scheduleOnRN(move, e.translationX > 0 ? -1 : 1)
   }), [move])
   const pick = (d: string) => { hx.tick(); openDay(d); router.back() }
@@ -78,11 +84,11 @@ export default function MoodCalendar() {
             <Text style={[s.title, { color: p.textPrimary }]}>{mode !== 'year' ? `${Number(month.slice(5))}월` : `${year}년`}<Text style={[s.titleSub, { color: p.textTertiary }]}>{mode !== 'year' ? `  ${year}` : ''}</Text></Text>
             <View style={{ flex: 1 }} />
             {mode !== 'year' ? <>
-              <Pressable onPress={() => move(-1)} accessibilityRole="button" accessibilityLabel="이전 달" style={s.arrow}><ChevronLeft size={22} color={p.textPrimary} /></Pressable>
-              <Pressable onPress={() => move(1)} disabled={!canNext} accessibilityRole="button" accessibilityLabel="다음 달" style={[s.arrow, !canNext && { opacity: 0.3 }]}><ChevronRight size={22} color={p.textPrimary} /></Pressable>
+              <Tap onPress={() => move(-1)} accessibilityRole="button" accessibilityLabel="이전 달" style={s.arrow}><ChevronLeft size={22} color={p.textPrimary} /></Tap>
+              <Tap onPress={() => move(1)} disabled={!canNext} accessibilityRole="button" accessibilityLabel="다음 달" style={[s.arrow, !canNext && { opacity: 0.3 }]}><ChevronRight size={22} color={p.textPrimary} /></Tap>
             </> : <>
-              <Pressable onPress={() => setMonth(`${year - 1}-12`)} accessibilityRole="button" accessibilityLabel="지난해" style={s.arrow}><ChevronLeft size={22} color={p.textPrimary} /></Pressable>
-              <Pressable onPress={() => setMonth(`${year + 1}-01`)} disabled={year >= Number(today.slice(0, 4))} accessibilityRole="button" accessibilityLabel="다음 해" style={[s.arrow, year >= Number(today.slice(0, 4)) && { opacity: 0.3 }]}><ChevronRight size={22} color={p.textPrimary} /></Pressable>
+              <Tap onPress={() => setMonth(`${year - 1}-12`)} accessibilityRole="button" accessibilityLabel="지난해" style={s.arrow}><ChevronLeft size={22} color={p.textPrimary} /></Tap>
+              <Tap onPress={() => setMonth(`${year + 1}-01`)} disabled={year >= Number(today.slice(0, 4))} accessibilityRole="button" accessibilityLabel="다음 해" style={[s.arrow, year >= Number(today.slice(0, 4)) && { opacity: 0.3 }]}><ChevronRight size={22} color={p.textPrimary} /></Tap>
             </>}
           </View>
 
@@ -100,21 +106,21 @@ export default function MoodCalendar() {
                 <View style={s.sh}><Text style={[s.shTitle, { color: p.textPrimary }]}>이번 주 돌아보기</Text><Text style={{ color: p.textTertiary, fontSize: 12.5 }}>{Number(week[0].slice(5, 7))}월 {Number(week[0].slice(8))}일 ~ {Number(week[6].slice(8))}일</Text></View>
                 <View style={s.wk}>
                   {weekRows.map((d, i) => (
-                    <Pressable key={d.date} disabled={d.date > today} onPress={() => pick(d.date)} accessibilityRole="button" accessibilityLabel={`${Number(d.date.slice(8))}일`} style={s.wkCell}>
+                    <Tap key={d.date} disabled={d.date > today} onPress={() => pick(d.date)} accessibilityRole="button" accessibilityLabel={`${Number(d.date.slice(8))}일`} style={s.wkCell}>
                       {d.private && d.written ? <View style={[s.wkEmpty, { borderColor: p.borderStrong, borderStyle: 'solid' }]}><Lock size={12} color={p.textTertiary} /></View>
                         : d.mood ? <MoodFace mood={d.mood} size={30} />
                         : <View style={[s.wkEmpty, { borderColor: p.borderStrong, opacity: d.date > today ? 0.4 : 1 }]} />}
                       <Text style={{ color: d.date === today ? p.accentInk : p.textTertiary, fontSize: 11, fontWeight: d.date === today ? '700' : '500' }}>{WEEK_DAYS[new Date(`${d.date}T00:00:00`).getDay()]}</Text>
-                    </Pressable>
+                    </Tap>
                   ))}
                 </View>
                 <View style={s.wkLine}>
                   <BuddyArt buddy={buddy} stage={buddy.stage} size={40} mood="happy" still={reduced} crop="bust" />
                   <View style={[s.bubble, { backgroundColor: p.dark ? p.bgSelected : p.pageBg }]}><Text style={{ color: p.textPrimary, fontSize: 14, lineHeight: 20 }}>{weekLine}</Text></View>
                 </View>
-                <Pressable accessibilityRole="button" onPress={() => void weekOne()} style={[s.block, { backgroundColor: p.bgSelected }]}>
+                <Tap accessibilityRole="button" onPress={() => void weekOne()} style={[s.block, { backgroundColor: p.bgSelected }]}>
                   <Text style={{ color: p.textPrimary, fontSize: 15, fontWeight: '700' }}>이번 주를 한 줄로 남기기</Text>
-                </Pressable>
+                </Tap>
               </View>
             ) : null}
           </> : (
@@ -141,7 +147,7 @@ function Album({ month, entries, reduced, onPlay, onPick }: { month: string; ent
     <>
       <View style={s.sh}>
         <Text style={{ color: p.textTertiary, fontSize: 13 }}>{scenes.size}장 · 사진 {[...scenes.values()].reduce((n, c) => n + c.photoCount, 0)}</Text>
-        <Pressable accessibilityRole="button" disabled={!scenes.size} onPress={onPlay} style={[s.play, { backgroundColor: p.accent, opacity: scenes.size ? 1 : 0.4 }]}><Text style={{ color: p.onAccent, fontSize: 13.5, fontWeight: '800' }}>▶ 넘겨 보기</Text></Pressable>
+        <Tap accessibilityRole="button" disabled={!scenes.size} onPress={onPlay} style={[s.play, { backgroundColor: p.accent, opacity: scenes.size ? 1 : 0.4 }]}><Text style={{ color: p.onAccent, fontSize: 13.5, fontWeight: '800' }}>▶ 넘겨 보기</Text></Tap>
       </View>
       <View style={s.agrid}>
         {days.map((d) => {

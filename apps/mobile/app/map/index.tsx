@@ -5,7 +5,8 @@
 import { useRouter } from 'expo-router'
 import { ChevronLeft, ChevronRight, FolderPlus, Inbox, Layers, Map as MapIcon, MoreHorizontal, Plus, Target } from 'lucide-react-native'
 import { useMemo, useRef, useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import { Modal, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import { Tap } from '../../src/ui/Pressables'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { setGoalProgress } from '../../src/growth/data'
 import type { GoalRow } from '../../src/growth/logic'
@@ -68,19 +69,19 @@ export default function WorkMap() {
               {doneGoalRow ? (
                 <View style={[s.band, { backgroundColor: p.accentSubtle }]}>
                   <Text style={{ flex: 1, color: p.textPrimary, fontSize: 14 }}>'{doneGoalRow.title}'에 연결된 할 일을 다 끝냈어요</Text>
-                  <Pressable onPress={() => { setSkip((x) => new Set(x).add(doneGoalRow.id)); void setGoalProgress(dayKey(), doneGoalRow as GoalRow, doneGoalRow.target) }} hitSlop={6}><Text style={{ color: p.accentInk, fontWeight: '600' }}>달성으로 표시</Text></Pressable>
+                  <Tap onPress={() => { setSkip((x) => new Set(x).add(doneGoalRow.id)); void setGoalProgress(dayKey(), doneGoalRow as GoalRow, doneGoalRow.target) }} hitSlop={6}><Text style={{ color: p.accentInk, fontWeight: '600' }}>달성으로 표시</Text></Tap>
                 </View>
               ) : null}
               {linkedOpen ? (
-                <Pressable onPress={() => router.push('/map/goals')} accessibilityRole="button" style={[s.goalStrip, { backgroundColor: p.dark ? '#e8a23a1f' : '#fdf1df' }]}>
+                <Tap onPress={() => router.push('/map/goals')} accessibilityRole="button" style={[s.goalStrip, { backgroundColor: p.dark ? '#e8a23a1f' : '#fdf1df' }]}>
                   <Target size={17} color="#e8a23a" />
                   <Text style={{ flex: 1, color: p.textPrimary, fontSize: 14 }}>이번 주 목표에 연결된 할 일 <Text style={{ fontWeight: '700' }}>{linkedOpen}</Text></Text>
                   <ChevronRight size={16} color={p.textTertiary} />
-                </Pressable>
+                </Tap>
               ) : null}
               {data.tree.folders.map((f) => <FolderCard key={f.folder?.id ?? 'loose'} f={f} data={data} onMenu={openFolderMenu} />)}
               {data.tree.inbox ? (
-                <Pressable onPress={() => router.push(`/map/list/${data.tree.inbox!.list.id}`)} accessibilityRole="button" style={[s.card, s.dashed, { borderColor: p.textQuaternary }]}>
+                <Tap onPress={() => router.push(`/map/list/${data.tree.inbox!.list.id}`)} accessibilityRole="button" style={[s.card, s.dashed, { borderColor: p.textQuaternary }]}>
                   <View style={s.head}>
                     <Inbox size={17} color={p.slInbox} />
                     <Text style={[s.folderName, { color: p.textSecondary }]}>기본함</Text>
@@ -89,11 +90,11 @@ export default function WorkMap() {
                     <View style={{ flex: 1 }} />
                     <ChevronRight size={16} color={p.textTertiary} />
                   </View>
-                </Pressable>
+                </Tap>
               ) : null}
               <View style={{ flexDirection: 'row', gap: 4 }}>
-                <Pressable onPress={() => menus.newList(null)} accessibilityRole="button" style={s.newBtn}><Plus size={18} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 15, fontWeight: '500' }}>새로운 리스트</Text></Pressable>
-                <Pressable onPress={menus.newFolder} accessibilityRole="button" style={s.newBtn}><FolderPlus size={17} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 15, fontWeight: '500' }}>새 폴더</Text></Pressable>
+                <Tap onPress={() => menus.newList(null)} accessibilityRole="button" style={s.newBtn}><Plus size={18} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 15, fontWeight: '500' }}>새로운 리스트</Text></Tap>
+                <Tap onPress={menus.newFolder} accessibilityRole="button" style={s.newBtn}><FolderPlus size={17} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 15, fontWeight: '500' }}>새 폴더</Text></Tap>
               </View>
             </>
           )}
@@ -127,7 +128,7 @@ function EmptyMap({ onCreate }: { onCreate: () => void }) {
       <MapIcon size={56} color={p.textQuaternary} />
       <Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600', textAlign: 'center', marginTop: 8 }}>폴더와 리스트로 할 일을 한눈에 봐요</Text>
       <Text style={{ color: p.textTertiary, fontSize: 13.5, textAlign: 'center' }}>리스트를 만들고 할 일을 옮기면 여기에 지도가 생겨요</Text>
-      <Pressable onPress={onCreate} accessibilityRole="button" style={{ marginTop: 14, backgroundColor: p.accent, borderRadius: 18, paddingHorizontal: 18, paddingVertical: 9 }}><Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>리스트 만들기</Text></Pressable>
+      <Tap onPress={onCreate} accessibilityRole="button" style={{ marginTop: 14, backgroundColor: p.accent, borderRadius: 18, paddingHorizontal: 18, paddingVertical: 9 }}><Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>리스트 만들기</Text></Tap>
     </View>
   )
 }
@@ -148,21 +149,21 @@ function FolderCard({ f, data, onMenu }: { f: FolderNode; data: MapData; onMenu:
           <Text style={[s.folderName, { color: p.textPrimary }]} numberOfLines={1}>{splitLead(f.folder.name).name}</Text>
           <Text style={[s.count, { color: p.textTertiary }]}>{f.open}</Text>
           <View style={{ flex: 1 }} />
-          <Pressable ref={ref} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${f.folder.name} 메뉴`} onPress={() => ref.current?.measureInWindow((x, y, width, height) => onMenu(f, { x, y, width, height }))}>
+          <Tap ref={ref} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${f.folder.name} 메뉴`} onPress={() => ref.current?.measureInWindow((x, y, width, height) => onMenu(f, { x, y, width, height }))}>
             <MoreHorizontal size={18} color={p.textTertiary} />
-          </Pressable>
+          </Tap>
         </View>
       ) : null}
       {f.lists.map((n, i) => {
         const prog = data.progress.get(n.list.id) ?? { done: 0, total: 0 }
         return (
-          <Pressable key={n.list.id} onPress={() => router.push(`/map/list/${n.list.id}`)} accessibilityRole="button" style={({ pressed }) => [s.lrow, (f.folder || i > 0) && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
+          <Tap key={n.list.id} onPress={() => router.push(`/map/list/${n.list.id}`)} accessibilityRole="button" style={({ pressed }) => [s.lrow, (f.folder || i > 0) && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
             <Ring done={prog.done} total={prog.total} />
             <ListIcon l={n.list} />
             <Text style={[s.lname, { color: p.textPrimary }]} numberOfLines={1}>{listShow(n.list).name}</Text>
             <Text style={[s.count, { color: p.textTertiary }]}>{prog.done}/{prog.total}</Text>
             <ChevronRight size={16} color={p.textQuaternary} />
-          </Pressable>
+          </Tap>
         )
       })}
       {!f.lists.length ? <Text style={{ color: p.textTertiary, fontSize: 13, paddingHorizontal: 14, paddingBottom: 12 }}>리스트가 없어요 · ⋯에서 새 리스트</Text> : null}
@@ -189,25 +190,25 @@ function Board({ data, onMenu, onNew, bottom }: { data: MapData; onMenu: (f: Fol
     <View style={{ flex: 1 }}>
       <ScrollView ref={scroll} horizontal snapToInterval={colW + gap} decelerationRate="fast" showsHorizontalScrollIndicator={false} onMomentumScrollEnd={onEnd} contentContainerStyle={{ paddingHorizontal: 16, gap }}>
         {cols.map((c) => <Column key={c.key} col={c} data={data} width={colW} onTitle={() => setGrid(true)} onMenu={onMenu} />)}
-        <Pressable onPress={onNew} accessibilityRole="button" style={[s.newCol, { width: colW * 0.6, borderColor: p.borderDivider }]}><Plus size={18} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 15 }}>새로운 리스트</Text></Pressable>
+        <Tap onPress={onNew} accessibilityRole="button" style={[s.newCol, { width: colW * 0.6, borderColor: p.borderDivider }]}><Plus size={18} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 15 }}>새로운 리스트</Text></Tap>
       </ScrollView>
       <View style={[s.dots, { paddingBottom: bottom + 8 }]}>
         {cols.map((c, i) => <View key={c.key} style={[s.pdot, { backgroundColor: i === page ? p.accent : p.textQuaternary }]} />)}
       </View>
       <Modal visible={grid} transparent animationType="fade" onRequestClose={() => setGrid(false)}>
-        <Pressable style={[s.gridScrim, { backgroundColor: p.scrim }]} onPress={() => setGrid(false)}>
+        <Tap style={() => [s.gridScrim, { backgroundColor: p.scrim }]} onPress={() => setGrid(false)}>
           <View style={[s.gridBox, { backgroundColor: p.sheetBg }]}>
             <Text style={{ color: p.textPrimary, fontSize: 17, fontWeight: '600', textAlign: 'center', marginBottom: 12 }}>폴더</Text>
             <View style={s.gridWrap}>
               {cols.map((c, i) => (
-                <Pressable key={c.key} onPress={() => { setGrid(false); go(i) }} accessibilityRole="button" style={[s.gridCell, { backgroundColor: i === page ? p.accentSubtle : p.cardBg }]}>
+                <Tap key={c.key} onPress={() => { setGrid(false); go(i) }} accessibilityRole="button" style={[s.gridCell, { backgroundColor: i === page ? p.accentSubtle : p.cardBg }]}>
                   <Text style={{ color: p.textPrimary, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>{c.name}</Text>
                   <Text style={{ color: p.textTertiary, fontSize: 12 }}>{c.count}</Text>
-                </Pressable>
+                </Tap>
               ))}
             </View>
           </View>
-        </Pressable>
+        </Tap>
       </Modal>
     </View>
   )
@@ -221,12 +222,12 @@ function Column({ col, data, width, onTitle, onMenu }: { col: { key: string; nod
   return (
     <View style={[s.col, { width, backgroundColor: p.dark ? '#ffffff0d' : '#0000000a' }]}>
       <View style={s.colHead}>
-        <Pressable onPress={onTitle} accessibilityRole="button" accessibilityHint="모든 열 보기" style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+        <Tap onPress={onTitle} accessibilityRole="button" accessibilityHint="모든 열 보기" style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
           <Text style={{ color: col.node ? p.textPrimary : p.textSecondary, fontSize: 15, fontWeight: '600' }} numberOfLines={1}>{col.name}</Text>
           <Text style={{ color: p.textTertiary, fontSize: 13 }}>{col.count}</Text>
-        </Pressable>
+        </Tap>
         {col.node?.folder ? (
-          <Pressable ref={ref} hitSlop={10} accessibilityLabel={`${col.name} 메뉴`} onPress={() => ref.current?.measureInWindow((x, y, w, h) => onMenu(col.node!, { x, y, width: w, height: h }))}><MoreHorizontal size={18} color={p.textTertiary} /></Pressable>
+          <Tap ref={ref} hitSlop={10} accessibilityLabel={`${col.name} 메뉴`} onPress={() => ref.current?.measureInWindow((x, y, w, h) => onMenu(col.node!, { x, y, width: w, height: h }))}><MoreHorizontal size={18} color={p.textTertiary} /></Tap>
         ) : null}
       </View>
       <ScrollView contentContainerStyle={{ paddingBottom: 16, gap: 6 }} showsVerticalScrollIndicator={false}>
@@ -234,12 +235,12 @@ function Column({ col, data, width, onTitle, onMenu }: { col: { key: string; nod
           <View key={g.key} style={{ gap: 6 }}>
             {g.name ? (
               <View style={s.sub}>
-                <Pressable onPress={() => setClosed((c) => { const n = new Set(c); if (n.has(g.key)) n.delete(g.key); else n.add(g.key); return n })} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }} accessibilityRole="button">
+                <Tap onPress={() => setClosed((c) => { const n = new Set(c); if (n.has(g.key)) n.delete(g.key); else n.add(g.key); return n })} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }} accessibilityRole="button">
                   <ChevronRight size={13} color={p.textTertiary} style={{ transform: [{ rotate: closed.has(g.key) ? '0deg' : '90deg' }] }} />
                   <Text style={{ color: p.textSecondary, fontSize: 12.5, fontWeight: '600' }} numberOfLines={1}>{g.name}</Text>
                   <Text style={{ color: p.textTertiary, fontSize: 12 }}>{g.tasks.filter((t) => t.status === 0).length}</Text>
-                </Pressable>
-                <Pressable onPress={() => router.push(`/map/list/${g.key}`)} hitSlop={8} accessibilityLabel={`${g.name} 열기`}><ChevronRight size={14} color={p.textQuaternary} /></Pressable>
+                </Tap>
+                <Tap onPress={() => router.push(`/map/list/${g.key}`)} hitSlop={8} accessibilityLabel={`${g.name} 열기`}><ChevronRight size={14} color={p.textQuaternary} /></Tap>
               </View>
             ) : null}
             {!closed.has(g.key) ? g.tasks.map((t) => (

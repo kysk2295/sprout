@@ -11,7 +11,8 @@ import {
 import { EXT_DEVICE_TITLE, EXT_DEVICE_VIEW, useDeviceUpcoming } from '../calendars/upcoming'
 import { useEffect, useState, type ReactNode } from 'react'
 import { BlurView } from 'expo-blur'
-import { Alert, BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native'
+import { Alert, BackHandler, Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native'
+import { Tap } from './Pressables'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { makeMutable, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -180,7 +181,7 @@ export function Drawer() {
     { key: 'del', color: p.swipeDel, icon: circ(Trash2), label: '삭제', onPress: () => confirm(`"${f.name}" 필터를 삭제할까요?`, '할 일은 지워지지 않아요.', '삭제', async () => { await deleteFilter(f.id); leaveIf(`filter:${f.id}`) }) }
   ]
   const Row = (r: { v?: ViewKey; icon: ReactNode; label: string; n?: number; depth?: number; right?: ReactNode; onPress?: () => void; onLongPress?: (e: GestureResponderEvent) => void }) => (
-    <Pressable
+    <Tap
       accessibilityRole="button"
       accessibilityState={{ selected: r.v === view }}
       onPress={r.onPress ?? (() => r.v && pick(r.v))}
@@ -192,16 +193,16 @@ export function Drawer() {
       <Text style={[FONT.body, { color: p.textPrimary, flex: 1 }]} numberOfLines={1}>{r.label}</Text>
       {r.n ? <Text style={[FONT.meta, { color: p.textTertiary }]}>{r.n}</Text> : null}
       {r.right}
-    </Pressable>
+    </Tap>
   )
   const Section = (r: { id: string; label: string; onAdd: () => void }) => {
     const open = !!openSec[r.id]
     return (
-      <Pressable accessibilityRole="button" accessibilityLabel={`${r.label} ${open ? '접기' : '펼치기'}`} onPress={() => setOpenSec((x) => ({ ...x, [r.id]: !open }))} style={s.sec}>
+      <Tap accessibilityRole="button" accessibilityLabel={`${r.label} ${open ? '접기' : '펼치기'}`} onPress={() => setOpenSec((x) => ({ ...x, [r.id]: !open }))} style={s.sec}>
         <Text style={[FONT.meta, { color: p.textTertiary, flex: 1, fontWeight: '600' }]}>{r.label}</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${r.label} 추가`} hitSlop={10} onPress={r.onAdd} style={{ paddingHorizontal: 6 }}><Plus size={15} color={p.textTertiary} /></Pressable>
+        <Tap accessibilityRole="button" accessibilityLabel={`${r.label} 추가`} hitSlop={10} onPress={r.onAdd} style={{ paddingHorizontal: 6 }}><Plus size={15} color={p.textTertiary} /></Tap>
         <FoldChevron open={open} size={14} color={p.textQuaternary} />
-      </Pressable>
+      </Tap>
     )
   }
   // 30 §A.5: 리스트 = 이모지 또는 ≡ (+ 오른쪽 색 점), 폴더 = 이름 앞 이모지 또는 폴더 그림, 프로젝트 태그 = 🚀
@@ -225,18 +226,18 @@ export function Drawer() {
         </Animated.View>
       ) : null}
       <Animated.View pointerEvents={drawerOpen ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, { backgroundColor: p.scrim }, scrim]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={() => setDrawerOpen(false)} accessibilityLabel="서랍 닫기" />
+        <Tap style={StyleSheet.absoluteFill} onPress={() => setDrawerOpen(false)} accessibilityLabel="서랍 닫기" />
       </Animated.View>
       <GestureDetector gesture={drag}>
         <Animated.View accessibilityElementsHidden={!drawerOpen} importantForAccessibility={drawerOpen ? 'auto' : 'no-hide-descendants'} style={[s.panel, { width, backgroundColor: p.drawerBg, paddingTop: insets.top }, panel]}>
           <View style={s.me}>
-            <Pressable accessibilityRole="button" accessibilityLabel="프로필 이미지 바꾸기" hitSlop={6} onPress={() => setAvatarOpen(true)}>
+            <Tap accessibilityRole="button" accessibilityLabel="프로필 이미지 바꾸기" hitSlop={6} onPress={() => setAvatarOpen(true)}>
               <ProfileAvatar avatar={avatar} size={30} letter={name.slice(0, 1).toUpperCase() || '?'} />
-            </Pressable>
+            </Tap>
             <Text style={[FONT.bodyStrong, { color: p.textPrimary, flex: 1 }]} numberOfLines={1}>{name}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="설정" hitSlop={8} onPress={() => { setDrawerOpen(false); router.navigate('/settings') }} style={s.meBtn}>
+            <Tap accessibilityRole="button" accessibilityLabel="설정" hitSlop={8} onPress={() => { setDrawerOpen(false); router.navigate('/settings') }} style={s.meBtn}>
               <Settings size={22} color={p.textSecondary} />
-            </Pressable>
+            </Tap>
           </View>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 16 }}>
             {show('all', org.all) ? <Row v="smart:all" icon={<SoftIcon name="all" size={22} />} label="전체" n={org.all} /> : null}
@@ -258,9 +259,9 @@ export function Drawer() {
                     n={kids.reduce((n, l) => n + (counts.lists[l.id] ?? 0), 0)}
                     onLongPress={(e) => folderMenu(f, e)}
                     right={
-                      <Pressable accessibilityRole="button" accessibilityLabel={open ? '폴더 접기' : '폴더 펼치기'} hitSlop={10} onPress={() => setOpenFolders((s) => ({ ...s, [f.id]: !open }))}>
+                      <Tap accessibilityRole="button" accessibilityLabel={open ? '폴더 접기' : '폴더 펼치기'} hitSlop={10} onPress={() => setOpenFolders((s) => ({ ...s, [f.id]: !open }))}>
                         <FoldChevron open={open} size={14} color={p.textQuaternary} />
-                      </Pressable>
+                      </Tap>
                     }
                   />
                   <FoldBody open={open}>{kids.map((l) => <SwipeRow key={l.id} round right={swipeList(l)}><Row depth={1} v={`list:${l.id}`} icon={listIcon(l)} label={listShow(l).name} n={counts.lists[l.id]} right={<ColorDot color={l.color} />} onLongPress={(e) => listMenu(l, e)} /></SwipeRow>)}</FoldBody>
@@ -301,14 +302,14 @@ export function Drawer() {
             </Animated.View>
           </ScrollView>
           <View style={[s.foot, { paddingBottom: insets.bottom + 8, borderTopColor: p.borderDivider }]}>
-            <Pressable accessibilityRole="button" accessibilityLabel="추가" onPress={addMenu} style={s.footBtn}>
+            <Tap accessibilityRole="button" accessibilityLabel="추가" onPress={addMenu} style={s.footBtn}>
               <Plus size={20} color={p.textSecondary} />
               <Text style={[FONT.body, { color: p.textSecondary }]}>추가</Text>
-            </Pressable>
+            </Tap>
             <View style={{ flex: 1 }} />
-            <Pressable accessibilityRole="button" accessibilityLabel="리스트 관리" hitSlop={8} onPress={() => { setDrawerOpen(false); router.push('/lists/manage') }} style={s.meBtn}>
+            <Tap accessibilityRole="button" accessibilityLabel="리스트 관리" hitSlop={8} onPress={() => { setDrawerOpen(false); router.push('/lists/manage') }} style={s.meBtn}>
               <SlidersHorizontal size={20} color={p.textSecondary} />
-            </Pressable>
+            </Tap>
           </View>
         </Animated.View>
       </GestureDetector>

@@ -41,3 +41,10 @@ export function PressableRow({ style, children, bg, pressedBg, held, flashBg, on
     </APressable>
   )
 }
+
+/** 기본 눌림 반응(UX 점검 P2-9): Pressable을 그대로 대신한다 — 눌린 동안 옅어짐(0.6). 스타일이 함수(이미 자기 눌림 모양)면 그대로 둔다.
+ *  단추·칩·행에 반응이 없던 곳을 파일 단위로 `Pressable` → `Tap`으로 바꾼다. Android 물결은 둥근 단추 밖으로 번져 쓰지 않는다. */
+export const Tap = forwardRef<View, PressableProps>(function Tap({ style, ...rest }, ref) {
+  return <Pressable ref={ref} {...rest} style={typeof style === 'function' ? style : ({ pressed }) => [style, pressed && TAP_PRESSED]} />
+})
+const TAP_PRESSED = { opacity: 0.6 }

@@ -25,7 +25,7 @@ function DateIcon({ color, size, strokeWidth }: { color: string; size: number; s
   const p = usePalette()
   return (
     <View style={{ width: size - 3, height: size - 3, borderRadius: 6, borderWidth: 2, borderColor: color, backgroundColor: on ? color : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: 10, lineHeight: 13, fontWeight: '700', color: on ? (p.dark ? p.bgGround : '#fff') : color }}>{new Date().getDate()}</Text>
+      <Text maxFontSizeMultiplier={1.2} style={{ fontSize: 10, lineHeight: 13, fontWeight: '700', color: on ? (p.dark ? p.bgGround : '#fff') : color }}>{new Date().getDate()}</Text>
     </View>
   )
 }

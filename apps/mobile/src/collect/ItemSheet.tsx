@@ -5,7 +5,8 @@ import { useLiveQuery } from '../data/rows'
 import { useRouter } from 'expo-router'
 import { BookOpen, CalendarDays, ChevronRight, Ellipsis, ExternalLink, FileText, Link2, Share2, Sparkles, Trash2 } from 'lucide-react-native'
 import { useEffect, useRef, useState } from 'react'
-import { Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Linking, Modal, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Tap } from '../ui/Pressables'
 import { useLists } from '../data/lists'
 import { dayKey, detailDateLabel } from '../lib/dates'
 import { FONT } from '../theme/palette'
@@ -58,11 +59,11 @@ export function ItemSheet({ id, startConvert, onClose, onTopic }: { id: string |
   ) : null
   const footer = item ? (
     <View style={[s.footer, { borderTopColor: p.borderDivider }]}>
-      <Pressable accessibilityRole="button" accessibilityLabel={item.task_id ? '연결된 할 일 열기' : '할 일로 만들기'} style={s.fbtn} onPress={() => (item.task_id && !registeredGone(item) ? (onClose(), router.push(`/task/${item.task_id}`)) : setConvert(true))}>
+      <Tap accessibilityRole="button" accessibilityLabel={item.task_id ? '연결된 할 일 열기' : '할 일로 만들기'} style={s.fbtn} onPress={() => (item.task_id && !registeredGone(item) ? (onClose(), router.push(`/task/${item.task_id}`)) : setConvert(true))}>
         <CalendarDays size={22} color={p.textSecondary} />
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="공유·복사" style={s.fbtn} onPress={share}><Share2 size={22} color={p.textSecondary} /></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="삭제" style={s.fbtn} onPress={() => void remove()}><Trash2 size={22} color={p.danger} /></Pressable>
+      </Tap>
+      <Tap accessibilityRole="button" accessibilityLabel="공유·복사" style={s.fbtn} onPress={share}><Share2 size={22} color={p.textSecondary} /></Tap>
+      <Tap accessibilityRole="button" accessibilityLabel="삭제" style={s.fbtn} onPress={() => void remove()}><Trash2 size={22} color={p.danger} /></Tap>
     </View>
   ) : null
 
@@ -125,6 +126,7 @@ function Body({ item, onClose, onTopic, onConvert }: { item: CollectItem; onClos
         multiline
         scrollEnabled={false}
         submitBehavior="blurAndSubmit"
+        returnKeyType="done"
         accessibilityLabel="제목"
         onFocus={() => { focused.current = true }}
         onBlur={() => { focused.current = false; flush() }}
@@ -143,17 +145,17 @@ function Body({ item, onClose, onTopic, onConvert }: { item: CollectItem; onClos
         onChangeText={(v) => { setBody(v); schedule(title, v) }}
       />
       {links.map((l) => (
-        <Pressable key={l} accessibilityRole="link" onPress={() => void Linking.openURL(l)} style={s.link}>
+        <Tap key={l} accessibilityRole="link" onPress={() => void Linking.openURL(l)} style={s.link}>
           <Link2 size={15} color={p.accent} />
           <Text style={[FONT.sub, { color: p.accentInk, flex: 1 }]} numberOfLines={1}>{l.replace(/^https?:\/\//, '')}</Text>
-        </Pressable>
+        </Tap>
       ))}
       {item.task_id ? (
         gone ? <Text style={[FONT.sub, s.linked, { color: p.textTertiary }]}>연결된 항목이 삭제되었어요</Text> : (
-          <Pressable accessibilityRole="button" onPress={() => { onClose(); router.push(`/task/${item.task_id}`) }} style={[s.linked, s.linkedRow, { backgroundColor: p.accentSubtle }]}>
+          <Tap accessibilityRole="button" onPress={() => { onClose(); router.push(`/task/${item.task_id}`) }} style={[s.linked, s.linkedRow, { backgroundColor: p.accentSubtle }]}>
             <Text style={[FONT.sub, { color: p.accentInk, flex: 1 }]} numberOfLines={1}>↳ {scheduledWord(item)}: {item.task_title}</Text>
             <ExternalLink size={15} color={p.accent} />
-          </Pressable>
+          </Tap>
         )
       ) : (
         <AiCard item={item} onTopic={(t) => { onClose(); onTopic(t) }} onConvert={onConvert} onRegistered={onClose} />
@@ -177,10 +179,10 @@ function AiCard({ item, onTopic, onConvert, onRegistered }: { item: CollectItem;
     <View style={s.other}>
       <Text style={[FONT.meta, { color: p.textTertiary }]}>다른 종류로:</Text>
       {others.map((k, i) => (
-        <Pressable key={k} accessibilityRole="button" hitSlop={6} onPress={() => change(k)} style={{ flexDirection: 'row' }}>
+        <Tap key={k} accessibilityRole="button" hitSlop={6} onPress={() => change(k)} style={{ flexDirection: 'row' }}>
           {i > 0 ? <Text style={[FONT.meta, { color: p.textTertiary }]}>· </Text> : null}
           <Text style={[s.otherBtn, { color: p.accentInk }]}>{KIND_NAME[k]}</Text>
-        </Pressable>
+        </Tap>
       ))}
     </View>
   )
@@ -195,9 +197,9 @@ function AiCard({ item, onTopic, onConvert, onRegistered }: { item: CollectItem;
     <View style={s.field}><Text style={[FONT.sub, { color: p.textTertiary, width: 52 }]}>{k}</Text><Text style={[FONT.sub, { color: accent ? p.accentInk : p.textPrimary, flex: 1 }]} numberOfLines={2}>{v}</Text></View>
   )
   const Btn = ({ label, primary, onPress, disabled }: { label: string; primary?: boolean; onPress: () => void; disabled?: boolean }) => (
-    <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [s.btn, primary ? { backgroundColor: p.accent } : { backgroundColor: p.bgSelected }, (pressed || disabled) && { opacity: 0.6 }]}>
+    <Tap accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [s.btn, primary ? { backgroundColor: p.accent } : { backgroundColor: p.bgSelected }, (pressed || disabled) && { opacity: 0.6 }]}>
       <Text style={[s.btnText, { color: primary ? '#fff' : p.textPrimary }]}>{label}</Text>
-    </Pressable>
+    </Tap>
   )
   const spark = <Sparkles size={16} color={p.accent} />
   if (item.ai_state === 'pending') {
@@ -262,10 +264,10 @@ function AiCard({ item, onTopic, onConvert, onRegistered }: { item: CollectItem;
     return (
       <Card icon={<BookOpen size={16} color={p.accent} />} title={by ? '위키로 정했어요' : 'AI가 위키로 봤어요'}>
         {item.topic_id ? (
-          <Pressable accessibilityRole="button" onPress={() => onTopic(item.topic_id!)} style={s.topicLink}>
+          <Tap accessibilityRole="button" onPress={() => onTopic(item.topic_id!)} style={s.topicLink}>
             <Text style={[FONT.sub, { color: p.accentInk }]}>{item.topic_name ?? '주제'} 주제에 반영됨</Text>
             <ChevronRight size={15} color={p.accent} />
-          </Pressable>
+          </Tap>
         ) : <Field k="주제" v="정리 전 — 컴퓨터에서 정리돼요" />}
       </Card>
     )
@@ -306,25 +308,25 @@ function ConvertPanel({ item, onCancel, onDone }: { item: CollectItem; onCancel:
       <TextInput style={[s.convTitle, { color: p.textPrimary, backgroundColor: p.bgInput }]} value={title} onChangeText={setTitle} accessibilityLabel="제목" returnKeyType="done" onSubmitEditing={() => void submit()} />
       <View style={[s.convCard, { backgroundColor: p.cardBg, borderColor: p.borderDivider }]}>
         <View ref={listMenu.ref} collapsable={false}>
-          <Pressable accessibilityRole="button" onPress={listMenu.open} style={s.convRow}>
+          <Tap accessibilityRole="button" onPress={listMenu.open} style={s.convRow}>
             <Text style={[FONT.body, { color: p.textPrimary, flex: 1 }]}>리스트</Text>
             <Text style={[FONT.sub, { color: p.textSecondary }]}>{list ? (list.kind === 'inbox' ? '기본함' : `${list.emoji ? list.emoji + ' ' : ''}${list.name}`) : '선택'}</Text>
             <ChevronRight size={16} color={p.textQuaternary} />
-          </Pressable>
+          </Tap>
         </View>
-        <Pressable accessibilityRole="button" onPress={() => setDateOpen(true)} style={[s.convRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }]}>
+        <Tap accessibilityRole="button" onPress={() => setDateOpen(true)} style={[s.convRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }]}>
           <Text style={[FONT.body, { color: p.textPrimary, flex: 1 }]}>날짜</Text>
           <Text style={[FONT.sub, { color: when.due_at ? (date.tone === 'overdue' ? p.overdue : p.accent) : p.textSecondary }]}>{when.due_at ? date.label : '없음'}</Text>
           <ChevronRight size={16} color={p.textQuaternary} />
-        </Pressable>
+        </Tap>
       </View>
       <Text style={[FONT.meta, { color: p.textTertiary, marginTop: 8 }]}>원본은 그대로 두고 설명에 함께 저장해요</Text>
       {error ? <Text style={[FONT.sub, { color: p.danger, marginTop: 8 }]} accessibilityRole="alert">{error}</Text> : null}
       <View style={[s.acts, { marginTop: 16 }]}>
-        <Pressable accessibilityRole="button" onPress={onCancel} style={[s.btn, { flex: 1, backgroundColor: p.bgSelected }]}><Text style={[s.btnText, { color: p.textPrimary }]}>취소</Text></Pressable>
-        <Pressable accessibilityRole="button" disabled={busy || !title.trim() || !chosen} onPress={() => void submit()} style={[s.btn, { flex: 1, backgroundColor: p.accent }, (busy || !title.trim()) && { opacity: 0.5 }]}>
+        <Tap accessibilityRole="button" onPress={onCancel} style={[s.btn, { flex: 1, backgroundColor: p.bgSelected }]}><Text style={[s.btnText, { color: p.textPrimary }]}>취소</Text></Tap>
+        <Tap accessibilityRole="button" disabled={busy || !title.trim() || !chosen} onPress={() => void submit()} style={[s.btn, { flex: 1, backgroundColor: p.accent }, (busy || !title.trim()) && { opacity: 0.5 }]}>
           <Text style={[s.btnText, { color: '#fff' }]}>{busy ? '만드는 중…' : '등록'}</Text>
-        </Pressable>
+        </Tap>
       </View>
       <PopMenu anchor={listMenu.rect} onClose={listMenu.close} align="right" width={240} items={lists.map((l) => ({ key: l.id, label: l.kind === 'inbox' ? '기본함' : `${l.emoji ? l.emoji + ' ' : ''}${l.name}`, checked: l.id === chosen, onPress: () => setListId(l.id) }))} />
       <Modal visible={dateOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDateOpen(false)}>

@@ -8,7 +8,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ArrowRightLeft, CalendarClock, Check, ChevronLeft, Sun } from 'lucide-react-native'
 import { FolderGlyph, splitLead } from '../src/ui/OrgIcons'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Tap } from '../src/ui/Pressables'
 import { SlideSheet } from '../src/ui/SlideSheet'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { grantTidyXp } from '../src/growth/data'
@@ -102,14 +103,14 @@ export default function TidyScreen() {
           ] : []),
           { key: 'move', color: p.swipeMove, icon: <ArrowRightLeft size={20} color="#fff" />, label: '옮기기', onPress: () => setSheet(on ? sel : [t.id]) }
         ]}>
-        <Pressable onPress={() => router.push(`/task/${t.id}`)} accessibilityRole="button" accessibilityHint="왼쪽으로 밀면 옮기기"
+        <Tap onPress={() => router.push(`/task/${t.id}`)} accessibilityRole="button" accessibilityHint="왼쪽으로 밀면 옮기기"
           style={({ pressed }) => [s.row, { backgroundColor: on ? p.accentSubtle : pressed ? p.bgSelected : p.cardBg, opacity: dim ? 0.35 : 1 },
             !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider },
             one && firstProp === t.id && { borderWidth: 2, borderColor: p.accent }]}>
-          <Pressable onPress={() => toggle(t.id)} hitSlop={10} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel="고르기"
+          <Tap onPress={() => toggle(t.id)} hitSlop={10} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel="고르기"
             style={[s.box, { borderColor: on ? p.accent : p.textQuaternary, backgroundColor: on ? p.accent : 'transparent' }]}>
             {on ? <Check size={12} color="#fff" strokeWidth={3} /> : null}
-          </Pressable>
+          </Tap>
           <View style={{ flex: 1, gap: 3 }}>
             <Text style={{ color: p.textPrimary, fontSize: 15.5, fontWeight: tab === 'overdue' ? '500' : '600' }} numberOfLines={2}>{t.title}</Text>
             <Text style={{ color: tab === 'overdue' ? p.overdue : p.textTertiary, fontSize: 12.5 }} numberOfLines={1}>
@@ -118,12 +119,12 @@ export default function TidyScreen() {
             {x ? (
               <View style={s.sugRow}>
                 <Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '600', flexShrink: 1 }} numberOfLines={1}>→ {targetName(x.to)}{x.to.kind === 'project' ? ' (프로젝트)' : ''}</Text>
-                <Pressable onPress={() => yes(x)} accessibilityRole="button" style={[s.yes, { backgroundColor: p.accent }]}><Text style={{ color: '#fff', fontSize: 12.5, fontWeight: '700' }}>좋아</Text></Pressable>
-                <Pressable onPress={() => no(x)} accessibilityRole="button" style={[s.yes, { backgroundColor: p.bgSelected }]}><Text style={{ color: p.textSecondary, fontSize: 12.5, fontWeight: '600' }}>아니</Text></Pressable>
+                <Tap onPress={() => yes(x)} accessibilityRole="button" style={[s.yes, { backgroundColor: p.accent }]}><Text style={{ color: '#fff', fontSize: 12.5, fontWeight: '700' }}>좋아</Text></Tap>
+                <Tap onPress={() => no(x)} accessibilityRole="button" style={[s.yes, { backgroundColor: p.bgSelected }]}><Text style={{ color: p.textSecondary, fontSize: 12.5, fontWeight: '600' }}>아니</Text></Tap>
               </View>
             ) : null}
           </View>
-        </Pressable>
+        </Tap>
       </SwipeRow>
     )
   }
@@ -131,7 +132,7 @@ export default function TidyScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
       <View style={[s.nav, { marginTop: insets.top }]}>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="뒤로" style={s.back} hitSlop={6}><ChevronLeft size={24} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 17 }}>뒤로</Text></Pressable>
+        <Tap onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="뒤로" style={s.back} hitSlop={6}><ChevronLeft size={24} color={p.accent} /><Text style={{ color: p.accentInk, fontSize: 17 }}>뒤로</Text></Tap>
       </View>
       <Text style={[s.title, { color: p.textPrimary }]}>정리</Text>
       {!data.loaded ? null : allClear ? (
@@ -140,7 +141,7 @@ export default function TidyScreen() {
           <Text style={{ color: p.textPrimary, fontSize: 22, fontWeight: '700' }}>다 정리했어!</Text>
           <Text style={{ color: p.textTertiary, fontSize: 13.5 }}>{TIDY_TABS.map((t) => `${TAB_LABEL[t]} 0`).join(' · ')}</Text>
           {xpRow.length ? <View style={[s.xp, { backgroundColor: p.accentSubtle }]}><Text style={{ color: p.accentInk, fontWeight: '700' }}>정리 보너스 +{XP.tidy} XP</Text></View> : null}
-          <Pressable onPress={() => router.push('/map')} accessibilityRole="button" style={[s.big, { backgroundColor: p.accent, alignSelf: 'stretch', marginTop: 8 }]}><Text style={s.bigT}>작업 지도 보기</Text></Pressable>
+          <Tap onPress={() => router.push('/map')} accessibilityRole="button" style={[s.big, { backgroundColor: p.accent, alignSelf: 'stretch', marginTop: 8 }]}><Text style={s.bigT}>작업 지도 보기</Text></Tap>
         </View>
       ) : (
         <>
@@ -148,9 +149,9 @@ export default function TidyScreen() {
             {TIDY_TABS.map((t) => {
               const on = t === tab
               return (
-                <Pressable key={t} onPress={() => setTab(t)} accessibilityRole="tab" accessibilityState={{ selected: on }} style={[s.tab, { backgroundColor: on ? p.textPrimary : p.cardBg }]}>
+                <Tap key={t} onPress={() => setTab(t)} accessibilityRole="tab" accessibilityState={{ selected: on }} style={[s.tab, { backgroundColor: on ? p.textPrimary : p.cardBg }]}>
                   <Text style={{ color: on ? p.pageBg : p.textSecondary, fontSize: 13.5, fontWeight: '600' }}>{TAB_LABEL[t]} {counts[t]}</Text>
-                </Pressable>
+                </Tap>
               )
             })}
           </ScrollView>
@@ -162,9 +163,9 @@ export default function TidyScreen() {
                 {g.label ? (
                   <View style={s.ghead}>
                     <Text style={{ color: p.textSecondary, fontSize: 13, fontWeight: '700', flex: 1 }}>{g.label} {g.tasks.length}</Text>
-                    <Pressable onPress={() => { const ids = g.tasks.map((t) => t.id); const all = ids.every((id) => sel.includes(id)); setSel((x) => all ? x.filter((y) => !ids.includes(y)) : [...new Set([...x, ...ids])]) }} hitSlop={8} accessibilityRole="button">
+                    <Tap onPress={() => { const ids = g.tasks.map((t) => t.id); const all = ids.every((id) => sel.includes(id)); setSel((x) => all ? x.filter((y) => !ids.includes(y)) : [...new Set([...x, ...ids])]) }} hitSlop={8} accessibilityRole="button">
                       <Text style={{ color: p.accentInk, fontSize: 13, fontWeight: '600' }}>{g.tasks.every((t) => sel.includes(t.id)) ? '고름 풀기' : '모두 고르기'}</Text>
-                    </Pressable>
+                    </Tap>
                   </View>
                 ) : null}
                 <View style={[s.card, { backgroundColor: p.cardBg }]}>{g.tasks.map((t, i) => row(t, i === 0))}</View>
@@ -172,8 +173,8 @@ export default function TidyScreen() {
             ))}
             {props.length && !sel.length ? (
               <View style={s.applyRow}>
-                <Pressable onPress={() => void applyAll()} accessibilityRole="button" style={[s.big, { backgroundColor: p.accent, flex: 1 }]}><Text style={s.bigT}>제안 {props.length}개 모두 옮기기</Text></Pressable>
-                <Pressable onPress={() => setOne((v) => !v)} accessibilityRole="button" hitSlop={8}><Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '600', padding: 8 }}>{one ? '모두 보기' : '하나씩 볼래'}</Text></Pressable>
+                <Tap onPress={() => void applyAll()} accessibilityRole="button" style={[s.big, { backgroundColor: p.accent, flex: 1 }]}><Text style={s.bigT}>제안 {props.length}개 모두 옮기기</Text></Tap>
+                <Tap onPress={() => setOne((v) => !v)} accessibilityRole="button" hitSlop={8}><Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '600', padding: 8 }}>{one ? '모두 보기' : '하나씩 볼래'}</Text></Tap>
               </View>
             ) : null}
           </ScrollView>
@@ -206,9 +207,9 @@ export default function TidyScreen() {
 function BarBtn({ label, onPress, disabled, primary, danger }: { label: string; onPress: () => void; disabled?: boolean; primary?: boolean; danger?: boolean }) {
   const p = usePalette()
   return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" style={[s.bb, { backgroundColor: primary ? p.accent : 'transparent', opacity: disabled ? 0.4 : 1 }]}>
+    <Tap onPress={onPress} disabled={disabled} accessibilityRole="button" style={[s.bb, { backgroundColor: primary ? p.accent : 'transparent', opacity: disabled ? 0.4 : 1 }]}>
       <Text style={{ color: primary ? '#fff' : danger ? p.danger : p.textPrimary, fontSize: 13.5, fontWeight: '600' }}>{label}</Text>
-    </Pressable>
+    </Tap>
   )
 }
 
@@ -227,9 +228,9 @@ function MoveSheet({ ids, data, onClose, onPick }: { ids: string[] | null; data:
               <Text style={s.sh}><Text style={{ color: p.textSecondary, fontWeight: '700' }}>프로젝트에 묶기</Text><Text style={{ color: p.textTertiary }}> · 리스트는 그대로, 태그만 붙어요</Text></Text>
               <View style={s.pills}>
                 {data.projects.map(({ tag, count }) => (
-                  <Pressable key={tag.id} onPress={() => onPick({ kind: 'project', id: tag.id })} accessibilityRole="button" style={[s.pill, { backgroundColor: p.accentSubtle }]}>
+                  <Tap key={tag.id} onPress={() => onPick({ kind: 'project', id: tag.id })} accessibilityRole="button" style={[s.pill, { backgroundColor: p.accentSubtle }]}>
                     <Text style={{ color: p.accentInk, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>{tag.name} <Text style={{ fontWeight: '400' }}>{count}</Text></Text>
-                  </Pressable>
+                  </Tap>
                 ))}
               </View>
             </>
@@ -253,10 +254,10 @@ function MoveSheet({ ids, data, onClose, onPick }: { ids: string[] | null; data:
 function ListRow({ name, count, onPress, first, indent }: { name: string; count?: number; onPress: () => void; first?: boolean; indent?: boolean }) {
   const p = usePalette()
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [s.lrow, indent && { paddingLeft: 34 }, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
+    <Tap onPress={onPress} accessibilityRole="button" style={({ pressed }) => [s.lrow, indent && { paddingLeft: 34 }, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: p.borderDivider }, pressed && { backgroundColor: p.bgSelected }]}>
       <Text style={{ flex: 1, color: p.textPrimary, fontSize: 15.5 }} numberOfLines={1}>{name}</Text>
       {count !== undefined ? <Text style={{ color: p.textTertiary, fontSize: 13 }}>{count}</Text> : null}
-    </Pressable>
+    </Tap>
   )
 }
 

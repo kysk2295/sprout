@@ -24,18 +24,19 @@ export default function TagList() {
   const p = usePalette()
   const router = useRouter()
   const space = useTabBarSpace()
-  const rows = useLiveQuery<Row>(
+  const rowsQ = useLiveQuery<Row>(
     `SELECT g.id, g.name, g.color, g.kind, g.aliases,
        (SELECT count(DISTINCT tt.task_id) FROM task_tags tt JOIN tasks t ON t.id = tt.task_id LEFT JOIN lists l ON l.id = t.list_id
          WHERE tt.tag_id = g.id AND t.status = 0 AND t.deleted_at IS NULL AND l.archived_at IS NULL AND COALESCE(tt.state,'accepted') = 'accepted') AS n
      FROM tags g ORDER BY COALESCE(g.pinned, 0) DESC, g.sort_order, g.name`
-  ).data
+  )
+  const rows = rowsQ.data
   return (
     <View style={{ flex: 1, backgroundColor: p.pageBg }}>
       <NavRow left={<GlassButton label="뒤로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>} />
       <BigTitle title="태그" />
       <ScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: space.pad }}>
-        {!rows.length ? <EmptyState icon="tag" title="태그가 없어요" sub="할 일 제목에 #이름 이나 [[이름]] 을 써 보세요" /> : null}
+        {!rowsQ.isLoading && !rows.length ? <EmptyState icon="tag" title="태그가 없어요" sub="할 일 제목에 #이름 이나 [[이름]] 을 써 보세요" /> : null}
         {ORDER.map((k) => {
           const list = rows.filter((r) => kindOf(r.kind) === k)
           if (!list.length) return null
