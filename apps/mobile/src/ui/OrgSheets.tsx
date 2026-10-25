@@ -11,6 +11,7 @@ import { FONT, M, priorityColor } from '../theme/palette'
 import { usePalette } from '../theme/ThemeProvider'
 import { Cell, Cells } from './Cells'
 import { GlassButton } from './Glass'
+import { useOnce } from './once'
 
 export const ORG_COLORS = ['', '#ff6467', '#ffb74d', '#ffd54f', '#d4e157', '#4ade80', '#60a5fa', '#818cf8', '#c084fc']
 
@@ -276,10 +277,10 @@ export function TextPrompt(props: { open: boolean; title: string; initial?: stri
   const [v, setV] = useState('')
   const [error, setError] = useState('')
   useEffect(() => { if (props.open) { setV(props.initial ?? ''); setError('') } }, [props.open, props.initial])
-  const ok = async () => {
+  const ok = useOnce(async () => {
     if (!v.trim()) return
     try { await props.onSubmit(v.trim()); props.onClose() } catch (e) { setError(e instanceof Error ? e.message : '저장하지 못했어요') }
-  }
+  })
   return (
     <Modal transparent visible={props.open} animationType="fade" onRequestClose={props.onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.dim, { backgroundColor: p.scrim }]}>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { usePalette } from '../theme/ThemeProvider'
 import { NAME_MAX } from './logic'
+import { useOnce } from '../ui/once'
 
 export type DialogSpec = { title: string; message?: string; input?: { initial?: string; placeholder: string }; confirm: string; danger?: boolean; onConfirm: (value: string) => void | Promise<void> }
 
@@ -20,7 +21,7 @@ export function Dialog({ spec, onClose }: { spec: DialogSpec | null; onClose: ()
   if (!spec || shown !== spec) return null
   const len = [...value.trim()].length
   const bad = !!spec.input && (len === 0 || len > NAME_MAX)
-  const ok = async () => { if (bad) return; onClose(); await spec.onConfirm(value) }
+  const ok = useOnce(async () => { if (bad) return; onClose(); await spec.onConfirm(value) })
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.scrim, { backgroundColor: p.scrim }]}>

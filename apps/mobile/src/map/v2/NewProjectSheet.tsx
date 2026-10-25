@@ -14,6 +14,7 @@ import { SheetHead } from '../../ui/SheetHead'
 import { useToast } from '../../ui/Toast'
 import { createProjectLine } from './projectDirect'
 import { linePreview, PROJECT_EXAMPLES, PROJECT_NOT_FOR } from './projectDirectModel'
+import { useOnce } from '../../ui/once'
 
 export function NewProjectSheet({ visible, onClose, onCreated }: { visible: boolean; onClose: () => void; onCreated: (tagId: string) => void }) {
   const p = usePalette()
@@ -31,7 +32,7 @@ export function NewProjectSheet({ visible, onClose, onCreated }: { visible: bool
   const line = parseProjectLine(raw, today, word)
   const pv = linePreview(line, today, emoji || null)
   const fill = (s: string) => { setRaw(s); setSel({ start: s.length, end: s.length }); input.current?.focus() }
-  const save = async () => {
+  const save = useOnce(async () => {
     if (!line.name || busy) return
     setBusy(true)
     try {
@@ -42,7 +43,7 @@ export function NewProjectSheet({ visible, onClose, onCreated }: { visible: bool
     } catch {
       toast.show('프로젝트를 만들지 못했어요. 다시 시도해 주세요.', { error: true })
     } finally { setBusy(false) }
-  }
+  })
   const hl = line.token && line.tokenAt >= 0
   return (
     <BottomSheet visible={visible} onClose={onClose} mid={0.78} label="새 프로젝트" head={<SheetHead compact title="새 프로젝트" onClose={onClose} />}>

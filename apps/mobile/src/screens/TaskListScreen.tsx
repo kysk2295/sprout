@@ -186,8 +186,9 @@ function TaskListMain() {
   const [refreshing, setRefreshing] = useState(false)
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    try { await syncNow() } finally { setRefreshing(false) }
-  }, [])
+    // 실패만 알린다(잘 되면 목록이 바뀌는 걸로 충분)
+    try { const r = await syncNow(); if (!r.ok) toast.show(r.message) } finally { setRefreshing(false) }
+  }, [toast])
 
   const withUndo = (message: string, undo: Undo | null, duration?: number) => toast.show(message, { undo: undo ?? undefined, duration })
   // 39 §4.1: 체크 → 0.35초 완료 모양으로 머문 뒤 쓰기(그 사이 다시 누르면 취소). 쓰면 행이 옅어지며 빠지고 아래 행이 미끄러진다

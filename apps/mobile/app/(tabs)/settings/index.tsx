@@ -91,7 +91,7 @@ export default function Settings() {
             value={syncValue}
             soft="sync"
             tone="sky"
-            onPress={async () => { setSyncing(true); try { await syncNow() } finally { setSyncing(false) } toast.show('동기화했어요') }}
+            onPress={async () => { setSyncing(true); let msg = '동기화하지 못했어요'; try { msg = (await syncNow()).message } finally { setSyncing(false) } toast.show(msg) }}
           />
           <Cell label="앱 정보" value={`v${APP_VERSION}`} soft="help" tone="plain" chevron={false} />
         </Cells>

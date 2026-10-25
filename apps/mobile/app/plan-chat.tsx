@@ -206,7 +206,7 @@ export default function PlanChatScreen() {
           </ScrollView>
         ) : null}
         <View style={[s.inputRow, { paddingBottom: insets.bottom + 8, borderTopColor: p.borderDivider, backgroundColor: p.pageBg }]}>
-          <TextInput value={draft} onChangeText={setDraft} onSubmitEditing={send} returnKeyType="send" editable={inputOpen(state)} placeholder={state.phase === 'split-manual' ? '예: 자료 조사, 목차 잡기, 초안 쓰기' : state.phase === 'team' ? '예: 민수, 지은' : '답을 적어 줘'}
+          <TextInput value={draft} onChangeText={setDraft} multiline editable={inputOpen(state)} placeholder={state.phase === 'split-manual' ? '예: 자료 조사, 목차 잡기, 초안 쓰기' : state.phase === 'team' ? '예: 민수, 지은' : '답을 적어 줘'}
             placeholderTextColor={p.textTertiary} style={[s.input, { backgroundColor: p.cardBg, color: p.textPrimary }]} accessibilityLabel="답 입력" />
           {state.busy && abort.current ? (
             <Pressable onPress={() => abort.current?.abort()} accessibilityRole="button" accessibilityLabel="멈추기" style={[s.send, { backgroundColor: p.textTertiary }]}><X size={18} color="#fff" /></Pressable>
@@ -230,6 +230,6 @@ const s = StyleSheet.create({
   chips: { gap: 8, paddingHorizontal: 16, paddingBottom: 10 },
   chip: { borderRadius: 999, paddingHorizontal: 14, height: 34, justifyContent: 'center', maxWidth: 240 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
-  input: { flex: 1, minHeight: 40, borderRadius: 20, paddingHorizontal: 14, fontSize: 15 },
+  input: { flex: 1, minHeight: 40, maxHeight: 120, borderRadius: 20, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10, fontSize: 15, textAlignVertical: 'top' },
   send: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' }
 })

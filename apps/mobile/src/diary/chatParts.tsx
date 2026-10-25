@@ -133,11 +133,10 @@ export const Composer = forwardRef<TextInput, { placeholder: string; onSend: (t:
         placeholder={placeholder}
         placeholderTextColor={p.textTertiary}
         accessibilityLabel="답 쓰기"
-        returnKeyType="send"
-        submitBehavior="submit"
-        onSubmitEditing={send}
+        // 휴대폰 키보드의 엔터 = 줄 바꿈(메신저처럼), 보내기는 ↑ 단추 — 엔터로 바로 보내지 않는다(2026-10-25 사용자)
+        multiline
         maxLength={1000}
-        style={[s.input, { color: p.textPrimary }]}
+        style={[s.input, s.inputMulti, { color: p.textPrimary }]}
       />
       {onStop ? (
         <Pressable accessibilityRole="button" accessibilityLabel="멈추기" onPress={onStop} hitSlop={4} style={[s.send, { backgroundColor: p.textPrimary }]}>
@@ -175,6 +174,7 @@ export const moodFaceArt = (mood: number | null | undefined): 'smile' | 'happy' 
 export const moodName = (v: number | null | undefined) => moodOf(v)?.label ?? ''
 
 const s = StyleSheet.create({
+  inputMulti: { height: undefined, minHeight: 44, maxHeight: 120, paddingTop: 12, paddingBottom: 12, textAlignVertical: 'top' },
   dots: { flexDirection: 'row', gap: 4, paddingVertical: 7, paddingHorizontal: 2 },
   prog: { height: 2, borderRadius: 1, overflow: 'hidden' },
   progBar: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 1 },
@@ -189,7 +189,7 @@ const s = StyleSheet.create({
   qc: { height: 44, paddingHorizontal: 16, borderRadius: 22, borderWidth: 1.5, flexDirection: 'row', alignItems: 'center', gap: 6 },
   qmood: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10, paddingBottom: 8 },
   qf: { width: 64, minHeight: 58, alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 16, paddingVertical: 4 },
-  cmp: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, paddingLeft: 16, paddingRight: 4, height: 48, borderRadius: 24, borderWidth: StyleSheet.hairlineWidth },
+  cmp: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginHorizontal: 12, paddingLeft: 16, paddingRight: 4, paddingVertical: 2, minHeight: 48, borderRadius: 24, borderWidth: StyleSheet.hairlineWidth },
   input: { flex: 1, fontSize: 15.5, height: 44, paddingVertical: 0 },
   send: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }
 })

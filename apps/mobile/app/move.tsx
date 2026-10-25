@@ -3,7 +3,7 @@
 import { useLiveQuery } from '../src/data/rows'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Check, Inbox, Plus, Search } from 'lucide-react-native'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useFolders, useLists } from '../src/data/lists'
 import { FolderGlyph, ListGlyph, listShow, splitLead } from '../src/ui/OrgIcons'
@@ -16,6 +16,7 @@ import { SheetHead } from '../src/ui/SheetHead'
 import { useToast } from '../src/ui/Toast'
 
 export default function Move() {
+  const submitLock = useRef(false) // 엔터 두 번·빠른 두 번 누르기로 두 개 만들어지지 않게(2026-10-25 UX 점검)
   const { ids: raw } = useLocalSearchParams<{ ids: string }>()
   const ids = (raw ?? '').split(',').filter(Boolean)
   const p = usePalette()
@@ -72,7 +73,7 @@ export default function Move() {
                 placeholder="새 리스트 이름"
                 placeholderTextColor={p.textTertiary}
                 returnKeyType="done"
-                onSubmitEditing={async () => { const n = name.trim(); if (!n) return setAdding(false); const id = await createList(n); await pick(id, n) }}
+                onSubmitEditing={async () => { const n = name.trim(); if (!n) return setAdding(false); if (submitLock.current) return; submitLock.current = true; try { const id = await createList(n); await pick(id, n) } finally { submitLock.current = false } }}
                 style={[FONT.body, { flex: 1, color: p.textPrimary }]}
               />
             </View>

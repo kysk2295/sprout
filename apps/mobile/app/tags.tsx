@@ -3,7 +3,7 @@
 import { useLiveQuery } from '../src/data/rows'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Check, Hash, Plus } from 'lucide-react-native'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTagsFull } from '../src/data/organization'
 import { tagShow } from '../src/data/emojiLead'
@@ -14,6 +14,7 @@ import { Cell, Cells } from '../src/ui/Cells'
 import { SheetHead } from '../src/ui/SheetHead'
 
 export default function Tags() {
+  const submitLock = useRef(false) // 엔터 두 번·빠른 두 번 누르기로 두 개 만들어지지 않게(2026-10-25 UX 점검)
   const { ids: raw } = useLocalSearchParams<{ ids: string }>()
   const ids = (raw ?? '').split(',').filter(Boolean)
   const p = usePalette()
@@ -39,7 +40,7 @@ export default function Tags() {
           placeholderTextColor={p.textTertiary}
           autoCapitalize="none"
           returnKeyType="done"
-          onSubmitEditing={async () => { if (name && !exact) { const id = await createTag(name); await setTag(ids, id, true); setQ('') } }}
+          onSubmitEditing={async () => { if (!name || exact || submitLock.current) return; submitLock.current = true; try { const id = await createTag(name); await setTag(ids, id, true); setQ('') } finally { submitLock.current = false } }}
           style={[FONT.sub, { flex: 1, color: p.textPrimary }]}
           accessibilityLabel="태그 이름"
         />

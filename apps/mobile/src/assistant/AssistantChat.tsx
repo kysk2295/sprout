@@ -546,9 +546,7 @@ function Composer({ a, onSubmit, autoFocus }: { a: AssistantState; onSubmit: () 
         placeholder={a.busy ? '다음에 물어볼 내용을 적어 두세요' : '무엇이든 물어보세요'}
         placeholderTextColor={p.textTertiary}
         style={[s.input, { color: p.textPrimary }]}
-        returnKeyType="send"
-        submitBehavior="submit"
-        onSubmitEditing={() => { if (can) onSubmit() }}
+        // 엔터 = 줄 바꿈, 보내기는 ↑ 단추(2026-10-25 사용자 — 엔터로 바로 보내지 않는다)
         accessibilityLabel="AI에게 보낼 내용"
       />
       {a.busy ? (

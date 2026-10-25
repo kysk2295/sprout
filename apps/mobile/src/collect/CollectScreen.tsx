@@ -31,6 +31,7 @@ import { ChipView, CollectEmpty, ItemRow, Segmented, SiteMark } from './parts'
 import { seedSeen, useSeen } from './wikiSeen'
 import { useTabBarSpace } from '../ui/tabBarSpace'
 import { canReceiveShare } from '../share/android'
+import { useOnce } from '../ui/once'
 
 type Section = 'notes' | 'watch' | 'wiki'
 type Topic = WikiTopic & { count: number }
@@ -70,7 +71,7 @@ export default function CollectScreen() {
   const scrollRef = useRef<ScrollView>(null)
   useScrollToTop(scrollRef)
   const [refreshing, setRefreshing] = useState(false)
-  const onRefresh = useCallback(async () => { setRefreshing(true); try { await syncNow() } finally { setRefreshing(false) } }, [])
+  const onRefresh = useCallback(async () => { setRefreshing(true); try { const r = await syncNow(); if (!r.ok) toast.show(r.message) } finally { setRefreshing(false) } }, [toast])
 
   const ws = useWeekStart() // 06 §16.1 "이번 주" = 주 시작 설정
   const groups = useMemo(() => groupItems(items, today, ws), [items, today, ws])
@@ -247,7 +248,7 @@ function AddBar({ onSaved }: { onSaved: (bare: boolean) => void }) {
   const toast = useToast()
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
-  const submit = async () => {
+  const submit = useOnce(async () => {
     const text = value.trim()
     if (!text) return
     try {
@@ -255,7 +256,7 @@ function AddBar({ onSaved }: { onSaved: (bare: boolean) => void }) {
       setValue('')
       onSaved(isBareLink(text))
     } catch (e) { toast.show(e instanceof Error ? e.message : '저장하지 못했어요.', { error: true }) }
-  }
+  })
   return (
     <View style={[s.add, { backgroundColor: p.cardBg }]}>
       <Plus size={18} color={editing ? p.accent : p.textTertiary} />

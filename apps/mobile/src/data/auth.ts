@@ -412,11 +412,13 @@ function watchForeground() {
   fgTimer = setInterval(() => { if (AppState.currentState === 'active') kick('1분 확인') }, 60_000)
 }
 
-/** 당겨서 새로 고침·설정의 "지금 동기화": 끊겨 있으면 다시 붙이고, 내려받기가 끝날 때까지(최대 8초) 기다린다 */
-export async function syncNow() {
+/** 당겨서 새로 고침·설정의 "지금 동기화": 끊겨 있으면 다시 붙이고, 내려받기가 끝날 때까지(최대 8초) 기다린 뒤 **결과를 돌려준다**.
+ *  예전엔 아무것도 돌려주지 않아 서버에 못 붙어도 "동기화했어요"가 떴다(2026-10-25 — 아이폰이 10-14부터 조용히 끊겨 있던 일) */
+export type SyncResult = { ok: boolean; pending: number; message: string }
+export async function syncNow(): Promise<SyncResult> {
   slog('syncNow: 눌림, 세션', session ? '있음' : '없음', 'connected', db.currentStatus.connected)
-  if (!session) return
-  if (!db.currentStatus.connected) await db.connect(connector, CONNECT_OPTIONS)
+  if (!session) return { ok: false, pending: 0, message: '로그인이 필요해요' }
+  try { if (!db.currentStatus.connected) await db.connect(connector, CONNECT_OPTIONS) } catch (e) { slog('syncNow: 연결 실패', e) }
   const started = Date.now()
   await new Promise<void>((resolve) => {
     const tick = setInterval(() => {
@@ -428,6 +430,15 @@ export async function syncNow() {
       }
     }, 200)
   })
+  const s = db.currentStatus
+  const pending = await pendingUploads().catch(() => 0)
+  const r: SyncResult = !s.connected ? { ok: false, pending, message: pending ? `서버에 연결하지 못했어요 · 안 올라간 변경 ${pending}개는 기기에 그대로 있어요` : '서버에 연결하지 못했어요. 인터넷을 확인해 주세요' }
+    : s.dataFlowStatus.uploadError ? { ok: false, pending, message: `변경 ${pending}개를 올리지 못했어요 · 저절로 다시 시도해요` }
+    : s.dataFlowStatus.downloadError ? { ok: false, pending, message: '내려받지 못했어요 · 저절로 다시 시도해요' }
+    : pending ? { ok: true, pending, message: `동기화 중이에요 · 변경 ${pending}개 올리는 중` }
+    : { ok: true, pending: 0, message: '동기화했어요' }
+  slog('syncNow: 결과', r.message)
+  return r
 }
 
 /** 08 §4 오류 문구: 서버 오류 코드 → 한국어(데스크톱 data/auth.ts와 같은 표) */

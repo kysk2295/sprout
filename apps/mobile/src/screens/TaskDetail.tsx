@@ -30,6 +30,7 @@ import { DetailTags } from '../wiki/DetailTags'
 type CheckItem = { id: string; title: string; done: number; sort_order: number }
 
 export default function TaskDetail() {
+  const submitLock = useRef(false) // 엔터 두 번·빠른 두 번 누르기로 두 개 만들어지지 않게(2026-10-25 UX 점검)
   const { id } = useLocalSearchParams<{ id: string }>()
   const p = usePalette()
   const router = useRouter()
@@ -148,7 +149,7 @@ export default function TaskDetail() {
                 placeholderTextColor={p.textQuaternary}
                 returnKeyType="done"
                 blurOnSubmit={false}
-                onSubmitEditing={() => { const v = newItem.trim(); if (v) { void addCheckItem(id, v); setNewItem('') } }}
+                onSubmitEditing={() => { const v = newItem.trim(); if (!v || submitLock.current) return; submitLock.current = true; setNewItem(''); void addCheckItem(id, v).finally(() => { submitLock.current = false }) }}
                 style={[FONT.body, s.checkText, { color: p.textPrimary }]}
                 accessibilityLabel="항목 추가"
               />

@@ -27,6 +27,7 @@ import {
   addGoal, carryOverGoal, createGoal, dismissDraft, removeGoal, renameGoal, reorderGoal, setGoalLink, setGoalProgress, setGoalTarget, useLinkTargets, useWeekGoals
 } from './data'
 import { checkTarget, dotTarget, goalBadge, weekRange, type GoalRow } from './logic'
+import { useOnce } from '../ui/once'
 
 type Snack = { id: number; text: string; undo?: () => Promise<void>; error?: boolean }
 
@@ -86,7 +87,7 @@ export function GoalsSheet({ p, visible, onClose, today, week, drafts, draftUsed
   }
 
   // ── 만들기 ──
-  const submit = async (raw = text, extra: Partial<NewGoal> = {}) => {
+  const submit = useOnce(async (raw: string = text, extra: Partial<NewGoal> = {}) => {
     const v = raw.trim()
     if (!v) return
     const parsed = parseGoal(v)
@@ -99,7 +100,7 @@ export function GoalsSheet({ p, visible, onClose, today, week, drafts, draftUsed
       return
     }
     setAddErr(r === 'full' ? `${tab === 'this' ? '이번' : '다음'} 주는 ${XP.goalsPerWeek}개까지 적을 수 있어요` : GOAL_TITLE_ERROR[r])
-  }
+  })
   const template = async (t: NewGoal) => {
     const r = await createGoal(today, shownWeek, t).catch((e) => { fail(e); return 'error' as const })
     if (r === 'ok') hx.tap()
