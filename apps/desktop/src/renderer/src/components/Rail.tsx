@@ -9,6 +9,7 @@ import { AvatarPicker } from './avatar/AvatarPicker'
 import { ProfileAvatar } from './avatar/ProfileAvatar'
 import { Dialog } from './Dialog'
 import { MenuItem, Popover } from './Popover'
+import { clearDiaryPrefs } from '../data/diary'
 
 export type RailView = 'tasks' | 'calendar' | 'growth' | 'notes' | 'watch' | 'wiki' | 'diary' | 'assistant' | 'map'
 
@@ -106,7 +107,7 @@ function RailAvatar({ email, onSettings, onGrowth }: { email?: string; onSetting
       <p>다시 로그인하면 데이터가 그대로 돌아와요.</p>
       <footer>
         <button disabled={busy} onClick={() => setConfirm(false)}>취소</button>
-        <button disabled={busy} onClick={async () => { setBusy(true); await authApi()?.logout(); setBusy(false); setConfirm(false) }}>로그아웃</button>
+        <button disabled={busy} onClick={async () => { setBusy(true); await authApi()?.logout(); clearDiaryPrefs(); setBusy(false); setConfirm(false) }}>로그아웃</button>
       </footer>
     </Dialog>}
   </>

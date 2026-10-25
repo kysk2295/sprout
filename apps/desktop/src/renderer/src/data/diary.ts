@@ -74,6 +74,13 @@ export function takeNotice(limit = 5): boolean {
   write(K.notice, String(n + 1))
   return true
 }
+/** 로그아웃: 이 기기의 일기 설정·임시 글을 지운다 — 다음 계정이 앞 사람의 AI 나누기 동의를 물려받지 않게(2026-10-25 QA) */
+export function clearDiaryPrefs(): void {
+  try {
+    for (const k of Object.values(K)) localStorage.removeItem(k)
+    for (const k of Object.keys(localStorage)) if (k.startsWith('diary-draft-')) localStorage.removeItem(k)
+  } catch { /* 그만 */ }
+}
 /** 15 §11 · 28 §9 K: 마지막에 쓴 방식(대화 · ✎ 혼자 쓰기)으로 연다. 예전 값 'free'(그냥 쓰기)는 혼자 쓰기로 읽는다 */
 export type WriteMode = 'chat' | 'solo'
 export const getWriteMode = (): WriteMode => (read(K.mode) === 'solo' || read(K.mode) === 'free' ? 'solo' : 'chat')

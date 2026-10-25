@@ -14,6 +14,7 @@ import { API_URL, SYNC_URL } from '../config'
 import { CONNECT_OPTIONS, coreDb, db, run } from './db'
 import { deviceId } from './device'
 import { slog } from './syncLog'
+import { clearDiaryPrefs } from '../diary/prefs'
 import { GoogleSignInError, googleIdToken } from './google'
 import { AppleSignInError, appleCredential } from './apple'
 
@@ -346,6 +347,7 @@ async function signOutLocal() {
   inboxWatch?.abort()
   inboxWatch = undefined
   await save(undefined)
+  void clearDiaryPrefs() // 다음 계정이 앞 사람의 일기 AI 나누기 동의·쓰기 방식을 물려받지 않게(2026-10-25 QA)
   status = 'signedOut'
   emit()
   // 연결이 토큰을 기다리며 멈춰 있어도 로그아웃은 끝나야 한다(교착 방지): 8초 안에 못 지우면 끊고 한 번 더

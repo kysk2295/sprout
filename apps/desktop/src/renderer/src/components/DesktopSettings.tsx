@@ -18,6 +18,7 @@ import { IntegrationsPane } from './calendars/IntegrationsPane'
 import { SETTINGS_TAB_KEY } from '../data/calendars'
 import { getAssistantDiary, setAssistantDiary } from '../data/assistant'
 import { getConsent } from '../data/diary'
+import { clearDiaryPrefs } from '../data/diary'
 /** 16: 다른 창(캘린더 `...` › 캘린더 구독)이 고른 탭 — 한 번 읽고 지운다 */
 const takeTab = () => { try { const t = localStorage.getItem(SETTINGS_TAB_KEY); if (t) localStorage.removeItem(SETTINGS_TAB_KEY); return t } catch { return null } }
 export const SHORTCUTS = [
@@ -106,7 +107,7 @@ function AccountPane() {
       <p>다시 로그인하면 데이터가 그대로 돌아와요.</p>
       <footer>
         <button disabled={busy} onClick={() => setConfirm(false)}>취소</button>
-        <button disabled={busy} onClick={async () => { setBusy(true); await authApi()?.logout(); setBusy(false); setConfirm(false) }}>로그아웃</button>
+        <button disabled={busy} onClick={async () => { setBusy(true); await authApi()?.logout(); clearDiaryPrefs(); setBusy(false); setConfirm(false) }}>로그아웃</button>
       </footer>
     </Dialog>}
   </>

@@ -21,6 +21,12 @@ function write(k: string, v: string) {
   void SecureStore.setItemAsync(k, v).catch(() => { /* 저장 꺼짐 — 이번 실행 동안만 */ })
 }
 
+/** 로그아웃: 이 기기의 일기 설정을 지운다 — 다음 계정이 앞 사람의 AI 나누기 동의·쓰기 방식을 물려받지 않게(2026-10-25 QA) */
+export async function clearDiaryPrefs(): Promise<void> {
+  await Promise.all(Object.values(K).map(async (k) => { cache.set(k, null); try { await SecureStore.deleteItemAsync(k) } catch { /* 그만 */ } }))
+  listeners.forEach((l) => l())
+}
+
 /** null = 아직 묻지 않음 */
 export const getConsent = (): boolean | null => (read(K.consent) === 'on' ? true : read(K.consent) === 'off' ? false : null)
 export const setConsent = (on: boolean) => write(K.consent, on ? 'on' : 'off')
