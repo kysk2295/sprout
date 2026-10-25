@@ -49,6 +49,9 @@ type Edit = { kind: 'list' | 'folder' | 'tag' | 'filter'; id: string | null; fol
 
 export function Drawer() {
   const { drawerOpen, setDrawerOpen, view, setView } = useTasksView()
+  // 접기·펴기 자리 전환은 서랍이 열려 있을 때만 — 닫혀 화면 밖에 있는 동안 리스트·개수가 바뀌면 안드로이드에서 전환이 중간에 멈춰
+  // 묶음(필터·태그·캘린더 구독·완료)이 옛 자리에 남아 줄과 겹쳤다(2026-10-25 에뮬레이터 QA)
+  const foldLayout = drawerOpen ? groupLayout : undefined
   const p = usePalette()
   const insets = useSafeAreaInsets()
   const win = useWindowDimensions()
@@ -241,7 +244,7 @@ export function Drawer() {
               const kids = normal.filter((l) => l.folder_id === f.id)
               const open = !!openFolders[f.id]
               return (
-                <Animated.View key={f.id} layout={groupLayout} style={s.fold}>
+                <Animated.View key={f.id} layout={foldLayout} style={s.fold}>
                   <Row
                     v={`folder:${f.id}`}
                     icon={<FolderGlyph name={f.name} />}
@@ -259,7 +262,7 @@ export function Drawer() {
               )
             })}
             {show('filters') ? (
-              <Animated.View layout={groupLayout} style={s.fold}>
+              <Animated.View layout={foldLayout} style={s.fold}>
                 <Section id="filters" label="필터" onAdd={() => setEdit({ kind: 'filter', id: null })} />
                 <FoldBody open={!!openSec.filters}>{filters.length ? filters.map((f) => (
                   <SwipeRow key={f.id} round right={swipeFilter(f)}><Row v={`filter:${f.id}`} icon={f.emoji ? <Text style={{ fontSize: 17 }}>{f.emoji}</Text> : <Funnel size={20} color={p.textSecondary} />} label={f.name} onLongPress={(e) => filterMenu(f, e)} /></SwipeRow>
@@ -267,7 +270,7 @@ export function Drawer() {
               </Animated.View>
             ) : null}
             {show('tags') ? (
-              <Animated.View layout={groupLayout} style={s.fold}>
+              <Animated.View layout={foldLayout} style={s.fold}>
                 <Section id="tags" label="태그" onAdd={() => setEdit({ kind: 'tag', id: null })} />
                 <FoldBody open={!!openSec.tags}>{topTags.length ? topTags.map((t) => (
                   <View key={t.id}>
@@ -278,13 +281,13 @@ export function Drawer() {
               </Animated.View>
             ) : null}
             {/* 38 §2.6 · 16 §2.4.1: 캘린더 구독 — 늘 보인다. + = 설정 › 캘린더 연동 */}
-            <Animated.View layout={groupLayout} style={s.fold}>
+            <Animated.View layout={foldLayout} style={s.fold}>
               <Section id="subs" label="캘린더 구독" onAdd={() => { setDrawerOpen(false); router.push('/settings/calendars') }} />
               <FoldBody open={!!openSec.subs}>{devUp.active
                 ? <Row v={EXT_DEVICE_VIEW} icon={<Cast size={20} color={p.textSecondary} />} label={EXT_DEVICE_TITLE} n={devUp.items.length} />
                 : <Text style={[s.hint, { color: p.textQuaternary }]}>휴대폰 캘린더를 연결하면 여기에 보여요</Text>}</FoldBody>
             </Animated.View>
-            <Animated.View layout={groupLayout}>
+            <Animated.View layout={foldLayout}>
               {hr}
               {show('completed', arch.completed) ? <Row v="smart:completed" icon={<SoftIcon name="done" size={22} />} label="완료" /> : null}
               {show('wontdo', arch.wontdo) ? <Row v="smart:wontdo" icon={<SoftIcon name="cancel" size={22} />} label="계획 취소" /> : null}

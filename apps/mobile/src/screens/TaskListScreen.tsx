@@ -251,7 +251,8 @@ function TaskListMain() {
   // 머리 ⋯
   const more = useAnchor()
   const { offline, syncError } = sync
-  const firstLoad = !sync.hasSynced && open.isLoading
+  // 기기 DB를 읽는 중이면(앱을 다시 켤 때 포함) 뼈대 — 예전엔 한 번 동기화한 기기는 읽는 동안 "할 일이 없어요"가 몇 초 보였다(2026-10-25 에뮬레이터 QA)
+  const firstLoad = open.isLoading
 
   const rowRefs = useRef(new Map<string, View | null>())
   // 39 §4.3 · 결정 ③: 길게 눌러 끌어 순서 바꾸기(같은 묶음 · 리스트의 다른 섹션). 그대로 떼면 지금처럼 메뉴
