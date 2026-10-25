@@ -11,7 +11,7 @@ import {
 import { EXT_DEVICE_TITLE, EXT_DEVICE_VIEW, useDeviceUpcoming } from '../calendars/upcoming'
 import { useEffect, useState, type ReactNode } from 'react'
 import { BlurView } from 'expo-blur'
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native'
+import { Alert, BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { makeMutable, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -79,6 +79,12 @@ export function Drawer() {
   useEffect(() => {
     drawerP.value = withTiming(drawerOpen ? 1 : 0, { duration: reduce ? DUR.base : drawerOpen ? DUR.drawerIn : DUR.drawerOut, easing: EASE.out })
   }, [drawerOpen, reduce])
+  // 안드로이드 뒤로 가기: 서랍이 열려 있으면 서랍부터 닫는다(예전엔 앱이 바로 나갔다 — 2026-10-25 에뮬레이터 QA)
+  useEffect(() => {
+    if (!drawerOpen) return
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setDrawerOpen(false); return true })
+    return () => sub.remove()
+  }, [drawerOpen, setDrawerOpen])
 
   const panel = useAnimatedStyle(() => ({ transform: [{ translateX: (drawerP.value - 1) * width }] }), [width])
   const scrim = useAnimatedStyle(() => ({ opacity: drawerP.value }))

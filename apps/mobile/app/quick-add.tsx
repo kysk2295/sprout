@@ -150,8 +150,14 @@ export default function QuickAdd() {
     scrimK.value = withTiming(0, { duration: DUR.base, easing: EASE.in })
     setTimeout(() => router.back(), DUR.keyboard)
   }
+  // 안드로이드 키보드 엔터는 제출을 두 번 보낼 때가 있다(같은 밀리초에 할 일 두 개 — 2026-10-25 에뮬레이터 QA) → 보내는 중·닫는 중엔 다시 안 보낸다
+  const sending = useRef(false)
   const send = async () => {
-    if (!canSend) return
+    if (!canSend || sending.current || closing.current) return
+    sending.current = true
+    try { await sendOnce() } finally { sending.current = false }
+  }
+  const sendOnce = async () => {
     if (isEvent) return sendEvent()
     try {
       const newId = await createTask(input)
