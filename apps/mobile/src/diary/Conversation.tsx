@@ -29,6 +29,12 @@ import { useKeyboardHeight, useKeyboardLift } from './keyboard'
 import { dayTitle, josa, mayCallAi, moodOf, parseBuddyReply, type Buddy, type DiaryEntry } from './logic'
 import { DiaryScene, type BuddyState, type SceneHandle } from './Scene'
 import { paperOf } from './SoloWrite'
+import { useRouter } from 'expo-router'
+import { lookbackDates } from '@sprout/schema/diaryScene'
+import { PhotoSheet } from './PhotoSheet'
+import { usePhotos } from './photos'
+import { SceneCardView } from './SceneCard'
+import { useSceneCard } from './sceneData'
 import { DistillCard, StreamText } from './Stream'
 import { setConsent, setMet, useDiaryPrefs } from './prefs'
 import {
@@ -318,6 +324,12 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
     autoTimers.set(date, setTimeout(() => { autoTimers.delete(date); void autoFinish(date, timeoutSignal(180_000)).catch(() => {}) }, wait))
   }, [date])
 
+  // 28 §10.3 사진 한 장: 칩 → 시트 → 붙으면 정해진 한 줄 + 깡충
+  const [photoSheet, setPhotoSheet] = useState(false)
+  const photos = usePhotos(date)
+  const photoAdded = async () => { reveal(await addScripted(date, [{ role: 'buddy', content: '사진 고마워! 오늘 장면에 붙여 뒀어.' }])); setTimeout(() => scene.current?.hop(), 250) }
+  const router = useRouter()
+  const todayCard = useSceneCard(date)
   const consentYes = () => { hx.tap(); setConsent(true) }
   const consentNo = () => { hx.tap(); setConsent(false); onFree({ text: '', mood: entry?.mood ?? null }) }
   const sayBye = async () => { hx.tap(); const ids = await addScripted(date, [{ role: 'me', content: BYE_ME }, { role: 'buddy', content: BYE_BUDDY }]); reveal(ids.slice(1)) }
@@ -424,7 +436,9 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
   const exchanges = myTalk.length + (aiDown ? myAll.filter((m) => m.safety === SCRIPTED).length : 0)
   const doneChips = doneChipsOf(stats.doneTitles, myAll.map((m) => m.content))
   const listenChip: Chip[] = !listen && lastRow?.role === 'buddy' && exchanges ? [{ key: 'listen', label: LISTEN_ME, onPress: () => void listenOn() }] : []
-  const chips: Chip[] = phase === 'talk' ? [
+  const photoChip: Chip = { key: 'photo', label: photos.length ? `📷 사진 ${photos.length}` : '📷 사진 한 장', onPress: () => { hx.tap(); setPhotoSheet(true) } }
+  const chips: Chip[] = phase === 'mood' ? [photoChip] : phase === 'talk' ? [
+    photoChip,
     ...(low ? listenChip : []),
     ...(nudgeNow ? nudgeNow.chips.map((c) => ({ key: c, label: c, onPress: () => say(c) })) : doneChips.map((t) => ({ key: `done-${t}`, label: `✓ ${t}`, onPress: () => say(`${t} 했어`) }))),
     ...(!low ? listenChip : []),
@@ -459,6 +473,12 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
           contentContainerStyle={[st.chat, { paddingBottom: dockH + kbLift + buddyRoom }]}
         >
           <Text style={[st.daysep, { color: tone.sub }]}>{dayTitle(date)}{past ? '' : ` · ${TIME_LABEL[timeOfDay(new Date().getHours())]}`}</Text>
+          {!past ? <Lookbacks today={date} reduced={reduced} onOpen={(d) => router.push({ pathname: '/diary/scene', params: { date: d } })} /> : null}
+          {todayCard && !virtualStart ? (
+            <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/diary/scene', params: { date } })} style={[st.scenePill, { backgroundColor: tone.bubble, borderColor: tone.line }]}>
+              <Text style={{ color: tone.ink, fontSize: 12.5, fontWeight: '700' }}>🖼 {past ? '그날' : '오늘'}의 장면 · {todayCard.title}</Text>
+            </Pressable>
+          ) : null}
           {virtualStart && !prefs.met ? <BuddyRow buddy={buddy} avatar={false} live={false} still={reduced} tone={tone}><Text style={[st.msg, { color: tone.ink }]}>{introLine(name)}</Text></BuddyRow> : null}
           {greet ? <BuddyRow buddy={buddy} avatar={false} live={false} still={reduced} tone={tone}><Text style={[st.msg, { color: tone.ink }]}>{greet}</Text></BuddyRow> : null}
           {rows}
@@ -505,6 +525,7 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
         </ScrollView>
       </GestureDetector>
 
+      <PhotoSheet visible={photoSheet} date={date} count={photos.length} onClose={() => setPhotoSheet(false)} onAdded={() => void photoAdded()} />
       <Animated.View onLayout={onDock} style={[st.dock, { paddingBottom: insets.bottom + 8 }, lift]} pointerEvents="box-none">
         {phase === 'mood' ? (
           <Glass dark={sceneDark(sceneKey)} radius={24} style={st.moodGlass}>
@@ -527,6 +548,17 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
       </Animated.View>
     </View>
   )
+}
+
+/** 28 §10.4 1년 전·한 달 전 오늘 — 그날 장면이 있을 때만 */
+function Lookbacks({ today, reduced, onOpen }: { today: string; reduced: boolean; onOpen: (d: string) => void }) {
+  const items = lookbackDates(today)
+  return <>{items.map((x) => <Lookback key={x.date} date={x.date} label={x.label} reduced={reduced} onOpen={onOpen} />)}</>
+}
+function Lookback({ date, label, reduced, onOpen }: { date: string; label: string; reduced: boolean; onOpen: (d: string) => void }) {
+  const card = useSceneCard(date)
+  if (!card) return null
+  return <SceneCardView card={card} variant="row" label={label} reduced={reduced} onPress={() => onOpen(date)} />
 }
 
 /** 끝 말 뒤 아직 저장 한 줄이 없으면 마무리 중(앱이 꺼졌다 켜진 경우 포함 — 위 autoFinish가 이어서 저장) */
@@ -610,6 +642,7 @@ function SavedCard({ section, date, past, mood, editing, paper, canRedo, redoing
 
 const st = StyleSheet.create({
   chat: { paddingHorizontal: 12, paddingTop: 4, gap: 8 },
+  scenePill: { alignSelf: 'center', borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingVertical: 6, maxWidth: '92%' },
   daysep: { alignSelf: 'center', fontSize: 11.5, fontWeight: '600', paddingTop: 8, paddingBottom: 4 },
   msg: { fontSize: 15, lineHeight: 22 },
   taskChip: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', borderWidth: 1, borderRadius: 16, paddingHorizontal: 10, minHeight: 32 },

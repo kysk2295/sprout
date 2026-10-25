@@ -1,0 +1,106 @@
+{
+  "api": "https://macmini.tail425c97.ts.net",
+  "sync": "https://macmini.tail425c97.ts.net:8443",
+  "results": [
+    {
+      "case": "A·B 첫 연결·첫 동기화",
+      "ok": true,
+      "ms": 2
+    },
+    {
+      "case": "할 일 만들기 A → B",
+      "ok": true,
+      "ms": 1009
+    },
+    {
+      "case": "제목 고치기 B → A",
+      "ok": true,
+      "ms": 1008
+    },
+    {
+      "case": "완료 A → B",
+      "ok": true,
+      "ms": 1008
+    },
+    {
+      "case": "동시에 다른 칸 고치기 → 둘 다 남음",
+      "ok": true,
+      "ms": 1
+    },
+    {
+      "case": "지우기 B → A",
+      "ok": true,
+      "ms": 253
+    },
+    {
+      "case": "오프라인 3건 → 다시 붙으면 B에 보임",
+      "ok": true,
+      "ms": 0
+    },
+    {
+      "case": "오프라인 동안 B 변경 → A가 받음",
+      "ok": true,
+      "ms": 253
+    },
+    {
+      "case": "접근 토큰 만료 → 새로 고침 → 올라감",
+      "ok": true,
+      "ms": 1009,
+      "note": "새로 고침 1회 · 실패 0"
+    },
+    {
+      "case": "두 번째 새로 고침(같은 리프레시 토큰)",
+      "ok": true,
+      "ms": 1258,
+      "note": "새로 고침 2회 · 실패 0"
+    },
+    {
+      "case": "일정 B → A",
+      "ok": true,
+      "ms": 256
+    },
+    {
+      "case": "메모(수집함) A → B",
+      "ok": true,
+      "ms": 505
+    },
+    {
+      "case": "일기 B → A",
+      "ok": true,
+      "ms": 503
+    },
+    {
+      "case": "리스트 + 그 안 할 일 A → B",
+      "ok": true,
+      "ms": 758
+    },
+    {
+      "case": "사진 한 장 A → B(행 + 바이트)",
+      "ok": true,
+      "ms": 758,
+      "note": "71KB"
+    },
+    {
+      "case": "250건 한꺼번에 A → B",
+      "ok": true,
+      "ms": 1009
+    },
+    {
+      "case": "A·B 올릴 것 0건",
+      "ok": true,
+      "ms": 0
+    }
+  ],
+  "statsA": {
+    "refresh": 2,
+    "refreshFail": 0,
+    "uploads": 12,
+    "uploadFail": 0
+  },
+  "statsB": {
+    "refresh": 0,
+    "refreshFail": 0,
+    "uploads": 6,
+    "uploadFail": 0
+  }
+}

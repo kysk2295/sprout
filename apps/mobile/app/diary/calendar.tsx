@@ -15,6 +15,11 @@ import { BuddyArt, MonthMoodGrid, MoodDistribution, YearMosaic } from '../../src
 import { openDay, useDiaryState } from '../../src/diary/state'
 import { weekLineOf } from '../../src/diary/talk'
 import { useWeekStart } from '../../src/data/calendarPrefs'
+import { addDays } from '@sprout/schema/time'
+import { topWords } from '@sprout/schema/diaryScene'
+import { SceneCardView } from '../../src/diary/SceneCard'
+import { useMonthScenes } from '../../src/diary/sceneData'
+import type { DiaryEntry } from '../../src/diary/logic'
 import { useMotionReduced } from '../../src/growth/motion'
 import { dayKey } from '../../src/lib/dates'
 import { usePalette } from '../../src/theme/ThemeProvider'
@@ -33,7 +38,7 @@ export default function MoodCalendar() {
   const ws = useWeekStart()
   const reduced = useMotionReduced()
   const buddy = useBuddy()
-  const [mode, setMode] = useState<'month' | 'year'>('month')
+  const [mode, setMode] = useState<'month' | 'year' | 'album'>('month')
   const [month, setMonth] = useState(date.slice(0, 7))
   const entries = useEntries()
   const byDate = useMemo(() => new Map(entries.map((e) => [e.date, e])), [entries])
@@ -65,14 +70,14 @@ export default function MoodCalendar() {
       <View style={[s.hdr, { marginTop: insets.top }]}>
         <GlassButton label="일기로" onPress={() => router.back()}><ChevronLeft size={22} color={p.textPrimary} /></GlassButton>
         <View style={{ flex: 1 }} />
-        <Segmented style={{ width: 112 }} value={mode} onChange={(m) => setMode(m)} items={[{ key: 'month', label: '월' }, { key: 'year', label: '연' }]} />
+        <Segmented style={{ width: 168 }} value={mode} onChange={(m) => setMode(m)} items={[{ key: 'month', label: '월' }, { key: 'album', label: '앨범' }, { key: 'year', label: '연' }]} />
       </View>
       <GestureDetector gesture={swipe}>
         <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 32, gap: 12 }}>
           <View style={s.titleRow}>
-            <Text style={[s.title, { color: p.textPrimary }]}>{mode === 'month' ? `${Number(month.slice(5))}월` : `${year}년`}<Text style={[s.titleSub, { color: p.textTertiary }]}>{mode === 'month' ? `  ${year}` : ''}</Text></Text>
+            <Text style={[s.title, { color: p.textPrimary }]}>{mode !== 'year' ? `${Number(month.slice(5))}월` : `${year}년`}<Text style={[s.titleSub, { color: p.textTertiary }]}>{mode !== 'year' ? `  ${year}` : ''}</Text></Text>
             <View style={{ flex: 1 }} />
-            {mode === 'month' ? <>
+            {mode !== 'year' ? <>
               <Pressable onPress={() => move(-1)} accessibilityRole="button" accessibilityLabel="이전 달" style={s.arrow}><ChevronLeft size={22} color={p.textPrimary} /></Pressable>
               <Pressable onPress={() => move(1)} disabled={!canNext} accessibilityRole="button" accessibilityLabel="다음 달" style={[s.arrow, !canNext && { opacity: 0.3 }]}><ChevronRight size={22} color={p.textPrimary} /></Pressable>
             </> : <>
@@ -81,7 +86,8 @@ export default function MoodCalendar() {
             </>}
           </View>
 
-          {mode === 'month' ? <>
+          {mode === 'album' ? <Album month={month} entries={inMonth} reduced={reduced} onPlay={() => router.push({ pathname: '/diary/album-play', params: { month } })} onPick={(d) => router.push({ pathname: '/diary/scene', params: { date: d } })} />
+          : mode === 'month' ? <>
             <View style={[s.card, { backgroundColor: p.cardBg }]}>
               <MonthMoodGrid month={month} byDate={byDate} today={today} selected={date} onPick={pick} />
             </View>
@@ -122,7 +128,47 @@ export default function MoodCalendar() {
     </View>
   )
 }
+/** 28 §10.4 이번 달 앨범: 3칸 격자(장면 카드 작은 판, 빈 날 빗금) + ▶ 넘겨 보기 + 이번 달 세 장 */
+function Album({ month, entries, reduced, onPlay, onPick }: { month: string; entries: DiaryEntry[]; reduced: boolean; onPlay: () => void; onPick: (d: string) => void }) {
+  const p = usePalette()
+  const scenes = useMonthScenes(month)
+  const today = dayKey()
+  const days: string[] = []
+  for (let d = `${month}-01`; d.slice(0, 7) === month && d <= today; d = addDays(d, 1)) days.push(d)
+  const good = [...scenes.values()].filter((c) => (c.mood ?? 0) >= 4)
+  const words = topWords(entries.map((e) => e.content ?? ''))
+  return (
+    <>
+      <View style={s.sh}>
+        <Text style={{ color: p.textTertiary, fontSize: 13 }}>{scenes.size}장 · 사진 {[...scenes.values()].reduce((n, c) => n + c.photoCount, 0)}</Text>
+        <Pressable accessibilityRole="button" disabled={!scenes.size} onPress={onPlay} style={[s.play, { backgroundColor: p.accent, opacity: scenes.size ? 1 : 0.4 }]}><Text style={{ color: p.onAccent, fontSize: 13.5, fontWeight: '800' }}>▶ 넘겨 보기</Text></Pressable>
+      </View>
+      <View style={s.agrid}>
+        {days.map((d) => {
+          const c = scenes.get(d)
+          return (
+            <View key={d} style={s.acell}>
+              {c ? <SceneCardView card={c} variant="cell" reduced={reduced} onPress={() => onPick(d)} />
+                : <View style={[s.aempty, { borderColor: p.borderDivider }]}><Text style={{ color: p.textQuaternary, fontSize: 11, fontWeight: '700' }}>{Number(d.slice(8))}</Text></View>}
+            </View>
+          )
+        })}
+      </View>
+      <View style={[s.card, s.pad, { backgroundColor: p.cardBg }]}>
+        <Text style={[s.shTitle, { color: p.textPrimary }]}>이번 달 기분</Text>
+        <MoodDistribution entries={entries} />
+        <Text style={{ color: p.textSecondary, fontSize: 13.5, lineHeight: 20 }}>{good.length ? `좋았던 날 ${good.length}일 — ${good.slice(0, 3).map((c) => c.title).join(' · ')}` : '좋았던 날을 남기면 여기에 모여요'}</Text>
+        {words.length ? <Text style={{ color: p.textSecondary, fontSize: 13.5 }}>많이 쓴 말 · <Text style={{ color: p.textPrimary, fontWeight: '700' }}>{words.join(' · ')}</Text></Text> : null}
+      </View>
+    </>
+  )
+}
+
 const s = StyleSheet.create({
+  play: { height: 36, paddingHorizontal: 14, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  agrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  acell: { width: '31.6%' },
+  aempty: { aspectRatio: 3 / 4, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'flex-start', padding: 7 },
   hdr: { height: 52, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 },
   titleRow: { flexDirection: 'row', alignItems: 'center', paddingTop: 4 },
   title: { fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.75 },

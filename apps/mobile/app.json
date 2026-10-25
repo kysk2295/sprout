@@ -177,6 +177,14 @@
           "teamId": "BU697KN34B",
           "appGroup": "group.app.sprout.mobile"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "일기에 그날 사진 한 장을 붙이려고 사진을 골라요. 고른 사진만 줄여서 내 일기에 저장해요.",
+          "cameraPermission": "일기에 붙일 사진을 지금 찍으려고 카메라를 써요.",
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {

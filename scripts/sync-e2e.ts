@@ -159,6 +159,20 @@ async function main() {
   const t5 = task(owner, '리스트 안', { list_id: list.id })
   await insert(A, 'tasks', t5)
   await check('리스트 + 그 안 할 일 A → B', () => until(B, 'SELECT t.id FROM tasks t JOIN lists l ON l.id = t.list_id WHERE t.id = ?', [t5.id], (r) => r.length === 1))
+  // 8.5 사진 한 장(28 §10): A가 올리고 diary_photos 행 → B가 행을 받고 같은 사진을 내려받음(B 토큰), 남의 계정은 못 봄
+  await check('사진 한 장 A → B(행 + 바이트)', async () => {
+    const jpg = readFileSync('docs/verification/calendar-core/sprout-week-range.jpg')
+    const up = await fetch(`${API}/media`, { method: 'POST', headers: { authorization: `Bearer ${signup.access_token}`, 'content-type': 'image/jpeg' }, body: jpg })
+    if (up.status !== 201) return { ms: -1, note: `upload ${up.status}` }
+    const { id: mediaId } = (await up.json()) as { id: string }
+    const row = { id: uuid(), owner_id: owner, date: '2026-10-24', media_id: mediaId, width: 100, height: 100, sort_order: 0, created_at: now(), modified_at: now() }
+    await insert(A, 'diary_photos', row)
+    const ms = await until(B, 'SELECT media_id FROM diary_photos WHERE id = ?', [row.id], (r) => r[0]?.media_id === mediaId)
+    if (ms < 0) return ms
+    const got = await fetch(`${API}/media/${mediaId}`, { headers: { authorization: `Bearer ${tokB.access_token}` } })
+    const same = got.ok && Buffer.from(await got.arrayBuffer()).equals(jpg)
+    return same ? { ms, note: `${Math.round(jpg.length / 1024)}KB` } : { ms: -1, note: `download ${got.status}` }
+  })
   // 9 큰 묶음(250건 — 업로드 묶음 200 넘김)
   const bulk = Array.from({ length: 250 }, (_, i) => task(owner, `묶음 ${i}`))
   await A.db.writeTransaction(async (tx) => { for (const t of bulk) await tx.execute('INSERT INTO tasks (id, owner_id, title, status, list_id, sort_order, priority, created_at, modified_at) VALUES (?,?,?,?,?,?,?,?,?)', [t.id, t.owner_id, t.title, 0, '', 0, 0, t.created_at, t.modified_at]) })

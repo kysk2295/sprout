@@ -13,6 +13,8 @@ export default function DiaryLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="calendar" />
       <Stack.Screen name="search" />
+      <Stack.Screen name="scene" />
+      <Stack.Screen name="album-play" options={{ animation: 'fade' }} />
     </Stack>
   )
 }

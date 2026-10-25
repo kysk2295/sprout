@@ -15,6 +15,13 @@ import { isWritten, josa, mayCallAi, moodOf, parseBuddyReply, type Buddy, type D
 import { BuddyArt } from './parts'
 import { useDiaryPrefs } from './prefs'
 import { paperOf } from './SoloWrite'
+import { useRouter } from 'expo-router'
+import { Image } from 'react-native'
+import { SceneCardView } from './SceneCard'
+import { useSceneCard } from './sceneData'
+import { PhotoSheet } from './PhotoSheet'
+import { usePendingPhotos, usePhotos, usePhotoUri, removePhoto, type DiaryPhoto } from './photos'
+import { ImagePlus } from 'lucide-react-native'
 
 export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onSolo }: {
   date: string; entry: DiaryEntry | undefined; buddy: Buddy & { stage: number }; reduced: boolean; swipe: GestureType; onChat: () => void
@@ -33,11 +40,25 @@ export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onSolo }: 
   const m = moodOf(entry?.mood)
   const sections = parseSections(entry?.content)
   const talk = messages.filter((x) => x.safety !== 1)
+  const router = useRouter()
+  const card = useSceneCard(date)
+  const photos = usePhotos(date)
+  const pending = usePendingPhotos(date)
+  const [photoSheet, setPhotoSheet] = useState(false)
   const canTalk = written && prefs.consent !== false
   const paper = paperOf(p.dark, p.cardBg)
   return (
     <GestureDetector gesture={swipe}>
       <ScrollView contentContainerStyle={[s.wrap, { paddingBottom: insets.bottom + 32 }]}>
+        {card ? <SceneCardView card={card} variant="row" reduced={reduced} onPress={() => router.push({ pathname: '/diary/scene', params: { date } })} /> : null}
+        <View style={s.photos}>
+          {photos.map((ph) => <PhotoThumb key={ph.id} photo={ph} onRemove={() => void removePhoto(ph.id)} />)}
+          {pending.map((x) => <View key={x.localId} style={s.thumb}><Image source={{ uri: x.file }} style={[s.thumbImg, { opacity: 0.5 }]} /></View>)}
+          <Pressable accessibilityRole="button" accessibilityLabel="사진 한 장 붙이기" onPress={() => setPhotoSheet(true)} style={[s.thumb, s.addThumb, { borderColor: p.borderStrong }]}>
+            <ImagePlus size={20} color={p.textSecondary} />
+            <Text style={{ color: p.textSecondary, fontSize: 11.5, fontWeight: '600' }}>사진</Text>
+          </Pressable>
+        </View>
         {!written ? (
           <View style={s.empty}>
             <BuddyArt buddy={buddy} stage={buddy.stage} size={88} mood="smile" still={reduced} />
@@ -113,10 +134,31 @@ export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onSolo }: 
         )}
         <Text style={[s.hint, { color: p.textQuaternary }]}>← 밀어서 다음 날 · 밀어서 전날 →</Text>
       </ScrollView>
+      <PhotoSheet visible={photoSheet} date={date} count={photos.length + pending.length} onClose={() => setPhotoSheet(false)} />
     </GestureDetector>
   )
 }
+/** 사진 한 장(길게 누르면 지우기 확인) */
+function PhotoThumb({ photo, onRemove }: { photo: DiaryPhoto; onRemove: () => void }) {
+  const uri = usePhotoUri(photo.media_id)
+  const [ask, setAsk] = useState(false)
+  const p = usePalette()
+  return (
+    <Pressable accessibilityRole="imagebutton" accessibilityLabel="일기 사진, 길게 누르면 지우기" onLongPress={() => setAsk(true)} style={s.thumb}>
+      {uri ? <Image source={{ uri }} style={s.thumbImg} /> : <View style={[s.thumbImg, { backgroundColor: p.bgSelected }]} />}
+      {ask ? (
+        <Pressable accessibilityRole="button" onPress={() => { setAsk(false); onRemove() }} style={[StyleSheet.absoluteFill, s.del]}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 12.5 }}>지우기</Text></Pressable>
+      ) : null}
+    </Pressable>
+  )
+}
+
 const s = StyleSheet.create({
+  photos: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  thumb: { width: 72, height: 72, borderRadius: 14, overflow: 'hidden' },
+  thumbImg: { width: 72, height: 72, borderRadius: 14 },
+  addThumb: { borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 2 },
+  del: { backgroundColor: 'rgba(200,60,40,0.78)', alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
   wrap: { paddingHorizontal: 16, paddingTop: 8, gap: 10 },
   empty: { alignItems: 'center', paddingTop: 40, gap: 6 },
   emptyTitle: { fontSize: 17, fontWeight: '700', marginTop: 8 },

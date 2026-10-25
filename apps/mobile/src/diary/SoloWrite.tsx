@@ -2,7 +2,9 @@
 // 기분 한 줄(선택) · 제목(선택, 비우면 첫 줄이 제목) · 본문(열면 커서) · 키보드 위 도구(기분 · 한 일 · 질문 · 시각 · 키보드 내리기).
 // AI 0회 — 혼자 쓴 장은 어디로도 보내지 않는다. 쓰는 중엔 1초 뒤 기기에 임시 저장(동기화 안 함), 저장하면 지운다.
 // 저장 = 그날 글 끝에 ✎ 장을 이어 붙인다(앞 장을 덮지 않음). 고치기(index) = 그 장 자리에서 바꾼다.
-import { ChevronLeft, ChevronDown, Clock, HelpCircle, ListChecks, MessageCircle } from 'lucide-react-native'
+import { ChevronLeft, ChevronDown, Clock, HelpCircle, ImagePlus, ListChecks, MessageCircle } from 'lucide-react-native'
+import { PhotoSheet } from './PhotoSheet'
+import { usePhotos } from './photos'
 import { useEffect, useRef, useState } from 'react'
 import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
@@ -95,6 +97,8 @@ export function SoloWrite({ date, entry, index, onBack, onChat, onSaved }: {
   const ask = () => { insert(`${promptFor(date, shift)}\n`); setShift((n) => n + 1) }
 
   const [pop, setPop] = useState<'mood' | 'done' | null>(null)
+  const [photoSheet, setPhotoSheet] = useState(false)
+  const photos = usePhotos(date)
   const kbH = useKeyboardHeight()
   const lift = useKeyboardLift(insets.bottom)
   const [barH, setBarH] = useState(50 + insets.bottom)
@@ -199,6 +203,7 @@ export function SoloWrite({ date, entry, index, onBack, onChat, onSaved }: {
         </Animated.View>
       ) : null}
 
+      <PhotoSheet visible={photoSheet} date={date} count={photos.length} onClose={() => setPhotoSheet(false)} onAdded={() => toast.show('오늘 장면에 사진을 붙였어요')} />
       <Animated.View onLayout={onBar} style={[s.bar, { paddingBottom: insets.bottom, backgroundColor: p.dark ? p.bgSelected : '#F6F3EC', borderTopColor: p.borderDivider }, lift]}>
         <View style={s.barRow}>
           <Tool label={mood ? '기분 바꾸기' : '기분'} on={pop === 'mood'} onPress={() => setPop((v) => (v === 'mood' ? null : 'mood'))}>
@@ -208,6 +213,7 @@ export function SoloWrite({ date, entry, index, onBack, onChat, onSaved }: {
           <Tool label="오늘 끝낸 할 일 넣기" on={pop === 'done'} onPress={() => setPop((v) => (v === 'done' ? null : 'done'))}>
             <ListChecks size={18} color={p.textSecondary} /><Text style={[s.tl, { color: p.textSecondary }]}>한 일</Text>
           </Tool>
+          <Tool label="사진 한 장 붙이기" onPress={() => { setPop(null); Keyboard.dismiss(); setPhotoSheet(true) }}><ImagePlus size={18} color={p.textSecondary} /><Text style={[s.tl, { color: p.textSecondary }]}>{photos.length ? `사진 ${photos.length}` : '사진'}</Text></Tool>
           <Tool label="질문 넣기" onPress={ask}><HelpCircle size={18} color={p.textSecondary} /><Text style={[s.tl, { color: p.textSecondary }]}>질문</Text></Tool>
           <Tool label="지금 시각 넣기" onPress={() => insert(`${hhmm()} `)}><Clock size={18} color={p.textSecondary} /><Text style={[s.tl, { color: p.textSecondary }]}>시각</Text></Tool>
           {kbH ? <Tool label="키보드 내리기" onPress={() => { setPop(null); keep(); Keyboard.dismiss() }}><ChevronDown size={20} color={p.accentInk} /></Tool> : null}
