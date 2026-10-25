@@ -66,3 +66,12 @@ assert.ok(mixed.endsWith('## 23:40 ✎ — 애매한 하루\n\n딱 중간쯤인 
 assert.deepEqual(parseSections(mixed)[2], { time: '23:40', title: '애매한 하루', tags: [], body: '딱 중간쯤인 날.', solo: true })
 assert.equal(parseSections(mixed)[1].solo, undefined)
 assert.deepEqual(parseSections('## 07:05 ✎\n\n제목 없는 장.'), [{ time: '07:05', title: '', tags: [], body: '제목 없는 장.', solo: true }])
+
+// 2026-10-25 검증: 태그를 문자열 하나로 주면 통째로 버리던 것
+{
+  const a = parseDistill('{"title":"t","tags":"#감정/좋음 #사건/산책","entry":"오늘은 좋았다."}')
+  if (JSON.stringify(a?.tags) !== JSON.stringify(['#감정/좋음', '#사건/산책'])) throw new Error('문자열 태그: ' + JSON.stringify(a?.tags))
+  const b = parseDistill('{"title":"t","tags":["#감정/좋음, #영역/휴식"],"entry":"오늘은 좋았다."}')
+  if (b?.tags.length !== 2) throw new Error('원소 하나에 여럿: ' + JSON.stringify(b?.tags))
+  console.log('ok   태그 문자열·여럿 나누기')
+}

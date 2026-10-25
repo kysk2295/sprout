@@ -92,7 +92,9 @@ export function parseDistill(raw: string): Distilled | null {
     : ''
   if (!entry) return null
   const title = typeof r.title === 'string' ? clip(r.title.trim().replace(/^["“#\s]+|["”\s]+$/g, ''), 30) : ''
-  const tags = Array.isArray(r.tags) ? [...new Set(r.tags.filter((t): t is string => typeof t === 'string').map(normalizeTag).filter((t): t is string => !!t))].slice(0, 6) : []
+  // 모델이 태그를 문자열 하나("#감정/좋음 #사건/산책")나 원소 하나에 여럿으로 줄 때가 있다 → 공백·쉼표로 나눠 하나씩 검사(예전엔 통째로 버려 태그 약 40%가 사라졌다, 2026-10-25 검증)
+  const rawTags = (Array.isArray(r.tags) ? r.tags : typeof r.tags === 'string' ? [r.tags] : []).filter((t): t is string => typeof t === 'string').flatMap((t) => t.replace(/\s*\/\s*/g, '/').split(/[\s,]+/))
+  const tags = [...new Set(rawTags.map(normalizeTag).filter((t): t is string => !!t))].slice(0, 6)
   return { title, tags, entry }
 }
 
