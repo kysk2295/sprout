@@ -2,6 +2,13 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-10-25 밤 데스크톱 일기 v7 · 세 기기 QA · AI 검증 — **사용자 결정 3개 대기**
+- **데스크톱 일기 v7 구현(15 §11, 3425abb)** — 실제 앱 1440·1280·1100·900 폭·라이트·다크 확인. 기분은 누르면 바로 저장(세 앱).
+- **세 기기 QA**(QA 계정 `qa-20261025-mggu`, Mac 개발 앱 `SPROUT_PROFILE=qa-sync` · iPhone 17 Pro 시뮬레이터 Release · Pixel 6a 에뮬레이터 Release): 결과 [RESULT-2026-10-25](docs/verification/release-test-2026-10/RESULT-2026-10-25.md). 동기화 S1~S8·S12·S14·S16 통과(대부분 1초 안). 고침: Android 서랍 겹침·재시작 때 빈 화면·빠른 추가 두 번 제출·뒤로 가기 / 로그아웃 때 일기 설정(AI 동의) 지움 / 일기 옮기기 태그 파서. **남음:** 실기기(아이폰·갤럭시)·Windows·S13·S15 화면 시험, 휴대폰 로그아웃 고침은 다음 빌드에서 확인.
+- 도구: iOS 시뮬레이터는 `orca computer`(접근성 트리, 앱 요소 이름으로 누르기) + 앱 DB `xcrun simctl get_app_container booted app.sprout.mobile data`/Library/sprout.db 를 sqlite3로 읽어 도착 시간 잼. Android 앱은 계속 움직여 uiautomator가 안 됨 → 캡처 + 좌표(1080×2400).
+- **AI 검증 보고서** [docs/verification/ai-2026-10-25/](docs/verification/ai-2026-10-25/): models(학습한 건 비서 분류 Jev 하나, 나머지 Qwen3.5-9B 지시문만) · assistant · diary · auto-organize.
+- **사용자 결정 대기:** ① 데스크톱 자동 분류·자동 태그(30 §B · 33 §7)가 묻지 않고 엉뚱하게 옮김 — 추천: AI 점수만으론 안 옮기고 제안으로, 속성 태그(중요·N분) AI 금지 ② 일요일의 "다음 주 금요일"(recognition.ts는 일요일 시작, 비서 날짜표는 월요일 시작 → 11-06으로 저장) — 추천: 월요일 시작으로 통일 ③ 일기 위기 신호 응답(꾸짖음, 109 안내 없음 — 10-05에 위기 카드 뺀 결정과 관련)·옮기기 지어냄·주민번호 가리기, AI 비서 카드 안 나옴·"응" 제목 저장.
+
 ## ★ 2026-10-13 휴대폰 일기 v3 — 톡하면 일기가 된다 + 혼자 쓰기 + 저녁 알림 (28 §9 확정·구현, 시안 diary-v6)
 - 조사(일기 그만두는 이유 · AI 일기 앱 12개) → 시안 [diary-v6.html](docs/screens/mockups/diary-v6.html) → 사용자 "이렇게 해줘" + "위 버튼으로 혼자 쓰는 메모장" + "나만 보기 없애줘". 명세 28 §9(결정 ①~⑥, 구현 메모 §9.8).
 - **대화:** 장면 + 받침 위 캐릭터(`diary/Scene.tsx`), 보내자마자 💚·🫂·✨ + 끄덕, 칩(끝낸 할 일·그냥 들어줘·여기까지), 끝 = 일기로 옮겨 **자동 저장**(저장 단추 없음), 5분 멈춤·화면 떠남 = 저절로 마무리(`data.autoFinish`), AI 쉼 = 정해진 공감 말. 처음 한 번 이야기/혼자 쓰기 고르기(대화 중 동의 카드 없앰).
