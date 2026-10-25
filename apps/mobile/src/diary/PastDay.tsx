@@ -48,6 +48,8 @@ export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onSolo }: 
   const canTalk = written && prefs.consent !== false
   const paper = paperOf(p.dark, p.cardBg)
   return (
+    // GestureDetector는 자식이 하나여야 한다 — 사진 시트를 안에 같이 두면 이 화면을 여는 순간 앱이 죽었다(2026-10-25 iOS QA) → 시트는 밖으로
+    <>
     <GestureDetector gesture={swipe}>
       <ScrollView contentContainerStyle={[s.wrap, { paddingBottom: insets.bottom + 32 }]}>
         {card ? <SceneCardView card={card} variant="row" reduced={reduced} onPress={() => router.push({ pathname: '/diary/scene', params: { date } })} /> : null}
@@ -134,8 +136,9 @@ export function PastDay({ date, entry, buddy, reduced, swipe, onChat, onSolo }: 
         )}
         <Text style={[s.hint, { color: p.textQuaternary }]}>← 밀어서 다음 날 · 밀어서 전날 →</Text>
       </ScrollView>
-      <PhotoSheet visible={photoSheet} date={date} count={photos.length + pending.length} onClose={() => setPhotoSheet(false)} />
     </GestureDetector>
+    <PhotoSheet visible={photoSheet} date={date} count={photos.length + pending.length} onClose={() => setPhotoSheet(false)} />
+    </>
   )
 }
 /** 사진 한 장(길게 누르면 지우기 확인) */
