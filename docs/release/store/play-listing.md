@@ -178,8 +178,23 @@ Contact: kysk2295@naver.com
 - 13세 미만 체크 안 함 → 가족 정책 대상 아님. "어린이의 관심을 끌 수 있나요?" → **아니요**(일반 생산성 앱. 캐릭터는 성장 기록 표현).
 
 ## 7. 출시 노트(새로운 기능, 500)
-- ko-KR: `꿈틀의 첫 버전이에요. 할 일·캘린더·성장 캐릭터·홈 화면 위젯·수집함·AI 비서·일기를 만나 보세요. 일기는 캐릭터와 대화하듯 쓰면 AI가 일기로 옮겨 줘요. 그날 장면 카드에 사진을 배경으로 넣을 수 있고, 캐릭터 표정이 기분 따라 바뀌며, 앨범으로 한 달을 모아 봐요. 동기화를 더 안정적으로 다듬고 서랍·빠른 추가 문제를 고쳤어요. 의견은 kysk2295@naver.com으로 보내 주세요.`
-- en-US: `First release of Kkumteul: tasks, calendar, a growing character, home screen widgets, inbox, AI assistant and journal. Chat with your character and AI turns it into a journal entry. Add a photo as the background of each day's scene card, watch your character's face follow your mood, and browse the month in an album. Sync is more reliable, and the drawer and quick add are fixed. Send feedback to kysk2295@naver.com.`
+> 1.0.0(빌드 2)이 프로덕션. 아래는 **1.0.1(빌드 5) 업데이트** 노트(2026-10-26 Play Console에 넣음).
+- ko-KR:
+```
+1.0.1 업데이트
+· 일기: 캐릭터에게 말하면 바로 AI가 답하고, 나눈 이야기가 일기로 옮겨져요. 그날 장면 카드에 사진을 배경으로 넣을 수 있고, 사진이 없으면 캐릭터가 기분 따라 웃거나 울어요. 한 달을 앨범으로 모아 볼 수 있어요.
+· 동기화가 더 안정적이에요. 오래 끊겨 있던 기기도 다시 이어지고, 동기화 결과를 알려 줘요.
+· 엔터는 줄 바꿈, 키보드가 입력칸을 가리던 문제, 두 번 눌러 두 번 저장되던 문제 등 사용성을 다듬었어요.
+의견은 kysk2295@naver.com으로 보내 주세요.
+```
+- en-US:
+```
+Version 1.0.1
+· Journal: talk to your character and AI replies right away, then turns the chat into a journal entry. Use a photo as the background of each day's scene card, or watch your character smile or cry with your mood. Browse the month in an album.
+· More reliable sync: devices that were offline for a long time reconnect, and sync now tells you the result.
+· Enter adds a new line, the keyboard no longer covers inputs, and double taps no longer save twice.
+Feedback: kysk2295@naver.com
+```
 
 ## 8. 출시 트랙 (조직 계정)
 1. **내부 테스트**(최대 100명, 심사 없이 몇 분 안에 배포): AAB 올리기 → 본인 Google 계정을 테스터로 → Play 스토어에서 받아 실제 기기로 로그인·구글 로그인·알림 확인. 여기서 **앱 서명 키 SHA-1**을 확인해 OAuth에 등록(체크리스트 §5-1).

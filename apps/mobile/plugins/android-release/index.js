@@ -7,7 +7,8 @@
 //     셋 다 없으면 bundleRelease·assembleRelease는 바로 실패한다(디버그 키로 서명한 출시 빌드가 나오지 않게). debug 빌드는 그대로.
 //  2) SDK 고정: compileSdk·targetSdk 36(Play 2026 요건 이상), minSdk 24(Android 7.0)
 //  3) 권한 정리: 쓰지 않는 SYSTEM_ALERT_WINDOW·저장소·FOREGROUND_SERVICE·생체 인증 권한 제거(아래 REMOVE),
-//     정확한 알림 시각용 SCHEDULE_EXACT_ALARM 추가(사용자가 허용 안 하면 expo-notifications가 부정확 알람으로 대체)
+//     정확한 알림 시각용 SCHEDULE_EXACT_ALARM 추가(사용자가 허용 안 하면 expo-notifications가 부정확 알람으로 대체),
+//     카메라는 필수 아님(uses-feature required=false — 카메라 없는 기기도 설치)
 // 상세: docs/release/RELEASE-CHECKLIST.md §5·§5-1
 const { AndroidConfig, withAndroidManifest, withAppBuildGradle, withGradleProperties } = require('expo/config-plugins')
 
@@ -42,6 +43,11 @@ const withPermissions = (config) =>
     for (const name of REMOVE) perms.push({ $: { 'android:name': name, 'tools:node': 'remove' } })
     for (const name of ADD) perms.push({ $: { 'android:name': name } })
     manifest['uses-permission'] = perms
+    // 카메라는 일기 사진 "지금 찍기"에만 — 없는 기기도 받을 수 있게 필수 아님으로(CAMERA 권한만 있으면 Play가 카메라 필수로 보고 기기 437대를 뺐다, 2026-10-26)
+    const OPTIONAL = ['android.hardware.camera', 'android.hardware.camera.autofocus']
+    const feats = (manifest['uses-feature'] ?? []).filter((f) => !OPTIONAL.includes(f.$['android:name']))
+    for (const name of OPTIONAL) feats.push({ $: { 'android:name': name, 'android:required': 'false' } })
+    manifest['uses-feature'] = feats
     return c
   })
 
