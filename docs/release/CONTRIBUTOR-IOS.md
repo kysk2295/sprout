@@ -10,6 +10,27 @@ Claude는 이 문서와 [CLAUDE.md](../../CLAUDE.md)·[HANDOFF.md](../../HANDOFF
 | **저장소 주인(유니포트·고윤서)** | 서버(맥미니) 운영과 서버 환경 변수, 비밀 값 보관, PR 병합, Android·데스크톱 |
 | **하지 않는 것** | 서버 코드·데이터 구조·공용 로직 수정, 기능 추가. 필요하면 이슈로 남기고 주인에게 요청 |
 
+## 0.1 ⚠️ 먼저 읽기 — 번들 ID·App Group은 새 이름으로 (2026-10-26)
+**증상:** 기여자 팀(예: `LU9899WD2P`)에서 App Group `group.app.sprout.mobile`이나 App ID `app.sprout.mobile`을 등록하면 "이미 다른 팀에서 사용 중"으로 막힌다.
+**원인:** 옛 이름이 **주인의 무료 개인 팀 `BU697KN34B`**에 잡혀 있다. 주인이 이 맥에서 아이폰에 직접 설치할 때 Xcode 자동 서명이 등록한 것이다(기여자 잘못 아님, 다른 기여자 팀도 아님). 무료 개인 팀은 개발자 웹사이트에서 식별자를 지울 수 없어서, 옛 이름을 풀어 주기를 기다리는 방법은 쓰지 않는다.
+**해결(정한 방법): iOS만 새 이름으로 등록한다.** 아직 App Store에 낸 적이 없어서 잃는 것이 없다. Android 패키지(`app.sprout.mobile`, Play 출시 중)는 그대로다.
+
+| 항목 | 새 값(권장) |
+|---|---|
+| 번들 ID(앱) | `app.kkumteul.mobile` |
+| 공유 확장 / 위젯 | `app.kkumteul.mobile.share` / `app.kkumteul.mobile.widget` (앱 번들 ID + 접미사 — 자동) |
+| App Group | `group.app.kkumteul.mobile` (자동 = `group.<번들 ID>`) |
+
+- 다른 이름을 쓰고 싶으면 위 세 줄이 같은 규칙을 따르게만 하면 된다. **한 번 App Store에 올린 번들 ID는 바꿀 수 없으니** 주인과 정하고 시작한다.
+- 코드·설정은 이미 준비돼 있다(`apps/mobile/app.config.ts`, 2026-10-26): 아래 환경 변수 세 개를 **prebuild 때** 주면 앱·공유 확장·위젯·App Group·키체인 공유 그룹·JS(`src/share/native.ts`, `src/widgets/native.ts`)가 같이 바뀐다. 그 뒤 Xcode 아카이브(환경 변수 없음)는 `ios/` 파일에서 같은 값을 다시 읽는다 → `app.json`은 고치지 않는다.
+```bash
+SPROUT_IOS_BUNDLE_ID=app.kkumteul.mobile SPROUT_APPLE_TEAM_ID=<내 팀 ID> SPROUT_APPLE_SIGN_IN=1 \
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=<주인이 보낸 새 iOS 클라이언트 id> \
+npx expo prebuild --platform ios --clean
+# 확인: npx expo config --json | grep -E 'bundleIdentifier|appGroup|keychainGroup'
+```
+- 이름을 바꾸면 **주인 쪽에서 두 가지**가 필요하다(§5 표에도 있음): ① 구글 로그인 — Google Cloud 프로젝트 `sprout-510614`에 새 번들 ID용 **iOS OAuth 클라이언트**를 만들어 그 id(공개 값)를 기여자에게 준다. 없으면 아이폰 구글 로그인 버튼이 동작하지 않는다. ② 애플 로그인 — 맥미니 서버 `.env`의 `APPLE_BUNDLE_IDS`에 새 번들 ID를 더하고(쉼표로 옛 값과 함께) API를 다시 띄운다. 없으면 아이폰 애플 로그인이 "aud 불일치"로 실패한다.
+
 ## 1. 브랜치와 PR 규칙
 - `main`에서 `release/ios` 브랜치를 만들어 작업하고 PR을 엽니다. `main`에 직접 푸시하지 않습니다.
 - 고치는 곳은 **iOS 빌드 설정과 스토어 자료로 한정**: `apps/mobile/app.json`·`app.config.ts`의 iOS 부분, `apps/mobile/plugins/`의 iOS 서명 관련, `docs/release/store/`.
@@ -23,25 +44,26 @@ Claude는 이 문서와 [CLAUDE.md](../../CLAUDE.md)·[HANDOFF.md](../../HANDOFF
 ## 3. Apple 계정에서 만들 것
 | 항목 | 값 |
 |---|---|
-| App ID (앱) | `app.sprout.mobile` — Sign in with Apple, Push Notifications, App Groups 켜기 |
-| App ID (공유 확장) | `app.sprout.mobile.share` — App Groups |
-| App ID (위젯 확장) | `app.sprout.mobile.widget` — App Groups (아래 §8 위젯) |
-| App Group | `group.app.sprout.mobile` (위 App ID 모두에) |
+| App ID (앱) | `app.kkumteul.mobile`(§0.1) — Sign in with Apple, Push Notifications, App Groups 켜기 |
+| App ID (공유 확장) | `app.kkumteul.mobile.share` — App Groups |
+| App ID (위젯 확장) | `app.kkumteul.mobile.widget` — App Groups (아래 §8 위젯) |
+| App Group | `group.app.kkumteul.mobile` (위 App ID 모두에) |
 | Sign in with Apple 키 | Keys에서 생성 → **Key ID + .p8** |
 | Services ID | 예: `app.sprout.signin` — Sign in with Apple 켜고 반환 URL `https://macmini.tail425c97.ts.net/auth/apple/callback` |
 | (선택) APNs 키 | Keys에서 생성 → Firebase 프로젝트 `sprout-510614`에 올리려면 주인에게 전달 |
 
-`app.sprout.mobile`이 이미 다른 팀에 잡혀 있다고 나오면 주인에게 알립니다(번들 ID를 바꾸면 구글 로그인 설정도 바뀌어야 함).
+옛 이름(`app.sprout.mobile`·`group.app.sprout.mobile`)은 쓰지 않는다 — §0.1. 아래 §8·§9의 옛 이름 예시도 새 이름으로 읽는다.
 
 ## 4. 빌드
 ```bash
 . scripts/node22.sh
 cd apps/mobile
-SPROUT_APPLE_SIGN_IN=1 SPROUT_APPLE_TEAM_ID=<팀 ID> npx expo prebuild --platform ios --clean
+SPROUT_IOS_BUNDLE_ID=app.kkumteul.mobile SPROUT_APPLE_SIGN_IN=1 SPROUT_APPLE_TEAM_ID=<팀 ID> \
+  EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=<주인이 보낸 iOS 클라이언트 id> npx expo prebuild --platform ios --clean
 open ios/*.xcworkspace     # 타깃 3개(앱·SproutShare·SproutWidget) 모두 Signing & Capabilities에서 팀 선택(자동 서명) → Product › Archive → App Store Connect 업로드
 ```
 - 앱 App ID에는 **Push Notifications도 켜야** 서명됩니다(권한 파일에 `aps-environment`가 있음).
-- 버전 1.0.0 / 빌드 1. 다시 올릴 때는 빌드 번호만 올립니다(`app.json`의 `ios.buildNumber`).
+- 버전 **1.0.1**(2026-10-26, Android와 같음) / 빌드 1. 다시 올릴 때는 빌드 번호만 올립니다(`app.json`의 `ios.buildNumber`).
 - 앱은 운영 서버(`https://macmini.tail425c97.ts.net`)에 붙습니다. 서버 쪽 설정은 필요 없습니다.
 
 ## 5. 주인에게 보낼 값 (커밋 말고 메시지로)
@@ -50,8 +72,10 @@ open ios/*.xcworkspace     # 타깃 3개(앱·SproutShare·SproutWidget) 모두 
 | 팀 ID | 서버 `APPLE_TEAM_ID`, 구글 iOS OAuth 클라이언트 |
 | Sign in with Apple Key ID + .p8 | 서버 `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` |
 | Services ID | 서버 `APPLE_SERVICES_ID` |
+| 새 번들 ID(§0.1) | 서버 `APPLE_BUNDLE_IDS`에 추가(아이폰 애플 로그인), Google Cloud에 새 iOS OAuth 클라이언트 만들기 → 그 id를 기여자에게 |
+| **주인 → 기여자** | 새 iOS OAuth 클라이언트 id(공개 값, 메시지로) |
 
-**아이폰 앱의 애플 로그인은 이 값 없이도 바로 됩니다.** 서버는 애플 공개키와 번들 ID(`app.sprout.mobile`)만으로 토큰을 확인합니다. 그러니 기다리지 말고 진행해도 됩니다. 이 값은 ① 계정 삭제 때 애플 토큰 폐기(애플 권장 사항), ② 데스크톱의 웹 방식 애플 로그인에만 쓰이니, 만들면 되도록 빨리(가능하면 심사 전에) 주인에게 보냅니다. TestFlight 빌드에서 애플 로그인을 한 번 눌러 확인합니다.
+**아이폰 앱의 애플 로그인은 이 값 없이도 바로 됩니다.** 서버는 애플 공개키와 번들 ID만으로 토큰을 확인합니다 — 단 새 번들 ID(§0.1)를 서버 `APPLE_BUNDLE_IDS`에 주인이 넣은 뒤부터. 그러니 기다리지 말고 진행해도 됩니다. 이 값은 ① 계정 삭제 때 애플 토큰 폐기(애플 권장 사항), ② 데스크톱의 웹 방식 애플 로그인에만 쓰이니, 만들면 되도록 빨리(가능하면 심사 전에) 주인에게 보냅니다. TestFlight 빌드에서 애플 로그인을 한 번 눌러 확인합니다.
 
 ## 6. App Store Connect
 - 이름 **꿈틀**, 부제·설명·키워드: [store/listing.md](store/listing.md)
@@ -127,3 +151,9 @@ open ios/*.xcworkspace     # 타깃 3개(앱·SproutShare·SproutWidget) 모두 
 | 개인정보 라벨 | App Store Connect App Privacy에 **사진 또는 동영상(앱 기능·사용자와 연결·추적 아님)** 추가 — [store/privacy-answers.md](store/privacy-answers.md) |
 | 심사 메모 | [store/review-notes.md](store/review-notes.md) PERMISSIONS에 Photos 줄 추가됨 — 다시 붙여 넣기 |
 
+## 12. 2026-10-26 추가 — 이번 판에서 바뀐 것
+- **식별자:** §0.1(새 번들 ID·App Group). 가장 먼저.
+- **버전 1.0.1** — Android는 Play 프로덕션 7(1.0.1) 검토 제출. iOS도 1.0.1 / 빌드 1로 처음 올린다.
+- 새 네이티브 모듈 없음. JS만 바뀜: 일기 대화 = 늘 AI(동의 카드 없음), 장면 카드 v2(사진 배경·캐릭터 기분 표정, 새 3D 표정 `sad`), 휴대폰 UX 고침(키보드 가림·토스트·두 번 제출·동기화 결과 표시). 개인정보 답변(`store/privacy-answers.md`)은 바뀌지 않는다 — 일기 대화가 AI 서버로 가는 것은 원래 답에 있다.
+- **Android 전용 메모(참고):** 카메라를 필수 아님으로, `ACTIVITY_RECOGNITION`(expo-sensors 만보기용) 권한 제거 — iOS는 해당 없음(가속도계만 쓰고 동작 권한 문구를 요구하지 않음). 그래도 App Store Connect가 `NSMotionUsageDescription`을 묻는다면 `app.json`의 iOS `infoPlist`에 "흔들어서 캐릭터와 놀 때 휴대폰 움직임을 읽어요"를 넣는다.
+- 주인 쪽 진행 상황(서버 `APPLE_BUNDLE_IDS`, 새 iOS OAuth 클라이언트)은 PR·메시지로 확인하고, 그 전에는 구글·애플 로그인 확인만 미루고 나머지(빌드·TestFlight·등록 정보)를 먼저 진행한다.
