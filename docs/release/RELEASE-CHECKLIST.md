@@ -132,7 +132,7 @@
 | 데이터 보안 양식 다시 제출 | [ ] | 캘린더 권한(READ/WRITE_CALENDAR)이 추가된 빌드와 함께 Play Console 데이터 보안을 다시 확인·제출(답은 그대로 — data-safety.md 전제) |
 | 계정 삭제 웹 URL | [완료] | https://web-production-cd889.up.railway.app/account-deletion |
 | 콘텐츠 등급(IARC)·타겟층 | [완료] 답안 | play-listing.md §5·§6 (16–17, 18+ 권장) |
-| 스토어 등록정보·그래픽·스크린샷 | [완료] | play-listing.md, `store/play-assets/`(아이콘 512 RGBA, 그래픽 1024×500 "꿈틀"), `store/screenshots/android/` 6장(1080×2400) |
+| 스토어 등록정보·그래픽·스크린샷 | [완료] | play-listing.md, `store/play-assets/`(아이콘 512 RGBA, 그래픽 1024×500 "꿈틀"), `store/screenshots/android/` 8장(1080×2400, 2026-10-25 새로 — 일기 대화·앨범·수집함 포함, 09 다크는 예비) |
 | Android 네이티브 폴더 | — | gitignore. 로컬 Gradle로 빌드(아래 §5-1 1단계) |
 | 위젯(Android) | [완료] 빌드 | 오늘·월·캐릭터 위젯 3종이 출시 빌드에 등록됨(홈 화면 배치는 실기기에서 확인) |
 
@@ -151,7 +151,7 @@
    6. 확인: 내부 테스트로 받은 앱에서 "Google로 계속하기" → 계정 선택 → 로그인됨. `DEVELOPER_ERROR`(코드 10)면 SHA-1이 아직 반영 안 된 것.
 5. **내부 테스트 기기에서 확인**: 가입·로그인, 구글 로그인, 설정 › 소리와 알림 켜기 → 푸시 테스트, 할 일 알림 울림, 홈 화면 위젯 3종 추가, 계정 삭제.
 6. **앱 콘텐츠(정책) 채우기**: 개인정보처리방침 URL, 앱 액세스(심사용 데모 계정 — 출시 직전 새로 만들고 콘솔에만 적음), 광고 없음, 콘텐츠 등급, 타겟층, 데이터 보안, 계정 삭제 URL, 정부·금융·건강 = 아니요 — 답은 play-listing.md §4~6, data-safety.md.
-7. **기본 스토어 등록정보**: 한국어 + 영어 번역 문구, 아이콘 `store/play-assets/icon-512.png`, 그래픽 `store/play-assets/feature-graphic-1024x500.png`, 휴대전화 스크린샷 `store/screenshots/android/01~06`. 카테고리 생산성, 연락처 `kysk2295@naver.com`.
+7. **기본 스토어 등록정보**: 한국어 + 영어 번역 문구, 아이콘 `store/play-assets/icon-512.png`, 그래픽 `store/play-assets/feature-graphic-1024x500.png`, 휴대전화 스크린샷 `store/screenshots/android/01~08`. 카테고리 생산성, 연락처 `kysk2295@naver.com`.
 8. **프로덕션**: 내부 테스트 버전을 프로덕션으로 승격 → 국가(대한민국) → 검토를 위해 전송. 심사 기간 Mac mini 서버 상시 가동(AI·동기화).
 
 ## 6. 서버 (Mac mini 셀프호스트)

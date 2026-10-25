@@ -72,7 +72,7 @@
 |---|---|---|
 | 앱 아이콘 | `docs/release/store/play-assets/icon-512.png` (45 확정 로고 씨앗 친구 × 깊은 숲, 2026-10-09 교체 — `node scripts/brand/build-icons.mjs seed --apply`로 다시 만든다) | 512×512 PNG, 32비트(RGBA) |
 | 그래픽 이미지(Feature graphic) | `docs/release/store/play-assets/feature-graphic-1024x500.png` (깊은 숲 판 + 씨앗 친구 + 직접 그린 글자 로고 "꿈틀" + 한 줄 소개, 2026-10-09 교체 — `node scripts/brand/build-marketing.mjs`). 글자 없는 판: `brand/out/seed/store/play-feature-graphic-1024x500.png`(git 제외 폴더) | 1024×500, 투명 없음 |
-| 휴대전화 스크린샷 | `docs/release/store/screenshots/android/` 6장(2026-10-10 새 디자인), 번호 순서대로: 01 오늘 · 02 캘린더(월) · 03 성장(3D 정원·캐릭터) · 04 AI 비서 · 05 할 일 상세 · 06 캘린더 다크. 릴리스 빌드(빌드 3) + 스크린숏용 시험 계정(예시 데이터, 촬영 뒤 삭제), 에뮬레이터 Pixel 6a, 상태 표시줄 데모 모드 9:41 | 1080×2400(9:20), 2~8장 |
+| 휴대전화 스크린샷 | `docs/release/store/screenshots/android/` **8장(2026-10-25 다시 찍음)**, 번호 순서대로: 01 오늘 · 02 성장(캐릭터·레벨·이번 주 목표) · 03 캘린더(월) · 04 빠른 추가(날짜 칩 인식) · 05 수집함 · 06 AI 비서 · 07 일기 대화 · 08 일기 앨범(장면 카드). `09-today-dark.png`는 예비(올리지 않음). 릴리스 APK + 데모 계정(예시 데이터), 에뮬레이터 Pixel 6a, 상태 표시줄 데모 모드 9:41 | 1080×2400(9:20), 2~8장 |
 | 태블릿 스크린샷 | 올리지 않음(선택 항목) | |
 | 동영상(YouTube) | 없음 | |
 
@@ -178,8 +178,8 @@ Contact: kysk2295@naver.com
 - 13세 미만 체크 안 함 → 가족 정책 대상 아님. "어린이의 관심을 끌 수 있나요?" → **아니요**(일반 생산성 앱. 캐릭터는 성장 기록 표현).
 
 ## 7. 출시 노트(새로운 기능, 500)
-- ko-KR: `꿈틀의 첫 버전이에요. 할 일·캘린더·성장 캐릭터·홈 화면 위젯·수집함·AI 비서·일기를 만나 보세요. 의견은 kysk2295@naver.com으로 보내 주세요.`
-- en-US: `First release of Kkumteul: tasks, calendar, a growing character, home screen widgets, inbox, AI assistant and journal. Send feedback to kysk2295@naver.com.`
+- ko-KR: `꿈틀의 첫 버전이에요. 할 일·캘린더·성장 캐릭터·홈 화면 위젯·수집함·AI 비서·일기를 만나 보세요. 일기는 캐릭터와 대화하듯 쓰면 AI가 일기로 옮겨 줘요. 그날 장면 카드에 사진을 배경으로 넣을 수 있고, 캐릭터 표정이 기분 따라 바뀌며, 앨범으로 한 달을 모아 봐요. 동기화를 더 안정적으로 다듬고 서랍·빠른 추가 문제를 고쳤어요. 의견은 kysk2295@naver.com으로 보내 주세요.`
+- en-US: `First release of Kkumteul: tasks, calendar, a growing character, home screen widgets, inbox, AI assistant and journal. Chat with your character and AI turns it into a journal entry. Add a photo as the background of each day's scene card, watch your character's face follow your mood, and browse the month in an album. Sync is more reliable, and the drawer and quick add are fixed. Send feedback to kysk2295@naver.com.`
 
 ## 8. 출시 트랙 (조직 계정)
 1. **내부 테스트**(최대 100명, 심사 없이 몇 분 안에 배포): AAB 올리기 → 본인 Google 계정을 테스터로 → Play 스토어에서 받아 실제 기기로 로그인·구글 로그인·알림 확인. 여기서 **앱 서명 키 SHA-1**을 확인해 OAuth에 등록(체크리스트 §5-1).

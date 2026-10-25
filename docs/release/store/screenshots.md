@@ -1,5 +1,6 @@
 # 스토어 스크린숏 촬영 목록
 
+> **Play 완성본(2026-10-25): [screenshots/android/](screenshots/android/)** — 1080×2400 원본 8장(캡션 띠 없음), Pixel 6a 에뮬레이터 · Release APK · 데모 계정 · 상태 표시줄 데모 모드 9:41. 01 오늘 · 02 성장 · 03 캘린더 월 · 04 빠른 추가(`내일 오후 3시 치과` → 날짜 칩 `내일, 15:00`) · 05 수집함 · 06 AI 비서(실제 답) · 07 일기 대화(실제 AI 답 + AI가 옮긴 일기 카드) · 08 일기 앨범(장면 카드, 오늘 칸 사진 배경). `09-today-dark.png`는 다크 테마 예비본 — Play는 8장까지라 올리지 않는다(바꿔 넣을 때만). 한글 입력은 ADBKeyBoard(`ADB_INPUT_B64` 방송)로 쳤다.
 > **iOS 완성본(2026-10-05): [screenshots/ios/](screenshots/ios/)** — 6.9"(1320×2868)·6.5"(1284×2778) 각 6장, 캡션은 [screenshots/ios/captions.md](screenshots/ios/captions.md). 데모 계정 = [review-notes.md](review-notes.md).
 
 > 원칙: **실제 앱 화면만** 찍는다(합성·가짜 기능 금지). 다른 회사 앱 이름·로고가 화면에 나오면 안 된다(예: 설정 › 가져오기 화면은 찍지 않음). 캡션 위·아래 띠와 배경색은 넣어도 되지만 앱 화면 자체는 손대지 않는다.
