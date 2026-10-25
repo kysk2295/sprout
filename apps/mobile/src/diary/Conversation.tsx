@@ -58,7 +58,6 @@ const autoTimers = new Map<string, ReturnType<typeof setTimeout>>()
 export const forgetDraft = (date: string) => { clearTimeout(autoTimers.get(date)); autoTimers.delete(date) }
 /** 28 §8.11: reading = 기다림(started false, 생각 얼굴) → 받는 중 · landing = 다 받아 저장 중 · error = 멈춤·끊김(받은 글 partial, 저장 안 함) */
 type Ai = { kind: 'idle' } | { kind: 'reading'; started: boolean; queue?: number; since: string } | { kind: 'landing'; since: string } | { kind: 'error'; message: string; partial: string; stopped?: boolean }
-const STALL_MS = 20_000
 /** 이번 실행에서 마무리한 장: 다시 옮기기에 쓸 대화(앱을 다시 켜면 없음 — 고치기만) */
 const finished = new Map<string, { index: number; lines: { who: 'me' | 'buddy'; text: string }[]; mood: number | null }>()
 
@@ -144,6 +143,8 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
     const lines = nextLines({ mine: [], answer: a, date, today, hour: new Date().getHours(), stats, name, intro: !prefs.met && firstSession, follow, greet: firstSession })
     if (!lines.length) return
     const firstMe = lines.findIndex((l) => l.role === 'me')
+    // 2026-10-25 사용자 결정: 대화 = 늘 AI. 기분을 고르지 않고 바로 쓰면 인사만 남기고 그 말에 AI가 답한다(정해진 반응·질문 없이)
+    if (a.text) { if (firstMe > 0) await addScripted(date, lines.slice(0, firstMe)); say(a.text); setMet(); return }
     reveal((await addScripted(date, lines)).slice(firstMe + 1))
     if (a.mood) await saveEntry(date, { mood: a.mood }) // 28 §9: 기분은 누르기만 해도 그날 기록(장면 카드·달력에 바로, 대화를 안 끝내도 남는다)
     if (!prefs.met) setMet()
@@ -221,12 +222,7 @@ export function Conversation({ date, today, entry, buddy, reduced, swipe, onFree
   const [typed, setTyped] = useState(0)
   const [drafting, setDrafting] = useState(false)
   const lastRow = S.at(-1)
-  useEffect(() => {
-    // 막힐 때만(이야기 초반 — 두 번 주고받은 뒤엔 묻지 않는다, 계속 물으면 숙제 같아짐)
-    if (phase !== 'talk' || ai.kind !== 'idle' || typing || finishing || !lastRow || lastRow.role !== 'buddy' || myTalk.length >= 2) return
-    const t = setTimeout(() => { void nudge() }, STALL_MS)
-    return () => clearTimeout(t)
-  }, [phase, ai.kind, typing, finishing, lastRow?.id, typed]) // eslint-disable-line react-hooks/exhaustive-deps
+  // 2026-10-25 사용자 결정: 20초 멈추면 정해진 질문을 끼워 넣던 것 없앰(AI 답 뒤에도 쌓여 형식적으로 보였다) — 막히면 `뭘 말할지 모르겠어` 칩만
 
   const sessionLines = () => S.filter((m) => m.content !== BYE_ME && m.content !== END_ME && m.content !== END_BUDDY).map((m) => ({ who: (m.role === 'me' ? 'me' : 'buddy') as 'me' | 'buddy', text: parseBuddyReply(m.content).text }))
   const ownBody = () => (scriptedFlow ? composeDraft(r.answers, { past }) : ownWords(myAll.filter((m) => m.content !== LISTEN_ME).map((m) => m.content)))

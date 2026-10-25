@@ -28,7 +28,8 @@ export async function clearDiaryPrefs(): Promise<void> {
 }
 
 /** null = 아직 묻지 않음 */
-export const getConsent = (): boolean | null => (read(K.consent) === 'on' ? true : read(K.consent) === 'off' ? false : null)
+/** 2026-10-25 사용자 결정: 대화 = 늘 AI(혼자 쓰기가 AI 없는 길) — 예전 동의 값('off' 포함)은 보지 않는다. 함수는 부르는 곳이 많아 남긴다 */
+export const getConsent = (): boolean | null => true
 export const setConsent = (on: boolean) => write(K.consent, on ? 'on' : 'off')
 export const getMemory = () => read(K.memory) === 'on'
 export const setMemory = (on: boolean) => write(K.memory, on ? 'on' : 'off')

@@ -176,7 +176,6 @@ export default function Diary() {
           <Pressable accessibilityRole="button" onPress={() => { setMenu(false); setAskDelete(false) }} style={[s.cancel, { backgroundColor: p.cardBg }]}><Text style={{ color: p.textPrimary, fontSize: 16, fontWeight: '600' }}>취소</Text></Pressable>
         </> : <>
         <View style={[s.group, { backgroundColor: p.cardBg }]}>
-          <Item label={prefs.consent ? `${josa(name, '와', '과')} 나누기 끄기` : `${josa(name, '와', '과')} 나누기 켜기`} onPress={act(() => { const on = !prefs.consent; setConsent(on); toast.show(on ? '나누기를 켰어요' : '나누기를 껐어요. 질문은 계속 정해진 말로 해요') })} />
           {prefs.consent ? <Item label="기억하기" note={prefs.memory ? '켜짐' : undefined} onPress={act(() => { setMemory(!prefs.memory); toast.show(prefs.memory ? '이 날 일기만 보고 이야기해요' : '최근 7일 일기 요약도 같이 봐요') })} /> : null}
           {view === 'chat' && hasScripted && !written ? <Item label="처음부터 다시 묻기" onPress={act(() => { forgetDraft(date); void clearScripted(date) })} /> : null}
           {nudge !== undefined ? <Item label={nudge ? '저녁 알림 끄기' : '저녁 알림 켜기'} note={nudge ?? undefined} onPress={act(() => { const v = nudge ? null : '21:00'; void setDiaryNudge(v).then(() => toast.show(v ? `밤 9시에 ${josa(name, '가', '이')} 하루를 물어볼게요` : '저녁 알림을 껐어요')) })} /> : null}

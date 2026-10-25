@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Download, Image as ImageIcon, MessageCircle, MessageCircleOff, MoreHorizontal, PanelLeft, PenLine, RotateCcw, Search, Sparkles, Trash2, X } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Download, Image as ImageIcon, MessageCircle, MoreHorizontal, PanelLeft, PenLine, RotateCcw, Search, Sparkles, Trash2, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays } from '@sprout/schema/time'
 import { BYE_ME, SCRIPTED } from '@sprout/schema/diaryTalk'
@@ -271,8 +271,6 @@ export function DiaryView({ onOpen }: { onOpen: (taskId: string) => void }) {
           {mode === 'chat'
             ? <MenuItem icon={<PenLine />} label="혼자 쓰기 (⌘N)" onClick={() => { setMenu(false); toSolo(null) }} />
             : <MenuItem icon={<MessageCircle />} label={`${josa(name, '와', '과')} 이야기하기`} onClick={() => { setMenu(false); toChat() }} />}
-          <MenuItem icon={consent === true ? <MessageCircleOff /> : <MessageCircle />} label={consent === true ? `${josa(name, '와', '과')} 나누기 끄기` : `${josa(name, '와', '과')} 나누기 켜기`}
-            onClick={() => { setMenu(false); const on = consent !== true; setConsent(on); setConsentState(on); toast.show(on ? '나누기를 켰어요' : '나누기를 껐어요. 질문은 계속 정해진 말로 해요') }} />
           {consent === true && <MenuItem icon={<Sparkles />} label={memory ? '기억하기 끄기' : '기억하기 켜기 (최근 7일 요약)'} onClick={() => { setMenu(false); setMemory(!memory); setMemoryState(!memory); toast.show(memory ? '그날 일기만 같이 읽어요' : '최근 7일 일기의 짧은 요약을 같이 봐요') }} />}
           {mode === 'chat' && hasScripted && !written && <MenuItem icon={<RotateCcw />} label="처음부터 다시 묻기" onClick={() => { setMenu(false); forgetAuto(date); void clearScripted(date).then(() => toast.show('처음부터 다시 물어볼게요')) }} />}
           <MenuItem icon={<Search />} label="일기 검색 (⌘F)" onClick={() => { setMenu(false); setSeg('record'); setSearch(''); if (leftDocked) setLeftOpen(true); else setDrawer(true) }} />
