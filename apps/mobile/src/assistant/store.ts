@@ -2,11 +2,13 @@
 // 화면이 닫혀도 요청은 계속되고 돌아오면 이어서 보인다(M-A4). 기록은 기기·계정별 파일(M-A5, 최근 100개).
 import type { PersonaId } from '@sprout/schema/persona'
 import { useEffect, useSyncExternalStore } from 'react'
+import { AppState } from 'react-native'
 import { currentUserId } from '../data/auth'
 import { readJson, writeJson } from '../collect/localStore'
 import { humanize, isLimit, STOPPED, TOO_LONG, agentHistory, type AssistantProgress, type AssistantResult } from './core'
-import { agentWrites, aiStatus, askAgent, askAssistant, reportGround, undoAssistant } from './data'
-import { AgentUnsupportedError, pendingCard, saveCard, undoCard, type TurnEvent } from '@sprout/schema/assistantAgent'
+import { agentWrites, aiStatus, askAgent, askAssistant, reportGround, turnBody, turnTransport, undoAssistant } from './data'
+import { followTurn, TURN_KEEP_MS, type TurnStart } from '@sprout/schema/assistantTurn'
+import { AgentUnsupportedError, pendingCard, saveCard, undoCard, type TurnEvent, type TurnResult } from '@sprout/schema/assistantAgent'
 import { emptyMemory, type AgentMemory, type Band } from '@sprout/schema/assistantRouter'
 import { isConfirm, savedLine, type Card, type Chip, type ConfirmCard } from '@sprout/schema/assistantExec'
 import { createTextStream } from '@sprout/schema/diaryTalk'
@@ -36,6 +38,8 @@ export type AssistantState = {
   cooldownUntil: number
   /** 서버가 47 agent를 안다(/ai/status features) — 모르면 13 의도 경로 */
   agent: boolean
+  /** 서버가 턴을 끝까지 돌린다(47 §20, features turn) — 앱을 나가도 답을 받아 온다 */
+  turn: boolean
   /** 오늘 AI 비서 사용(턴) */
   daily: { used: number; limit: number } | null
   /** 이어 받을 것(§10) — 새 대화면 비움 */
@@ -46,10 +50,13 @@ export type AssistantState = {
 const historyKey = (account: string) => `sprout.assistant.history.${account}`
 const MODEL_KEY = 'sprout.assistant.model'
 const memoryKey = (account: string) => `sprout.assistant.memory.${account}`
+/** 47 §20 받는 중인 서버 턴(앱을 껐다 켜도 받아 오게) */
+const pendingKey = (account: string) => `sprout.assistant.pendingTurn.${account}`
+type PendingTurn = { turn: string; id: string; at: number }
 const fresh = (account: string): AssistantState => ({
   account, messages: readJson<Message[]>(historyKey(account), []), draft: '', models: [], model: readJson<string>(MODEL_KEY, ''),
   connecting: false, busy: false, error: '', progress: { phase: 'connecting' }, started: 0, lastRequest: '', lastPrompt: '', cooldownUntil: 0,
-  agent: false, daily: null, memory: readJson<AgentMemory>(memoryKey(account), emptyMemory()), live: null
+  agent: false, turn: false, daily: null, memory: readJson<AgentMemory>(memoryKey(account), emptyMemory()), live: null
 })
 
 let state: AssistantState | null = null
@@ -79,7 +86,7 @@ export async function refresh() {
       models: s.available ? s.models : [],
       model: s.available ? (s.models.includes(old.model) ? old.model : s.models[0] ?? '') : '',
       error: s.available ? '' : '지금은 AI를 쓸 수 없어요. 할 일·캘린더는 그대로 쓸 수 있어요.',
-      agent: s.agent, daily: s.assistantDaily
+      agent: s.agent, turn: s.turn, daily: s.assistantDaily
     }))
   } catch (e) {
     set({ models: [], model: '', error: humanize(e) })
@@ -110,6 +117,7 @@ export async function send(text: string, prompt?: string) {
   }
   try {
     if (!s.agent) await legacy()
+    else if (s.turn) await serverTurn(ask, id, abort)
     else {
       try { await agentTurn(ask, id, abort) } catch (e) {
         if (!(e instanceof AgentUnsupportedError)) throw e
@@ -127,28 +135,27 @@ export async function send(text: string, prompt?: string) {
   }
 }
 
-/** 47 한 턴: 칩·카드는 받는 대로, 글은 liveText에. 끝나면 근거 검사한 글로 바꿔 기록 */
-async function agentTurn(ask: string, id: string, abort: AbortController) {
-  const s = current()
+/** 받는 중 사건 → 화면(칩·카드는 받는 대로, 글은 liveText에). 기기 턴·서버 턴 같음 */
+function liveHandler(abort: AbortController) {
   liveText.reset()
-  let text = ''
+  const ref = { text: '' }
   const live: Live = { chips: [], cards: [], text: false }
   set({ live: { ...live } })
   const onEvent = (e: TurnEvent) => {
     if (request !== abort) return
-    if (e.type === 'delta') { text += e.text; liveText.set(text); if (!live.text) { live.text = true; set({ live: { ...live } }) } return }
-    if (e.type === 'reset') { text = ''; liveText.reset(); live.text = false; set({ live: { ...live } }); return }
-    if (e.type === 'queue') { set((o) => ({ progress: { ...o.progress, queue: e.position } })); return }
+    if (e.type === 'delta') { ref.text += e.text; liveText.set(ref.text); if (!live.text) { live.text = true; set({ live: { ...live } }) } return }
+    if (e.type === 'reset') { ref.text = ''; liveText.reset(); live.text = false; set({ live: { ...live } }); return }
+    if (e.type === 'queue') { set((o) => ({ progress: { ...o.progress, queue: e.position, reconnecting: undefined } })); return }
     if (e.type === 'phase') { set({ progress: { phase: e.phase === 'answer' ? 'generating' : e.phase === 'tools' ? 'querying' : 'connecting' } }); return }
     if (e.type === 'chip') { live.chips = [...live.chips]; live.chips[e.index] = { chip: e.chip, state: e.state }; set({ live: { ...live } }); return }
     if (e.type === 'card') { live.cards = [...live.cards, e.card]; set({ live: { ...live } }) }
   }
-  const r = await askAgent({
-    text: ask, model: s.model, turn: id.replace(/[^A-Za-z0-9_-]/g, ''), signal: abort.signal, history: agentHistory(s.messages.filter((m) => !m.agent?.error)),
-    memory: s.memory, pending: pendingCard(s.messages.map((m) => m.agent?.cards ?? [])), name: buddyName, persona: buddyPersona, onEvent
-  })
+  return { onEvent, ref }
+}
+
+/** 끝난 턴 → 기록. 말로 확인(결정 ②)이면 떠 있는 카드의 넣기/취소를 누른 것과 같다 */
+async function applyTurn(r: TurnResult, id: string, abort: AbortController, text: string, reportHits: boolean) {
   if (request !== abort) return
-  // 말로 확인(결정 ②): 떠 있는 카드의 넣기/취소를 누른 것과 같다
   if (r.confirm) {
     const owner = current().messages.find((m) => m.agent?.cards.some((c) => isConfirm(c) && c.key === r.confirm!.key))
     if (owner) {
@@ -164,10 +171,71 @@ async function agentTurn(ask: string, id: string, abort: AbortController) {
   }
   if (text) await liveText.whenShown(1200)
   if (request !== abort) return
-  if (r.grounding.hits > 0) reportGround(r.grounding.hits) // 47 §19.4 숫자만
+  if (reportHits && r.grounding.hits > 0) reportGround(r.grounding.hits) // 47 §19.4 숫자만(서버 턴은 서버가 남긴다)
   const agent: AgentAnswer = { chips: r.chips, cards: r.cards, bands: r.bands, calls: r.calls, ms: r.ms, hits: r.grounding.hits, ...(r.hint ? { hint: r.hint } : {}), ...(r.action ? { action: r.action } : {}), ...(r.error ? { error: r.error } : {}), ...(r.stopped ? { stopped: true } : {}), ...(r.busyFallback ? { busy: true } : {}) }
   set((o) => ({ live: null, memory: r.memory, ...(r.error ? { error: r.error } : {}), messages: [...o.messages, { id, role: 'assistant', text: r.text, agent }] }))
   void aiStatus().then((st) => set({ daily: st.assistantDaily })).catch(() => {})
+}
+
+/** 47 한 턴(기기에서 도구) — 서버가 turn을 모를 때 */
+async function agentTurn(ask: string, id: string, abort: AbortController) {
+  const s = current()
+  const { onEvent, ref } = liveHandler(abort)
+  const r = await askAgent({
+    text: ask, model: s.model, turn: id.replace(/[^A-Za-z0-9_-]/g, ''), signal: abort.signal, history: agentHistory(s.messages.filter((m) => !m.agent?.error)),
+    memory: s.memory, pending: pendingCard(s.messages.map((m) => m.agent?.cards ?? [])), name: buddyName, persona: buddyPersona, onEvent
+  })
+  await applyTurn(r, id, abort, ref.text, true)
+}
+
+/** 연결이 끊겼을 때 기다리기: 정한 시간 또는 앱이 다시 앞으로 오면 바로 */
+const waitOrForeground = (ms: number, signal: AbortSignal) => new Promise<void>((resolve, reject) => {
+  const sub = AppState.addEventListener('change', (st) => { if (st === 'active') done() })
+  const timer = setTimeout(done, ms)
+  const onAbort = () => { clearTimeout(timer); sub.remove(); reject(signal.reason ?? new Error('aborted')) }
+  signal.addEventListener('abort', onAbort, { once: true })
+  function done() { clearTimeout(timer); sub.remove(); signal.removeEventListener('abort', onAbort); resolve() }
+})
+
+/** 47 §20 서버가 턴을 끝까지 돌리고 앱은 받아 온다. 끊기면 마지막 사건 다음부터 이어 받는다(앱을 나갔다 와도) */
+async function serverTurn(ask: string, id: string, abort: AbortController, resume?: PendingTurn) {
+  const s = current()
+  const { onEvent, ref } = liveHandler(abort)
+  const turn = resume?.turn ?? id.replace(/[^A-Za-z0-9_-]/g, '')
+  const body: TurnStart = resume
+    ? ({ turn } as TurnStart) // 이어 받기만(시작 요청을 다시 보내지 않음)
+    : await turnBody({ text: ask, model: s.model, turn, history: agentHistory(s.messages.filter((m) => !m.agent?.error)), memory: s.memory, pending: pendingCard(s.messages.map((m) => m.agent?.cards ?? [])), name: buddyName, persona: buddyPersona })
+  writeJson(pendingKey(s.account), { turn, id, at: resume?.at ?? Date.now() } satisfies PendingTurn)
+  try {
+    const r = await followTurn({
+      transport: turnTransport, body, signal: abort.signal, onEvent, resumeOnly: !!resume, wait: waitOrForeground,
+      onReconnecting: (n) => { if (request === abort) set((o) => ({ progress: { ...o.progress, reconnecting: n } })) }
+    })
+    if (request === abort) set((o) => ({ progress: { ...o.progress, reconnecting: undefined } }))
+    await applyTurn(r, id, abort, ref.text, false)
+  } finally {
+    writeJson(pendingKey(s.account), null)
+  }
+}
+
+/** 앱을 껐다 켰는데 받는 중이던 서버 턴이 있으면(10분 안) 받아 온다 */
+const resumeTried = new Set<string>()
+async function resumePendingTurn() {
+  const s = current()
+  if (request || s.busy || !s.turn || !s.agent) return
+  const p = readJson<PendingTurn | null>(pendingKey(s.account), null)
+  if (!p || resumeTried.has(p.turn)) return
+  resumeTried.add(p.turn)
+  if (Date.now() - p.at > TURN_KEEP_MS + 150_000 || s.messages.some((m) => m.id === p.id)) { writeJson(pendingKey(s.account), null); return }
+  const abort = new AbortController()
+  request = abort
+  const lastUser = [...s.messages].reverse().find((m) => m.role === 'user')
+  set({ busy: true, error: '', lastRequest: lastUser?.text ?? '', lastPrompt: lastUser?.sent ?? lastUser?.text ?? '', started: Date.now(), progress: { phase: 'connecting' }, live: null })
+  try { await serverTurn('', p.id, abort, p) } catch (e) {
+    if (request === abort) set({ live: null, error: abort.signal.aborted ? STOPPED : humanize(e) })
+  } finally {
+    if (request === abort) { request = null; set({ busy: false, live: null }) }
+  }
 }
 let buddyName = ''
 let buddyPersona: PersonaId = 'mascot' // 50: 성격 카드(종 · 조사 전 꿈틀이)
@@ -206,7 +274,7 @@ export async function undoAgentCard(msgId: string, key: string) {
 export function toggleTarget(msgId: string, key: string, targetId: string) {
   patchCard(msgId, key, (c) => (c.state === 'pending' && c.targets ? { ...c, targets: c.targets.map((t) => (t.id === targetId ? { ...t, picked: !t.picked } : t)) } : c))
 }
-export const cancel = () => request?.abort()
+export const cancel = () => request?.abort() // 서버 턴은 followTurn이 멈춤을 서버에 알린다
 /** 새 대화(⌘N 자리): 처리 중이면 막는다 */
 export function clear() {
   if (request) return
@@ -225,6 +293,7 @@ function subscribe(l: () => void) { listeners.add(l); return () => { listeners.d
 export function useAssistant(): AssistantState {
   const s = useSyncExternalStore(subscribe, current)
   useEffect(() => { if (!current().models.length && !current().connecting) void refresh() }, [s.account])
+  useEffect(() => { if (s.turn && s.models.length) void resumePendingTurn() }, [s.account, s.turn, s.models.length])
   useEffect(() => {
     if (s.connecting || s.busy || s.models.length) return
     const t = setTimeout(() => void refresh(), 60_000)

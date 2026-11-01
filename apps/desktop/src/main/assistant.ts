@@ -1,4 +1,5 @@
 import { routeRequest, parseRouteDecision } from '@sprout/schema/assistantDecision'
+import { ndjsonLines, TURN_ID, type TurnStart } from '@sprout/schema/assistantTurn'
 import { app, ipcMain } from 'electron'
 import { AGENT_UNSUPPORTED, readAgentStream, readChatStream, type AgentInput, type AiPurpose, type ChatInput } from '../shared/assistant'
 import { createRemoteOllama } from './remoteOllama'
@@ -31,7 +32,7 @@ async function server(path: string, init: RequestInit & { signal?: AbortSignal }
       const left = await remainingToday().catch(() => undefined)
       if (left !== undefined) message += ` (오늘 남은 요청 ${left}회)`
     }
-    throw new Error(message)
+    throw Object.assign(new Error(message), { status: res.status }) // 47 §20: 404(턴 없음)·상한을 연결 끊김과 구분
   }
   return res
 }
@@ -53,12 +54,24 @@ function createServerAi() {
       } catch { return null }
     },
     /** 47: 서버 기능(features)·AI 비서 하루 턴 사용량 */
-    features: async (): Promise<{ agent: boolean; daily: { used: number; limit: number } | null }> => {
+    features: async (): Promise<{ agent: boolean; turn: boolean; daily: { used: number; limit: number } | null }> => {
       try {
         const status = await (await server('/ai/status', { signal: AbortSignal.timeout(8000) })).json()
         const q = status?.usage?.daily?.assistant
-        return { agent: !!status?.available && Array.isArray(status?.features) && status.features.includes('agent'), daily: q && typeof q.limit === 'number' ? { used: Number(q.used) || 0, limit: q.limit } : null }
-      } catch { return { agent: false, daily: null } }
+        const has = (f: string) => !!status?.available && Array.isArray(status?.features) && status.features.includes(f)
+        return { agent: has('agent'), turn: has('turn'), daily: q && typeof q.limit === 'number' ? { used: Number(q.used) || 0, limit: q.limit } : null }
+      } catch { return { agent: false, turn: false, daily: null } }
+    },
+    /** 47 §20 서버 턴: 시작(start) 또는 이어 받기(resume) — 줄은 onLine으로. 끝까지 읽으면 돌아온다 */
+    turn: async (req: { start?: TurnStart; resume?: { turn: string; after: number } }, signal: AbortSignal, onLine: (line: string) => void) => {
+      const res = req.start
+        ? await server('/ai/turn', { method: 'POST', body: JSON.stringify(req.start), signal })
+        : await server(`/ai/turn/${encodeURIComponent(req.resume!.turn)}?after=${req.resume!.after}`, { signal })
+      if (!res.body) throw new Error(UNAVAILABLE)
+      for await (const line of ndjsonLines(res.body as unknown as AsyncIterable<Uint8Array>)) onLine(line)
+    },
+    turnCancel: async (turn: string) => {
+      await server(`/ai/turn/${encodeURIComponent(turn)}/cancel`, { method: 'POST', signal: AbortSignal.timeout(8000) }).then((r) => r.body?.cancel()).catch(() => {})
     },
     /** 47 §19.4 근거 검사가 뺀 문장 수만(POST /ai/ground {hits}). 실패·예전 서버(404)는 조용히 버린다 */
     ground: async (hits: number) => {
@@ -100,7 +113,7 @@ function createServerAi() {
 
 export function registerAssistant() {
   const remote = process.env.SPROUT_AI_SSH === '1' ? createRemoteOllama() : undefined
-  type Ai = Omit<ReturnType<typeof createServerAi>, 'daily' | 'features' | 'agent' | 'ground' | 'route'> & Partial<Pick<ReturnType<typeof createServerAi>, 'daily' | 'features' | 'agent' | 'ground' | 'route'>>
+  type Ai = Omit<ReturnType<typeof createServerAi>, 'daily' | 'features' | 'agent' | 'ground' | 'route' | 'turn' | 'turnCancel'> & Partial<Pick<ReturnType<typeof createServerAi>, 'daily' | 'features' | 'agent' | 'ground' | 'route' | 'turn' | 'turnCancel'>>
   const ai: Ai = remote ?? createServerAi()
   app.on('before-quit', () => remote?.close())
   const requests = new Map<string, AbortController>()
@@ -153,6 +166,26 @@ export function registerAssistant() {
     catch (e) { if (abort.signal.aborted && !cancelled.has(key)) throw new Error('AI 응답이 너무 오래 걸려요. 다시 시도해 주세요.'); throw e }
     finally { clearTimeout(timer); requests.delete(key); cancelled.delete(key); if (!event.sender.isDestroyed()) event.sender.off('destroyed', drop) }
   })
+  // 47 §20 서버 턴: 줄은 assistant:turn-line으로, 끝은 {ok} — 렌더러가 status(404·상한)와 연결 끊김을 구분하게 오류도 값으로 돌려준다
+  ipcMain.handle('assistant:turn', async (event, id: string, req: { start?: TurnStart; resume?: { turn: string; after: number } }) => {
+    if (!ai.turn) return { ok: false, status: 404, message: AGENT_UNSUPPORTED }
+    const turnId = req?.start?.turn ?? req?.resume?.turn
+    if (typeof id !== 'string' || id.length > 100 || typeof turnId !== 'string' || !TURN_ID.test(turnId) || (req.resume && (!Number.isInteger(req.resume.after) || req.resume.after < 0))) return { ok: false, status: 400, message: '잘못된 요청' }
+    const key = `${event.sender.id}:${id}`
+    if (requests.has(key)) return { ok: false, status: 400, message: '중복 요청' }
+    const abort = new AbortController(); requests.set(key, abort)
+    const drop = () => abort.abort()
+    event.sender.once('destroyed', drop)
+    const timer = setTimeout(drop, 260000)
+    try {
+      await ai.turn(req, abort.signal, (line) => { if (!event.sender.isDestroyed()) event.sender.send('assistant:turn-line', { id, line }) })
+      return { ok: true }
+    } catch (e) {
+      const status = (e as { status?: unknown }).status
+      return { ok: false, ...(typeof status === 'number' ? { status } : {}), message: e instanceof Error ? e.message : UNAVAILABLE }
+    } finally { clearTimeout(timer); requests.delete(key); cancelled.delete(key); if (!event.sender.isDestroyed()) event.sender.off('destroyed', drop) }
+  })
+  ipcMain.on('assistant:turn-cancel', (_e, turn: unknown) => { if (typeof turn === 'string' && TURN_ID.test(turn)) void ai.turnCancel?.(turn) })
   ipcMain.on('assistant:ground', (_e, hits: unknown) => { if (typeof hits === 'number' && Number.isInteger(hits) && hits >= 1 && hits <= 20) void ai.ground?.(hits) })
   ipcMain.on('assistant:cancel', (event, id: string) => { const key = `${event.sender.id}:${id}`; const r = requests.get(key); if (r) { cancelled.add(key); r.abort() } })
 }

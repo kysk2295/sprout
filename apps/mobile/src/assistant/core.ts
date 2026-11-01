@@ -11,7 +11,7 @@ export type TaskLite = { id: string; title: string; start_at: string | null; due
 export type AssistantStats = { count: number; hours: number; untimed: number; range: string }
 /** kind·status = 40 §3.2 캐릭터 한 줄을 고르는 결과 종류(예전 기록엔 없음 → answerKindOf) */
 export type AssistantResult = { recall?: RecallResult; text: string; tasks?: Pick<TaskLite, 'id' | 'title' | 'start_at' | 'due_at'>[]; created?: { id: string; stamp: string }; stats?: AssistantStats; total?: number; kind?: 'create' | 'query' | 'stats' | 'reply' | 'chat' | 'recall'; status?: 'all' | 'open' | 'completed' }
-export type AssistantProgress = { phase: 'connecting' | 'generating' | 'validating' | 'saving' | 'querying'; characters?: number; preview?: string; queue?: number }
+export type AssistantProgress = { phase: 'connecting' | 'generating' | 'validating' | 'saving' | 'querying'; characters?: number; preview?: string; queue?: number; /** 47 §20 서버 턴에 다시 붙는 중(몇 번째) */ reconnecting?: number }
 
 const fields = ['message', 'title', 'listId', 'start', 'due', 'from', 'to', 'keyword', 'repeat'] as const
 const dateField = (description: string, dayOnly = false) => ({ type: 'string', description, pattern: dayOnly ? '^(|[0-9]{4}-[0-9]{2}-[0-9]{2})$' : '^(|[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2})?)$' })
@@ -191,11 +191,15 @@ export const OFFLINE = '지금은 AI를 쓸 수 없어요. 할 일·캘린더는
 export const NO_NETWORK = '꿈틀 AI에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.'
 export const STOPPED = '요청을 멈췄어요. 내용을 확인한 뒤 다시 보내 주세요.'
 export const TOO_LONG = 'AI 응답이 너무 오래 걸려요. 다시 시도해 주세요.'
+/** 기기가 만든 네트워크 오류 원문(한국어·영어) */
+export const NATIVE_NETWORK = /네트워크 연결이 유실|인터넷 연결이 오프라인|네트워크 연결이 끊|요청한 시간이 초과|서버에 연결할 수 없|network connection was lost|network request failed|internet connection appears to be offline|request timed out/i
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e ?? '')).replace(/^(\w*Error):\s*/, '')
 /** 원문 오류(영문·JSON·네트워크)는 사람 말로. 앱·서버가 만든 한국어 문구는 그대로 */
 export function humanize(e: unknown) {
   const raw = messageOf(e)
   if (/^지금은 AI를 쓸 수 없어요/.test(raw)) return OFFLINE
+  // 기기(iOS·Android) 네트워크 원문은 한국어여도 그대로 내지 않는다(2026-10-30 '네트워크 연결이 유실되었습니다.')
+  if (NATIVE_NETWORK.test(raw)) return NO_NETWORK
   if (/[가-힣]/.test(raw) && !/[{}<>]|Error|https?:/.test(raw)) return raw
   if (/429|rate.?limit|too many/i.test(raw)) return '잠시 뒤 다시 시도해 주세요.'
   if (/fetch|network|ENOTFOUND|ECONN|EAI_AGAIN|socket|offline|connection/i.test(raw)) return NO_NETWORK

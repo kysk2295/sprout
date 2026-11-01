@@ -106,10 +106,10 @@ export function useAssistant(account: string) {
       else if (e.type === 'phase') setProgress({ phase: e.phase === 'tools' ? 'querying' : 'connecting' })
     }
     const msgs = latestMessages.current
-    const r = await askAgent({ text: prompt, model, history: pairsOf(msgs), memory, pending: pendingCard(msgs.map((m) => m.agent?.cards ?? [])), diary: assistantDiaryOn(account), name: me.name, persona: personaIdOf(me.species), signal, onEvent })
+    const r = await askAgent({ text: prompt, model, history: pairsOf(msgs), memory, pending: pendingCard(msgs.map((m) => m.agent?.cards ?? [])), diary: assistantDiaryOn(account), name: me.name, persona: personaIdOf(me.species), signal, onEvent, serverTurn: !!features.turn, onReconnecting: () => setProgress({ phase: 'connecting' }) })
     await stream.whenShown(600)
     setMemory(r.memory)
-    if (r.grounding.hits > 0) reportGround(r.grounding.hits) // 47 §19.4 숫자만(실패해도 그만)
+    if (r.grounding.hits > 0 && !features.turn) reportGround(r.grounding.hits) // 47 §19.4 숫자만(실패해도 그만). 서버 턴은 서버가 남긴다
     let line: string | undefined
     if (r.confirm) {
       const found = cardOf(r.confirm.key)

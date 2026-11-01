@@ -2,6 +2,13 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-11-01 AI 비서 턴을 서버가 끝까지(47 §20) — 브랜치 `kysk2295/server-turn`, **서버 배포됨 · 앱 빌드 전**
+- **원인(10-30 아침 휴대폰 "네트워크 연결이 유실되었습니다." 4연속):** 밤새 쉰 Jev·Qwen이 스왑에서 돌아오느라 한 턴 30~40초, 그동안 휴대폰 연결이 끊김(앱을 나감·이동 중) → API가 끊김을 보고 모델도 멈춤(Mac mini `runtime/jev-v7/qwen.log` BrokenPipe 4건). 턴이 기기에서 돌아(도구 = 기기 SQLite) 끊기면 이어 갈 주체가 없었다.
+- **바꾼 것:** 서버가 `runTurn`을 끝까지 돌리고(도구 = 사용자 범위 Postgres 보기 `assistant_scope`, 모델 = 자기 `/ai/assistant` 루프백이라 상한·턴 셈·Jev 그대로) 사건을 10분 메모리에 보관 → 앱은 `POST /ai/turn` · 끊기면 `GET /ai/turn/{id}?after=N`로 이어 받기(휴대폰은 앱이 앞으로 오면 바로, 껐다 켜도 10분 안이면). 사용자 시간대 자식 프로세스(UTC 컨테이너에서 '오늘' 어긋남 방지). 쓰기·되돌리기는 그대로 앱. iOS 원문 오류·'잘 못 알아들었어.' 얼굴도 고침. 상세·확인 내역 47 §20.7.
+- **배포(2026-11-01 저녁):** ① 백업 `~/sprout/server/backups/manual/before-server-turn-20261101.dump` ② 마이그레이션 `20261101-assistant-scope.sql`(사용자가 직접 실행 — 자동 실행은 안전장치에 막힘) → 보기 11개 ③ **Mac mini API = `sprout-api:server-turn-20261101`**(소스 `~/sprout/releases/server-turn-20261101` = main dd9ba9e + 이 브랜치, main의 미배포 일기 태그 수정 4b0c5a5 등도 함께 올라감), 로그 `ai turn on`. 되돌리기: `cp ~/sprout/backups/server-turn-20261101/docker-compose.yaml ~/sprout/server/ && docker compose up -d --no-build api`(이전 이미지 `photos-20261025`, 보기 스키마는 남겨도 무해 — 지우려면 `DROP SCHEMA assistant_scope CASCADE`).
+- **남은 것:** 휴대폰 앱 빌드·설치 → 실기기에서 '보내고 홈으로 나갔다 오기' 확인, 데스크톱 앱 다시 빌드(메인·preload 바뀜). 예전 앱 빌드는 그대로 동작(서버가 예전 `mode:agent` 유지). Railway `sprout` 프로젝트(api·powersync·db, 10-04 배포)는 안 쓰는데 켜져 있음 — 정리 여부 사용자 결정 대기(`sprout-site`는 사이트·3D 그림 배포라 사용 중).
+- **시험:** `npm test`(schema) · `npm run test:api`. 실제 Postgres까지: `TEST_DATABASE_URL=postgres://…/postgres`(빈 서버, 임시 DB를 만들고 지움).
+
 ## ★ 2026-10-26 새벽 설치·출시 준비 · 장면 카드 v2 · 휴대폰 UX P1
 - **아이폰 실기기(고윤서 iPhone 14 Pro):** 10-14부터 토큰 401로 끊겨 변경 47건이 쌓여 있었음 → 88135c0 이후 Release를 devicectl로 덮어 설치(개인 팀이라 로컬 `ios/app/app.entitlements`에서 aps-environment·applesignin을 잠시 빼고 빌드, 끝나면 되돌림 — `expo run:ios` 설치 단계가 "연결 중"에서 멈추면 `xcrun devicectl device install app`). 같은 계정 다시 로그인 → 47건 업로드 성공, 남은 0. **이 설치본엔 휴대폰 UX P1 고침(64c7d45)이 아직 없음 — 다음에 다시 설치.**
 - **데스크톱 설치본** /Applications/Kkumteul.app 1.0.1 → 1.0.2(오늘 코드, dist:mac). 옛 앱은 ~/Desktop/kkumteul-old-app.

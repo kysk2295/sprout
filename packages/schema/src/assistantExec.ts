@@ -109,7 +109,7 @@ const STOP = new Set(['할일', '할', '일', '일정', '메모', '기록', '내
 export function words(q: string): string[] {
   return [...new Set(q.replace(/[?!.,'"‘’“”]/g, ' ').split(/\s+/).map((w) => { const s = w.replace(JOSA, ''); return s.length >= 1 ? s : w }).filter((w) => w && !STOP.has(w)))].slice(0, 5)
 }
-const anyWord = (cols: string[], ws: string[]) => ({ sql: ws.length ? `(${ws.map(() => cols.map((c) => `instr(lower(${c}), lower(?)) > 0`).join(' OR ')).join(' OR ')})` : '1', args: ws.flatMap((w) => cols.map(() => w)) })
+const anyWord = (cols: string[], ws: string[]) => ({ sql: ws.length ? `(${ws.map(() => cols.map((c) => `instr(lower(${c}), lower(?)) > 0`).join(' OR ')).join(' OR ')})` : '1 = 1', args: ws.flatMap((w) => cols.map(() => w)) })
 const clip = (s: string | null | undefined, n: number) => { const t = (s ?? '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t }
 const PRI: Record<number, string> = { 3: 'high', 2: 'mid', 1: 'low' }
 /** 완료 시각(UTC ISO)을 기기 날짜로 */
@@ -227,9 +227,9 @@ async function findTasks(a: Record<string, unknown>, ctx: ExecCtx): Promise<Tool
   if (listName) { where.push("(instr(lower(COALESCE(l.name, '')), lower(?)) > 0 OR (l.kind = 'inbox' AND ? IN ('기본함', 'inbox', '수집함')))"); args.push(listName, listName) }
   const k = anyWord(['t.title', "COALESCE(l.name, '')"], ws)
   where.push(k.sql); args.push(...k.args)
-  const order = sort === 'recent' ? 't.completed_at DESC, t.modified_at DESC'
-    : sort === 'urgent' ? `CASE WHEN ${plan} IS NULL THEN 1 ELSE 0 END, ${plan}, COALESCE(t.priority, 0) DESC, COALESCE(t.due_at, t.start_at), t.title`
-      : `CASE WHEN ${plan} IS NULL THEN 1 ELSE 0 END, COALESCE(t.due_at, t.start_at), COALESCE(t.priority, 0) DESC, t.title`
+  const order = sort === 'recent' ? 't.completed_at DESC NULLS LAST, t.modified_at DESC NULLS LAST, t.id'
+    : sort === 'urgent' ? `CASE WHEN ${plan} IS NULL THEN 1 ELSE 0 END, ${plan}, COALESCE(t.priority, 0) DESC, COALESCE(t.due_at, t.start_at), t.title, t.id`
+      : `CASE WHEN ${plan} IS NULL THEN 1 ELSE 0 END, COALESCE(t.due_at, t.start_at), COALESCE(t.priority, 0) DESC, t.title, t.id` // 같은 값끼리도 두 DB(기기 SQLite·서버 Postgres, 47 §20.3)가 같은 순서
   const rows = await ctx.db.getAll<TaskRowDb>(`SELECT t.id, t.title, l.name AS list_name, l.kind AS list_kind, t.priority, t.status, t.start_at, t.due_at, t.completed_at FROM tasks t LEFT JOIN lists l ON l.id = t.list_id WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT 200`, args)
   const items: TaskItem[] = rows.map((r) => ({ id: r.id, title: r.title ?? '', list: r.list_kind === 'inbox' ? '기본함' : r.list_name, priority: Number(r.priority) || 0, status: Number(r.status), start_at: r.start_at, due_at: r.due_at, completed_at: r.completed_at }))
   const scope = scopeName(from, to, now)
@@ -342,7 +342,7 @@ async function whenLast(a: Record<string, unknown>, ctx: ExecCtx): Promise<ToolR
 async function findNotes(a: Record<string, unknown>, ctx: ExecCtx): Promise<ToolRun> {
   const ws = words(str(a.query))
   const k = anyWord(["COALESCE(content, '')", "COALESCE(link_title, '')"], ws)
-  const rows = await ctx.db.getAll<{ id: string; content: string | null; link_title: string | null; modified_at: string | null }>(`SELECT id, content, link_title, modified_at FROM notes WHERE ${k.sql} ORDER BY modified_at DESC LIMIT 50`, k.args)
+  const rows = await ctx.db.getAll<{ id: string; content: string | null; link_title: string | null; modified_at: string | null }>(`SELECT id, content, link_title, modified_at FROM notes WHERE ${k.sql} ORDER BY modified_at DESC NULLS LAST, id LIMIT 50`, k.args)
   const items = rows.map((r) => { const lines = (r.content ?? '').split('\n'); const title = clip(r.link_title || lines[0] || '메모', 60); return { id: r.id, title, body: clip(r.link_title ? r.content : lines.slice(1).join(' '), 200), modified: localDayOf(r.modified_at) } })
   const model = { total: items.length, notes: items.slice(0, 10).map((n) => ({ id: aliasFor(ctx.aliases, { id: n.id, title: n.title, kind: 'note', date: n.modified }), title: n.title, ...(n.body ? { text: n.body } : {}), ...withLabel('updated', n.modified, ctx.now) })) }
   return {
@@ -366,7 +366,7 @@ async function findDiary(a: Record<string, unknown>, ctx: ExecCtx): Promise<Tool
   if (to) { where.push('date <= ?'); args.push(to) }
   const k = anyWord(['content'], ws)
   where.push(k.sql); args.push(...k.args)
-  const rows = await ctx.db.getAll<{ date: string; mood: number | null; content: string }>(`SELECT date, mood, content FROM diary_entries WHERE ${where.join(' AND ')} ORDER BY date DESC LIMIT 20`, args)
+  const rows = await ctx.db.getAll<{ date: string; mood: number | null; content: string }>(`SELECT date, mood, content FROM diary_entries WHERE ${where.join(' AND ')} ORDER BY date DESC NULLS LAST, id LIMIT 20`, args)
   const model = { total: rows.length, days: rows.slice(0, 7).map((r) => ({ ...withLabel('date', r.date, now), text: clip(r.content, 200) })) }
   return {
     name: 'find_diary', args: a, ok: true,
@@ -411,7 +411,7 @@ async function projectInfo(a: Record<string, unknown>, ctx: ExecCtx): Promise<To
 // growth_stats ───────────────────────────────────────────
 async function growthStats(ctx: ExecCtx): Promise<ToolRun> {
   const [chars, xp, week] = await Promise.all([
-    ctx.db.getAll<{ name: string | null }>('SELECT name FROM characters ORDER BY created_at LIMIT 1'),
+    ctx.db.getAll<{ name: string | null }>('SELECT name FROM characters ORDER BY created_at NULLS FIRST LIMIT 1'),
     ctx.db.getAll<{ amount: number; created_at: string }>('SELECT amount, created_at FROM xp_events'),
     ctx.db.getAll<{ n: number }>('SELECT COUNT(*) AS n FROM tasks WHERE deleted_at IS NULL AND status = 1 AND completed_at >= ?', [dayStartIso(mondayOf(ctx.now))])
   ])
@@ -453,7 +453,7 @@ const RRULE = /^FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;INTERVAL=[1-9]\d?)?(;BYDAY=(
 let keySeq = 0
 const nextKey = (ctx: ExecCtx) => ctx.newKey?.() ?? `c${Date.now().toString(36)}${(keySeq++).toString(36)}`
 export async function listsOf(db: AssistantDb): Promise<ListLite[]> {
-  return db.getAll<ListLite>("SELECT id, name, kind FROM lists WHERE archived_at IS NULL ORDER BY CASE WHEN kind = 'inbox' THEN 0 ELSE 1 END, sort_order, created_at")
+  return db.getAll<ListLite>("SELECT id, name, kind FROM lists WHERE archived_at IS NULL ORDER BY CASE WHEN kind = 'inbox' THEN 0 ELSE 1 END, sort_order NULLS FIRST, created_at NULLS FIRST")
 }
 /** 리스트 이름 → 리스트(없으면 기본함). 기본함이 없으면 id '' — 넣을 때 앱이 만든다(02 §14.1) */
 export function pickList(lists: ListLite[], name: string): { id: string; name: string } {

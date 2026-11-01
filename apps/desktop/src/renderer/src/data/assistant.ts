@@ -7,6 +7,7 @@ import { eventFieldsOf } from '@sprout/schema/assistantExec'
 import type { ListRow, TaskRow } from './types'
 import { AgentUnsupportedError, runTurn, type AgentWrites, type ChatFn, type TurnEvent, type TurnResult } from '@sprout/schema/assistantAgent'
 import type { AgentMemory } from '@sprout/schema/assistantRouter'
+import { followTurn, type TurnStart, type TurnTransport } from '@sprout/schema/assistantTurn'
 import type { ConfirmCard } from '@sprout/schema/assistantExec'
 import { getConsent } from './diary'
 import { AGENT_UNSUPPORTED } from '../../../shared/assistant'
@@ -128,7 +129,7 @@ export async function askAssistant(text:string,model:string,id:string,signal:Abo
 
 // ── 47 B안: 자유 대화 + 앱 도구(runTurn — 공용 @sprout/schema/assistantAgent) ──
 // 서버가 agent를 알면(/ai/status features) 이 길, 모르거나(배포 전) SSH 직결이면 위 askAssistant(13 의도) 그대로.
-export type AgentFeatures = { agent: boolean; daily: { used: number; limit: number } | null }
+export type AgentFeatures = { agent: boolean; turn?: boolean; daily: { used: number; limit: number } | null }
 export async function agentFeatures(): Promise<AgentFeatures> {
   const api = window.sprout?.assistant
   if (!api?.features) return { agent: false, daily: null }
@@ -235,13 +236,21 @@ export async function editedRow(id: string, kind: 'task' | 'event') {
 }
 /** 47 §19.4 근거 검사가 뺀 문장 수만 서버로(메인 IPC, 응답 안 기다림) */
 export const reportGround = (hits: number) => { try { window.sprout?.assistant?.ground?.(Math.min(20, Math.max(1, Math.round(hits)))) } catch { /* 숫자 하나 — 잃어도 됨 */ } }
-export type AgentAsk = { text: string; model: string; history: { user: string; assistant: string }[]; memory: AgentMemory; pending: ConfirmCard | null; diary: boolean; name: string; persona?: PersonaId; signal: AbortSignal; onEvent?: (e: TurnEvent) => void; chat?: ChatFn }
+export type AgentAsk = { text: string; model: string; history: { user: string; assistant: string }[]; memory: AgentMemory; pending: ConfirmCard | null; diary: boolean; name: string; persona?: PersonaId; signal: AbortSignal; onEvent?: (e: TurnEvent) => void; chat?: ChatFn ; /** 47 §20 서버 턴(features.turn) */ serverTurn?: boolean; onReconnecting?: (attempt: number) => void }
 export async function askAgent(a: AgentAsk): Promise<TurnResult> {
   const db = await getDb()
   const turn = newTurnId()
   const [character] = await db.getAll<{ species: string | null }>('SELECT species FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1')
   // 50: 성격 카드 = 매 턴 지금 캐릭터 종(다른 세션: DB에서 바로 읽기 — 다시 조사해도 바로 반영). 조사 전 = 꿈틀이
   const persona = a.persona ?? personaIdOf(normalizeSpecies(character?.species))
+  // 47 §20: 서버가 턴을 끝까지 돌린다(도구는 서버 DB) — 끊기면 마지막 사건 다음부터 이어 받는다
+  const api = window.sprout?.assistant
+  if (a.serverTurn && api?.turn) {
+    return followTurn({
+      transport: desktopTransport(api), signal: a.signal, onEvent: a.onEvent ?? (() => {}), onReconnecting: a.onReconnecting,
+      body: { turn, text: a.text, history: a.history, memory: a.memory, pending: a.pending, diary: a.diary, name: a.name.slice(0, 40), ...(persona ? { persona } : {}), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, ...(a.model ? { model: a.model } : {}) }
+    })
+  }
   return runTurn({
     persona,
     classify: async (text, history, signal) => {
@@ -262,3 +271,34 @@ const diaryKey = (account: string) => `sprout.assistant.diary.${account}`
 export const getAssistantDiary = (account: string) => { try { return localStorage.getItem(diaryKey(account)) === 'on' } catch { return false } }
 export const setAssistantDiary = (account: string, on: boolean) => { try { localStorage.setItem(diaryKey(account), on ? 'on' : 'off') } catch { /* 이번 실행만 */ } }
 export const assistantDiaryOn = (account: string) => getAssistantDiary(account) && getConsent() === true
+
+/** 47 §20 서버 턴 통신(메인 프로세스 경유). 줄은 assistant:turn-line, 끝은 {ok, status} — 404·상한(status)과 연결 끊김(status 없음)을 나눈다 */
+type TurnRequest = { start?: TurnStart; resume?: { turn: string; after: number } }
+type TurnApi = { turn: (id: string, req: TurnRequest) => Promise<{ ok: boolean; status?: number; message?: string }>; onTurnLine: (cb: (d: { id: string; line: string }) => void) => () => void; turnCancel: (turn: string) => void; cancel: (id: string) => void }
+function desktopTransport(api: TurnApi): TurnTransport {
+  const open = async (req: TurnRequest, signal: AbortSignal): Promise<AsyncIterable<string>> => {
+    const id = crypto.randomUUID()
+    const queue: string[] = []
+    let wake: (() => void) | null = null, ended = false, failure: unknown = null
+    const off = api.onTurnLine((d) => { if (d.id === id) { queue.push(d.line); wake?.() } })
+    const stop = () => api.cancel(id)
+    signal.addEventListener('abort', stop, { once: true })
+    void api.turn(id, req).then(
+      (r: { ok: boolean; status?: number; message?: string }) => { if (!r.ok) failure = Object.assign(new Error(r.message ?? '지금은 AI를 쓸 수 없어요.'), typeof r.status === 'number' ? { status: r.status } : {}) },
+      (e: unknown) => { failure = e }
+    ).finally(() => { ended = true; off(); signal.removeEventListener('abort', stop); wake?.() })
+    return (async function* () {
+      for (;;) {
+        if (queue.length) { yield queue.shift()!; continue }
+        if (ended) { if (failure) throw failure; return }
+        await new Promise<void>((r) => { wake = r })
+        wake = null
+      }
+    })()
+  }
+  return {
+    start: (body, signal) => open({ start: body }, signal),
+    resume: (turn, after, signal) => open({ resume: { turn, after } }, signal),
+    cancel: async (turn) => { api.turnCancel(turn) }
+  }
+}

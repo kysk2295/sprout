@@ -36,6 +36,8 @@ import {
 } from './social.ts'
 import { linkedView, linkIdentity, parseProvider, pgLinkStore, unlinkProvider } from './link.ts'
 import { aiConfigFromEnv, createAi, pgUsageStore } from './ai.ts'
+import { prepareAssistantScope, scopedDb } from './assistantDb.ts'
+import { createTurns, zoneRunner } from './turns.ts'
 import { createPush, pushConfigFromEnv } from './push.ts'
 import { pgPushStore } from './push-store.ts'
 import { createAutoTrash, pgAutoTrashStore } from './autoTrash.ts'
@@ -83,7 +85,14 @@ async function userFrom(req: IncomingMessage): Promise<string> {
 }
 
 // AI 프록시: Mac mini Ollama로 대기열·상한을 걸어 전달한다(원문 저장 없음)
-const ai = createAi({ routing: process.env.AI_ROUTING === 'jev', config: aiConfigFromEnv(), backend: backendFromEnv(), store: pgUsageStore((sql, params) => pool.query(sql, params)), auth: userFrom })
+// 47 §20 AI 비서 턴을 서버가 끝까지(앱이 나가도). 도구는 사용자 범위 보기(assistant_scope 마이그레이션) — 없으면 서버 턴만 꺼지고 앱은 예전 경로
+const routing = process.env.AI_ROUTING === 'jev'
+const turnsOn = process.env.AI_TURNS !== '0' && await prepareAssistantScope(pool)
+const self = `http://127.0.0.1:${PORT}`
+const turns = turnsOn
+  ? createTurns({ auth: userFrom, run: zoneRunner({ exec: { db: (userId) => scopedDb(pool, userId), self, routing }, workerPath: new URL('./turnWorker.ts', import.meta.url).pathname, env: { ...process.env, TURN_SELF: self } }) })
+  : null
+const ai = createAi({ routing, turns: turnsOn, config: aiConfigFromEnv(), backend: backendFromEnv(), store: pgUsageStore((sql, params) => pool.query(sql, params)), auth: userFrom })
 
 // 푸시 알림(32, push.ts): FCM_PROJECT_ID가 비었거나 키가 잘못되면 푸시만 꺼지고 나머지는 그대로 돈다
 const pushConfig = pushConfigFromEnv()
@@ -383,6 +392,7 @@ const routes: Record<string, (req: IncomingMessage) => Promise<[number, unknown]
 
 createServer(async (req, res) => {
   const path = (req.url ?? '/').split('?')[0]
+  if (turns && (await turns.handle(req, res, path))) return
   if (await ai.handle(req, res, path)) return
   if (await push.handle(req, res, path)) return
   if (await media.handle(req, res, path)) return
@@ -402,7 +412,7 @@ createServer(async (req, res) => {
     send(res, 500, { error: 'server error' })
   }
 }).listen(PORT, () => {
-  console.log(`sprout api :${PORT} · tables ${Object.keys(TABLES).length} · push ${push.enabled ? 'on' : 'off'}`)
+  console.log(`sprout api :${PORT} · tables ${Object.keys(TABLES).length} · push ${push.enabled ? 'on' : 'off'} · ai turn ${turnsOn ? 'on' : 'off'}`)
   push.start()
   autoTrash?.start()
   media.start()

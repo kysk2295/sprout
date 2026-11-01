@@ -684,6 +684,8 @@ export type AiDeps = {
   /** Ollama까지 나르는 방법(ai-backend.ts: direct | worker) */
   backend: AiBackend
   routing?: boolean
+  /** 47 §20 서버 턴(/ai/turn, turns.ts)이 켜졌는지 — status features에 알린다 */
+  turns?: boolean
   /** JWT 확인 → 사용자 id. 실패하면 던진다 */
   auth: (req: IncomingMessage) => Promise<string>
   now?: () => number
@@ -805,7 +807,7 @@ export function createAi(deps: AiDeps) {
       default_model: names.includes(cfg.defaultModel) ? cfg.defaultModel : names[0] ?? null,
       backend: deps.backend.name,
       queue: queue.stats(), // 갈래별 길이만(누가 기다리는지는 없다)
-      features: ['agent', 'ground', ...(deps.routing ? ['jev-routing'] : [])], // 47: agent = 자유 대화 + 도구 경로, ground = 근거 검사 횟수 받기(§19.4)
+      features: ['agent', 'ground', ...(deps.routing ? ['jev-routing'] : []), ...(deps.turns ? ['turn'] : [])], // 47: agent = 자유 대화 + 도구 경로, ground = 근거 검사 횟수 받기(§19.4)
       limits: { per_minute: cfg.perMinute, per_day: cfg.perDay, num_ctx: cfg.numCtx, num_predict: cfg.numPredict, timeout_ms: cfg.timeoutMs },
       usage: { today: await deps.store.count(userId, today), weekly, daily }
     }))

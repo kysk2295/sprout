@@ -12,6 +12,7 @@ import { fetch as streamFetch } from 'expo/fetch'
 import { currentUserId, serverAccess } from '../data/auth'
 import { AI_URL } from '../config'
 import { AgentUnsupportedError, runTurn, type AgentWrites, type ChatFn, type TurnEvent, type TurnResult } from '@sprout/schema/assistantAgent'
+import { ndjsonLines, type TurnStart, type TurnTransport } from '@sprout/schema/assistantTurn'
 import type { AgentMemory } from '@sprout/schema/assistantRouter'
 import { eventFieldsOf, type ConfirmCard } from '@sprout/schema/assistantExec'
 import { dayKey } from '../lib/dates'
@@ -63,7 +64,7 @@ async function server(path: string, init: { method?: string; body?: string; sign
   return res
 }
 
-export type AiStatus = { available: boolean; models: string[]; defaultModel: string | null; perDay?: number; usedToday?: number; agent: boolean; assistantDaily: { used: number; limit: number } | null }
+export type AiStatus = { available: boolean; models: string[]; defaultModel: string | null; perDay?: number; usedToday?: number; agent: boolean; turn: boolean; assistantDaily: { used: number; limit: number } | null }
 export async function aiStatus(): Promise<AiStatus> {
   const t = withTimeout(15000)
   try {
@@ -77,6 +78,7 @@ export async function aiStatus(): Promise<AiStatus> {
       perDay: s.limits?.per_day,
       usedToday: s.usage?.today,
       agent: Array.isArray(s.features) && s.features.includes('agent'),
+      turn: Array.isArray(s.features) && s.features.includes('turn'),
       assistantDaily: typeof s.usage?.daily?.assistant?.limit === 'number' ? { used: Number(s.usage.daily.assistant.used) || 0, limit: s.usage.daily.assistant.limit } : null
     }
   } finally { t.done() }
@@ -285,4 +287,27 @@ export async function askAgent(o: { text: string; model: string; turn: string; s
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, db: { getAll: (sql, args) => db.getAll(sql, args ?? []) }, chat: agentChat(o.model),
     turn: o.turn, signal: o.signal, onEvent: o.onEvent
   })
+}
+
+// ── 47 §20 서버에서 도는 턴: 시작·이어 받기·멈춤(서버가 끝까지 돌리고, 앱은 받아 간다) ──
+async function* bodyChunks(res: Awaited<ReturnType<typeof server>>): AsyncIterable<Uint8Array> {
+  const reader = res.body?.getReader()
+  if (!reader) throw new Error('응답 스트림이 비어 있어요.')
+  try {
+    for (;;) { const c = await reader.read(); if (c.done) return; yield c.value }
+  } finally { await reader.cancel().catch(() => {}) }
+}
+export const turnTransport: TurnTransport = {
+  start: async (body: TurnStart, signal) => ndjsonLines(bodyChunks(await server('/ai/turn', { method: 'POST', body: JSON.stringify(body), signal }))),
+  resume: async (turn, after, signal) => ndjsonLines(bodyChunks(await server(`/ai/turn/${encodeURIComponent(turn)}?after=${after}`, { signal }))),
+  cancel: async (turn) => { await server(`/ai/turn/${encodeURIComponent(turn)}/cancel`, { method: 'POST', signal: AbortSignal.timeout?.(8000) }).then((r) => r.body?.cancel?.()).catch(() => {}) }
+}
+/** 서버 턴 시작 몸통 — 기기 설정(일기 동의)·캐릭터 성격을 실어 보낸다. 도구는 서버 DB에서 돈다 */
+export async function turnBody(o: { text: string; model: string; turn: string; history: { user: string; assistant: string }[]; memory: AgentMemory; pending: ConfirmCard | null; name: string; persona?: PersonaId }): Promise<TurnStart> {
+  const [character] = await db.getAll<{ species: string | null }>('SELECT species FROM characters ORDER BY species IS NULL, assessed_at DESC, created_at, id LIMIT 1')
+  const persona = personaIdOf(normalizeSpecies(character?.species)) ?? o.persona
+  return {
+    turn: o.turn, text: o.text, history: o.history, memory: o.memory, pending: o.pending, diary: await assistantDiaryOn(), name: o.name.slice(0, 40),
+    ...(persona ? { persona } : {}), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, ...(o.model ? { model: o.model } : {})
+  }
 }

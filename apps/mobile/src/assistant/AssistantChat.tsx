@@ -246,7 +246,7 @@ export function AssistantChat({ a, variant, autoFocus, bleed, onHeader, contentT
   )
   // v1.8: 말풍선은 '생각 중' 한 줄만(진행 칩·미리 찾은 카드는 넣지 않는다 — 답이 기록으로 올라갈 때 같이 보인다)
   // 사용자 "말풍선을 더 줄여, 캐릭터 크기에 맞게": 점 세 개만(찾는 중·대기 중일 때만 짧은 글자)
-  const thinkingLine = (a.progress.queue ?? 0) > 0 ? `앞에 ${a.progress.queue}명` : a.live?.chips.some((c) => c?.state === 'running') ? '찾는 중' : ''
+  const thinkingLine = a.progress.reconnecting ? '연결이 끊겨서 다시 붙는 중…' : (a.progress.queue ?? 0) > 0 ? `앞에 ${a.progress.queue}명` : a.live?.chips.some((c) => c?.state === 'running') ? '찾는 중' : ''
   const liveBody = a.busy ? (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} accessibilityLabel={thinkingLine || '생각 중'}>
       {thinkingLine ? <Text style={[s.thinkText, { color: tone.ink }]}>{thinkingLine}</Text> : null}
