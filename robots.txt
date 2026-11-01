@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://kysk2295.github.io/sprout/sitemap.xml

@@ -1,0 +1,26 @@
+{
+  "name": "꿈틀",
+  "short_name": "꿈틀",
+  "start_url": "/sprout/",
+  "display": "standalone",
+  "theme_color": "#12715E",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/sprout/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/sprout/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/sprout/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
