@@ -31,7 +31,7 @@ SIGN IN
 Email/password, Sign in with Apple and Google Sign-In are all available on the first screen. Sign in with Apple is offered as an equivalent option to Google Sign-In (Guideline 4.8).
 
 ACCOUNT DELETION
-More (bottom-right tab) > Settings > Account > Delete account. This permanently deletes the account and all synced data on our server. Accounts created with Sign in with Apple are re-authenticated with Apple first, and the Apple token is revoked on deletion. A web page is also available: https://web-production-cd889.up.railway.app/account-deletion?lang=en
+More (bottom-right tab) > Settings > Account > Delete account. This permanently deletes the account and all synced data on our server. Accounts created with Sign in with Apple are re-authenticated with Apple first, and the Apple token is revoked on deletion. A web page is also available: https://kysk2295.github.io/sprout/account-deletion?lang=en
 
 AI FEATURES
 The AI features on iPhone (the assistant chat under More > AI Assistant, the journal conversation with the character, and "plan together" step suggestions for a project) run on our own server (a self-hosted Mac mini with an open-source model). No third-party AI service receives user data. AI requests may take several seconds, and some AI features have a per-user usage limit enforced by the server. If the server is busy, the app shows "AI is not available right now" and every other feature keeps working offline.
@@ -40,7 +40,7 @@ SERVER
 The app syncs with our server at https://macmini.tail425c97.ts.net. It is kept online during review. All traffic uses HTTPS.
 
 PRIVACY
-No analytics, advertising or crash-reporting SDKs. No tracking (no ATT prompt). Data is used only to provide the app's features. Privacy policy: https://web-production-cd889.up.railway.app/privacy?lang=en
+No analytics, advertising or crash-reporting SDKs. No tracking (no ATT prompt). Data is used only to provide the app's features. Privacy policy: https://kysk2295.github.io/sprout/privacy?lang=en
 
 PERMISSIONS
 - Notifications: task reminders and an optional evening journal prompt (9 PM), both scheduled on the device. The journal prompt has "Reply" and two mood buttons; it is asked for only after the user saves a first journal entry, and can be turned off in Journal > ⋯.

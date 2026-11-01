@@ -81,7 +81,7 @@ open ios/*.xcworkspace     # 타깃 3개(앱·SproutShare·SproutWidget) 모두 
 - 이름 **꿈틀**, 부제·설명·키워드: [store/listing.md](store/listing.md)
 - 개인정보(영양 성분표): [store/privacy-answers.md](store/privacy-answers.md)
 - 스크린샷: [store/screenshots/ios](store/screenshots/ios) — `6.9/`·`6.5/` 각 6장, 캡션 `captions.md` (아이폰 전용, iPad 없음)
-- 지원 URL `https://web-production-cd889.up.railway.app/support`, 개인정보 처리방침 `…/privacy`
+- 지원 URL `https://kysk2295.github.io/sprout/support`, 개인정보 처리방침 `…/privacy`
 - 심사 메모(영문): [store/review-notes.md](store/review-notes.md). 데모 계정 비밀번호는 주인에게 따로 받습니다. 데모 데이터는 2026-10-05 기준이라 심사가 늦어지면 주인에게 새로 넣어 달라고 합니다.
 - 심사 기간에는 주인 맥미니 서버가 켜져 있어야 합니다(AI·동기화). 제출 전에 주인에게 알려 주세요.
 
@@ -123,7 +123,7 @@ open ios/*.xcworkspace     # 타깃 3개(앱·SproutShare·SproutWidget) 모두 
 | 흔들기 (49, 들어왔을 때만) | `expo-sensors` | `package.json`에 있으면 가속도계만 씀 — 권한 문구 필요 없음. `NSMotionUsageDescription`은 걸음 수(Pedometer)를 쓸 때만이라 넣지 않음 |
 | 글꼴 Pretendard (44) | `expo-font` 플러그인, `apps/mobile/assets/fonts/` | 빌드 산출물 Info.plist `UIAppFonts`에 Pretendard 파일들이 들어갔는지. 라이선스(SIL OFL 1.1) 파일이 같은 폴더에 있음 — 지우지 말 것 |
 | 앱 아이콘·스플래시 (45 브랜드) | `app.json` `ios.icon`(기본·다크·색조 1024) · `expo-splash-screen` | prebuild 뒤 Xcode `Images.xcassets/AppIcon`에 새 씨앗 아이콘(옛 파랑 아님)과 다크·색조 변형이 있는지. 스토어용 1024는 `docs/release/store/app-store-assets/icon-1024.png` |
-| 캐릭터 그림 종 묶음 (49) | 코드(`src/growth/art/art3dPacks.ts`) — 네이티브 설정 없음 | 앱은 기본 그림만 품고, 큰 그림은 처음 종을 고를 때 `https://web-production-cd889.up.railway.app/art3d/v3/`에서 받아 문서 폴더에 둠. HTTPS라 ATS 예외 필요 없음. 심사 전에 주소 하나가 열리는지 확인(안 열리면 주인에게 — 사이트 배포 문제) |
+| 캐릭터 그림 종 묶음 (49) | 코드(`src/growth/art/art3dPacks.ts`) — 네이티브 설정 없음 | 앱은 기본 그림만 품고, 큰 그림은 처음 종을 고를 때 `https://kysk2295.github.io/sprout/art3d/v3/`에서 받아 문서 폴더에 둠. HTTPS라 ATS 예외 필요 없음. 심사 전에 주소 하나가 열리는지 확인(안 열리면 주인에게 — 사이트 배포 문제) |
 
 - 위 항목이 없는 예전 빌드를 TestFlight에 올렸다면 빌드 번호를 올려 다시 올립니다.
 - 개인정보 답변(`store/privacy-answers.md`)은 위 항목으로 바뀌지 않습니다(휴대폰 캘린더에서 읽기만 한 일정은 기기 안 처리, 꿈틀에서 만든 일정은 이미 "캘린더 일정" 항목 — 같은 파일 26·51줄).

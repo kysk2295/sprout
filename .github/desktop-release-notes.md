@@ -1,4 +1,4 @@
-꿈틀 데스크톱 앱 설치 파일이에요. 소개와 설치 방법: https://web-production-cd889.up.railway.app/#download
+꿈틀 데스크톱 앱 설치 파일이에요. 소개와 설치 방법: https://kysk2295.github.io/sprout/#download
 
 | 컴퓨터 | 파일 |
 |---|---|

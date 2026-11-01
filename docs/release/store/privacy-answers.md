@@ -25,7 +25,7 @@
 - "다른 목적"(광고·분석·개인화 마케팅) 없음 — 모든 항목 목적은 **앱 기능**만.
 - Google 캘린더·맥 캘린더 연결은 데스크톱 전용. 휴대폰(iOS·Android)은 **휴대폰 캘린더**를 OS 권한(iOS 캘린더 전체 접근, Android READ_CALENDAR·WRITE_CALENDAR)으로 연결한다(38). 어느 쪽이든 외부 캘린더에서 읽은 일정·캘린더 이름은 기기 밖으로 나가지 않는다(수집 아님). 꿈틀에서 만들어 그 캘린더에도 저장한 일정은 꿈틀 일정(`events`)으로 동기화되므로 "캘린더 일정" 항목에 이미 포함된다(연결 정보는 해시 값뿐).
 - App Store: 휴대폰 캘린더 읽기는 기기 안 처리라 개인정보 라벨 항목은 바뀌지 않는다. 심사 메모에 "캘린더 권한 = 사용자가 설정에서 연결을 누를 때만, 휴대폰 캘린더 일정을 함께 보여 주고 꿈틀에서 만든 일정을 저장"을 적는다. Google Play는 권한이 늘었으므로 **데이터 보안 양식을 다시 제출**한다(data-safety.md).
-- 개인정보 처리방침 URL: `https://web-production-cd889.up.railway.app/privacy` (영어 `?lang=en`). 연락처: `kysk2295@naver.com` · 운영자: 유니포트(대표 고윤서).
+- 개인정보 처리방침 URL: `https://kysk2295.github.io/sprout/privacy` (영어 `?lang=en`). 연락처: `kysk2295@naver.com` · 운영자: 유니포트(대표 고윤서).
 
 ## 2. Google Play — 데이터 보안 양식
 
@@ -34,7 +34,7 @@
 |---|---|
 | 필수 사용자 데이터 유형을 수집하거나 공유하나요? | 예 |
 | 수집한 모든 사용자 데이터가 전송 중 암호화되나요? | **예** (API·동기화 모두 HTTPS — Tailscale Funnel TLS) |
-| 사용자가 데이터 삭제를 요청할 방법을 제공하나요? | **예** — 앱 내 삭제 + 웹 URL `https://web-production-cd889.up.railway.app/account-deletion` |
+| 사용자가 데이터 삭제를 요청할 방법을 제공하나요? | **예** — 앱 내 삭제 + 웹 URL `https://kysk2295.github.io/sprout/account-deletion` |
 | 계정 생성 | 예(앱에서 계정 생성) → **계정 삭제 URL 필수** |
 | 제3자와 공유 | **아니요** — FCM으로 알림 보내기는 "운영자를 대신해 처리하는 서비스 제공업체로의 전송"이라 Play 기준 "공유" 아님 |
 | 독립 보안 검토(MASA) | 아니요 |
@@ -67,7 +67,7 @@
 | B1 | **Sign in with Apple 필요** — iOS에 Google 로그인이 있으므로 가이드라인 4.8에 따라 Apple 로그인(또는 동등한 개인정보 보호 로그인) 제공. 지금 모바일은 "준비 중" 버튼만 | App Store | **차단** — 구현하거나 iOS에서 Google 로그인을 뺀다 |
 | B2 | Apple 로그인 켜면: 탈퇴 시 Apple REST API로 토큰 폐기(revoke) + 모바일에서 Apple 전용 계정도 앱 안에서 삭제 가능해야 함(지금은 "컴퓨터 앱에서" 안내) | App Store 5.1.1(v) | **차단**(B1과 함께) |
 | B3 | 앱 내 계정 삭제 | 둘 다 | ✅ 있음(모바일 더보기 › 설정 › 계정 › 계정 삭제) |
-| B4 | 계정 삭제 웹 URL·개인정보 처리방침 URL — 공개 도메인 필요(`*.ts.net`은 Tailscale 소유 도메인이라 부적합) | 둘 다 | ✅ 2026-10-05 `https://web-production-cd889.up.railway.app` (Railway 정적 사이트, 이름 꿈틀·운영자 유니포트) |
+| B4 | 계정 삭제 웹 URL·개인정보 처리방침 URL — 공개 도메인 필요(`*.ts.net`은 Tailscale 소유 도메인이라 부적합) | 둘 다 | ✅ 2026-10-05 `https://kysk2295.github.io/sprout` (Railway 정적 사이트, 이름 꿈틀·운영자 유니포트) |
 | B5 | 심사용 데모 계정 + 서버 상시 가동(Mac mini 잠자기 끔) | 둘 다 | 준비 |
 | B6 | iOS 푸시를 켤 때 라벨 "기기 ID" 갱신, APNs 키 | App Store | 나중 |
 | B7 | Android 매니페스트 `SYSTEM_ALERT_WINDOW`·외부 저장소 권한 — 출시 빌드에서 빠지는지 확인(개발 클라이언트 잔여물 의심) | Play | ✅ 1.0.0 출시 빌드에서 제거됨(`plugins/android-release`, [data-safety.md](data-safety.md) §3) |

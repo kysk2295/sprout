@@ -1,7 +1,7 @@
 # Google Play 데이터 보안(Data safety) 답변 — 꿈틀 Android 1.0.0 (versionCode 1)
 
 > 근거: [privacy-answers.md](privacy-answers.md) §2(같은 내용, 이 문서는 Play Console 입력 순서대로 옮긴 것) · [../legal/data-inventory.md](../legal/data-inventory.md) · 실제 빌드 매니페스트(2026-10-05 `bundleRelease`).
-> 개발자: **유니포트**(대표 고윤서, 조직 계정) · 연락처 `kysk2295@naver.com` · 처리방침 `https://web-production-cd889.up.railway.app/privacy`
+> 개발자: **유니포트**(대표 고윤서, 조직 계정) · 연락처 `kysk2295@naver.com` · 처리방침 `https://kysk2295.github.io/sprout/privacy`
 > 코드가 바뀌면 data-inventory → privacy-answers → 이 문서 순서로 고친다.
 
 ## 전제 (이 빌드 기준)
@@ -18,9 +18,9 @@
 |---|---|
 | 앱이 필수 사용자 데이터 유형을 수집하거나 공유하나요? | **예** |
 | 앱에서 수집하는 모든 사용자 데이터가 전송 중에 암호화되나요? | **예** — API·동기화 모두 HTTPS(TLS) |
-| 사용자가 데이터 삭제를 요청할 수 있는 방법을 제공하나요? | **예** — 앱 안(더보기 › 설정 › 계정 › 계정 삭제) + 웹 `https://web-production-cd889.up.railway.app/account-deletion` |
+| 사용자가 데이터 삭제를 요청할 수 있는 방법을 제공하나요? | **예** — 앱 안(더보기 › 설정 › 계정 › 계정 삭제) + 웹 `https://kysk2295.github.io/sprout/account-deletion` |
 | 계정 만들기 방법 | 이메일·비밀번호, Google 로그인 (앱 안에서 계정 생성) |
-| 계정 삭제 URL | `https://web-production-cd889.up.railway.app/account-deletion` |
+| 계정 삭제 URL | `https://kysk2295.github.io/sprout/account-deletion` |
 | 일부 데이터만 삭제 요청(계정 유지) | 예 — 할 일·메모·일기 등은 앱에서 개별 삭제 가능. 별도 요청 URL 칸이 나오면 위 URL과 같게 |
 | 독립 보안 검토(MASA) | 아니요 |
 | 가족 정책 준수 | 해당 없음(대상 연령 16세 이상) |

@@ -1,0 +1,43 @@
+# 소개 사이트(개인정보 처리방침·약관·계정 삭제 안내·휴대폰 캐릭터 그림 묶음) → GitHub Pages
+# 주소: https://kysk2295.github.io/sprout/ (2026-11-02 Railway가 꺼져 옮김 — site/scripts/pages.mjs)
+name: site-pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'docs/release/legal/**'
+      - 'packages/schema/art3d/**'
+      - 'scripts/brand/**'
+      - '.github/workflows/site-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: site-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # 의존성 없음 — build.mjs가 법률 문서(docs/release/legal)와 캐릭터 그림(packages/schema/art3d)을 직접 읽는다
+      - run: node site/build.mjs && node site/scripts/pages.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/.pages
+      - id: deploy
+        uses: actions/deploy-pages@v4

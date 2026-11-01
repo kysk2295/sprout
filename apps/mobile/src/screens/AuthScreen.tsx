@@ -23,8 +23,8 @@ import { GlassButton } from '../ui/Glass'
 import { KeyboardAvoid } from '../ui/KeyboardAvoid'
 
 // 스토어 등록과 같은 주소(docs/release/store/listing.md)
-const TERMS_URL = 'https://web-production-cd889.up.railway.app/terms'
-const PRIVACY_URL = 'https://web-production-cd889.up.railway.app/privacy'
+const TERMS_URL = 'https://kysk2295.github.io/sprout/terms'
+const PRIVACY_URL = 'https://kysk2295.github.io/sprout/privacy'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 

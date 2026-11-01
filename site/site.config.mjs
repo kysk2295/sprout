@@ -5,7 +5,7 @@ export default {
   name: '꿈틀',
   nameEn: 'Kkumteul',
   // 공개 주소(끝에 / 없이). 자체 도메인을 붙이면 바꾼다 — canonical·OG·sitemap에 쓰인다.
-  baseUrl: 'https://web-production-cd889.up.railway.app',
+  baseUrl: 'https://kysk2295.github.io/sprout', // 2026-11-02 Railway(꺼짐) → GitHub Pages(scripts/pages.mjs가 /sprout 경로를 붙임)
   // 연락처(문의·개인정보 요청 같은 주소)
   supportEmail: 'kysk2295@naver.com',
   privacyEmail: 'kysk2295@naver.com',

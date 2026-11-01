@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://play.google.com/store/apps/details?id=app.sprout.mobile"><b>Google Play</b></a>
   &nbsp;·&nbsp;
-  <a href="https://web-production-cd889.up.railway.app"><b>소개 사이트</b></a>
+  <a href="https://kysk2295.github.io/sprout"><b>소개 사이트</b></a>
   &nbsp;·&nbsp;
   <a href="#기능">기능</a>
   &nbsp;·&nbsp;

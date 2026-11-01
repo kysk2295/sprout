@@ -81,7 +81,7 @@
 | 연령 등급 설문 | [진행] 초안 | listing.md. AI 대화(일기·비서)가 있어 "사용자 생성 콘텐츠/AI" 관련 질문 답변 주의 |
 | 스크린샷 6.9"/6.5" | [완료] 2026-10-05 | [store/screenshots/ios/](store/screenshots/ios/) 6장씩 + 캡션. **아이폰 전용**(`supportsTablet: false`) → iPad 스크린샷 필요 없음 |
 | 심사용 데모 계정 + 심사 메모 | [완료] 2026-10-05 | [store/review-notes.md](store/review-notes.md)(영어 본문). 비밀번호는 운영자 맥 `~/.config/sprout/review-account.txt`에만 — 제출자에게 따로 전달. 심사 기간 Mac mini 상시 가동 |
-| 지원 URL·개인정보 처리방침 URL | [완료] | https://web-production-cd889.up.railway.app/support · /privacy · /terms · /account-deletion (`?lang=en` 영어) |
+| 지원 URL·개인정보 처리방침 URL | [완료] | https://kysk2295.github.io/sprout/support · /privacy · /terms · /account-deletion (`?lang=en` 영어) |
 | TestFlight 외부 테스트 | [할 일] | 베타 심사 1회 |
 | EU 디지털서비스법 트레이더 신고 | [사용자] | D4·D6 |
 
@@ -130,7 +130,7 @@
 | 구글 로그인 | [완료] 코드 / [리드] OAuth | 웹 클라이언트 id는 app.config 기본값. **Android OAuth 클라이언트에 업로드 키·Play 앱 서명 키 SHA-1 추가 필요** → §5-1 4단계 |
 | 데이터 보안(Data safety) 양식 | [완료] 답안 | [store/data-safety.md](store/data-safety.md) |
 | 데이터 보안 양식 다시 제출 | [ ] | 캘린더 권한(READ/WRITE_CALENDAR)이 추가된 빌드와 함께 Play Console 데이터 보안을 다시 확인·제출(답은 그대로 — data-safety.md 전제) |
-| 계정 삭제 웹 URL | [완료] | https://web-production-cd889.up.railway.app/account-deletion |
+| 계정 삭제 웹 URL | [완료] | https://kysk2295.github.io/sprout/account-deletion |
 | 콘텐츠 등급(IARC)·타겟층 | [완료] 답안 | play-listing.md §5·§6 (16–17, 18+ 권장) |
 | 스토어 등록정보·그래픽·스크린샷 | [완료] | play-listing.md, `store/play-assets/`(아이콘 512 RGBA, 그래픽 1024×500 "꿈틀"), `store/screenshots/android/` 8장(1080×2400, 2026-10-25 새로 — 일기 대화·앨범·수집함 포함, 09 다크는 예비) |
 | Android 네이티브 폴더 | — | gitignore. 로컬 Gradle로 빌드(아래 §5-1 1단계) |

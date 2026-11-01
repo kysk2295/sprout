@@ -61,8 +61,8 @@
 · 완전 무료, 광고 없음, 분석·추적 도구 없음
 · 언제든 앱에서 계정과 데이터를 완전히 삭제할 수 있어요
 
-개인정보 처리방침: https://web-production-cd889.up.railway.app/privacy
-이용약관: https://web-production-cd889.up.railway.app/terms
+개인정보 처리방침: https://kysk2295.github.io/sprout/privacy
+이용약관: https://kysk2295.github.io/sprout/terms
 문의: kysk2295@naver.com
 ```
 > 컴퓨터 앱(Mac·Windows)이 Play 출시와 같이 공개되지 않으면 "휴대폰·컴퓨터 앱이" → "기기 사이에서"로 바꾼다.
@@ -125,8 +125,8 @@ NO ADS, NO TRACKING
 
 The app is available in Korean only.
 
-Privacy: https://web-production-cd889.up.railway.app/privacy?lang=en
-Terms: https://web-production-cd889.up.railway.app/terms?lang=en
+Privacy: https://kysk2295.github.io/sprout/privacy?lang=en
+Terms: https://kysk2295.github.io/sprout/terms?lang=en
 Contact: kysk2295@naver.com
 ```
 
@@ -137,13 +137,13 @@ Contact: kysk2295@naver.com
 | 태그 | 할 일 목록, 캘린더, 플래너(콘솔이 보여 주는 목록에서 최대 5개) |
 | 이메일(외부 공개 연락처) | `kysk2295@naver.com` |
 | 전화번호 | 비움(선택) |
-| 웹사이트 | `https://web-production-cd889.up.railway.app` |
+| 웹사이트 | `https://kysk2295.github.io/sprout` |
 | 개발자 이름(계정 프로필) | **유니포트** (UniPort) |
 
 ## 4. 앱 콘텐츠(정책) 답변
 | 항목 | 답 |
 |---|---|
-| 개인정보처리방침 | `https://web-production-cd889.up.railway.app/privacy` (운영자: 유니포트, 대표 고윤서) |
+| 개인정보처리방침 | `https://kysk2295.github.io/sprout/privacy` (운영자: 유니포트, 대표 고윤서) |
 | 앱 액세스 | **일부 기능 제한(로그인 필요)** → 심사용 데모 계정 이메일·비밀번호 입력(출시 직전 만든 전용 계정, 이 문서에 쓰지 않음). 안내 문구: `로그인 화면에서 이메일로 가입·로그인을 골라 위 계정으로 로그인하세요. AI 기능(비서·일기 대화·작업 지도)은 운영자 서버에서 처리되어 응답까지 몇 초~수십 초 걸릴 수 있습니다.` |
 | 광고 | 아니요, 광고 없음 |
 | 콘텐츠 등급(IARC) | 아래 §5 |
@@ -156,7 +156,7 @@ Contact: kysk2295@naver.com
 | 건강 앱 | 아니요(건강 기능 없음 — 일기 기분 기록은 메모) |
 | 정확한 알람 | 질문이 나오면 [data-safety.md §4](data-safety.md#4-정확한-알람-exact-alarm) 문구 |
 | 포그라운드 서비스 | 해당 없음(1.0.0 빌드에 FOREGROUND_SERVICE 권한 없음) |
-| 계정 삭제 | URL `https://web-production-cd889.up.railway.app/account-deletion` |
+| 계정 삭제 | URL `https://kysk2295.github.io/sprout/account-deletion` |
 
 ## 5. 콘텐츠 등급(IARC 설문) 답
 | 질문 | 답 |

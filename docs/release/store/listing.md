@@ -11,11 +11,11 @@
 | 번들/패키지 | iOS `app.sprout.mobile` · Android `app.sprout.mobile` — 그대로 유지(사용자에게 안 보임, 바꾸면 새 앱이 됨) |
 | 카테고리 | App Store 주: **생산성(Productivity)**, 부: 라이프스타일(선택) · Play: **생산성** |
 | 가격 | 무료, 앱 내 구입 없음, 광고 없음 |
-| 지원 URL | `https://web-production-cd889.up.railway.app/support` (영어 `?lang=en`) |
-| 마케팅 URL | `https://web-production-cd889.up.railway.app` |
-| 개인정보 처리방침 URL | `https://web-production-cd889.up.railway.app/privacy` (← `docs/release/legal/privacy-policy.ko.md`) |
-| 계정 삭제 URL (Play 필수) | `https://web-production-cd889.up.railway.app/account-deletion` (← `account-deletion.ko.md`) |
-| 이용약관 (App Store 라이선스 계약 칸 / 설명 끝 링크) | `https://web-production-cd889.up.railway.app/terms` |
+| 지원 URL | `https://kysk2295.github.io/sprout/support` (영어 `?lang=en`) |
+| 마케팅 URL | `https://kysk2295.github.io/sprout` |
+| 개인정보 처리방침 URL | `https://kysk2295.github.io/sprout/privacy` (← `docs/release/legal/privacy-policy.ko.md`) |
+| 계정 삭제 URL (Play 필수) | `https://kysk2295.github.io/sprout/account-deletion` (← `account-deletion.ko.md`) |
+| 이용약관 (App Store 라이선스 계약 칸 / 설명 끝 링크) | `https://kysk2295.github.io/sprout/terms` |
 | 저작권 | `© 2026 유니포트` |
 | 운영자(개발자 정보·Play 개발자 이름) | 유니포트(대표 고윤서) / UniPort (Representative: Ko Yunseo). App Store 판매자 이름은 개발자 계정 명의를 따른다 — 계정 명의가 다르면 그 이름이 보인다 |
 | 연락 이메일(지원·개인정보·Play 개발자 연락처) | `kysk2295@naver.com` |
@@ -70,8 +70,8 @@
 · 완전 무료, 광고 없음, 분석·추적 도구 없음
 · 언제든 앱에서 계정과 데이터를 완전히 삭제할 수 있어요
 
-개인정보 처리방침: https://web-production-cd889.up.railway.app/privacy
-이용약관: https://web-production-cd889.up.railway.app/terms
+개인정보 처리방침: https://kysk2295.github.io/sprout/privacy
+이용약관: https://kysk2295.github.io/sprout/terms
 문의: kysk2295@naver.com
 ```
 > 확인: "공유하기로 모으기"는 iOS 공유 확장만 있음(Android 공유 대상 없음) → Play 설명에서는 그 줄을 지운다. iPad는 v1에서 지원하지 않는다(`supportsTablet: false`, 2026-10-09 사용자 결정 — 출시 뒤 1.1 업데이트에서 iPad 화면을 만들고 켠다. 한 번 켜면 끌 수 없음) → 설명에서 iPad를 뺐다. Windows 앱이 스토어 출시와 같이 나가지 않으면 설명의 Windows를 뺀다.
@@ -130,8 +130,8 @@ NO ADS, NO TRACKING
 
 The app is available in Korean only.
 
-Privacy: https://web-production-cd889.up.railway.app/privacy?lang=en
-Terms: https://web-production-cd889.up.railway.app/terms?lang=en
+Privacy: https://kysk2295.github.io/sprout/privacy?lang=en
+Terms: https://kysk2295.github.io/sprout/terms?lang=en
 Contact: kysk2295@naver.com
 ```
 > 1.0 앱 화면은 한국어만 있다(사이트 FAQ와 같음). 영어 설명 끝에 "Korean only"를 밝혀 두었다.
