@@ -2,7 +2,7 @@
 
 제품 소개 첫 화면 + 스토어 제출용 법률·지원 페이지. 프레임워크 없는 정적 HTML/CSS/JS이고, Railway에서 Caddy 한 개로 서빙한다.
 
-- 주소: https://kysk2295.github.io/sprout (GitHub Pages — `main`에 `site/`·`docs/release/legal/`·`packages/schema/art3d/`가 바뀌면 `.github/workflows/site-pages.yml`이 `node build.mjs && node scripts/pages.mjs`로 자동 배포)
+- 주소: https://kysk2295.github.io/sprout (GitHub Pages — `main`에 `site/`·`docs/release/legal/`·`packages/schema/art3d/`가 바뀌면 `.github/workflows/site-pages.yml`이 `node build.mjs && node scripts/pages.mjs`로 자동 배포 — 결과물을 `gh-pages` 브랜치에 올리고 Pages가 그 브랜치를 내보냄. Actions가 막히면(2026-11-02 결제 문제로 잠김) 이 맥에서 `. scripts/node22.sh && site/scripts/publish-gh-pages.sh`)
 - 2026-11-02까지는 Railway(`sprout-site` › `web`)였다. 11-01에 서버가 꺼져(배포 REMOVED) Pages로 옮김. `scripts/pages.mjs`가 루트 주소(`/assets/…`)에 `/sprout`을 붙이고, Caddy가 하던 옛 주소 이동(`/delete-account`, `/privacy-policy`)은 바로 넘기는 HTML로 만든다. `Caddyfile`·`Dockerfile`은 다시 Railway로 갈 때를 위해 남겨 둠.
 
 | 경로 | 내용 | 원본 |

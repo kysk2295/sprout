@@ -13,10 +13,10 @@ on:
       - '.github/workflows/site-pages.yml'
   workflow_dispatch:
 
+# Pages 출처는 gh-pages 브랜치(/) — 결과물을 그 브랜치에 강제로 올리면 GitHub가 배포한다.
+# Actions가 막혔을 때는 이 맥에서 site/scripts/publish-gh-pages.sh로 같은 일을 한다.
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: site-pages
@@ -25,19 +25,14 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       # 의존성 없음 — build.mjs가 법률 문서(docs/release/legal)와 캐릭터 그림(packages/schema/art3d)을 직접 읽는다
-      - run: node site/build.mjs && node site/scripts/pages.mjs
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site/.pages
-      - id: deploy
-        uses: actions/deploy-pages@v4
+      - run: site/scripts/publish-gh-pages.sh
+        env:
+          GH_PAGES_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com

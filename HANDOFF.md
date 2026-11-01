@@ -2,6 +2,12 @@
 
 다른 계정·다른 세션이 이어받을 때 **이 파일부터** 읽는다. 그다음 [CLAUDE.md](CLAUDE.md) → [PRD-sprout.md](PRD-sprout.md) → 해당 화면 명세(`docs/screens/`).
 
+## ★ 2026-11-02 소개 사이트 → GitHub Pages
+- Railway 소개 사이트(web-production-cd889.up.railway.app)가 11-01에 꺼짐(배포 REMOVED) → Play 개인정보 처리방침·계정 삭제 주소, 휴대폰 캐릭터 그림 묶음, 가입 화면 약관 링크가 모두 죽어 있었다.
+- 새 주소 **https://kysk2295.github.io/sprout/** (`/privacy` `/terms` `/account-deletion` `/support`, 옛 `/delete-account`도 이동). Pages 출처 = `gh-pages` 브랜치. 배포: `. scripts/node22.sh && site/scripts/publish-gh-pages.sh` (워크플로 site-pages.yml도 같은 스크립트지만 **GitHub 계정이 결제 문제로 Actions 잠김** — 풀릴 때까지 수동).
+- 앱 코드(AuthScreen 약관 링크, ART3D_PACK_URL)는 바뀌었지만 **다음 빌드(Android versionCode 8 · iOS)부터** 반영. 그 전까지 설치된 1.0.1은 옛 주소를 본다.
+- **사용자 할 일**: Play Console 앱 콘텐츠 › 개인정보처리방침 URL, 데이터 보안 › 계정 삭제 URL을 새 주소로. GitHub 결제 문제 해결.
+
 ## ★ 2026-10-26 새벽 설치·출시 준비 · 장면 카드 v2 · 휴대폰 UX P1
 - **아이폰 실기기(고윤서 iPhone 14 Pro):** 10-14부터 토큰 401로 끊겨 변경 47건이 쌓여 있었음 → 88135c0 이후 Release를 devicectl로 덮어 설치(개인 팀이라 로컬 `ios/app/app.entitlements`에서 aps-environment·applesignin을 잠시 빼고 빌드, 끝나면 되돌림 — `expo run:ios` 설치 단계가 "연결 중"에서 멈추면 `xcrun devicectl device install app`). 같은 계정 다시 로그인 → 47건 업로드 성공, 남은 0. **이 설치본엔 휴대폰 UX P1 고침(64c7d45)이 아직 없음 — 다음에 다시 설치.**
 - **데스크톱 설치본** /Applications/Kkumteul.app 1.0.1 → 1.0.2(오늘 코드, dist:mac). 옛 앱은 ~/Desktop/kkumteul-old-app.
