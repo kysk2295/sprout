@@ -6,6 +6,8 @@
 </p>
 
 <p align="center">
+  <a href="https://play.google.com/store/apps/details?id=app.sprout.mobile"><b>Google Play</b></a>
+  &nbsp;·&nbsp;
   <a href="https://web-production-cd889.up.railway.app"><b>소개 사이트</b></a>
   &nbsp;·&nbsp;
   <a href="#기능">기능</a>
@@ -23,7 +25,8 @@
   <img alt="electron" src="https://img.shields.io/badge/Electron-React%20%2B%20TS-47848F?style=flat-square&logo=electron&logoColor=white">
   <img alt="expo" src="https://img.shields.io/badge/Expo-SDK%2057-000020?style=flat-square&logo=expo&logoColor=white">
   <img alt="sync" src="https://img.shields.io/badge/sync-PowerSync-6C47FF?style=flat-square">
-  <img alt="status" src="https://img.shields.io/badge/status-출시%20준비%20중-F5A623?style=flat-square">
+  <a href="https://play.google.com/store/apps/details?id=app.sprout.mobile"><img alt="Google Play" src="https://img.shields.io/badge/Google%20Play-1.0.1%20출시-12715E?style=flat-square&logo=googleplay&logoColor=white"></a>
+  <img alt="iOS" src="https://img.shields.io/badge/iOS-App%20Store%20준비%20중-F5A623?style=flat-square&logo=apple&logoColor=white">
 </p>
 
 ---
@@ -47,7 +50,8 @@ AI는 우리 서버의 자체 모델에서만 돌고, 요청 원문은 남기지
       <h3>✨ AI 자동 정리</h3>
       새 할 일을 맞는 리스트로 옮기고<br>
       태그와 프로젝트를 저절로 붙입니다<br>
-      확실할 때만 자동, 고친 건 다시 안 건드림
+      확실할 때만 자동, 고친 건 다시 안 건드림<br>
+      AI 비서에게 말로 묻고 할 일·일정 만들기
     </td>
   </tr>
   <tr>
@@ -60,15 +64,18 @@ AI는 우리 서버의 자체 모델에서만 돌고, 요청 원문은 남기지
     <td valign="top">
       <h3>🌱 성장</h3>
       할 일 → XP → 캐릭터 진화<br>
-      거북이 · 다람쥐 · 고양이 · 수달, 알부터 전설까지<br>
+      성향 조사로 달팽이 · 꿀벌 · 애벌레 · 개구리 중 하나가 깨어나<br>
+      씨앗부터 다섯 단계로 자라는 3D 캐릭터, 옷장 · 도감<br>
       주간 목표 · 주간 점검 · 리포트
     </td>
   </tr>
   <tr>
     <td valign="top">
-      <h3>📥 수집함 · 일기</h3>
-      링크와 메모를 모아 LLM 위키로 정리<br>
-      캐릭터와 이야기하는 일기
+      <h3>📔 일기 · 수집함</h3>
+      캐릭터에게 하루를 말하면 AI가 공감하고 일기로 옮겨 줘요<br>
+      매일 한 장의 장면 카드 — 사진이 배경, 없으면 기분 따라 캐릭터가 웃고 울어요<br>
+      한 달 앨범 · 1년 전 오늘 · 혼자 쓰기<br>
+      링크와 메모는 수집함에 모아 LLM 위키로 정리
     </td>
     <td valign="top">
       <h3>📱 어디서나</h3>
@@ -116,6 +123,22 @@ AI는 우리 서버의 자체 모델에서만 돌고, 요청 원문은 남기지
   </tr>
 </table>
 
+<p align="center"><sub><b>휴대폰</b> (Android · iOS)</sub></p>
+<table>
+  <tr>
+    <td width="25%"><img src="docs/release/store/screenshots/android/01-today.png" alt="오늘" width="100%"></td>
+    <td width="25%"><img src="docs/release/store/screenshots/android/02-growth.png" alt="성장" width="100%"></td>
+    <td width="25%"><img src="docs/release/store/screenshots/android/07-diary-chat.png" alt="일기 대화" width="100%"></td>
+    <td width="25%"><img src="docs/release/store/screenshots/android/08-diary-album.png" alt="일기 앨범" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>오늘</b></sub></td>
+    <td align="center"><sub><b>성장</b> — 3D 캐릭터가 자라요</sub></td>
+    <td align="center"><sub><b>일기</b> — 말하면 일기가 돼요</sub></td>
+    <td align="center"><sub><b>앨범</b> — 매일 한 장의 장면</sub></td>
+  </tr>
+</table>
+
 ## 구조
 
 | 폴더 | 내용 |
@@ -125,7 +148,7 @@ AI는 우리 서버의 자체 모델에서만 돌고, 요청 원문은 남기지
 | `packages/schema` | 동기화 테이블 정의와 공용 로직 — 할 일·성장·태그·프로젝트·공휴일·알림 |
 | `packages/tokens` | 디자인 토큰, 테마 13가지 |
 | `server` | Docker Compose: Postgres(`wal_level=logical`) + PowerSync + Node API(인증·업로드·AI 프록시·푸시) |
-| `site` | 소개 사이트, 개인정보 처리방침·약관 (Railway) |
+| `site` | 소개 사이트, 개인정보 처리방침·약관·계정 삭제 안내 (Railway) — 휴대폰 캐릭터 그림 묶음(`/art3d/v4/`)도 여기서 받는다 |
 | `docs` | PRD, 화면 명세, 조사 자료, 출시 자료 |
 
 ## 시작하기
