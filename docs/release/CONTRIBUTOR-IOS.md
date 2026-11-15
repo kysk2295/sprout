@@ -30,6 +30,7 @@ npx expo prebuild --platform ios --clean
 # 확인: npx expo config --json | grep -E 'bundleIdentifier|appGroup|keychainGroup'
 ```
 - 이름을 바꾸면 **주인 쪽에서 두 가지**가 필요하다(§5 표에도 있음): ① 구글 로그인 — Google Cloud 프로젝트 `sprout-510614`에 새 번들 ID용 **iOS OAuth 클라이언트**를 만들어 그 id(공개 값)를 기여자에게 준다. 없으면 아이폰 구글 로그인 버튼이 동작하지 않는다. ② 애플 로그인 — 맥미니 서버 `.env`의 `APPLE_BUNDLE_IDS`에 새 번들 ID를 더하고(쉼표로 옛 값과 함께) API를 다시 띄운다. 없으면 아이폰 애플 로그인이 "aud 불일치"로 실패한다.
+- **2026-11-15 주인 쪽 완료:** ① 새 iOS OAuth 클라이언트 `795271381893-1dt0bahf4loap9ljbr8k1e458hcp232d.apps.googleusercontent.com`(번들 `app.kkumteul.mobile`, 팀 `LU9899WD2P`) — 서버 `GOOGLE_CLIENT_IDS`에도 더함. ② 서버 `APPLE_BUNDLE_IDS=app.sprout.mobile,app.kkumteul.mobile`, API 재시작. 새 팀 애플 키(`HSA25F3WRF`)는 .p8을 받는 대로 서버 `APPLE_TEAM_ID`·`APPLE_KEY_ID`·`APPLE_PRIVATE_KEY`에 넣는다(지금 서버엔 애플 키가 하나도 없어 기존 설정과 부딪치지 않음).
 
 ## 1. 브랜치와 PR 규칙
 - `main`에서 `release/ios` 브랜치를 만들어 작업하고 PR을 엽니다. `main`에 직접 푸시하지 않습니다.
