@@ -1,7 +1,7 @@
 // app.json(정적 설정 전부)을 그대로 받고, 구글 로그인(20 §4.3.1)·푸시(32 §3.3)만 환경에 따라 더한다.
 // - 값은 apps/mobile/.env.local(git 제외, 없어도 된다 — 구글 id는 아래 기본값) — Expo CLI가 이 파일을 읽어 둔 뒤 이 설정을 계산한다.
 //   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID  웹 애플리케이션 클라이언트(토큰 aud — 서버 GOOGLE_CLIENT_IDS에 넣는다)
-//   EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID  iOS 클라이언트(번들 app.sprout.mobile) → iOS URL 스킴(뒤집은 id)을 Info.plist에 넣는다
+//   EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID  iOS 클라이언트(번들별 기본값에 우선) → iOS URL 스킴(뒤집은 id)을 Info.plist에 넣는다
 //   SPROUT_GOOGLE_SERVICES_FILE       Android Firebase 설정(google-services.json) 경로. 없으면 ~/.config/sprout/google-services.json
 //                                     둘 다 없으면 푸시 없이 빌드된다(앱은 로컬 알림만 — 32 §10 I3, 파일은 git에 넣지 않음)
 //   SPROUT_APPLE_TEAM_ID              iOS를 서명할 Apple 팀 ID(기본 app.json의 BU697KN34B). 공유 확장 키체인 그룹·DEVELOPMENT_TEAM이 따라 바뀐다
@@ -31,9 +31,12 @@ function googleServicesFile(): string | undefined {
 }
 
 // 구글 OAuth 클라이언트 id는 공개 값(앱 바이너리·URL 스킴에 그대로 드러난다)이라 기본값을 저장소에 둔다.
-// → .env.local 없이 빌드해도(출시 빌드를 다른 맥에서 만들 때) 구글 로그인이 켜진다. 환경 변수가 있으면 그쪽이 우선.
+// → .env.local 없이 빌드해도 각 번들 ID에 맞는 구글 로그인이 켜진다. 환경 변수가 있으면 그쪽이 우선.
 const GOOGLE_WEB_CLIENT_ID = '795271381893-eucs0durj516igh0uemj0pr7d8slprud.apps.googleusercontent.com'
-const GOOGLE_IOS_CLIENT_ID = '795271381893-fkjrqamlm8sm4cqat5kuoerlbh9goq4j.apps.googleusercontent.com'
+const GOOGLE_IOS_CLIENT_IDS: Record<string, string> = {
+  'app.sprout.mobile': '795271381893-fkjrqamlm8sm4cqat5kuoerlbh9goq4j.apps.googleusercontent.com',
+  'app.kkumteul.mobile': '795271381893-1dt0bahf4loap9ljbr8k1e458hcp232d.apps.googleusercontent.com',
+}
 
 /** ios/<앱>/<앱>.entitlements에 com.apple.developer.applesignin이 있나(이전 prebuild를 SPROUT_APPLE_SIGN_IN=1로 했나) */
 function iosHasAppleSignInEntitlement(): boolean {
@@ -70,7 +73,9 @@ function iosIdentity(): { bundleId?: string; teamId?: string; appGroup?: string 
 }
 
 export default ({ config }: ConfigContext): ExpoConfig => {
-  const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || GOOGLE_IOS_CLIENT_ID
+  const found = iosIdentity()
+  const configuredBundleId = process.env.SPROUT_IOS_BUNDLE_ID?.trim() || found.bundleId || config.ios?.bundleIdentifier || ''
+  const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || GOOGLE_IOS_CLIENT_IDS[configuredBundleId] || ''
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || GOOGLE_WEB_CLIENT_ID
   const plugins = [...(config.plugins ?? [])]
   if (iosClientId && iosClientId.endsWith('.apps.googleusercontent.com')) {
@@ -83,7 +88,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   if (gsf && process.env.SPROUT_PUSH_PLAIN !== '1') plugins.push('./plugins/push-service')
   // 서명 팀·번들 ID·App Group: 환경 변수 → (없으면) prebuild가 만든 ios/ → app.json 기본값 순서.
   // 공유 확장·위젯(36) 플러그인 옵션도 같이 바꾼다(App Group·키체인 그룹은 팀마다 따로)
-  const found = iosIdentity()
   const envTeam = process.env.SPROUT_APPLE_TEAM_ID?.trim()
   const teamId = envTeam && /^[A-Z0-9]{10}$/.test(envTeam) ? envTeam : found.teamId && found.teamId !== 'BU697KN34B' ? found.teamId : undefined
   const bundleId = process.env.SPROUT_IOS_BUNDLE_ID?.trim() || (found.bundleId && found.bundleId !== config.ios?.bundleIdentifier ? found.bundleId : undefined)
