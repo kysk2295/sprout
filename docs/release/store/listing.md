@@ -8,7 +8,7 @@
 | 항목 | 값 |
 |---|---|
 | 앱 이름 | 한국어 `꿈틀: 할 일·캘린더` (10자) · 영어 `Kkumteul: Tasks & Calendar` (26자). 홈 화면 표시 이름은 `꿈틀` |
-| 번들/패키지 | iOS `app.sprout.mobile` · Android `app.sprout.mobile` — 그대로 유지(사용자에게 안 보임, 바꾸면 새 앱이 됨) |
+| 번들/패키지 | iOS `app.kkumteul.mobile` · Android `app.sprout.mobile` (사용자에게 안 보임) |
 | 카테고리 | App Store 주: **생산성(Productivity)**, 부: 라이프스타일(선택) · Play: **생산성** |
 | 가격 | 무료, 앱 내 구입 없음, 광고 없음 |
 | 지원 URL | `https://kysk2295.github.io/sprout/support` (영어 `?lang=en`) |

@@ -77,7 +77,10 @@ const withShareTarget = (config, n) =>
     objects.PBXContainerItemProxy ??= {}
 
     const target = proj.addTarget(TARGET, 'app_extension', TARGET, n.extId)
-    const group = proj.addPbxGroup([...SOURCES, ...RESOURCES, 'Info.plist', `${TARGET}.entitlements`], TARGET, TARGET)
+    // addPbxGroup reuses file references by path alone. Both extensions have an
+    // Info.plist, so adding it here would put one reference in two groups and
+    // make Xcode reject the project. INFOPLIST_FILE below includes it in builds.
+    const group = proj.addPbxGroup([...SOURCES, ...RESOURCES, `${TARGET}.entitlements`], TARGET, TARGET)
     const main = proj.getFirstProject().firstProject.mainGroup
     proj.addToPbxGroup(group.uuid, main)
     proj.addBuildPhase(SOURCES, 'PBXSourcesBuildPhase', 'Sources', target.uuid)

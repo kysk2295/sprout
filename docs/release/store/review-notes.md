@@ -1,4 +1,4 @@
-# App Review 메모 — 꿈틀 (Kkumteul) iOS 1.0.0 (1)
+# App Review 메모 — 꿈틀 (Kkumteul) iOS 1.0.1 (1)
 
 > App Store Connect › 앱 › 버전 › **App Review에 관한 정보**에 아래 영어 본문을 붙여 넣는다.
 > 데모 계정 **비밀번호는 저장소에 두지 않는다** — 운영자 맥의 `~/.config/sprout/review-account.txt`(권한 600)에만 있다. 제출하는 사람에게 따로(메신저 등) 전달하고, App Store Connect의 "로그인 정보" 칸에만 적는다.
@@ -64,4 +64,4 @@ Contact: kysk2295@naver.com
 - [ ] Mac mini 서버가 켜져 있고 `https://macmini.tail425c97.ts.net/health`가 `{"ok":true}` — 심사 기간 내내(잠자기 끔)
 - [ ] 위 계정으로 실기기(TestFlight)에서 로그인되는지 한 번 확인
 - [ ] Apple 로그인 버튼이 진짜로 동작(빌드할 때 `SPROUT_APPLE_SIGN_IN=1`, 서버 `.env`에 Apple 키 값) — 안 되면 위 "SIGN IN" 문단과 맞지 않으니 제출하지 않는다
-- [ ] 위젯 확장(`app.sprout.mobile.widget`)·공유 확장(`app.sprout.mobile.share`) App ID에도 App Group `group.app.sprout.mobile`을 켰다
+- [ ] 위젯 확장(`app.kkumteul.mobile.widget`)·공유 확장(`app.kkumteul.mobile.share`) App ID에도 App Group `group.app.kkumteul.mobile`을 켰다
