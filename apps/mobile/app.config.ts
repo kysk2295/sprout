@@ -78,6 +78,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || GOOGLE_IOS_CLIENT_IDS[configuredBundleId] || ''
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || GOOGLE_WEB_CLIENT_ID
   const plugins = [...(config.plugins ?? [])]
+  // iOS 27 SDK부터 UIKit scene 수명 주기가 필수다. Expo가 Info.plist와 AppDelegate를 함께 구성한다.
+  plugins.push(['expo-build-properties', { ios: { enableSceneSupport: true } }])
   if (iosClientId && iosClientId.endsWith('.apps.googleusercontent.com')) {
     plugins.push(['@react-native-google-signin/google-signin', { iosUrlScheme: reversed(iosClientId) }])
   }
