@@ -58,7 +58,10 @@ const withWidgetTarget = (config, n) =>
     objects.PBXContainerItemProxy ??= {}
 
     const target = proj.addTarget(TARGET, 'app_extension', TARGET, n.extId)
-    const group = proj.addPbxGroup([...SOURCES, 'Info.plist', `${TARGET}.entitlements`], TARGET, TARGET)
+    // Keep Info.plist out of the group: addPbxGroup matches references by path,
+    // and the share extension has a second Info.plist. INFOPLIST_FILE below
+    // still points Xcode to this extension's own plist.
+    const group = proj.addPbxGroup([...SOURCES, `${TARGET}.entitlements`], TARGET, TARGET)
     proj.addToPbxGroup(group.uuid, proj.getFirstProject().firstProject.mainGroup)
     proj.addBuildPhase(SOURCES, 'PBXSourcesBuildPhase', 'Sources', target.uuid)
     proj.addBuildPhase([], 'PBXResourcesBuildPhase', 'Resources', target.uuid)

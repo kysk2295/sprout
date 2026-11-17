@@ -17,7 +17,7 @@
         "dark": "./assets/brand/AppIcon-1024-dark.png",
         "tinted": "./assets/brand/AppIcon-1024-tinted.png"
       },
-      "buildNumber": "1",
+      "buildNumber": "2",
       "privacyManifests": {
         "NSPrivacyTracking": false,
         "NSPrivacyTrackingDomains": [],

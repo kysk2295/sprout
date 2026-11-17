@@ -8,7 +8,7 @@
 | 항목 | 값 |
 |---|---|
 | 앱 이름 | 한국어 `꿈틀: 할 일·캘린더` (10자) · 영어 `Kkumteul: Tasks & Calendar` (26자). 홈 화면 표시 이름은 `꿈틀` |
-| 번들/패키지 | iOS `app.sprout.mobile` · Android `app.sprout.mobile` — 그대로 유지(사용자에게 안 보임, 바꾸면 새 앱이 됨) |
+| 번들/패키지 | iOS `app.kkumteul.mobile` · Android `app.sprout.mobile` (사용자에게 안 보임) |
 | 카테고리 | App Store 주: **생산성(Productivity)**, 부: 라이프스타일(선택) · Play: **생산성** |
 | 가격 | 무료, 앱 내 구입 없음, 광고 없음 |
 | 지원 URL | `https://kysk2295.github.io/sprout/support` (영어 `?lang=en`) |
@@ -153,7 +153,7 @@ Contact: kysk2295@naver.com
 | 성숙한 테마·욕설·공포·약물·성·폭력·도박·경품·루트박스 | 모두 없음 | |
 | 의료 또는 건강·웰니스 주제 | **없음** — 기분 기록은 사용자가 남기는 메모이고 의료·건강 정보를 제공하지 않음. 심사에서 지적되면 "드물게/약하게"로 바꾼다(등급이 오를 수 있음) | `docs/screens/15-diary.md` |
 | AI 생성 콘텐츠 관련 문항(양식에 있으면) | 있음 — 운영자 모델이 생성, 사용자에게만 표시 | |
-| 예상 등급 | **4+** (웰니스 답에 따라 9+/13+) | |
+| App Store Connect 등급 | 콘텐츠 답변으로 계산된 등급은 4+. 이용약관의 만 14세 이상 가입 조건에 맞춰 **16+로 상향 지정**(대한민국 15+) | `docs/release/legal/terms.ko.md` 제4조 |
 
 ### Google Play (IARC 설문)
 | 항목 | 답 |
